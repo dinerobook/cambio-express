@@ -8,6 +8,7 @@ import {
   type CustomerRow,
 } from "../api/customers";
 import { ApiError, downloadCsv } from "../lib/api";
+import { hasPermission } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import { maskPhone } from "../lib/format";
 import {
@@ -44,11 +45,11 @@ export default function Customers() {
 
   const [exporting, setExporting] = useState(false);
 
-  const canExport =
-    identity?.role === "admin"
-    || identity?.role === "owner"
-    || identity?.role === "superadmin";
-  const canMerge = canExport; // same roles
+  // Mirror the API: the CSV dump needs customers.update, a merge
+  // deletes the loser so it needs customers.delete. Role is not the
+  // question — a custom access role can grant or withhold either.
+  const canExport = hasPermission("customers", "update");
+  const canMerge = hasPermission("customers", "delete");
 
   // ── Merge-mode state ────────────────────────────────────
   const [mergeMode, setMergeMode] = useState(false);

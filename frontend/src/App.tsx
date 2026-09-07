@@ -3,8 +3,7 @@ import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 
 import AppShell from "./components/AppShell";
 import RequireAuth from "./components/RequireAuth";
-import RequirePermission from "./components/RequirePermission";
-import RequireRole from "./components/RequireRole";
+import Gate from "./components/Gate";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { Loading, ToastProvider } from "./components/ui";
 import Home from "./routes/Home";
@@ -235,162 +234,162 @@ export default function App() {
           <Route path="home"             element={<Navigate to="/dashboard" replace />} />
           {/* Section-hub tile landings — one per nav section, driven
               by the same role-filtered NAV the sidebar uses. */}
-          <Route path="hub/:key"         element={<SectionHub />} />
-          <Route path="dashboard"        element={<Dashboard />} />
-          <Route path="transfers"        element={<RequirePermission resource="transfers" action="read"><Transfers /></RequirePermission>} />
-          <Route path="transfers/new"      element={<RequirePermission resource="transfers" action="create"><NewTransfer /></RequirePermission>} />
-          <Route path="transfers/:id"         element={<RequirePermission resource="transfers" action="read"><TransferDetail /></RequirePermission>} />
-          <Route path="transfers/:id/edit"    element={<RequirePermission resource="transfers" action="update"><EditTransfer /></RequirePermission>} />
+          <Route path="hub/:key"         element={<Gate><SectionHub /></Gate>} />
+          <Route path="dashboard"        element={<Gate><Dashboard /></Gate>} />
+          <Route path="transfers"        element={<Gate><Transfers /></Gate>} />
+          <Route path="transfers/new"      element={<Gate><NewTransfer /></Gate>} />
+          <Route path="transfers/:id"         element={<Gate><TransferDetail /></Gate>} />
+          <Route path="transfers/:id/edit"    element={<Gate><EditTransfer /></Gate>} />
           {/* Receipt printing surface hidden — see lazy-import comment above. */}
-          <Route path="customers"        element={<RequirePermission resource="customers" action="read"><Customers /></RequirePermission>} />
-          <Route path="daily"            element={<RequirePermission resource="daily_book" action="read"><DailyBook /></RequirePermission>} />
-          <Route path="daily/edit"       element={<RequirePermission resource="daily_book" action="update"><EditDailyBook /></RequirePermission>} />
-          <Route path="reports"          element={<RequirePermission resource="reports" action="read"><Reports /></RequirePermission>} />
-          <Route path="store-reports"    element={<RequirePermission resource="reports" action="read"><Reports collection="store" /></RequirePermission>} />
-          <Route path="store-reports/item-movement" element={<RequirePermission resource="reports" action="read"><ItemMovement /></RequirePermission>} />
-          <Route path="reports/sales-by-company"      element={<RequirePermission resource="reports" action="read"><SalesByCompany /></RequirePermission>} />
-          <Route path="reports/sales-by-service-type" element={<RequirePermission resource="reports" action="read"><SalesByService /></RequirePermission>} />
-          <Route path="reports/sales-by-employee"     element={<RequirePermission resource="reports" action="read"><SalesByEmployee /></RequirePermission>} />
-          <Route path="reports/cashier-productivity"  element={<RequirePermission resource="reports" action="read"><CashierProductivity /></RequirePermission>} />
-          <Route path="reports/top-customers"   element={<RequirePermission resource="reports" action="read"><TopCustomers /></RequirePermission>} />
-          <Route path="reports/top-senders"     element={<RequirePermission resource="reports" action="read"><TopSenders /></RequirePermission>} />
-          <Route path="reports/top-recipients"  element={<RequirePermission resource="reports" action="read"><TopRecipients /></RequirePermission>} />
-          <Route path="reports/new-vs-returning"       element={<RequirePermission resource="reports" action="read"><NewVsReturning /></RequirePermission>} />
-          <Route path="reports/by-destination-country" element={<RequirePermission resource="reports" action="read"><ByDestinationCountry /></RequirePermission>} />
-          <Route path="reports/fees-vs-tax"            element={<RequirePermission resource="reports" action="read"><FeesVsTax /></RequirePermission>} />
-          <Route path="reports/high-value-transfers"   element={<RequirePermission resource="reports" action="read"><HighValueTransfers /></RequirePermission>} />
-          <Route path="reports/cancelled-transfers"    element={<RequirePermission resource="reports" action="read"><CancelledTransfers /></RequirePermission>} />
-          <Route path="reports/ach-volume"             element={<RequirePermission resource="reports" action="read"><AchVolume /></RequirePermission>} />
-          <Route path="reports/returned-check-status"       element={<RequirePermission resource="reports" action="read"><ReturnedCheckStatus /></RequirePermission>} />
-          <Route path="reports/bank-transactions-breakdown" element={<RequirePermission resource="reports" action="read"><BankTxnBreakdown /></RequirePermission>} />
-          <Route path="reports/daily-drops"                 element={<RequirePermission resource="reports" action="read"><DailyDrops /></RequirePermission>} />
-          <Route path="reports/check-deposits"              element={<RequirePermission resource="reports" action="read"><CheckDeposits /></RequirePermission>} />
-          <Route path="reports/bank-rule-audit"             element={<RequirePermission resource="reports" action="read"><BankRuleAudit /></RequirePermission>} />
-          <Route path="reports/bank-charges-by-account"     element={<RequirePermission resource="reports" action="read"><BankChargesByAccount /></RequirePermission>} />
-          <Route path="reports/period-comparison"           element={<RequirePermission resource="reports" action="read"><PeriodComparison /></RequirePermission>} />
-          <Route path="reports/employee-activity"           element={<RequirePermission resource="reports" action="read"><EmployeeActivity /></RequirePermission>} />
-          <Route path="reports/period-pl"                   element={<RequirePermission resource="reports" action="read"><PeriodPL /></RequirePermission>} />
-          <Route path="superadmin/reports/:slug"            element={<RequireRole roles={["superadmin"]}><SuperadminBIDrilldown /></RequireRole>} />
-          <Route path="owner/reports/sales-by-company"      element={<RequireRole roles={["owner"]}><SalesByCompany /></RequireRole>} />
-          <Route path="owner/reports/sales-by-service-type" element={<RequireRole roles={["owner"]}><SalesByService /></RequireRole>} />
-          <Route path="owner/reports/sales-by-employee"     element={<RequireRole roles={["owner"]}><SalesByEmployee /></RequireRole>} />
-          <Route path="owner/reports/cashier-productivity"  element={<RequireRole roles={["owner"]}><CashierProductivity /></RequireRole>} />
-          <Route path="owner/reports/top-customers"  element={<RequireRole roles={["owner"]}><TopCustomers /></RequireRole>} />
-          <Route path="owner/reports/top-senders"    element={<RequireRole roles={["owner"]}><TopSenders /></RequireRole>} />
-          <Route path="owner/reports/top-recipients"        element={<RequireRole roles={["owner"]}><TopRecipients /></RequireRole>} />
-          <Route path="owner/reports/new-vs-returning"       element={<RequireRole roles={["owner"]}><NewVsReturning /></RequireRole>} />
-          <Route path="owner/reports/by-destination-country" element={<RequireRole roles={["owner"]}><ByDestinationCountry /></RequireRole>} />
-          <Route path="owner/reports/fees-vs-tax"            element={<RequireRole roles={["owner"]}><FeesVsTax /></RequireRole>} />
-          <Route path="owner/reports/high-value-transfers"   element={<RequireRole roles={["owner"]}><HighValueTransfers /></RequireRole>} />
-          <Route path="owner/reports/cancelled-transfers"    element={<RequireRole roles={["owner"]}><CancelledTransfers /></RequireRole>} />
-          <Route path="owner/reports/ach-volume"             element={<RequireRole roles={["owner"]}><AchVolume /></RequireRole>} />
-          <Route path="owner/reports/returned-check-status"       element={<RequireRole roles={["owner"]}><ReturnedCheckStatus /></RequireRole>} />
-          <Route path="owner/reports/bank-transactions-breakdown" element={<RequireRole roles={["owner"]}><BankTxnBreakdown /></RequireRole>} />
-          <Route path="owner/reports/daily-drops"                 element={<RequireRole roles={["owner"]}><DailyDrops /></RequireRole>} />
-          <Route path="owner/reports/check-deposits"              element={<RequireRole roles={["owner"]}><CheckDeposits /></RequireRole>} />
-          <Route path="owner/reports/bank-rule-audit"             element={<RequireRole roles={["owner"]}><BankRuleAudit /></RequireRole>} />
-          <Route path="owner/reports/bank-charges-by-account"     element={<RequireRole roles={["owner"]}><BankChargesByAccount /></RequireRole>} />
-          <Route path="owner/reports/period-comparison"           element={<RequireRole roles={["owner"]}><PeriodComparison /></RequireRole>} />
-          <Route path="owner/reports/employee-activity"           element={<RequireRole roles={["owner"]}><EmployeeActivity /></RequireRole>} />
-          <Route path="owner/reports/period-pl"                   element={<RequireRole roles={["owner"]}><PeriodPL /></RequireRole>} />
-          <Route path="batches"          element={<RequirePermission resource="batches" action="read"><Batches /></RequirePermission>} />
-          <Route path="batches/new"      element={<RequirePermission resource="batches" action="create"><BatchForm /></RequirePermission>} />
-          <Route path="batches/:id/edit" element={<RequirePermission resource="batches" action="update"><BatchForm /></RequirePermission>} />
-          <Route path="bank"             element={<RequirePermission resource="bank_sync" action="read"><Bank /></RequirePermission>} />
-          <Route path="bank/rules"       element={<RequirePermission resource="bank_sync" action="read"><BankRules /></RequirePermission>} />
-          <Route path="bank-transactions" element={<RequirePermission resource="bank_sync" action="read"><BankTransactions /></RequirePermission>} />
-          <Route path="monthly"          element={<RequirePermission resource="monthly" action="read"><Monthly /></RequirePermission>} />
-          <Route path="monthly/edit"     element={<RequirePermission resource="monthly" action="update"><EditMonthly /></RequirePermission>} />
-          <Route path="lottery"                element={<RequirePermission resource="lottery" action="read"><Lottery /></RequirePermission>} />
-          <Route path="store-book"             element={<RequirePermission resource="day_close" action="read"><StoreBookMonth /></RequirePermission>} />
-          <Route path="store-book/day"         element={<RequirePermission resource="day_close" action="read"><StoreBookDay /></RequirePermission>} />
+          <Route path="customers"        element={<Gate><Customers /></Gate>} />
+          <Route path="daily"            element={<Gate><DailyBook /></Gate>} />
+          <Route path="daily/edit"       element={<Gate><EditDailyBook /></Gate>} />
+          <Route path="reports"          element={<Gate><Reports /></Gate>} />
+          <Route path="store-reports"    element={<Gate><Reports collection="store" /></Gate>} />
+          <Route path="store-reports/item-movement" element={<Gate><ItemMovement /></Gate>} />
+          <Route path="reports/sales-by-company"      element={<Gate><SalesByCompany /></Gate>} />
+          <Route path="reports/sales-by-service-type" element={<Gate><SalesByService /></Gate>} />
+          <Route path="reports/sales-by-employee"     element={<Gate><SalesByEmployee /></Gate>} />
+          <Route path="reports/cashier-productivity"  element={<Gate><CashierProductivity /></Gate>} />
+          <Route path="reports/top-customers"   element={<Gate><TopCustomers /></Gate>} />
+          <Route path="reports/top-senders"     element={<Gate><TopSenders /></Gate>} />
+          <Route path="reports/top-recipients"  element={<Gate><TopRecipients /></Gate>} />
+          <Route path="reports/new-vs-returning"       element={<Gate><NewVsReturning /></Gate>} />
+          <Route path="reports/by-destination-country" element={<Gate><ByDestinationCountry /></Gate>} />
+          <Route path="reports/fees-vs-tax"            element={<Gate><FeesVsTax /></Gate>} />
+          <Route path="reports/high-value-transfers"   element={<Gate><HighValueTransfers /></Gate>} />
+          <Route path="reports/cancelled-transfers"    element={<Gate><CancelledTransfers /></Gate>} />
+          <Route path="reports/ach-volume"             element={<Gate><AchVolume /></Gate>} />
+          <Route path="reports/returned-check-status"       element={<Gate><ReturnedCheckStatus /></Gate>} />
+          <Route path="reports/bank-transactions-breakdown" element={<Gate><BankTxnBreakdown /></Gate>} />
+          <Route path="reports/daily-drops"                 element={<Gate><DailyDrops /></Gate>} />
+          <Route path="reports/check-deposits"              element={<Gate><CheckDeposits /></Gate>} />
+          <Route path="reports/bank-rule-audit"             element={<Gate><BankRuleAudit /></Gate>} />
+          <Route path="reports/bank-charges-by-account"     element={<Gate><BankChargesByAccount /></Gate>} />
+          <Route path="reports/period-comparison"           element={<Gate><PeriodComparison /></Gate>} />
+          <Route path="reports/employee-activity"           element={<Gate><EmployeeActivity /></Gate>} />
+          <Route path="reports/period-pl"                   element={<Gate><PeriodPL /></Gate>} />
+          <Route path="superadmin/reports/:slug"            element={<Gate><SuperadminBIDrilldown /></Gate>} />
+          <Route path="owner/reports/sales-by-company"      element={<Gate><SalesByCompany /></Gate>} />
+          <Route path="owner/reports/sales-by-service-type" element={<Gate><SalesByService /></Gate>} />
+          <Route path="owner/reports/sales-by-employee"     element={<Gate><SalesByEmployee /></Gate>} />
+          <Route path="owner/reports/cashier-productivity"  element={<Gate><CashierProductivity /></Gate>} />
+          <Route path="owner/reports/top-customers"  element={<Gate><TopCustomers /></Gate>} />
+          <Route path="owner/reports/top-senders"    element={<Gate><TopSenders /></Gate>} />
+          <Route path="owner/reports/top-recipients"        element={<Gate><TopRecipients /></Gate>} />
+          <Route path="owner/reports/new-vs-returning"       element={<Gate><NewVsReturning /></Gate>} />
+          <Route path="owner/reports/by-destination-country" element={<Gate><ByDestinationCountry /></Gate>} />
+          <Route path="owner/reports/fees-vs-tax"            element={<Gate><FeesVsTax /></Gate>} />
+          <Route path="owner/reports/high-value-transfers"   element={<Gate><HighValueTransfers /></Gate>} />
+          <Route path="owner/reports/cancelled-transfers"    element={<Gate><CancelledTransfers /></Gate>} />
+          <Route path="owner/reports/ach-volume"             element={<Gate><AchVolume /></Gate>} />
+          <Route path="owner/reports/returned-check-status"       element={<Gate><ReturnedCheckStatus /></Gate>} />
+          <Route path="owner/reports/bank-transactions-breakdown" element={<Gate><BankTxnBreakdown /></Gate>} />
+          <Route path="owner/reports/daily-drops"                 element={<Gate><DailyDrops /></Gate>} />
+          <Route path="owner/reports/check-deposits"              element={<Gate><CheckDeposits /></Gate>} />
+          <Route path="owner/reports/bank-rule-audit"             element={<Gate><BankRuleAudit /></Gate>} />
+          <Route path="owner/reports/bank-charges-by-account"     element={<Gate><BankChargesByAccount /></Gate>} />
+          <Route path="owner/reports/period-comparison"           element={<Gate><PeriodComparison /></Gate>} />
+          <Route path="owner/reports/employee-activity"           element={<Gate><EmployeeActivity /></Gate>} />
+          <Route path="owner/reports/period-pl"                   element={<Gate><PeriodPL /></Gate>} />
+          <Route path="batches"          element={<Gate><Batches /></Gate>} />
+          <Route path="batches/new"      element={<Gate><BatchForm /></Gate>} />
+          <Route path="batches/:id/edit" element={<Gate><BatchForm /></Gate>} />
+          <Route path="bank"             element={<Gate><Bank /></Gate>} />
+          <Route path="bank/rules"       element={<Gate><BankRules /></Gate>} />
+          <Route path="bank-transactions" element={<Gate><BankTransactions /></Gate>} />
+          <Route path="monthly"          element={<Gate><Monthly /></Gate>} />
+          <Route path="monthly/edit"     element={<Gate><EditMonthly /></Gate>} />
+          <Route path="lottery"                element={<Gate><Lottery /></Gate>} />
+          <Route path="store-book"             element={<Gate><StoreBookMonth /></Gate>} />
+          <Route path="store-book/day"         element={<Gate><StoreBookDay /></Gate>} />
           {/* Day close folded into the store daily book — the day
               sheet carries the register detail as a section. Kept as
               a redirect for bookmarks and old links. */}
           <Route path="day-close"              element={<Navigate to="/store-book" replace />} />
-          <Route path="pos-import"             element={<RequirePermission resource="day_close" action="update"><PosImport /></RequirePermission>} />
+          <Route path="pos-import"             element={<Gate><PosImport /></Gate>} />
           {/* Reading a ticket is a reporting act — day_close.read,
               not the update right that books a day. */}
-          <Route path="transactions"           element={<RequirePermission resource="day_close" action="read"><Transactions /></RequirePermission>} />
-          <Route path="transactions/:id"       element={<RequirePermission resource="day_close" action="read"><TransactionDetail /></RequirePermission>} />
-          <Route path="price-book"             element={<RequirePermission resource="catalog" action="read"><PriceBook /></RequirePermission>} />
-          <Route path="purchase-invoices"      element={<RequirePermission resource="catalog" action="read"><PurchaseInvoices /></RequirePermission>} />
-          <Route path="purchase-invoices/new"  element={<RequirePermission resource="catalog" action="update"><PurchaseInvoiceForm /></RequirePermission>} />
-          <Route path="purchase-invoices/:id"  element={<RequirePermission resource="catalog" action="update"><PurchaseInvoiceForm /></RequirePermission>} />
-          <Route path="return-checks"          element={<RequirePermission resource="return_checks" action="read"><ReturnChecks /></RequirePermission>} />
-          <Route path="return-checks/new"      element={<RequirePermission resource="return_checks" action="create"><ReturnCheckForm /></RequirePermission>} />
-          <Route path="return-checks/:id/edit" element={<RequirePermission resource="return_checks" action="update"><ReturnCheckForm /></RequirePermission>} />
-          <Route path="owner/connect"        element={<RequireRole roles={["owner"]}><OwnerConnect /></RequireRole>} />
-          <Route path="owner/dashboard"      element={<RequireRole roles={["owner"]}><OwnerDashboard /></RequireRole>} />
-          <Route path="owner/locations"      element={<RequireRole roles={["owner"]}><OwnerLocations /></RequireRole>} />
-          <Route path="owner/pl-rollup"      element={<RequireRole roles={["owner"]}><OwnerPLRollup /></RequireRole>} />
-          <Route path="owner/billing"        element={<RequireRole roles={["owner"]}><OwnerBilling /></RequireRole>} />
-          <Route path="owner/reports"        element={<RequireRole roles={["owner"]}><OwnerReports /></RequireRole>} />
-          <Route path="owner/bulk-add-user"          element={<RequireRole roles={["owner"]}><OwnerBulkAddUser /></RequireRole>} />
-          <Route path="owner/cross-store-defaults"   element={<RequireRole roles={["owner"]}><OwnerCrossStoreDefaults /></RequireRole>} />
-          <Route path="owner/users"                  element={<RequireRole roles={["owner"]}><OwnerUsers /></RequireRole>} />
-          <Route path="owner/settings"               element={<RequireRole roles={["owner"]}><OwnerSettings /></RequireRole>} />
-          <Route path="owner/activity"               element={<RequireRole roles={["owner"]}><OwnerActivity /></RequireRole>} />
-          <Route path="owner/bulk-permissions"        element={<RequireRole roles={["owner"]}><OwnerBulkPermissions /></RequireRole>} />
-          <Route path="owner/store/:storeId/permissions" element={<RequireRole roles={["owner"]}><OwnerStorePermissions /></RequireRole>} />
-          <Route path="owner/store/:storeId" element={<RequireRole roles={["owner"]}><OwnerStoreDetail /></RequireRole>} />
-          <Route path="superadmin/dashboard"     element={<RequireRole roles={["superadmin"]}><SuperadminDashboard /></RequireRole>} />
-          <Route path="superadmin/billing"       element={<RequireRole roles={["superadmin"]}><SuperadminBilling /></RequireRole>} />
-          <Route path="superadmin/email-log"     element={<RequireRole roles={["superadmin"]}><SuperadminEmailLog /></RequireRole>} />
-          <Route path="superadmin/health"        element={<RequireRole roles={["superadmin"]}><SuperadminHealth /></RequireRole>} />
-          <Route path="superadmin/maintenance"   element={<RequireRole roles={["superadmin"]}><SuperadminMaintenance /></RequireRole>} />
-          <Route path="superadmin/stores/:id/drill" element={<RequireRole roles={["superadmin"]}><SuperadminStoreDrill /></RequireRole>} />
-          <Route path="superadmin/permissions"   element={<RequireRole roles={["superadmin"]}><SuperadminPermissions /></RequireRole>} />
-          <Route path="superadmin/stores"        element={<RequireRole roles={["superadmin"]}><SuperadminStores /></RequireRole>} />
-          <Route path="superadmin/users"         element={<RequireRole roles={["superadmin"]}><SuperadminUsers /></RequireRole>} />
-          <Route path="superadmin/stores/new"    element={<RequireRole roles={["superadmin"]}><SuperadminStoreForm /></RequireRole>} />
-          <Route path="superadmin/stores/:id/edit" element={<RequireRole roles={["superadmin"]}><SuperadminStoreForm /></RequireRole>} />
-          <Route path="superadmin/audit-log"     element={<RequireRole roles={["superadmin"]}><SuperadminAuditLog /></RequireRole>} />
-          <Route path="superadmin/announcements" element={<RequireRole roles={["superadmin"]}><SuperadminAnnouncements /></RequireRole>} />
-          <Route path="superadmin/tickets"       element={<RequireRole roles={["superadmin", "support"]}><SuperadminTickets /></RequireRole>} />
-          <Route path="superadmin/controls"      element={<RequireRole roles={["superadmin"]}><SuperadminControls /></RequireRole>} />
-          <Route path="superadmin/feature-flags" element={<RequireRole roles={["superadmin"]}><SuperadminFeatureFlags /></RequireRole>} />
-          <Route path="superadmin/discounts"     element={<RequireRole roles={["superadmin"]}><SuperadminDiscounts /></RequireRole>} />
-          <Route path="superadmin/reports"       element={<RequireRole roles={["superadmin"]}><SuperadminReports /></RequireRole>} />
-          <Route path="subscribe"             element={<Subscribe />} />
-          <Route path="subscribe/success"     element={<SubscribeSuccess />} />
-          <Route path="admin/subscription"    element={<RequirePermission resource="settings" action="read"><AdminSubscription /></RequirePermission>} />
-          <Route path="admin/data-export"     element={<RequirePermission resource="reports" action="read"><AdminDataExport /></RequirePermission>} />
-          <Route path="admin/timeclock"               element={<RequirePermission resource="time_clock" action="read"><AdminTimeClock /></RequirePermission>} />
-          <Route path="admin/timeclock/credentials"   element={<RequirePermission resource="time_clock" action="read"><AdminTimeClockCredentials /></RequirePermission>} />
-          <Route path="admin/timeclock/schedule"      element={<RequirePermission resource="time_clock" action="read"><AdminTimeClockSchedule /></RequirePermission>} />
-          <Route path="admin/timeclock/paystub/:id"   element={<RequirePermission resource="time_clock" action="read"><TimeClockPaystub /></RequirePermission>} />
-          <Route path="admin/audit-log"       element={<RequirePermission resource="reports" action="read"><AdminAuditLog /></RequirePermission>} />
-          <Route path="admin/store-permissions" element={<RequirePermission resource="settings" action="read"><StorePermissions /></RequirePermission>} />
+          <Route path="transactions"           element={<Gate><Transactions /></Gate>} />
+          <Route path="transactions/:id"       element={<Gate><TransactionDetail /></Gate>} />
+          <Route path="price-book"             element={<Gate><PriceBook /></Gate>} />
+          <Route path="purchase-invoices"      element={<Gate><PurchaseInvoices /></Gate>} />
+          <Route path="purchase-invoices/new"  element={<Gate><PurchaseInvoiceForm /></Gate>} />
+          <Route path="purchase-invoices/:id"  element={<Gate><PurchaseInvoiceForm /></Gate>} />
+          <Route path="return-checks"          element={<Gate><ReturnChecks /></Gate>} />
+          <Route path="return-checks/new"      element={<Gate><ReturnCheckForm /></Gate>} />
+          <Route path="return-checks/:id/edit" element={<Gate><ReturnCheckForm /></Gate>} />
+          <Route path="owner/connect"        element={<Gate><OwnerConnect /></Gate>} />
+          <Route path="owner/dashboard"      element={<Gate><OwnerDashboard /></Gate>} />
+          <Route path="owner/locations"      element={<Gate><OwnerLocations /></Gate>} />
+          <Route path="owner/pl-rollup"      element={<Gate><OwnerPLRollup /></Gate>} />
+          <Route path="owner/billing"        element={<Gate><OwnerBilling /></Gate>} />
+          <Route path="owner/reports"        element={<Gate><OwnerReports /></Gate>} />
+          <Route path="owner/bulk-add-user"          element={<Gate><OwnerBulkAddUser /></Gate>} />
+          <Route path="owner/cross-store-defaults"   element={<Gate><OwnerCrossStoreDefaults /></Gate>} />
+          <Route path="owner/users"                  element={<Gate><OwnerUsers /></Gate>} />
+          <Route path="owner/settings"               element={<Gate><OwnerSettings /></Gate>} />
+          <Route path="owner/activity"               element={<Gate><OwnerActivity /></Gate>} />
+          <Route path="owner/bulk-permissions"        element={<Gate><OwnerBulkPermissions /></Gate>} />
+          <Route path="owner/store/:storeId/permissions" element={<Gate><OwnerStorePermissions /></Gate>} />
+          <Route path="owner/store/:storeId" element={<Gate><OwnerStoreDetail /></Gate>} />
+          <Route path="superadmin/dashboard"     element={<Gate><SuperadminDashboard /></Gate>} />
+          <Route path="superadmin/billing"       element={<Gate><SuperadminBilling /></Gate>} />
+          <Route path="superadmin/email-log"     element={<Gate><SuperadminEmailLog /></Gate>} />
+          <Route path="superadmin/health"        element={<Gate><SuperadminHealth /></Gate>} />
+          <Route path="superadmin/maintenance"   element={<Gate><SuperadminMaintenance /></Gate>} />
+          <Route path="superadmin/stores/:id/drill" element={<Gate><SuperadminStoreDrill /></Gate>} />
+          <Route path="superadmin/permissions"   element={<Gate><SuperadminPermissions /></Gate>} />
+          <Route path="superadmin/stores"        element={<Gate><SuperadminStores /></Gate>} />
+          <Route path="superadmin/users"         element={<Gate><SuperadminUsers /></Gate>} />
+          <Route path="superadmin/stores/new"    element={<Gate><SuperadminStoreForm /></Gate>} />
+          <Route path="superadmin/stores/:id/edit" element={<Gate><SuperadminStoreForm /></Gate>} />
+          <Route path="superadmin/audit-log"     element={<Gate><SuperadminAuditLog /></Gate>} />
+          <Route path="superadmin/announcements" element={<Gate><SuperadminAnnouncements /></Gate>} />
+          <Route path="superadmin/tickets"       element={<Gate><SuperadminTickets /></Gate>} />
+          <Route path="superadmin/controls"      element={<Gate><SuperadminControls /></Gate>} />
+          <Route path="superadmin/feature-flags" element={<Gate><SuperadminFeatureFlags /></Gate>} />
+          <Route path="superadmin/discounts"     element={<Gate><SuperadminDiscounts /></Gate>} />
+          <Route path="superadmin/reports"       element={<Gate><SuperadminReports /></Gate>} />
+          <Route path="subscribe"             element={<Gate><Subscribe /></Gate>} />
+          <Route path="subscribe/success"     element={<Gate><SubscribeSuccess /></Gate>} />
+          <Route path="admin/subscription"    element={<Gate><AdminSubscription /></Gate>} />
+          <Route path="admin/data-export"     element={<Gate><AdminDataExport /></Gate>} />
+          <Route path="admin/timeclock"               element={<Gate><AdminTimeClock /></Gate>} />
+          <Route path="admin/timeclock/credentials"   element={<Gate><AdminTimeClockCredentials /></Gate>} />
+          <Route path="admin/timeclock/schedule"      element={<Gate><AdminTimeClockSchedule /></Gate>} />
+          <Route path="admin/timeclock/paystub/:id"   element={<Gate><TimeClockPaystub /></Gate>} />
+          <Route path="admin/audit-log"       element={<Gate><AdminAuditLog /></Gate>} />
+          <Route path="admin/store-permissions" element={<Gate><StorePermissions /></Gate>} />
           {/* Unified Employees hub (E-2) — merges the old Cashiers
               roster + Team Users pages into one person-centric
               place. /admin/users/* survives only as the login
               (credentials + role + custom access) form. */}
-          <Route path="employees"               element={<RequirePermission resource="users" action="read"><Employees /></RequirePermission>} />
-          <Route path="employees/new"           element={<RequirePermission resource="users" action="create"><EmployeeForm /></RequirePermission>} />
-          <Route path="employees/:id/edit"      element={<RequirePermission resource="users" action="update"><EmployeeForm /></RequirePermission>} />
+          <Route path="employees"               element={<Gate><Employees /></Gate>} />
+          <Route path="employees/new"           element={<Gate><EmployeeForm /></Gate>} />
+          <Route path="employees/:id/edit"      element={<Gate><EmployeeForm /></Gate>} />
           <Route path="admin/users"             element={<Navigate to="/employees" replace />} />
-          <Route path="admin/users/new"         element={<RequirePermission resource="users" action="create"><AdminUserForm /></RequirePermission>} />
-          <Route path="admin/users/:uid/edit"   element={<RequirePermission resource="users" action="update"><AdminUserForm /></RequirePermission>} />
+          <Route path="admin/users/new"         element={<Gate><AdminUserForm /></Gate>} />
+          <Route path="admin/users/:uid/edit"   element={<Gate><AdminUserForm /></Gate>} />
           <Route path="admin/cashiers"          element={<Navigate to="/employees" replace />} />
-          <Route path="timeclock"             element={<RequirePermission resource="time_clock" action="read"><TimeClock /></RequirePermission>} />
+          <Route path="timeclock"             element={<Gate><TimeClock /></Gate>} />
           <Route path="account/referrals"     element={<Navigate to="/settings/referrals" replace />} />
-          <Route path="account/tickets"      element={<SupportTickets />} />
+          <Route path="account/tickets"      element={<Gate><SupportTickets /></Gate>} />
           {/* Legacy /account/profile — profile is now the first
               tab inside /settings (see the consolidation that
               moved the standalone page into Settings).  Keep a
               redirect for bookmarks + the rare deep link. */}
           <Route path="account/profile"       element={<Navigate to="/settings/profile" replace />} />
-          <Route path="account/notifications" element={<AccountNotifications />} />
-          <Route path="account/activity"      element={<AccountActivity />} />
-          <Route path="account/sessions"      element={<AccountSessions />} />
-          <Route path="tv-display" element={<RequirePermission resource="settings" action="read"><TVDisplayAdmin /></RequirePermission>}>
+          <Route path="account/notifications" element={<Gate><AccountNotifications /></Gate>} />
+          <Route path="account/activity"      element={<Gate><AccountActivity /></Gate>} />
+          <Route path="account/sessions"      element={<Gate><AccountSessions /></Gate>} />
+          <Route path="tv-display" element={<Gate><TVDisplayAdmin /></Gate>}>
             <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<TVDisplayOverview />} />
-            <Route path="content" element={<TVDisplayContent />} />
-            <Route path="device" element={<TVDisplayDevice />} />
+            <Route path="overview" element={<Gate><TVDisplayOverview /></Gate>} />
+            <Route path="content" element={<Gate><TVDisplayContent /></Gate>} />
+            <Route path="device" element={<Gate><TVDisplayDevice /></Gate>} />
           </Route>
-          <Route path="tv-display/countries/:countryId" element={<TVDisplayCountry />} />
+          <Route path="tv-display/countries/:countryId" element={<Gate><TVDisplayCountry /></Gate>} />
           <Route path="settings" element={<Settings />}>
             {/* Profile is the first tab — landing on /settings
                 with no sub-path drops you into Profile so you
@@ -398,15 +397,15 @@ export default function App() {
                 General tab.  /account/profile redirects here
                 for back-compat. */}
             <Route index element={<Navigate to="profile" replace />} />
-            <Route path="profile" element={<SettingsProfile />} />
-            <Route path="general" element={<SettingsGeneral />} />
+            <Route path="profile" element={<Gate><SettingsProfile /></Gate>} />
+            <Route path="general" element={<Gate><SettingsGeneral /></Gate>} />
             {/* Legacy /settings/team — cashier roster moved to
                 /admin/cashiers when HR became its own sidebar
                 section.  Keep a redirect for bookmarks. */}
             <Route path="team" element={<Navigate to="/employees" replace />} />
-            <Route path="billing" element={<SettingsBilling />} />
-            <Route path="referrals" element={<SettingsReferrals />} />
-            <Route path="security" element={<SettingsSecurity />} />
+            <Route path="billing" element={<Gate><SettingsBilling /></Gate>} />
+            <Route path="referrals" element={<Gate><SettingsReferrals /></Gate>} />
+            <Route path="security" element={<Gate><SettingsSecurity /></Gate>} />
           </Route>
           {/* Authed catch-all keeps the AppShell chrome around the 404
               so a stray click doesn't make the user think they got

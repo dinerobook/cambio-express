@@ -77,7 +77,7 @@ export default function AccessRolesManager() {
         </>
       }
       actions={
-        <Button size="sm" onClick={() => setAdding(true)}>
+        <Button size="sm" perm="users.update" onClick={() => setAdding(true)}>
           + New role
         </Button>
       }
@@ -128,11 +128,13 @@ export default function AccessRolesManager() {
                         actions={[
                           {
                             label: "Edit",
+                            perm: "users.update",
                             tone: "primary",
                             onClick: () => setEditing(r),
                           },
                           {
                             label: "Delete",
+                            perm: "users.update",
                             tone: "warning",
                             onClick: () => setConfirmDelete(r),
                           },

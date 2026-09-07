@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
+import { canAccess } from "../../lib/access";
 import styles from "./Tabs.module.css";
 
 /** Horizontal tab bar for splitting long pages into logical areas.
@@ -40,7 +41,11 @@ export function TabsBar({ children }: { children: ReactNode }) {
 
 
 /** URL-routed tab.  Wraps NavLink so React Router computes the
- *  active state automatically based on the current pathname. */
+ *  active state automatically based on the current pathname.
+ *
+ *  A tab whose route the person cannot open is not rendered at all
+ *  (`lib/access.ts`) — an empty tab is the bug this rule exists to
+ *  prevent. Callers don't need their own role checks. */
 export function TabsLink({
   to, children, end = false,
 }: {
@@ -52,6 +57,7 @@ export function TabsLink({
    *  NavLink behavior. */
   end?: boolean;
 }) {
+  if (!canAccess(to)) return null;
   return (
     <NavLink
       to={to}

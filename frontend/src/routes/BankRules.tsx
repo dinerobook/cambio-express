@@ -275,7 +275,10 @@ export default function BankRules() {
               Auto-post matching transactions to daily book
             </Checkbox>
             <div className={styles.formActions}>
-              <Button type="submit" busy={busy} disabled={busy}>
+              <Button
+                type="submit" busy={busy} disabled={busy}
+                perm={editingId ? "bank_sync.update" : "bank_sync.create"}
+              >
                 {editingId ? (busy ? "Saving…" : "Save changes") : (busy ? "Creating…" : "Create rule")}
               </Button>
               {editingId && (
@@ -332,13 +335,14 @@ export default function BankRules() {
                       <RowActions
                         title={r.description || r.desc_match_value || "Rule"}
                         actions={[
-                          { label: "Edit", onClick: () => startEdit(r) },
+                          { label: "Edit", perm: "bank_sync.update", onClick: () => startEdit(r) },
                           {
                             label: r.enabled ? "Disable" : "Enable",
                             onClick: () => handleToggle(r),
                           },
                           {
                             label: "Delete", tone: "danger",
+                            perm: "bank_sync.delete",
                             onClick: () => setPendingDelete(r),
                           },
                         ]}

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 
 import {
   fetchSubscriptionSummary,
@@ -9,7 +8,7 @@ import {
   type SubscriptionSummary,
 } from "../api/billing";
 import { ApiError } from "../lib/api";
-import {
+import { AppLink,
   Breadcrumbs,
   Alert, Button, ButtonLink, Card, ConfirmDialog, ErrorState, Loading,
   PageHeader, PageShell, Pill,
@@ -103,9 +102,9 @@ export default function AdminSubscription() {
             {data.retention_days_left === 1 ? "" : "s"}
           </strong>
           . Resubscribe before then to pick up where you left off.
-          <Link to="/subscribe" className={styles.resubLink}>
+          <AppLink to="/subscribe" className={styles.resubLink}>
             Resubscribe
-          </Link>
+          </AppLink>
         </Alert>
       )}
 
@@ -212,9 +211,9 @@ export default function AdminSubscription() {
         <div className={styles.bannerWarn}>
           Add-ons require an active <strong>Basic</strong> or{" "}
           <strong>Pro</strong> subscription.{" "}
-          <Link to="/subscribe" style={{ color: "inherit", textDecoration: "underline" }}>
+          <AppLink to="/subscribe" style={{ color: "inherit", textDecoration: "underline" }}>
             Choose a plan
-          </Link>{" "}
+          </AppLink>{" "}
           to unlock them.
         </div>
       )}

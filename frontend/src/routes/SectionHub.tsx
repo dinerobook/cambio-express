@@ -1,6 +1,6 @@
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 
-import { PageHeader, PageShell } from "../components/ui";
+import { AppLink, PageHeader, PageShell } from "../components/ui";
 import { Card } from "../components/ui";
 import { filterNavForRole, sectionSlug } from "../components/navConfig";
 import { useSessionStatus } from "../api/account";
@@ -48,7 +48,7 @@ export default function SectionHub() {
       />
       <div className={styles.grid}>
         {group.items.map((item) => (
-          <Link key={item.to} to={item.to} className={styles.tileLink}>
+          <AppLink key={item.to} to={item.to} className={styles.tileLink}>
             <Card interactive>
               <div className={styles.tile}>
                 <span className={styles.iconWrap} aria-hidden="true">
@@ -62,7 +62,7 @@ export default function SectionHub() {
                 </span>
               </div>
             </Card>
-          </Link>
+          </AppLink>
         ))}
       </div>
     </PageShell>

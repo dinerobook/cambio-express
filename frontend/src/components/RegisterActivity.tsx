@@ -1,9 +1,8 @@
-import { Link } from "react-router-dom";
 
 import type {
   ReceiptRow, RegisterActivityBlock,
 } from "../api/dashboard";
-import {
+import { AppLink,
   Card, KpiCard, KpiGrid, Pill, Section, tokens,
 } from "./ui";
 import { fmtMoney2 } from "../lib/formatters";
@@ -31,11 +30,11 @@ export function RegisterActivityTiles({
         label="Receipts"
         value={register.receipts.toLocaleString()}
         sub={
-          <Link to="/transactions" className="ds-link"
+          <AppLink to="/transactions" className="ds-link"
             style={{ color: tokens.accent }}
           >
             {register.is_today ? "Today" : register.date} →
-          </Link>
+          </AppLink>
         }
       />
       <KpiCard
@@ -48,11 +47,11 @@ export function RegisterActivityTiles({
         value={register.voided_tickets.toLocaleString()}
         sub={
           register.voided_tickets > 0 ? (
-            <Link to="/transactions?voided=1" className="ds-link"
+            <AppLink to="/transactions?voided=1" className="ds-link"
               style={{ color: tokens.accent }}
             >
               Review them →
-            </Link>
+            </AppLink>
           ) : "None"
         }
         tone={register.voided_tickets > 0 ? "warning" : "positive"}
@@ -87,16 +86,16 @@ export function RecentReceipts({ receipts }: { receipts: ReceiptRow[] }) {
     <Section
       title="Latest receipts"
       actions={
-        <Link to="/transactions" className="ds-link"
+        <AppLink to="/transactions" className="ds-link"
           style={{ color: tokens.accent }}
         >
           All transactions →
-        </Link>
+        </AppLink>
       }
     >
       <div className={styles.grid}>
         {receipts.map((r) => (
-          <Link
+          <AppLink
             key={r.id}
             to={`/transactions/${r.id}`}
             className={styles.receiptLink}
@@ -130,7 +129,7 @@ export function RecentReceipts({ receipts }: { receipts: ReceiptRow[] }) {
                   : r.business_date}
               </div>
             </Card>
-          </Link>
+          </AppLink>
         ))}
       </div>
     </Section>

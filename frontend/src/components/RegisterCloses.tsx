@@ -71,7 +71,7 @@ export default function RegisterCloses({
           <ButtonLink to="/pos-import" size="sm" tone="secondary">
             Import from register
           </ButtonLink>
-          <Button size="sm" onClick={() => setAdding(true)}>
+          <Button size="sm" perm="day_close.create" onClick={() => setAdding(true)}>
             + Add close
           </Button>
         </div>
@@ -156,11 +156,13 @@ export default function RegisterCloses({
                           actions={[
                             {
                               label: "Edit",
+                              perm: "day_close.update",
                               tone: "primary",
                               onClick: () => setEditing(c),
                             },
                             {
                               label: "Delete",
+                              perm: "day_close.update",
                               tone: "warning",
                               onClick: () => remove(c),
                             },

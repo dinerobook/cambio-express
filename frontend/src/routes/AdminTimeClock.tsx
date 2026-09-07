@@ -239,6 +239,7 @@ export default function AdminTimeClock() {
                         actions={[
                           {
                             label: "Edit", tone: "warning",
+                            perm: "time_clock.update",
                             onClick: () => setModal({ kind: "edit", row: r }),
                           },
                           {
@@ -254,6 +255,7 @@ export default function AdminTimeClock() {
                           },
                           {
                             label: "Delete", tone: "danger",
+                            perm: "time_clock.update",
                             onClick: () => setPendingDelete(r.id),
                           },
                         ]}

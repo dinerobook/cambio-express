@@ -10,8 +10,6 @@ export interface NavItem {
   icon: ReactNode;
   /** Roles that should see this item. Omit for "everyone authed". */
   roles?: string[];
-  /** Required permission as "resource.action". Hidden when missing. */
-  perm?: string;
   /** Module flag that must be ON for this store (business-type
    *  bundles — e.g. "module_money_services"). Hidden when off. */
   flag?: string;

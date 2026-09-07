@@ -81,8 +81,10 @@ describe("filterNavForRole → section-hub resolution", () => {
   });
 
   it("Returned checks lives in Money services; TV display in Displays", () => {
+    // TV display's route needs settings.read; nav visibility comes
+    // from the route table, so the permission has to be held here.
     const groups = filterNavForRole(
-      "admin", ["return_checks.read"], ["module_check_cashing"],
+      "admin", ["return_checks.read", "settings.read"], ["module_check_cashing"],
     );
     const ms = groups.find((g) => g.title === "Money services");
     expect(ms!.items.map((i) => i.label)).toContain("Returned checks");

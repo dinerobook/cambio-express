@@ -70,6 +70,7 @@ export { Loading } from "./Loading";
 export { Pager } from "./Pager";
 export { Pill, type PillTone } from "./Pill";
 export { Alert, type AlertTone } from "./Alert";
+export { AppLink } from "./AppLink";
 export { Button, ButtonLink, type ButtonTone } from "./Button";
 export { Modal, ConfirmDialog } from "./Modal";
 export {

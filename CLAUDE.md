@@ -72,6 +72,17 @@ Non-negotiables:
   (active=accent, inactive=neutral, pending=warning,
   failed=negative). When a new pattern is needed, add it to that file
   in the same PR.
+- **No access, no control — see
+  [UI-STANDARDS.md §8](docs/design-system/UI-STANDARDS.md).** A
+  person who cannot open a page must not see the tab, link,
+  button or row action that leads there. Route access lives in
+  ONE table, `frontend/src/lib/access.ts`; `<Gate>` guards every
+  authed route from it and `ButtonLink` / `TabsLink` / `AppLink`
+  hide themselves from it. In-page actions declare
+  `perm="resource.action"` (`Button`, `RowActions`). Never gate
+  UI on `identity.role` — a custom access role can grant or
+  withhold any right. `access.test.ts` fails when a route in
+  `App.tsx` has no table entry.
 - **Dark by default; light is opt-in.** ``data-theme`` flips
   between ``"dark"`` (default) and ``"light"`` (per-user
   preference, stored on ``User.theme_preference``). The light

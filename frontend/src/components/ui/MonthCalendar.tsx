@@ -83,7 +83,10 @@ export function MonthCalendar({
   /** ISO date to highlight as today, if it falls in this month. */
   today?: string;
   dayFor: (iso: string) => MonthCalendarDay | undefined;
-  hrefFor: (iso: string) => string;
+  /** Where a day cell leads. Return null for a cell that should
+   *  render as a plain tile — the caller decides from lib/access
+   *  whether the person can open the editor. */
+  hrefFor: (iso: string) => string | null;
   ariaLabelFor?: (iso: string) => string;
 }) {
   const firstWeekday = new Date(year, month - 1, 1).getDay();
@@ -121,13 +124,8 @@ export function MonthCalendar({
             "ds-card--interactive",
           ].filter(Boolean).join(" ");
 
-          return (
-            <Link
-              key={iso}
-              to={hrefFor(iso)}
-              className={cls}
-              aria-label={ariaLabelFor?.(iso) ?? `Open ${iso}`}
-            >
+          const inner = (
+            <>
               <div className={styles.cellHeader}>
                 <span className={styles.cellDay}>{day}</span>
                 {info?.locked && (
@@ -182,7 +180,23 @@ export function MonthCalendar({
                   )}
                 </div>
               )}
+            </>
+          );
+          const href = hrefFor(iso);
+          const label = ariaLabelFor?.(iso) ?? `Open ${iso}`;
+          // No reachable editor → a plain tile, not a link that bounces.
+          return href ? (
+            <Link key={iso} to={href} className={cls} aria-label={label}>
+              {inner}
             </Link>
+          ) : (
+            <div
+              key={iso}
+              className={cls.replace(" ds-card--interactive", "")}
+              aria-label={label}
+            >
+              {inner}
+            </div>
           );
         })}
       </div>

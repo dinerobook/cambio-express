@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
   BarElement,
   CategoryScale,
@@ -15,7 +15,7 @@ import { Bar, Line } from "react-chartjs-2";
 import { api, downloadCsv } from "../../lib/api";
 import { chartSeries, countChartOptions, moneyChartOptions, seriesFill } from "../../lib/chartOptions";
 import { fmtShortDate } from "../../lib/formatters";
-import {
+import { AppLink,
   Button, Card, DateInput, EmptyState, ErrorState, KpiCard, KpiGrid,
   PageHeader, PageShell, TableSkeleton, tdStyle, thStyle, tokens,
 } from "../../components/ui";
@@ -165,7 +165,7 @@ export default function SuperadminBIDrilldown() {
   return (
     <PageShell gap="1.25rem">
       <div>
-        <Link to="/superadmin/reports" className={styles.backLink}>← Platform Reports</Link>
+        <AppLink to="/superadmin/reports" className={styles.backLink}>← Platform Reports</AppLink>
         <PageHeader
           title={title}
           actions={(

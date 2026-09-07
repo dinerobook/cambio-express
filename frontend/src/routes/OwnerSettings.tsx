@@ -1,8 +1,7 @@
-import { Link } from "react-router-dom";
 
 import { useOwnerLocations } from "../api/owner";
 import { useProfile } from "../api/account";
-import {
+import { AppLink,
   Breadcrumbs, Card, KpiCard, KpiGrid, Loading, PageHeader, PageShell,
   Pill, SectionTitle,
   ErrorState,
@@ -43,9 +42,9 @@ export default function OwnerSettings() {
           <span>{profile?.phone || "—"}</span>
         </div>
         <div className={styles.editRow}>
-          <Link to="/settings/profile" className={styles.editLink}>
+          <AppLink to="/settings/profile" className={styles.editLink}>
             Edit profile →
-          </Link>
+          </AppLink>
         </div>
       </Card>
 
@@ -68,21 +67,21 @@ export default function OwnerSettings() {
           <SectionTitle>Linked stores</SectionTitle>
           <div className={styles.storeList}>
             {locations.rows.map((s) => (
-              <Link
+              <AppLink
                 key={s.store_id}
                 to={`/owner/store/${s.store_id}`}
                 className={styles.storeRow}
               >
                 <span className={styles.storeName}>{s.store_name}</span>
                 <Pill tone="accent">{s.transfer_count} transfers</Pill>
-              </Link>
+              </AppLink>
             ))}
             {storeCount === 0 && (
               <Empty>
                 No stores linked yet.{" "}
-                <Link to="/owner/connect" className={styles.emptyLink}>
+                <AppLink to="/owner/connect" className={styles.emptyLink}>
                   Generate a connect code
-                </Link>{" "}
+                </AppLink>{" "}
                 to get started.
               </Empty>
             )}
@@ -103,9 +102,9 @@ export default function OwnerSettings() {
 
 function QuickLink({ to, title, desc }: { to: string; title: string; desc: string }) {
   return (
-    <Link to={to} className={styles.quickLink}>
+    <AppLink to={to} className={styles.quickLink}>
       <div className={styles.quickTitle}>{title}</div>
       <div className={styles.quickDesc}>{desc}</div>
-    </Link>
+    </AppLink>
   );
 }

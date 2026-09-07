@@ -1,4 +1,4 @@
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import {
   CategoryScale, Chart as ChartJS, Filler, LinearScale, LineElement,
   PointElement, Tooltip as ChartTooltip,
@@ -23,7 +23,7 @@ ChartJS.register(
   ChartTooltip,
 );
 import { useStoreInfo } from "../api/account";
-import {
+import { AppLink,
   ButtonLink,
   Card,
   ErrorState,
@@ -166,9 +166,9 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
               label="Today's sales"
               value={fmtMoney2(d.sales.today)}
               sub={
-                <Link to="/store-book" className="ds-link" style={{ color: tokens.accent }}>
+                <AppLink to="/store-book" className="ds-link" style={{ color: tokens.accent }}>
                   Open daily book →
-                </Link>
+                </AppLink>
               }
               tone="positive"
             />
@@ -223,11 +223,11 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
             label="Purchases (30d)"
             value={fmtMoney2(d.purchases.d30)}
             sub={
-              <Link to="/purchase-invoices" className="ds-link" style={{ color: tokens.accent }}>
+              <AppLink to="/purchase-invoices" className="ds-link" style={{ color: tokens.accent }}>
                 {d.purchases.open_count > 0
                   ? `${d.purchases.open_count} open · ${fmtMoney2(d.purchases.open_total)} →`
                   : "All invoices paid →"}
-              </Link>
+              </AppLink>
             }
             tone={d.purchases.open_count > 0 ? "warning" : "positive"}
           />
@@ -236,11 +236,11 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
           label="Clocked in now"
           value={d.clocked_in.length.toLocaleString()}
           sub={
-            <Link to="/admin/timeclock" className="ds-link" style={{ color: tokens.accent }}>
+            <AppLink to="/admin/timeclock" className="ds-link" style={{ color: tokens.accent }}>
               {d.clocked_in.length > 0
                 ? d.clocked_in.map((c) => c.name).slice(0, 3).join(", ")
                 : "Open time clock →"}
-            </Link>
+            </AppLink>
           }
           tone={d.clocked_in.length > 0 ? "positive" : "neutral"}
         />
@@ -259,9 +259,9 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                 "—"
               )
             ) : (
-              <Link to="/bank" className="ds-link" style={{ color: tokens.accent }}>
+              <AppLink to="/bank" className="ds-link" style={{ color: tokens.accent }}>
                 Connect via Stripe →
-              </Link>
+              </AppLink>
             )
           }
           tone={d.stripe_accounts.length > 0 ? "positive" : "neutral"}
@@ -271,9 +271,9 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
             label={`Net income (${monthName})`}
             value={`$${Math.round(d.kpis.net_income_month).toLocaleString()}`}
             sub={
-              <Link to="/monthly" className="ds-link" style={{ color: tokens.accent }}>
+              <AppLink to="/monthly" className="ds-link" style={{ color: tokens.accent }}>
                 View P&amp;L →
-              </Link>
+              </AppLink>
             }
             tone={d.kpis.net_income_month >= 0 ? "positive" : "negative"}
           />
@@ -480,13 +480,13 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
             label="Today's MSB daily book"
             value={d.kpis.today_report_entered ? "Entered" : "Pending"}
             sub={
-              <Link
+              <AppLink
                 to={`/daily/edit?date=${d.today}`}
                 className="ds-link"
                 style={{ color: tokens.accent }}
               >
                 {d.kpis.today_report_entered ? "Edit report" : "Enter now →"}
-              </Link>
+              </AppLink>
             }
             tone={d.kpis.today_report_entered ? "positive" : "warning"}
           />
@@ -724,9 +724,9 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
             label={`Store sales (${shortDate(d.day_close.date)})`}
             value={fmtMoney2(d.day_close.gross_sales)}
             sub={
-              <Link to="/store-book" className="ds-link" style={{ color: tokens.accent }}>
+              <AppLink to="/store-book" className="ds-link" style={{ color: tokens.accent }}>
                 Open daily book →
-              </Link>
+              </AppLink>
             }
           />
         )}
@@ -739,9 +739,9 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
                 : "Done"
             }
             sub={
-              <Link to="/lottery" className="ds-link" style={{ color: tokens.accent }}>
+              <AppLink to="/lottery" className="ds-link" style={{ color: tokens.accent }}>
                 Count packs →
-              </Link>
+              </AppLink>
             }
             tone={
               d.lottery.uncounted_active_packs > 0 ? "warning" : "positive"
@@ -806,13 +806,13 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
                     <StatusPill value={t.status} />
                   </td>
                   <td style={dashTdStyle}>
-                    <Link
+                    <AppLink
                       to={`/transfers/${t.id}/edit`}
                       className="ds-link"
                       style={{ color: tokens.accent, fontSize: fontSize.sm }}
                     >
                       Edit
-                    </Link>
+                    </AppLink>
                   </td>
                 </tr>
               ))}
@@ -941,12 +941,12 @@ function SuperadminPanel({ d }: { d: SuperadminContextLite & { role: string } })
 
 function QuickLink({ to, title, desc }: { to: string; title: string; desc: string }) {
   return (
-    <Link to={to} style={{ textDecoration: "none", color: "inherit" }}>
+    <AppLink to={to} style={{ textDecoration: "none", color: "inherit" }}>
       <Card interactive padding={space.lg}>
         <div style={{ fontWeight: 600, marginBottom: space.xs }}>{title}</div>
         <div style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>{desc}</div>
       </Card>
-    </Link>
+    </AppLink>
   );
 }
 

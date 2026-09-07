@@ -43,17 +43,12 @@ import styles from "./Settings.module.css";
 
 export default function Settings() {
   const identity = getCurrentIdentity();
-  // Owners run cross-store via the umbrella — billing happens
-  // per-store inside each connected store's admin context, not
-  // at the owner level.  The /settings/billing route still
-  // exists (SubscriptionCard renders empty for store_id == null),
-  // but the tab is hidden from the bar so owners don't click into
-  // a no-op page.
-  const role = identity?.role;
-  const showGeneral = role !== "superadmin";
-  const showBilling = role !== "owner" && role !== "superadmin";
-  const showReferrals = role === "admin";
-
+  // Which tabs show is NOT decided here. Each TabsLink hides itself
+  // when the person cannot open its route (lib/access.ts), and the
+  // route's <Gate> reads the same table — so a tab can never lead
+  // to an empty page. An employee without settings rights sees
+  // Profile + Security; an owner sees no Billing (they pay per store
+  // from inside that store); superadmin sees no General (no store).
   return (
     <PageShell maxWidth="60rem" gap="1rem">
 
@@ -61,9 +56,9 @@ export default function Settings() {
 
       <TabsBar>
         <TabsLink to="/settings/profile">Profile</TabsLink>
-        {showGeneral && <TabsLink to="/settings/general">General</TabsLink>}
-        {showBilling && <TabsLink to="/settings/billing">Billing</TabsLink>}
-        {showReferrals && <TabsLink to="/settings/referrals">Referrals</TabsLink>}
+        <TabsLink to="/settings/general">General</TabsLink>
+        <TabsLink to="/settings/billing">Billing</TabsLink>
+        <TabsLink to="/settings/referrals">Referrals</TabsLink>
         <TabsLink to="/settings/security">Security</TabsLink>
       </TabsBar>
 

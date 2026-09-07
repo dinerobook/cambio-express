@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 
 import { useTransactions } from "../api/posimport";
-import {
+import { AppLink,
   Breadcrumbs, Card, Checkbox, EmptyState, ErrorState, Field, InfoTip,
   Input, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pager, Pill,
   Section, Select, Table, tdStyle, thStyle, tokens,
@@ -167,9 +166,9 @@ export default function Transactions() {
                             : t.business_date}
                         </td>
                         <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                          <Link to={`/transactions/${t.id}`} className="ds-link">
+                          <AppLink to={`/transactions/${t.id}`} className="ds-link">
                             {t.transaction_no || `#${t.id}`}
-                          </Link>
+                          </AppLink>
                         </td>
                         <td style={tdStyle}>{t.register_id || "—"}</td>
                         <td style={tdStyle}>{t.cashier_id || "—"}</td>

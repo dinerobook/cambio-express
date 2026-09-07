@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   CategoryScale, Chart as ChartJS, Filler, LinearScale, LineElement,
   PointElement, Tooltip, BarElement,
@@ -8,7 +8,7 @@ import { Bar, Line } from "react-chartjs-2";
 
 import { unlinkStore, useOwnerStoreDetail } from "../api/owner";
 import { ApiError } from "../lib/api";
-import {
+import { AppLink,
   Breadcrumbs, Button,
   Card, ConfirmDialog, ErrorState, KpiCard, KpiGrid, Loading,
   PageHeader, PageShell, Section, TabsBar, TabsButton, Table, tdStyle,
@@ -68,7 +68,7 @@ export default function OwnerStoreDetail() {
   return (
     <PageShell gap="1.25rem">
       <div>
-        <Link to="/owner/locations" className={styles.backLink}>← All locations</Link>
+        <AppLink to="/owner/locations" className={styles.backLink}>← All locations</AppLink>
 
         <Breadcrumbs crumbs={[{ label: "Locations", to: "/owner/locations" }, { label: "Store detail" }]} />
 
@@ -87,11 +87,11 @@ export default function OwnerStoreDetail() {
                   </TabsButton>
                 ))}
               </TabsBar>
-              <Link to={`/owner/store/${sid}/permissions`}>
+              <AppLink to={`/owner/store/${sid}/permissions`}>
                 <Button size="sm" tone="secondary" type="button">
                   Permissions
                 </Button>
-              </Link>
+              </AppLink>
               <Button
                 size="sm" tone="secondary"
                 onClick={() => setConfirmUnlink(true)}

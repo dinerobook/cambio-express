@@ -1,8 +1,7 @@
-import { Link } from "react-router-dom";
 
 import { useDashboardSummary } from "../api/dashboard";
 import { fmtNumber } from "../lib/formatters";
-import {
+import { AppLink,
   Breadcrumbs,
   ErrorState, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Section,
 } from "../components/ui";
@@ -180,9 +179,9 @@ function QuickLink({
   to, title, desc,
 }: { to: string; title: string; desc: string }) {
   return (
-    <Link to={to} className={styles.quickLink}>
+    <AppLink to={to} className={styles.quickLink}>
       <div className={styles.quickLinkTitle}>{title}</div>
       <div className={styles.muted}>{desc}</div>
-    </Link>
+    </AppLink>
   );
 }

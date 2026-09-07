@@ -12,7 +12,7 @@ import { formatDate } from "../lib/datetime";
 import { fmtMoney2 } from "../lib/formatters";
 import AccessRolesManager from "../components/AccessRolesManager";
 import {
-  Breadcrumbs, ButtonLink, Card, ConfirmDialog, Empty, PageHeader,
+  Breadcrumbs, ButtonLink, Card, ConfirmDialog, PageHeader,
   PageShell, Pill, RowActions, Section, Table, TableStates, tdStyle,
   thStyle, useToast,
 } from "../components/ui";
@@ -82,17 +82,9 @@ export default function Employees() {
     }
   }
 
-  if (
-    !identity
-    || (identity.role !== "admin" && identity.role !== "owner")
-  ) {
-    return (
-      <PageShell>
-        <PageHeader title="Employees" />
-        <Empty>You need a store-admin sign-in to manage employees.</Empty>
-      </PageShell>
-    );
-  }
+  // Who may be here is the route table's call (users.read via
+  // <Gate>), not a role check duplicated in the page.
+  if (!identity) return null;
 
   const rows = data?.rows ?? [];
   const loginOnly = data?.login_only ?? [];
@@ -183,6 +175,7 @@ export default function Employees() {
                       actions={[
                         {
                           label: "Edit",
+                          perm: "users.update",
                           onClick: () => navigate(`/employees/${r.id}/edit`),
                         },
                         {
@@ -190,6 +183,7 @@ export default function Employees() {
                           // "who can sign in" is the most common
                           // reason to open somebody's record.
                           label: r.login ? "Manage access" : "Add login",
+                          perm: "users.update",
                           onClick: () => navigate(
                             `/employees/${r.id}/edit?tab=login`,
                           ),
@@ -197,11 +191,13 @@ export default function Employees() {
                         r.is_active
                           ? {
                               label: "Deactivate", tone: "danger" as const,
+                              perm: "users.update",
                               onClick: () => setConfirmRow(r),
                               disabled: busy,
                             }
                           : {
                               label: "Reactivate",
+                              perm: "users.update",
                               onClick: () => { void toggleActive(r); },
                               disabled: busy,
                             },
@@ -251,6 +247,7 @@ export default function Employees() {
                         actions={[
                           {
                             label: "Create employee record",
+                            perm: "users.create",
                             onClick: () => { void adoptLogin(u); },
                             disabled: busy,
                           },
