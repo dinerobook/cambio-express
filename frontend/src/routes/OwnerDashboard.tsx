@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import {
   CategoryScale, Chart as ChartJS, Filler, LinearScale, LineElement,
   PointElement, Tooltip,
@@ -7,7 +6,7 @@ import {
 import { Line } from "react-chartjs-2";
 
 import { useOwnerDashboard } from "../api/owner";
-import {
+import { AppLink,
   Breadcrumbs,
   Card, ErrorState, KpiCard, KpiGrid, Loading, PageHeader, PageShell,
   Section, TabsBar, TabsButton, Table, tdStyle, thStyle,
@@ -118,7 +117,7 @@ export default function OwnerDashboard() {
           <Section title="Stores">
             <div className={styles.storeGrid}>
               {data.stores.map((s) => (
-                <Link key={s.id} to={`/owner/store/${s.id}`} className={styles.storeCard}>
+                <AppLink key={s.id} to={`/owner/store/${s.id}`} className={styles.storeCard}>
                   <div className={styles.storeName}>{s.name}</div>
                   <div className={styles.storeMeta}>
                     {s.count.toLocaleString()} transfers ·{" "}
@@ -127,7 +126,7 @@ export default function OwnerDashboard() {
                   <div className={styles.storeOver}>
                     {s.over_short >= 0 ? "+" : "-"}{fmtMoney2(Math.abs(s.over_short))} over/short
                   </div>
-                </Link>
+                </AppLink>
               ))}
               {data.stores.length === 0 && (
                 <Empty>No stores linked yet.</Empty>

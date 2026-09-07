@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 
 import {
   fetchSubscriptionSummary, openBillingPortal, startCheckout,
@@ -7,7 +6,7 @@ import {
 } from "../api/billing";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import {
+import { AppLink,
   Breadcrumbs,
   Alert, Button, Card, Empty, Loading, PageHeader, PageShell, Pill,
 } from "../components/ui";
@@ -149,7 +148,7 @@ export default function Subscribe() {
         subtitle={(
           <>
             Cancel any time from{" "}
-            <Link to="/settings" className={styles.inlineLink}>Settings</Link>.
+            <AppLink fallback="text" to="/settings" className={styles.inlineLink}>Settings</AppLink>.
             Yearly billing saves two months.
           </>
         )}

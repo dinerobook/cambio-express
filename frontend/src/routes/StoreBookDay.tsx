@@ -220,6 +220,7 @@ export default function StoreBookDay() {
             <Button
               tone={locked ? "primary" : "secondary"} size="sm"
               busy={busy}
+              perm="day_close.update"
               onClick={() => {
                 if (locked) void onToggleLock();
                 else setConfirmLock(true);

@@ -48,4 +48,20 @@ describe("<StoreGate>", () => {
     renderGate({ reason: "subscription", storeName: "Cambio Express" });
     expect(screen.getByText(/Cambio Express/)).toBeInTheDocument();
   });
+
+  it("an employee cannot pay: no CTA, told to ask the store admin", () => {
+    // The setup file signs in a full-permission admin; this test is
+    // about the person who is NOT allowed onto /subscribe.
+    window.localStorage.setItem("db.identity", JSON.stringify({
+      user_id: 2, username: "cashier", full_name: "Cashier",
+      role: "employee", store_id: 1, permissions: ["transfers.read"],
+    }));
+    renderGate({ reason: "subscription" });
+    expect(
+      screen.queryByRole("link", { name: /re-subscribe/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/store admin to re-subscribe/i)).toBeInTheDocument();
+    // Log out is still there — they are not stranded.
+    expect(screen.getByRole("button", { name: /log out/i })).toBeInTheDocument();
+  });
 });

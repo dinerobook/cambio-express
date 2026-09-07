@@ -1,3 +1,4 @@
+import { canAccessWith } from "../lib/access";
 import type { NavGroup, NavItem } from "./SlimSidebar";
 
 // Single source of truth for the SPA's primary navigation.  Both
@@ -62,14 +63,13 @@ export const NAV: NavGroup[] = [
       {
         to: "/daily", label: "MSB Daily book",
         roles: ["admin", "employee"],
-        perm: "daily_book.read",
         icon: iconDaily(),
         desc: "MSB cash ledger and daily close-out.",
       },
       {
         to: "/store-book", label: "Store Daily book",
         roles: ["admin", "employee"],
-        flag: "module_day_close", perm: "day_close.read",
+        flag: "module_day_close",
         icon: iconRegister(),
         desc: "Sales, tenders, deposits, and the day's over/short.",
       },
@@ -79,28 +79,28 @@ export const NAV: NavGroup[] = [
         // cashier looking up a customer's ticket needs no more.
         to: "/transactions", label: "Transactions",
         roles: ["admin", "employee"],
-        flag: "module_day_close", perm: "day_close.read",
+        flag: "module_day_close",
         icon: iconReceipt(),
         desc: "Every register ticket, item by item.",
       },
       {
         to: "/lottery", label: "Lottery",
         roles: ["admin", "employee"],
-        flag: "module_lottery", perm: "lottery.read",
+        flag: "module_lottery",
         icon: iconLottery(),
         desc: "Games, packs, and day-close counts.",
       },
       {
         to: "/price-book", label: "Price book",
         roles: ["admin", "employee"],
-        flag: "module_price_book", perm: "catalog.read",
+        flag: "module_price_book",
         icon: iconPriceBook(),
         desc: "Items, prices, and vendors.",
       },
       {
         to: "/purchase-invoices", label: "Purchases",
         roles: ["admin"],
-        flag: "module_price_book", perm: "catalog.read",
+        flag: "module_price_book",
         icon: iconInvoice(),
         desc: "Vendor invoices and costs.",
       },
@@ -119,7 +119,6 @@ export const NAV: NavGroup[] = [
         to: "/transfers", label: "Transfers",
         flag: "module_money_services",
         roles: ["admin", "employee"],
-        perm: "transfers.read",
         icon: iconTransfers(),
         desc: "Log and review money transfers.",
       },
@@ -127,7 +126,6 @@ export const NAV: NavGroup[] = [
         to: "/customers", label: "Customers",
         flag: "module_money_services",
         roles: ["admin", "employee"],
-        perm: "customers.read",
         icon: iconCustomers(),
         desc: "Sender and recipient records.",
       },
@@ -135,7 +133,6 @@ export const NAV: NavGroup[] = [
         to: "/batches", label: "ACH batches",
         flag: "module_money_services",
         roles: ["admin"],
-        perm: "batches.read",
         icon: iconBatches(),
         desc: "Group transfers into ACH runs.",
       },
@@ -147,7 +144,6 @@ export const NAV: NavGroup[] = [
         to: "/return-checks", label: "Returned checks",
         flag: "module_check_cashing",
         roles: ["admin", "employee"],
-        perm: "return_checks.read",
         icon: iconReturnChecks(),
         desc: "Track bounced checks and recovery.",
       },
@@ -166,42 +162,36 @@ export const NAV: NavGroup[] = [
       {
         to: "/timeclock", label: "Time clock",
         roles: ["admin", "employee"],
-        perm: "time_clock.read",
         icon: iconClock(),
         desc: "Clock in and out of shifts.",
       },
       {
         to: "/admin/timeclock", label: "Payroll",
         roles: ["admin"],
-        perm: "time_clock.read",
         icon: iconReports(),
         desc: "Shift history and hours worked.",
       },
       {
         to: "/admin/timeclock/schedule", label: "Schedule",
         roles: ["admin"],
-        perm: "time_clock.read",
         icon: iconCalendarStar(),
         desc: "Plan upcoming employee shifts.",
       },
       {
         to: "/admin/timeclock/credentials", label: "Punch credentials",
         roles: ["admin"],
-        perm: "time_clock.read",
         icon: iconClock(),
         desc: "PINs employees use to punch.",
       },
       {
         to: "/employees", label: "Employees",
         roles: ["admin"],
-        perm: "users.read",
         icon: iconCustomers(),
         desc: "Profile, payroll, and login for everyone here.",
       },
       {
         to: "/admin/store-permissions", label: "Permissions",
         roles: ["admin"],
-        perm: "settings.read",
         icon: iconShield(),
         desc: "Control what each role can do.",
       },
@@ -218,14 +208,12 @@ export const NAV: NavGroup[] = [
     items: [
       {
         to: "/reports", label: "MSB Reports",
-        perm: "reports.read",
         icon: iconTransfers(),
         desc: "Money-services analytics and exports.",
       },
       {
         to: "/store-reports", label: "Store Reports",
         flag: "module_day_close",
-        perm: "reports.read",
         icon: iconRegister(),
         desc: "Back-office reports for the storefront.",
       },
@@ -236,8 +224,8 @@ export const NAV: NavGroup[] = [
     roles: ["admin"],
     icon: iconBank(),
     items: [
-      { to: "/bank",               label: "Bank sync",   perm: "bank_sync.read", icon: iconBank(),    desc: "Connect and reconcile accounts." },
-      { to: "/bank-transactions",  label: "Bank transactions",   perm: "bank_sync.read", icon: iconBank(),    desc: "Categorize imported transactions." },
+      { to: "/bank",               label: "Bank sync", icon: iconBank(),    desc: "Connect and reconcile accounts." },
+      { to: "/bank-transactions",  label: "Bank transactions", icon: iconBank(),    desc: "Categorize imported transactions." },
     ],
   },
   {
@@ -383,13 +371,15 @@ export function filterNavForRole(
   // store gate. Superadmin always sees every module.
   features?: string[],
 ): NavGroup[] {
-  const hasPerm = (p: string) =>
-    role === "superadmin" || permissions.includes(p);
+  // Permission comes from the route table (lib/access.ts) — the same
+  // answer the router guard and every link primitive give — so a
+  // nav entry can never point at a page that bounces.
+  const identity = { role, permissions };
   const hasModule = (f: string) =>
     role === "superadmin" || features === undefined || features.includes(f);
   const visible = (i: NavItem) => {
     if (i.roles && !i.roles.includes(role)) return false;
-    if (i.perm && !hasPerm(i.perm)) return false;
+    if (!canAccessWith(identity, i.to)) return false;
     if (i.flag && !hasModule(i.flag)) return false;
     return true;
   };

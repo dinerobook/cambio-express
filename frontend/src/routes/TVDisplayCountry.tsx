@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import {
   useTVDisplayCountryDetail,
   type TVDisplayBankRow,
 } from "../api/tvDisplay";
-import {
+import { AppLink,
   Breadcrumbs,
   Button, ButtonLink, Card, Checkbox, ErrorState, Field, Input,
   Loading, PageHeader, PageShell, Table, tdStyle, thStyle,
@@ -93,7 +93,7 @@ export default function TVDisplayCountry() {
   return (
     <PageShell>
       <div>
-        <Link to="/tv-display" className={styles.backLink}>← Back to TV Display</Link>
+        <AppLink to="/tv-display" className={styles.backLink}>← Back to TV Display</AppLink>
 
         <Breadcrumbs crumbs={[{ label: "TV Display", to: "/tv-display/content" }, { label: "Country" }]} />
 

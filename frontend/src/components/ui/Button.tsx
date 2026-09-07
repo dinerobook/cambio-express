@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { canAccess, canDo, isAppPath } from "../../lib/access";
 import { fontSize, tokens } from "./tokens";
 
 export type ButtonTone = "primary" | "secondary" | "danger" | "ghost";
@@ -13,7 +14,7 @@ const buttonSizing = {
 
 export function Button({
   tone = "primary", busy, children, style, type = "button",
-  className, size = "md", ...rest
+  className, size = "md", perm, ...rest
 }: {
   tone?: ButtonTone;
   busy?: boolean;
@@ -25,8 +26,12 @@ export function Button({
    *  `md` (default) for most buttons,
    *  `lg` for primary CTAs in hero/empty states. */
   size?: "sm" | "md" | "lg";
+  /** "resource.action" the click needs. The button renders nothing
+   *  when the signed-in person lacks it — no access, no control. */
+  perm?: string;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>,
          "style" | "children" | "type" | "className">) {
+  if (perm && !canDo(perm)) return null;
   const dimmed = busy || rest.disabled;
   const cls = ["ds-btn", `ds-btn--${tone}`];
   if (className) cls.push(className);
@@ -74,6 +79,10 @@ export function Button({
  *  Exactly one of `to` or `href` must be set.  In dev, the
  *  combination of both will type-error via the discriminated
  *  union; in prod, `to` wins.
+ *
+ *  Renders nothing when the signed-in person cannot open the
+ *  target (`lib/access.ts`) — an in-app `href` is checked the same
+ *  way as `to`. No access, no control.
  */
 export function ButtonLink({
   tone = "secondary", children, to, href, style, className, size = "md",
@@ -88,6 +97,8 @@ export function ButtonLink({
   size?: "sm" | "md" | "lg";
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>,
          "style" | "children" | "href" | "className">) {
+  const target = to ?? (href && isAppPath(href) ? href : undefined);
+  if (target !== undefined && !canAccess(target)) return null;
   const sizing = buttonSizing[size];
   const cls = ["ds-btn", `ds-btn--${tone}`];
   if (className) cls.push(className);

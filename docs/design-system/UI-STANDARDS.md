@@ -168,7 +168,42 @@ needed if the kit had been checked first.
 - Steppers (prev/next day/month) and other widgets used by 2+ routes
   get extracted to the kit — two copies is the threshold.
 
-## 8. Enforcement
+## 8. Access — no access, no control
+
+If a person cannot open a page, they must not see the tab, link,
+button or row action that leads there. Not an empty tab, not a
+button that bounces to the dashboard, not a dropdown that 403s on
+change. The control disappears.
+
+This is enforced by the kit, not by per-page checks:
+
+- **Route access lives in ONE table**: `frontend/src/lib/access.ts`
+  (`ROUTE_ACCESS`). Every authed route in `App.tsx` is wrapped in
+  `<Gate>`, which reads it. `access.test.ts` walks `App.tsx` and
+  fails when a route has no entry — a new page cannot ship
+  unmapped.
+- **Links hide themselves.** `ButtonLink`, `TabsLink` and `AppLink`
+  render nothing when `canAccess(to)` is false (an in-app `href` is
+  checked the same way). Use `AppLink` instead of React Router's
+  `Link` inside the shell; `fallback="text"` keeps the words for a
+  link inside a sentence.
+- **Sidebar and section hubs** derive visibility from the same table
+  (`filterNavForRole`). Nav items carry `roles` and `flag` only —
+  never a duplicated `perm`.
+- **In-page actions that are not links** declare what they need:
+  `<Button perm="lottery.update">` and `RowActions` items with
+  `perm: "users.update"` drop themselves. The value mirrors the
+  `require_permission(...)` on the API route the click calls.
+- **Roles are not permissions.** `identity.role === "admin"` as a
+  show/hide condition is a change request: a custom access role
+  (R-3) can grant or withhold any right, and a role check ignores
+  it. Ask `hasPermission(resource, action)` or `canAccess(path)`.
+- **Tests sign someone in.** `src/test/setup.ts` seeds a
+  full-permission admin before every test, so an isolated component
+  renders its controls. A test about a narrower person overwrites
+  `db.identity` in its own `beforeEach`.
+
+## 9. Enforcement
 
 - PR review checklist: any `<select>` with 2 boolean-shaped options,
   any `window.confirm`, any `toFixed(2)` on money, any `.slice(0,10)`

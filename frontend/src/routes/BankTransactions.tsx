@@ -20,6 +20,7 @@ import {
   tdStyle, thStyle,
 } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { hasPermission } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
@@ -311,6 +312,19 @@ function CategoryCell({
     } finally {
       setBusy(false);
     }
+  }
+
+  // Read-only for anyone who cannot categorise: the label instead
+  // of a dropdown that would 403 on change.
+  if (!hasPermission("bank_sync", "update")) {
+    const current = BANK_CATEGORY_OPTIONS.find((c) => c.slug === row.category_slug);
+    return (
+      <div className={styles.categoryCell}>
+        <span className={row.category_slug ? styles.categorySelectMono : undefined}>
+          {current?.label ?? (row.category_slug || "— uncategorized —")}
+        </span>
+      </div>
+    );
   }
 
   return (

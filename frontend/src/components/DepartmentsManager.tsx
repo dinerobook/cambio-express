@@ -94,7 +94,7 @@ export default function DepartmentsManager() {
           >
             {showInactive ? "Hide inactive" : "Show inactive"}
           </Button>
-          <Button size="sm" onClick={() => setAdding(true)}>
+          <Button size="sm" perm="day_close.update" onClick={() => setAdding(true)}>
             + Add department
           </Button>
         </div>
@@ -147,11 +147,13 @@ export default function DepartmentsManager() {
                       actions={[
                         {
                           label: "Edit",
+                          perm: "day_close.update",
                           tone: "primary",
                           onClick: () => setEditing(d),
                         },
                         {
                           label: d.is_active ? "Deactivate" : "Reactivate",
+                          perm: "day_close.update",
                           tone: d.is_active ? "warning" : "primary",
                           onClick: () => toggleActive(d),
                         },

@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { useTransferReceipt } from "../api/transfers";
 import { fmtMoney2 } from "../lib/formatters";
-import { Button, ErrorState, Loading } from "../components/ui";
+import { AppLink, Button, ErrorState, Loading } from "../components/ui";
 import styles from "./TransferReceipt.module.css";
 
 // /app/transfers/{id}/receipt — printable transfer receipt.
@@ -53,9 +53,9 @@ export default function TransferReceipt() {
     return (
       <div className={styles.page}>
         <div className={styles.shellChrome}>
-          <Link to="/transfers" className={styles.backLink}>
+          <AppLink to="/transfers" className={styles.backLink}>
             ← Back to transfers
-          </Link>
+          </AppLink>
         </div>
         <ErrorState message="Invalid transfer id in URL." />
       </div>
@@ -65,9 +65,9 @@ export default function TransferReceipt() {
     return (
       <div className={styles.page}>
         <div className={styles.shellChrome}>
-          <Link to="/transfers" className={styles.backLink}>
+          <AppLink to="/transfers" className={styles.backLink}>
             ← Back to transfers
-          </Link>
+          </AppLink>
         </div>
         <Loading />
       </div>
@@ -77,9 +77,9 @@ export default function TransferReceipt() {
     return (
       <div className={styles.page}>
         <div className={styles.shellChrome}>
-          <Link to="/transfers" className={styles.backLink}>
+          <AppLink to="/transfers" className={styles.backLink}>
             ← Back to transfers
-          </Link>
+          </AppLink>
         </div>
         <ErrorState
           message={
@@ -100,9 +100,9 @@ export default function TransferReceipt() {
     <div className={styles.page}>
       {/* Chrome — hidden in print so only the receipt card prints. */}
       <div className={styles.shellChrome}>
-        <Link to={`/transfers/${transfer.id}/edit`} className={styles.backLink}>
+        <AppLink to={`/transfers/${transfer.id}/edit`} className={styles.backLink}>
           ← Back to transfer
-        </Link>
+        </AppLink>
         <Button
           tone="primary"
           size="sm"

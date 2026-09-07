@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
+import { canDo } from "../../lib/access";
 import { Button, type ButtonTone } from "./Button";
 import styles from "./RowActions.module.css";
 
@@ -24,6 +25,9 @@ export interface RowActionItem {
    *  the caller wants the slot reserved for layout consistency.
    *  Defaults to false. */
   hidden?:  boolean;
+  /** "resource.action" the action needs. Dropped from the row when
+   *  the signed-in person lacks it — no access, no control. */
+  perm?:    string;
 }
 
 /** Per-row action row that collapses into a bottom-sheet on
@@ -52,7 +56,7 @@ export function RowActions({
   mobileTriggerTone?: ButtonTone;
 }) {
   const [open, setOpen] = useState(false);
-  const visible = actions.filter((a) => !a.hidden);
+  const visible = actions.filter((a) => !a.hidden && (!a.perm || canDo(a.perm)));
   if (visible.length === 0) return null;
 
   return (

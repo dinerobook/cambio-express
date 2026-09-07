@@ -7,6 +7,7 @@ import {
   Button, ButtonLink, Card, ErrorState, KpiCard, KpiGrid, Loading,
   MonthCalendar, MonthCalendarLegend, PageHeader, PageShell,
 } from "../components/ui";
+import { canAccess } from "../lib/access";
 import styles from "./DailyBook.module.css";
 
 // /app/daily — the Daily Book landing page. A calendar of the
@@ -183,7 +184,7 @@ function Calendar({
       year={year}
       month={month + 1}
       today={today}
-      hrefFor={(iso) => `/daily/edit?date=${iso}`}
+      hrefFor={(iso) => (canAccess("/daily/edit") ? `/daily/edit?date=${iso}` : null)}
       ariaLabelFor={(iso) => `Open daily book for ${iso}`}
       dayFor={(iso) => {
         const report = reportByDate.get(iso);

@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -10,7 +9,7 @@ import { useProfile } from "../api/account";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate as formatDateTz } from "../lib/datetime";
-import {
+import { AppLink,
   Breadcrumbs,
   Button, Card, ConfirmDialog, ErrorState, Loading, PageHeader, PageShell,
   Section, Table, tdStyle, thStyle,
@@ -219,9 +218,9 @@ export default function OwnerConnect() {
 
       <p className={styles.fine}>
         To disconnect a store, head to your{" "}
-        <Link to="/dashboard" className={styles.inlineLink}>Dashboard</Link>{" "}
+        <AppLink fallback="text" to="/dashboard" className={styles.inlineLink}>Dashboard</AppLink>{" "}
         or{" "}
-        <Link to="/owner/locations" className={styles.inlineLink}>Locations</Link>{" "}
+        <AppLink fallback="text" to="/owner/locations" className={styles.inlineLink}>Locations</AppLink>{" "}
         page — only the owner can break the link, store admins can't.
       </p>
 

@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useDepartments } from "../api/dayclose";
@@ -12,7 +11,7 @@ import {
 import { ApiError } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
-import {
+import { AppLink,
   Alert, Breadcrumbs, Button, Card, EmptyState, Field, InfoTip,
   Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill, Section,
   Select, Table, tdStyle, thStyle, useToast,
@@ -238,7 +237,7 @@ export default function PosImport() {
               body={
                 <>
                   Set up your departments first on the{" "}
-                  <Link to="/price-book">Price book’s Departments tab</Link> — the
+                  <AppLink fallback="text" to="/price-book">Price book’s Departments tab</AppLink> — the
                   starter set takes one click.
                 </>
               }
@@ -274,7 +273,7 @@ export default function PosImport() {
         >
           {committed && (
             <Alert tone="success">
-              {committed} <Link to="/store-book">Open the store daily book</Link>
+              {committed} <AppLink fallback="text" to="/store-book">Open the store daily book</AppLink>
             </Alert>
           )}
           {unmapped.length > 0 && (

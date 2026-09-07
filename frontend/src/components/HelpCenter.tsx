@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 
 import { HELP_REGISTRY, type HelpEntry } from "../lib/help/registry";
 import { searchHelp } from "../lib/help/search";
 import styles from "./HelpCenter.module.css";
+import { AppLink } from "./ui";
 
 
 /** Floating help bubble + searchable answer panel.
@@ -149,13 +149,13 @@ function AnswerCard({
         dangerouslySetInnerHTML={{ __html: entry.body }}
       />
       {entry.deepLink && (
-        <Link
+        <AppLink
           to={entry.deepLink.to}
           className={styles.deepLink}
           onClick={onClose}
         >
           {entry.deepLink.label} →
-        </Link>
+        </AppLink>
       )}
     </div>
   );

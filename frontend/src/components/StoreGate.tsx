@@ -1,5 +1,6 @@
 import { Button, ButtonLink } from "./ui";
 import styles from "./StoreGate.module.css";
+import { canAccess } from "../lib/access";
 import { BRAND_NAME } from "../lib/brand";
 
 // Full-screen takeover shown when a store's users are gated out of the
@@ -22,6 +23,10 @@ export interface StoreGateProps {
 
 export default function StoreGate({ reason, storeName, onSignOut }: StoreGateProps) {
   const frozen = reason === "frozen";
+  // Only a store admin can pay. An employee who lands here gets
+  // told who to ask instead of a Re-subscribe button that would
+  // bounce them.
+  const canPay = canAccess("/subscribe");
   return (
     <div className={styles.wrap}>
       <div className={styles.card}>
@@ -56,17 +61,23 @@ export default function StoreGate({ reason, storeName, onSignOut }: StoreGatePro
               suspended by the {BRAND_NAME} team. Please contact support to
               restore access. Your data is safe.
             </>
-          ) : (
+          ) : canPay ? (
             <>
               Re-subscribe to regain access
               {storeName ? <> to <strong>{storeName}</strong></> : null}. Your
               books and history are safe — nothing is deleted while you decide.
             </>
+          ) : (
+            <>
+              {storeName ? <strong>{storeName}</strong> : "This store"} needs
+              its store admin to re-subscribe before anyone can sign back
+              in. Your books and history are safe — nothing is deleted.
+            </>
           )}
         </p>
 
         <div className={styles.actions}>
-          {!frozen && (
+          {!frozen && canPay && (
             <ButtonLink to="/subscribe" tone="primary">
               Re-subscribe
             </ButtonLink>

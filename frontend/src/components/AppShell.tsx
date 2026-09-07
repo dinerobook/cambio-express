@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useProfile, useSessionStatus, useStoreInfo } from "../api/account";
 import { useTicketsUnread } from "../api/support";
+import { canAccess } from "../lib/access";
 import { clearAccessToken, getCurrentIdentity } from "../lib/auth";
 import StoreGate from "./StoreGate";
 import { clearVisits, recordVisit } from "../lib/recency";
@@ -199,12 +200,12 @@ function TrialChip() {
   const session = useSessionStatus();
   const trial = session.data?.trial;
   if (!trial) return null;
-  return (
-    <Link
-      to="/subscribe"
-      className={`app-trial-chip is-${trial.tone}`}
-      title={`${trial.message} Click to subscribe.`}
-    >
+  // Everyone in the store sees how long is left; only someone who
+  // can actually pay gets the Subscribe link. An employee is told
+  // who to ask instead of being bounced off /subscribe.
+  const canPay = canAccess("/subscribe");
+  const body = (
+    <>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" strokeWidth="2" strokeLinecap="round"
         strokeLinejoin="round" aria-hidden="true">
@@ -218,7 +219,20 @@ function TrialChip() {
               : `${trial.days_left} day${trial.days_left === 1 ? "" : "s"} left`)
           : "Trial ended"}
       </span>
-      <span className="app-trial-chip-cta">Subscribe</span>
+      {canPay && <span className="app-trial-chip-cta">Subscribe</span>}
+    </>
+  );
+  const cls = `app-trial-chip is-${trial.tone}`;
+  if (!canPay) {
+    return (
+      <span className={cls} title={`${trial.message} Ask your store admin to subscribe.`}>
+        {body}
+      </span>
+    );
+  }
+  return (
+    <Link to="/subscribe" className={cls} title={`${trial.message} Click to subscribe.`}>
+      {body}
     </Link>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 
 import {
   useClaimTVPairCode,
@@ -13,7 +13,7 @@ import {
 import { useProfile, useStoreInfo } from "../api/account";
 import { ApiError } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
-import {
+import { AppLink,
   Button, ButtonLink, Card, ConfirmDialog, ErrorState, Field,
   IconButton, Input, Loading, PageShell, Section, Select,
   Switch, TabsBar, TabsLink, useToast,
@@ -327,6 +327,7 @@ function PublicUrlBar({
           </p>
           <Button
             tone="danger" size="sm"
+            perm="settings.update"
             onClick={() => setConfirmingRegen(true)}
             busy={regenerating}
             disabled={regenerating}
@@ -442,6 +443,7 @@ function PairFireTV({
           />
           <Button
             type="submit"
+            perm="settings.update"
             busy={claimPending}
             disabled={!codeValid || claimPending}
           >
@@ -472,6 +474,7 @@ function PairFireTV({
           </div>
           <Button
             tone="danger" size="sm"
+            perm="settings.update"
             onClick={() => setPendingUnpair(activePairing.id)}
             busy={revokePending}
             disabled={revokePending}
@@ -689,7 +692,7 @@ function CountrySections({
       <div className={styles.countryGrid}>
         {countries.map((c) => (
           <div key={c.id} className={styles.countryCardWrapper}>
-            <Link
+            <AppLink
               to={`/tv-display/countries/${c.id}`}
               reloadDocument
               className={styles.countryCardLink}
@@ -708,7 +711,7 @@ function CountrySections({
                 </div>
               </div>
               <div className={styles.countryArrow} aria-hidden="true">→</div>
-            </Link>
+            </AppLink>
             {/* Absolute positioning lives in style here (vs the
                 old `.countryDeleteButton` class) so the kit
                 IconButton can own the visual treatment. */}

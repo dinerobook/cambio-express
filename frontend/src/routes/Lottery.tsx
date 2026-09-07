@@ -180,6 +180,7 @@ function CountRow({
       <td style={tdStyle}>
         <Button
           size="sm" busy={busy} disabled={!dirty || busy}
+          perm="lottery.create"
           onClick={() => {
             setBusy(true);
             void onSave(row.pack_id, parsed).finally(() => setBusy(false));
@@ -225,7 +226,7 @@ function PacksTab() {
     <Section
       title="Packs"
       actions={
-        <Button size="sm" onClick={() => setReceiving(true)}>
+        <Button size="sm" perm="lottery.update" onClick={() => setReceiving(true)}>
           + Receive pack
         </Button>
       }
@@ -271,17 +272,20 @@ function PacksTab() {
                         actions={[
                           {
                             label: "Activate",
+                            perm: "lottery.update",
                             tone: "primary",
                             hidden: p.status !== "received",
                             onClick: () => setActivating(p),
                           },
                           {
                             label: "Settle",
+                            perm: "lottery.update",
                             hidden: p.status !== "active",
                             onClick: () => transition(settleLotteryPack, p),
                           },
                           {
                             label: "Return to state",
+                            perm: "lottery.update",
                             tone: "warning",
                             hidden: !["received", "active"].includes(p.status),
                             onClick: () => transition(returnLotteryPack, p),
