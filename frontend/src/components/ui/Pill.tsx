@@ -47,6 +47,12 @@ export function Pill({
         display: "inline-flex",
         alignItems: "center",
         gap: dot ? "0.35rem" : 0,
+        // A pill is a label, never a bar. In a column flex parent
+        // (every auth card) `align-items: stretch` would drag it to
+        // full width; an explicit intrinsic width keeps it hugging
+        // its text without touching cross-axis alignment in rows.
+        width: "max-content",
+        maxWidth: "100%",
         background: c.bg,
         color: c.fg,
         borderRadius: "999px",

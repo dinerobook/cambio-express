@@ -138,7 +138,8 @@
 
 .heroTitle {
   font-family: var(--db-font-display);
-  font-size: 56px;
+  text-wrap: balance;
+  font-size: 52px;
   line-height: 1.05;
   font-weight: 700;
   letter-spacing: -0.035em;
@@ -195,6 +196,14 @@
   color: var(--db-neon);
 }
 
+.heroTrust {
+  margin-top: 18px;
+  font-family: var(--db-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--db-gray-6);
+}
+
 /* ── Section base ───────────────────────────────────────── */
 
 .section {
@@ -230,22 +239,22 @@
   margin-bottom: 40px;
 }
 
-/* ── Steps ──────────────────────────────────────────────── */
+/* ── Three reasons ──────────────────────────────────────── */
 
-.steps {
+.reasons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
 }
 
-.step {
+.reason {
   background: var(--db-bg-elevated);
   border: 1px solid var(--db-gray-3);
   border-radius: 14px;
   padding: 24px;
 }
 
-.stepNum {
+.reasonNum {
   font-family: var(--db-font-mono);
   font-size: 12px;
   color: var(--db-neon);
@@ -253,7 +262,7 @@
   margin-bottom: 10px;
 }
 
-.stepTitle {
+.reasonTitle {
   font-family: var(--db-font-display);
   font-size: 18px;
   font-weight: 600;
@@ -262,7 +271,7 @@
   letter-spacing: -0.02em;
 }
 
-.stepBody {
+.reasonBody {
   font-size: 14px;
   color: var(--db-gray-7);
   line-height: 1.55;
@@ -314,15 +323,17 @@
 }
 
 .featureList li {
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--db-gray-8);
   padding: 4px 0;
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  line-height: 1.5;
 }
 
-.featureList .tick {
+.featureList li::before {
+  content: "✓";
   color: var(--db-neon);
   font-weight: 600;
   flex-shrink: 0;
@@ -430,6 +441,80 @@
   text-align: center;
 }
 
+/* ── Switching ──────────────────────────────────────────── */
+
+.switchGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.switchCard {
+  border: 1px solid var(--db-gray-3);
+  border-radius: 14px;
+  padding: 22px 24px;
+}
+
+.switchTitle {
+  font-family: var(--db-font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--db-gray-9);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.switchBody {
+  font-size: 14px;
+  color: var(--db-gray-7);
+  line-height: 1.55;
+}
+
+/* ── FAQ ────────────────────────────────────────────────── */
+
+.faq {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28px 40px;
+  margin-top: 8px;
+}
+
+.faqQ {
+  font-family: var(--db-font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--db-gray-9);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.faqA {
+  font-size: 14px;
+  color: var(--db-gray-7);
+  line-height: 1.6;
+}
+
+/* ── Closing ────────────────────────────────────────────── */
+
+.closing {
+  text-align: center;
+  padding: 56px 24px 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.closingTitle {
+  font-family: var(--db-font-display);
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0;
+  max-width: 640px;
+}
+
 /* ── Footer ─────────────────────────────────────────────── */
 
 .footer {
@@ -490,13 +575,14 @@
   .heroSub { font-size: 15.5px; }
   .section { padding: 48px 20px; }
   .sectionTitle { font-size: 28px; }
-  .steps { grid-template-columns: 1fr; }
+  .reasons { grid-template-columns: 1fr; }
   .features { grid-template-columns: 1fr; }
   .pricing { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
-  .heroTitle { font-size: 32px; }
+  .heroTitle { font-size: 30px; }
+  .closingTitle { font-size: 26px; }
   .ctas { flex-direction: column; }
   .btnPrimary, .btnGhost { width: 100%; }
 }

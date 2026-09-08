@@ -104,7 +104,10 @@ export const inputStyle: CSSProperties = {
   padding: "0.65rem 0.85rem",
   color: tokens.text,
   fontFamily: tokens.fontBody,
-  fontSize: fontSize.base,
+  // Font size lives in the `.ds-input` rule in ui.css, not here:
+  // iOS Safari zooms the whole page when a focused input is under
+  // 16px, and a CSS rule can lift it on phones while an inline
+  // style could not be overridden.
   outline: "none",
   width: "100%",
   boxSizing: "border-box",

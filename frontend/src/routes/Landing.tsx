@@ -6,13 +6,28 @@ import { Link } from "react-router-dom";
 
 import styles from "./Landing.module.css";
 
-// Marketing landing page. Redesigned 2026-06-04 to drop the
-// marketing-page decorations (parallax, scroll reveals, fake-stat
-// counters, decorative hero SVG, sticky "How it works", FAQ accordion,
-// 4 detailed feature mocks) that didn't carry over from the
-// pre-architecture-migration era. Reads as an extension of the
-// post-login app now: dark surfaces, single neon accent, hover-only
-// motion, simple structure.
+// Marketing landing page.
+//
+// Positioning (2026-09): the people we are talking to run a
+// convenience store or gas station, very often with a money-service
+// counter, and today they either pay an incumbent back-office suite
+// per store or keep paper. Three things set DineroBook apart and
+// the page leads with them in this order:
+//
+//   1. The register feeds the books. We read the Gilbarco Passport
+//      journal files the store already produces — every ticket,
+//      every tender, every department — so closing the day starts
+//      from data, not from a paper Z-report.
+//   2. The money-service counter is part of the same product:
+//      transfers, senders, ACH reconciliation, returned checks, the
+//      rate board on the TV. Incumbent c-store suites don't do this;
+//      MSB tools don't do the store.
+//   3. Price. One flat price per store, from the plan catalog, no
+//      contract.
+//
+// Every claim below is something the product does today. No invented
+// customers, stats or quotes — a landing page that fibs costs the
+// trust it was meant to build.
 export default function Landing() {
   const [navOpen, setNavOpen] = useState(false);
   // Prices come from the server (PLAN_CATALOG), never a copy here —
@@ -21,6 +36,7 @@ export default function Landing() {
   const plans = pricing.data?.plans ?? [];
   const basic = plans.find((p) => p.key === "basic");
   const pro = plans.find((p) => p.key === "pro");
+  const fromPrice = basic ? fmtMoney(basic.monthly_cents / 100) : null;
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -39,6 +55,7 @@ export default function Landing() {
           type="button"
           className={styles.navToggle}
           aria-label="Toggle menu"
+          aria-expanded={navOpen}
           onClick={() => setNavOpen((v) => !v)}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -53,133 +70,179 @@ export default function Landing() {
             if ((e.target as HTMLElement).tagName === "A") setNavOpen(false);
           }}
         >
-          <a href="#features">Product</a>
+          <a href="#product">Product</a>
+          <a href="#switch">Switching</a>
           <a href="#pricing">Pricing</a>
           <Link to="/login">Sign in</Link>
-          <Link to="/signup" className={styles.navCta}>Get started</Link>
+          <Link to="/signup" className={styles.navCta}>Start free trial</Link>
         </div>
       </nav>
 
+      {/* ── Hero ─────────────────────────────────────────────── */}
       <section className={styles.hero}>
         <div className={styles.heroGlow} aria-hidden="true" />
         <div className={styles.heroInner}>
           <div className={styles.eyebrow}>
             <span className={styles.eyebrowDot} />
-            BUILT FOR INDEPENDENT STORE OWNERS
+            C-STORES · GAS STATIONS · MONEY SERVICES
           </div>
           <h1 className={styles.heroTitle}>
-            The modern back office for<br />
-            <span className={styles.accent}>your store.</span>
+            Your register already knows what sold today.{" "}
+            <span className={styles.accent}>Now your books do too.</span>
           </h1>
           <p className={styles.heroSub}>
-            Convenience stores, gas stations, groceries — daily close-out,
-            check cashing, money services, and your monthly P&amp;L, all in
-            one place. No paper logs, no end-of-month mystery variances.
+            DineroBook reads the journal files your Gilbarco register already
+            writes, books the day, counts the lottery, logs every wire and
+            check at the money-service counter, and rolls it all into a
+            monthly P&amp;L. One login for the whole store.
           </p>
           <div className={styles.ctas}>
             <Link to="/signup" className={styles.btnPrimary}>Start free trial</Link>
-            <a href="#features" className={styles.btnGhost}>See how it works</a>
+            <a href="#product" className={styles.btnGhost}>See what it does</a>
+          </div>
+          <div className={styles.heroTrust}>
+            7-day free trial · no card · no contract
+            {fromPrice ? ` · from ${fromPrice} per store` : ""}
           </div>
         </div>
       </section>
 
+      {/* ── Three reasons ────────────────────────────────────── */}
       <section className={styles.section}>
-        <div className={styles.sectionEye}>HOW IT WORKS</div>
+        <div className={styles.sectionEye}>WHY STORES SWITCH</div>
         <h2 className={styles.sectionTitle}>
-          From paper to profitable <span className={styles.accent}>in three steps.</span>
+          Three things the other back offices{" "}
+          <span className={styles.accent}>don't do.</span>
         </h2>
-        <div className={styles.steps}>
-          <div className={styles.step}>
-            <div className={styles.stepNum}>01</div>
-            <div className={styles.stepTitle}>Sign up</div>
-            <div className={styles.stepBody}>
-              Create your store in 60 seconds. No credit card, no sales call.
+        <div className={styles.reasons}>
+          <div className={styles.reason}>
+            <div className={styles.reasonNum}>01</div>
+            <div className={styles.reasonTitle}>The register feeds the books.</div>
+            <div className={styles.reasonBody}>
+              Drop in the day's Gilbarco Passport journal and DineroBook fills
+              the daily book from it: sales by department, every tender,
+              every ticket down to the line item, voids and cancels included.
+              You reconcile against real data instead of re-typing a Z-report.
             </div>
           </div>
-          <div className={styles.step}>
-            <div className={styles.stepNum}>02</div>
-            <div className={styles.stepTitle}>Log your day</div>
-            <div className={styles.stepBody}>
-              Cash in/out, money orders, check cashing, transfers. One screen,
-              auto-saves.
+          <div className={styles.reason}>
+            <div className={styles.reasonNum}>02</div>
+            <div className={styles.reasonTitle}>The money counter is built in.</div>
+            <div className={styles.reasonBody}>
+              Transfers, senders, returned checks, ACH batches and the rate
+              board on your TV live in the same product as the store books.
+              A store that sends money doesn't need two systems and two bills.
             </div>
           </div>
-          <div className={styles.step}>
-            <div className={styles.stepNum}>03</div>
-            <div className={styles.stepTitle}>Close the month</div>
-            <div className={styles.stepBody}>
-              P&amp;L auto-populates. Export for your accountant. Spot variances
-              before they bite.
+          <div className={styles.reason}>
+            <div className={styles.reasonNum}>03</div>
+            <div className={styles.reasonTitle}>One flat price. No contract.</div>
+            <div className={styles.reasonBody}>
+              {fromPrice ? `From ${fromPrice} a month per store` : "One monthly price per store"},
+              unlimited employees and transactions, cancel any time, and your
+              data stays for 180 days after. No setup fee, no hardware, no
+              sales call.
             </div>
           </div>
         </div>
       </section>
 
-      <section className={styles.section} id="features">
-        <div className={styles.sectionEye}>BUILT FOR STORE OWNERS</div>
+      {/* ── Product tour ─────────────────────────────────────── */}
+      <section className={styles.section} id="product">
+        <div className={styles.sectionEye}>THE PRODUCT</div>
         <h2 className={styles.sectionTitle}>
-          Every part of the day, <span className={styles.accent}>finally in one place.</span>
+          Every part of the day, <span className={styles.accent}>one login.</span>
         </h2>
+        <p className={styles.sectionLead}>
+          Turn on the modules your store uses. A gas station without a money
+          counter never sees the transfer screens; a check-cashing storefront
+          never sees the fuel ones.
+        </p>
 
         <div className={styles.features}>
-          <div className={styles.feature}>
-            <div className={styles.featureEye}>THE DAILY BOOK</div>
-            <div className={styles.featureTitle}>Close your register in under 15 minutes.</div>
-            <div className={styles.featureBody}>
-              One screen captures everything that moved through your store today.
-              Auto-totals, auto-saves, auto-rolls into your monthly P&amp;L.
-            </div>
-            <ul className={styles.featureList}>
-              <li><span className={styles.tick}>✓</span>Cash in / cash out reconciliation</li>
-              <li><span className={styles.tick}>✓</span>Money orders &amp; check cashing</li>
-              <li><span className={styles.tick}>✓</span>Store sales &amp; other services</li>
-            </ul>
-          </div>
+          <Feature eye="STORE DAILY BOOK" title="Close the day from the register.">
+            <li>Import Gilbarco Passport journals — tickets, tenders, departments</li>
+            <li>Register closes, over/short and deposits on one sheet</li>
+            <li>Lock a day when it's done; every edit after is logged</li>
+          </Feature>
+          <Feature eye="TRANSACTIONS" title="Every ticket, item by item.">
+            <li>Search any register ticket by time, cashier or item</li>
+            <li>Voids and cancels kept, not hidden</li>
+            <li>Item movement and department reports built from the same data</li>
+          </Feature>
+          <Feature eye="LOTTERY" title="Packs, activations and day counts.">
+            <li>Receive, activate, settle and return packs</li>
+            <li>Cashiers enter the day's counts; the book does the math</li>
+            <li>Uncounted packs show on the dashboard until they're done</li>
+          </Feature>
+          <Feature eye="PRICE BOOK & PURCHASES" title="Know your cost on every item.">
+            <li>Items, departments and vendors in one place</li>
+            <li>Vendor invoices update item cost as they're entered</li>
+            <li>Open invoices and what's owed, on the dashboard</li>
+          </Feature>
+          <Feature eye="MONEY TRANSFERS" title="Every wire logged. Every sender remembered.">
+            <li>Intermex, Maxi, Barri, Ria, Western Union — one form</li>
+            <li>Fee and federal tax separated correctly, every time</li>
+            <li>Sender lookup shared across all your stores</li>
+          </Feature>
+          <Feature eye="ACH & RETURNED CHECKS" title="Catch the variance the day it happens.">
+            <li>Match each ACH batch to the transfers behind it</li>
+            <li>Track bounced checks and what's been recovered</li>
+            <li>Rate board for the TV in your store, paired in a minute</li>
+          </Feature>
+          <Feature eye="MONTHLY P&amp;L & REPORTS" title="Know what you made last month.">
+            <li>P&amp;L auto-filled from the daily books and transfer ledger</li>
+            <li>Sales by company, employee, service and destination</li>
+            <li>CSV export for your accountant; period comparison year over year</li>
+          </Feature>
+          <Feature eye="TEAM" title="Everyone gets exactly the access they need.">
+            <li>Time clock with PIN or passkey punch, shift schedule, hours for payroll</li>
+            <li>Access roles per job — a cashier never sees the P&amp;L</li>
+            <li>Owners see every store from one sign-in</li>
+          </Feature>
+        </div>
+      </section>
 
-          <div className={styles.feature}>
-            <div className={styles.featureEye}>MONEY TRANSFERS</div>
-            <div className={styles.featureTitle}>Every wire, logged. Every customer, remembered.</div>
-            <div className={styles.featureBody}>
-              Intermex, Maxi, Barri, Ria, Western Union — one form, full sender
-              and recipient detail, fee and federal tax broken out correctly.
+      {/* ── Switching ────────────────────────────────────────── */}
+      <section className={styles.section} id="switch">
+        <div className={styles.sectionEye}>SWITCHING</div>
+        <h2 className={styles.sectionTitle}>
+          Coming from Modisoft or Cronysoft?{" "}
+          <span className={styles.accent}>Bring what you already have.</span>
+        </h2>
+        <div className={styles.switchGrid}>
+          <div className={styles.switchCard}>
+            <div className={styles.switchTitle}>Your register files</div>
+            <div className={styles.switchBody}>
+              The same Gilbarco Passport journals your current system reads.
+              Nothing to reconfigure at the pump or the till.
             </div>
-            <ul className={styles.featureList}>
-              <li><span className={styles.tick}>✓</span>Sender autocomplete across sibling stores</li>
-              <li><span className={styles.tick}>✓</span>Fee vs federal tax separated automatically</li>
-              <li><span className={styles.tick}>✓</span>Full transfer history, searchable</li>
-            </ul>
           </div>
-
-          <div className={styles.feature}>
-            <div className={styles.featureEye}>ACH RECONCILIATION</div>
-            <div className={styles.featureTitle}>Spot variances before the month ends.</div>
-            <div className={styles.featureBody}>
-              Your ACH batch from Intermex doesn't match what you logged?
-              DineroBook flags it the day it happens — not three weeks later.
+          <div className={styles.switchCard}>
+            <div className={styles.switchTitle}>Your price book</div>
+            <div className={styles.switchBody}>
+              Import items and departments from a NAXML price-book export,
+              then keep it current from vendor invoices.
             </div>
-            <ul className={styles.featureList}>
-              <li><span className={styles.tick}>✓</span>Auto-match batches to transfer totals</li>
-              <li><span className={styles.tick}>✓</span>Variance alerts on day one</li>
-              <li><span className={styles.tick}>✓</span>One-click drill-down to underlying transfers</li>
-            </ul>
           </div>
-
-          <div className={styles.feature}>
-            <div className={styles.featureEye}>MONTHLY P&amp;L</div>
-            <div className={styles.featureTitle}>Know exactly what you made last month.</div>
-            <div className={styles.featureBody}>
-              Auto-populated from your daily books and transfer ledger. Revenue
-              by service line, fees collected, money-order margins.
+          <div className={styles.switchCard}>
+            <div className={styles.switchTitle}>Your team</div>
+            <div className={styles.switchBody}>
+              Add cashiers and managers with the access their job needs.
+              Unlimited people on every plan.
             </div>
-            <ul className={styles.featureList}>
-              <li><span className={styles.tick}>✓</span>Revenue split by service</li>
-              <li><span className={styles.tick}>✓</span>Year-over-year comparison</li>
-              <li><span className={styles.tick}>✓</span>CSV / PDF export for your accountant</li>
-            </ul>
+          </div>
+          <div className={styles.switchCard}>
+            <div className={styles.switchTitle}>Your money counter</div>
+            <div className={styles.switchBody}>
+              If you send transfers or cash checks, that side of the business
+              comes along too — in the same product, on the same bill.
+            </div>
           </div>
         </div>
       </section>
 
+      {/* ── Pricing ──────────────────────────────────────────── */}
       <section className={styles.section} id="pricing">
         <div className={styles.sectionEye}>PRICING</div>
         <h2 className={styles.sectionTitle}>
@@ -193,19 +256,21 @@ export default function Landing() {
               <span className={styles.priceSuffix}>/mo</span>
             </div>
             <div className={styles.planPeriod}>
-              per store · monthly · or{" "}
-              {basic ? fmtMoney(basic.yearly_cents / 100) : "—"} / yr
+              per store · or {basic ? fmtMoney(basic.yearly_cents / 100) : "—"} a year
+              {basic && basic.months_free > 0
+                ? ` (${basic.months_free} months free)`
+                : ""}
             </div>
             <ul className={styles.planFeats}>
-              <li><span className={styles.ck}>✓</span>Daily books</li>
-              <li><span className={styles.ck}>✓</span>Money transfer logging</li>
-              <li><span className={styles.ck}>✓</span>ACH reconciliation</li>
-              <li><span className={styles.ck}>✓</span>Monthly P&amp;L</li>
-              <li><span className={styles.ck}>✓</span>CSV / PDF export</li>
-              <li><span className={styles.ck}>✓</span>Unlimited employees</li>
+              <li><span className={styles.ck}>✓</span>Store daily book with register import</li>
+              <li><span className={styles.ck}>✓</span>Transactions, lottery, price book, purchases</li>
+              <li><span className={styles.ck}>✓</span>Money transfers, ACH and returned checks</li>
+              <li><span className={styles.ck}>✓</span>Monthly P&amp;L and reports, CSV export</li>
+              <li><span className={styles.ck}>✓</span>Time clock, schedule and access roles</li>
+              <li><span className={styles.ck}>✓</span>Unlimited employees and transactions</li>
             </ul>
             <Link to="/signup?plan=basic" className={`${styles.planBtn} ${styles.planBtnOutline}`}>
-              Choose Basic
+              Start with Basic
             </Link>
           </div>
           <div className={styles.plan}>
@@ -215,27 +280,73 @@ export default function Landing() {
               <span className={styles.priceSuffix}>/mo</span>
             </div>
             <div className={styles.planPeriod}>
-              or {pro ? fmtMoney(pro.yearly_cents / 100) : "—"} / yr
+              per store · or {pro ? fmtMoney(pro.yearly_cents / 100) : "—"} a year
               {pro && pro.months_free > 0
-                ? ` · ${pro.months_free} months free`
+                ? ` (${pro.months_free} months free)`
                 : ""}
             </div>
             <ul className={styles.planFeats}>
               <li><span className={styles.ck}>✓</span>Everything in Basic</li>
-              <li><span className={styles.ck}>✓</span>Live bank sync</li>
-              <li><span className={styles.ck}>✓</span>Drift alerts</li>
-              <li><span className={styles.ck}>✓</span>Multi-store umbrella</li>
+              <li><span className={styles.ck}>✓</span>Live bank sync and auto-categorised charges</li>
+              <li><span className={styles.ck}>✓</span>Multi-store owner view and cross-store rollups</li>
+              <li><span className={styles.ck}>✓</span>Rate board for the TV in your store</li>
               <li><span className={styles.ck}>✓</span>Priority support</li>
             </ul>
             <Link to="/signup?plan=pro" className={`${styles.planBtn} ${styles.planBtnNeon}`}>
-              Choose Pro
+              Start with Pro
             </Link>
           </div>
         </div>
         <div className={styles.pricingFine}>
-          All plans include unlimited transactions, unlimited customers, and
-          180-day data retention after cancellation.
+          7-day free trial on either plan, no card to start. Cancel any time;
+          your books stay readable for 180 days after.
         </div>
+      </section>
+
+      {/* ── FAQ ──────────────────────────────────────────────── */}
+      <section className={styles.section}>
+        <div className={styles.sectionEye}>QUESTIONS</div>
+        <div className={styles.faq}>
+          <div className={styles.faqItem}>
+            <div className={styles.faqQ}>Do I need new hardware?</div>
+            <div className={styles.faqA}>
+              No. DineroBook reads the journal files a Gilbarco Passport
+              register already produces. If you don't have one, the daily book
+              still works — you enter the day's numbers by hand.
+            </div>
+          </div>
+          <div className={styles.faqItem}>
+            <div className={styles.faqQ}>Can my cashiers use it?</div>
+            <div className={styles.faqA}>
+              Yes. Every plan includes unlimited employees. Each person gets a
+              sign-in with only the screens their job needs, and everything
+              they change is logged with their name on it.
+            </div>
+          </div>
+          <div className={styles.faqItem}>
+            <div className={styles.faqQ}>I only run a money-service counter. Is this for me?</div>
+            <div className={styles.faqA}>
+              Yes. Turn off the retail modules and you get the transfer ledger,
+              the MSB daily book, ACH reconciliation, returned checks and the
+              monthly P&amp;L on their own.
+            </div>
+          </div>
+          <div className={styles.faqItem}>
+            <div className={styles.faqQ}>What happens to my data if I leave?</div>
+            <div className={styles.faqA}>
+              It stays readable and exportable for 180 days after you cancel,
+              then it's deleted. You can download your books as CSV at any
+              time before that.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.closing}>
+        <h2 className={styles.closingTitle}>
+          Close tonight's day <span className={styles.accent}>from the register.</span>
+        </h2>
+        <Link to="/signup" className={styles.btnPrimary}>Start free trial</Link>
       </section>
 
       <footer className={styles.footer}>
@@ -244,13 +355,30 @@ export default function Landing() {
             <img className={styles.navBrandMark} src="/static/brand-mark.svg" alt="" />
             <span className={styles.navBrandName}>DineroBook</span>
           </a>
-          <div className={styles.footerCopy}>© 2026 DineroBook · Made for shops that move fast.</div>
+          <div className={styles.footerCopy}>© 2026 DineroBook · Back office for stores that move money.</div>
           <div className={styles.footerLinks}>
             <a href="/privacy">Privacy</a>
             <Link to="/login">Sign in</Link>
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+
+function Feature({
+  eye, title, children,
+}: {
+  eye: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={styles.feature}>
+      <div className={styles.featureEye}>{eye}</div>
+      <div className={styles.featureTitle}>{title}</div>
+      <ul className={styles.featureList}>{children}</ul>
     </div>
   );
 }
