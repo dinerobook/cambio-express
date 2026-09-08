@@ -1,8 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { LoginChrome } from "../components/LoginChrome";
-import chrome from "../components/LoginChrome.module.css";
+import { AuthChrome } from "../components/AuthChrome";
 import {
   Alert, Button, Checkbox, Field, Input, Loading,
 } from "../components/ui";
@@ -13,7 +12,7 @@ import {
   type TotpEnrollStartResponse,
 } from "../api/account";
 import styles from "./TwoFactor.module.css";
-import { BRAND_NAME } from "../lib/brand";
+import chrome from "./auth.module.css";
 
 interface PendingState {
   pending_token: string;
@@ -185,8 +184,8 @@ export function TwoFactorEnroll() {
   if (step === "saved" && recoveryCodes) {
     return (
       <Chrome title="Save your recovery codes">
-        <h2 className={chrome.heading}>Save these recovery codes</h2>
-        <p className={chrome.sub}>
+        <h2 className={chrome.cardTitle} style={{ margin: 0 }}>Save these recovery codes</h2>
+        <p className={chrome.cardSub} style={{ margin: 0 }}>
           If you lose access to your authenticator app, each of these codes
           can be used once to sign in instead of a 6-digit code. This is
           the only time they'll be shown.
@@ -221,8 +220,8 @@ export function TwoFactorEnroll() {
 
   return (
     <Chrome title="Set up 2FA">
-      <h2 className={chrome.heading}>Set up two-factor authentication</h2>
-      <p className={chrome.sub}>
+      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>Set up two-factor authentication</h2>
+      <p className={chrome.cardSub} style={{ margin: 0 }}>
         Scan this QR code with Google Authenticator, 1Password, Authy, or
         any TOTP app — then enter the 6-digit code it generates to confirm.
       </p>
@@ -322,8 +321,8 @@ function VerifyForm({
 
   return (
     <>
-      <h2 className={chrome.heading}>{heading}</h2>
-      <p className={chrome.sub}>{sub}</p>
+      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>{heading}</h2>
+      <p className={chrome.cardSub} style={{ margin: 0 }}>{sub}</p>
       {error && <Alert tone="error">{error}</Alert>}
       <form onSubmit={onSubmit} autoComplete="off"
             style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
@@ -361,12 +360,15 @@ function VerifyForm({
 }
 
 
+/** The 2FA screens live in the same chrome as every other
+ *  logged-out page. A "Cancel" back to /login is inside each
+ *  screen, so the nav carries no link. */
 function Chrome({ title, children }: { title: string; children: ReactNode }) {
   return (
     <>
-      <LoginChrome variant="fixed" brandCentered brandPane={<BrandPane />}>
-        {children}
-      </LoginChrome>
+      <AuthChrome navLink={null}>
+        <div className={chrome.stack}>{children}</div>
+      </AuthChrome>
       <DocTitle title={`${title} — DineroBook`} />
     </>
   );
@@ -382,13 +384,3 @@ function DocTitle({ title }: { title: string }) {
   return null;
 }
 
-
-function BrandPane() {
-  return (
-    <div className={styles.brandBlock}>
-      <img src="/static/brand-mark.svg" className={styles.brandMark} alt="" />
-      <div className={styles.brandName}>{BRAND_NAME}</div>
-      <div className={styles.brandTagline}>TWO-FACTOR AUTHENTICATION</div>
-    </div>
-  );
-}

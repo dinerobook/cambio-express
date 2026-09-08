@@ -2,19 +2,20 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { lookupStoreBySlug, type StoreLookup } from "../api/account";
+import { AuthChrome, StatusPill } from "../components/AuthChrome";
 import { Alert, Button, Field, Input, Loading } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { setAccessToken } from "../lib/auth";
 import { BRAND_NAME } from "../lib/brand";
+import styles from "./auth.module.css";
 
 interface LoginResponse {
   access_token: string;
 }
 
-// Per-store employee sign-in at /app/login/:slug. Visual chrome
-// (split-screen with brand pane on the left, neon form card on
-// the right) lifted from templates/login_store.html so the diff
-// against the legacy page stays at zero.
+// Per-store employee sign-in at /app/login/:slug. Same chrome as
+// every other logged-out page (AuthChrome) — it used to carry its
+// own split-screen stylesheet, the third copy of the auth shell.
 //
 // Form contract: submit username + password to /api/v2/auth/login
 // scoped to the resolved store_id. The backend sets the
@@ -82,141 +83,72 @@ export default function LoginStore() {
   }
 
   return (
-    <>
-      <style>{LOGIN_STORE_CSS}</style>
-
+    <AuthChrome navLink={{ to: "/login", label: "Sign in another way" }}>
       {loading ? (
-        <div className="loading-shell"><Loading /></div>
-      ) : notFound ? (
-        <div className="loading-shell">
-          <div className="card-title">Store not found</div>
-          <div className="card-sub">
+        <Loading />
+      ) : notFound || !store ? (
+        <>
+          <div className={styles.cardTitle}>Store not found</div>
+          <div className={styles.cardSub}>
             We couldn't find a store with that code. Check with your
             manager for the correct URL.
           </div>
-          <Link to="/login" className="back-link">← Back to sign in</Link>
-        </div>
-      ) : store ? (
-        <div className="store-shell">
-          <div className="login-left">
-            <div className="bg-grid" aria-hidden="true" />
-            <div className="bg-glow" aria-hidden="true" />
-            <div className="brand-block">
-              <img className="brand-mark" src="/static/brand-mark.svg" alt="" />
-              <div className="brand-name">{BRAND_NAME}</div>
-              <div className="brand-store">{store.name}</div>
-              <div className="brand-tagline">Employee portal</div>
-            </div>
-          </div>
-
-          <div className="login-right">
-            <div className="status-pill">
-              <span className="dot" />
-              <span className="label">SECURE · {store.name.toUpperCase()}</span>
-            </div>
-            <div className="login-heading">Employee sign in</div>
-            <div className="login-sub">
+          <Link to="/login" className={styles.backLink}>← Back to sign in</Link>
+        </>
+      ) : (
+        <div className={styles.stack}>
+          <StatusPill>SECURE · {store.name.toUpperCase()}</StatusPill>
+          <div>
+            <div className={styles.cardTitle}>Employee sign in</div>
+            <div className={styles.cardSub} style={{ marginBottom: 0 }}>
               Sign in with the username your store admin gave you.
             </div>
-
-            <form
-              onSubmit={onSubmit}
-              style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}
-            >
-              {error && <Alert tone="error">{error}</Alert>}
-
-              <Field label="Username">
-                <Input
-                  type="text"
-                  placeholder="your-username"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={busy}
-                  required
-                  autoFocus
-                />
-              </Field>
-              <Field label="Password">
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={busy}
-                  required
-                />
-              </Field>
-              <Button
-                type="submit"
-                tone="primary"
-                size="lg"
-                busy={busy}
-                disabled={busy || !username || !password}
-                style={{ width: "100%" }}
-              >
-                {busy ? "Signing in…" : "Sign in →"}
-              </Button>
-            </form>
-
-            <div className="login-footer">{store.name} · DineroBook</div>
           </div>
+
+          {error && <Alert tone="error">{error}</Alert>}
+
+          <form
+            onSubmit={onSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}
+          >
+            <Field label="Username">
+              <Input
+                type="text"
+                placeholder="your-username"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={busy}
+                required
+                autoFocus
+              />
+            </Field>
+            <Field label="Password">
+              <Input
+                type="password"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={busy}
+                required
+              />
+            </Field>
+            <Button
+              type="submit"
+              tone="primary"
+              size="lg"
+              busy={busy}
+              disabled={busy || !username || !password}
+              style={{ width: "100%" }}
+            >
+              {busy ? "Signing in…" : "Sign in →"}
+            </Button>
+          </form>
+
+          <div className={styles.storeLine}>{store.name} · {BRAND_NAME}</div>
         </div>
-      ) : null}
-    </>
+      )}
+    </AuthChrome>
   );
 }
-
-
-// Page-local CSS lifted from templates/login_store.html so the
-// visual diff stays at zero. Tokens come from the global
-// design-tokens.css.
-const LOGIN_STORE_CSS = `
-.store-shell{display:flex;min-height:100vh;min-height:100dvh;background:var(--db-bg);color:var(--db-gray-9);font-family:var(--db-font-body);overscroll-behavior-y:none;-webkit-font-smoothing:antialiased}
-.store-shell *,.store-shell *::before,.store-shell *::after{box-sizing:border-box;margin:0;padding:0}
-.store-shell ::selection{background:var(--db-neon);color:var(--db-neon-ink)}
-
-.login-left{flex:1;min-width:360px;background:var(--db-bg);border-right:1px solid var(--db-gray-2);padding:40px 48px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
-.login-left .bg-grid{position:absolute;inset:0;background-image:linear-gradient(var(--db-gray-2) 1px,transparent 1px),linear-gradient(90deg,var(--db-gray-2) 1px,transparent 1px);background-size:48px 48px;-webkit-mask-image:radial-gradient(ellipse at center,black 20%,transparent 70%);mask-image:radial-gradient(ellipse at center,black 20%,transparent 70%);opacity:.5;pointer-events:none}
-.login-left .bg-glow{position:absolute;top:30%;right:-10%;width:420px;height:420px;background:radial-gradient(circle,var(--db-neon-glow-25),transparent 60%);pointer-events:none}
-.brand-block{text-align:center;position:relative;z-index:1}
-.brand-mark{width:52px;height:52px;border-radius:12px;box-shadow:0 0 24px rgba(63,255,0,0.40);margin-bottom:18px;display:block;margin-left:auto;margin-right:auto}
-.brand-name{font-family:var(--db-font-display);font-size:30px;font-weight:600;color:var(--db-gray-9);letter-spacing:-.02em;line-height:1}
-.brand-store{font-size:14px;color:var(--db-gray-7);margin-top:10px;letter-spacing:.5px;font-weight:500}
-.brand-tagline{font-family:var(--db-font-mono);font-size:11px;color:var(--db-gray-6);margin-top:10px;letter-spacing:1.5px;text-transform:uppercase}
-
-.login-right{width:520px;background:var(--db-bg);display:flex;flex-direction:column;justify-content:center;padding:48px;overflow-y:auto;max-height:100vh;max-height:100dvh}
-.status-pill{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid var(--db-gray-3);border-radius:999px;background:var(--db-bg-elevated);margin-bottom:22px;align-self:flex-start}
-.status-pill .dot{width:6px;height:6px;border-radius:999px;background:var(--db-neon);box-shadow:0 0 8px var(--db-neon)}
-.status-pill .label{font-family:var(--db-font-mono);font-size:10px;color:var(--db-gray-7);letter-spacing:1.2px}
-.login-heading{font-family:var(--db-font-display);font-size:30px;font-weight:600;color:var(--db-gray-9);letter-spacing:-.025em;margin-bottom:6px}
-.login-sub{font-size:14px;color:var(--db-gray-7);margin-bottom:28px}
-.login-footer{margin-top:28px;font-family:var(--db-font-mono);font-size:11px;color:var(--db-gray-6);text-align:center;letter-spacing:.5px}
-
-.loading-shell{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;background:var(--db-bg);color:var(--db-gray-7);font-family:var(--db-font-body);text-align:center;gap:12px}
-.loading-shell .card-title{font-family:var(--db-font-display);font-size:28px;color:var(--db-gray-9);font-weight:600;letter-spacing:-.025em}
-.loading-shell .card-sub{font-size:14px;color:var(--db-gray-7);max-width:420px;line-height:1.6}
-.loading-shell .back-link{margin-top:12px;color:var(--db-neon);font-size:13px;text-decoration:none;font-weight:500}
-.loading-shell .back-link:hover{color:var(--db-neon-bright)}
-
-@media (max-width:900px){
-  .store-shell{flex-direction:column}
-  .login-left{flex:none;min-width:0;padding:24px 24px 20px;padding-top:max(24px,env(safe-area-inset-top));border-right:none;border-bottom:1px solid var(--db-gray-2)}
-  .login-left .bg-grid,.login-left .bg-glow{display:none}
-  .brand-mark{width:40px;height:40px;margin-bottom:10px}
-  .brand-name{font-size:22px}
-  .brand-store{font-size:13px;margin-top:6px}
-  .brand-tagline{font-size:10px}
-  .login-right{width:100%;padding:24px 24px 32px;padding-bottom:max(32px,env(safe-area-inset-bottom));flex:0 0 auto;max-height:none}
-  .login-heading{font-size:24px}
-  .login-sub{margin-bottom:22px}
-  .login-footer{margin-top:24px}
-}
-@media (max-width:480px){
-  .login-left{padding:20px 20px 16px;padding-top:max(20px,env(safe-area-inset-top))}
-  .login-right{padding:20px 20px 24px;padding-bottom:max(24px,env(safe-area-inset-bottom))}
-  .brand-name{font-size:20px}
-  .brand-mark{width:36px;height:36px}
-}
-`;

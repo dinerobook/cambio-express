@@ -168,6 +168,32 @@ needed if the kit had been checked first.
 - Steppers (prev/next day/month) and other widgets used by 2+ routes
   get extracted to the kit — two copies is the threshold.
 
+## 7a. Logged-out pages — one chrome
+
+Every page a person sees before signing in (sign-in, per-store
+sign-in, 2FA verify / recover / enrol, sign-up, owner sign-up,
+forgot / reset password) renders inside `AuthChrome`
+(`frontend/src/components/AuthChrome.tsx`) and takes its layout
+from `routes/auth.module.css`. That is the whole standard:
+
+- **No page-local shell.** Not a split-screen variant, not an
+  inline `<style>` block, not a second stylesheet with its own
+  breakpoints. There used to be three shells; the one that was
+  not this file is the one that overflowed on phones.
+- **Card contents are kit primitives** (`Field`, `Input`, `Button`,
+  `Alert`, `Pill`) inside `styles.stack`. Headings use
+  `cardTitle` / `cardSub`; secondary links use `centerRow`; the
+  footer uses `footer` / `copyright`.
+- **Phones are the first target.** The card top-aligns under 600px
+  so the keyboard does not shove it around, inputs are 16px on
+  narrow viewports so iOS does not zoom, and everything under
+  `.page` is border-box. When you touch this chrome, load the
+  built SPA at 390px wide and check `document.documentElement.
+  scrollWidth === clientWidth` before you call it done.
+- **Marketing lives on the landing page,** not in the sign-in
+  chrome. No testimonials, illustrations or uptime badges beside
+  the password field.
+
 ## 8. Access — no access, no control
 
 If a person cannot open a page, they must not see the tab, link,

@@ -1,39 +1,6 @@
-/* TwoFactor-specific bits that don't map to kit primitives:
-   the centered brand block on the left pane, the QR wrap, the
-   monospace secret block, and the recovery-codes grid. */
-
-.brandBlock {
-  text-align: center;
-  position: relative;
-  z-index: 1;
-}
-
-.brandMark {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  box-shadow: 0 0 24px var(--db-neon-glow-40);
-  margin: 0 auto 18px;
-  display: block;
-}
-
-.brandName {
-  font-family: var(--db-font-display);
-  font-size: 30px;
-  font-weight: 600;
-  color: var(--db-gray-9);
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.brandTagline {
-  font-family: var(--db-font-mono);
-  font-size: 11px;
-  color: var(--db-gray-7);
-  margin-top: 12px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
+/* TwoFactor-specific bits that don't map to kit primitives: the
+   QR wrap, the monospace secret block, and the recovery-codes grid.
+   Shell + headings come from auth.module.css via AuthChrome. */
 
 .qrWrap {
   display: flex;
@@ -78,9 +45,6 @@
 }
 
 @media (max-width: 900px) {
-  .brandMark { width: 40px; height: 40px; margin-bottom: 10px; }
-  .brandName { font-size: 22px; }
-  .brandTagline { font-size: 10px; }
   .qrWrap svg { width: 180px; height: 180px; }
   .recoveryGrid { grid-template-columns: 1fr; }
 }

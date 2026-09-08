@@ -120,9 +120,20 @@
 /* ── Inputs: focus glow ────────────────────────────────────── */
 
 .ds-input {
+  font-size: 0.95rem;
   transition:
     border-color var(--ds-dur-base) var(--ds-ease),
     box-shadow var(--ds-dur-base) var(--ds-ease);
+}
+
+/* iOS Safari zooms the whole page into any focused control whose
+ * font is under 16px, and the page stays zoomed after the keyboard
+ * closes — the "everything looks shifted on my phone" complaint.
+ * 16px on narrow viewports switches that off. The class rule wins
+ * because the kit deliberately keeps font-size OUT of the inline
+ * inputStyle (tokens.ts). */
+@media (max-width: 480px) {
+  .ds-input { font-size: 16px; }
 }
 
 /* `:focus-visible` instead of `:focus` so the neon glow only
