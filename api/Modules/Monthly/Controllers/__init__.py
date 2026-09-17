@@ -46,11 +46,13 @@ def _to_row(s: MonthlySummary) -> MonthlyRow:
         "total_income":   s.total_income,
         "total_expenses": s.total_expenses,
         "net_profit":     s.net_profit,
+        "bank_locked":    sorted(s.bank_fed),
     }
     for f in MonthlyRow.model_fields:
         if f in kw:
             continue
-        kw[f] = float(getattr(r, f, 0) or 0)
+        # Bank-fed columns read the live sum, not the stored value.
+        kw[f] = s.value(f)
     return MonthlyRow(**kw)
 
 

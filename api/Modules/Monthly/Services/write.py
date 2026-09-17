@@ -13,9 +13,12 @@ Auto-derived fields:
   cash_payroll, check_cashing_fees → sums from DailyReport over
   the month.
   return_check_gl → net P&L from the ReturnCheck workflow.
-  bank_charges_total → sum of BankTransaction rows tagged with
-  any bank_charge slug (locked only when > 0; stores without
-  bank sync keep manual entry).
+  bank-fed lines → `bank_charges_total` (every bank_charge slug)
+  plus any column a `pl_*` bank category feeds (credit-card
+  fees, money-order rent, other income…). Each is locked ONLY
+  for a month where the bank has tagged rows for it; otherwise
+  the operator's typed value stands. `bank_pl_sums_for_month`
+  is the single source of that set.
 
 Operator-editable fields: everything else in `_DAILY_REPORT_FIELDS`
 plus the dozens of one-off P&L columns.
@@ -89,16 +92,16 @@ def _auto_return_check_gl(
     return float(return_check_monthly_pl(db, store_id, year, month) or 0)
 
 
-def _auto_bank_charges_total(
+def bank_fed_fields(
     db: Session, store_id: int, year: int, month: int,
-) -> float:
-    """Sum of bank-charge BankTransactions for the month."""
-    from api.Modules.BankSync.Services import bank_charges_for_month
-    return float(
-        bank_charges_for_month(
-            db, store_id, year, month, prefix="bank_charge",
-        ) or 0
-    )
+) -> dict[str, float]:
+    """MonthlyFinancial column → the bank feed's sum for the month,
+    for every column the bank has tagged rows for. Absent columns
+    are the operator's to type. Shared by the write path (which
+    applies them) and the read path (which reports them as
+    `bank_locked`)."""
+    from api.Modules.BankSync.Services import bank_pl_sums_for_month
+    return bank_pl_sums_for_month(db, store_id, year, month)
 
 
 def update_monthly(
@@ -142,13 +145,18 @@ def update_monthly(
         db, store_id, year, month,
     ))
 
-    # 4) Bank charges total: lock only when there's bank-sync data,
-    #    matching the legacy "stores without bank sync keep manual
-    #    entry" semantics.
-    auto_bc = _auto_bank_charges_total(db, store_id, year, month)
-    if auto_bc > 0:
-        setattr(row, "bank_charges_total", auto_bc)
-    elif "bank_charges_total" in fields and fields["bank_charges_total"] is not None:
+    # 4) Bank-fed lines: the bank's sum wins for every column it has
+    #    tagged rows for this month. Columns it is silent on keep
+    #    the operator's value (applied in step 1, or the legacy
+    #    `bank_charges_total` manual entry below) — stores without
+    #    bank sync keep typing.
+    fed = bank_fed_fields(db, store_id, year, month)
+    for field, value in fed.items():
+        setattr(row, field, float(value))
+    if (
+        "bank_charges_total" not in fed
+        and fields.get("bank_charges_total") is not None
+    ):
         setattr(row, "bank_charges_total", float(fields["bank_charges_total"]))
 
     setattr(row, "notes", notes or "")

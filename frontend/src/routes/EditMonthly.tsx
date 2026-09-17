@@ -20,10 +20,12 @@ import styles from "./EditMonthly.module.css";
 // Edit page for the monthly P&L at /app/monthly/edit?year=Y&month=M.
 //
 // Fields shown here are the operator-editable subset only —
-// auto-derived rows (cash_purchases, cash_expenses, return_check_gl,
-// bank_charges_total when bank-sync data exists) are excluded
-// from the schema and overwritten server-side from the daily
-// ledger / bank txns / return-check workflow.
+// auto-derived rows (cash_purchases, cash_expenses, return_check_gl)
+// are excluded from the schema and overwritten server-side from the
+// daily ledger / return-check workflow. Bank-fed lines (bank charges
+// plus any P&L column a bank category feeds this month) come back
+// in `bank_locked`: they render read-only with the bank's live sum
+// and the server keeps its own value on save.
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -103,6 +105,8 @@ export default function EditMonthly() {
     setBaseline(init);
   }, [detail.data, detail.isLoading, detail.isFetching]);
 
+  const bankLocked = new Set(detail.data?.bank_locked ?? []);
+
   const isDirty =
     form != null && baseline != null &&
     JSON.stringify(form) !== JSON.stringify(baseline);
@@ -127,6 +131,9 @@ export default function EditMonthly() {
     try {
       const body: MonthlyUpdateBody = { notes: form.notes ?? "" };
       for (const f of FIELDS) {
+        // A bank-fed line is the server's to write; sending the
+        // displayed sum back would be harmless but misleading.
+        if (bankLocked.has(f.key)) continue;
         const v = form[f.key];
         if (typeof v === "number" || typeof v === "string") {
           (body as Record<string, number>)[f.key] = Number(v) || 0;
@@ -180,9 +187,10 @@ export default function EditMonthly() {
         </p>
         <p className={styles.headerNote}>
           Auto-derived fields (cash purchases / expenses / payroll /
-          check cashing fees / return-check P&L / bank charges when
-          bank-sync data exists) are server-recomputed on save and
-          can't be edited here.
+          check cashing fees / return-check P&L) are server-recomputed
+          on save and can't be edited here. Lines marked "from bank"
+          are summed from categorized bank transactions this month —
+          change them on the bank transactions page.
         </p>
       </header>
 
@@ -194,18 +202,24 @@ export default function EditMonthly() {
           <Card key={sec}>
             <h2 className={styles.sectionTitle}>{sec}</h2>
             <div className={styles.fieldGrid}>
-              {FIELDS.filter((f) => f.section === sec).map((f) => (
-                <MoneyInput
-                  key={f.key}
-                  label={f.label}
-                  value={
-                    typeof form[f.key] === "number"
-                      ? (form[f.key] as number)
-                      : 0
-                  }
-                  onChange={(v) => set(f.key, v as never)}
-                />
-              ))}
+              {FIELDS.filter((f) => f.section === sec).map((f) => {
+                const fromBank = bankLocked.has(f.key);
+                return (
+                  <MoneyInput
+                    key={f.key}
+                    label={f.label}
+                    value={
+                      typeof form[f.key] === "number"
+                        ? (form[f.key] as number)
+                        : 0
+                    }
+                    onChange={(v) => set(f.key, v as never)}
+                    readOnly={fromBank}
+                    disabled={fromBank}
+                    hint={fromBank ? "From bank — summed from categorized transactions." : undefined}
+                  />
+                );
+              })}
             </div>
           </Card>
         ))}

@@ -1,0 +1,59 @@
+/* BankRuleForm — the IF / THEN clauses of a bank rule. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.clause {
+  margin: 0;
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid var(--db-border, rgba(255, 255, 255, 0.08));
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.legend {
+  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--db-accent, #3fff00);
+  padding: 0 0.35rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.grid > :first-child {
+  grid-column: 1 / -1;
+}
+
+.descRow {
+  display: grid;
+  grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.matchType {
+  min-width: 0;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+  .descRow { grid-template-columns: 1fr; }
+}

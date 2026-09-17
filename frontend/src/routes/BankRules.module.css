@@ -1,38 +1,150 @@
-/* Page-specific styles for BankRules.tsx. */
+/* Page-specific styles for BankRules.tsx — the sentence list. */
 
-.formGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem 1rem;
-}
-
-@media (max-width: 640px) {
-  .formGrid { grid-template-columns: 1fr; }
-  .formActions { grid-column: span 1; }
-}
-
-.formActions {
-  grid-column: span 2;
+.headerActions {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  align-items: center;
   flex-wrap: wrap;
 }
 
-.muted {
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.count {
+  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-weight: 600;
+}
+
+.search {
+  max-width: 18rem;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rule {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--db-border, rgba(255, 255, 255, 0.08));
+  border-radius: 0.75rem;
+  background: var(--db-surface, transparent);
+  transition: border-color 150ms ease, transform 150ms ease;
+}
+
+.rule:hover {
+  border-color: var(--db-border-strong, rgba(255, 255, 255, 0.18));
+}
+
+.ruleDisabled {
+  opacity: 0.55;
+}
+
+.order {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.orderNum {
+  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-size: 0.8rem;
+  color: var(--db-text-muted, #a3a3a3);
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.sentence {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.clauseRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chipGroup {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.kw {
   color: var(--db-text-muted, #a3a3a3);
   font-size: 0.85rem;
 }
 
-.rowDisabled {
-  opacity: 0.5;
+.arrow {
+  color: var(--db-accent, #3fff00);
+  font-weight: 700;
 }
 
-.actionsCell {
-  text-align: right;
+.chip {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 0.45rem;
+  background: var(--db-fill-neutral, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--db-border, rgba(255, 255, 255, 0.08));
+  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-size: 0.82rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.chipTarget {
+  font-family: var(--db-font-body, "Inter", sans-serif);
+  font-weight: 600;
+  border-color: var(--db-neon-glow-15, rgba(63, 255, 0, 0.15));
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  color: var(--db-text-muted, #a3a3a3);
+}
+
+.name {
+  color: var(--db-text, #f5f5f5);
+  font-weight: 500;
+}
+
+.actions {
   white-space: nowrap;
 }
 
-.actionsCell > * + * {
-  margin-left: 0.25rem;
+@media (max-width: 40rem) {
+  .rule {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .actions {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+  .search {
+    max-width: none;
+    width: 100%;
+  }
 }

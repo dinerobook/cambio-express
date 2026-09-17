@@ -226,6 +226,7 @@ export const NAV: NavGroup[] = [
     items: [
       { to: "/bank",               label: "Bank sync", icon: iconBank(),    desc: "Connect and reconcile accounts." },
       { to: "/bank-transactions",  label: "Bank transactions", icon: iconBank(),    desc: "Categorize imported transactions." },
+      { to: "/bank/rules",         label: "Bank rules", icon: iconRules(),   desc: "Auto-categorize and book transactions." },
     ],
   },
   {
@@ -477,6 +478,20 @@ function iconBank() {
       <path d="M15 10v8" />
       <path d="M19 10v8" />
       <path d="M3 20h18" />
+    </svg>
+  );
+}
+function iconRules() {
+  // A branching arrow: "if this, then that".
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      strokeLinejoin="round">
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="6" cy="18" r="2.5" />
+      <circle cx="18" cy="12" r="2.5" />
+      <path d="M8.5 6h4a3 3 0 0 1 3 3v3" />
+      <path d="M8.5 18h4a3 3 0 0 0 3-3v-3" />
     </svg>
   );
 }

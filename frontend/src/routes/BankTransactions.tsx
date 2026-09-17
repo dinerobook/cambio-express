@@ -3,23 +3,29 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import {
-  BANK_CATEGORY_OPTIONS,
   categorizeTransaction,
+  categoryLabels,
+  dailyBookSlugs,
+  lockedDayFromError,
   syncBankTransactions,
   uncategorizeTransaction,
   useBankAccounts,
+  useBankCategories,
   useBankTransactions,
   type BankAccountRow,
+  type BankCategoryGroup,
   type BankTransactionFilters,
   type BankTransactionRow,
 } from "../api/bankSync";
+import { BankRuleForm } from "../components/BankRuleForm";
 import {
-  Alert, Breadcrumbs, Button, ButtonLink,
+  Alert, AppLink, Breadcrumbs, Button, ButtonLink,
   Card, Checkbox, DateInput, Empty, Field, Input, KpiCard, KpiGrid,
-  monoStyle, PageHeader, PageShell, Pager, Select, Table, TableStates,
-  tdStyle, thStyle,
+  Modal, monoStyle, PageHeader, PageShell, Pager, Select, Table, TableStates,
+  tdStyle, thStyle, useToast,
 } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { suggestRuleFor } from "../lib/bankRuleSuggest";
 import { hasPermission } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
@@ -28,28 +34,31 @@ import styles from "./BankTransactions.module.css";
 
 // Bank transactions at /app/bank-transactions. Filters: account,
 // sign, uncategorized-only, free-text search. Each row's category
-// cell is editable inline — pick a slug from the dropdown and the
-// SPA POSTs /bank/transactions/{id}/categorize, which (for daily-
-// book kinds) auto-creates the matching DailyLineItem.
-//
-// Connect / disconnect / sync still live on legacy /bank/* (Stripe
-// Financial Connections needs Stripe.js to drive the modal). Rule
-// CRUD ships in a follow-up.
+// cell is editable inline — pick a category and the SPA POSTs
+// /bank/transactions/{id}/categorize. A daily-book category books
+// the row on that day's book (the day's total moves at once) and
+// the cell links to it; a locked day comes back as a 409 the row
+// turns into "book on another day" instead of failing silently.
+// "Make a rule" opens the shared rule form prefilled from the row.
 
 const PER_PAGE = 50;
 
 export default function BankTransactions() {
   const identity = getCurrentIdentity();
   const accounts = useBankAccounts();
+  const categories = useBankCategories();
   const qc = useQueryClient();
+  const toast = useToast();
   const [sp, setSP] = useSearchParams();
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [ruleFor, setRuleFor] = useState<BankTransactionRow | null>(null);
 
   const filters: BankTransactionFilters = useMemo(() => ({
     posted_from:        sp.get("posted_from") ?? "",
     posted_to:          sp.get("posted_to")   ?? "",
     account_id:         sp.get("account_id")  ?? "",
+    category_slug:      sp.get("category_slug") ?? "",
     sign:               (sp.get("sign") as "" | "credit" | "debit") ?? "",
     q:                  sp.get("q")           ?? "",
     uncategorized_only: sp.get("uncategorized_only") === "1",
@@ -86,6 +95,7 @@ export default function BankTransactions() {
 
   const totalPages = txns.data?.total_pages ?? 1;
   const page       = txns.data?.page        ?? 1;
+  const groups     = categories.data?.groups;
 
   return (
     <PageShell>
@@ -101,7 +111,7 @@ export default function BankTransactions() {
             : "—"
         }
         actions={
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div className={styles.headerActions}>
             <Button
               tone="primary" size="sm"
               busy={syncing}
@@ -125,7 +135,10 @@ export default function BankTransactions() {
             >
               {syncing ? "Syncing…" : "Sync transactions"}
             </Button>
-            <ButtonLink to="/bank" tone="secondary">
+            <ButtonLink to="/bank/rules" tone="secondary" size="sm">
+              Rules
+            </ButtonLink>
+            <ButtonLink to="/bank" tone="secondary" size="sm">
               Manage accounts
             </ButtonLink>
           </div>
@@ -164,6 +177,15 @@ export default function BankTransactions() {
               {accounts.data?.rows.map((a) => (
                 <option key={a.id} value={a.id}>{a.label}</option>
               ))}
+            </Select>
+          </Field>
+          <Field label="Category">
+            <Select
+              value={filters.category_slug ?? ""}
+              onChange={(e) => setParam("category_slug", e.target.value)}
+            >
+              <option value="">Any category</option>
+              <CategoryOptions groups={groups} />
             </Select>
           </Field>
           <Field label="Sign">
@@ -208,7 +230,11 @@ export default function BankTransactions() {
         />
         {txns.data && txns.data.rows.length > 0 && (
           <>
-            <TxnTable rows={txns.data.rows} />
+            <TxnTable
+              rows={txns.data.rows}
+              groups={groups}
+              onMakeRule={setRuleFor}
+            />
             <Pager
               page={page}
               totalPages={totalPages}
@@ -225,13 +251,73 @@ export default function BankTransactions() {
           </>
         )}
       </Card>
+
+      <Modal
+        open={ruleFor != null}
+        onClose={() => setRuleFor(null)}
+        title="Make a rule from this transaction"
+        size="lg"
+      >
+        {ruleFor && (
+          <>
+            <p className={styles.modalLead}>
+              Next time a transaction like <strong>{ruleFor.description || "this"}</strong>{" "}
+              comes in, it will be categorized for you. Adjust the match so it
+              is specific enough, then save.
+            </p>
+            <BankRuleForm
+              key={ruleFor.id}
+              initial={{
+                ...suggestRuleFor(ruleFor),
+                target_kind: ruleFor.category_slug,
+                account_filter_id: "",
+              }}
+              onCancel={() => setRuleFor(null)}
+              onSaved={(resp) => {
+                setRuleFor(null);
+                const a = resp.applied;
+                const extra = a
+                  ? ` ${a.tagged} existing transaction${a.tagged === 1 ? "" : "s"} tagged`
+                    + (a.booked ? `, ${a.booked} booked` : "")
+                    + (a.locked_skipped ? `, ${a.locked_skipped} skipped (day locked)` : "")
+                    + "."
+                  : "";
+                toast({ message: `Rule created.${extra}`, tone: "success" });
+                void qc.invalidateQueries({ queryKey: ["bank"] });
+              }}
+            />
+          </>
+        )}
+      </Modal>
     </PageShell>
   );
 }
 
-function TxnTable({ rows }: { rows: BankTransactionRow[] }) {
+function CategoryOptions({ groups }: { groups: BankCategoryGroup[] | undefined }) {
+  return (
+    <>
+      {(groups ?? []).map((g) => (
+        <optgroup key={g.label} label={g.label}>
+          {g.options.map((o) => (
+            <option key={o.slug} value={o.slug}>{o.label}</option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  );
+}
+
+function TxnTable({
+  rows, groups, onMakeRule,
+}: {
+  rows: BankTransactionRow[];
+  groups: BankCategoryGroup[] | undefined;
+  onMakeRule: (row: BankTransactionRow) => void;
+}) {
   const qc = useQueryClient();
   const identity = getCurrentIdentity();
+  const labels = useMemo(() => categoryLabels(groups), [groups]);
+  const bookable = useMemo(() => dailyBookSlugs(groups), [groups]);
   function refresh() {
     qc.invalidateQueries({
       queryKey: ["bank", "transactions", identity?.store_id],
@@ -269,7 +355,14 @@ function TxnTable({ rows }: { rows: BankTransactionRow[] }) {
               </span>
             </td>
             <td style={tdStyle}>
-              <CategoryCell row={r} onChanged={refresh} />
+              <CategoryCell
+                row={r}
+                groups={groups}
+                labels={labels}
+                bookable={bookable}
+                onChanged={refresh}
+                onMakeRule={() => onMakeRule(r)}
+              />
             </td>
             <td style={{ ...tdStyle, textAlign: "right" }}>
               <span className={r.amount_cents > 0 ? styles.amountPos : styles.amountNeutral}>
@@ -284,45 +377,68 @@ function TxnTable({ rows }: { rows: BankTransactionRow[] }) {
 }
 
 function CategoryCell({
-  row, onChanged,
+  row, groups, labels, bookable, onChanged, onMakeRule,
 }: {
   row: BankTransactionRow;
+  groups: BankCategoryGroup[] | undefined;
+  labels: Map<string, string>;
+  bookable: Set<string>;
   onChanged: () => void;
+  onMakeRule: () => void;
 }) {
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // A locked day: the slug the operator picked + the date the
+  // server refused, so the cell can offer another day.
+  const [locked, setLocked] = useState<{ slug: string; date: string } | null>(null);
+  const [rebookDate, setRebookDate] = useState("");
 
-  async function pick(slug: string) {
+  async function pick(slug: string, reportDate?: string) {
     setErr(null); setBusy(true);
     try {
       if (slug === "") {
         await uncategorizeTransaction(row.id);
       } else {
-        await categorizeTransaction(row.id, {
+        const resp = await categorizeTransaction(row.id, {
           target_kind: slug,
-          // Default off — matches the legacy "tag the bank txn,
-          // don't double-post into daily book unless I tick the
-          // box". A future PR can add a per-row checkbox.
-          post_to_daily: false,
+          post_to_daily: true,
+          ...(reportDate ? { report_date: reportDate } : {}),
         });
+        const t = resp.transaction;
+        if (t.booked_on) {
+          toast({
+            message: `Booked on the daily book for ${formatDate(t.booked_on)}.`,
+            tone: "success",
+          });
+        }
       }
+      setLocked(null);
       onChanged();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not update category.");
+      const lockedDay = lockedDayFromError(e);
+      if (lockedDay) {
+        setLocked({ slug, date: lockedDay.report_date });
+        setRebookDate("");
+      } else {
+        setErr(e instanceof ApiError ? e.message : "Could not update category.");
+      }
     } finally {
       setBusy(false);
     }
   }
 
+  const label = labels.get(row.category_slug) ?? row.category_slug;
+
   // Read-only for anyone who cannot categorise: the label instead
   // of a dropdown that would 403 on change.
   if (!hasPermission("bank_sync", "update")) {
-    const current = BANK_CATEGORY_OPTIONS.find((c) => c.slug === row.category_slug);
     return (
       <div className={styles.categoryCell}>
         <span className={row.category_slug ? styles.categorySelectMono : undefined}>
-          {current?.label ?? (row.category_slug || "— uncategorized —")}
+          {row.category_slug ? label : "— uncategorized —"}
         </span>
+        <BookedLink row={row} />
       </div>
     );
   }
@@ -333,6 +449,7 @@ function CategoryCell({
         value={row.category_slug}
         onChange={(e) => pick(e.target.value)}
         disabled={busy}
+        aria-label="Category"
         className={
           row.category_slug
             ? `${styles.categorySelect} ${styles.categorySelectMono}`
@@ -340,16 +457,66 @@ function CategoryCell({
         }
       >
         <option value="">— uncategorized —</option>
-        {BANK_CATEGORY_OPTIONS.map((c) => (
-          <option key={c.slug} value={c.slug}>{c.label}</option>
-        ))}
+        <CategoryOptions groups={groups} />
+        {row.category_slug && !labels.has(row.category_slug) && (
+          <option value={row.category_slug}>{row.category_slug}</option>
+        )}
       </Select>
-      {err && (
-        <span title={err} className={styles.errorMark}>
-          ⚠
+      <BookedLink row={row} />
+      {row.category_slug && bookable.has(row.category_slug) && !row.booked_on && !locked && (
+        <span className={styles.notBooked} title="Tagged, but no line on the daily book.">
+          not booked
         </span>
       )}
+      <Button
+        tone="ghost" size="sm" perm="bank_sync.create"
+        onClick={onMakeRule}
+        title="Create a rule that categorizes transactions like this one automatically"
+      >
+        Make a rule
+      </Button>
+      {err && (
+        <span title={err} className={styles.errorMark} role="alert">
+          ⚠ {err}
+        </span>
+      )}
+      {locked && (
+        <div className={styles.lockedRow} role="alert">
+          <span>
+            The daily book for {formatDate(locked.date)} is locked.{" "}
+            <AppLink to={`/daily/edit?date=${locked.date}`}>Open it</AppLink> to
+            unlock, or book on another day:
+          </span>
+          <DateInput
+            value={rebookDate}
+            onChange={(e) => setRebookDate(e.target.value)}
+            aria-label="Book on date"
+          />
+          <Button
+            size="sm" disabled={!rebookDate || busy} busy={busy}
+            onClick={() => { void pick(locked.slug, rebookDate); }}
+          >
+            Book
+          </Button>
+          <Button size="sm" tone="secondary" onClick={() => setLocked(null)}>
+            Cancel
+          </Button>
+        </div>
+      )}
     </div>
+  );
+}
+
+function BookedLink({ row }: { row: BankTransactionRow }) {
+  if (!row.booked_on) return null;
+  return (
+    <AppLink
+      to={`/daily/edit?date=${row.booked_on}`}
+      className={styles.bookedLink}
+      title="Open that day's daily book"
+    >
+      booked {formatDate(row.booked_on)}
+    </AppLink>
   );
 }
 

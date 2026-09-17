@@ -6,7 +6,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 
 export interface BankAccountRow {
@@ -56,6 +56,10 @@ export interface BankTransactionRow {
   category_slug: string;
   account_id: number;
   account_label: string;
+  /** Set when the category booked a line on the daily book. */
+  daily_line_item_id: number | null;
+  /** ISO date of the daily book the line landed on, "" if none. */
+  booked_on: string;
 }
 
 export interface BankTransactionListResponse {
@@ -130,23 +134,68 @@ export function useBankTransactions(filters: BankTransactionFilters) {
 }
 
 
-// Categories the operator can pick from when tagging a row. Mirrors
-// the legacy `/bank/transactions` template's dropdown — the slug is
-// what we POST, the label is what we render.
-export const BANK_CATEGORY_OPTIONS: Array<{ slug: string; label: string }> = [
-  { slug: "bank_charge_210",  label: "Bank charge — ••0210" },
-  { slug: "bank_charge_230",  label: "Bank charge — ••0230" },
-  { slug: "cash_deposit",     label: "Cash deposit"          },
-  { slug: "cash_expense",     label: "Cash expense"          },
-  { slug: "check_expense",    label: "Check expense"         },
-  { slug: "check_deposit",    label: "Check deposit"         },
-  { slug: "ach_deposit",      label: "ACH deposit"           },
-  { slug: "ach_withdrawal",   label: "ACH withdrawal"        },
-];
+// ── Categories ─────────────────────────────────────────────
+//
+// The server owns the category list (GET /bank/categories): the
+// daily-book kinds that book a line, the monthly P&L lines, and the
+// per-store bank-charge tags. The SPA used to hard-code a list here
+// that had drifted from what the server accepted — never again.
+
+export interface BankCategoryOption { slug: string; label: string }
+export interface BankCategoryGroup {
+  label: string;
+  /** True for the group whose slugs book a daily-book line. */
+  posts_to_daily: boolean;
+  options: BankCategoryOption[];
+}
+
+export function useBankCategories() {
+  const identity = getCurrentIdentity();
+  return useQuery<{ groups: BankCategoryGroup[] }>({
+    enabled: identity?.store_id != null,
+    queryKey: ["bank", "categories", identity?.store_id],
+    queryFn: () => api<{ groups: BankCategoryGroup[] }>("/api/v2/bank/categories"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Flat slug → label map over every group, for rendering a row's
+ *  current category without walking the groups each time. */
+export function categoryLabels(groups: BankCategoryGroup[] | undefined): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const g of groups ?? []) for (const o of g.options) m.set(o.slug, o.label);
+  return m;
+}
+
+/** Slugs that book a line on the daily book. */
+export function dailyBookSlugs(groups: BankCategoryGroup[] | undefined): Set<string> {
+  const s = new Set<string>();
+  for (const g of groups ?? []) if (g.posts_to_daily) for (const o of g.options) s.add(o.slug);
+  return s;
+}
 
 export interface CategorizeBody {
   target_kind: string;
   post_to_daily?: boolean;
+  /** ISO date to book on instead of the bank's posting date. */
+  report_date?: string;
+}
+
+/** The 409 the categorize endpoint returns for a locked day. */
+export interface DailyBookLockedDetail {
+  code: "daily_book_locked";
+  report_date: string;
+  message: string;
+}
+
+export function lockedDayFromError(err: unknown): DailyBookLockedDetail | null {
+  if (!(err instanceof ApiError) || err.status !== 409) return null;
+  const body = err.body as { detail?: unknown } | null;
+  const d = body?.detail as Partial<DailyBookLockedDetail> | undefined;
+  if (d && d.code === "daily_book_locked" && typeof d.report_date === "string") {
+    return d as DailyBookLockedDetail;
+  }
+  return null;
 }
 
 export async function categorizeTransaction(
@@ -170,6 +219,16 @@ export async function uncategorizeTransaction(
 
 // ── Rule CRUD ──────────────────────────────────────────────
 
+/** Description match operators — must agree with `DESC_MATCH_TYPES`
+ *  in `api/Modules/BankSync/Services/matcher.py`. */
+export const MATCH_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "contains",    label: "contains" },
+  { value: "starts_with", label: "starts with" },
+  { value: "ends_with",   label: "ends with" },
+  { value: "equals",      label: "equals" },
+  { value: "regex",       label: "matches regex" },
+];
+
 export interface BankRuleWriteBody {
   enabled: boolean;
   priority: number;
@@ -182,21 +241,50 @@ export interface BankRuleWriteBody {
   target_kind: string;
   auto_post: boolean;
   description: string;
+  /** Create only: run the rule over existing uncategorized rows. */
+  apply_to_existing?: boolean;
+}
+
+export interface BankRuleApplyReport {
+  tagged: number;
+  booked: number;
+  locked_skipped: number;
+}
+
+export interface BankRuleResponse {
+  rule: BankRuleRow;
+  applied: BankRuleApplyReport | null;
 }
 
 export async function createRule(
   body: BankRuleWriteBody,
-): Promise<{ rule: BankRuleRow }> {
-  return api<{ rule: BankRuleRow }>("/api/v2/bank/rules", {
+): Promise<BankRuleResponse> {
+  return api<BankRuleResponse>("/api/v2/bank/rules", {
     method: "POST",
     json: body,
   });
 }
 
+export async function applyRule(ruleId: number): Promise<BankRuleResponse> {
+  return api<BankRuleResponse>(`/api/v2/bank/rules/${ruleId}/apply`, {
+    method: "POST",
+    json: {},
+  });
+}
+
+export async function reorderRules(
+  ids: number[],
+): Promise<{ rows: BankRuleRow[]; total: number }> {
+  return api<{ rows: BankRuleRow[]; total: number }>("/api/v2/bank/rules/reorder", {
+    method: "POST",
+    json: { ids },
+  });
+}
+
 export async function updateRule(
   ruleId: number, body: BankRuleWriteBody,
-): Promise<{ rule: BankRuleRow }> {
-  return api<{ rule: BankRuleRow }>(`/api/v2/bank/rules/${ruleId}`, {
+): Promise<BankRuleResponse> {
+  return api<BankRuleResponse>(`/api/v2/bank/rules/${ruleId}`, {
     method: "PUT",
     json: body,
   });

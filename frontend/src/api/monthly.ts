@@ -50,6 +50,9 @@ export interface MonthlyRow {
   total_income: number;
   total_expenses: number;
   net_profit: number;
+  /** Columns the bank feed fills this month — rendered read-only,
+   *  ignored by the server on save. */
+  bank_locked: string[];
 }
 
 export function useMonthly(year: number | undefined, month: number | undefined) {

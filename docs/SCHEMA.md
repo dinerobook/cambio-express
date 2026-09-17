@@ -84,9 +84,9 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 
 | Table | Model | Module | Scope | Foreign keys | Read first |
 |---|---|---|---|---|---|
-| `bank_rule` | `BankRule` | `BankSync` | store | `bank_stripe_account.id`, `tenancy_store.id` | — |
-| `bank_stripe_account` | `StripeBankAccount` | `BankSync` | store | `tenancy_store.id` | — |
-| `bank_transaction` | `BankTransaction` | `BankSync` | store | `bank_stripe_account.id`, `msb_daily_line_item.id`, `tenancy_store.id` | — |
+| `bank_rule` | `BankRule` | `BankSync` | store | `bank_stripe_account.id`, `tenancy_store.id` | [INVARIANTS](../api/Modules/BankSync/INVARIANTS.md) |
+| `bank_stripe_account` | `StripeBankAccount` | `BankSync` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/BankSync/INVARIANTS.md) |
+| `bank_transaction` | `BankTransaction` | `BankSync` | store | `bank_stripe_account.id`, `msb_daily_line_item.id`, `tenancy_store.id` | [INVARIANTS](../api/Modules/BankSync/INVARIANTS.md) |
 
 ## `hr_`
 

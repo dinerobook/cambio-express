@@ -7,26 +7,32 @@ Sits one layer above the matcher + categorize Services:
 
   matcher.find_matching_rule    → operator BankRule lookup
   builtin_rules.match_builtin_  → platform built-in lookup
-  categorize.categorize_        → write the slug + maybe post
-                                   a DailyLineItem
+  categorize.categorize_        → write the slug + maybe book a
+                                   DailyLineItem
 
 `apply_rules_to_uncategorized_row` is idempotent — rows that
 already have a `category_slug` are left untouched so operator
 overrides survive a re-sync.
 
 `allow_auto_post` controls whether a matched operator rule with
-`auto_post=True` also creates a `DailyLineItem`:
+`auto_post=True` also books a `DailyLineItem`:
   - `True`  for freshly-inserted rows (operator's expressed
-            intent on new data).
-  - `False` when backfilling historical rows (the daily book
-            may already be reconciled — let the operator post
-            manually).
+            intent on new data) and for an explicit "apply this
+            rule now" from the rules page.
+  - `False` when backfilling historical rows during a sync (the
+            daily book may already be reconciled — let the
+            operator post manually or apply the rule on purpose).
+
+A locked day never gets a line: the tag is kept, the booking is
+skipped, and the outcome says so, so the transactions page can
+show "day locked" instead of silently doing nothing.
 
 Built-in rules NEVER post to the daily book regardless — the
 `post_to_daily=False` is hard-coded for them per CLAUDE.md.
 
 Caller commits.
 """
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -35,12 +41,41 @@ from api.Modules.BankSync.Services.builtin_rules import (
     match_builtin_bank_rule,
 )
 from api.Modules.BankSync.Services.categorize import (
+    DailyBookLockedError,
     categorize_transaction,
 )
 from api.Modules.BankSync.Services.categories import (
     is_daily_book_kind,
 )
-from api.Modules.BankSync.Services.matcher import find_matching_rule
+from api.Modules.BankSync.Services.matcher import (
+    find_matching_rule,
+    rule_matches,
+)
+
+
+@dataclass(frozen=True)
+class ApplyOutcome:
+    tagged: bool
+    booked: bool = False
+    locked_skipped: bool = False
+
+
+def _apply_rule(db: Session, row: Any, rule: Any, *, allow_auto_post: bool) -> ApplyOutcome:
+    post = bool(rule.auto_post and allow_auto_post)
+    try:
+        categorize_transaction(
+            db, row, rule.target_kind, rule=rule,
+            post_to_daily=post, is_daily_book_kind=is_daily_book_kind,
+        )
+    except DailyBookLockedError:
+        # Keep the tag, skip the line: a closed day is not ours to
+        # reopen from a bank feed.
+        categorize_transaction(
+            db, row, rule.target_kind, rule=rule,
+            post_to_daily=False, is_daily_book_kind=is_daily_book_kind,
+        )
+        return ApplyOutcome(tagged=True, booked=False, locked_skipped=True)
+    return ApplyOutcome(tagged=True, booked=bool(row.daily_line_item_id))
 
 
 def apply_rules_to_uncategorized_row(
@@ -51,7 +86,7 @@ def apply_rules_to_uncategorized_row(
 
     Order matters:
       1. Operator BankRule chain (lowest priority first). If a
-         rule matches, tag the row + maybe post a DailyLineItem
+         rule matches, tag the row + maybe book a DailyLineItem
          when `auto_post AND allow_auto_post`.
       2. Built-in (platform-managed) rule chain. If a built-in
          matches, tag the row WITHOUT posting to the daily book.
@@ -62,13 +97,7 @@ def apply_rules_to_uncategorized_row(
 
     rule = find_matching_rule(db, row.store_id, row)
     if rule is not None:
-        categorize_transaction(
-            db, row, rule.target_kind,
-            rule=rule,
-            post_to_daily=(rule.auto_post and allow_auto_post),
-            is_daily_book_kind=is_daily_book_kind,
-        )
-        return True
+        return _apply_rule(db, row, rule, allow_auto_post=allow_auto_post).tagged
 
     builtin = match_builtin_bank_rule(row, account)
     if builtin:
@@ -81,3 +110,53 @@ def apply_rules_to_uncategorized_row(
         return True
 
     return False
+
+
+@dataclass(frozen=True)
+class RuleApplyReport:
+    """What applying ONE rule to the store's existing uncategorised
+    rows did — the numbers the operator sees in the toast."""
+    tagged: int = 0
+    booked: int = 0
+    locked_skipped: int = 0
+
+
+def apply_rule_to_existing(
+    db: Session, rule: Any, *, allow_auto_post: bool = True,
+) -> RuleApplyReport:
+    """Run one rule over every still-uncategorised transaction in
+    its store. This is the "apply now" the operator asks for when
+    they create a rule from a transaction they have already seen —
+    unlike the sync backfill it books by default, because the
+    operator just said so. Locked days are still skipped.
+
+    Only uncategorised rows are touched: a rule never overrides a
+    tag someone set by hand. Caller commits.
+    """
+    from sqlalchemy import or_
+
+    from api.Modules.BankSync.Models import BankTransaction
+
+    if not rule.enabled:
+        return RuleApplyReport()
+    rows = (
+        db.query(BankTransaction)
+          .filter(
+              BankTransaction.store_id == rule.store_id,
+              or_(
+                  BankTransaction.category_slug.is_(None),
+                  BankTransaction.category_slug == "",
+              ),
+          )
+          .order_by(BankTransaction.posted_at.asc(), BankTransaction.id.asc())
+          .all()
+    )
+    tagged = booked = locked = 0
+    for row in rows:
+        if not rule_matches(rule, row):
+            continue
+        out = _apply_rule(db, row, rule, allow_auto_post=allow_auto_post)
+        tagged += 1
+        booked += int(out.booked)
+        locked += int(out.locked_skipped)
+    return RuleApplyReport(tagged=tagged, booked=booked, locked_skipped=locked)

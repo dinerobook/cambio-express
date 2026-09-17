@@ -1899,6 +1899,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bank/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Categories Route
+         * @description The store's category picker: daily-book kinds (booking), the
+         *     monthly P&L lines, and the non-posting tags including one
+         *     bank-charge slug per connected account. The SPA renders exactly
+         *     this — it must not carry its own slug list.
+         */
+        get: operations["list_categories_route_bank_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bank/connect": {
         parameters: {
             query?: never;
@@ -2026,6 +2049,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bank/rules/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reorder Rules Route
+         * @description Rewrite priorities so the rules evaluate in the given order
+         *     (first-match-wins, so this is the semantics, not cosmetics).
+         *     Every rule of the store must be listed exactly once — a stale
+         *     list from another tab is refused rather than half-applied.
+         */
+        post: operations["reorder_rules_route_bank_rules_reorder_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bank/rules/{rule_id}": {
         parameters: {
             query?: never;
@@ -2039,6 +2085,30 @@ export interface paths {
         post?: never;
         /** Delete Rule Route */
         delete: operations["delete_rule_route_bank_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bank/rules/{rule_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Rule Route
+         * @description Run one rule over the store's still-uncategorised
+         *     transactions now — tagging, and booking on the daily book when
+         *     the rule auto-posts. Rows on a locked day are tagged but not
+         *     booked (`applied.locked_skipped`). Hand-set tags are never
+         *     overridden.
+         */
+        post: operations["apply_rule_route_bank_rules__rule_id__apply_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2116,12 +2186,14 @@ export interface paths {
         /**
          * Categorize Route
          * @description Tag a transaction with a category and (when the kind is a
-         *     daily-book line item) auto-create the matching DailyLineItem.
+         *     daily-book line item) book the matching DailyLineItem, rolling
+         *     the day's total up the same way a cashier's entry does.
          *
-         *     Idempotent: re-categorizing replaces any prior auto-created
-         *     DailyLineItem before adding the new one. `post_to_daily=False`
-         *     keeps the metadata-only path for operators who want a P&L tag
-         *     without a daily-book mirror.
+         *     Idempotent: re-categorizing replaces any prior booked line
+         *     before adding the new one. `post_to_daily=False` keeps the
+         *     metadata-only path; `report_date` moves the line to another
+         *     day. Unknown slug → 422; locked day → 409 with the date in the
+         *     detail so the SPA can offer "unlock" or "book on another day".
          */
         post: operations["categorize_route_bank_transactions__txn_id__categorize_post"];
         delete?: never;
@@ -6726,6 +6798,41 @@ export interface components {
             subcategory: string;
         };
         /**
+         * BankCategoriesResponse
+         * @description GET /bank/categories — the store's category picker, grouped
+         *     the way the operator should read it (daily book, monthly P&L,
+         *     other). The server is the only source of this list: the SPA
+         *     must not hard-code slugs.
+         */
+        BankCategoriesResponse: {
+            /** Groups */
+            groups?: components["schemas"]["BankCategoryGroup"][];
+        };
+        /**
+         * BankCategoryGroup
+         * @description One `<optgroup>` of the category picker. `posts_to_daily`
+         *     tells the SPA which group books a line on the daily book so it
+         *     can show the booking controls only where they apply.
+         */
+        BankCategoryGroup: {
+            /** Label */
+            label: string;
+            /** Options */
+            options?: components["schemas"]["BankCategoryOption"][];
+            /**
+             * Posts To Daily
+             * @default false
+             */
+            posts_to_daily: boolean;
+        };
+        /** BankCategoryOption */
+        BankCategoryOption: {
+            /** Label */
+            label: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
          * BankConnectCompleteRequest
          * @description `POST /api/v2/bank/connect/complete` body — the SPA hands
          *     back the FC session id after Stripe.js resolves so the
@@ -6776,6 +6883,29 @@ export interface components {
             error: string;
         };
         /**
+         * BankRuleApplyReport
+         * @description What applying a rule to the store's existing uncategorised
+         *     rows did. `locked_skipped` rows were tagged but not booked
+         *     because their day's book is locked.
+         */
+        BankRuleApplyReport: {
+            /**
+             * Booked
+             * @default 0
+             */
+            booked: number;
+            /**
+             * Locked Skipped
+             * @default 0
+             */
+            locked_skipped: number;
+            /**
+             * Tagged
+             * @default 0
+             */
+            tagged: number;
+        };
+        /**
          * BankRuleListResponse
          * @description Envelope for the /bank/rules read endpoint. Order matches the
          *     Repository: priority asc, id asc tie-break — the same order the
@@ -6788,8 +6918,20 @@ export interface components {
             /** Total */
             total: number;
         };
+        /**
+         * BankRuleReorderRequest
+         * @description POST body for /bank/rules/reorder — every rule id of the
+         *     store in the order they should evaluate (top first). Rules are
+         *     evaluated first-match-wins, so the order IS the semantics; the
+         *     server rewrites `priority` as 10, 20, 30… in this order.
+         */
+        BankRuleReorderRequest: {
+            /** Ids */
+            ids: number[];
+        };
         /** BankRuleResponse */
         BankRuleResponse: {
+            applied?: components["schemas"]["BankRuleApplyReport"] | null;
             rule: components["schemas"]["BankRuleRow"];
         };
         /**
@@ -6870,12 +7012,18 @@ export interface components {
          *     /bank/rules/new + /bank/rules/<id>/edit forms.
          *
          *     `desc_match_type` must be "" (skip the description filter
-         *     entirely) or one of `contains`/`starts_with`/`equals`/`regex`.
-         *     Similarly `sign_filter` is "" / `credit` / `debit`.
-         *     `amount_min_cents` / `amount_max_cents` are absolute cents
-         *     (positive integers); None on either side means unbounded.
-         *     `target_kind` is required — what category the matching txn
-         *     gets tagged with.
+         *     entirely) or one of `DESC_MATCH_TYPES` in
+         *     `Services/matcher.py` (`contains` / `starts_with` / `ends_with`
+         *     / `equals` / `regex`). Similarly `sign_filter` is "" /
+         *     `credit` / `debit`. `amount_min_cents` / `amount_max_cents`
+         *     are absolute cents (positive integers); None on either side
+         *     means unbounded. `target_kind` is required — what category the
+         *     matching txn gets tagged with.
+         *
+         *     `apply_to_existing` (create only) runs the new rule over the
+         *     store's still-uncategorised transactions right away, booking
+         *     daily-book lines when `auto_post` is on. The counts come back
+         *     in `BankRuleResponse.applied`.
          */
         BankRuleWriteRequest: {
             /** Account Filter Id */
@@ -6884,6 +7032,11 @@ export interface components {
             amount_max_cents?: number | null;
             /** Amount Min Cents */
             amount_min_cents?: number | null;
+            /**
+             * Apply To Existing
+             * @default false
+             */
+            apply_to_existing: boolean;
             /**
              * Auto Post
              * @default true
@@ -6977,6 +7130,11 @@ export interface components {
             /** Amount Cents */
             amount_cents: number;
             /**
+             * Booked On
+             * @default
+             */
+            booked_on: string;
+            /**
              * Category Slug
              * @default
              */
@@ -6986,6 +7144,8 @@ export interface components {
              * @default usd
              */
             currency: string;
+            /** Daily Line Item Id */
+            daily_line_item_id?: number | null;
             /**
              * Description
              * @default
@@ -7231,11 +7391,18 @@ export interface components {
          * CategorizeRequest
          * @description POST body for /bank/transactions/{txn_id}/categorize.
          *
-         *     `target_kind` is a slug from `BANK_CATEGORIES_NON_POSTING` or
-         *     `_LINE_ITEM_KINDS` (e.g. "bank_charge_210", "cash_deposit").
+         *     `target_kind` is any slug `GET /bank/categories` lists for the
+         *     store (a daily-book kind such as "check_deposit", a `pl_*`
+         *     monthly line, or a non-posting tag such as "bank_charge_230").
+         *     Unknown slugs are a 422.
+         *
          *     `post_to_daily=False` keeps the assignment metadata-only and
          *     skips creating the matching DailyLineItem (used when the
-         *     operator wants the P&L tag without a daily-book mirror).
+         *     operator wants the tag without a daily-book mirror).
+         *     `report_date` (ISO date) overrides the day the line lands on —
+         *     for a remote deposit the bank posts the next morning that
+         *     belongs on the prior day's close-out. Booking onto a locked
+         *     day is a 409.
          */
         CategorizeRequest: {
             /**
@@ -7243,6 +7410,8 @@ export interface components {
              * @default true
              */
             post_to_daily: boolean;
+            /** Report Date */
+            report_date?: string | null;
             /** Target Kind */
             target_kind: string;
         };
@@ -9195,6 +9364,11 @@ export interface components {
              * @default 0
              */
             bank_charges_total: number;
+            /**
+             * Bank Locked
+             * @default []
+             */
+            bank_locked: string[];
             /**
              * Bill Payment Charge
              * @default 0
@@ -16493,6 +16667,39 @@ export interface operations {
             };
         };
     };
+    list_categories_route_bank_categories_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankCategoriesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     connect_route_bank_connect_post: {
         parameters: {
             query?: never;
@@ -16701,6 +16908,43 @@ export interface operations {
             };
         };
     };
+    reorder_rules_route_bank_rules_reorder_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankRuleReorderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankRuleListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_rule_route_bank_rules__rule_id__put: {
         parameters: {
             query?: never;
@@ -16761,6 +17005,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_rule_route_bank_rules__rule_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                rule_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankRuleResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

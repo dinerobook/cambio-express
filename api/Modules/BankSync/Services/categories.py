@@ -1,31 +1,30 @@
 """Bank category / slug helpers.
 
-Operator-facing display + validation for the slugs that bank
-transactions can be tagged with. Three concerns live here:
+A bank transaction gets tagged with exactly one slug, and the slug
+decides where the money lands in the books. Three families:
 
-  - `BANK_CATEGORIES_NON_POSTING`: static dict of slugs that
-    DON'T post to the daily book. Internal transfers, MT ACH
-    debits, ignore-me tags. Static `bank_charge_210 / _230`
-    entries are kept ONLY so the Nizari-store dropdown still
-    surfaces them; future banks get their slugs added
-    dynamically by `bank_category_groups`.
+  1. **Daily-book kinds** (`LINE_ITEM_KINDS`): tagging posts a
+     `DailyLineItem` on the day's book — a remote check deposit
+     becomes a `check_deposit` line, a utility autopay a
+     `cash_expense` line — and the day's total rolls up from there
+     exactly as if the cashier had typed it. See `categorize.py`.
 
-  - `bank_category_label(slug)` — operator-friendly display name.
-    Folds dynamic `bank_charge_<last4>` slugs into a uniform
-    "Bank charge — ••<last4>" rendering.
+  2. **Monthly P&L lines** (`BANK_PL_CATEGORIES`, slugs `pl_*`):
+     nothing touches the daily book. The monthly P&L sums these
+     transactions straight into the matching `MonthlyFinancial`
+     column (credit-card fees, money-order rent, other income…),
+     under the same conditional-lock rule as bank charges: while
+     the bank has data for a month, the server's sum wins; when it
+     has none, the operator's typed value stands.
 
-  - `bank_category_groups(db, store_id)` — grouped dropdown
-    options: daily-book kinds vs non-posting tags. Augments the
-    "Other" group with per-account `bank_charge_<last4>` entries
-    for every connected account so single-account or non-Nizari
-    banks see a relevant option.
+  3. **Non-posting tags** (`BANK_CATEGORIES_NON_POSTING`): internal
+     transfers, the MT ACH debits that the ACH-batch module
+     reconciles, "ignore". Bank charges (`bank_charge_<last4>`)
+     live here too but DO feed the P&L's `bank_charges_total` via a
+     prefix match — they predate the `pl_*` family.
 
-  - `is_valid_bank_category(db, slug, store_id)` — predicate for
-    server-side validation when an operator tags a transaction
-    or saves a `BankRule`.
-
-  - `is_daily_book_kind(slug)` — true iff `slug` is in the
-    DailyBook line-item registry.
+`bank_category_groups` is what the SPA renders; `is_valid_bank_
+category` is what the server accepts. Keep them in step.
 """
 from sqlalchemy.orm import Session
 
@@ -48,6 +47,40 @@ BANK_CATEGORIES_NON_POSTING: dict[str, str] = {
 }
 
 
+# slug → (MonthlyFinancial column, operator label). Every column
+# here is operator-editable on the P&L today; tagging bank rows
+# with the slug is what turns it into a bank-fed line. Amounts are
+# summed as absolutes — the column's sign is decided by which P&L
+# bucket it sits in (INCOME_FIELDS / EXPENSE_FIELDS), not by the
+# transaction's direction.
+BANK_PL_CATEGORIES: dict[str, tuple[str, str]] = {
+    # Expenses
+    "pl_credit_card_fees":   ("credit_card_fees",   "Credit card fees"),
+    "pl_money_order_rent":   ("money_order_rent",   "Money order rent"),
+    "pl_emaginenet_tech":    ("emaginenet_tech",    "EmagineNet / tech"),
+    "pl_irs_payroll_tax":    ("irs_payroll_tax",    "IRS payroll tax"),
+    "pl_texas_workforce":    ("texas_workforce",    "Texas workforce"),
+    "pl_other_taxes":        ("other_taxes",        "Other taxes"),
+    "pl_accounting_charges": ("accounting_charges", "Accounting charges"),
+    "pl_other_expense_1":    ("other_expense_1",    "Other expense 1"),
+    "pl_other_expense_2":    ("other_expense_2",    "Other expense 2"),
+    "pl_other_expense_3":    ("other_expense_3",    "Other expense 3"),
+    "pl_other_expense_4":    ("other_expense_4",    "Other expense 4"),
+    "pl_other_expense_5":    ("other_expense_5",    "Other expense 5"),
+    # Income
+    "pl_mt_commission_in_bank": ("mt_commission_in_bank", "Money transfer commission in bank"),
+    "pl_rebates_commissions":   ("rebates_commissions",   "Rebates / commissions"),
+    "pl_other_income_1":        ("other_income_1",        "Other income 1"),
+    "pl_other_income_2":        ("other_income_2",        "Other income 2"),
+    "pl_other_income_3":        ("other_income_3",        "Other income 3"),
+}
+
+# The one P&L column that is fed by a slug FAMILY rather than a
+# single slug: every `bank_charge`, `bank_charge_210`,
+# `bank_charge_<last4>` row rolls into it.
+BANK_CHARGES_PL_FIELD = "bank_charges_total"
+
+
 def is_daily_book_kind(slug: str | None) -> bool:
     """True iff `slug` is a registered DailyBook line-item kind.
 
@@ -58,15 +91,33 @@ def is_daily_book_kind(slug: str | None) -> bool:
     return slug in LINE_ITEM_KINDS
 
 
+def is_bank_charge_family(slug: str | None) -> bool:
+    return bool(slug) and (slug == "bank_charge" or str(slug).startswith("bank_charge_"))
+
+
+def monthly_field_for(slug: str | None) -> str | None:
+    """The MonthlyFinancial column a slug feeds, or None when the
+    slug has no P&L effect (daily-book kinds reach the P&L through
+    the daily ledger, not directly)."""
+    if not slug:
+        return None
+    if slug in BANK_PL_CATEGORIES:
+        return BANK_PL_CATEGORIES[slug][0]
+    if is_bank_charge_family(slug):
+        return BANK_CHARGES_PL_FIELD
+    return None
+
+
 def bank_category_label(slug: str | None) -> str:
     """Operator-friendly label for a category slug.
 
     Lookup priority:
       1. `BANK_CATEGORIES_NON_POSTING` static dict.
-      2. Dynamic `bank_charge_<last4>` slug → "Bank charge —
+      2. `BANK_PL_CATEGORIES` → "P&L · <label>".
+      3. Dynamic `bank_charge_<last4>` slug → "Bank charge —
          ••<last4>" (so the UI doesn't show the raw slug).
-      3. DailyBook line-item kind → titlecase of singular label.
-      4. Fall through to the slug itself.
+      4. DailyBook line-item kind → titlecase of singular label.
+      5. Fall through to the slug itself.
 
     Empty / None slug returns "Uncategorized".
     """
@@ -74,6 +125,8 @@ def bank_category_label(slug: str | None) -> str:
         return "Uncategorized"
     if slug in BANK_CATEGORIES_NON_POSTING:
         return BANK_CATEGORIES_NON_POSTING[slug]
+    if slug in BANK_PL_CATEGORIES:
+        return f"P&L · {BANK_PL_CATEGORIES[slug][1]}"
     # Dynamic per-account bank-charge slug — render uniformly.
     if slug.startswith("bank_charge_"):
         suffix = slug[len("bank_charge_"):]
@@ -84,25 +137,7 @@ def bank_category_label(slug: str | None) -> str:
     return slug
 
 
-def bank_category_groups(
-    db: Session, store_id: int | None = None,
-) -> list[tuple[str, list[tuple[str, str]]]]:
-    """Grouped `(group_label, [(slug, label), ...])` tuples for
-    dropdowns.
-
-    The two groups stay separate in the UI so operators don't
-    confuse auto-posting kinds with non-posting tags.
-
-    When `store_id` is given, the "Other" group is augmented with
-    a per-account `bank_charge_<last4>` entry for every connected
-    account that isn't already in the static dict — so
-    single-account or non-Nizari banks see a relevant bank-charge
-    option.
-    """
-    daily = [
-        (slug, meta[1].title())
-        for slug, meta in LINE_ITEM_KINDS.items()
-    ]
+def _other_options(db: Session, store_id: int | None) -> dict[str, str]:
     other = dict(BANK_CATEGORIES_NON_POSTING)  # copy so we can extend
     if store_id is not None:
         from api.Modules.BankSync.Models import StripeBankAccount
@@ -118,8 +153,32 @@ def bank_category_groups(
             slug = f"bank_charge_{stripped}"
             if slug not in other:
                 other[slug] = f"Bank charge — ••{a.last4}"
+    return other
+
+
+def bank_category_groups(
+    db: Session, store_id: int | None = None,
+) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Grouped `(group_label, [(slug, label), ...])` tuples for
+    dropdowns. Three groups, in the order an operator should read
+    them: what posts to today's book, what feeds the month's P&L,
+    and what is only a tag.
+
+    When `store_id` is given, the "Other" group is augmented with
+    a per-account `bank_charge_<last4>` entry for every connected
+    account that isn't already in the static dict — so
+    single-account or non-Nizari banks see a relevant bank-charge
+    option.
+    """
+    daily = [
+        (slug, meta[1].title())
+        for slug, meta in LINE_ITEM_KINDS.items()
+    ]
+    pl = [(slug, label) for slug, (_field, label) in BANK_PL_CATEGORIES.items()]
+    other = _other_options(db, store_id)
     return [
-        ("Daily-book line items", daily),
+        ("Daily book", daily),
+        ("Monthly P&L", pl),
         ("Other (no daily-book impact)", list(other.items())),
     ]
 
@@ -136,7 +195,11 @@ def is_valid_bank_category(
     """
     if not slug:
         return False
-    if slug in LINE_ITEM_KINDS or slug in BANK_CATEGORIES_NON_POSTING:
+    if (
+        slug in LINE_ITEM_KINDS
+        or slug in BANK_CATEGORIES_NON_POSTING
+        or slug in BANK_PL_CATEGORIES
+    ):
         return True
     # Dynamic per-account bank-charge: validate against the store's
     # connected account set.
