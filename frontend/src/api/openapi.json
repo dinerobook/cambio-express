@@ -1192,6 +1192,67 @@
         "title": "BankAccountRow",
         "type": "object"
       },
+      "BankCategoriesResponse": {
+        "additionalProperties": false,
+        "description": "GET /bank/categories \u2014 the store's category picker, grouped\nthe way the operator should read it (daily book, monthly P&L,\nother). The server is the only source of this list: the SPA\nmust not hard-code slugs.",
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/BankCategoryGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          }
+        },
+        "title": "BankCategoriesResponse",
+        "type": "object"
+      },
+      "BankCategoryGroup": {
+        "additionalProperties": false,
+        "description": "One `<optgroup>` of the category picker. `posts_to_daily`\ntells the SPA which group books a line on the daily book so it\ncan show the booking controls only where they apply.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/BankCategoryOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "posts_to_daily": {
+            "default": false,
+            "title": "Posts To Daily",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "BankCategoryGroup",
+        "type": "object"
+      },
+      "BankCategoryOption": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "label"
+        ],
+        "title": "BankCategoryOption",
+        "type": "object"
+      },
       "BankConnectCompleteRequest": {
         "additionalProperties": false,
         "description": "`POST /api/v2/bank/connect/complete` body \u2014 the SPA hands\nback the FC session id after Stripe.js resolves so the\nserver can fetch + persist the linked accounts.",
@@ -1272,6 +1333,29 @@
         "title": "BankRefreshResponse",
         "type": "object"
       },
+      "BankRuleApplyReport": {
+        "additionalProperties": false,
+        "description": "What applying a rule to the store's existing uncategorised\nrows did. `locked_skipped` rows were tagged but not booked\nbecause their day's book is locked.",
+        "properties": {
+          "booked": {
+            "default": 0,
+            "title": "Booked",
+            "type": "integer"
+          },
+          "locked_skipped": {
+            "default": 0,
+            "title": "Locked Skipped",
+            "type": "integer"
+          },
+          "tagged": {
+            "default": 0,
+            "title": "Tagged",
+            "type": "integer"
+          }
+        },
+        "title": "BankRuleApplyReport",
+        "type": "object"
+      },
       "BankRuleListResponse": {
         "additionalProperties": false,
         "description": "Envelope for the /bank/rules read endpoint. Order matches the\nRepository: priority asc, id asc tie-break \u2014 the same order the\nauto-categorize sync walks them in, so what the UI shows is the\nactual evaluation order.",
@@ -1294,9 +1378,38 @@
         "title": "BankRuleListResponse",
         "type": "object"
       },
+      "BankRuleReorderRequest": {
+        "additionalProperties": false,
+        "description": "POST body for /bank/rules/reorder \u2014 every rule id of the\nstore in the order they should evaluate (top first). Rules are\nevaluated first-match-wins, so the order IS the semantics; the\nserver rewrites `priority` as 10, 20, 30\u2026 in this order.",
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "BankRuleReorderRequest",
+        "type": "object"
+      },
       "BankRuleResponse": {
         "additionalProperties": false,
         "properties": {
+          "applied": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankRuleApplyReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rule": {
             "$ref": "#/components/schemas/BankRuleRow"
           }
@@ -1427,7 +1540,7 @@
       },
       "BankRuleWriteRequest": {
         "additionalProperties": false,
-        "description": "POST/PUT body for bank rule CRUD. Mirrors the legacy\n/bank/rules/new + /bank/rules/<id>/edit forms.\n\n`desc_match_type` must be \"\" (skip the description filter\nentirely) or one of `contains`/`starts_with`/`equals`/`regex`.\nSimilarly `sign_filter` is \"\" / `credit` / `debit`.\n`amount_min_cents` / `amount_max_cents` are absolute cents\n(positive integers); None on either side means unbounded.\n`target_kind` is required \u2014 what category the matching txn\ngets tagged with.",
+        "description": "POST/PUT body for bank rule CRUD. Mirrors the legacy\n/bank/rules/new + /bank/rules/<id>/edit forms.\n\n`desc_match_type` must be \"\" (skip the description filter\nentirely) or one of `DESC_MATCH_TYPES` in\n`Services/matcher.py` (`contains` / `starts_with` / `ends_with`\n/ `equals` / `regex`). Similarly `sign_filter` is \"\" /\n`credit` / `debit`. `amount_min_cents` / `amount_max_cents`\nare absolute cents (positive integers); None on either side\nmeans unbounded. `target_kind` is required \u2014 what category the\nmatching txn gets tagged with.\n\n`apply_to_existing` (create only) runs the new rule over the\nstore's still-uncategorised transactions right away, booking\ndaily-book lines when `auto_post` is on. The counts come back\nin `BankRuleResponse.applied`.",
         "properties": {
           "account_filter_id": {
             "anyOf": [
@@ -1464,6 +1577,11 @@
             ],
             "title": "Amount Min Cents"
           },
+          "apply_to_existing": {
+            "default": false,
+            "title": "Apply To Existing",
+            "type": "boolean"
+          },
           "auto_post": {
             "default": true,
             "title": "Auto Post",
@@ -1471,7 +1589,7 @@
           },
           "desc_match_type": {
             "default": "",
-            "pattern": "^(|contains|starts_with|equals|regex)$",
+            "pattern": "^(|contains|starts_with|ends_with|equals|regex)$",
             "title": "Desc Match Type",
             "type": "string"
           },
@@ -1611,6 +1729,11 @@
             "title": "Amount Cents",
             "type": "integer"
           },
+          "booked_on": {
+            "default": "",
+            "title": "Booked On",
+            "type": "string"
+          },
           "category_slug": {
             "default": "",
             "title": "Category Slug",
@@ -1620,6 +1743,17 @@
             "default": "usd",
             "title": "Currency",
             "type": "string"
+          },
+          "daily_line_item_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Line Item Id"
           },
           "description": {
             "default": "",
@@ -2020,12 +2154,24 @@
       },
       "CategorizeRequest": {
         "additionalProperties": false,
-        "description": "POST body for /bank/transactions/{txn_id}/categorize.\n\n`target_kind` is a slug from `BANK_CATEGORIES_NON_POSTING` or\n`_LINE_ITEM_KINDS` (e.g. \"bank_charge_210\", \"cash_deposit\").\n`post_to_daily=False` keeps the assignment metadata-only and\nskips creating the matching DailyLineItem (used when the\noperator wants the P&L tag without a daily-book mirror).",
+        "description": "POST body for /bank/transactions/{txn_id}/categorize.\n\n`target_kind` is any slug `GET /bank/categories` lists for the\nstore (a daily-book kind such as \"check_deposit\", a `pl_*`\nmonthly line, or a non-posting tag such as \"bank_charge_230\").\nUnknown slugs are a 422.\n\n`post_to_daily=False` keeps the assignment metadata-only and\nskips creating the matching DailyLineItem (used when the\noperator wants the tag without a daily-book mirror).\n`report_date` (ISO date) overrides the day the line lands on \u2014\nfor a remote deposit the bank posts the next morning that\nbelongs on the prior day's close-out. Booking onto a locked\nday is a 409.",
         "properties": {
           "post_to_daily": {
             "default": true,
             "title": "Post To Daily",
             "type": "boolean"
+          },
+          "report_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Date"
           },
           "target_kind": {
             "maxLength": 60,
@@ -6633,6 +6779,14 @@
             "default": 0.0,
             "title": "Bank Charges Total",
             "type": "number"
+          },
+          "bank_locked": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Bank Locked",
+            "type": "array"
           },
           "bill_payment_charge": {
             "default": 0.0,
@@ -21788,6 +21942,72 @@
         ]
       }
     },
+    "/bank/categories": {
+      "get": {
+        "description": "The store's category picker: daily-book kinds (booking), the\nmonthly P&L lines, and the non-posting tags including one\nbank-charge slug per connected account. The SPA renders exactly\nthis \u2014 it must not carry its own slug list.",
+        "operationId": "list_categories_route_bank_categories_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankCategoriesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Categories Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
     "/bank/connect": {
       "post": {
         "description": "Mint a Stripe Financial Connections session.\n\nReturns the client_secret the SPA hands to\n`stripe.collectFinancialConnectionsAccounts()`.  After Stripe.js\nresolves, the SPA POSTs `sessionId` to `/connect/complete` so\nthe server can fetch + persist the linked accounts.\n\nEnforces the per-store account cap before minting \u2014 a session\nthat would push the store over `MAX_BANK_ACCOUNTS_PER_STORE`\nreturns 409 with a clear message.",
@@ -22214,6 +22434,82 @@
         ]
       }
     },
+    "/bank/rules/reorder": {
+      "post": {
+        "description": "Rewrite priorities so the rules evaluate in the given order\n(first-match-wins, so this is the semantics, not cosmetics).\nEvery rule of the store must be listed exactly once \u2014 a stale\nlist from another tab is refused rather than half-applied.",
+        "operationId": "reorder_rules_route_bank_rules_reorder_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankRuleReorderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankRuleListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reorder Rules Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
     "/bank/rules/{rule_id}": {
       "delete": {
         "operationId": "delete_rule_route_bank_rules__rule_id__delete",
@@ -22360,6 +22656,82 @@
           }
         },
         "summary": "Update Rule Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/bank/rules/{rule_id}/apply": {
+      "post": {
+        "description": "Run one rule over the store's still-uncategorised\ntransactions now \u2014 tagging, and booking on the daily book when\nthe rule auto-posts. Rows on a locked day are tagged but not\nbooked (`applied.locked_skipped`). Hand-set tags are never\noverridden.",
+        "operationId": "apply_rule_route_bank_rules__rule_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Rule Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankRuleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply Rule Route",
         "tags": [
           "bank"
         ]
@@ -22677,7 +23049,7 @@
     },
     "/bank/transactions/{txn_id}/categorize": {
       "post": {
-        "description": "Tag a transaction with a category and (when the kind is a\ndaily-book line item) auto-create the matching DailyLineItem.\n\nIdempotent: re-categorizing replaces any prior auto-created\nDailyLineItem before adding the new one. `post_to_daily=False`\nkeeps the metadata-only path for operators who want a P&L tag\nwithout a daily-book mirror.",
+        "description": "Tag a transaction with a category and (when the kind is a\ndaily-book line item) book the matching DailyLineItem, rolling\nthe day's total up the same way a cashier's entry does.\n\nIdempotent: re-categorizing replaces any prior booked line\nbefore adding the new one. `post_to_daily=False` keeps the\nmetadata-only path; `report_date` moves the line to another\nday. Unknown slug \u2192 422; locked day \u2192 409 with the date in the\ndetail so the SPA can offer \"unlock\" or \"book on another day\".",
         "operationId": "categorize_route_bank_transactions__txn_id__categorize_post",
         "parameters": [
           {

@@ -16,7 +16,9 @@ transaction?" decision:
 
 Match conditions on `BankRule`:
   - description: regex (case-insensitive) / contains / starts_with
-    / equals (lowercase comparisons for the non-regex variants).
+    / ends_with / equals (lowercase comparisons for the non-regex
+    variants). `DESC_MATCH_TYPES` is the canonical list — the
+    request schema and the SPA's dropdown must agree with it.
     Invalid regex → no-match (avoid blowing up the sync).
   - sign filter: credit (amount > 0) / debit (amount <= 0).
   - amount range: min/max as absolute cents.
@@ -29,6 +31,11 @@ import re
 from typing import Any
 
 from sqlalchemy.orm import Session
+
+
+DESC_MATCH_TYPES: tuple[str, ...] = (
+    "contains", "starts_with", "ends_with", "equals", "regex",
+)
 
 
 def rule_matches(rule: Any, txn: Any) -> bool:
@@ -60,6 +67,8 @@ def rule_matches(rule: Any, txn: Any) -> bool:
             if mt == "contains" and v not in d:
                 return False
             if mt == "starts_with" and not d.startswith(v):
+                return False
+            if mt == "ends_with" and not d.endswith(v):
                 return False
             if mt == "equals" and d != v:
                 return False

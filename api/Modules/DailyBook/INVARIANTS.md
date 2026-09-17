@@ -390,9 +390,18 @@ The daily book feeds:
   applying them is an explicit action — that's why a fresh day
   pre-fills with the day's totals and an overridden day keeps
   the cashier's edits.
-- **Bank sync** (`api/Modules/BankSync/`): some bank-charge rows
-  feed line-item kinds (see `BUILTIN_BANK_RULES`). Those line items
-  show up under the existing line-item-derived fields.
+- **Bank sync** (`api/Modules/BankSync/`): a bank transaction
+  tagged with a daily-book kind (by the operator or by a
+  `BankRule` with `auto_post`) books a `msb_daily_line_item` of
+  that kind on the day's book and rolls the total through
+  `recompute_line_items_total` — exactly the cashier's path, so
+  `checks_deposit` etc. move at once and the report row is
+  created if the day had none. The bank feed **never edits a
+  locked day**: booking is refused before any write
+  (`DailyBookLockedError` → 409 on the endpoint; the rule engine
+  keeps the tag and skips the line). Re-tagging or clearing the
+  tag removes the line and rolls the day back. The line's `note`
+  is the bank description. See `BankSync/INVARIANTS.md`.
 - **Return checks** (`api/Modules/ReturnChecks/`): recording a
   return-check payback creates a `msb_daily_line_item` with
   `kind='return_payback'` whose amount rolls into

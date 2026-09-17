@@ -12,8 +12,15 @@ auth in place we trust claims.store_id as the single source of
 truth. Owner-umbrella support (multi-store query) lives on the
 roadmap but ships with the owner portal migration, not here.
 
-Write-side endpoints (rule CRUD, manual categorization, daily-
-book post) come in subsequent PRs.
+Write-side:
+
+  POST /bank/transactions/{id}/categorize   → tag (+ book on the
+                                               daily book; 409 on
+                                               a locked day)
+  POST /bank/transactions/{id}/uncategorize → clear (+ unbook)
+  GET  /bank/categories                     → the store's picker
+  POST /bank/rules, PUT /bank/rules/{id}, POST .../toggle,
+  DELETE, POST .../apply, POST /bank/rules/reorder
 """
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
@@ -36,11 +43,16 @@ from api.Modules.BankSync.Requests import (
     BankAccountListResponse,
     BankAccountNicknameRequest,
     BankAccountRow,
+    BankCategoriesResponse,
+    BankCategoryGroup,
+    BankCategoryOption,
     BankConnectCompleteRequest,
     BankConnectCompleteResponse,
     BankConnectResponse,
     BankRefreshResponse,
+    BankRuleApplyReport,
     BankRuleListResponse,
+    BankRuleReorderRequest,
     BankRuleResponse,
     BankRuleRow,
     BankRuleToggleRequest,
@@ -52,10 +64,16 @@ from api.Modules.BankSync.Requests import (
     CategorizeResponse,
 )
 from api.Modules.BankSync.Services import (
+    DailyBookLockedError,
+    RuleApplyReport,
+    apply_rule_to_existing,
+    bank_category_groups,
     categorize_transaction,
+    is_valid_bank_category,
     list_transactions_page,
     uncategorize_transaction,
 )
+from api.Modules.DailyBook.Models import DailyLineItem
 from typing import Any
 import logging
 from api.Core.Clock import utc_now
@@ -87,6 +105,67 @@ def _account_labels(db: Session, ids: list[int]) -> dict[int, str]:
     return {a.id: a.label for a in rows}
 
 
+def _booked_dates(db: Session, line_ids: list[int]) -> dict[int, str]:
+    """line_item_id → ISO report_date for every booked transaction
+    on a page, in one query. A line the daily book has since
+    deleted simply has no entry (the row then reads as unbooked)."""
+    ids = [i for i in line_ids if i]
+    if not ids:
+        return {}
+    rows = (
+        db.query(DailyLineItem.id, DailyLineItem.report_date)
+          .filter(DailyLineItem.id.in_(set(ids)))
+          .all()
+    )
+    return {int(i): d.isoformat() for i, d in rows if d is not None}
+
+
+def _txn_row(
+    r: BankTransaction, labels: dict[int, str], booked: dict[int, str],
+) -> BankTransactionRow:
+    line_id = r.daily_line_item_id
+    booked_on = booked.get(int(line_id), "") if line_id else ""
+    return BankTransactionRow(
+        id=r.id,
+        posted_at=r.posted_at.isoformat() if r.posted_at else "",
+        description=r.description or "",
+        amount_cents=r.amount_cents,
+        amount=r.amount,
+        currency=r.currency or "usd",
+        status=r.status or "posted",
+        category_slug=r.category_slug or "",
+        account_id=r.stripe_bank_account_id,
+        account_label=labels.get(r.stripe_bank_account_id, ""),
+        daily_line_item_id=int(line_id) if line_id and booked_on else None,
+        booked_on=booked_on,
+    )
+
+
+@router.get("/categories", response_model=BankCategoriesResponse)
+def list_categories_route(
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> BankCategoriesResponse:
+    """The store's category picker: daily-book kinds (booking), the
+    monthly P&L lines, and the non-posting tags including one
+    bank-charge slug per connected account. The SPA renders exactly
+    this — it must not carry its own slug list."""
+    require_permission(claims, "bank_sync", "read")
+    sid = resolve_store_scope(claims)
+    groups = [
+        BankCategoryGroup(
+            label=label,
+            posts_to_daily=(idx == 0),
+            options=[
+                BankCategoryOption(slug=slug, label=opt_label)
+                for slug, opt_label in options
+            ],
+        )
+        for idx, (label, options) in enumerate(bank_category_groups(db, sid))
+    ]
+    return BankCategoriesResponse(groups=groups)
+
+
 @router.get("/transactions", response_model=BankTransactionListResponse)
 def list_transactions_route(
     posted_from: str = Query(""),
@@ -115,21 +194,10 @@ def list_transactions_route(
     labels = _account_labels(
         db, [r.stripe_bank_account_id for r in page_obj.rows],
     )
-    rows = [
-        BankTransactionRow(
-            id=r.id,
-            posted_at=r.posted_at.isoformat() if r.posted_at else "",
-            description=r.description or "",
-            amount_cents=r.amount_cents,
-            amount=r.amount,
-            currency=r.currency or "usd",
-            status=r.status or "posted",
-            category_slug=r.category_slug or "",
-            account_id=r.stripe_bank_account_id,
-            account_label=labels.get(r.stripe_bank_account_id, ""),
-        )
-        for r in page_obj.rows
-    ]
+    booked = _booked_dates(
+        db, [r.daily_line_item_id for r in page_obj.rows],
+    )
+    rows = [_txn_row(r, labels, booked) for r in page_obj.rows]
     return BankTransactionListResponse(
         rows=rows,
         total=page_obj.total,
@@ -232,18 +300,8 @@ def _adapt_txn(db: Session, txn: BankTransaction) -> BankTransactionRow:
     """Build the response row for a single BankTransaction. Re-uses
     `_account_labels` for the per-account nickname lookup."""
     labels = _account_labels(db, [txn.stripe_bank_account_id])
-    return BankTransactionRow(
-        id=txn.id,
-        posted_at=txn.posted_at.isoformat() if txn.posted_at else "",
-        description=txn.description or "",
-        amount_cents=txn.amount_cents,
-        amount=txn.amount,
-        currency=txn.currency or "usd",
-        status=txn.status or "posted",
-        category_slug=txn.category_slug or "",
-        account_id=txn.stripe_bank_account_id,
-        account_label=labels.get(txn.stripe_bank_account_id, ""),
-    )
+    booked = _booked_dates(db, [txn.daily_line_item_id])
+    return _txn_row(txn, labels, booked)
 
 
 def _find_owned_txn(db: Session, store_id: int, txn_id: int) -> BankTransaction:
@@ -273,21 +331,50 @@ def categorize_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> CategorizeResponse:
     """Tag a transaction with a category and (when the kind is a
-    daily-book line item) auto-create the matching DailyLineItem.
+    daily-book line item) book the matching DailyLineItem, rolling
+    the day's total up the same way a cashier's entry does.
 
-    Idempotent: re-categorizing replaces any prior auto-created
-    DailyLineItem before adding the new one. `post_to_daily=False`
-    keeps the metadata-only path for operators who want a P&L tag
-    without a daily-book mirror.
+    Idempotent: re-categorizing replaces any prior booked line
+    before adding the new one. `post_to_daily=False` keeps the
+    metadata-only path; `report_date` moves the line to another
+    day. Unknown slug → 422; locked day → 409 with the date in the
+    detail so the SPA can offer "unlock" or "book on another day".
     """
     require_permission(claims, "bank_sync", "update")
     sid = resolve_store_scope(claims)
     txn = _find_owned_txn(db, sid, txn_id)
-    from api.Modules.BankSync.Services import is_daily_book_kind
-    categorize_transaction(
-        db, txn, body.target_kind,
-        post_to_daily=body.post_to_daily,
-        is_daily_book_kind=is_daily_book_kind,
+    if not is_valid_bank_category(db, body.target_kind, sid):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "field": "target_kind",
+                "message": "Unknown category for this store.",
+            },
+        )
+    try:
+        categorize_transaction(
+            db, txn, body.target_kind,
+            post_to_daily=body.post_to_daily,
+            report_date=body.report_date,
+        )
+    except DailyBookLockedError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "daily_book_locked",
+                "report_date": exc.report_date.isoformat(),
+                "message": str(exc),
+            },
+        )
+    _audit_bank_action(
+        db, claims=claims, action="categorize",
+        target_type="bank_transaction", target_id=str(txn.id),
+        target_label=(txn.description or "")[:160],
+        summary=(
+            f"category={body.target_kind} "
+            f"booked={'yes' if txn.daily_line_item_id else 'no'}"
+        ),
     )
     db.commit()
     db.refresh(txn)
@@ -309,7 +396,14 @@ def uncategorize_route(
     require_permission(claims, "bank_sync", "update")
     sid = resolve_store_scope(claims)
     txn = _find_owned_txn(db, sid, txn_id)
+    previous = txn.category_slug or ""
     uncategorize_transaction(db, txn)
+    _audit_bank_action(
+        db, claims=claims, action="uncategorize",
+        target_type="bank_transaction", target_id=str(txn.id),
+        target_label=(txn.description or "")[:160],
+        summary=f"was={previous}",
+    )
     db.commit()
     db.refresh(txn)
     return CategorizeResponse(transaction=_adapt_txn(db, txn))
@@ -342,10 +436,27 @@ def _adapt_rule(db: Session, r: BankRule) -> BankRuleRow:
     )
 
 
-def _validate_rule_body(body: BankRuleWriteRequest) -> None:
+def _validate_rule_body(
+    db: Session, store_id: int, body: BankRuleWriteRequest,
+    *, require_condition: bool = True,
+) -> None:
     """Cross-field invariants that Pydantic Field() can't express
     on its own. Raises 422 with a `field` hint so the SPA can
-    highlight the offending input."""
+    highlight the offending input. `require_condition` is on for
+    create (an unconditional rule tags everything); an update of a
+    pre-existing rule keeps whatever shape it already had."""
+    if not is_valid_bank_category(db, body.target_kind, store_id):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "field": "target_kind",
+                "message": "Unknown category for this store.",
+            },
+        )
+    # A value without a type defaults to "contains" — the SPA's
+    # quick "Make a rule" form only asks for the words.
+    if body.desc_match_value.strip() and not body.desc_match_type:
+        body.desc_match_type = "contains"
     # If desc_match_type is set, desc_match_value must be non-empty.
     if body.desc_match_type and not body.desc_match_value.strip():
         raise HTTPException(
@@ -367,6 +478,21 @@ def _validate_rule_body(body: BankRuleWriteRequest) -> None:
             detail={
                 "field": "amount_max_cents",
                 "message": "Max amount must be ≥ min amount.",
+            },
+        )
+    # An empty rule matches every transaction — always a mistake.
+    if (
+        require_condition
+        and not body.desc_match_type and not body.sign_filter
+        and body.amount_min_cents is None and body.amount_max_cents is None
+        and body.account_filter_id is None
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "field": "desc_match_value",
+                "message": "Set at least one condition (description, "
+                           "sign, amount, or account).",
             },
         )
 
@@ -402,7 +528,7 @@ def create_rule_route(
 ) -> BankRuleResponse:
     require_permission(claims, "bank_sync", "create")
     sid = resolve_store_scope(claims)
-    _validate_rule_body(body)
+    _validate_rule_body(db, sid, body)
     _validate_account_owned(db, sid, body.account_filter_id)
     r = BankRule(
         store_id=sid,
@@ -419,14 +545,88 @@ def create_rule_route(
         description=body.description.strip(),
     )
     db.add(r); db.flush()
+    applied: RuleApplyReport | None = None
+    if body.apply_to_existing:
+        applied = apply_rule_to_existing(db, r)
     _audit_bank_action(
         db, claims=claims, action="create", target_type="bank_rule",
         target_id=str(r.id),
         target_label=(r.description or r.desc_match_value or "")[:160],
-        summary=f"target={r.target_kind}",
+        summary=f"target={r.target_kind}" + (
+            f" applied={applied.tagged} booked={applied.booked}"
+            if applied else ""
+        ),
     )
     db.commit()
-    return BankRuleResponse(rule=_adapt_rule(db, r))
+    return BankRuleResponse(
+        rule=_adapt_rule(db, r), applied=_apply_report(applied),
+    )
+
+
+def _apply_report(rep: RuleApplyReport | None) -> BankRuleApplyReport | None:
+    if rep is None:
+        return None
+    return BankRuleApplyReport(
+        tagged=rep.tagged, booked=rep.booked, locked_skipped=rep.locked_skipped,
+    )
+
+
+@router.post("/rules/reorder", response_model=BankRuleListResponse)
+def reorder_rules_route(
+    body: BankRuleReorderRequest,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> BankRuleListResponse:
+    """Rewrite priorities so the rules evaluate in the given order
+    (first-match-wins, so this is the semantics, not cosmetics).
+    Every rule of the store must be listed exactly once — a stale
+    list from another tab is refused rather than half-applied."""
+    require_permission(claims, "bank_sync", "update")
+    sid = resolve_store_scope(claims)
+    rules = list_rules(db, [sid])
+    by_id = {r.id: r for r in rules}
+    if sorted(body.ids) != sorted(by_id) or len(set(body.ids)) != len(body.ids):
+        raise HTTPException(
+            status_code=409,
+            detail="Rule list is out of date — reload and try again.",
+        )
+    for pos, rule_id in enumerate(body.ids):
+        by_id[rule_id].priority = (pos + 1) * 10
+    _audit_bank_action(
+        db, claims=claims, action="reorder", target_type="bank_rule",
+        target_id=str(sid), target_label="bank rules",
+        summary=",".join(str(i) for i in body.ids)[:200],
+    )
+    db.commit()
+    return list_rules_route(enabled_only=False, db=db, claims=claims)
+
+
+@router.post("/rules/{rule_id}/apply", response_model=BankRuleResponse)
+def apply_rule_route(
+    rule_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> BankRuleResponse:
+    """Run one rule over the store's still-uncategorised
+    transactions now — tagging, and booking on the daily book when
+    the rule auto-posts. Rows on a locked day are tagged but not
+    booked (`applied.locked_skipped`). Hand-set tags are never
+    overridden."""
+    require_permission(claims, "bank_sync", "update")
+    sid = resolve_store_scope(claims)
+    r = _find_owned_rule(db, sid, rule_id)
+    rep = apply_rule_to_existing(db, r)
+    _audit_bank_action(
+        db, claims=claims, action="apply", target_type="bank_rule",
+        target_id=str(r.id),
+        target_label=(r.description or r.desc_match_value or "")[:160],
+        summary=(
+            f"tagged={rep.tagged} booked={rep.booked} "
+            f"locked_skipped={rep.locked_skipped}"
+        ),
+    )
+    db.commit()
+    return BankRuleResponse(rule=_adapt_rule(db, r), applied=_apply_report(rep))
 
 
 @router.put("/rules/{rule_id}", response_model=BankRuleResponse)
@@ -438,9 +638,9 @@ def update_rule_route(
 ) -> BankRuleResponse:
     require_permission(claims, "bank_sync", "update")
     sid = resolve_store_scope(claims)
-    _validate_rule_body(body)
-    _validate_account_owned(db, sid, body.account_filter_id)
     r = _find_owned_rule(db, sid, rule_id)
+    _validate_rule_body(db, sid, body, require_condition=False)
+    _validate_account_owned(db, sid, body.account_filter_id)
     r.enabled = body.enabled
     r.priority = body.priority
     r.desc_match_type = body.desc_match_type

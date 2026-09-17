@@ -120,44 +120,53 @@ MonthlyFinancial value**". This means:
 
 ### Category 3: Cross-table-derived
 
-Two fields today:
-
 | Field | Source | Lock semantics |
 |---|---|---|
 | `return_check_gl` | `Owners.Services.return_check_monthly_pl` (signed) | Always overwritten on save |
-| `bank_charges_total` | `BankSync.Services.bank_charges_for_month(prefix="bank_charge")` | **Conditionally locked** — see below |
+| **bank-fed lines** — `bank_charges_total` plus any column a `pl_*` bank category maps to (`credit_card_fees`, `money_order_rent`, `emaginenet_tech`, `irs_payroll_tax`, `texas_workforce`, `other_taxes`, `accounting_charges`, `other_expense_1..5`, `mt_commission_in_bank`, `rebates_commissions`, `other_income_1..3`) | `BankSync.Services.bank_pl_sums_for_month` | **Conditionally locked, per column, per month** — see below |
 
 `return_check_gl` uses EXPENSE convention: positive value means net
 loss for the month, negative means net gain. The OPPOSITE convention
 appears in the owner dashboard — see `Owners/Services/return_checks.py`
 docstring.
 
-`bank_charges_total` is the **only field with conditional locking**.
-The rule (from `update_monthly`):
+**Bank-fed lines are the conditional-lock family.** The map from
+bank category slug to column is `BANK_PL_CATEGORIES` in
+`api/Modules/BankSync/Services/categories.py` (plus the
+`bank_charge*` prefix family → `bank_charges_total`).
+`bank_pl_sums_for_month` returns ONLY the columns that have tagged
+rows this month, and the rule (from `update_monthly`, step 4) is:
 
 ```python
-auto_bc = _auto_bank_charges_total(...)
-if auto_bc > 0:
-    setattr(row, "bank_charges_total", auto_bc)           # lock
-elif "bank_charges_total" in fields:
-    setattr(row, "bank_charges_total", float(fields[...])) # accept manual
+fed = bank_fed_fields(db, store_id, year, month)   # column → sum, absent when 0
+for field, value in fed.items():
+    setattr(row, field, value)                       # bank wins
+if "bank_charges_total" not in fed and fields.get("bank_charges_total") is not None:
+    setattr(row, "bank_charges_total", ...)          # legacy manual entry
 ```
 
-So:
+So, for every one of those columns independently:
 
-- **Bank-sync active + has charges this month** → server value wins.
-- **Bank-sync inactive (or no charges this month)** → operator's
-  typed value wins.
+- **The bank has tagged rows for it this month** → the server's
+  sum wins; the value the operator typed for that column is
+  ignored. The read side reports the column in
+  `MonthlyRow.bank_locked` and returns the LIVE sum (a row tagged
+  after the last save shows without a re-save, and the totals
+  include it — "trust the ledger, never the stored value").
+- **The bank is silent on it** → the operator's typed value wins,
+  exactly as before. Stores on the Basic plan (no bank sync) keep
+  typing every line.
 
-This is deliberate: stores on the Basic plan (no bank sync) need to
-type the number in by hand. Don't unconditionally lock it or you'll
-wipe Basic-plan stores' manual entries on every save.
+Don't unconditionally lock any of these or you'll wipe Basic-plan
+stores' manual entries on every save. Don't return zeros from
+`bank_pl_sums_for_month` — presence IS the lock.
 
-Both `return_check_gl` and `bank_charges_total` are NOT in
-`EDITABLE_MONTHLY_FIELDS`. `bank_charges_total` IS in the schema
-(`MonthlyUpdateRequest`) — that's how the operator types it when
-bank sync isn't active. `return_check_gl` is NOT in the schema —
-the workflow is the only path that touches it.
+`return_check_gl` is NOT in `EDITABLE_MONTHLY_FIELDS` and NOT in
+the schema — the workflow is the only path that touches it. The
+bank-fed columns ARE in `EDITABLE_MONTHLY_FIELDS` / the schema —
+that is how the operator types them when the bank isn't feeding
+them. The SPA (`EditMonthly.tsx`) renders `bank_locked` columns
+read-only with a "from bank" hint and omits them from the PUT.
 
 
 ## The 422 trap — explicit DO-NOT-WRITE list
@@ -242,7 +251,9 @@ The order of operations in `update_monthly` is:
    (`EDITABLE_MONTHLY_FIELDS` only).
 2. Overwrite every Category 2 field from `_sum_daily(...)`.
 3. Overwrite `return_check_gl` from the workflow.
-4. Conditionally write `bank_charges_total` (lock when > 0).
+4. Overwrite every bank-fed column the bank has data for this
+   month (`bank_fed_fields`); accept the legacy manual
+   `bank_charges_total` only when the bank is silent on it.
 5. Set `notes` + `updated_at`.
 
 This means:
@@ -277,10 +288,12 @@ The monthly P&L reads from:
   changes the next monthly save's locked-field values.
 - **BankSync** (`api/Modules/BankSync/`): `bank_charges_total` =
   `Σ BankTransaction WHERE category_slug LIKE 'bank_charge%'` for
-  the month. Includes the legacy `bank_charge` slug + every
-  per-account slug (`bank_charge_210`, `bank_charge_230`, future
-  `bank_charge_<last4>`). The prefix match means new built-in
-  rules auto-flow without registry maintenance.
+  the month (legacy `bank_charge` slug + every per-account slug);
+  every other bank-fed column = `Σ |amount|` of rows tagged with
+  its `pl_*` slug (`BANK_PL_CATEGORIES`). Adding a bank-fed line
+  is one row in that map — the column must already be in
+  `EDITABLE_MONTHLY_FIELDS` and `INCOME_FIELDS` / `EXPENSE_FIELDS`.
+  See `BankSync/INVARIANTS.md`.
 - **ReturnChecks** (via `api/Modules/Owners/Services/`):
   `return_check_gl` = `-(period_aggregates['net_gl'])` for the
   month. The sign flip converts the owner-dashboard convention

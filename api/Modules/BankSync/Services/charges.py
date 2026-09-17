@@ -158,3 +158,53 @@ def bank_charges_breakdown_for_month(
     return sorted(
         groups.values(), key=lambda g: g["total"], reverse=True,
     )
+
+
+def bank_pl_sums_for_month(
+    db: Session, store_id: int, year: int, month: int,
+) -> dict[str, float]:
+    """Every MonthlyFinancial column the bank feed can fill, with
+    the month's summed absolute amount — `bank_charges_total` from
+    the bank-charge slug family plus one entry per `pl_*` category
+    that has at least one tagged row.
+
+    Columns with no tagged rows are ABSENT from the result rather
+    than 0.0: the monthly P&L treats presence as "the bank is
+    speaking for this line this month" (server value wins) and
+    absence as "the operator types it". Returning zeros would
+    silently lock every line on every store with a connected bank.
+    """
+    from api.Modules.BankSync.Services.categories import (
+        BANK_CHARGES_PL_FIELD, BANK_PL_CATEGORIES,
+    )
+
+    out: dict[str, float] = {}
+    charges = bank_charges_for_month(
+        db, store_id, year, month, prefix="bank_charge",
+    )
+    if charges > 0:
+        out[BANK_CHARGES_PL_FIELD] = charges
+
+    month_start = datetime(year, month, 1)
+    month_end_d = monthrange(year, month)[1]
+    month_end = datetime(year, month, month_end_d, 23, 59, 59)
+    rows = (
+        db.query(
+            BankTransaction.category_slug,
+            func.coalesce(func.sum(func.abs(BankTransaction.amount_cents)), 0),
+        )
+        .filter(
+            BankTransaction.store_id == store_id,
+            BankTransaction.posted_at >= month_start,
+            BankTransaction.posted_at <= month_end,
+            BankTransaction.category_slug.in_(list(BANK_PL_CATEGORIES)),
+        )
+        .group_by(BankTransaction.category_slug)
+        .all()
+    )
+    for slug, cents in rows:
+        field = BANK_PL_CATEGORIES[str(slug)][0]
+        dollars = float(cents or 0) / 100.0
+        if dollars > 0:
+            out[field] = round(out.get(field, 0.0) + dollars, 2)
+    return out

@@ -57,6 +57,11 @@ class MonthlyRow(BaseModel):
     total_income:           float = 0.0
     total_expenses:         float = 0.0
     net_profit:             float = 0.0
+    # Columns the bank feed is filling this month (the value above
+    # is the bank's live sum). The SPA renders them read-only; the
+    # server ignores them on PUT. Empty for stores without bank
+    # sync or months with no tagged rows.
+    bank_locked:            list[str] = []
 
 
 class MonthlyResponse(BaseModel):

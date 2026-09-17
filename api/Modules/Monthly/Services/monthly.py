@@ -5,7 +5,7 @@ MonthlyFinancial row so the SPA controller doesn't have to
 duplicate the math (and the same totals power the legacy
 template).
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
@@ -39,22 +39,33 @@ EXPENSE_FIELDS: tuple[str, ...] = (
 @dataclass
 class MonthlySummary:
     """Service-layer DTO. The Controller converts this into the
-    Pydantic response model."""
+    Pydantic response model.
+
+    `bank_fed` is column → the bank feed's current sum for every
+    line the bank is speaking for this month. The totals are
+    computed over the row WITH those values substituted, so a
+    transaction tagged after the last save shows on the P&L
+    without a re-save ("trust the ledger, never the stored
+    value"). The columns are what the SPA renders read-only."""
     row: MonthlyFinancial
     total_income: float
     total_expenses: float
+    bank_fed: dict[str, float] = field(default_factory=dict)
 
     @property
     def net_profit(self) -> float:
         return round(self.total_income - self.total_expenses, 2)
 
+    def value(self, name: str) -> float:
+        """The live value of a column: the bank's sum when it feeds
+        the line this month, else the stored value."""
+        if name in self.bank_fed:
+            return float(self.bank_fed[name])
+        return float(getattr(self.row, name, 0) or 0)
 
-def _sum_fields(row: MonthlyFinancial, fields: tuple[str, ...]) -> float:
-    total = 0.0
-    for f in fields:
-        v = getattr(row, f, 0) or 0
-        total += float(v)
-    return round(total, 2)
+
+def _sum_fields(summary: MonthlySummary, fields: tuple[str, ...]) -> float:
+    return round(sum(summary.value(f) for f in fields), 2)
 
 
 def summarize_monthly(
@@ -62,11 +73,15 @@ def summarize_monthly(
 ) -> MonthlySummary | None:
     """Return a MonthlySummary for the (store, year, month) or
     None when no row has been logged for that month."""
+    from api.Modules.Monthly.Services.write import bank_fed_fields
+
     row = find_monthly_for(db, store_id, year, month)
     if row is None:
         return None
-    return MonthlySummary(
-        row=row,
-        total_income=_sum_fields(row, INCOME_FIELDS),
-        total_expenses=_sum_fields(row, EXPENSE_FIELDS),
+    summary = MonthlySummary(
+        row=row, total_income=0.0, total_expenses=0.0,
+        bank_fed=bank_fed_fields(db, store_id, year, month),
     )
+    summary.total_income = _sum_fields(summary, INCOME_FIELDS)
+    summary.total_expenses = _sum_fields(summary, EXPENSE_FIELDS)
+    return summary

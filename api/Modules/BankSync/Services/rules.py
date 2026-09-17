@@ -24,7 +24,7 @@ from api.Modules.BankSync.Repositories import (
 )
 
 
-_VALID_DESC_MATCH_TYPES = ("contains", "starts_with", "equals", "regex")
+from api.Modules.BankSync.Services.matcher import DESC_MATCH_TYPES as _VALID_DESC_MATCH_TYPES
 _VALID_SIGN_FILTERS = ("credit", "debit")
 _DESCRIPTION_MAX_LEN = 200
 

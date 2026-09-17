@@ -282,6 +282,15 @@ the 422-trap field list).
   Auth changes deserve an explicit review header in the PR
   description.
 
+- `api/Modules/BankSync/INVARIANTS.md` — bank feed. The three
+  category families and what tagging does, the booking contract
+  (roll-up through the daily-book service, locked days refused,
+  `report_date`, idempotent re-tag), the rules contract (AND
+  conditions, first match wins, never override a hand tag,
+  apply-to-existing), the P&L feed. `frontend/src/api/bankSync.ts`,
+  `routes/BankTransactions.tsx`, `routes/BankRules.tsx` and
+  `components/BankRuleForm.tsx` count as "BankSync files" too.
+
 When more INVARIANTS docs land (Batches), add them to
 this list. The point: a `frontend/src/routes/Bank.tsx` edit
 needs the Bank invariants in scope; a daily-book edit needs
@@ -590,119 +599,51 @@ table, its `ix_<table>_*` indexes, and (Postgres) its auto-named
 constraints and id sequence. Never edit an old revision to use a
 new name.
 
-## Bank-charge automation (built-in rules)
+## Bank feed → books (categories, rules, P&L feed)
+
+**Read `api/Modules/BankSync/INVARIANTS.md` before touching any of
+this.** The short version:
+
+- A bank transaction gets ONE category slug, and the slug decides
+  where the money lands. Three families, all listed by
+  `GET /api/v2/bank/categories` (the SPA never hard-codes slugs):
+  - **Daily-book kinds** (`LINE_ITEM_KINDS`) — tagging BOOKS a
+    `msb_daily_line_item` on the day's book through
+    `recompute_line_items_total`, so the day's column moves and
+    the report row is created if missing. A locked day refuses
+    (service `DailyBookLockedError`, endpoint 409, rule engine
+    keeps the tag and skips the line). `report_date` moves the
+    line to another day.
+  - **Monthly P&L lines** (`BANK_PL_CATEGORIES`, slugs `pl_*`) —
+    summed straight into the mapped `MonthlyFinancial` column by
+    `bank_pl_sums_for_month`, locked per column per month only
+    when the bank has rows for it (Basic-plan stores keep typing).
+  - **Other tags** (`BANK_CATEGORIES_NON_POSTING` + one
+    `bank_charge_<last4>` per connected account) — tag only; the
+    `bank_charge*` family feeds `bank_charges_total`.
+- **Rules** (`bank_rule`) are the operator's automation: IF
+  description / direction / amount / account THEN category (+ book).
+  First match wins in `priority` order; `POST /rules/reorder`
+  rewrites priorities. Rules never override a hand-set tag. Create
+  with `apply_to_existing` or `POST /rules/{id}/apply` to run one
+  over existing uncategorized rows — the response carries
+  `{tagged, booked, locked_skipped}`. The SPA's "Make a rule" on a
+  transaction row prefills the shared `BankRuleForm`.
+- **Adding a bank-fed P&L line** = one `BANK_PL_CATEGORIES` row
+  whose column is in `EDITABLE_MONTHLY_FIELDS` and
+  `INCOME_FIELDS` / `EXPENSE_FIELDS`. Nothing else to wire.
+
+### Built-in rules (platform-managed bank charges)
 Standard bank charges from a known institution shouldn't require the
-operator to set up their own rule. Examples: Nizari Progressive's
-`REMOTE DEPOSIT FEE` always lands on the MSB ••0230 account; we
-auto-categorise it and feed `MonthlyFinancial.bank_charges_230` so
-the operator doesn't have to touch the monthly P&L for it.
-
-This list will GROW. Read this section before adding a new entry —
-production stores rely on it, and a wrong slug or account_last4
-silently misroutes money on a live P&L.
-
-### How to add a new built-in rule
-
-1. **Edit `BUILTIN_BANK_RULES`** in
-   `api/Modules/BankSync/Services/builtin_rules.py`. Each entry is
-   a 3-tuple:
-   ```python
-   ("DESCRIPTION SUBSTRING", "ACCOUNT_LAST4_OR_BLANK", "TARGET_KIND"),
-   ```
-   - **Description** is matched case-insensitively, substring-style. Keep
-     it specific enough to not collide (e.g. `"REMOTE DEPOSIT FEE"`,
-     not `"FEE"`).
-   - **Account last4** restricts the rule to one account. Use `""` to
-     match any account. The Nizari case is account-specific — the
-     same string on a different account would mean something else.
-   - **Target kind** must be a slug in `BANK_CATEGORIES_NON_POSTING`
-     OR `_LINE_ITEM_KINDS`. Today the only bank-charge slugs are
-     `bank_charge_210` and `bank_charge_230`.
-
-2. **Built-ins fire after operator rules**. Operator-managed rules in
-   `BankRule` always take precedence. Built-ins only run on freshly-
-   inserted, still-uncategorised rows during sync. Re-syncing existing
-   rows preserves any operator override.
-
-3. **Built-ins never create DailyLineItems** — `post_to_daily=False`
-   in the call site. Bank-charge transactions feed the monthly P&L
-   only, not the daily book. Don't change that without coordinating
-   with the daily-book locked-fields contract.
-
-### How the P&L feed works
-
-The single point of truth is `_BANK_CATEGORY_PL_FIELD` — a registry
-that maps a bank-transaction `category_slug` to a `MonthlyFinancial`
-column name. Every category in the registry auto-flows to its mapped
-P&L column with no per-field wiring in `monthly_report()`:
-
-```python
-_BANK_CATEGORY_PL_FIELD = {
-    "bank_charge_210": "bank_charges_210",
-    "bank_charge_230": "bank_charges_230",
-    # Append a row here whenever a new built-in rule (or operator
-    # rule) targets a category that should hit a P&L line.
-}
-```
-
-- `_bank_charges_for_month(store_id, year, month, category_slug)` sums
-  the absolute `amount_cents` of `BankTransaction` rows tagged with
-  the slug for the given month, returns dollars. Generic over any
-  category despite the historical name.
-- `monthly_report()` iterates the registry and populates
-  `auto[field_name]` for every entry. Then it iterates the registry
-  again and adds each `field_name` to `LOCKED_FIELDS` **only when the
-  auto value is > 0** — backward-compat guard so stores without bank
-  sync (or months with no tagged transactions) keep their manually-
-  entered P&L values. Don't unconditionally lock these or you'll wipe
-  manual entries on Basic-plan stores.
-- The template (`templates/monthly_report.html`) renders each mapped
-  field through `pl_field(name, label, auto_key=…, locked=(auto.get(…)>0),
-  locked_source='bank sync')`. New entries in the registry need a
-  matching `pl_field` call in the template until we generalise the
-  template too.
-
-### Adding a new bank automation end-to-end
-
-1. Append a `_BUILTIN_BANK_RULES` entry (description substring +
-   account_last4 + target_kind) — OR let the operator categorise
-   manually via `/bank/transactions`.
-2. Append a `_BANK_CATEGORY_PL_FIELD` row mapping the slug to the
-   `MonthlyFinancial` column name.
-3. If the column doesn't exist on `MonthlyFinancial` yet, add it to
-   the model + `_ADDED_COLUMNS` (idempotent on next boot).
-4. Update the matching `pl_field` call in `monthly_report.html` to
-   pass `auto_key=...` + `locked=(auto.get(...)>0)` +
-   `locked_source='bank sync'` so the form actually displays the
-   auto value.
-5. Add a test like the ones in `tests/test_bank_charges_pl.py` that
-   covers (a) the matcher firing, (b) the `_bank_charges_for_month`
-   sum, (c) the rendered P&L showing the locked auto value.
-
-Amounts can vary across statements — built-in rules match on
-description substring (case-insensitive) + account, never on amount.
-A "REMOTE DEPOSIT FEE" of $2.10 today and $5.00 tomorrow both match
-the same rule.
-
-### What to NOT do
-
-- Don't add a built-in rule that targets a daily-book kind
-  (`cash_expense`, `check_expense`, etc.) — built-ins are
-  bank-side-only by contract; daily-book auto-creation is operator-
-  managed via `BankRule.auto_post`.
-- Don't reuse `bank_charge_210` / `bank_charge_230` for non-charge
-  transactions. They feed the bank-charges P&L columns specifically.
-- Don't lower the case-insensitive match to exact-match unless the
-  bank's description is genuinely stable across statements.
-
-### Test recipe
-
-Every new rule needs at minimum:
-1. A test asserting `_match_builtin_bank_rule(txn, account)` returns
-   the expected slug for the matching description + account combo.
-2. A negative test confirming the rule does NOT fire when the account
-   filter is set and the wrong account is used.
-See `tests/test_bank_charges_pl.py` for the canonical pattern.
+operator to set up their own rule. Example: Nizari Progressive's
+`REMOTE DEPOSIT FEE` always lands on the MSB ••0230 account. Edit
+`BUILTIN_BANK_RULES` in `api/Modules/BankSync/Services/builtin_rules.py`
+— each entry is `("DESCRIPTION SUBSTRING", "ACCOUNT_LAST4_OR_BLANK",
+"TARGET_KIND")`, matched case-insensitively, never on amount.
+Built-ins fire AFTER operator rules, only on still-uncategorised
+rows, and NEVER book a daily-book line. Every new entry needs a
+positive + a negative (wrong account) matcher test — see
+`tests/Modules/BankSync/test_builtin_rules_service.py`.
 
 ## Module map (api/Modules)
 Every domain owns four layers: `Models`, `Repositories`,
@@ -722,7 +663,7 @@ router in `api/main.py`.
 | `DailyBook` | Daily report, line items, drops, deposits |
 | `Dashboard` | Per-role landing data |
 | `FeatureFlags` | Per-store overrides + global defaults |
-| `Monthly` | P&L with auto bank-charge feed (see Bank-charge automation) |
+| `Monthly` | P&L with the bank-fed lines (see Bank feed → books) |
 | `Notifications` | SMTP send, email templates, trial reminders, locked-day digest |
 | `Owners` | Multi-store owner umbrella + dashboard rollup |
 | `ReportImport` | Parse remittance-company daily close reports (Intermex first) — deterministic text-layer parse, no OCR/vision — + commit reviewed giros into the day's MT breakdown |

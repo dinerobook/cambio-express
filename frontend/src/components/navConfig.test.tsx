@@ -52,6 +52,13 @@ describe("filterNavForRole → section-hub resolution", () => {
     expect(msbOnly!.items.map((i) => i.label)).toEqual(["MSB Reports"]);
   });
 
+  it("Finance links the rules page so it is reachable from the nav", () => {
+    const finance = filterNavForRole("admin", ["bank_sync.read"])
+      .find((g) => g.title === "Finance");
+    expect(finance!.items.map((i) => i.to))
+      .toEqual(["/bank", "/bank-transactions", "/bank/rules"]);
+  });
+
   it("Dashboard is its own direct-link entry above Daily", () => {
     const groups = filterNavForRole("admin", ["daily_book.read"]);
     const titles = groups.map((g) => g.title);

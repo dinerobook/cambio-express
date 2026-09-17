@@ -157,17 +157,23 @@ def test_is_valid_rejects_bank_charge_with_empty_suffix():
 # ── bank_category_groups ───────────────────────────────────
 
 
-def test_groups_returns_two_top_level_groups():
+def test_groups_returns_three_top_level_groups():
+    """Daily book (books a line), Monthly P&L (feeds a column),
+    Other (tag only) — in the order the operator reads them."""
     from tests._app import db
     from api.Modules.BankSync.Services import bank_category_groups
     with db_session():
         result = bank_category_groups(db.session)
-        assert len(result) == 2
+        assert len(result) == 3
         labels = [g[0] for g in result]
         assert labels == [
-            "Daily-book line items",
+            "Daily book",
+            "Monthly P&L",
             "Other (no daily-book impact)",
         ]
+        pl_slugs = {slug for slug, _ in result[1][1]}
+        assert "pl_credit_card_fees" in pl_slugs
+        assert "pl_other_income_1" in pl_slugs
 
 
 def test_groups_includes_static_non_posting_tags():
@@ -175,7 +181,7 @@ def test_groups_includes_static_non_posting_tags():
     from api.Modules.BankSync.Services import bank_category_groups
     with db_session():
         result = bank_category_groups(db.session)
-        other_slugs = {slug for slug, _ in result[1][1]}
+        other_slugs = {slug for slug, _ in result[2][1]}
         assert "internal_transfer" in other_slugs
         assert "ignore" in other_slugs
 
@@ -200,7 +206,7 @@ def test_groups_augments_other_with_per_account_bank_charges():
         ))
         db.session.flush()
         result = bank_category_groups(db.session, store_id=s.id)
-        other_slugs = {slug for slug, _ in result[1][1]}
+        other_slugs = {slug for slug, _ in result[2][1]}
         assert "bank_charge_9999" in other_slugs
 
 
@@ -223,7 +229,7 @@ def test_groups_does_not_duplicate_static_slugs():
         ))
         db.session.flush()
         result = bank_category_groups(db.session, store_id=s.id)
-        other_slugs = [slug for slug, _ in result[1][1]]
+        other_slugs = [slug for slug, _ in result[2][1]]
         assert other_slugs.count("bank_charge_210") == 1
 
 
