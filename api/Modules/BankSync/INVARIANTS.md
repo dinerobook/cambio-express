@@ -45,9 +45,9 @@ column. Daily-book kinds reach the P&L through the daily ledger
 ## Booking — the daily-book contract
 
 `categorize_transaction(db, txn, slug, post_to_daily=True,
-report_date=None)` in `Services/categorize.py` is the only write
-path for a category, from the endpoint and from the rule engine
-alike.
+report_date=None, report_date_explicit=False)` in
+`Services/categorize.py` is the only write path for a category,
+from the endpoint and from the rule engine alike.
 
 1. **Book through the service, never insert a line directly.** The
    pre-K-1 code inserted the `DailyLineItem` and stopped; the day's
@@ -64,9 +64,28 @@ alike.
    "open that day" or "book on another day". The rule engine catches
    it and keeps the tag WITHOUT the line (`locked_skipped`). Nothing
    from the bank feed ever edits a closed day.
-4. **`report_date` moves the line.** Remote deposits post the next
-   morning but belong on the prior day's close-out; the override
-   books there instead of `posted_at.date()`.
+4. **The operator chooses the day; the bank only suggests it.**
+   `booking_date_for` resolves in one order and there is no other:
+   **this call's `report_date` → the row's stored
+   `report_date_override` → `posted_at.date()`.** Remote deposits
+   post the next morning and weekend deposits post on Monday; both
+   belong on the earlier day's close-out.
+
+   The choice is STORED, not just passed. `report_date_explicit`
+   is what says a caller is setting it — a date writes
+   `txn.report_date_override`, `None` clears it back to the bank's
+   date, and a caller that does not pass it leaves an earlier
+   choice alone. Without the column, re-tagging a row silently
+   walked its line back to the bank's date, which is the same
+   class of bug as the un-rolled total above: the operator sees
+   nothing and the day drifts. Only `uncategorize_transaction`
+   clears the override on its own — the row is back to untouched.
+
+   On the wire the endpoint reads the tri-state off
+   `model_fields_set`, so `{"report_date": null}` and an omitted
+   `report_date` are different requests. `BankTransactionRow`
+   carries both `report_date_override` and `bank_date` so the SPA
+   can offer "use the bank's date" without guessing.
 5. **Re-categorizing is idempotent.** The old line is removed and
    its day rolled back; the new line is booked and its day rolled
    up. The new line is created BEFORE the old one is deleted so the
@@ -106,6 +125,18 @@ decides matches; `Services/applier.py` applies them.
 - **A rule never overrides a hand-set tag.** Every apply path
   (`apply_rules_to_uncategorized_row`, `apply_rule_to_existing`)
   only touches rows with an empty `category_slug`.
+- **A rule shifts the booked day, it cannot name one.**
+  `post_date_offset_days` (−31…31, 0 = the bank's date) is added to
+  the bank's date by `rule_booking_date` in `applier.py`. A rule
+  fires on rows nobody has looked at yet, so an absolute day would
+  be meaningless — the absolute day belongs on the transaction. A
+  non-zero offset is applied `report_date_explicit`, so the row
+  remembers the day even when the booking is skipped for a locked
+  day. The offset only decides WHICH day a line lands on, never
+  whether one is written: `auto_post` still governs that. A
+  calendar-day shift cannot tell a Saturday deposit from a Sunday
+  one inside a Monday posting; that case stays the per-transaction
+  override.
 - **Booking on match** requires BOTH `rule.auto_post` AND the
   caller's `allow_auto_post`: on for freshly-synced rows and for an
   explicit apply; off for the historical backfill during a sync,
@@ -158,5 +189,9 @@ cd frontend && npx vitest run src/lib/bankRules.test.ts src/lib/bankRuleSuggest.
 `test_bank_to_books.py` covers the booking roll-up, the locked-day
 refusal at both layers, `report_date`, uncategorize, the categories
 endpoint, the 422 on unknown slugs, `booked_on`, apply-to-existing,
-`/apply`, `/reorder` and the monthly feed. If one of those fails you
-have changed a contract above — update the test AND this file.
+`/apply`, `/reorder` and the monthly feed.
+`test_posting_date.py` covers the booking-day rules specifically:
+the resolution order, the override surviving a re-tag, the explicit
+clear, the untouched row after a locked-day refusal, and the rule's
+day shift including the locked case. If one of those fails you have
+changed a contract above — update the test AND this file.

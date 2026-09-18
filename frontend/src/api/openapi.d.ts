@@ -2191,9 +2191,11 @@ export interface paths {
          *
          *     Idempotent: re-categorizing replaces any prior booked line
          *     before adding the new one. `post_to_daily=False` keeps the
-         *     metadata-only path; `report_date` moves the line to another
-         *     day. Unknown slug → 422; locked day → 409 with the date in the
-         *     detail so the SPA can offer "unlock" or "book on another day".
+         *     metadata-only path; `report_date` moves the line to another day
+         *     and is remembered on the row, so re-tagging later does not walk
+         *     it back to the bank's date (send `null` to clear it). Unknown
+         *     slug → 422; locked day → 409 with the date in the detail so the
+         *     SPA can offer "unlock" or "book on another day".
          */
         post: operations["categorize_route_bank_transactions__txn_id__categorize_post"];
         delete?: never;
@@ -6986,6 +6988,11 @@ export interface components {
              * @default 0
              */
             match_count: number;
+            /**
+             * Post Date Offset Days
+             * @default 0
+             */
+            post_date_offset_days: number;
             /** Priority */
             priority: number;
             /**
@@ -7019,6 +7026,12 @@ export interface components {
          *     are absolute cents (positive integers); None on either side
          *     means unbounded. `target_kind` is required — what category the
          *     matching txn gets tagged with.
+         *
+         *     `post_date_offset_days` shifts the booked daily-book day that
+         *     many days from the bank's posting date (negative books earlier,
+         *     e.g. -1 for a remote deposit the bank posts the next morning).
+         *     0 books on the bank's date. Ignored when the target category
+         *     does not book a line.
          *
          *     `apply_to_existing` (create only) runs the new rule over the
          *     store's still-uncategorised transactions right away, booking
@@ -7062,6 +7075,11 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /**
+             * Post Date Offset Days
+             * @default 0
+             */
+            post_date_offset_days: number;
             /**
              * Priority
              * @default 100
@@ -7130,6 +7148,11 @@ export interface components {
             /** Amount Cents */
             amount_cents: number;
             /**
+             * Bank Date
+             * @default
+             */
+            bank_date: string;
+            /**
              * Booked On
              * @default
              */
@@ -7158,6 +7181,11 @@ export interface components {
              * @default
              */
             posted_at: string;
+            /**
+             * Report Date Override
+             * @default
+             */
+            report_date_override: string;
             /**
              * Status
              * @default posted
@@ -7399,10 +7427,18 @@ export interface components {
          *     `post_to_daily=False` keeps the assignment metadata-only and
          *     skips creating the matching DailyLineItem (used when the
          *     operator wants the tag without a daily-book mirror).
-         *     `report_date` (ISO date) overrides the day the line lands on —
-         *     for a remote deposit the bank posts the next morning that
-         *     belongs on the prior day's close-out. Booking onto a locked
-         *     day is a 409.
+         *
+         *     `report_date` (ISO date) is the day the line lands on, instead
+         *     of the bank's posting date — a remote deposit the bank posts
+         *     the next morning, or a Saturday deposit the bank posts on
+         *     Monday, both belong on the earlier day's close-out. It is
+         *     tri-state on the wire, read off `model_fields_set`:
+         *
+         *       * omitted — keep whatever day the row already carries;
+         *       * a date  — book on that day and remember it;
+         *       * `null`  — clear the choice, back to the bank's date.
+         *
+         *     Booking onto a locked day is a 409.
          */
         CategorizeRequest: {
             /**

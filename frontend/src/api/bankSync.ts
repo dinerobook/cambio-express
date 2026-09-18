@@ -40,6 +40,9 @@ export interface BankRuleRow {
   account_filter_label: string;
   target_kind: string;
   auto_post: boolean;
+  /** Days to shift the booked day from the bank's posting date.
+   *  0 = the bank's date; negative books earlier. */
+  post_date_offset_days: number;
   description: string;
   match_count: number;
   last_matched_at: string;
@@ -60,6 +63,12 @@ export interface BankTransactionRow {
   daily_line_item_id: number | null;
   /** ISO date of the daily book the line landed on, "" if none. */
   booked_on: string;
+  /** ISO date the operator (or a rule) chose for this row, "" when
+   *  it books on the bank's own date. Survives a re-tag. */
+  report_date_override: string;
+  /** ISO date of `posted_at` — the day it books on with no
+   *  override. */
+  bank_date: string;
 }
 
 export interface BankTransactionListResponse {
@@ -177,8 +186,11 @@ export function dailyBookSlugs(groups: BankCategoryGroup[] | undefined): Set<str
 export interface CategorizeBody {
   target_kind: string;
   post_to_daily?: boolean;
-  /** ISO date to book on instead of the bank's posting date. */
-  report_date?: string;
+  /** Which day the line books on. Tri-state, matching the server:
+   *  omit to keep the day the row already carries, an ISO date to
+   *  book on that day and remember it, `null` to clear the choice
+   *  and go back to the bank's posting date. */
+  report_date?: string | null;
 }
 
 /** The 409 the categorize endpoint returns for a locked day. */
@@ -240,6 +252,7 @@ export interface BankRuleWriteBody {
   account_filter_id: number | null;
   target_kind: string;
   auto_post: boolean;
+  post_date_offset_days: number;
   description: string;
   /** Create only: run the rule over existing uncategorized rows. */
   apply_to_existing?: boolean;

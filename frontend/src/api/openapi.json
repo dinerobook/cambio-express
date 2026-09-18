@@ -1500,6 +1500,11 @@
             "title": "Match Count",
             "type": "integer"
           },
+          "post_date_offset_days": {
+            "default": 0,
+            "title": "Post Date Offset Days",
+            "type": "integer"
+          },
           "priority": {
             "title": "Priority",
             "type": "integer"
@@ -1540,7 +1545,7 @@
       },
       "BankRuleWriteRequest": {
         "additionalProperties": false,
-        "description": "POST/PUT body for bank rule CRUD. Mirrors the legacy\n/bank/rules/new + /bank/rules/<id>/edit forms.\n\n`desc_match_type` must be \"\" (skip the description filter\nentirely) or one of `DESC_MATCH_TYPES` in\n`Services/matcher.py` (`contains` / `starts_with` / `ends_with`\n/ `equals` / `regex`). Similarly `sign_filter` is \"\" /\n`credit` / `debit`. `amount_min_cents` / `amount_max_cents`\nare absolute cents (positive integers); None on either side\nmeans unbounded. `target_kind` is required \u2014 what category the\nmatching txn gets tagged with.\n\n`apply_to_existing` (create only) runs the new rule over the\nstore's still-uncategorised transactions right away, booking\ndaily-book lines when `auto_post` is on. The counts come back\nin `BankRuleResponse.applied`.",
+        "description": "POST/PUT body for bank rule CRUD. Mirrors the legacy\n/bank/rules/new + /bank/rules/<id>/edit forms.\n\n`desc_match_type` must be \"\" (skip the description filter\nentirely) or one of `DESC_MATCH_TYPES` in\n`Services/matcher.py` (`contains` / `starts_with` / `ends_with`\n/ `equals` / `regex`). Similarly `sign_filter` is \"\" /\n`credit` / `debit`. `amount_min_cents` / `amount_max_cents`\nare absolute cents (positive integers); None on either side\nmeans unbounded. `target_kind` is required \u2014 what category the\nmatching txn gets tagged with.\n\n`post_date_offset_days` shifts the booked daily-book day that\nmany days from the bank's posting date (negative books earlier,\ne.g. -1 for a remote deposit the bank posts the next morning).\n0 books on the bank's date. Ignored when the target category\ndoes not book a line.\n\n`apply_to_existing` (create only) runs the new rule over the\nstore's still-uncategorised transactions right away, booking\ndaily-book lines when `auto_post` is on. The counts come back\nin `BankRuleResponse.applied`.",
         "properties": {
           "account_filter_id": {
             "anyOf": [
@@ -1609,6 +1614,13 @@
             "default": true,
             "title": "Enabled",
             "type": "boolean"
+          },
+          "post_date_offset_days": {
+            "default": 0,
+            "maximum": 31.0,
+            "minimum": -31.0,
+            "title": "Post Date Offset Days",
+            "type": "integer"
           },
           "priority": {
             "default": 100,
@@ -1729,6 +1741,11 @@
             "title": "Amount Cents",
             "type": "integer"
           },
+          "bank_date": {
+            "default": "",
+            "title": "Bank Date",
+            "type": "string"
+          },
           "booked_on": {
             "default": "",
             "title": "Booked On",
@@ -1767,6 +1784,11 @@
           "posted_at": {
             "default": "",
             "title": "Posted At",
+            "type": "string"
+          },
+          "report_date_override": {
+            "default": "",
+            "title": "Report Date Override",
             "type": "string"
           },
           "status": {
@@ -2154,7 +2176,7 @@
       },
       "CategorizeRequest": {
         "additionalProperties": false,
-        "description": "POST body for /bank/transactions/{txn_id}/categorize.\n\n`target_kind` is any slug `GET /bank/categories` lists for the\nstore (a daily-book kind such as \"check_deposit\", a `pl_*`\nmonthly line, or a non-posting tag such as \"bank_charge_230\").\nUnknown slugs are a 422.\n\n`post_to_daily=False` keeps the assignment metadata-only and\nskips creating the matching DailyLineItem (used when the\noperator wants the tag without a daily-book mirror).\n`report_date` (ISO date) overrides the day the line lands on \u2014\nfor a remote deposit the bank posts the next morning that\nbelongs on the prior day's close-out. Booking onto a locked\nday is a 409.",
+        "description": "POST body for /bank/transactions/{txn_id}/categorize.\n\n`target_kind` is any slug `GET /bank/categories` lists for the\nstore (a daily-book kind such as \"check_deposit\", a `pl_*`\nmonthly line, or a non-posting tag such as \"bank_charge_230\").\nUnknown slugs are a 422.\n\n`post_to_daily=False` keeps the assignment metadata-only and\nskips creating the matching DailyLineItem (used when the\noperator wants the tag without a daily-book mirror).\n\n`report_date` (ISO date) is the day the line lands on, instead\nof the bank's posting date \u2014 a remote deposit the bank posts\nthe next morning, or a Saturday deposit the bank posts on\nMonday, both belong on the earlier day's close-out. It is\ntri-state on the wire, read off `model_fields_set`:\n\n  * omitted \u2014 keep whatever day the row already carries;\n  * a date  \u2014 book on that day and remember it;\n  * `null`  \u2014 clear the choice, back to the bank's date.\n\nBooking onto a locked day is a 409.",
         "properties": {
           "post_to_daily": {
             "default": true,
@@ -23049,7 +23071,7 @@
     },
     "/bank/transactions/{txn_id}/categorize": {
       "post": {
-        "description": "Tag a transaction with a category and (when the kind is a\ndaily-book line item) book the matching DailyLineItem, rolling\nthe day's total up the same way a cashier's entry does.\n\nIdempotent: re-categorizing replaces any prior booked line\nbefore adding the new one. `post_to_daily=False` keeps the\nmetadata-only path; `report_date` moves the line to another\nday. Unknown slug \u2192 422; locked day \u2192 409 with the date in the\ndetail so the SPA can offer \"unlock\" or \"book on another day\".",
+        "description": "Tag a transaction with a category and (when the kind is a\ndaily-book line item) book the matching DailyLineItem, rolling\nthe day's total up the same way a cashier's entry does.\n\nIdempotent: re-categorizing replaces any prior booked line\nbefore adding the new one. `post_to_daily=False` keeps the\nmetadata-only path; `report_date` moves the line to another day\nand is remembered on the row, so re-tagging later does not walk\nit back to the bank's date (send `null` to clear it). Unknown\nslug \u2192 422; locked day \u2192 409 with the date in the detail so the\nSPA can offer \"unlock\" or \"book on another day\".",
         "operationId": "categorize_route_bank_transactions__txn_id__categorize_post",
         "parameters": [
           {

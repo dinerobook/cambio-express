@@ -14,7 +14,9 @@ import {
 import { ApiError } from "../lib/api";
 import { canDo } from "../lib/access";
 import { BankRuleForm } from "../components/BankRuleForm";
-import { conditionChips, formValuesFromRule, ruleSentence } from "../lib/bankRules";
+import {
+  conditionChips, formValuesFromRule, postOffsetLabel, ruleSentence,
+} from "../lib/bankRules";
 import {
   Breadcrumbs, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
   ErrorState, IconButton, Input, Loading, Modal, PageHeader, PageShell,
@@ -214,6 +216,11 @@ export default function BankRules() {
                     </span>
                     {r.auto_post && (
                       <Pill tone="accent">books on daily book</Pill>
+                    )}
+                    {r.auto_post && r.post_date_offset_days !== 0 && (
+                      <Pill tone="neutral">
+                        {postOffsetLabel(r.post_date_offset_days)}
+                      </Pill>
                     )}
                     {!r.enabled && <Pill tone="neutral">off</Pill>}
                   </div>

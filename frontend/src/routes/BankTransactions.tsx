@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
@@ -40,6 +40,12 @@ import styles from "./BankTransactions.module.css";
 // the cell links to it; a locked day comes back as a 409 the row
 // turns into "book on another day" instead of failing silently.
 // "Make a rule" opens the shared rule form prefilled from the row.
+//
+// Which day it books on is the operator's call. The bank's posting
+// date is the default, not the truth — a check deposited Friday
+// afternoon posts Monday morning, and belongs on Friday's close-out
+// — so a booked row offers "Change day". The server remembers the
+// choice on the row, so re-tagging does not walk it back.
 
 const PER_PAGE = 50;
 
@@ -392,9 +398,13 @@ function CategoryCell({
   // A locked day: the slug the operator picked + the date the
   // server refused, so the cell can offer another day.
   const [locked, setLocked] = useState<{ slug: string; date: string } | null>(null);
-  const [rebookDate, setRebookDate] = useState("");
+  // Open when the operator is choosing the day this row books on.
+  const [choosingDay, setChoosingDay] = useState(false);
 
-  async function pick(slug: string, reportDate?: string) {
+  // `day` mirrors the endpoint's tri-state: undefined keeps the day
+  // the row already carries, a date sets it, null clears it back to
+  // the bank's posting date.
+  async function pick(slug: string, day?: string | null) {
     setErr(null); setBusy(true);
     try {
       if (slug === "") {
@@ -403,7 +413,7 @@ function CategoryCell({
         const resp = await categorizeTransaction(row.id, {
           target_kind: slug,
           post_to_daily: true,
-          ...(reportDate ? { report_date: reportDate } : {}),
+          ...(day !== undefined ? { report_date: day } : {}),
         });
         const t = resp.transaction;
         if (t.booked_on) {
@@ -414,12 +424,13 @@ function CategoryCell({
         }
       }
       setLocked(null);
+      setChoosingDay(false);
       onChanged();
     } catch (e) {
       const lockedDay = lockedDayFromError(e);
       if (lockedDay) {
         setLocked({ slug, date: lockedDay.report_date });
-        setRebookDate("");
+        setChoosingDay(false);
       } else {
         setErr(e instanceof ApiError ? e.message : "Could not update category.");
       }
@@ -427,6 +438,8 @@ function CategoryCell({
       setBusy(false);
     }
   }
+
+  const booksALine = Boolean(row.category_slug) && bookable.has(row.category_slug);
 
   const label = labels.get(row.category_slug) ?? row.category_slug;
 
@@ -463,10 +476,28 @@ function CategoryCell({
         )}
       </Select>
       <BookedLink row={row} />
-      {row.category_slug && bookable.has(row.category_slug) && !row.booked_on && !locked && (
-        <span className={styles.notBooked} title="Tagged, but no line on the daily book.">
+      {booksALine && !row.booked_on && !locked && (
+        <span
+          className={styles.notBooked}
+          title={
+            row.report_date_override
+              ? `Tagged for ${formatDate(row.report_date_override)}, but no line on that day's book.`
+              : "Tagged, but no line on the daily book."
+          }
+        >
           not booked
+          {row.report_date_override && ` · ${formatDate(row.report_date_override)}`}
         </span>
+      )}
+      {booksALine && !locked && !choosingDay && (
+        <Button
+          tone="ghost" size="sm"
+          disabled={busy}
+          onClick={() => setChoosingDay(true)}
+          title="Book this on a different day — the bank's posting date is not always the day the money moved"
+        >
+          {row.booked_on ? "Change day" : "Pick a day"}
+        </Button>
       )}
       <Button
         tone="ghost" size="sm" perm="bank_sync.create"
@@ -480,32 +511,93 @@ function CategoryCell({
           ⚠ {err}
         </span>
       )}
+      {choosingDay && (
+        <BookDayForm
+          initial={row.booked_on || row.report_date_override || row.bank_date}
+          busy={busy}
+          lead={
+            <>
+              Book this on the daily book for{" "}
+              {row.bank_date
+                ? `(the bank posted it ${formatDate(row.bank_date)})`
+                : ""}
+            </>
+          }
+          onConfirm={(d) => { void pick(row.category_slug, d); }}
+          onUseBankDate={
+            row.report_date_override
+              ? () => { void pick(row.category_slug, null); }
+              : undefined
+          }
+          onCancel={() => setChoosingDay(false)}
+        />
+      )}
       {locked && (
-        <div className={styles.lockedRow} role="alert">
-          <span>
-            The daily book for {formatDate(locked.date)} is locked.{" "}
-            <AppLink to={`/daily/edit?date=${locked.date}`}>Open it</AppLink> to
-            unlock, or book on another day:
-          </span>
-          <DateInput
-            value={rebookDate}
-            onChange={(e) => setRebookDate(e.target.value)}
-            aria-label="Book on date"
-          />
-          <Button
-            size="sm" disabled={!rebookDate || busy} busy={busy}
-            onClick={() => { void pick(locked.slug, rebookDate); }}
-          >
-            Book
-          </Button>
-          <Button size="sm" tone="secondary" onClick={() => setLocked(null)}>
-            Cancel
-          </Button>
-        </div>
+        <BookDayForm
+          alert
+          initial=""
+          busy={busy}
+          lead={
+            <>
+              The daily book for {formatDate(locked.date)} is locked.{" "}
+              <AppLink to={`/daily/edit?date=${locked.date}`}>Open it</AppLink> to
+              unlock, or book on another day:
+            </>
+          }
+          onConfirm={(d) => { void pick(locked.slug, d); }}
+          onCancel={() => setLocked(null)}
+        />
       )}
     </div>
   );
 }
+
+/** Pick the day a transaction books on. Two callers — the operator
+ *  changing the day on purpose, and the locked-day recovery after a
+ *  409 — so it lives here rather than twice inside the cell. The
+ *  date lives in this component's state and resets when it
+ *  unmounts, which is what closing the form should do. */
+function BookDayForm({
+  lead, initial, busy, alert = false, onConfirm, onCancel, onUseBankDate,
+}: {
+  lead: ReactNode;
+  /** Day the input starts on; "" leaves it empty. */
+  initial: string;
+  busy: boolean;
+  /** Render as a warning callout (the locked-day case). */
+  alert?: boolean;
+  onConfirm: (day: string) => void;
+  onCancel: () => void;
+  /** Offered only when the row carries a day of its own to drop. */
+  onUseBankDate?: () => void;
+}) {
+  const [day, setDay] = useState(initial);
+  return (
+    <div className={styles.lockedRow} role={alert ? "alert" : "group"}>
+      <span>{lead}</span>
+      <DateInput
+        value={day}
+        onChange={(e) => setDay(e.target.value)}
+        aria-label="Book on date"
+      />
+      <Button
+        size="sm" disabled={!day || busy} busy={busy}
+        onClick={() => onConfirm(day)}
+      >
+        Book
+      </Button>
+      {onUseBankDate && (
+        <Button size="sm" tone="ghost" disabled={busy} onClick={onUseBankDate}>
+          Use the bank&rsquo;s date
+        </Button>
+      )}
+      <Button size="sm" tone="secondary" disabled={busy} onClick={onCancel}>
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
 
 function BookedLink({ row }: { row: BankTransactionRow }) {
   if (!row.booked_on) return null;

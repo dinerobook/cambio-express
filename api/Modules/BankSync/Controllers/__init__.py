@@ -138,6 +138,11 @@ def _txn_row(
         account_label=labels.get(r.stripe_bank_account_id, ""),
         daily_line_item_id=int(line_id) if line_id and booked_on else None,
         booked_on=booked_on,
+        report_date_override=(
+            r.report_date_override.isoformat()
+            if r.report_date_override else ""
+        ),
+        bank_date=r.posted_at.date().isoformat() if r.posted_at else "",
     )
 
 
@@ -225,31 +230,7 @@ def list_rules_route(
         r.account_filter_id for r in rules if r.account_filter_id is not None
     ]
     labels = _account_labels(db, account_filter_ids)
-    rows = [
-        BankRuleRow(
-            id=r.id,
-            enabled=bool(r.enabled),
-            priority=r.priority,
-            desc_match_type=r.desc_match_type or "",
-            desc_match_value=r.desc_match_value or "",
-            sign_filter=r.sign_filter or "",
-            amount_min_cents=r.amount_min_cents,
-            amount_max_cents=r.amount_max_cents,
-            account_filter_id=r.account_filter_id,
-            account_filter_label=(
-                labels.get(r.account_filter_id, "")
-                if r.account_filter_id is not None else ""
-            ),
-            target_kind=r.target_kind,
-            auto_post=bool(r.auto_post),
-            description=r.description or "",
-            match_count=r.match_count or 0,
-            last_matched_at=(
-                r.last_matched_at.isoformat() if r.last_matched_at else ""
-            ),
-        )
-        for r in rules
-    ]
+    rows = [_adapt_rule(db, r, labels) for r in rules]
     return BankRuleListResponse(rows=rows, total=len(rows))
 
 
@@ -336,9 +317,11 @@ def categorize_route(
 
     Idempotent: re-categorizing replaces any prior booked line
     before adding the new one. `post_to_daily=False` keeps the
-    metadata-only path; `report_date` moves the line to another
-    day. Unknown slug → 422; locked day → 409 with the date in the
-    detail so the SPA can offer "unlock" or "book on another day".
+    metadata-only path; `report_date` moves the line to another day
+    and is remembered on the row, so re-tagging later does not walk
+    it back to the bank's date (send `null` to clear it). Unknown
+    slug → 422; locked day → 409 with the date in the detail so the
+    SPA can offer "unlock" or "book on another day".
     """
     require_permission(claims, "bank_sync", "update")
     sid = resolve_store_scope(claims)
@@ -356,6 +339,9 @@ def categorize_route(
             db, txn, body.target_kind,
             post_to_daily=body.post_to_daily,
             report_date=body.report_date,
+            # Omitted keeps the day the row already carries; sent —
+            # a date or an explicit null — sets or clears it.
+            report_date_explicit="report_date" in body.model_fields_set,
         )
     except DailyBookLockedError as exc:
         db.rollback()
@@ -374,6 +360,10 @@ def categorize_route(
         summary=(
             f"category={body.target_kind} "
             f"booked={'yes' if txn.daily_line_item_id else 'no'}"
+            + (
+                f" day={txn.report_date_override.isoformat()}"
+                if txn.report_date_override else ""
+            )
         ),
     )
     db.commit()
@@ -412,10 +402,16 @@ def uncategorize_route(
 # ── Rule CRUD ────────────────────────────────────────────────
 
 
-def _adapt_rule(db: Session, r: BankRule) -> BankRuleRow:
+def _adapt_rule(
+    db: Session, r: BankRule, labels: dict[int, str] | None = None,
+) -> BankRuleRow:
+    """One rule on the wire. `labels` is a prefetched
+    account_id → label map; the list route passes one so a page of
+    rules costs one query instead of N."""
     label = ""
     if r.account_filter_id is not None:
-        labels = _account_labels(db, [r.account_filter_id])
+        if labels is None:
+            labels = _account_labels(db, [r.account_filter_id])
         label = labels.get(r.account_filter_id, "")
     return BankRuleRow(
         id=r.id,
@@ -430,6 +426,7 @@ def _adapt_rule(db: Session, r: BankRule) -> BankRuleRow:
         account_filter_label=label,
         target_kind=r.target_kind,
         auto_post=bool(r.auto_post),
+        post_date_offset_days=int(r.post_date_offset_days or 0),
         description=r.description or "",
         match_count=r.match_count or 0,
         last_matched_at=r.last_matched_at.isoformat() if r.last_matched_at else "",
@@ -542,6 +539,7 @@ def create_rule_route(
         account_filter_id=body.account_filter_id,
         target_kind=body.target_kind,
         auto_post=body.auto_post,
+        post_date_offset_days=body.post_date_offset_days,
         description=body.description.strip(),
     )
     db.add(r); db.flush()
@@ -651,6 +649,7 @@ def update_rule_route(
     r.account_filter_id = body.account_filter_id
     r.target_kind = body.target_kind
     r.auto_post = body.auto_post
+    r.post_date_offset_days = body.post_date_offset_days
     r.description = body.description.strip()
     _audit_bank_action(
         db, claims=claims, action="update", target_type="bank_rule",
