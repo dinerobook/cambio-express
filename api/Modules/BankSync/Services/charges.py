@@ -203,7 +203,7 @@ def bank_pl_sums_for_month(
         .all()
     )
     for slug, cents in rows:
-        field = BANK_PL_CATEGORIES[str(slug)][0]
+        field = BANK_PL_CATEGORIES[str(slug)]
         dollars = float(cents or 0) / 100.0
         if dollars > 0:
             out[field] = round(out.get(field, 0.0) + dollars, 2)

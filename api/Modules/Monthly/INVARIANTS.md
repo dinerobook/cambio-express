@@ -37,15 +37,48 @@ row itself stays editable forever.
 
 ## Data model
 
-One table:
+Two tables:
 
 | Table | What it holds |
 |---|---|
 | `msb_monthly_financial` | The per-month P&L row. ~30 numeric columns + `notes`. UNIQUE on `(store_id, year, month)`. |
+| `msb_monthly_line_label` | What ONE store calls one P&L line. `(store_id, field)` → `label`, UNIQUE. A display layer and nothing else. |
 
 That's it. Every other table the P&L cares about (`msb_daily_report`,
 `bank_transaction`, the return-check workflow) is read on save and
 the resulting sums are written into the matching columns here.
+
+
+## Renaming a line — a label, never a column
+
+A store cannot add a P&L line: the columns are what the totals, the
+tax export, the daily roll-up and the bank feed are built on, and a
+column has to mean the same thing in January and in December. What
+it CAN do is name them, through `Services/labels.py` and
+`PUT /api/v2/monthly/labels`. The rules:
+
+- **`field` is the identity, `label` is decoration.** Every rule,
+  tag, export column and closed month points at `other_expense_1`;
+  calling it "Bank Fee" changes what the operator reads and nothing
+  else. `test_line_labels.py` asserts a saved month reads back
+  identically across a rename.
+- **A blank label means the shipped default.** There is no third
+  state — clearing a name restores "Other expense 1" rather than
+  leaving a line nameless.
+- **Only lines the operator types are renameable.**
+  `RENAMEABLE_MONTHLY_FIELDS` stays inside the operator-editable
+  set (plus `bank_charges_total`, which `update_monthly` writes
+  through its own conditional branch). A daily-derived line's name
+  belongs to the daily-book kind that feeds it — renaming it here
+  would hide where the number comes from — and `return_check_gl`
+  belongs to the return-check workflow.
+- **`MONTHLY_LINE_DEFAULTS` is the ONE place default names live.**
+  The P&L form, the read-only P&L page and the bank-category picker
+  all read it. A second copy is how the picker and the form drift.
+- **`NAMEABLE_SLOT_FIELDS` is load-bearing, not cosmetic.** The
+  eight blank slots are hidden from the bank-category picker until
+  they are named — see `BankSync/INVARIANTS.md` → "The P&L options
+  are the store's, not ours".
 
 
 ## Money storage — INTEGER CENTS (P0-3)

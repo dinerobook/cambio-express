@@ -43,6 +43,7 @@ const DailyBook = lazy(() => import("./routes/DailyBook"));
 const Dashboard = lazy(() => import("./routes/Dashboard"));
 const EditDailyBook = lazy(() => import("./routes/EditDailyBook"));
 const EditMonthly = lazy(() => import("./routes/EditMonthly"));
+const MonthlyCategories = lazy(() => import("./routes/MonthlyCategories"));
 const EditTransfer = lazy(() => import("./routes/EditTransfer"));
 const ForgotPassword = lazy(() => import("./routes/ForgotPassword"));
 const ItemMovement = lazy(() => import("./routes/ItemMovement"));
@@ -300,6 +301,7 @@ export default function App() {
           <Route path="bank-transactions" element={<Gate><BankTransactions /></Gate>} />
           <Route path="monthly"          element={<Gate><Monthly /></Gate>} />
           <Route path="monthly/edit"     element={<Gate><EditMonthly /></Gate>} />
+          <Route path="monthly/categories" element={<Gate><MonthlyCategories /></Gate>} />
           <Route path="lottery"                element={<Gate><Lottery /></Gate>} />
           <Route path="store-book"             element={<Gate><StoreBookMonth /></Gate>} />
           <Route path="store-book/day"         element={<Gate><StoreBookDay /></Gate>} />

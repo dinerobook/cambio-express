@@ -71,6 +71,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/daily/edit", perm: "daily_book.update" },
   { path: "/monthly", perm: "monthly.read" },
   { path: "/monthly/edit", perm: "monthly.update" },
+  { path: "/monthly/categories", perm: "monthly.update" },
 
   // ── Store (retail) books ───────────────────────────────────
   { path: "/store-book", perm: "day_close.read" },

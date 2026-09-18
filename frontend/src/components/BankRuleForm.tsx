@@ -14,6 +14,7 @@ import {
   bodyFromFormValues, EMPTY_RULE_FORM, POST_OFFSET_OPTIONS,
   type BankRuleFormValues,
 } from "../lib/bankRules";
+import { BankCategoryOptions } from "./BankCategoryOptions";
 import {
   Alert, Button, Checkbox, Field, FormActions, Input, MoneyInput, Select,
 } from "./ui";
@@ -153,13 +154,7 @@ export function BankRuleForm({
               onChange={(e) => patch({ target_kind: e.target.value })}
             >
               <option value="">Pick a category…</option>
-              {(categories.data?.groups ?? []).map((g) => (
-                <optgroup key={g.label} label={g.label}>
-                  {g.options.map((o) => (
-                    <option key={o.slug} value={o.slug}>{o.label}</option>
-                  ))}
-                </optgroup>
-              ))}
+              <BankCategoryOptions groups={categories.data?.groups} />
             </Select>
           </Field>
           <Field label="Rule name (optional)">

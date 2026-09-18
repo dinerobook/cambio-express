@@ -17,6 +17,7 @@ import {
   type BankTransactionFilters,
   type BankTransactionRow,
 } from "../api/bankSync";
+import { BankCategoryOptions } from "../components/BankCategoryOptions";
 import { BankRuleForm } from "../components/BankRuleForm";
 import {
   Alert, AppLink, Breadcrumbs, Button, ButtonLink,
@@ -191,7 +192,7 @@ export default function BankTransactions() {
               onChange={(e) => setParam("category_slug", e.target.value)}
             >
               <option value="">Any category</option>
-              <CategoryOptions groups={groups} />
+              <BankCategoryOptions groups={groups} />
             </Select>
           </Field>
           <Field label="Sign">
@@ -296,20 +297,6 @@ export default function BankTransactions() {
         )}
       </Modal>
     </PageShell>
-  );
-}
-
-function CategoryOptions({ groups }: { groups: BankCategoryGroup[] | undefined }) {
-  return (
-    <>
-      {(groups ?? []).map((g) => (
-        <optgroup key={g.label} label={g.label}>
-          {g.options.map((o) => (
-            <option key={o.slug} value={o.slug}>{o.label}</option>
-          ))}
-        </optgroup>
-      ))}
-    </>
   );
 }
 
@@ -470,7 +457,7 @@ function CategoryCell({
         }
       >
         <option value="">— uncategorized —</option>
-        <CategoryOptions groups={groups} />
+        <BankCategoryOptions groups={groups} />
         {row.category_slug && !labels.has(row.category_slug) && (
           <option value={row.category_slug}>{row.category_slug}</option>
         )}

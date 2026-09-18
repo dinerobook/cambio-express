@@ -3275,6 +3275,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/monthly/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly Labels Route
+         * @description Every renameable P&L line with the store's name for it.
+         *
+         *     Read-permission only: an employee who can see the P&L should
+         *     see it under the same names the admin does.
+         */
+        get: operations["monthly_labels_route_monthly_labels_get"];
+        /**
+         * Update Monthly Labels Route
+         * @description Rename P&L lines. Partial — only the lines in the body are
+         *     touched, and an empty value resets one to its shipped default.
+         *
+         *     Renaming is a per-store bookkeeping decision, so it takes
+         *     `monthly.update` (the same right as editing the month) and
+         *     writes an audit row naming the lines that moved.
+         */
+        put: operations["update_monthly_labels_route_monthly_labels_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/monthly/months": {
         parameters: {
             query?: never;
@@ -9375,12 +9407,65 @@ export interface components {
             year: number;
         };
         /**
+         * MonthlyLabelsResponse
+         * @description Every renameable P&L line, in the order the form shows
+         *     them.
+         */
+        MonthlyLabelsResponse: {
+            /** Lines */
+            lines: components["schemas"]["MonthlyLineLabelRow"][];
+        };
+        /**
+         * MonthlyLabelsUpdateRequest
+         * @description PUT body for /monthly/labels.
+         *
+         *     A partial map of column name → the store's name for it. Only
+         *     the lines present are touched; an empty string resets that line
+         *     to its shipped default. An unknown column is a 422 rather than
+         *     a silent no-op, so a stale client cannot fail to save without
+         *     saying so.
+         */
+        MonthlyLabelsUpdateRequest: {
+            /** Labels */
+            labels: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * MonthlyLineLabelRow
+         * @description One renameable P&L line, as the categories settings page
+         *     reads it.
+         */
+        MonthlyLineLabelRow: {
+            /** Bank Taggable */
+            bank_taggable: boolean;
+            /** Default Label */
+            default_label: string;
+            /** Field */
+            field: string;
+            /** Is Custom */
+            is_custom: boolean;
+            /** Is Slot */
+            is_slot: boolean;
+            /** Label */
+            label: string;
+            /** Section */
+            section: string;
+        };
+        /**
          * MonthlyResponse
          * @description Wrapped single-month payload. `report` is None when no
          *     row exists for the (year, month) — clients distinguish via
          *     a 404 at the controller layer.
          */
         MonthlyResponse: {
+            /**
+             * Labels
+             * @default {}
+             */
+            labels: {
+                [key: string]: string;
+            };
             report: components["schemas"]["MonthlyRow"];
         };
         /**
@@ -19567,6 +19652,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    monthly_labels_route_monthly_labels_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyLabelsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_monthly_labels_route_monthly_labels_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonthlyLabelsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyLabelsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -126,6 +126,9 @@ export default function BankRules() {
             <ButtonLink to="/bank-transactions" tone="secondary">
               Bank transactions
             </ButtonLink>
+            <ButtonLink to="/monthly/categories" tone="secondary">
+              P&amp;L categories
+            </ButtonLink>
             <Button perm="bank_sync.create" onClick={() => setEditing("new")}>
               Create rule
             </Button>

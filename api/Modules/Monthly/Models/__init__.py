@@ -4,13 +4,16 @@
                           the P&L line items: revenue, purchases,
                           expenses, write-offs, and the over/short +
                           cash-carry adjustments that close the month.
+* ``MonthlyLineLabel``  — one row per (store, P&L column) the store
+                          has renamed. The store's own name for a
+                          P&L line; the column itself never moves.
 """
 from __future__ import annotations
 
 from datetime import datetime
 
 from sqlalchemy import (
-    BigInteger, Column, DateTime, ForeignKey, Integer, Text,
+    BigInteger, Column, DateTime, ForeignKey, Integer, String, Text,
     UniqueConstraint,
 )
 
@@ -169,4 +172,46 @@ class MonthlyFinancial(Base):
         return to_dollars(self.net_income_cents)
 
 
-__all__ = ["MonthlyFinancial"]
+class MonthlyLineLabel(Base):
+    """What one store calls one P&L line.
+
+    The monthly P&L is a fixed set of columns — ``credit_card_fees``,
+    ``other_expense_1``, and so on — and those columns are what the
+    totals, the bank feed and the tax export are built on. A store
+    that wants a category we did not ship ("Bank Fee", "Lottery
+    commission") is really asking for a NAME, not a new column: the
+    five ``other_expense_*`` and three ``other_income_*`` columns
+    exist precisely to be claimed.
+
+    So this table is a display layer and nothing more. ``field`` is
+    the immutable ``MonthlyFinancial`` column name — the identifier
+    every rule, tag and export already points at — and ``label`` is
+    the mutable thing the operator reads. Renaming a line never
+    moves money, never invalidates a bank rule, and never touches a
+    historical month: last year's numbers stay in the same column,
+    they just answer to a different name. (Same slug /
+    ``display_name`` split as the TV display catalogs.)
+
+    An absent row, or an empty ``label``, means "use the shipped
+    default" — see ``Services/labels.py``, which owns the default
+    names and the list of columns a store may rename.
+    """
+
+    __tablename__ = "msb_monthly_line_label"
+    __table_args__ = (
+        UniqueConstraint("store_id", "field", name="uq_monthly_line_label"),
+    )
+    id         = Column(Integer, primary_key=True)
+    store_id   = Column(
+        Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True,
+    )
+    # A MonthlyFinancial column name (dollar-view name, not the
+    # `_cents` storage column) — validated against
+    # RENAMEABLE_MONTHLY_FIELDS before it is written.
+    field      = Column(String(40), nullable=False)
+    label      = Column(String(60), nullable=False, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+__all__ = ["MonthlyFinancial", "MonthlyLineLabel"]
