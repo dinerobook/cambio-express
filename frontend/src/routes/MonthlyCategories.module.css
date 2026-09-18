@@ -1,0 +1,42 @@
+/* Page-specific styles for MonthlyCategories.tsx.
+ *
+ * Everything that maps to a shared primitive (page shell, card,
+ * field, input, button, pill, alert) goes through `components/ui`
+ * instead — this file only holds this page's layout. See
+ * CLAUDE.md → "Forms" / "Inline styles vs CSS Modules".
+ */
+
+.intro {
+  margin: 0 0 0.5rem;
+  color: var(--db-text-muted, var(--text-muted));
+  font-size: 0.92rem;
+  max-width: 60ch;
+  line-height: 1.5;
+}
+
+.sectionTitle {
+  margin: 0 0 1rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+}
+
+.lineGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+/* Input + "free slot" pill on one line; the pill drops under the
+ * input rather than squeezing it on a phone. */
+.lineRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lineRow > :first-child {
+  flex: 1 1 12rem;
+  min-width: 0;
+}

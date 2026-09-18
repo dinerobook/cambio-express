@@ -265,9 +265,11 @@ the 422-trap field list).
   categories (operator-editable / daily-derived /
   cross-table-derived), the 422 trap for every read-only field,
   the income / expense / net-profit formulas, the auto-derive
-  contract ("trust the ledger, never the stored value"), and the
+  contract ("trust the ledger, never the stored value"), the
   `bank_charges_total` conditional-lock rule that Basic-plan
-  stores depend on for manual entry.
+  stores depend on for manual entry, and the per-store line
+  RENAMING rules (a label never moves a column;
+  `MONTHLY_LINE_DEFAULTS` is the one place default names live).
   `frontend/src/routes/EditMonthly.tsx` +
   `frontend/src/api/monthly.ts` count as "Monthly files" too.
 - `api/Modules/Auth/INVARIANTS.md` — login, 2FA, recovery codes,
@@ -621,6 +623,13 @@ this.** The short version:
     summed straight into the mapped `MonthlyFinancial` column by
     `bank_pl_sums_for_month`, locked per column per month only
     when the bank has rows for it (Basic-plan stores keep typing).
+    The option's LABEL is the store's, from
+    `Monthly.Services.labels` — `BANK_PL_CATEGORIES` maps slug →
+    column and holds no names. A blank `other_expense_*` /
+    `other_income_*` slot the store has not named stays out of the
+    picker and is refused by the server; naming it on
+    `/monthly/categories` is how a store gets a category we did
+    not ship.
   - **Other tags** (`BANK_CATEGORIES_NON_POSTING` + one
     `bank_charge_<last4>` per connected account) — tag only; the
     `bank_charge*` family feeds `bank_charges_total`.
@@ -635,8 +644,11 @@ this.** The short version:
   `{tagged, booked, locked_skipped}`. The SPA's "Make a rule" on a
   transaction row prefills the shared `BankRuleForm`.
 - **Adding a bank-fed P&L line** = one `BANK_PL_CATEGORIES` row
-  whose column is in `EDITABLE_MONTHLY_FIELDS` and
-  `INCOME_FIELDS` / `EXPENSE_FIELDS`. Nothing else to wire.
+  whose column is in `EDITABLE_MONTHLY_FIELDS`,
+  `INCOME_FIELDS` / `EXPENSE_FIELDS` and `MONTHLY_LINE_DEFAULTS`.
+  Nothing else to wire. `taxable_sales` / `non_taxable` are
+  deliberately NOT bank-taggable — the register close already
+  books the day's sales.
 
 ### Built-in rules (platform-managed bank charges)
 Standard bank charges from a known institution shouldn't require the
@@ -668,7 +680,7 @@ router in `api/main.py`.
 | `DailyBook` | Daily report, line items, drops, deposits |
 | `Dashboard` | Per-role landing data |
 | `FeatureFlags` | Per-store overrides + global defaults |
-| `Monthly` | P&L with the bank-fed lines (see Bank feed → books) |
+| `Monthly` | P&L with the bank-fed lines (see Bank feed → books) + the store's own names for its P&L lines |
 | `Notifications` | SMTP send, email templates, trial reminders, locked-day digest |
 | `Owners` | Multi-store owner umbrella + dashboard rollup |
 | `ReportImport` | Parse remittance-company daily close reports (Intermex first) — deterministic text-layer parse, no OCR/vision — + commit reviewed giros into the day's MT breakdown |

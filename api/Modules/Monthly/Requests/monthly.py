@@ -72,6 +72,61 @@ class MonthlyResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     report: MonthlyRow
+    # The store's own name for each renameable P&L line, keyed by
+    # column name. Rides along on the month so the form never has
+    # to render "Other expense 1" for a beat before a second
+    # request tells it the line is called "Bank Fee".
+    labels: dict[str, str] = {}
+
+
+class MonthlyLineLabelRow(BaseModel):
+    """One renameable P&L line, as the categories settings page
+    reads it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # The MonthlyFinancial column — the identifier, never shown.
+    field: str
+    # What the operator sees today: their name, or the default.
+    label: str
+    # The name we ship, so the page can show what resetting gives
+    # back and grey out a slot the store has not claimed.
+    default_label: str
+    # True when the store has renamed this line.
+    is_custom: bool
+    # "Income" | "Expenses".
+    section: str
+    # True for the blank-by-design slots (other_income_*,
+    # other_expense_*), which stay out of the bank-category picker
+    # until they are named.
+    is_slot: bool
+    # True when a bank rule or transaction can be tagged into this
+    # line. False for the sales lines, which the register feeds.
+    bank_taggable: bool
+
+
+class MonthlyLabelsResponse(BaseModel):
+    """Every renameable P&L line, in the order the form shows
+    them."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    lines: list[MonthlyLineLabelRow]
+
+
+class MonthlyLabelsUpdateRequest(BaseModel):
+    """PUT body for /monthly/labels.
+
+    A partial map of column name → the store's name for it. Only
+    the lines present are touched; an empty string resets that line
+    to its shipped default. An unknown column is a 422 rather than
+    a silent no-op, so a stale client cannot fail to save without
+    saying so.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    labels: dict[str, str]
 
 
 class MonthLogged(BaseModel):

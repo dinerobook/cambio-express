@@ -26,15 +26,48 @@ where the money lands in the books.
 
 `GET /api/v2/bank/categories` is the ONLY source of the picker.
 The SPA never carries its own slug list (it did once, and drifted
-from what the server accepted). `is_valid_bank_category` is what
-the server accepts; `bank_category_groups` is what it lists. Keep
-them in step — a slug in one and not the other is a bug.
+from what the server accepted). `bank_category_groups` is what the
+server lists and `is_valid_bank_category` is what it accepts, and
+the second is now DEFINED as "a slug the first offers" rather than
+a parallel list — they cannot drift. The one deliberate extra the
+validator takes is the unstripped `bank_charge_0210` beside the
+`bank_charge_210` the picker offers.
 
 | Family | Slugs | Effect of tagging |
 |---|---|---|
 | **Daily book** | every `LINE_ITEM_KINDS` key (`check_deposit`, `cash_expense`, `drop`, …) | Books a `msb_daily_line_item` on a day's book **through the same service path a cashier's entry takes** (`recompute_line_items_total` → `ensure_daily_report`), so the day's rolled-up column moves at once and the report row is created if the day had none. |
 | **Monthly P&L** | `BANK_PL_CATEGORIES` (`pl_credit_card_fees`, `pl_money_order_rent`, …, `pl_other_income_3`) | Touches nothing on tag. The monthly P&L sums these rows straight into the mapped `MonthlyFinancial` column (`bank_pl_sums_for_month`). |
 | **Other** | `BANK_CATEGORIES_NON_POSTING` + one `bank_charge_<last4>` per connected account | A tag only. The `bank_charge*` family additionally feeds `MonthlyFinancial.bank_charges_total` via prefix match — it predates `pl_*`. |
+
+### The P&L options are the store's, not ours
+
+`BANK_PL_CATEGORIES` maps slug → `MonthlyFinancial` column and
+NOTHING ELSE. The operator-facing label lives in
+`Monthly.Services.labels`, where the store can change it: a slug is
+an identifier and must never move, a label is decoration. Renaming
+a line re-labels every option, every tagged row's category and
+every rule's target at once, and orphans none of them.
+
+Two rules follow, both enforced in
+`tests/Modules/BankSync/test_categories_service.py`:
+
+- **An unclaimed slot is not offered and is not accepted.** The
+  five `other_expense_*` and three `other_income_*` columns are
+  blank by design; until the store names one on
+  `/monthly/categories` it stays out of the picker (a dropdown
+  entry called "Other expense 4" is a slug nobody can pick
+  meaningfully) and `is_valid_bank_category` refuses it. Naming it
+  is what turns it into a category — that is the whole
+  add-a-category story.
+- **A slug already in use stays offered whatever its name.**
+  `_slugs_in_use` reads the store's tagged rows and rule targets,
+  so clearing a name later cannot invalidate a rule the store is
+  already running.
+
+`taxable_sales` / `non_taxable` are renameable on the P&L but have
+NO `pl_*` slug on purpose: the register close already books the
+day's sales, and tagging the matching bank deposit into them would
+count the same money twice. Do not add one.
 
 `monthly_field_for(slug)` is the single lookup from slug to P&L
 column. Daily-book kinds reach the P&L through the daily ledger
@@ -174,7 +207,12 @@ summary; the slug and whether a line was booked go in.
   `Monthly/INVARIANTS.md` → "Category 3" owns the conditional-lock
   rule (bank sum wins when > 0, else the typed value). Adding a
   `pl_*` slug = one `BANK_PL_CATEGORIES` row whose column is in
-  `EDITABLE_MONTHLY_FIELDS` + `INCOME_FIELDS` / `EXPENSE_FIELDS`.
+  `EDITABLE_MONTHLY_FIELDS` + `INCOME_FIELDS` / `EXPENSE_FIELDS`
+  AND in `MONTHLY_LINE_DEFAULTS` (the picker renders the store's
+  name for the column, so a column with no default name has no
+  label to fall back to).
+  `Monthly.Services.labels` owns every operator-facing P&L name;
+  this module imports it and never keeps its own copy.
 - **Batches** — the `mt_ach_*` tags are what the ACH module
   reconciles against; they never post.
 

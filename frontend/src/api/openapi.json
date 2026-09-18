@@ -6774,10 +6774,99 @@
         "title": "MonthLogged",
         "type": "object"
       },
+      "MonthlyLabelsResponse": {
+        "additionalProperties": false,
+        "description": "Every renameable P&L line, in the order the form shows\nthem.",
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/MonthlyLineLabelRow"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "MonthlyLabelsResponse",
+        "type": "object"
+      },
+      "MonthlyLabelsUpdateRequest": {
+        "additionalProperties": false,
+        "description": "PUT body for /monthly/labels.\n\nA partial map of column name \u2192 the store's name for it. Only\nthe lines present are touched; an empty string resets that line\nto its shipped default. An unknown column is a 422 rather than\na silent no-op, so a stale client cannot fail to save without\nsaying so.",
+        "properties": {
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          }
+        },
+        "required": [
+          "labels"
+        ],
+        "title": "MonthlyLabelsUpdateRequest",
+        "type": "object"
+      },
+      "MonthlyLineLabelRow": {
+        "additionalProperties": false,
+        "description": "One renameable P&L line, as the categories settings page\nreads it.",
+        "properties": {
+          "bank_taggable": {
+            "title": "Bank Taggable",
+            "type": "boolean"
+          },
+          "default_label": {
+            "title": "Default Label",
+            "type": "string"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "is_custom": {
+            "title": "Is Custom",
+            "type": "boolean"
+          },
+          "is_slot": {
+            "title": "Is Slot",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "label",
+          "default_label",
+          "is_custom",
+          "section",
+          "is_slot",
+          "bank_taggable"
+        ],
+        "title": "MonthlyLineLabelRow",
+        "type": "object"
+      },
       "MonthlyResponse": {
         "additionalProperties": false,
         "description": "Wrapped single-month payload. `report` is None when no\nrow exists for the (year, month) \u2014 clients distinguish via\na 404 at the controller layer.",
         "properties": {
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Labels",
+            "type": "object"
+          },
           "report": {
             "$ref": "#/components/schemas/MonthlyRow"
           }
@@ -28282,6 +28371,146 @@
         "summary": "Maintenance Status",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/monthly/labels": {
+      "get": {
+        "description": "Every renameable P&L line with the store's name for it.\n\nRead-permission only: an employee who can see the P&L should\nsee it under the same names the admin does.",
+        "operationId": "monthly_labels_route_monthly_labels_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyLabelsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Monthly Labels Route",
+        "tags": [
+          "monthly"
+        ]
+      },
+      "put": {
+        "description": "Rename P&L lines. Partial \u2014 only the lines in the body are\ntouched, and an empty value resets one to its shipped default.\n\nRenaming is a per-store bookkeeping decision, so it takes\n`monthly.update` (the same right as editing the month) and\nwrites an audit row naming the lines that moved.",
+        "operationId": "update_monthly_labels_route_monthly_labels_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonthlyLabelsUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyLabelsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Monthly Labels Route",
+        "tags": [
+          "monthly"
         ]
       }
     },

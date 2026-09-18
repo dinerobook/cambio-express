@@ -55,23 +55,33 @@ export interface MonthlyRow {
   bank_locked: string[];
 }
 
+/** A month, plus the store's own name for each P&L line. The
+ *  labels ride along with the month so the form never renders
+ *  "Other expense 1" for a beat before a second request corrects
+ *  it. `report` is null when the month has no row yet. */
+export interface MonthlyDetail {
+  report: MonthlyRow | null;
+  labels: Record<string, string>;
+}
+
 export function useMonthly(year: number | undefined, month: number | undefined) {
   const identity = getCurrentIdentity();
   const enabled =
     identity?.store_id != null &&
     Number.isFinite(year) &&
     Number.isFinite(month);
-  return useQuery<MonthlyRow | null>({
+  return useQuery<MonthlyDetail>({
     enabled,
     queryKey: ["monthly", "report", identity?.store_id, year, month],
     queryFn: async () => {
       try {
-        const resp = await api<{ report: MonthlyRow }>(
+        return await api<MonthlyDetail>(
           `/api/v2/monthly/${year}/${month}`,
         );
-        return resp.report;
       } catch (err) {
-        if (err instanceof ApiError && err.status === 404) return null;
+        if (err instanceof ApiError && err.status === 404) {
+          return { report: null, labels: {} };
+        }
         throw err;
       }
     },
@@ -117,10 +127,53 @@ export interface MonthlyUpdateBody {
 
 export async function updateMonthly(
   year: number, month: number, body: MonthlyUpdateBody,
-): Promise<{ report: MonthlyRow }> {
-  return api<{ report: MonthlyRow }>(
+): Promise<MonthlyDetail> {
+  return api<MonthlyDetail>(
     `/api/v2/monthly/${year}/${month}`,
     { method: "PUT", json: body },
+  );
+}
+
+// ── P&L line names ──────────────────────────────────────────
+//
+// The P&L's lines are fixed columns, so a store cannot add one.
+// What it can do is name them — claim a blank slot as "Bank Fee",
+// or rename a line it inherited from the money-transfer days.
+// `field` is the column and never changes; `label` is what the
+// operator reads.
+
+export interface MonthlyLineLabel {
+  field: string;
+  label: string;
+  /** The name we ship — what "Reset" gives back. */
+  default_label: string;
+  is_custom: boolean;
+  section: "Income" | "Expenses";
+  /** A blank-by-design slot. Stays out of the bank-category
+   *  picker until the store names it. */
+  is_slot: boolean;
+  /** Whether a bank rule or transaction can be tagged into it. */
+  bank_taggable: boolean;
+}
+
+export function useMonthlyLabels() {
+  const identity = getCurrentIdentity();
+  return useQuery<{ lines: MonthlyLineLabel[] }>({
+    enabled: identity?.store_id != null,
+    queryKey: ["monthly", "labels", identity?.store_id],
+    queryFn: () => api<{ lines: MonthlyLineLabel[] }>("/api/v2/monthly/labels"),
+    staleTime: 60_000,
+  });
+}
+
+/** Partial save: only the lines present are touched, and an empty
+ *  string resets one to its shipped default. */
+export async function updateMonthlyLabels(
+  labels: Record<string, string>,
+): Promise<{ lines: MonthlyLineLabel[] }> {
+  return api<{ lines: MonthlyLineLabel[] }>(
+    "/api/v2/monthly/labels",
+    { method: "PUT", json: { labels } },
   );
 }
 

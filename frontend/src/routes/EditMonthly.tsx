@@ -9,7 +9,7 @@ import {
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs,
+  AppLink, Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, FormActions, Loading, MoneyInput,
   PageHeader, PageShell, Textarea,
   useToast,
@@ -32,6 +32,11 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+// `label` is the FALLBACK. Every income and expense line here can
+// be renamed per store on /monthly/categories, and the server sends
+// the store's names alongside the month — so what most operators
+// read is `labels[key]`, not this. The cash-flow lines are
+// structural and keep the names below.
 const FIELDS: Array<{
   key: keyof MonthlyUpdateBody;
   label: string;
@@ -94,7 +99,7 @@ export default function EditMonthly() {
 
   useEffect(() => {
     if (detail.isLoading || detail.isFetching) return;
-    const r = detail.data;
+    const r = detail.data?.report ?? null;
     const init: MonthlyUpdateBody = { notes: r?.notes ?? "" };
     for (const f of FIELDS) {
       const v = r ? (r as unknown as Record<string, number>)[f.key] : 0;
@@ -105,7 +110,9 @@ export default function EditMonthly() {
     setBaseline(init);
   }, [detail.data, detail.isLoading, detail.isFetching]);
 
-  const bankLocked = new Set(detail.data?.bank_locked ?? []);
+  const bankLocked = new Set(detail.data?.report?.bank_locked ?? []);
+  // The store's own name per line; absent keys fall back to FIELDS.
+  const labels = detail.data?.labels ?? {};
 
   const isDirty =
     form != null && baseline != null &&
@@ -192,6 +199,11 @@ export default function EditMonthly() {
           are summed from categorized bank transactions this month —
           change them on the bank transactions page.
         </p>
+        <p className={styles.headerNote}>
+          Lines not named after your business? <AppLink to="/monthly/categories">
+            Rename them
+          </AppLink> — the numbers stay where they are.
+        </p>
       </header>
 
       <form
@@ -207,7 +219,7 @@ export default function EditMonthly() {
                 return (
                   <MoneyInput
                     key={f.key}
-                    label={f.label}
+                    label={labels[f.key] || f.label}
                     value={
                       typeof form[f.key] === "number"
                         ? (form[f.key] as number)

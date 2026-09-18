@@ -42,6 +42,12 @@ function buildMonthOptions(logged: YearMonth[]): YearMonth[] {
   );
 }
 
+// The lines each half of the P&L shows, in order. `label` is the
+// FALLBACK only: a store can rename most of these (see
+// /monthly/categories), and the server sends its names alongside
+// the month. The ones it cannot rename — the daily-derived lines
+// and the returned-check gain/loss — fall through to the label
+// here, which is why the list still carries one.
 const INCOME_FIELDS: Array<{ key: keyof MonthlyRow; label: string }> = [
   { key: "taxable_sales",          label: "Taxable sales" },
   { key: "non_taxable",            label: "Non-taxable" },
@@ -161,6 +167,9 @@ export default function Monthly() {
                 </option>
               ))}
             </Select>
+            <ButtonLink to="/monthly/categories" tone="secondary" size="sm">
+              Categories
+            </ButtonLink>
             {year && month && (
               <ButtonLink
                 to={`/monthly/edit?year=${year}&month=${month}`}
@@ -185,17 +194,28 @@ export default function Monthly() {
           onRetry={() => { void detail.refetch(); }}
         />
       )}
-      {detail.data === null && !detail.isLoading && year && month && (
+      {detail.data?.report == null && !detail.isLoading && year && month && (
         <EmptyState
           title={`No P&L logged for ${MONTH_NAMES[month - 1]} ${year} yet.`}
         />
       )}
-      {detail.data && <ReportContent r={detail.data} />}
+      {detail.data?.report && (
+        <ReportContent
+          r={detail.data.report}
+          labels={detail.data.labels}
+        />
+      )}
     </PageShell>
   );
 }
 
-function ReportContent({ r }: { r: MonthlyRow }) {
+function ReportContent({
+  r, labels,
+}: {
+  r: MonthlyRow;
+  /** The store's own name per P&L column, from the server. */
+  labels: Record<string, string>;
+}) {
   return (
     <>
       <Section title="Totals">
@@ -220,7 +240,7 @@ function ReportContent({ r }: { r: MonthlyRow }) {
             {INCOME_FIELDS.map((f) => (
               <Stat
                 key={f.key}
-                label={f.label}
+                label={labels[f.key] || f.label}
                 value={r[f.key] as number}
               />
             ))}
@@ -234,7 +254,7 @@ function ReportContent({ r }: { r: MonthlyRow }) {
             {EXPENSE_FIELDS.map((f) => (
               <Stat
                 key={f.key}
-                label={f.label}
+                label={labels[f.key] || f.label}
                 value={r[f.key] as number}
               />
             ))}
