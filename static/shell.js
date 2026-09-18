@@ -7,7 +7,7 @@
  * wiring — and that copy drifted: the dropdown used a class-toggle
  * pattern in one shell and a `hidden`-only toggle in the other, so
  * owner login users couldn't open their avatar menu (no logout, no
- * profile, no nav). See https://github.com/snehilmak/cambio-express/pull/197
+ * profile, no nav). See https://github.com/dinerobook/cambio-express/pull/197
  * for the bug write-up.
  *
  * One file, two shells. If you change the chrome contract here you
