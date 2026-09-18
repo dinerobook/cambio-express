@@ -14,6 +14,13 @@ decides whether there is a second one:
     the monthly P&L sums those rows itself (see `charges.py`).
   * everything else is a tag.
 
+Which day a row books on is the operator's to decide. The bank's
+posting date is the default, not the truth: a remote check deposit
+posts the next morning and a weekend deposit posts on Monday, while
+the cash left the drawer earlier. `report_date_override` on the row
+(and `post_date_offset_days` on a rule, for the recurring version of
+the same thing) moves the line to the day the money actually moved.
+
 A locked day is the kill-switch. Booking onto a locked report is
 refused with `DailyBookLockedError`; the rule engine catches that
 and keeps the tag without the line (`applier.py`), so a re-sync
@@ -48,15 +55,38 @@ class DailyBookLockedError(Exception):
         )
 
 
-def booking_date_for(txn: BankTransaction, report_date: date | None = None) -> date:
-    """The day a transaction lands on: an explicit override, else the
-    bank's posting date. The override exists for remote deposits the
-    bank posts the next morning that belong on the prior day's
-    close-out."""
-    if report_date is not None:
-        return report_date
+def bank_date_for(txn: BankTransaction) -> date:
+    """The day the bank itself posted the transaction — the default
+    booking day, and the base a rule's `post_date_offset_days`
+    shifts from."""
     when = txn.posted_at or utc_now()
     return when.date()
+
+
+def booking_date_for(
+    txn: BankTransaction, report_date: date | None = None, *,
+    explicit: bool = False,
+) -> date:
+    """The day a transaction lands on, in resolution order:
+
+    1. `report_date` — what this caller chose right now;
+    2. `txn.report_date_override` — what someone chose earlier and
+       the row still carries;
+    3. the bank's own posting date.
+
+    The override exists because the bank's date is not the day the
+    money moved: a remote check deposit posts the next morning, and
+    a Saturday deposit posts on Monday. Both belong on the earlier
+    day's close-out.
+
+    `explicit=True` with `report_date=None` is the operator clearing
+    the override — skip step 2 and fall back to the bank's date.
+    """
+    if report_date is not None:
+        return report_date
+    if not explicit and txn.report_date_override is not None:
+        return txn.report_date_override
+    return bank_date_for(txn)
 
 
 def _remove_line(db: Session, line_id: int | None) -> None:
@@ -130,6 +160,7 @@ def categorize_transaction(
     rule: BankRule | None = None,
     post_to_daily: bool = True,
     report_date: date | None = None,
+    report_date_explicit: bool = False,
     is_daily_book_kind: Callable[[str], bool] | None = None,
 ) -> BankTransaction:
     """Set the transaction's category, booking a daily-book line
@@ -143,7 +174,13 @@ def categorize_transaction(
 
     `report_date` overrides the line-item's day — the RDC case
     where the bank posts the transaction the next morning but the
-    cash-handling event belongs on the previous day's book.
+    cash-handling event belongs on the previous day's book. Pass
+    `report_date_explicit=True` for a caller that is SETTING the
+    row's stored override (the operator picking a day, or a rule
+    with an offset); the value — a date, or None to clear — is then
+    written to `txn.report_date_override` so the choice survives the
+    next re-tag. Left False, a stored override from an earlier
+    choice still applies; see `booking_date_for`.
 
     Raises `DailyBookLockedError` when the target day is locked.
     The category is NOT applied in that case — the caller decides
@@ -153,10 +190,14 @@ def categorize_transaction(
     predicate = is_daily_book_kind or _registry_is_daily_book_kind
     wants_booking = bool(post_to_daily and target_kind and predicate(target_kind))
 
+    line_date = booking_date_for(
+        txn, report_date, explicit=report_date_explicit,
+    )
+
     # Check the lock BEFORE touching anything so a refused booking
-    # leaves the row exactly as it was.
+    # leaves the row exactly as it was — the stored override
+    # included.
     if wants_booking:
-        line_date = booking_date_for(txn, report_date)
         existing = find_report_by_date(db, int(txn.store_id), line_date)
         if existing is not None and existing.locked_at is not None:
             raise DailyBookLockedError(line_date)
@@ -165,6 +206,8 @@ def categorize_transaction(
     txn.daily_line_item_id = None
     txn.category_slug = target_kind or ""
     txn.matched_rule_id = rule.id if rule else None
+    if report_date_explicit:
+        txn.report_date_override = report_date
 
     if rule is not None:
         rule.match_count = (rule.match_count or 0) + 1
@@ -175,7 +218,7 @@ def categorize_transaction(
     # so a stale `daily_line_item_id` can never point at the
     # replacement by accident.
     if wants_booking:
-        book_to_daily(db, txn, target_kind, report_date=report_date)
+        book_to_daily(db, txn, target_kind, report_date=line_date)
     _remove_line(db, old_line_id)
     return txn
 
@@ -184,8 +227,11 @@ def uncategorize_transaction(
     db: Session, txn: BankTransaction,
 ) -> BankTransaction:
     """Clear category_slug + unbook any line item (rolling the day's
-    total back). Caller commits."""
+    total back). The stored booking-day override goes with it — the
+    row is back to untouched, so a later tag starts from the bank's
+    date again. Caller commits."""
     unbook_from_daily(db, txn)
     txn.category_slug = ""
     txn.matched_rule_id = None
+    txn.report_date_override = None
     return txn

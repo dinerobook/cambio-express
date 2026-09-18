@@ -24,8 +24,30 @@ export interface BankRuleFormValues {
   account_filter_id: string;
   target_kind: string;
   auto_post: boolean;
+  /** Days to shift the booked day from the bank's posting date. */
+  post_date_offset_days: number;
   description: string;
   apply_to_existing: boolean;
+}
+
+/** The day-shift choices a rule offers. A rule fires on rows nobody
+ *  has looked at yet, so it can only shift from the bank's date —
+ *  an absolute day belongs on the transaction itself. */
+export const POST_OFFSET_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
+  { value: -3, label: "3 days before the bank's date" },
+  { value: -2, label: "2 days before the bank's date" },
+  { value: -1, label: "1 day before the bank's date" },
+  { value: 0,  label: "The bank's own date" },
+  { value: 1,  label: "1 day after the bank's date" },
+  { value: 2,  label: "2 days after the bank's date" },
+];
+
+/** "1 day before the bank's date" etc., for the rules list. */
+export function postOffsetLabel(days: number): string {
+  const known = POST_OFFSET_OPTIONS.find((o) => o.value === days);
+  if (known) return known.label;
+  const n = Math.abs(days);
+  return `${n} day${n === 1 ? "" : "s"} ${days < 0 ? "before" : "after"} the bank's date`;
 }
 
 export const EMPTY_RULE_FORM: BankRuleFormValues = {
@@ -39,6 +61,7 @@ export const EMPTY_RULE_FORM: BankRuleFormValues = {
   account_filter_id: "",
   target_kind: "",
   auto_post: true,
+  post_date_offset_days: 0,
   description: "",
   apply_to_existing: true,
 };
@@ -55,6 +78,7 @@ export function formValuesFromRule(r: BankRuleRow): BankRuleFormValues {
     account_filter_id: r.account_filter_id != null ? String(r.account_filter_id) : "",
     target_kind: r.target_kind,
     auto_post: r.auto_post,
+    post_date_offset_days: r.post_date_offset_days ?? 0,
     description: r.description,
     apply_to_existing: false,
   };
@@ -73,6 +97,7 @@ export function bodyFromFormValues(v: BankRuleFormValues): BankRuleWriteBody {
     account_filter_id: v.account_filter_id ? Number(v.account_filter_id) : null,
     target_kind: v.target_kind,
     auto_post: v.auto_post,
+    post_date_offset_days: Number(v.post_date_offset_days) || 0,
     description: v.description.trim(),
     apply_to_existing: v.apply_to_existing,
   };

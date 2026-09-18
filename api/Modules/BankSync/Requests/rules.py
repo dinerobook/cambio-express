@@ -21,6 +21,7 @@ class BankRuleRow(BaseModel):
     account_filter_label: str = ""  # nickname or ••last4 of the account
     target_kind: str
     auto_post: bool = True
+    post_date_offset_days: int = 0
     description: str = ""
     match_count: int = 0
     last_matched_at: str = ""  # ISO datetime, "" if never matched
@@ -51,6 +52,12 @@ class BankRuleWriteRequest(BaseModel):
     means unbounded. `target_kind` is required — what category the
     matching txn gets tagged with.
 
+    `post_date_offset_days` shifts the booked daily-book day that
+    many days from the bank's posting date (negative books earlier,
+    e.g. -1 for a remote deposit the bank posts the next morning).
+    0 books on the bank's date. Ignored when the target category
+    does not book a line.
+
     `apply_to_existing` (create only) runs the new rule over the
     store's still-uncategorised transactions right away, booking
     daily-book lines when `auto_post` is on. The counts come back
@@ -70,6 +77,7 @@ class BankRuleWriteRequest(BaseModel):
     account_filter_id: int | None = None
     target_kind: str = Field(..., min_length=1, max_length=40)
     auto_post: bool = True
+    post_date_offset_days: int = Field(0, ge=-31, le=31)
     description: str = Field("", max_length=200)
     apply_to_existing: bool = False
 

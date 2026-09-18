@@ -11,7 +11,8 @@ import {
 } from "../api/bankSync";
 import { ApiError } from "../lib/api";
 import {
-  bodyFromFormValues, EMPTY_RULE_FORM, type BankRuleFormValues,
+  bodyFromFormValues, EMPTY_RULE_FORM, POST_OFFSET_OPTIONS,
+  type BankRuleFormValues,
 } from "../lib/bankRules";
 import {
   Alert, Button, Checkbox, Field, FormActions, Input, MoneyInput, Select,
@@ -170,12 +171,31 @@ export function BankRuleForm({
           </Field>
         </div>
         {booksLine && (
-          <Checkbox
-            checked={form.auto_post}
-            onChange={(v) => patch({ auto_post: v })}
-          >
-            Also book it on that day's daily book
-          </Checkbox>
+          <>
+            <Checkbox
+              checked={form.auto_post}
+              onChange={(v) => patch({ auto_post: v })}
+            >
+              Also book it on the daily book
+            </Checkbox>
+            {form.auto_post && (
+              <Field
+                label="Book it on"
+                hint="Banks post late — a check deposited Friday afternoon can land on Monday. Pick the day the money actually moved, counting from the bank's date."
+              >
+                <Select
+                  value={String(form.post_date_offset_days)}
+                  onChange={(e) =>
+                    patch({ post_date_offset_days: Number(e.target.value) })
+                  }
+                >
+                  {POST_OFFSET_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+          </>
         )}
       </fieldset>
 

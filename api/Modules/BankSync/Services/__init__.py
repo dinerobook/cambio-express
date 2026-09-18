@@ -21,6 +21,7 @@ from api.Modules.BankSync.Services.categories import (
 )
 from api.Modules.BankSync.Services.categorize import (
     DailyBookLockedError,
+    bank_date_for,
     book_to_daily,
     booking_date_for,
     categorize_transaction,
@@ -83,6 +84,7 @@ __all__ = [
     "bank_charges_breakdown_for_month",
     "bank_charges_for_month",
     "bank_pl_sums_for_month",
+    "bank_date_for",
     "book_to_daily",
     "booking_date_for",
     "builtin_substrings",

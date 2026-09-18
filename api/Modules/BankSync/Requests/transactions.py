@@ -26,6 +26,14 @@ class BankTransactionRow(BaseModel):
     # day's book. Empty / None when the tag is metadata-only.
     daily_line_item_id: int | None = None
     booked_on: str = ""
+    # The day the operator (or a rule's offset) chose for this row,
+    # ISO date, "" when it books on the bank's own date. Distinct
+    # from `booked_on`: a row can carry a chosen day while its
+    # booking is skipped because the day is locked.
+    report_date_override: str = ""
+    # `posted_at`'s date — what the row books on with no override.
+    # The SPA shows it as the "use the bank's date" choice.
+    bank_date: str = ""
 
 
 class BankTransactionListResponse(BaseModel):
@@ -54,10 +62,18 @@ class CategorizeRequest(BaseModel):
     `post_to_daily=False` keeps the assignment metadata-only and
     skips creating the matching DailyLineItem (used when the
     operator wants the tag without a daily-book mirror).
-    `report_date` (ISO date) overrides the day the line lands on —
-    for a remote deposit the bank posts the next morning that
-    belongs on the prior day's close-out. Booking onto a locked
-    day is a 409."""
+
+    `report_date` (ISO date) is the day the line lands on, instead
+    of the bank's posting date — a remote deposit the bank posts
+    the next morning, or a Saturday deposit the bank posts on
+    Monday, both belong on the earlier day's close-out. It is
+    tri-state on the wire, read off `model_fields_set`:
+
+      * omitted — keep whatever day the row already carries;
+      * a date  — book on that day and remember it;
+      * `null`  — clear the choice, back to the bank's date.
+
+    Booking onto a locked day is a 409."""
 
     model_config = ConfigDict(extra="forbid")
 

@@ -612,8 +612,11 @@ this.** The short version:
     `recompute_line_items_total`, so the day's column moves and
     the report row is created if missing. A locked day refuses
     (service `DailyBookLockedError`, endpoint 409, rule engine
-    keeps the tag and skips the line). `report_date` moves the
-    line to another day.
+    keeps the tag and skips the line). **Which day it lands on is
+    the operator's**: `report_date` on the categorize call, stored
+    as `bank_transaction.report_date_override`, so the choice
+    survives a re-tag — the bank's `posted_at` is only the
+    fallback.
   - **Monthly P&L lines** (`BANK_PL_CATEGORIES`, slugs `pl_*`) —
     summed straight into the mapped `MonthlyFinancial` column by
     `bank_pl_sums_for_month`, locked per column per month only
@@ -622,7 +625,9 @@ this.** The short version:
     `bank_charge_<last4>` per connected account) — tag only; the
     `bank_charge*` family feeds `bank_charges_total`.
 - **Rules** (`bank_rule`) are the operator's automation: IF
-  description / direction / amount / account THEN category (+ book).
+  description / direction / amount / account THEN category (+ book
+  on a day `post_date_offset_days` from the bank's — a rule fires
+  on rows nobody has seen, so it shifts rather than names a day).
   First match wins in `priority` order; `POST /rules/reorder`
   rewrites priorities. Rules never override a hand-set tag. Create
   with `apply_to_existing` or `POST /rules/{id}/apply` to run one

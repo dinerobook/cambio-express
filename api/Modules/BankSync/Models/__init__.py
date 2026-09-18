@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    BigInteger, Boolean, Column, DateTime, ForeignKey, Index, Integer,
+    BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Index, Integer,
     String,
 )
 
@@ -83,6 +83,10 @@ class BankTransaction(Base):
     BankRule that auto-categorized this row (null when set manually).
     When the category is a daily-book kind, ``daily_line_item_id``
     links to the DailyLineItem we created — un-reconcile deletes it.
+
+    ``report_date_override`` is the operator's answer to "the bank
+    posted this on Monday but the money moved on Saturday": the day
+    the daily-book line lands on, overriding ``posted_at``.
     """
 
     __tablename__ = "bank_transaction"
@@ -100,6 +104,14 @@ class BankTransaction(Base):
     daily_line_item_id       = Column(Integer,
                                        ForeignKey("msb_daily_line_item.id"),
                                        nullable=True)
+    # The day this row books on when it is not the bank's own
+    # posting date. NULL means "use ``posted_at``". Set when the
+    # operator picks a day on the transactions page, or by a rule
+    # carrying a ``post_date_offset_days``. Stored rather than
+    # passed once so the choice survives a re-tag: without it,
+    # changing the category later silently walked the line back to
+    # the bank's date.
+    report_date_override     = Column(Date, nullable=True)
     created_at               = Column(DateTime, default=datetime.utcnow)
     __table_args__ = (
         Index("ix_bank_transaction_store_posted",
@@ -149,6 +161,12 @@ class BankRule(Base):
     # OR a non-posting tag from ``BANK_CATEGORIES_NON_POSTING``.
     target_kind         = Column(String(40), nullable=False)
     auto_post           = Column(Boolean, default=True)
+    # Shift the booked day this many days from the bank's posting
+    # date. 0 = the bank's date. Negative books earlier: a remote
+    # check deposit the bank posts the next morning belongs on the
+    # previous day's close-out (-1). Only consulted when the rule
+    # books a daily-book line.
+    post_date_offset_days = Column(Integer, default=0)
 
     description         = Column(String(200), default="")  # operator note
     match_count         = Column(Integer, default=0)
