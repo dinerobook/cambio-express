@@ -15,7 +15,7 @@ relink to the existing DB.
 ### Steps
 
 1. Render Dashboard → **New +** → **Blueprint**.
-2. Connect to `snehilmak/cambio-express`, branch `main`.
+2. Connect to `dinerobook/cambio-express`, branch `main`.
 3. Render reads `render.yaml` and proposes:
    - web service `dinerobook`
    - database `dinerobook-db` (should say *"already exists, will link"*)

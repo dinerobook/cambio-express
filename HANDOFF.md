@@ -635,7 +635,7 @@ a PR, but all block a real beta with paying customers. Verify each on the
 When you switch to the new Claude subscription:
 
 1. **Point the new account at this same repo** — clone it, or for Claude
-   Code on the web, connect the `snehilmak/cambio-express` GitHub repo to
+   Code on the web, connect the `dinerobook/cambio-express` GitHub repo to
    the new account. `CLAUDE.md` + this file load automatically; no import
    step needed.
 2. **Re-create the web environment config** (this is per-account /

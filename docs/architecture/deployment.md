@@ -13,7 +13,7 @@ auto-deploys via `render.yaml`. The legacy `cashnet` service and
 
 | What | Where |
 |---|---|
-| Repo | `snehilmak/cambio-express` (GitHub) |
+| Repo | `dinerobook/cambio-express` (GitHub) |
 | Render service | `dinerobook` (web, Python) |
 | Render DB | `dinerobook-db` (Postgres, free tier today — upgrade to Starter $7/mo before paid launch) |
 | Production URL | `https://dinerobook.com` (custom domain → Render edge) |

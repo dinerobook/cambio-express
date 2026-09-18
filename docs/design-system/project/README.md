@@ -24,7 +24,7 @@ The product solves a real-world pain: MSB owners historically manage their shops
 
 This design system was assembled from:
 
-- **Codebase**: `snehilmak/cambio-express` on GitHub (commit `d22fa1d`). Flask 3.0 monolith (`app.py`, Jinja2 templates, a single shared `static/app.css`). Key files imported into this project root:
+- **Codebase**: `dinerobook/cambio-express` on GitHub (commit `d22fa1d`). Flask 3.0 monolith (`app.py`, Jinja2 templates, a single shared `static/app.css`). Key files imported into this project root:
   - `CLAUDE.md` — engineering invariants (sidebar groupings, semantic tokens, trial state machine, etc.)
   - `BACKLOG.md` — deferred work
   - `static/app.css` — **the source of truth for all tokens & components**
