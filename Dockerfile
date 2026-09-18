@@ -21,7 +21,13 @@
 # + scripts/build.sh NODE_VERSION.
 FROM node:22-slim AS frontend
 WORKDIR /build/frontend
-COPY frontend/package.json frontend/package-lock.json ./
+# .npmrc comes along with the manifests, not with the source copy
+# below: it carries `legacy-peer-deps=true`, without which this
+# `npm ci` fails ERESOLVE on openapi-typescript's `typescript@^5.x`
+# peer against the SPA's TypeScript 6. CI and scripts/build.sh run
+# inside the repo and pick the file up implicitly, so leaving it out
+# here broke the image alone (the file explains when it can go).
+COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
 RUN npm ci --no-audit --no-fund --silent
 COPY frontend/ ./
 RUN npm run build
@@ -49,6 +55,13 @@ EXPOSE 5000
 # Mirrors render.yaml's startCommand. init_db() runs `alembic
 # upgrade head` on boot, so no separate migrate step is needed —
 # same contract as the Render deploy.
-CMD ["gunicorn", "asgi:asgi_app", \
-     "-k", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120"]
+#
+# Shell form so $PORT expands: a host that assigns the port (Render,
+# Cloud Run, Heroku) hands it over this way, and a container bound to
+# a port nobody is routing to fails its health check with a healthy
+# app inside. Falls back to 5000 so the `docker run -p 5000:5000`
+# above still works unchanged. `exec` keeps gunicorn as PID 1 so it
+# receives SIGTERM directly instead of through /bin/sh.
+CMD exec gunicorn asgi:asgi_app \
+      -k uvicorn.workers.UvicornWorker \
+      --bind "0.0.0.0:${PORT:-5000}" --workers 2 --timeout 120
