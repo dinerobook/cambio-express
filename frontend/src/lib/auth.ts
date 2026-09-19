@@ -69,6 +69,24 @@ export function getCurrentIdentity(): IdentityClaims | null {
 }
 
 
+/** Replace the cached permission list with the server's live one.
+ *  Returns true when the list actually changed, so the caller can
+ *  re-render the gates that read it. Order-insensitive: the server
+ *  builds the list from a set. A missing identity is left alone —
+ *  there is nothing to update and the auth guard handles that. */
+export function syncPermissions(live: string[]): boolean {
+  const current = _read();
+  if (!current) return false;
+  const next = [...live].sort();
+  const have = [...current.permissions].sort();
+  if (next.length === have.length && next.every((p, i) => p === have[i])) {
+    return false;
+  }
+  _write({ ...current, permissions: live });
+  return true;
+}
+
+
 export function setCurrentIdentity(claims: IdentityClaims): void {
   _write(claims);
 }

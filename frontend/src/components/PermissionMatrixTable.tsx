@@ -14,7 +14,7 @@ import styles from "./PermissionMatrixTable.module.css";
 export const RESOURCE_LABELS: Record<string, string> = {
   transfers: "Money transfers",
   customers: "Customers",
-  daily_book: "Daily book",
+  daily_book: "MSB Daily book",
   monthly: "Monthly P&L",
   batches: "ACH batches",
   bank_sync: "Bank sync",

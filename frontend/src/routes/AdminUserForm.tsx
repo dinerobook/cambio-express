@@ -9,6 +9,7 @@ import {
 } from "../api/admin";
 import { useSessionStatus } from "../api/account";
 import { api, ApiError } from "../lib/api";
+import { modulesOffForGrants } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
@@ -536,6 +537,17 @@ export default function AdminUserForm() {
                     access.
                   </Alert>
                 )}
+                {draft.access !== "role" && draft.perm
+                  && modulesOffForGrants(draft.perm, session.data?.features)
+                    .map((flag) => (
+                      <Alert key={flag} tone="warning">
+                        <strong>{MODULE_LABELS[flag] ?? flag}</strong> is
+                        turned off for this store, so those pages are
+                        hidden from everyone here and the boxes below
+                        for that area will not show them. Turn the
+                        module on for the store first.
+                      </Alert>
+                    ))}
                 {draft.access !== "role" && draft.perm && (
                   <PermissionMatrixTable
                     resources={resources}
@@ -553,7 +565,7 @@ export default function AdminUserForm() {
           <Field
             label="Module access"
             error={fieldErrors.module_access}
-            hint="Which parts of the app this user sees. Restricting hides modules from their navigation — use Access above to change what they can actually do."
+            hint="Which of the store's modules this user sees. Restricting hides modules from their navigation; it cannot add one the store has off. The MSB Daily book is not a module — take it away under Access above."
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
               <Checkbox

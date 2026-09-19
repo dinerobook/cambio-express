@@ -117,6 +117,16 @@ Per-user overlay contract (R-1):
   self-edit, write an audit entry, and call
   `invalidate_sessions_for_user` so tokens carrying the old
   perms die immediately.
+- That revoke kills the REFRESH row only — `get_principal` is
+  deliberately DB-free, so an access token (30 min TTL) keeps
+  verifying with its stale `perms` claim. The API is safe (live
+  Casbin above), but the SPA's nav and route guard read the
+  cached claim. `GET /auth/session-status` therefore carries the
+  principal's live `permissions` (same resolution as
+  `permissions_for`, owner switch-store context stays role-only)
+  and the shell adopts it on load (`syncPermissions`), so a
+  revoked page drops out of the chrome on the next shell load
+  rather than at token expiry.
 - Dashboard summary blocks are permission-gated per resource
   (`_admin_summary` / `_employee_summary`) — an overlay that
   denies e.g. `day_close.read` removes the numbers from the

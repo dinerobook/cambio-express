@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import {
-  ROUTE_ACCESS, canAccessWith, findAccess, normalisePath,
+  ROUTE_ACCESS, canAccessWith, findAccess, modulesOffForGrants,
+  normalisePath,
 } from "./access";
 import { NAV } from "../components/navConfig";
 // Vite serves the source as a string — no node fs needed in jsdom.
@@ -159,4 +160,35 @@ describe("NAV targets are all in the table", () => {
       });
     }
   }
+});
+
+
+describe("modulesOffForGrants", () => {
+  const grant = {
+    transfers: { create: true, read: true, update: false, delete: false },
+    customers: { create: true, read: true, update: false, delete: false },
+    daily_book: { create: false, read: false, update: false, delete: false },
+    lottery: { create: false, read: false, update: false, delete: false },
+  };
+
+  it("names the OFF module behind a granted area, once", () => {
+    // A c-store: money services off, lottery on.
+    expect(modulesOffForGrants(grant, ["module_lottery"]))
+      .toEqual(["module_money_services"]);
+  });
+
+  it("says nothing when the store has the module", () => {
+    expect(modulesOffForGrants(grant, ["module_money_services"]))
+      .toEqual([]);
+  });
+
+  it("ignores areas with no grant and areas not behind a module", () => {
+    const onlyBook = { daily_book: { read: true }, lottery: { read: false } };
+    expect(modulesOffForGrants(onlyBook, [])).toEqual([]);
+  });
+
+  it("is quiet until the store's features have loaded", () => {
+    expect(modulesOffForGrants(grant, undefined)).toEqual([]);
+    expect(modulesOffForGrants(null, [])).toEqual([]);
+  });
 });

@@ -1646,6 +1646,17 @@ export interface paths {
          *     to specific modules sees only those. Owners (including owners
          *     switched into a store — sub resolves to the owner row) and
          *     superadmin are never restricted.
+         *
+         *     ``permissions`` is the principal's LIVE effective list — the
+         *     same resolution ``permissions_for`` bakes into a token at login,
+         *     read from Casbin now. The SPA gates its nav and routes on the
+         *     ``perms`` claim cached at login, and an access token outlives a
+         *     permission change by up to its TTL (the overlay write revokes
+         *     the refresh row, not the access token — ``get_principal`` is
+         *     deliberately DB-free). The API already enforces live, so this
+         *     is how the chrome catches up on the next shell load instead of
+         *     showing a page the API will 403. Owner switch-store tokens keep
+         *     their role-only resolution (see the Auth INVARIANTS).
          */
         get: operations["session_status_route_auth_session_status_get"];
         put?: never;

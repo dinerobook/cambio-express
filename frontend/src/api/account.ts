@@ -270,6 +270,11 @@ export interface SessionStatus {
   business_type: string;
   /** Module flags ON for this store — gates nav + routes. */
   features: string[];
+  /** The principal's LIVE effective permissions ("resource.action").
+   *  The shell adopts these over the list cached at login so a
+   *  mid-session access change reaches the nav and route guards
+   *  before the access token expires. */
+  permissions: string[];
   /** Trial countdown for the topbar (W-1). null for paid stores. */
   trial: TrialBanner | null;
 }

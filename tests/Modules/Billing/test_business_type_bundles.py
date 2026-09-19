@@ -220,3 +220,48 @@ def test_check_cashing_on_for_every_type_override_wins(
         "/api/v2/auth/session-status", headers=_headers(token),
     ).json()
     assert "module_check_cashing" not in body["features"]
+
+
+def test_every_module_flag_is_seeded_as_a_feature_flag_row():
+    """The superadmin turns a module on for ONE store through the
+    per-store override, and that endpoint 404s on a key with no
+    FeatureFlag row. Every module key must be in the boot seed, or
+    a c-store that also sends money has no way to get its transfer
+    pages back."""
+    from api.Core.Bootstrap import DEFAULT_FEATURE_FLAGS
+    from api.Modules.Billing.Services.feature_flags import MODULE_FLAG_KEYS
+    seeded = {key for key, _label, _desc, _enabled in DEFAULT_FEATURE_FLAGS}
+    assert set(MODULE_FLAG_KEYS) <= seeded
+
+
+def test_superadmin_can_turn_money_services_on_for_a_cstore(
+    client, test_store_id,
+):
+    """End to end through the override endpoint (the earlier test
+    inserts the row directly): seed the flags the way boot does,
+    set the override, and the store's admin session sees the
+    module again."""
+    from api.Core.Bootstrap import seed_feature_flags
+
+    def _features(token):
+        resp = client.get(
+            "/api/v2/auth/session-status",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        return resp.get_json()["features"]
+
+    _set_business_type(test_store_id, "cstore")
+    with db_session():
+        seed_feature_flags(db.session)
+    admin = login_admin(client, test_store_id)
+    assert "module_money_services" not in _features(admin)
+
+    sa = login_superadmin(client)
+    resp = client.put(
+        f"/api/v2/feature-flags/module_money_services/stores/{test_store_id}",
+        headers={"Authorization": f"Bearer {sa}"},
+        json={"enabled": True},
+    )
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    assert "module_money_services" in _features(admin)
