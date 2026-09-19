@@ -4,7 +4,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProfile, useSessionStatus, useStoreInfo } from "../api/account";
 import { useTicketsUnread } from "../api/support";
 import { canAccess } from "../lib/access";
-import { clearAccessToken, getCurrentIdentity } from "../lib/auth";
+import {
+  clearAccessToken, getCurrentIdentity, syncPermissions,
+} from "../lib/auth";
 import StoreGate from "./StoreGate";
 import { clearVisits, recordVisit } from "../lib/recency";
 import { reconcileTheme } from "../lib/theme";
@@ -100,6 +102,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // status query is loading we render the normal shell to avoid a
   // gate flash on every navigation.
   const { data: sessionStatus } = useSessionStatus();
+  // The permission list cached at login goes stale when an admin
+  // changes this person's access mid-session: the API refuses live,
+  // but the nav and the route guard read the cached list, so a page
+  // the API will 403 stays reachable until the access token
+  // expires. session-status carries the live list; adopt it and
+  // re-render so every gate reads the fresh answer.
+  const livePermissions = sessionStatus?.permissions;
+  const [, setPermissionsVersion] = useState(0);
+  useEffect(() => {
+    if (livePermissions && syncPermissions(livePermissions)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the cached identity lives in localStorage, outside React state; bump so the gates re-read it
+      setPermissionsVersion((v) => v + 1);
+    }
+  }, [livePermissions]);
   const gated = sessionStatus?.gated === true;
   const gateReason = sessionStatus?.reason;
   // The subscription gate must let the Subscribe flow render so the user

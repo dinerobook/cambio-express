@@ -93,6 +93,27 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
      True),
     ("multi_store_owner", "Multi-store owner portal",
      "Allow store admins to generate owner invite codes.", True),
+    # Module flags. The business-type bundle decides these per
+    # store (``_BUSINESS_TYPE_MODULE_DEFAULTS``); the rows exist so
+    # the superadmin Feature-flags page can set a PER-STORE override
+    # — ``PUT /feature-flags/{key}/stores/{id}`` 404s on a key with
+    # no row, which left a c-store with no way to turn money
+    # services back on. ``enabled_by_default`` only reaches a store
+    # whose business type the bundle doesn't know (fail-open, as
+    # before these rows existed).
+    ("module_money_services", "Module: Money services",
+     "Money-transfer ledger, ACH batches and the sender directory. "
+     "The business-type bundle turns this OFF for retail types; "
+     "add a per-store override to turn it on for one store.", True),
+    ("module_lottery", "Module: Lottery",
+     "Games, packs and day-close counts.", True),
+    ("module_day_close", "Module: Store daily book",
+     "Register / shift close totals and department sales.", True),
+    ("module_check_cashing", "Module: Check cashing",
+     "Returned-checks pages and the check-cashing entries in the "
+     "daily book.", True),
+    ("module_price_book", "Module: Price book",
+     "Item catalog, vendors and purchase invoices.", True),
 ]
 
 

@@ -193,6 +193,43 @@ export function canDo(perm: string): boolean {
   return hasPermissionWith(getCurrentIdentity(), resource, action);
 }
 
+// ── Store modules ────────────────────────────────────────────
+//
+// Module flags (`module_*`, from `/auth/session-status` `features`)
+// are a product boundary, not a security one: a module the store
+// has OFF hides its pages from everyone at the store, on top of the
+// permission gate above. This map says which module each permission
+// AREA lives in, so the access editor can say when a grant would be
+// invisible. Areas with no entry (MSB daily book, monthly P&L, bank,
+// reports, settings, users, time clock) are not behind a module.
+export const RESOURCE_MODULE: Record<string, string> = {
+  transfers:     "module_money_services",
+  customers:     "module_money_services",
+  batches:       "module_money_services",
+  return_checks: "module_check_cashing",
+  lottery:       "module_lottery",
+  day_close:     "module_day_close",
+  catalog:       "module_price_book",
+};
+
+/** Modules that are OFF for the store (`storeFeatures` is the ON
+ *  list) but that `perm` grants something in — those grants change
+ *  nothing the person can see. `undefined` features = not loaded
+ *  yet → nothing to report. */
+export function modulesOffForGrants(
+  perm: Record<string, Record<string, boolean>> | null,
+  storeFeatures: string[] | undefined,
+): string[] {
+  if (!perm || storeFeatures === undefined) return [];
+  const off = new Set<string>();
+  for (const [resource, actions] of Object.entries(perm)) {
+    const flag = RESOURCE_MODULE[resource];
+    if (!flag || storeFeatures.includes(flag)) continue;
+    if (Object.values(actions).some(Boolean)) off.add(flag);
+  }
+  return [...off];
+}
+
 /** Is this `href` an in-app path the table should gate? External
  *  URLs, API downloads and static files are not routes. */
 export function isAppPath(href: string): boolean {

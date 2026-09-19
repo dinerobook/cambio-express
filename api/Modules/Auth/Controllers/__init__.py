@@ -813,7 +813,19 @@ def session_status_route(
     ``module_access`` grants (U-3) — an admin/employee restricted
     to specific modules sees only those. Owners (including owners
     switched into a store — sub resolves to the owner row) and
-    superadmin are never restricted."""
+    superadmin are never restricted.
+
+    ``permissions`` is the principal's LIVE effective list — the
+    same resolution ``permissions_for`` bakes into a token at login,
+    read from Casbin now. The SPA gates its nav and routes on the
+    ``perms`` claim cached at login, and an access token outlives a
+    permission change by up to its TTL (the overlay write revokes
+    the refresh row, not the access token — ``get_principal`` is
+    deliberately DB-free). The API already enforces live, so this
+    is how the chrome catches up on the next shell load instead of
+    showing a page the API will 403. Owner switch-store tokens keep
+    their role-only resolution (see the Auth INVARIANTS)."""
+    from api.Core.Permissions import permissions_for as _live_perms
     from api.Modules.Billing.Services import store_gate_status
     from api.Modules.Billing.Services.feature_flags import (
         enabled_module_flags_for_user,
@@ -835,6 +847,17 @@ def session_status_route(
             if store is not None else ""
         ),
         "features": enabled_module_flags_for_user(db, store, user),
+        "permissions": _live_perms(
+            str(claims.get("role") or ""),
+            store_id=int(store_id) if store_id is not None else None,
+            # An owner who switched into a store carries an
+            # ``owner_id`` claim and a role-only token; never apply
+            # a per-user overlay to that context.
+            user_id=(
+                None if claims.get("owner_id") is not None
+                else (int(sub) if sub is not None else None)
+            ),
+        ),
         # Trial countdown for the topbar (W-1). Present for the WHOLE
         # trial, not just the last few days: "5 days left" on day two
         # sets an expectation, while something that appears near the

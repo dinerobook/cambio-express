@@ -5,7 +5,7 @@ out to a re-subscribe / suspended screen. Every authed role can call
 it. Read-only — no login/token logic touched.
 """
 from tests._app import db, db_session
-from tests.conftest import login_admin, login_superadmin
+from tests.conftest import login_admin, login_employee, login_superadmin
 
 
 def _headers(token):
@@ -69,3 +69,62 @@ def test_superadmin_never_gated(client, test_store_id):
 def test_requires_auth(client):
     resp = client.get("/api/v2/auth/session-status")
     assert resp.status_code in (401, 403)
+
+
+def test_permissions_are_live_not_the_token_claim(client, test_store_id):
+    """An access token minted BEFORE the admin restricts this person
+    still verifies for up to its TTL, carrying the old ``perms``
+    claim the SPA gates its nav on. session-status must answer with
+    the live list so the shell drops the revoked pages now, not at
+    token expiry (the "employee can still open the MSB daily book"
+    report)."""
+    from api.Core.Permissions import (
+        clear_user_permissions, set_user_permissions,
+    )
+    from api.Modules.Tenancy.Models import User
+    with db_session():
+        u = User(
+            store_id=test_store_id, username="ss_live_emp",
+            role="employee", is_active=True,
+        )
+        u.set_password("emppass1234")
+        db.session.add(u)
+        db.session.commit()
+        uid = u.id
+    token = login_employee(
+        client, test_store_id, "ss_live_emp", "emppass1234",
+    )
+    before = client.get(
+        "/api/v2/auth/session-status", headers=_headers(token),
+    ).json()["permissions"]
+    assert "daily_book.read" in before
+    assert "transfers.create" in before
+
+    set_user_permissions(test_store_id, uid, {
+        "transfers": {"create": True, "read": True},
+        "customers": {"create": True, "read": True},
+    })
+    try:
+        after = client.get(
+            "/api/v2/auth/session-status", headers=_headers(token),
+        ).json()["permissions"]
+    finally:
+        clear_user_permissions(test_store_id, uid)
+    # Same token, live answer.
+    assert "daily_book.read" not in after
+    assert "transfers.create" in after
+    assert "customers.read" in after
+    # Never wider than the claim would have been: the legacy
+    # scope marker rides along exactly as permissions_for bakes it.
+    assert "store.employee" in after
+
+
+def test_superadmin_permissions_are_the_full_matrix(client):
+    from api.Core.Permissions import RBAC_ACTIONS, RBAC_RESOURCES
+    token = login_superadmin(client)
+    perms = client.get(
+        "/api/v2/auth/session-status", headers=_headers(token),
+    ).json()["permissions"]
+    for r in RBAC_RESOURCES:
+        for a in RBAC_ACTIONS:
+            assert f"{r}.{a}" in perms
