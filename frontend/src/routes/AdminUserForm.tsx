@@ -9,6 +9,7 @@ import {
 } from "../api/admin";
 import { useSessionStatus } from "../api/account";
 import { api, ApiError } from "../lib/api";
+import { toggleMatrixCell } from "../lib/permissions";
 import { modulesOffForGrants } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 import {
@@ -268,8 +269,7 @@ export default function AdminUserForm() {
     setDraft((d) => {
       if (!d.perm) return d;
       const perm = structuredClone(d.perm);
-      perm[resource] = perm[resource] ?? {};
-      perm[resource][action] = !perm[resource][action];
+      perm[resource] = toggleMatrixCell(perm[resource], action);
       // Hand-editing any box means the matrix is theirs now.
       return { ...d, access: "custom", perm };
     });

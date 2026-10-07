@@ -113,6 +113,54 @@ def test_unmentioned_resource_falls_through_to_role(test_store_id):
         clear_user_permissions(test_store_id, uid)
 
 
+def test_write_implies_read(test_store_id):
+    """"Edit but not View" on the MSB daily book opened the day
+    editor (gated on .update) while its "back to calendar" button
+    hit /daily (gated on .read) and bounced to the dashboard. Any
+    write now implies read — on save, and at resolution for rows
+    saved before the editor coupled the boxes."""
+    from api.Core.Permissions import (
+        _get_enforcer, _user_subject, check_permission,
+        clear_user_permissions, get_user_permission_matrix,
+        reload_policy, resolve_user_grants, set_user_permissions,
+    )
+    uid = _mk_store_user(test_store_id, "r1_write_no_read")
+    set_user_permissions(
+        test_store_id, uid, {"daily_book": {"update": True}},
+    )
+    try:
+        # Save-side: the read row is stored.
+        e = _get_enforcer()
+        rows = e.get_filtered_policy(
+            0, _user_subject(uid), str(test_store_id), "daily_book",
+        )
+        assert {r[3] for r in rows} == {"read", "update"}
+        assert get_user_permission_matrix(
+            uid, "employee", test_store_id,
+        )["matrix"]["daily_book"]["read"] is True
+
+        # Resolve-side: an old overlay row set without read.
+        e.remove_filtered_policy(
+            0, _user_subject(uid), str(test_store_id), "daily_book",
+            "read",
+        )
+        e.save_policy()
+        reload_policy()
+        assert ("daily_book", "read") in resolve_user_grants(
+            uid, "employee", test_store_id,
+        )
+        assert check_permission(
+            "employee", test_store_id, "daily_book", "read",
+            user_id=uid,
+        ) is True
+        # A resource with nothing granted stays off.
+        assert ("monthly", "read") not in resolve_user_grants(
+            uid, "employee", test_store_id,
+        )
+    finally:
+        clear_user_permissions(test_store_id, uid)
+
+
 # ── Endpoint guards ─────────────────────────────────────────
 
 

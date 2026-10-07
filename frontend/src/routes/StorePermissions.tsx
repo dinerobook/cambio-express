@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
+import { toggleMatrixCell } from "../lib/permissions";
 import { getCurrentIdentity, refreshToken } from "../lib/auth";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
 import {
@@ -62,7 +63,7 @@ export default function StorePermissions() {
     setDraft((prev) => {
       if (!prev) return prev;
       const next = structuredClone(prev);
-      next.matrix[role][resource][action] = !next.matrix[role][resource][action];
+      next.matrix[role][resource] = toggleMatrixCell(next.matrix[role][resource], action);
       return next;
     });
   }

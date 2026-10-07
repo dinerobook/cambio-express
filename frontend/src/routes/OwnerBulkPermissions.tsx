@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
 import { useOwnerLocations } from "../api/owner";
+import { RESOURCE_LABELS } from "../components/PermissionMatrixTable";
 import {
   Alert, Breadcrumbs, Button, Card, Checkbox, InfoTip, Loading,
   PageHeader, PageShell, Pill, SectionTitle, Table, useToast,
@@ -17,13 +18,6 @@ interface PermissionMatrix {
   matrix: Record<string, Record<string, Record<string, boolean>>>;
   has_overrides: string[];
 }
-
-const RESOURCE_LABELS: Record<string, string> = {
-  transfers: "Transfers", customers: "Customers", daily_book: "Daily book",
-  monthly: "Monthly P&L", batches: "ACH batches", bank_sync: "Bank sync",
-  reports: "Reports", settings: "Settings", users: "Users / Team",
-  time_clock: "Time clock", return_checks: "Returned checks",
-};
 
 export default function OwnerBulkPermissions() {
   const { data: locations, isLoading: locsLoading } = useOwnerLocations("month");

@@ -7,6 +7,7 @@ import {
   type AccessRole, type PermMatrix, type RoleMember,
 } from "../api/roles";
 import { ApiError } from "../lib/api";
+import { toggleMatrixCell } from "../lib/permissions";
 import {
   Alert, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field,
   InfoTip, Input, Loading, Modal, Pill, RowActions, Section, Table,
@@ -212,8 +213,7 @@ function RoleForm({
   function toggle(resource: string, action: string) {
     setMatrix((m) => {
       const next = structuredClone(m);
-      next[resource] = next[resource] ?? {};
-      next[resource][action] = !next[resource][action];
+      next[resource] = toggleMatrixCell(next[resource], action);
       return next;
     });
   }

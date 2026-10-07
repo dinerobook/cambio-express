@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
+import { toggleMatrixCell } from "../lib/permissions";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   creditStore, emailStore, extendTrial, freezeStore, linkOwnerToStore,
@@ -553,7 +554,7 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
     setDraft((prev) => {
       if (!prev) return prev;
       const next = structuredClone(prev);
-      next.matrix[role][resource][action] = !next.matrix[role][resource][action];
+      next.matrix[role][resource] = toggleMatrixCell(next.matrix[role][resource], action);
       return next;
     });
   }
