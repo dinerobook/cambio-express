@@ -304,6 +304,7 @@ def update_permissions_route(
     or legacy {changes: [{role, resource, action, allowed}]}."""
     _require_superadmin(claims)
     from api.Core.Permissions import (
+        apply_cell_change,
         get_global_matrix, set_global_permissions,
         RBAC_RESOURCES, RBAC_ACTIONS,
     )
@@ -335,7 +336,7 @@ def update_permissions_route(
                 continue
             if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
                 continue
-            current_matrix[role][resource][action] = allowed
+            apply_cell_change(current_matrix[role][resource], action, allowed)
             affected_roles.add(role)
         for role in affected_roles:
             set_global_permissions(role, current_matrix[role])
@@ -2043,6 +2044,7 @@ def superadmin_update_store_permissions_route(
         raise HTTPException(status_code=404, detail="Store not found")
 
     from api.Core.Permissions import (
+        apply_cell_change,
         get_permission_matrix, set_store_permissions,
         RBAC_RESOURCES, RBAC_ACTIONS,
     )
@@ -2071,7 +2073,7 @@ def superadmin_update_store_permissions_route(
                 continue
             if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
                 continue
-            current_matrix[target_role][resource][action] = allowed
+            apply_cell_change(current_matrix[target_role][resource], action, allowed)
             affected_roles.add(target_role)
         for role in affected_roles:
             set_store_permissions(store_id, role, current_matrix[role])

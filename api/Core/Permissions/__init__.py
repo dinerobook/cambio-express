@@ -139,6 +139,22 @@ def _normalized_matrix(
     return out
 
 
+def apply_cell_change(
+    row: dict[str, bool], action: str, allowed: bool,
+) -> None:
+    """Set one cell of a matrix row in place, keeping the row
+    coherent the way ``toggleMatrixCell`` does in the SPA: granting
+    a write grants read, revoking read revokes every write. Every
+    cell-level ``changes`` endpoint goes through this so taking View
+    away is not silently undone by ``_with_implied_read``."""
+    row[action] = allowed
+    if action == "read" and not allowed:
+        for a in row:
+            row[a] = False
+    elif action != "read" and allowed:
+        row["read"] = True
+
+
 def _global_grants(role: str) -> set[tuple[str, str]]:
     """Global (resource, action) grants for a role — Casbin global
     domain, falling back to RBAC_DEFAULTS when unseeded."""

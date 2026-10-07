@@ -819,6 +819,7 @@ def owner_update_store_permissions_route(
         raise HTTPException(status_code=403, detail="Store not in your umbrella")
 
     from api.Core.Permissions import (
+        apply_cell_change,
         get_permission_matrix, set_store_permissions,
         RBAC_RESOURCES, RBAC_ACTIONS,
     )
@@ -847,7 +848,7 @@ def owner_update_store_permissions_route(
                 continue
             if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
                 continue
-            current_matrix[target_role][resource][action] = allowed
+            apply_cell_change(current_matrix[target_role][resource], action, allowed)
             affected_roles.add(target_role)
         for r in affected_roles:
             set_store_permissions(store_id, r, current_matrix[r])
@@ -1025,6 +1026,7 @@ def owner_bulk_permissions_route(
         raise HTTPException(status_code=422, detail="store_ids and changes required")
 
     from api.Core.Permissions import (
+        apply_cell_change,
         get_permission_matrix, set_store_permissions,
         RBAC_RESOURCES, RBAC_ACTIONS,
     )
@@ -1051,7 +1053,7 @@ def owner_bulk_permissions_route(
                 continue
             old_val = current_matrix[target_role][resource][action]
             if old_val != allowed:
-                current_matrix[target_role][resource][action] = allowed
+                apply_cell_change(current_matrix[target_role][resource], action, allowed)
                 affected_roles.add(target_role)
                 applied += 1
         for r in affected_roles:

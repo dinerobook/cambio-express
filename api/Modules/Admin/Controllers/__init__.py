@@ -1415,6 +1415,7 @@ def update_store_permissions_route(
     role = claims.get("role", "")
     editable_roles = _editable_roles_for(role)
     from api.Core.Permissions import (
+        apply_cell_change,
         get_permission_matrix, set_store_permissions,
         RBAC_RESOURCES, RBAC_ACTIONS,
     )
@@ -1442,7 +1443,7 @@ def update_store_permissions_route(
                 raise HTTPException(status_code=403, detail=f"Cannot edit {target_role} permissions")
             if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
                 continue
-            current_matrix[target_role][resource][action] = allowed
+            apply_cell_change(current_matrix[target_role][resource], action, allowed)
             affected_roles.add(target_role)
         for r in affected_roles:
             set_store_permissions(sid, r, current_matrix[r])
