@@ -101,6 +101,16 @@ Resolution order (R-1 added the per-USER layer on top):
    "admin can't see new modules" bug).
 4. `RBAC_DEFAULTS` hardcoded → boot-time/Casbin-down fallback
 
+**Any write implies read.** A resource with create / update /
+delete granted at any layer also resolves `read`
+(`_with_implied_read`), and every matrix save stores the read row
+(`_normalized_matrix`). The SPA's list / calendar pages gate on
+`.read` and their editors on the write, so "Edit without View"
+opened the MSB day editor while its own "back to calendar" bounced
+to the dashboard. Every matrix editor in the SPA flips cells
+through `toggleMatrixCell` (`frontend/src/lib/permissions.ts`),
+which applies the same rule, so the boxes show what is enforced.
+
 Per-user overlay contract (R-1):
 - `principal.has_permission` threads `claims["sub"]` into
   `check_permission(..., user_id=…)`, so overlays are enforced

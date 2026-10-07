@@ -111,13 +111,41 @@ def reload_policy() -> None:
 
 # ── Internal helpers ───────────────────────────────────────
 
+def _with_implied_read(
+    grants: set[tuple[str, str]],
+) -> set[tuple[str, str]]:
+    """Any write on a resource implies reading it. Every write
+    surface shows the data it edits, and the SPA's list / calendar
+    pages gate on ``.read`` while their editors gate on the write —
+    so "Edit without View" opened the editor but bounced its own
+    "back to calendar" button to the dashboard. Applied on every
+    resolution path so a matrix saved before the editor coupled the
+    boxes still resolves coherently."""
+    return grants | {(resource, "read") for resource, _ in grants}
+
+
+def _normalized_matrix(
+    matrix: dict[str, dict[str, bool]],
+) -> dict[str, dict[str, bool]]:
+    """Write-side twin of ``_with_implied_read``: a saved row with
+    any action on also stores ``read``, so what is in ``casbin_rule``
+    matches what is enforced."""
+    out: dict[str, dict[str, bool]] = {}
+    for resource, actions in matrix.items():
+        row = dict(actions)
+        if any(row.values()):
+            row["read"] = True
+        out[resource] = row
+    return out
+
+
 def _global_grants(role: str) -> set[tuple[str, str]]:
     """Global (resource, action) grants for a role — Casbin global
     domain, falling back to RBAC_DEFAULTS when unseeded."""
     e = _get_enforcer()
     global_rules = e.get_filtered_policy(0, role, "global")
     if global_rules:
-        return {(r[2], r[3]) for r in global_rules}
+        return _with_implied_read({(r[2], r[3]) for r in global_rules})
     defaults = RBAC_DEFAULTS.get(role, [])
     return {tuple(p.split(".", 1)) for p in defaults if "." in p}
 
@@ -168,7 +196,7 @@ def _resolve_grants(role: str, store_id: int) -> set[tuple[str, str]]:
     mentioned, grants, legacy_all_off = _store_overlay(store_rules)
     if legacy_all_off and not mentioned:
         return set()
-    return grants | {
+    return _with_implied_read(grants) | {
         (resource, action)
         for resource, action in _global_grants(role)
         if resource not in mentioned
@@ -220,7 +248,7 @@ def resolve_user_grants(
     role_grants = _resolve_grants(role, store_id)
     if not mentioned:
         return role_grants
-    return grants | {
+    return _with_implied_read(grants) | {
         (resource, action)
         for resource, action in role_grants
         if resource not in mentioned
@@ -347,6 +375,7 @@ def set_store_permissions(
     marker when all its actions are off — so resources added to
     the platform later fall back to global defaults until the
     matrix is saved again (see ``_resolve_grants``)."""
+    matrix = _normalized_matrix(matrix)
     e = _get_enforcer()
     dom = str(store_id)
     e.remove_filtered_policy(0, role, dom)
@@ -368,6 +397,7 @@ def set_global_permissions(
     matrix: dict[str, dict[str, bool]],
 ) -> None:
     """Replace global defaults for a role."""
+    matrix = _normalized_matrix(matrix)
     e = _get_enforcer()
     e.remove_filtered_policy(0, role, "global")
     for resource, actions in matrix.items():
@@ -400,6 +430,7 @@ def set_user_permissions(
     platform later fall back to the user's role until the matrix is
     saved again. This is a SECURITY write — callers must audit it
     and revoke the user's live sessions so old JWT perms die."""
+    matrix = _normalized_matrix(matrix)
     e = _get_enforcer()
     sub, dom = _user_subject(user_id), str(store_id)
     e.remove_filtered_policy(0, sub, dom)
@@ -558,7 +589,13 @@ def get_global_matrix() -> dict:
         for resource in RBAC_RESOURCES:
             matrix[role][resource] = {}
             for action in RBAC_ACTIONS:
-                matrix[role][resource][action] = (role, resource, action) in granted
+                matrix[role][resource][action] = (
+                    (role, resource, action) in granted
+                    # Same implied read as _with_implied_read.
+                    or (action == "read" and any(
+                        (role, resource, a) in granted for a in RBAC_ACTIONS
+                    ))
+                )
 
     return {
         "roles": roles,

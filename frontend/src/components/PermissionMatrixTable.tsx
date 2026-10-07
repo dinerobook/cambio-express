@@ -6,7 +6,8 @@ import styles from "./PermissionMatrixTable.module.css";
 // Single source of truth for permission-matrix labels — every
 // route that renders the resources × actions grid goes through
 // these (StorePermissions, OwnerStorePermissions,
-// SuperadminPermissions, SuperadminStoreDrill, AdminUserForm).
+// SuperadminPermissions, SuperadminStoreDrill, AdminUserForm,
+// OwnerBulkPermissions).
 /* eslint-disable react-refresh/only-export-components -- the label
    maps are the component's default labelers; exporting them here
    keeps one import path for the matrix + its vocabulary.  Fast-
@@ -20,8 +21,11 @@ export const RESOURCE_LABELS: Record<string, string> = {
   bank_sync: "Bank sync",
   reports: "Reports",
   settings: "Settings",
-  users: "Users / Team",
-  time_clock: "Time clock (HR)",
+  // Both rows live under the sidebar's Team menu; the labels say
+  // so, so taking one away doesn't read as "removes Team" while
+  // the other still shows it.
+  users: "Team: employees & logins",
+  time_clock: "Team: time clock",
   return_checks: "Returned checks",
   lottery: "Lottery",
   day_close: "Store daily book",
