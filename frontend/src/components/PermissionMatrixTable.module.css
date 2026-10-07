@@ -1,6 +1,7 @@
 /* Shared permission-matrix table (resources × actions checkbox
  * grid) used by StorePermissions, OwnerStorePermissions,
- * SuperadminPermissions, SuperadminStoreDrill and AdminUserForm.
+ * SuperadminPermissions, SuperadminStoreDrill, AdminUserForm and
+ * the Roles & access pages.
  * Canonical styles lifted from StorePermissions.module.css. */
 
 .scroll {
@@ -53,4 +54,20 @@
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* Section header row (grouped grids) — a quiet label band, not a
+ * data row, so it opts out of the row hover. */
+.matrix tr.groupRow td {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--db-text-muted, #888);
+  background: var(--db-surface-2, rgba(255, 255, 255, 0.03));
+}
+
+.matrix tr.groupRow:hover td {
+  background: var(--db-surface-2, rgba(255, 255, 255, 0.03));
 }

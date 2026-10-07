@@ -165,6 +165,11 @@ needed if the kit had been checked first.
   used twice gets a token.
 - Tables: kit `<Table>`; the permission matrix uses the shared
   matrix component, not a per-route copy.
+- Access is managed by ROLE, on Team → Roles & access
+  (`/team/roles`). A person's login form picks a role and shows a
+  one-line summary; the resources × actions grid renders there only
+  for "Custom for this person only". Never put a role's full grid
+  back on a per-person page: it grows a row with every area.
 - Steppers (prev/next day/month) and other widgets used by 2+ routes
   get extracted to the kit — two copies is the threshold.
 

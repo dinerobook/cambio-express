@@ -10,7 +10,6 @@ import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { fmtMoney2 } from "../lib/formatters";
-import AccessRolesManager from "../components/AccessRolesManager";
 import {
   Breadcrumbs, ButtonLink, Card, ConfirmDialog, PageHeader,
   PageShell, Pill, RowActions, Section, Table, TableStates, tdStyle,
@@ -210,10 +209,6 @@ export default function Employees() {
           </Table>
         )}
       </Card>
-
-      {/* Saved access roles (R-3) — reference data about people,
-          so it lives with the people rather than in settings. */}
-      <AccessRolesManager />
 
       {loginOnly.length > 0 && (
         <Section title="Logins without an employee record">

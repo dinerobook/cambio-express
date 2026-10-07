@@ -1,0 +1,56 @@
+/* Role editor — grid on the left, name + members + save on the
+ * right; stacks on narrow screens. */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 52rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.side {
+  position: sticky;
+  top: 1rem;
+}
+
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--db-text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.members {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--db-text-muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
