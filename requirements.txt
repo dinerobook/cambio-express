@@ -43,6 +43,11 @@ sentry-sdk[fastapi,sqlalchemy]==2.21.0
 structlog==24.4.0
 # Alembic for schema migrations. Sole source of schema truth.
 alembic==1.13.3
+# SQLAlchemy arrives through alembic + casbin-sqlalchemy-adapter, so it
+# was unpinned and 2.1 got picked up: it percent-encodes the engine URL
+# (alembic's configparser then refuses it at boot), and its stubs crash
+# mypy. Pinned to the 2.0 line until a deliberate upgrade.
+SQLAlchemy==2.0.54
 # Rate limiting (see BACKLOG D6 + "Before going live"). slowapi
 # guards the FastAPI auth surface; defaults to in-memory storage
 # in dev / CI; production sets RATELIMIT_STORAGE_URI=redis://...
