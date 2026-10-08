@@ -15251,6 +15251,153 @@
         "title": "TransferCompanyTotalsResponse",
         "type": "object"
       },
+      "TransferDetail": {
+        "additionalProperties": false,
+        "description": "One transfer with every field the edit form round-trips.\n\nPUT /transfers/{id} replaces every field, so the edit form must\nbe able to read back each one it sends. With only the list row\nit sent blanks, and saving an edit wiped the sender's phone,\naddress and date of birth, the recipient's phone, the\ncommission and the notes.",
+        "properties": {
+          "batch_id": {
+            "default": "",
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "commission": {
+            "default": 0.0,
+            "title": "Commission",
+            "type": "number"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "confirm_number": {
+            "default": "",
+            "title": "Confirm Number",
+            "type": "string"
+          },
+          "country": {
+            "default": "",
+            "title": "Country",
+            "type": "string"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "employee_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Id"
+          },
+          "employee_name": {
+            "default": "",
+            "title": "Employee Name",
+            "type": "string"
+          },
+          "federal_tax": {
+            "default": 0.0,
+            "title": "Federal Tax",
+            "type": "number"
+          },
+          "fee": {
+            "default": 0.0,
+            "title": "Fee",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "internal_notes": {
+            "default": "",
+            "title": "Internal Notes",
+            "type": "string"
+          },
+          "recipient_name": {
+            "default": "",
+            "title": "Recipient Name",
+            "type": "string"
+          },
+          "recipient_phone": {
+            "default": "",
+            "title": "Recipient Phone",
+            "type": "string"
+          },
+          "send_amount": {
+            "title": "Send Amount",
+            "type": "number"
+          },
+          "send_date": {
+            "title": "Send Date",
+            "type": "string"
+          },
+          "sender_address": {
+            "default": "",
+            "title": "Sender Address",
+            "type": "string"
+          },
+          "sender_dob": {
+            "default": "",
+            "title": "Sender Dob",
+            "type": "string"
+          },
+          "sender_name": {
+            "title": "Sender Name",
+            "type": "string"
+          },
+          "sender_phone": {
+            "default": "",
+            "title": "Sender Phone",
+            "type": "string"
+          },
+          "sender_phone_country": {
+            "default": "+1",
+            "title": "Sender Phone Country",
+            "type": "string"
+          },
+          "service_type": {
+            "default": "Money Transfer",
+            "title": "Service Type",
+            "type": "string"
+          },
+          "status": {
+            "default": "Sent",
+            "title": "Status",
+            "type": "string"
+          },
+          "status_notes": {
+            "default": "",
+            "title": "Status Notes",
+            "type": "string"
+          },
+          "total_collected": {
+            "title": "Total Collected",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "send_date",
+          "company",
+          "sender_name",
+          "send_amount",
+          "total_collected"
+        ],
+        "title": "TransferDetail",
+        "type": "object"
+      },
       "TransferListResponse": {
         "additionalProperties": false,
         "description": "Paginated response envelope. Mirrors the legacy `partial=1`\nJSON shape (rows + pagination meta + page-amount header) so the\nReact frontend and the legacy JS swap pattern can consume the\nsame payload.",
@@ -15313,10 +15460,10 @@
       },
       "TransferResponse": {
         "additionalProperties": false,
-        "description": "Single-transfer wrapped response. Uses the same TransferRow\nshape as the list endpoint so the React detail view and table\ncan reuse the row component.",
+        "description": "Single-transfer wrapped response: the list row plus the fields\nan edit has to carry through (see `TransferDetail`).",
         "properties": {
           "transfer": {
-            "$ref": "#/components/schemas/TransferRow"
+            "$ref": "#/components/schemas/TransferDetail"
           }
         },
         "required": [

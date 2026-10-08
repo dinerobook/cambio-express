@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
+import type { components } from "./openapi";
 
 /** Transfer status → Pill tone (UI-STANDARDS §3). "Sent" is the
  *  completed happy path, so it reads as success, not live accent. */
@@ -83,8 +84,12 @@ export function useRecentTransfers({ limit = 10 }: RecentTransfersOptions = {}) 
   });
 }
 
+/** One transfer with every field an edit round-trips (PUT replaces
+ *  the whole row, so the form must send back what it read). */
+export type TransferDetail = components["schemas"]["TransferDetail"];
+
 export interface TransferResponse {
-  transfer: TransferRow;
+  transfer: TransferDetail;
 }
 
 export interface CreateTransferBody {

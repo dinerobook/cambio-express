@@ -41,6 +41,7 @@ from api.Modules.Transfers.Requests import (
     ReceiptStore,
     ReceiptTransfer,
     RosterResponse,
+    TransferDetail,
     TransferListResponse,
     TransferReceiptResponse,
     TransferResponse,
@@ -99,6 +100,22 @@ def _to_row(t) -> TransferRow:
         status=t.status or "Sent",
         batch_id=t.batch_id or "",
         employee_name=t.employee_name or "",
+    )
+
+
+def _to_detail(t) -> TransferDetail:
+    return TransferDetail(
+        **_to_row(t).model_dump(),
+        sender_phone=t.sender_phone or "",
+        sender_phone_country=t.sender_phone_country or "+1",
+        sender_address=t.sender_address or "",
+        sender_dob=t.sender_dob.isoformat() if t.sender_dob else "",
+        recipient_phone=t.recipient_phone or "",
+        commission=float(t.commission or 0),
+        status_notes=t.status_notes or "",
+        internal_notes=t.internal_notes or "",
+        employee_id=t.employee_id,
+        customer_id=t.customer_id,
     )
 
 
@@ -278,7 +295,7 @@ def create_route(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     db.commit()
-    return TransferResponse(transfer=_to_row(transfer))
+    return TransferResponse(transfer=_to_detail(transfer))
 
 
 @router.get(
@@ -375,7 +392,7 @@ def get_route(
     transfer = get_by_id_in_stores(db, transfer_id, ids)
     if transfer is None:
         raise HTTPException(status_code=404, detail="Transfer not found")
-    return TransferResponse(transfer=_to_row(transfer))
+    return TransferResponse(transfer=_to_detail(transfer))
 
 
 @router.put("/{transfer_id}", response_model=TransferResponse)
@@ -449,7 +466,7 @@ def update_route(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     db.commit()
-    return TransferResponse(transfer=_to_row(transfer))
+    return TransferResponse(transfer=_to_detail(transfer))
 
 
 @router.delete("/{transfer_id}", status_code=204)

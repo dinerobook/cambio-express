@@ -13568,6 +13568,119 @@ export interface components {
             total: number;
         };
         /**
+         * TransferDetail
+         * @description One transfer with every field the edit form round-trips.
+         *
+         *     PUT /transfers/{id} replaces every field, so the edit form must
+         *     be able to read back each one it sends. With only the list row
+         *     it sent blanks, and saving an edit wiped the sender's phone,
+         *     address and date of birth, the recipient's phone, the
+         *     commission and the notes.
+         */
+        TransferDetail: {
+            /**
+             * Batch Id
+             * @default
+             */
+            batch_id: string;
+            /**
+             * Commission
+             * @default 0
+             */
+            commission: number;
+            /** Company */
+            company: string;
+            /**
+             * Confirm Number
+             * @default
+             */
+            confirm_number: string;
+            /**
+             * Country
+             * @default
+             */
+            country: string;
+            /** Customer Id */
+            customer_id?: number | null;
+            /** Employee Id */
+            employee_id?: number | null;
+            /**
+             * Employee Name
+             * @default
+             */
+            employee_name: string;
+            /**
+             * Federal Tax
+             * @default 0
+             */
+            federal_tax: number;
+            /**
+             * Fee
+             * @default 0
+             */
+            fee: number;
+            /** Id */
+            id: number;
+            /**
+             * Internal Notes
+             * @default
+             */
+            internal_notes: string;
+            /**
+             * Recipient Name
+             * @default
+             */
+            recipient_name: string;
+            /**
+             * Recipient Phone
+             * @default
+             */
+            recipient_phone: string;
+            /** Send Amount */
+            send_amount: number;
+            /** Send Date */
+            send_date: string;
+            /**
+             * Sender Address
+             * @default
+             */
+            sender_address: string;
+            /**
+             * Sender Dob
+             * @default
+             */
+            sender_dob: string;
+            /** Sender Name */
+            sender_name: string;
+            /**
+             * Sender Phone
+             * @default
+             */
+            sender_phone: string;
+            /**
+             * Sender Phone Country
+             * @default +1
+             */
+            sender_phone_country: string;
+            /**
+             * Service Type
+             * @default Money Transfer
+             */
+            service_type: string;
+            /**
+             * Status
+             * @default Sent
+             */
+            status: string;
+            /**
+             * Status Notes
+             * @default
+             */
+            status_notes: string;
+            /** Total Collected */
+            total_collected: number;
+        };
+        /**
          * TransferListResponse
          * @description Paginated response envelope. Mirrors the legacy `partial=1`
          *     JSON shape (rows + pagination meta + page-amount header) so the
@@ -13598,12 +13711,11 @@ export interface components {
         };
         /**
          * TransferResponse
-         * @description Single-transfer wrapped response. Uses the same TransferRow
-         *     shape as the list endpoint so the React detail view and table
-         *     can reuse the row component.
+         * @description Single-transfer wrapped response: the list row plus the fields
+         *     an edit has to carry through (see `TransferDetail`).
          */
         TransferResponse: {
-            transfer: components["schemas"]["TransferRow"];
+            transfer: components["schemas"]["TransferDetail"];
         };
         /**
          * TransferRow

@@ -154,17 +154,18 @@ export default function ReturnCheckForm() {
   // dialog body can render the right wording.
   const [pendingTransition, setPendingTransition] =
     useState<{ fn: (id: number) => Promise<unknown>; label: string } | null>(null);
+  const [transitionError, setTransitionError] = useState<string | null>(null);
 
   async function doTransition() {
     if (!isEdit || !pendingTransition) return;
     const { fn, label } = pendingTransition;
-    setError(null); setBusy(true);
+    setTransitionError(null); setBusy(true);
     try {
       await fn(rcId);
       await detail.refetch();
       setPendingTransition(null);
     } catch (err) {
-      setError(
+      setTransitionError(
         err instanceof ApiError
           ? err.message
           : `Could not ${label.toLowerCase()}.`,
@@ -372,8 +373,9 @@ export default function ReturnCheckForm() {
           pendingTransition?.label === "Reopen" ? "primary" : "danger"
         }
         busy={busy}
+        error={transitionError}
         onConfirm={() => { void doTransition(); }}
-        onCancel={() => setPendingTransition(null)}
+        onCancel={() => { setPendingTransition(null); setTransitionError(null); }}
       />
     </PageShell>
   );
@@ -533,7 +535,6 @@ function PaymentsTable({
 
   return (
     <>
-      {error && <Alert tone="error">{error}</Alert>}
       <Table>
         <thead>
           <tr>
@@ -559,6 +560,7 @@ function PaymentsTable({
                 <td style={{ ...tdStyle, textAlign: "right" }}>
                   <Button
                     tone="danger" size="sm"
+                    perm="return_checks.delete"
                     busy={busyId === p.id}
                     disabled={busyId !== null}
                     onClick={() => setPendingRemove(p)}
@@ -584,8 +586,9 @@ function PaymentsTable({
         confirmLabel="Remove"
         confirmTone="danger"
         busy={busyId != null}
+        error={error}
         onConfirm={() => { void doRemove(); }}
-        onCancel={() => setPendingRemove(null)}
+        onCancel={() => { setPendingRemove(null); setError(null); }}
       />
     </>
   );

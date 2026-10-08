@@ -2,9 +2,8 @@
 
 `TransferRow` matches the fields the React frontend (and the legacy
 JS in `_transfers_table.html`) consumes — not every column on the
-`Transfer` model. Backend-only fields (commission, internal_notes,
-audit columns) stay out of the wire shape until a controller
-explicitly opts them in.
+`Transfer` model. The single-transfer responses use `TransferDetail`,
+which adds the fields the edit form has to round-trip.
 """
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -49,14 +48,34 @@ class TransferListResponse(BaseModel):
     page_amount: float
 
 
+class TransferDetail(TransferRow):
+    """One transfer with every field the edit form round-trips.
+
+    PUT /transfers/{id} replaces every field, so the edit form must
+    be able to read back each one it sends. With only the list row
+    it sent blanks, and saving an edit wiped the sender's phone,
+    address and date of birth, the recipient's phone, the
+    commission and the notes."""
+
+    sender_phone: str = ""
+    sender_phone_country: str = "+1"
+    sender_address: str = ""
+    sender_dob: str = ""  # YYYY-MM-DD or empty
+    recipient_phone: str = ""
+    commission: float = 0.0
+    status_notes: str = ""
+    internal_notes: str = ""
+    employee_id: int | None = None
+    customer_id: int | None = None
+
+
 class TransferResponse(BaseModel):
-    """Single-transfer wrapped response. Uses the same TransferRow
-    shape as the list endpoint so the React detail view and table
-    can reuse the row component."""
+    """Single-transfer wrapped response: the list row plus the fields
+    an edit has to carry through (see `TransferDetail`)."""
 
     model_config = ConfigDict(extra="forbid")
 
-    transfer: TransferRow
+    transfer: TransferDetail
 
 
 class EmployeeRow(BaseModel):

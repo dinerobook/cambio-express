@@ -274,6 +274,22 @@ helper that should resolve a roster id → `(StoreEmployee,
 str)` pair. The create + edit endpoints require it to return a
 non-None employee — anonymous transfers aren't allowed.
 
+The edit form preselects the stored employee. One who has since
+been deactivated stays selectable as "(former)", so editing an old
+transfer never moves its attribution.
+
+## Edits replace the whole row
+
+`PUT /transfers/{id}` has no PATCH semantics: every field in
+`CreateTransferRequest` is written, and an omitted field is written
+as its default. So `GET /transfers/{id}` returns `TransferDetail`
+(the list row plus every field the PUT writes), and
+`EditTransfer.tsx` hydrates from it and sends back the fields it
+has no input for (commission, status notes, internal notes).
+When you add a field to `CreateTransferRequest`, add it to
+`TransferDetail` and `_to_detail` too, or every edit will blank it.
+`test_get_detail_round_trips_every_edit_field` pins this.
+
 ## Cross-module dependencies
 
 - **Batches** (`api/Modules/Batches/`): aggregates transfers

@@ -62,8 +62,8 @@ const editSchema = z.object({
   recipient_name: z.string(),
   recipient_phone: z.string(),
 
-  send_amount: z.coerce.number().positive("Send amount must be > 0"),
-  fee: z.coerce.number().min(0, "Fee must be ≥ 0"),
+  send_amount: z.number().positive("Send amount must be > 0"),
+  fee: z.number().min(0, "Fee must be ≥ 0"),
   confirm_number: z.string(),
 
   employee_id: z
@@ -134,24 +134,34 @@ export default function EditTransfer() {
       status: (STATUSES as readonly string[]).includes(t.status)
         ? (t.status as (typeof STATUSES)[number])
         : "Sent",
-      sender_name: "",
-      sender_phone_country: "+1",
-      sender_phone: "",
-      sender_address: "",
-      sender_dob: "",
-      customer_id: null,
+      // Every field the PUT replaces is hydrated from the detail, so
+      // saving an edit never blanks what the operator did not touch.
+      sender_name: t.sender_name || "",
+      sender_phone_country: t.sender_phone_country || "+1",
+      sender_phone: t.sender_phone || "",
+      sender_address: t.sender_address || "",
+      sender_dob: t.sender_dob || "",
+      customer_id: t.customer_id ?? null,
       country: (COUNTRIES as readonly string[]).includes(t.country)
         ? (t.country as (typeof COUNTRIES)[number])
         : "Mexico",
       recipient_name: t.recipient_name || "",
-      recipient_phone: "",
+      recipient_phone: t.recipient_phone || "",
       send_amount: t.send_amount,
       fee: t.fee,
       confirm_number: t.confirm_number || "",
-      employee_id: undefined as unknown as number,
+      employee_id: (t.employee_id ?? undefined) as unknown as number,
       batch_id: t.batch_id || "",
     });
   }, [detail.data, reset]);
+
+  const stored = detail.data?.transfer;
+  const formerEmployee =
+    stored?.employee_id != null
+    && roster.data
+    && !roster.data.employees.some((e) => e.id === stored.employee_id)
+      ? { id: stored.employee_id, name: stored.employee_name || "Former employee" }
+      : null;
 
   const sendAmount = useWatch({ control, name: "send_amount" });
   const serviceType = useWatch({ control, name: "service_type" });
@@ -170,7 +180,14 @@ export default function EditTransfer() {
   async function onSubmit(values: EditFormValues) {
     clearErrors("root");
     try {
-      const result = await updateTransfer(transferId, values);
+      // Commission and notes have no field on this form; send back
+      // what the transfer holds so the full-row PUT keeps them.
+      const result = await updateTransfer(transferId, {
+        ...values,
+        commission: stored?.commission ?? 0,
+        status_notes: stored?.status_notes ?? "",
+        internal_notes: stored?.internal_notes ?? "",
+      });
       toast({ message: "Transfer updated.", tone: "success" });
       navigate(`/transfers/${result.transfer.id}`, { replace: true });
     } catch (err) {
@@ -429,6 +446,14 @@ export default function EditTransfer() {
                   {roster.data?.employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>{emp.name}</option>
                   ))}
+                  {/* The roster lists active staff only. A transfer taken
+                      by someone who has since left keeps them selectable,
+                      so saving an edit does not move the attribution. */}
+                  {formerEmployee && (
+                    <option value={formerEmployee.id}>
+                      {formerEmployee.name} (former)
+                    </option>
+                  )}
                 </Select>
                 {errors.employee_id && (
                   <span className={styles.fieldError}>
@@ -438,7 +463,7 @@ export default function EditTransfer() {
               </Field>
             </div>
             <p className={styles.note}>
-              Required: who made this edit.
+              Required: the cashier who took the cash for this transfer.
             </p>
           </Section>
         </Card>

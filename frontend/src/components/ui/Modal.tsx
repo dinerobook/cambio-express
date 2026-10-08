@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
+import { Alert } from "./Alert";
 import { Button, type ButtonTone } from "./Button";
 
 import styles from "./Modal.module.css";
@@ -139,11 +140,15 @@ function sizeClass(size: "sm" | "md" | "lg"): string {
 export function ConfirmDialog({
   open, title, message, onConfirm, onCancel, busy = false,
   confirmLabel = "Confirm", cancelLabel = "Cancel",
-  confirmTone = "primary",
+  confirmTone = "primary", error,
 }: {
   open: boolean;
   title: string;
   message: ReactNode;
+  /** Why the last confirm failed. Shown INSIDE the dialog: while
+   *  it is open the page behind is covered and aria-hidden, so an
+   *  error rendered there is one the person never sees. */
+  error?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
   /** When true, both buttons disable + the primary shows the
@@ -181,6 +186,7 @@ export function ConfirmDialog({
       }
     >
       <p style={messageStyle}>{message}</p>
+      {error && <Alert tone="error">{error}</Alert>}
     </Modal>
   );
 }

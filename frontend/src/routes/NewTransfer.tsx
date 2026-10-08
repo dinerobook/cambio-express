@@ -96,11 +96,9 @@ const transferSchema = z.object({
   recipient_name: z.string(),
   recipient_phone: z.string(),
 
-  // ``z.coerce.number()`` parses the <input type="number"> string
-  // payload — no more ``Number(form.send_amount) || 0`` after the
-  // resolver.
-  send_amount: z.coerce.number().positive("Send amount must be > 0"),
-  fee: z.coerce.number().min(0, "Fee must be ≥ 0"),
+  // MoneyInput hands the form numbers, so no coercion is needed.
+  send_amount: z.number().positive("Send amount must be > 0"),
+  fee: z.number().min(0, "Fee must be ≥ 0"),
   confirm_number: z.string(),
 
   // Employee is required — surfaces as a field-level error if the
