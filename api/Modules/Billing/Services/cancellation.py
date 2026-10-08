@@ -67,6 +67,12 @@ def apply_subscription_cancelled(
     re-cancel stamps a fresh window correctly. The terminal plan /
     billing fields are always re-applied (harmless when repeated).
     """
+    if store.comped_at is not None:
+        # The superadmin is carrying this store; the Stripe
+        # subscription ending (it was paused anyway) changes nothing
+        # about what the store may use. Drop the dead id only.
+        store.stripe_subscription_id = ""
+        return
     store.plan = "inactive"
     store.billing_cycle = ""
     store.stripe_subscription_id = ""
@@ -74,6 +80,14 @@ def apply_subscription_cancelled(
         now = utc_now()
         store.canceled_at = now
         store.data_retention_until = now + timedelta(days=retention_days)
+
+
+def clear_comp_state(store: Store) -> None:
+    """The store pays for itself again (a checkout completed): the
+    comp marker comes off. The plan and cycle are whatever the
+    caller derived from Stripe. Caller commits."""
+    store.comped_at = None
+    store.comp_reason = ""
 
 
 def clear_cancellation_state(store: Store) -> None:

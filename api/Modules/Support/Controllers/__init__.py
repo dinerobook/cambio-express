@@ -25,6 +25,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.Pagination import PaginationParams, paginate, pagination_dep
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services import resolve_store_scope
 from api.Modules.Support.Models import SupportMessage, SupportTicket
@@ -172,36 +173,50 @@ def list_my_tickets(
 def list_all_tickets(
     status: str | None = Query(None),
     category: str | None = Query(None),
+    q: str = Query("", max_length=120),
+    store_id: int | None = Query(None, ge=1),
+    pagination: PaginationParams = Depends(pagination_dep),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> TicketListResponse:
-    """Platform staff: list every ticket across all stores."""
+    """Platform staff: every ticket across all stores, newest first,
+    paged. ``q`` (2+ characters) matches the subject, who filed it
+    and the store's name; ``store_id`` narrows to one store."""
     if not _is_platform_staff(claims):
         raise HTTPException(403, "Superadmin only")
-    q = db.query(SupportTicket)
+    from api.Modules.Tenancy.Models import Store
+    query = (
+        db.query(SupportTicket, Store.name)
+          .outerjoin(Store, Store.id == SupportTicket.store_id)
+    )
     if status:
-        q = q.filter(SupportTicket.status == status)
+        query = query.filter(SupportTicket.status == status)
     if category:
-        q = q.filter(SupportTicket.category == category)
-    q = q.order_by(SupportTicket.created_at.desc())
-    rows = q.all()
-    # Batch-fetch store names for the admin view
-    store_ids = {t.store_id for t in rows}
-    store_names: dict[int, str] = {}
-    if store_ids:
-        from api.Modules.Tenancy.Models import Store
-        stores = db.query(Store.id, Store.name).filter(
-            Store.id.in_(store_ids),
-        ).all()
-        store_names = {s.id: s.name or "" for s in stores}
+        query = query.filter(SupportTicket.category == category)
+    if store_id is not None:
+        query = query.filter(SupportTicket.store_id == store_id)
+    needle = q.strip()
+    if len(needle) >= 2:
+        like = f"%{needle}%"
+        query = query.filter(
+            SupportTicket.subject.ilike(like)
+            | SupportTicket.submitted_by.ilike(like)
+            | Store.name.ilike(like)
+        )
+    query = query.order_by(SupportTicket.created_at.desc(), SupportTicket.id.desc())
+    page = paginate(query, pagination)
+    pairs = page["rows"]
     from api.Modules.Support.Services import unread_message_counts
-    unread = unread_message_counts(db, [t.id for t in rows], "staff")
+    unread = unread_message_counts(db, [t.id for t, _ in pairs], "staff")
     return TicketListResponse(
         tickets=[
-            _to_row(t, store_names.get(t.store_id), unread.get(t.id, 0))
-            for t in rows
+            _to_row(t, store_name or "", unread.get(t.id, 0))
+            for t, store_name in pairs
         ],
-        total=len(rows),
+        total=page["total"],
+        page=page["page"],
+        per_page=pagination.per_page,
+        total_pages=page["total_pages"],
     )
 
 

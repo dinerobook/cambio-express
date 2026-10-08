@@ -14,6 +14,8 @@ def _store(*, sub_id="sub_xyz", plan="basic", billing_cycle="monthly"):
     s.canceled_at = None
     s.data_retention_until = None
     s.trial_reminder_sent_at = None
+    s.comped_at = None
+    s.comp_reason = ""
     return s
 
 
@@ -66,6 +68,22 @@ def test_apply_cancellation_sets_inactive_state():
     # Default retention = 180 days
     delta = s.data_retention_until - s.canceled_at
     assert delta == timedelta(days=180)
+
+
+def test_apply_cancellation_leaves_a_comped_store_on_its_plan():
+    """A superadmin comp pauses the Stripe subscription; if Stripe
+    ends it anyway (or the customer cancels), the store keeps the
+    plan the superadmin gave it — only the dead subscription id is
+    dropped, and no retention clock starts."""
+    from api.Modules.Billing.Services import apply_subscription_cancelled
+    s = _store(plan="pro", billing_cycle="comp")
+    s.comped_at = datetime(2026, 10, 1)
+    apply_subscription_cancelled(s)
+    assert s.plan == "pro"
+    assert s.billing_cycle == "comp"
+    assert s.stripe_subscription_id == ""
+    assert s.canceled_at is None
+    assert s.data_retention_until is None
 
 
 def test_apply_cancellation_respects_custom_retention():

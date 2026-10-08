@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { AdminAuditRow } from "./admin";
 
 // Detail row used by the create/edit form. Superset of the list-
 // view row: includes address + federal_tax_rate which the table
@@ -371,13 +372,20 @@ export async function revokeUserSessions(userId: number) {
   );
 }
 
-export async function impersonateUser(userId: number) {
+/** "full" acts as the person (writes allowed, recorded "via
+ *  superadmin"); "read_only" only looks — the server refuses every
+ *  write on that session with 403 `read_only_impersonation`. */
+export type ImpersonationMode = "full" | "read_only";
+
+export async function impersonateUser(
+  userId: number, mode: ImpersonationMode = "full",
+) {
   return api<{
     token: string;
     user: { id: number; username: string; role: string; store_id: number | null; full_name: string };
   }>(
     `/api/v2/superadmin/impersonate/${userId}`,
-    { method: "POST" },
+    { method: "POST", json: { mode } },
   );
 }
 
@@ -412,6 +420,77 @@ export async function extendTrial(
     `/api/v2/superadmin/stores/${storeId}/extend-trial`,
     { method: "POST", json },
   );
+}
+
+export interface CompPlanResponse {
+  ok: boolean;
+  plan: string;
+  billing_cycle: string;
+  comped: boolean;
+  comped_at: string;
+  comp_reason: string;
+  /** The store's Stripe subscription was paused (collection
+   *  voided) as part of this call. */
+  stripe_paused: boolean;
+  /** The store's Stripe subscription was resumed as part of this
+   *  call. */
+  stripe_resumed: boolean;
+}
+
+/** Put a store on a free Basic/Pro plan. A paying store keeps its
+ *  Stripe subscription but collection is paused, so nothing is
+ *  invoiced until `endComp`. 503 when Stripe is not configured,
+ *  502 when the pause fails (the plan is then left untouched). */
+export async function compStore(
+  storeId: number, body: { plan: "basic" | "pro"; reason: string },
+) {
+  return api<CompPlanResponse>(
+    `/api/v2/superadmin/stores/${storeId}/comp-plan`,
+    { method: "POST", json: body },
+  );
+}
+
+/** End a comp: resumes Stripe collection and puts the plan back to
+ *  what the subscription pays for; with no subscription the store
+ *  gets a fresh trial window. 409 when the store is not comped. */
+export async function endComp(storeId: number) {
+  return api<CompPlanResponse>(
+    `/api/v2/superadmin/stores/${storeId}/end-comp`,
+    { method: "POST" },
+  );
+}
+
+export interface StoreAuditLogResponse {
+  rows: AdminAuditRow[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+/** The store's own activity feed (what its admin sees on
+ *  /app/admin/audit-log), read from the superadmin store page. */
+export function useStoreAuditLog(
+  storeId: number | undefined,
+  opts: { page?: number; target?: string; action?: string } = {},
+) {
+  const page = opts.page ?? 1;
+  const target = opts.target ?? "";
+  const action = opts.action ?? "";
+  return useQuery<StoreAuditLogResponse>({
+    enabled: storeId != null,
+    queryKey: ["superadmin", "store-audit-log", storeId, page, target, action],
+    queryFn: () => {
+      const p = new URLSearchParams();
+      p.set("page", String(page));
+      if (target) p.set("target", target);
+      if (action) p.set("action", action);
+      return api<StoreAuditLogResponse>(
+        `/api/v2/superadmin/stores/${storeId}/audit-log?${p.toString()}`,
+      );
+    },
+    placeholderData: (prev) => prev,
+  });
 }
 
 export interface StoreFeatureRow {

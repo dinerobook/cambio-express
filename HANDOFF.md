@@ -591,6 +591,27 @@ store. `tests/Modules/Superadmin/test_route_contracts.py` walks the
 routers so a new control cannot ship without its role gate, a typed
 body and an audit call.
 
+**2026-10-08 — superadmin controls, round 2** (the follow-up PR).
+*Read-only impersonation*: `POST /superadmin/impersonate/{id}` with
+`{"mode": "read_only"}` mints a token whose every write is refused
+by `api/Core/ReadOnlyImpersonation.py` (403, reason
+`read_only_impersonation`; `/auth/*` and the stop route exempt);
+"View as" sits next to "Sign in as" on the Users page and the
+store page. *Comp plan*: `POST /superadmin/stores/{id}/comp-plan`
+(`Superadmin/Services/comp.py`) puts a store on a free Basic/Pro
+plan — a paying store's Stripe subscription is PAUSED
+(`pause_collection: void`), not cancelled, and
+`apply_subscription_cancelled` leaves a comped store's plan alone;
+`end-comp` resumes collection and derives the plan from the
+subscription's price (no subscription → fresh trial). Columns
+`tenancy_store.comped_at` / `comp_reason` (revision
+`b7d2e4f6a1c3`). *Activity*: `GET /superadmin/stores/{id}/audit-log`
+is the store's own feed (`Admin.Services.audit_log.list_audit_rows`)
+on the store page, through the shared `components/AuditTable`.
+*Tickets*: `GET /tickets/all` takes `q` (2+ chars), `store_id`,
+`page` / `per_page`; the queue page has a debounced search, a store
+filter and a pager, state in the URL.
+
 **Guard against regression:** any new superadmin mutation MUST end with
 `_audit_and_commit(...)` — never a bare `db.commit()` followed by a
 separate `_audit_store(...)`.

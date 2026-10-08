@@ -25,18 +25,22 @@ export function ImpersonationBanner() {
       role={identity?.role ?? ""}
       storeName={data.store_name}
       byName={data.impersonation.by_name}
+      readOnly={data.impersonation.read_only}
       onExit={stopImpersonation}
     />
   );
 }
 
 export function ImpersonationBannerView({
-  actingAs, role, storeName, byName, onExit,
+  actingAs, role, storeName, byName, readOnly = false, onExit,
 }: {
   actingAs: string;
   role: string;
   storeName: string;
   byName: string;
+  /** A read-only session: the server refuses every write, so the
+   *  banner says so instead of warning that actions are recorded. */
+  readOnly?: boolean;
   onExit: () => Promise<void> | void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -49,20 +53,26 @@ export function ImpersonationBannerView({
     }
   }
   return (
-    <div className={styles.bar} role="status" data-testid="impersonation-banner">
-      <span className={styles.eyebrow}>Signed in as a customer</span>
+    <div
+      className={styles.bar} role="status" data-testid="impersonation-banner"
+      data-read-only={readOnly ? "true" : undefined}
+    >
+      <span className={styles.eyebrow}>
+        {readOnly ? "Viewing as a customer (read-only)" : "Signed in as a customer"}
+      </span>
       <span>
         <span className={styles.who}>{actingAs}</span>
         {role ? <span className={styles.muted}> · {role}</span> : null}
         {storeName ? <span className={styles.muted}> · {storeName}</span> : null}
       </span>
       <span className={styles.muted}>
-        Everything you do here is recorded against them
-        {byName ? ` with “via superadmin ${byName}”` : ""}.
+        {readOnly
+          ? "Every save is blocked on this session; nothing is written in their name."
+          : `Everything you do here is recorded against them${byName ? ` with “via superadmin ${byName}”` : ""}.`}
       </span>
       <span className={styles.spacer} />
       <Button size="sm" tone="secondary" busy={busy} disabled={busy} onClick={() => { void exit(); }}>
-        Exit impersonation
+        {readOnly ? "Exit view" : "Exit impersonation"}
       </Button>
     </div>
   );

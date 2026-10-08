@@ -37,6 +37,9 @@ import {
 } from "../components/ui";
 import styles from "./SuperadminUsers.module.css";
 
+type UserAction =
+  | "toggle" | "reset2fa" | "resetpw" | "impersonate" | "view" | "revokesessions";
+
 const ROLES = [
   { value: "", label: "All roles" },
   { value: "admin", label: "Admin" },
@@ -58,7 +61,7 @@ export default function SuperadminUsers() {
   const [error, setError] = useState<string | null>(null);
   const [tempPw, setTempPw] = useState<{ userId: number; password: string } | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
-    userId: number; username: string; action: "toggle" | "reset2fa" | "resetpw" | "impersonate" | "revokesessions";
+    userId: number; username: string; action: UserAction;
   } | null>(null);
   const [showAddSupport, setShowAddSupport] = useState(false);
   const [roleChange, setRoleChange] = useState<{
@@ -97,7 +100,10 @@ export default function SuperadminUsers() {
         toast({ message: "Password reset.", tone: "success" });
         refresh();
       } else if (action === "impersonate") {
-        await startImpersonation(userId);
+        await startImpersonation(userId, "full");
+        return;
+      } else if (action === "view") {
+        await startImpersonation(userId, "read_only");
         return;
       } else if (action === "revokesessions") {
         const res = await revokeUserSessions(userId);
@@ -121,7 +127,8 @@ export default function SuperadminUsers() {
     toggle: `Toggle active status for "${confirmAction?.username}"?`,
     reset2fa: `Clear 2FA enrollment for "${confirmAction?.username}"? They'll need to re-enroll at next login.`,
     resetpw: `Reset password for "${confirmAction?.username}"? A temporary password will be generated.`,
-    impersonate: `Sign in as "${confirmAction?.username}"? You'll leave this page and see the app from their perspective. This is audit-logged.`,
+    impersonate: `Sign in as "${confirmAction?.username}"? You'll leave this page and see the app from their perspective. Anything you save is recorded against them as "via superadmin". This is audit-logged.`,
+    view: `View the app as "${confirmAction?.username}"? Read-only: every save on that session is refused, so you can look without changing their books. This is audit-logged.`,
     revokesessions: `Revoke every active session for "${confirmAction?.username}"? They'll be bounced to the login page on their next API call. Use for compromised credentials, departing staff, or any "lock them out now" incident.`,
   };
 
@@ -250,11 +257,13 @@ export default function SuperadminUsers() {
           : confirmAction?.action === "reset2fa" ? "Reset 2FA"
           : confirmAction?.action === "resetpw" ? "Reset password"
           : confirmAction?.action === "revokesessions" ? "Revoke sessions"
+          : confirmAction?.action === "view" ? "View as user"
           : "Impersonate user"
         }
         message={confirmMessages[confirmAction?.action ?? "toggle"] ?? ""}
         confirmLabel={
           confirmAction?.action === "impersonate" ? "Sign in as user"
+          : confirmAction?.action === "view" ? "View read-only"
           : confirmAction?.action === "revokesessions" ? "Revoke sessions"
           : "Confirm"
         }
@@ -319,7 +328,7 @@ function UserRow({
 }: {
   user: SuperadminUserRow;
   busyId: number | null;
-  onAction: (action: "toggle" | "reset2fa" | "resetpw" | "impersonate" | "revokesessions") => void;
+  onAction: (action: UserAction) => void;
   onChangeRole: () => void;
 }) {
   const isSuperadmin = u.role === "superadmin";
@@ -383,6 +392,11 @@ function UserRow({
                 onClick: () => onAction("reset2fa"),
                 disabled: busyId === u.id,
               }] : []),
+              {
+                label: "View as (read-only)",
+                onClick: () => onAction("view"),
+                disabled: busyId === u.id,
+              },
               {
                 label: "Impersonate",
                 onClick: () => onAction("impersonate"),

@@ -10,7 +10,10 @@ from api.Modules.Superadmin.Requests.discounts import (
 from api.Modules.Superadmin.Requests.stores import (
     SuperadminBulkActionRequest,
     SuperadminChangeRoleRequest,
+    SuperadminCompPlanRequest,
+    SuperadminCompPlanResponse,
     SuperadminExtendTrialRequest,
+    SuperadminImpersonateRequest,
     SuperadminExtendTrialResponse,
     SuperadminMaintenanceRequest,
     SuperadminOwnerLinkCreateRequest,

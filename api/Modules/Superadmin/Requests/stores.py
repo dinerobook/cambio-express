@@ -262,6 +262,38 @@ class SuperadminChangeRoleRequest(BaseModel):
     role: Literal["admin", "employee", "owner"]
 
 
+class SuperadminImpersonateRequest(BaseModel):
+    """POST body for /superadmin/impersonate/{id}. ``read_only``
+    mints a token every write is refused on (see
+    ``api.Core.ReadOnlyImpersonation``)."""
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["full", "read_only"] = "full"
+
+
+class SuperadminCompPlanRequest(BaseModel):
+    """POST body for /superadmin/stores/{id}/comp-plan."""
+    model_config = ConfigDict(extra="forbid")
+
+    plan:   Literal["basic", "pro"]
+    reason: str = Field("", max_length=200)
+
+
+class SuperadminCompPlanResponse(BaseModel):
+    """State after a comp / end-comp. ``stripe_paused`` /
+    ``stripe_resumed`` say whether a subscription was touched."""
+    model_config = ConfigDict(extra="forbid")
+
+    ok:             bool
+    plan:           str
+    billing_cycle:  str
+    comped:         bool
+    comped_at:      str
+    comp_reason:    str
+    stripe_paused:  bool = False
+    stripe_resumed: bool = False
+
+
 class SuperadminStoreFeatureRow(BaseModel):
     """One module / add-on / platform flag as it applies to ONE
     store. ``default`` is what the store gets with no override
@@ -307,7 +339,10 @@ class SuperadminStoreEmailRequest(BaseModel):
 __all__ = [
     "SuperadminBulkActionRequest",
     "SuperadminChangeRoleRequest",
+    "SuperadminCompPlanRequest",
+    "SuperadminCompPlanResponse",
     "SuperadminExtendTrialRequest",
+    "SuperadminImpersonateRequest",
     "SuperadminExtendTrialResponse",
     "SuperadminMaintenanceRequest",
     "SuperadminStoreCreateRequest",

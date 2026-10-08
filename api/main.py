@@ -228,6 +228,10 @@ def create_app() -> FastAPI:
     # operator can still see and export their own books.
     from api.Core.Subscription import SubscriptionGateMiddleware
     app.add_middleware(SubscriptionGateMiddleware)
+    # Read-only impersonation refuses every write on such a token,
+    # ahead of the subscription gate's write exemptions.
+    from api.Core.ReadOnlyImpersonation import ReadOnlyImpersonationMiddleware
+    app.add_middleware(ReadOnlyImpersonationMiddleware)
 
     # Rate limiting (BACKLOG D6). slowapi reads its storage backend
     # from RATELIMIT_STORAGE_URI (Redis in prod, in-memory in dev/CI).

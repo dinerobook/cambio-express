@@ -329,7 +329,21 @@ never touched. Rules the flow keeps:
 - the store gate still applies: a frozen or lapsed store shows
   the superadmin exactly the screen its users see.
 
-Tests: `tests/Modules/Superadmin/test_impersonation.py`.
+**Read-only mode.** The body `{"mode": "read_only"}` (default
+`"full"`) adds the claim `impersonation_mode: "read_only"`.
+`api/Core/ReadOnlyImpersonation.py` is a middleware, not a
+per-route check: every non-safe method (anything but GET / HEAD /
+OPTIONS) on such a token is refused with 403 `{"detail": …,
+"reason": "read_only_impersonation"}` before the handler runs, so
+a route added later is covered without remembering to. The only
+writes it lets through are `/auth/*` (refresh, logout) and
+`/superadmin/impersonate/stop`, so the session can still be
+ended. `session-status.impersonation.read_only` tells the banner
+to say "every save is blocked" instead of "recorded against them".
+The claim means nothing on a token without `impersonated_by`.
+
+Tests: `tests/Modules/Superadmin/test_impersonation.py`,
+`test_impersonation_read_only.py`.
 
 
 ## The 2FA gate — `needs_totp` is THE single role check
@@ -730,6 +744,9 @@ What needs a security discussion FIRST:
   impersonation honours overlays, `revoke_refresh_tokens` scopes.
 - `tests/Modules/Superadmin/test_impersonation.py` — the cookie,
   the claims, the audit trace, the stop route.
+- `tests/Modules/Superadmin/test_impersonation_read_only.py` — a
+  read-only token is refused every write (403 with the reason code),
+  still reads, can still stop, and a full token is unaffected.
 - `tests/Modules/Superadmin/test_user_controls.py` — superadmin
   password reset / disable / role change end the sessions.
 - `tests/Modules/Superadmin/test_route_contracts.py` — walks the
