@@ -20,16 +20,17 @@ import {
 import { BankCategoryOptions } from "../components/BankCategoryOptions";
 import { BankRuleForm } from "../components/BankRuleForm";
 import {
-  Alert, AppLink, Breadcrumbs, Button, ButtonLink,
+  AppLink, Breadcrumbs, Button, ButtonLink,
   Card, Checkbox, DateInput, Empty, Field, Input, KpiCard, KpiGrid,
   Modal, monoStyle, PageHeader, PageShell, Pager, Select, Table, TableStates,
   tdStyle, thStyle, useToast,
 } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { suggestRuleFor } from "../lib/bankRuleSuggest";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { hasPermission } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtDateTime, fmtMoney2 } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
 import styles from "./BankTransactions.module.css";
 
@@ -56,9 +57,9 @@ export default function BankTransactions() {
   const categories = useBankCategories();
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [sp, setSP] = useSearchParams();
   const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [ruleFor, setRuleFor] = useState<BankTransactionRow | null>(null);
 
   const filters: BankTransactionFilters = useMemo(() => ({
@@ -125,18 +126,17 @@ export default function BankTransactions() {
               disabled={syncing}
               onClick={async () => {
                 setSyncing(true);
-                setSyncMsg(null);
                 try {
                   const r = await syncBankTransactions();
-                  setSyncMsg(`Synced ${r.new_rows} new transaction${r.new_rows === 1 ? "" : "s"}.`);
+                  toast({
+                    message: `Synced ${r.new_rows} new transaction${r.new_rows === 1 ? "" : "s"}.`,
+                    tone: "success",
+                  });
                   void qc.invalidateQueries({ queryKey: ["bank"] });
                 } catch (err) {
-                  setSyncMsg(
-                    err instanceof ApiError ? err.message : "Sync failed.",
-                  );
+                  toastApiError(err, "Sync failed.");
                 } finally {
                   setSyncing(false);
-                  setTimeout(() => setSyncMsg(null), 5000);
                 }
               }}
             >
@@ -151,8 +151,6 @@ export default function BankTransactions() {
           </div>
         }
       />
-
-      {syncMsg && <Alert tone="success">{syncMsg}</Alert>}
 
       {accounts.data && accounts.data.rows.length > 0 && (
         <BalanceCards accounts={accounts.data.rows} />
@@ -612,7 +610,7 @@ function BalanceCards({ accounts }: { accounts: BankAccountRow[] }) {
           value={fmtMoney2(a.last_balance)}
           sub={
             a.last_balance_as_of
-              ? `As of ${formatBalanceDate(a.last_balance_as_of)}`
+              ? `As of ${fmtDateTime(a.last_balance_as_of)}`
               : "Balance not yet refreshed."
           }
         />
@@ -621,12 +619,3 @@ function BalanceCards({ accounts }: { accounts: BankAccountRow[] }) {
   );
 }
 
-
-function formatBalanceDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-  } catch { return iso; }
-}

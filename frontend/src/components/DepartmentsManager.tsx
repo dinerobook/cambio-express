@@ -6,6 +6,7 @@ import {
   type Department,
 } from "../api/dayclose";
 import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import {
   Alert, Button, Card, EmptyState, ErrorState, Field, InfoTip, Input,
   Loading, Modal, Pill, RowActions, Section, Select, Table,
@@ -33,6 +34,7 @@ export default function DepartmentsManager() {
   const departments = useDepartments(showInactive);
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Department | null>(null);
   const [seeding, setSeeding] = useState(false);
@@ -55,11 +57,7 @@ export default function DepartmentsManager() {
       });
     } catch (err) {
       refresh();
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not add the starter departments.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not add the starter departments.");
     } finally {
       setSeeding(false);
     }
@@ -70,11 +68,7 @@ export default function DepartmentsManager() {
       await updateDepartment(d.id, { is_active: !d.is_active });
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not update the department.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not update the department.");
     }
   }
 

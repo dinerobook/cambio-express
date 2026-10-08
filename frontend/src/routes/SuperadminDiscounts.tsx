@@ -5,7 +5,7 @@ import {
   toggleDiscount,
   type DiscountCodeRow,
 } from "../api/featureFlags";
-import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
 import {
   Alert,
@@ -24,6 +24,7 @@ export default function SuperadminDiscounts() {
   const { data, isLoading, isError } = useDiscounts();
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
 
   async function handleToggle(row: DiscountCodeRow) {
     try {
@@ -34,10 +35,7 @@ export default function SuperadminDiscounts() {
         tone: "success",
       });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError ? err.message : "Toggle failed",
-        tone: "error",
-      });
+      toastApiError(err, "Toggle failed");
     }
   }
 

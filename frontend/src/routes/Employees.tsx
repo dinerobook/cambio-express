@@ -6,7 +6,7 @@ import {
   createEmployee, updateEmployee, useEmployees,
   type EmployeeRow, type LoginOnlyRow,
 } from "../api/employees";
-import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { fmtMoney2 } from "../lib/formatters";
@@ -28,6 +28,7 @@ export default function Employees() {
   const { data, isLoading, isError, error, refetch } = useEmployees();
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const navigate = useNavigate();
   const [confirmRow, setConfirmRow] = useState<EmployeeRow | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,11 +49,7 @@ export default function Employees() {
       });
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not update the employee.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not update the employee.");
     } finally {
       setBusy(false);
       setConfirmRow(null);
@@ -72,11 +69,7 @@ export default function Employees() {
       refresh();
       navigate(`/employees/${made.id}/edit`);
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not create the employee record.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not create the employee record.");
     } finally {
       setBusy(false);
     }

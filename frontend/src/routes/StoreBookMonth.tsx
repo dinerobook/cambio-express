@@ -7,20 +7,10 @@ import {
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./StoreBookMonth.module.css";
+import { MONTH_NAMES, todayIso } from "../lib/datetime";
 
 // /app/store-book — the month calendar. One cell per day with its
 // sales total and lock state; click through to the day sheet.
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-function todayIso(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
 
 export default function StoreBookMonth() {
   const [sp, setSP] = useSearchParams();
@@ -51,7 +41,7 @@ export default function StoreBookMonth() {
       <Breadcrumbs crumbs={[{ label: "Daily book" }]} />
       <PageHeader
         title="Daily book"
-        subtitle={`${MONTHS[month - 1]} ${year}`}
+        subtitle={`${MONTH_NAMES[month - 1]} ${year}`}
         actions={
           <div className={styles.nav}>
             <Button
@@ -70,7 +60,7 @@ export default function StoreBookMonth() {
               }}
               style={{ width: "auto" }}
             >
-              {MONTHS.map((label, i) => (
+              {MONTH_NAMES.map((label, i) => (
                 <option key={i + 1} value={i + 1}>{label}</option>
               ))}
             </Select>

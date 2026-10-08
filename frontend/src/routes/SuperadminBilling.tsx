@@ -7,6 +7,7 @@ import {
   type RetentionDryRunResponse,
 } from "../api/superadmin";
 import { api, ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import {
@@ -49,6 +50,7 @@ function useBillingOverview() {
 export default function SuperadminBilling() {
   const { data, isLoading, isError, error, refetch } = useBillingOverview();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [dryRun, setDryRun] = useState<RetentionDryRunResponse | null>(null);
   const [dryRunBusy, setDryRunBusy] = useState(false);
   const [dryRunError, setDryRunError] = useState<string | null>(null);
@@ -87,10 +89,7 @@ export default function SuperadminBilling() {
       // change.
       if (dryRun) await runDryRun();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError ? err.message : "Failed.",
-        tone: "error",
-      });
+      toastApiError(err, "Failed.");
     } finally {
       setClearBusy(false);
     }

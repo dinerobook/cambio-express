@@ -8,6 +8,7 @@ import {
   type LotteryDayRow, type LotteryGame, type LotteryPack,
 } from "../api/lottery";
 import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Alert, Breadcrumbs, Button, Card, DateInput, EmptyState, ErrorState,
@@ -16,6 +17,7 @@ import {
   Table, tdStyle, thStyle, useToast, type PillTone,
 } from "../components/ui";
 import styles from "./Lottery.module.css";
+import { todayIso } from "../lib/datetime";
 
 const PACK_TONES: Record<string, PillTone> = {
   received: "neutral",
@@ -23,12 +25,6 @@ const PACK_TONES: Record<string, PillTone> = {
   settled:  "success",
   returned: "warning",
 };
-
-function localToday(): string {
-  // en-CA formats as YYYY-MM-DD in the browser's local timezone —
-  // the store counts packs at ITS closing time, not UTC's.
-  return new Date().toLocaleDateString("en-CA");
-}
 
 export default function Lottery() {
   const [tab, setTab] = useState<"day" | "packs" | "games">("day");
@@ -65,10 +61,11 @@ export default function Lottery() {
 // ── Day close ────────────────────────────────────────────────
 
 function DayCloseTab() {
-  const [day, setDay] = useState(localToday());
+  const [day, setDay] = useState(todayIso());
   const summary = useLotteryDay(day);
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
 
   async function saveCount(packId: number, closing: number) {
     try {
@@ -78,11 +75,7 @@ function DayCloseTab() {
       void qc.invalidateQueries({ queryKey: ["lottery", "day"] });
       toast({ message: "Count saved.", tone: "success" });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not save the count.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not save the count.");
     }
   }
 
@@ -199,7 +192,7 @@ function PacksTab() {
   const packs = useLotteryPacks();
   const games = useLotteryGames();
   const qc = useQueryClient();
-  const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [receiving, setReceiving] = useState(false);
   const [activating, setActivating] = useState<LotteryPack | null>(null);
 
@@ -211,14 +204,10 @@ function PacksTab() {
     fn: (id: number, on: string) => Promise<unknown>, pack: LotteryPack,
   ) {
     try {
-      await fn(pack.id, localToday());
+      await fn(pack.id, todayIso());
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not update the pack.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not update the pack.");
     }
   }
 
@@ -325,7 +314,7 @@ function ReceivePackModal({
 }) {
   const [gameId, setGameId] = useState("");
   const [packNumber, setPackNumber] = useState("");
-  const [on, setOn] = useState(localToday());
+  const [on, setOn] = useState(todayIso());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -405,7 +394,7 @@ function ActivatePackModal({
     setError(null);
     try {
       await activateLotteryPack(pack.id, {
-        activated_on: localToday(),
+        activated_on: todayIso(),
         opening_ticket: Number.parseInt(opening, 10) || 0,
         bin_number: bin.trim(),
       });
@@ -463,7 +452,7 @@ function GamesTab() {
   const [showInactive, setShowInactive] = useState(false);
   const games = useLotteryGames(showInactive);
   const qc = useQueryClient();
-  const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [adding, setAdding] = useState(false);
 
   function refresh() {
@@ -475,11 +464,7 @@ function GamesTab() {
       await updateLotteryGame(g.id, { is_active: !g.is_active });
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not update the game.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not update the game.");
     }
   }
 

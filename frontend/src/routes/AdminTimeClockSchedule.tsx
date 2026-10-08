@@ -16,6 +16,7 @@ import {
   Loading, PageHeader, PageShell, Select, useToast,
 } from "../components/ui";
 import styles from "./AdminTimeClockSchedule.module.css";
+import { toIsoDate } from "../lib/datetime";
 
 // /app/admin/timeclock/schedule — admin shift planner.
 //
@@ -32,7 +33,7 @@ export default function AdminTimeClockSchedule() {
   const roster      = useEmployees();
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const weekEnd     = useMemo(() => addDays(weekStart, 7), [weekStart]);
-  const shifts      = useShifts(isoDate(weekStart), isoDate(weekEnd));
+  const shifts      = useShifts(toIsoDate(weekStart), toIsoDate(weekEnd));
   const toast = useToast();
 
   function refresh() {
@@ -119,7 +120,7 @@ export default function AdminTimeClockSchedule() {
         <div className={styles.weekGrid}>
           {Array.from({ length: 7 }, (_, i) => {
             const day = addDays(weekStart, i);
-            const iso = isoDate(day);
+            const iso = toIsoDate(day);
             return (
               <DayColumn
                 key={iso}
@@ -152,7 +153,7 @@ function DayColumn({
   onError: (msg: string) => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const isToday = isoDate(date) === isoDate(new Date());
+  const isToday = toIsoDate(date) === toIsoDate(new Date());
   return (
     <div className={`${styles.dayCol}${isToday ? " " + styles.dayColToday : ""}`}>
       <div className={styles.dayHeader}>
@@ -171,7 +172,7 @@ function DayColumn({
         ))}
         {adding ? (
           <ShiftForm
-            defaultDate={isoDate(date)}
+            defaultDate={toIsoDate(date)}
             roster={roster}
             onCancel={() => setAdding(false)}
             onSaved={(msg) => { setAdding(false); onSaved(msg); }}
@@ -403,13 +404,6 @@ function addDays(d: Date, n: number): Date {
   const out = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   out.setDate(out.getDate() + n);
   return out;
-}
-
-function isoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 function formatWeekRange(start: Date, end: Date): string {

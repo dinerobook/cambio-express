@@ -16,6 +16,7 @@ import {
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./EditMonthly.module.css";
+import { MONTH_NAMES_SHORT } from "../lib/datetime";
 
 // Edit page for the monthly P&L at /app/monthly/edit?year=Y&month=M.
 //
@@ -26,11 +27,6 @@ import styles from "./EditMonthly.module.css";
 // plus any P&L column a bank category feeds this month) come back
 // in `bank_locked`: they render read-only with the bank's live sum
 // and the server keeps its own value on save.
-
-const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 
 // `label` is the FALLBACK. Every income and expense line here can
 // be renamed per store on /monthly/categories, and the server sends
@@ -190,7 +186,7 @@ export default function EditMonthly() {
 
         <PageHeader title="Edit monthly P&L" />
         <p className={styles.headerMono}>
-          {MONTH_NAMES[month - 1]} {year}
+          {MONTH_NAMES_SHORT[month - 1]} {year}
         </p>
         <p className={styles.headerNote}>
           Auto-derived fields (cash purchases / expenses / payroll /

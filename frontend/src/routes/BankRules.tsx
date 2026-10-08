@@ -11,7 +11,7 @@ import {
   type BankRuleApplyReport,
   type BankRuleRow,
 } from "../api/bankSync";
-import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { canDo } from "../lib/access";
 import { BankRuleForm } from "../components/BankRuleForm";
 import {
@@ -36,6 +36,7 @@ export default function BankRules() {
   const rules = useBankRules();
   const categories = useBankCategories();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const labels = useMemo(() => categoryLabels(categories.data?.groups), [categories.data]);
 
   const [q, setQ] = useState("");
@@ -65,7 +66,7 @@ export default function BankRules() {
       await rules.refetch();
       toast({ message: r.enabled ? "Rule disabled." : "Rule enabled.", tone: "success" });
     } catch (e) {
-      toast({ message: e instanceof ApiError ? e.message : "Could not update rule.", tone: "error" });
+      toastApiError(e, "Could not update rule.");
     } finally {
       setBusyId(null);
     }
@@ -78,7 +79,7 @@ export default function BankRules() {
       await rules.refetch();
       toast({ message: `Rule applied.${describeApplied(resp.applied)}`, tone: "success" });
     } catch (e) {
-      toast({ message: e instanceof ApiError ? e.message : "Could not apply rule.", tone: "error" });
+      toastApiError(e, "Could not apply rule.");
     } finally {
       setBusyId(null);
     }
@@ -95,7 +96,7 @@ export default function BankRules() {
       await reorderRules(ids);
       await rules.refetch();
     } catch (e) {
-      toast({ message: e instanceof ApiError ? e.message : "Could not reorder.", tone: "error" });
+      toastApiError(e, "Could not reorder.");
     } finally {
       setBusyId(null);
     }

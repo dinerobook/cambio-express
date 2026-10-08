@@ -8,6 +8,16 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { PillTone } from "../components/ui";
+
+/** Transfer status → Pill tone (UI-STANDARDS §3). "Sent" is the
+ *  completed happy path, so it reads as success, not live accent. */
+export const TRANSFER_STATUS_TONES: Record<string, PillTone> = {
+  Sent:      "success",
+  Pending:   "warning",
+  Cancelled: "negative",
+  Returned:  "negative",
+};
 
 export interface TransferRow {
   id: number;

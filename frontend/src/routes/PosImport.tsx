@@ -9,6 +9,7 @@ import {
   type ImportRegisterRow, type NaxmlPreview,
 } from "../api/posimport";
 import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
 import { AppLink,
@@ -340,6 +341,7 @@ export default function PosImport() {
 function AgentSection() {
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const staged = useStagedDays();
   const keys = useAgentKeys();
   const [newLabel, setNewLabel] = useState("");
@@ -358,11 +360,7 @@ function AgentSection() {
       void qc.invalidateQueries({ queryKey: ["dayclose"] });
       void qc.invalidateQueries({ queryKey: ["posimport", "staged"] });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not book the day.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not book the day.");
     } finally {
       setBusyDay("");
     }
@@ -376,11 +374,7 @@ function AgentSection() {
       setNewLabel("");
       void qc.invalidateQueries({ queryKey: ["posimport", "agent-keys"] });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not create the key.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not create the key.");
     } finally {
       setKeyBusy(false);
     }
@@ -391,11 +385,7 @@ function AgentSection() {
       await revokeAgentKey(id);
       void qc.invalidateQueries({ queryKey: ["posimport", "agent-keys"] });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not revoke the key.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not revoke the key.");
     }
   }
 

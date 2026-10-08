@@ -15,16 +15,13 @@ import {
   Select, Textarea, useToast,
 } from "../components/ui";
 import styles from "./PurchaseInvoices.module.css";
+import { todayIso } from "../lib/datetime";
 
 // /app/purchase-invoices/new + /purchase-invoices/:id — key one
 // vendor invoice, optionally line-by-line. Lines resolve to
 // price-book items by scan code (type or scan the code, blur to
 // look it up) so "update price book costs" can flow the invoice's
 // unit costs back into the catalog.
-
-function localToday(): string {
-  return new Date().toLocaleDateString("en-CA");
-}
 
 interface LineDraft {
   itemId: number | null;
@@ -102,7 +99,7 @@ function InvoiceForm({
   );
   const [number, setNumber] = useState(existing?.invoice_number ?? "");
   const [invoiceDate, setInvoiceDate] = useState(
-    existing?.invoice_date ?? localToday(),
+    existing?.invoice_date ?? todayIso(),
   );
   const [dueDate, setDueDate] = useState(existing?.due_date ?? "");
   const [subtotal, setSubtotal] = useState(
@@ -300,7 +297,7 @@ function InvoiceForm({
                   onChange={(e) => {
                     setStatus(e.target.value);
                     if (e.target.value === "paid" && !paidOn) {
-                      setPaidOn(localToday());
+                      setPaidOn(todayIso());
                     }
                   }}
                 >

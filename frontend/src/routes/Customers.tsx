@@ -18,6 +18,7 @@ import {
   useToast,
 } from "../components/ui";
 import styles from "./Customers.module.css";
+import { todayIso } from "../lib/datetime";
 
 // Customer search at /app/customers. Live-search box; results
 // split into "exact matches" (phone/full-name match) and
@@ -89,7 +90,7 @@ export default function Customers() {
   async function onExport() {
     setExporting(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayIso();
       await downloadCsv(
         "/api/v2/customers/export.csv",
         `customers_${today}.csv`,

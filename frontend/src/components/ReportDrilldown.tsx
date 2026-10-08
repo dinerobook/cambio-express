@@ -11,6 +11,7 @@ import {
   KpiGrid, PageHeader, PageShell, TableSkeleton, tdStyle, thStyle,
 } from "./ui";
 import styles from "./ReportDrilldown.module.css";
+import { monthStartIso, todayIso } from "../lib/datetime";
 
 export interface KpiSpec {
   label: string;
@@ -49,20 +50,13 @@ interface ReportDrilldownProps {
   extraParams?: Record<string, string>;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
-const monthStart = () => {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1)
-    .toISOString().slice(0, 10);
-};
-
 export function ReportDrilldown({
   apiSlug, title, resultUnit, kpis, columns, csvUrl, backTo,
   extraParams,
 }: ReportDrilldownProps) {
   const [params, setParams] = useSearchParams();
-  const [from, setFrom] = useState(() => params.get("from") || monthStart());
-  const [to, setTo] = useState(() => params.get("to") || today());
+  const [from, setFrom] = useState(() => params.get("from") || monthStartIso());
+  const [to, setTo] = useState(() => params.get("to") || todayIso());
 
   // Sync `from`/`to` back into the URL so the report is shareable.
   useEffect(() => {

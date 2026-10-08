@@ -40,7 +40,10 @@ import { AppLink,
   space,
   tokens,
   Empty,
+  type PillTone,
 } from "../components/ui";
+import { BATCH_STATUS_TONES } from "../api/batches";
+import { TRANSFER_STATUS_TONES } from "../api/transfers";
 import { getCurrentIdentity } from "../lib/auth";
 import { getOpenStatus } from "../lib/datetime";
 import { fmtMoney2, fmtNumber, fmtShortDate } from "../lib/formatters";
@@ -573,7 +576,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                     {fmtMoney2(t.send_amount)}
                   </td>
                   <td style={dashTdStyle}>
-                    <StatusPill value={t.status} />
+                    <StatusPill value={t.status} tones={TRANSFER_STATUS_TONES} />
                   </td>
                 </tr>
               ))}
@@ -632,7 +635,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                       {fmtMoney2(b.variance)}
                     </td>
                     <td style={dashTdStyle}>
-                      <StatusPill value={b.status} />
+                      <StatusPill value={b.status} tones={BATCH_STATUS_TONES} />
                     </td>
                   </tr>
                 ))}
@@ -803,7 +806,7 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
                   <td style={dashTdStyle}>{t.country || "—"}</td>
                   <td style={dashTdStyle}>{t.confirm_number || "—"}</td>
                   <td style={dashTdStyle}>
-                    <StatusPill value={t.status} />
+                    <StatusPill value={t.status} tones={TRANSFER_STATUS_TONES} />
                   </td>
                   <td style={dashTdStyle}>
                     <AppLink
@@ -952,16 +955,11 @@ function QuickLink({ to, title, desc }: { to: string; title: string; desc: strin
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function StatusPill({ value }: { value: string }) {
-  const tone =
-    ["Sent", "Cleared"].includes(value) ? "accent"
-      : ["Pending"].includes(value) ? "warning"
-        : ["Cancelled", "Rejected", "Returned", "Disputed"].includes(value) ? "negative"
-          : ["Refunded", "Partial"].includes(value) ? "warning"
-            : "neutral";
-  return <Pill tone={tone as "accent" | "warning" | "negative" | "neutral"}>{value}</Pill>;
+function StatusPill({
+  value, tones,
+}: { value: string; tones: Record<string, PillTone> }) {
+  return <Pill tone={tones[value] ?? "neutral"}>{value}</Pill>;
 }
-
 
 function shortDate(iso: string) {
   const d = new Date(iso + "T00:00:00");

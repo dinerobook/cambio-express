@@ -28,7 +28,7 @@ import {
   Empty,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
-import { getOpenStatus } from "../lib/datetime";
+import { getOpenStatus, todayIso } from "../lib/datetime";
 import {
   createTransfer,
   previewFederalTax,
@@ -70,12 +70,6 @@ const COUNTRIES = [
   "Dominican Republic", "Colombia", "Ecuador", "Peru", "Other",
 ] as const;
 const STATUSES = ["Sent", "Pending", "Cancelled", "Returned"] as const;
-
-function todayIso() {
-  const d = new Date();
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 // ── Validation schema ──────────────────────────────────────────
 //

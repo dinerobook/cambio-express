@@ -8,7 +8,7 @@ import { AppLink,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { fmtMoney2 } from "../lib/formatters";
-import { formatTimestamp } from "../lib/datetime";
+import { daysAgoIso, formatTimestamp } from "../lib/datetime";
 import styles from "./Transactions.module.css";
 
 // /app/transactions (G-6) — every register ticket, searchable.
@@ -22,12 +22,6 @@ import styles from "./Transactions.module.css";
 // this screen is to see the void. Its money is already excluded
 // server-side, so the totals below never include one.
 
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toLocaleDateString("en-CA");
-}
-
 const KINDS = [
   { value: "", label: "All kinds" },
   { value: "sale", label: "Sales" },
@@ -38,7 +32,7 @@ const KINDS = [
 ];
 
 export default function Transactions() {
-  const [defaults] = useState(() => ({ start: daysAgo(6), end: daysAgo(0) }));
+  const [defaults] = useState(() => ({ start: daysAgoIso(6), end: daysAgoIso(0) }));
   const filters = useUrlFilterState({
     q: "", kind: "", voided: "",
     start: defaults.start, end: defaults.end,

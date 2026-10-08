@@ -8,21 +8,16 @@ import {
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { fmtMoney2 } from "../lib/formatters";
+import { daysAgoIso } from "../lib/datetime";
 
 // /app/store-reports/item-movement (G-2) — per-item quantity +
 // dollars over a date range from the booked Gilbarco journal
 // data. Top sellers first. Populates as business days book
 // (automatically once the site agent + mapping are in place).
 
-function _daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
 export default function ItemMovement() {
   const [defaults] = useState(() => ({
-    start: _daysAgo(6), end: _daysAgo(0),
+    start: daysAgoIso(6), end: daysAgoIso(0),
   }));
   const filters = useUrlFilterState({
     q: "", start: defaults.start, end: defaults.end,

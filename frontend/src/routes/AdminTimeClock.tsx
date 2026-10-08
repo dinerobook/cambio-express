@@ -9,7 +9,8 @@ import {
 import { useEmployees } from "../api/transfers";
 import { updateStoreInfo, useProfile, useStoreInfo } from "../api/account";
 import { ApiError } from "../lib/api";
-import { formatDate, formatTimestamp } from "../lib/datetime";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
+import { daysAgoIso, formatDate, formatTimestamp } from "../lib/datetime";
 import {
   Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, ErrorState,
@@ -54,9 +55,9 @@ export default function AdminTimeClock() {
   // Default window: today and the prior 13 days (a typical
   // biweekly pay period). ``to`` is half-open per the API.
   const today = useMemo(() => new Date(), []);
-  const [from, setFrom] = useState(() => _isoDate(_daysAgo(today, 13)));
+  const [from, setFrom] = useState(() => daysAgoIso(13, today));
   const [to,   setTo]   = useState(() =>
-    _isoDate(_daysAgo(today, -1)));   // tomorrow
+    daysAgoIso(-1, today));   // tomorrow
   const [empFilter, setEmpFilter] = useState<number | "">("");
 
   const [modal, setModal] = useState<ModalState>({ kind: "closed" });
@@ -439,6 +440,7 @@ function LateBadge({
 function LateThresholdSetting({ current }: { current: number }) {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [value, setValue] = useState(String(current));
   const [busy, setBusy] = useState(false);
   const dirty = value.trim() !== "" && Number(value) !== current;
@@ -454,10 +456,7 @@ function LateThresholdSetting({ current }: { current: number }) {
       ]);
       toast({ message: `Late threshold set to ${n} min.`, tone: "success" });
     } catch (e) {
-      toast({
-        message: e instanceof ApiError ? e.message : "Could not save.",
-        tone: "error",
-      });
+      toastApiError(e, "Could not save.");
     } finally {
       setBusy(false);
     }
@@ -689,20 +688,6 @@ function EntryModal({
 
 
 // ── Date utils ──────────────────────────────────────────────
-
-
-function _isoDate(d: Date): string {
-  const yy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
-}
-
-function _daysAgo(anchor: Date, days: number): Date {
-  const d = new Date(anchor);
-  d.setDate(d.getDate() - days);
-  return d;
-}
 
 /** Convert a server-side ISO-8601 UTC string into the format
  *  ``<input type="datetime-local">`` expects ("YYYY-MM-DDTHH:MM"

@@ -9,6 +9,7 @@ import {
   Section, Select,
 } from "../components/ui";
 import styles from "./AdminDataExport.module.css";
+import { toIsoDate } from "../lib/datetime";
 
 // /app/admin/data-export — single hub for every authed CSV /
 // ZIP download the admin can pull. Catalogs the scattered
@@ -37,20 +38,20 @@ export default function AdminDataExport() {
   const today = new Date();
   const lastMonth = new Date(today);
   lastMonth.setDate(today.getDate() - 30);
-  const [transFrom, setTransFrom] = useState(_isoDate(lastMonth));
-  const [transTo,   setTransTo]   = useState(_isoDate(today));
+  const [transFrom, setTransFrom] = useState(toIsoDate(lastMonth));
+  const [transTo,   setTransTo]   = useState(toIsoDate(today));
   const [transBusy, setTransBusy] = useState(false);
   const [transErr,  setTransErr]  = useState("");
 
   // Journal-entries CSV (P1-8) — same default window as transfers.
-  const [journalFrom, setJournalFrom] = useState(_isoDate(lastMonth));
-  const [journalTo,   setJournalTo]   = useState(_isoDate(today));
+  const [journalFrom, setJournalFrom] = useState(toIsoDate(lastMonth));
+  const [journalTo,   setJournalTo]   = useState(toIsoDate(today));
   const [journalBusy, setJournalBusy] = useState(false);
   const [journalErr,  setJournalErr]  = useState("");
 
   // Time-clock entries CSV — same default window as transfers.
-  const [tcFrom, setTcFrom] = useState(_isoDate(lastMonth));
-  const [tcTo,   setTcTo]   = useState(_isoDate(today));
+  const [tcFrom, setTcFrom] = useState(toIsoDate(lastMonth));
+  const [tcTo,   setTcTo]   = useState(toIsoDate(today));
   const [tcBusy, setTcBusy] = useState(false);
   const [tcErr,  setTcErr]  = useState("");
 
@@ -95,7 +96,7 @@ export default function AdminDataExport() {
     try {
       await downloadCsv(
         "/api/v2/customers/export.csv",
-        `customers-${_isoDate(today)}.csv`,
+        `customers-${toIsoDate(today)}.csv`,
       );
     } catch (e) {
       setCustomersErr(e instanceof Error ? e.message : "Download failed.");
@@ -156,7 +157,7 @@ export default function AdminDataExport() {
     try {
       await downloadCsv(
         "/api/v2/admin/audit-log.csv",
-        `audit-log-${_isoDate(today)}.csv`,
+        `audit-log-${toIsoDate(today)}.csv`,
       );
     } catch (e) {
       setAuditErr(e instanceof Error ? e.message : "Download failed.");
@@ -421,9 +422,3 @@ export default function AdminDataExport() {
 }
 
 
-function _isoDate(d: Date): string {
-  const yy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
-}

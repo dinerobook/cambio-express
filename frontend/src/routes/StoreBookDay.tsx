@@ -14,8 +14,9 @@ import {
 } from "../components/ui";
 import RegisterCloses from "../components/RegisterCloses";
 import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
-import { formatDate } from "../lib/datetime";
+import { addDaysIso, formatDate, todayIso } from "../lib/datetime";
 import styles from "./StoreBookDay.module.css";
 
 // /app/store-book/day?date=YYYY-MM-DD — one store day.
@@ -26,12 +27,6 @@ import styles from "./StoreBookDay.module.css";
 //
 // The layout comes from the API (`layout`), not from a copy here —
 // a new field on the sheet appears without a frontend change.
-
-function todayIso(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
 
 // MoneyInput works in DOLLARS; the API and the totals work in
 // cents. These two are the only place the boundary is crossed.
@@ -48,6 +43,7 @@ export default function StoreBookDay() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
 
   const { data, isLoading, isError, refetch } = useStoreBookDay(day);
 
@@ -126,11 +122,7 @@ export default function StoreBookDay() {
         tone: "success",
       });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not change the lock.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not change the lock.");
     } finally {
       setBusy(false);
       setConfirmLock(false);
@@ -144,22 +136,14 @@ export default function StoreBookDay() {
       qc.setQueryData(["storebook", "day", next.store_id, day], next);
       toast({ message: "Register value restored.", tone: "success" });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not restore.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not restore.");
     } finally {
       setBusy(false);
     }
   }
 
   function shiftDay(delta: number) {
-    const d = new Date(`${day}T00:00:00`);
-    d.setDate(d.getDate() + delta);
-    const p = (n: number) => String(n).padStart(2, "0");
-    const next =
-      `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    const next = addDaysIso(day, delta);
     const params = new URLSearchParams(sp);
     params.set("date", next);
     setSP(params, { replace: true });

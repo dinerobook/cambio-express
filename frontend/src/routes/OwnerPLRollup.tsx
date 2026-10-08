@@ -12,14 +12,10 @@ import {
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./OwnerPLRollup.module.css";
+import { MONTH_NAMES } from "../lib/datetime";
 
 // /app/owner/pl-rollup — side-by-side monthly P&L for every store
 // in the owner umbrella. Mirrors the legacy /owner/pl-rollup view.
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
 
 export default function OwnerPLRollup() {
   const identity = getCurrentIdentity();
@@ -68,7 +64,7 @@ export default function OwnerPLRollup() {
         title="P&L rollup"
         subtitle={
           data
-            ? `${MONTHS[data.month - 1]} ${data.year} · ` +
+            ? `${MONTH_NAMES[data.month - 1]} ${data.year} · ` +
               `${data.rows.length.toLocaleString()} stores`
             : "—"
         }
@@ -87,7 +83,7 @@ export default function OwnerPLRollup() {
               onChange={(e) => setParam("month", e.target.value)}
               style={{ width: "auto" }}
             >
-              {MONTHS.map((label, i) => (
+              {MONTH_NAMES.map((label, i) => (
                 <option key={i + 1} value={i + 1}>{label}</option>
               ))}
             </Select>
