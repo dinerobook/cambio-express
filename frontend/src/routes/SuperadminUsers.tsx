@@ -5,7 +5,6 @@ import {
   changeUserRole,
   createPlatformUser,
   forcePasswordReset,
-  impersonateUser,
   resetUser2FA,
   revokeUserSessions,
   toggleUserActive,
@@ -14,7 +13,7 @@ import {
   type SuperadminUserRow,
 } from "../api/superadmin";
 import { ApiError } from "../lib/api";
-import { setAccessToken, setCurrentIdentity } from "../lib/auth";
+import { startImpersonation } from "../lib/impersonation";
 import { formatDate } from "../lib/datetime";
 import {
   Alert,
@@ -98,17 +97,7 @@ export default function SuperadminUsers() {
         toast({ message: "Password reset.", tone: "success" });
         refresh();
       } else if (action === "impersonate") {
-        const res = await impersonateUser(userId);
-        setAccessToken(res.token);
-        setCurrentIdentity({
-          user_id: res.user.id,
-          username: res.user.username,
-          full_name: res.user.full_name,
-          role: res.user.role,
-          store_id: res.user.store_id,
-          permissions: [],
-        });
-        window.location.assign("/app/dashboard");
+        await startImpersonation(userId);
         return;
       } else if (action === "revokesessions") {
         const res = await revokeUserSessions(userId);

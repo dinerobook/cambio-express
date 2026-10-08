@@ -206,6 +206,15 @@ def _clear_access_token_cookie(response: Response) -> None:
     )
 
 
+# Public names for the two cookie writers another controller needs:
+# impersonation (``Superadmin``) hands the browser a customer's
+# token the same way login does, and takes it back the same way
+# logout does. The SPA authenticates with this cookie alone, so a
+# token that only travels in a JSON body never reaches the API.
+set_access_token_cookie = _set_access_token_cookie
+clear_access_token_cookie = _clear_access_token_cookie
+
+
 def get_principal(
     authorization: str | None = Header(default=None),
     db_access_token: str | None = Cookie(default=None),
@@ -906,9 +915,21 @@ def session_status_route(
     sub = claims.get("sub")
     user = db.get(User, int(sub)) if sub is not None else None
     status = store_gate_status(store)
+    impersonated_by = claims.get("impersonated_by")
     return {
         "gated": bool(status["gated"]),
         "reason": str(status["reason"]),
+        # Set while a superadmin is signed in AS this person (the
+        # token carries ``impersonated_by``); the shell shows the
+        # banner and the "exit" control from this, not from local
+        # state that a reload or a silent refresh would lose.
+        "impersonation": (
+            {
+                "by_user_id": int(impersonated_by),
+                "by_name": str(claims.get("impersonator_name") or ""),
+            }
+            if impersonated_by is not None else None
+        ),
         "plan": (store.plan or "") if store is not None else "",
         "store_name": (store.name or "") if store is not None else "",
         "business_type": (

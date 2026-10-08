@@ -11,6 +11,7 @@ import StoreGate from "./StoreGate";
 import { clearVisits, recordVisit } from "../lib/recency";
 import { reconcileTheme } from "../lib/theme";
 import { AnnouncementBanner } from "./AnnouncementBanner";
+import { ImpersonationBanner } from "./ImpersonationBanner";
 import { CommandPalette } from "./CommandPalette";
 import { HelpCenter } from "./HelpCenter";
 import { InstallAppButton } from "./InstallAppButton";
@@ -126,12 +127,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const showGate =
     gated && !(gateReason === "subscription" && onSubscribeFlow);
   if (showGate && (gateReason === "frozen" || gateReason === "subscription")) {
+    // A superadmin impersonating a user of a gated store sees the
+    // same screen the customer sees, with the way back on top: a
+    // sign-out here would also drop the superadmin's own session.
     return (
-      <StoreGate
-        reason={gateReason}
-        storeName={sessionStatus?.store_name ?? ""}
-        onSignOut={onSignOut}
-      />
+      <>
+        <ImpersonationBanner />
+        <StoreGate
+          reason={gateReason}
+          storeName={sessionStatus?.store_name ?? ""}
+          onSignOut={onSignOut}
+        />
+      </>
     );
   }
 
@@ -378,6 +385,7 @@ function MaintenanceBanner() {
 function ContentColumn({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-content">
+      <ImpersonationBanner />
       <MaintenanceBanner />
       <AnnouncementBanner />
       {children}

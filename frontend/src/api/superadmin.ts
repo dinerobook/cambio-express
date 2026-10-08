@@ -381,11 +381,68 @@ export async function impersonateUser(userId: number) {
   );
 }
 
-export async function extendTrial(storeId: number, days: number = 14) {
-  return api<{ ok: boolean; trial_ends_at: string }>(
-    `/api/v2/superadmin/stores/${storeId}/extend-trial`,
-    { method: "POST", json: { days } },
+/** Ends an impersonation on the server (audit row + the customer's
+ *  access cookie dropped). Call through `lib/impersonation.ts`,
+ *  which also restores the superadmin's own session. */
+export async function stopImpersonationRequest() {
+  return api<{ ok: boolean }>(
+    "/api/v2/superadmin/impersonate/stop",
+    { method: "POST" },
   );
+}
+
+export interface ExtendTrialResponse {
+  ok: boolean;
+  plan: string;
+  trial_ends_at: string;
+  grace_ends_at: string;
+  trial_status: string;
+}
+
+/** `days` counts from the later of the trial's current end and
+ *  today; `endsOn` (YYYY-MM-DD) sets the end date instead. */
+export async function extendTrial(
+  storeId: number,
+  opts: { days?: number; endsOn?: string } = {},
+) {
+  const json: { days?: number; ends_on?: string } = {};
+  if (opts.endsOn) json.ends_on = opts.endsOn;
+  else json.days = opts.days ?? 14;
+  return api<ExtendTrialResponse>(
+    `/api/v2/superadmin/stores/${storeId}/extend-trial`,
+    { method: "POST", json },
+  );
+}
+
+export interface StoreFeatureRow {
+  key: string;
+  label: string;
+  description: string;
+  kind: "module" | "addon" | "flag";
+  /** What the store gets with no override: the business-type
+   *  bundle for modules, the global default otherwise. */
+  default: boolean;
+  /** The per-store override when one is set. */
+  override: boolean | null;
+  /** What the store's users see right now. */
+  effective: boolean;
+}
+
+export interface StoreFeatureListResponse {
+  store_id: number;
+  business_type: string;
+  rows: StoreFeatureRow[];
+}
+
+export function useStoreFeatures(storeId: number | undefined) {
+  return useQuery<StoreFeatureListResponse>({
+    enabled: storeId != null,
+    queryKey: ["superadmin", "store-features", storeId],
+    queryFn: () =>
+      api<StoreFeatureListResponse>(
+        `/api/v2/superadmin/stores/${storeId}/features`,
+      ),
+  });
 }
 
 export interface RetentionDryRunStoreRow {

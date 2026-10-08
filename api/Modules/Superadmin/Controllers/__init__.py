@@ -11,14 +11,16 @@ Auth: requires JWT principal with role="superadmin". Subsequent
 PRs add the controls dashboard, anomaly feed, discounts/
 announcements/feature-flag CRUD, and impersonation.
 """
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams, paginate, pagination_dep
 from api.Modules.Audit.Services import record_superadmin_action
-from api.Modules.Auth.Controllers import get_principal
+from api.Modules.Auth.Controllers import (
+    clear_access_token_cookie, get_principal, set_access_token_cookie,
+)
 from api.Modules.Auth.Models import User
 from api.Modules.Auth.Services import resolve_superadmin_user
 from api.Modules.Auth.Services.principal import revoke_refresh_tokens
@@ -29,6 +31,14 @@ from api.Core.Permissions.matrix_update import (
 from api.Modules.Superadmin.Requests import (
     DiscountCodeListResponse,
     PlatformUserCreateRequest,
+    SuperadminBulkActionRequest,
+    SuperadminChangeRoleRequest,
+    SuperadminExtendTrialRequest,
+    SuperadminExtendTrialResponse,
+    SuperadminMaintenanceRequest,
+    SuperadminStoreEmailRequest,
+    SuperadminStoreFeatureListResponse,
+    SuperadminStoreFeatureRow,
     DiscountCodeResponse,
     DiscountCodeRow,
     DiscountCodeToggleRequest,
@@ -55,6 +65,9 @@ from api.Modules.Superadmin.Requests import (
 )
 from typing import Any
 from api.Core.Clock import utc_now
+from api.Modules.Superadmin.Services.trials import (
+    TrialWindowError, apply_plan_change, extend_store_trial,
+)
 
 
 router = APIRouter()
@@ -262,15 +275,15 @@ def get_maintenance_route(
 
 @router.post("/maintenance")
 def set_maintenance_route(
-    body: dict[str, Any],
+    body: SuperadminMaintenanceRequest,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict[str, Any]:
     _require_superadmin(claims)
     from api.Modules.Superadmin.Models import set_setting
     sa = resolve_superadmin_user(db, claims)
-    enabled = body.get("enabled", False)
-    message = body.get("message", "")
+    enabled = body.enabled
+    message = body.message
     set_setting(db, "maintenance_mode", "true" if enabled else "false")
     set_setting(db, "maintenance_message", str(message)[:500])
     # `set_setting` already committed the settings; the audit row is
@@ -374,14 +387,21 @@ def list_users_route(
 
 @router.post("/users/{user_id}/change-role")
 def change_user_role_route(
+    body: SuperadminChangeRoleRequest,
     user_id: int = Path(..., ge=1),
-    body: dict[str, Any] = {},
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict[str, Any]:
-    """Change a user's role. Valid roles: admin, employee, owner."""
+    """Change a user's role. Valid roles: admin, employee, owner.
+
+    Ends the person's sessions (their next call signs them out and
+    the new role applies at the next login, the same as the store-
+    admin path). Promoting to ``owner`` also links their home store
+    into the owner umbrella, the shape self-service signup and the
+    store-create route produce, so the store switcher works at
+    once."""
     _require_superadmin(claims)
-    from api.Modules.Tenancy.Models import User
+    from api.Modules.Tenancy.Models import StoreOwnerLink, User
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -392,17 +412,30 @@ def change_user_role_route(
         # would leave store_id=NULL on a role that requires one.
         # Deactivate + recreate instead.
         raise HTTPException(status_code=403, detail="Cannot change support role")
-    new_role = body.get("role", "")
-    if new_role not in ("admin", "employee", "owner"):
-        raise HTTPException(status_code=422, detail=f"Invalid role: {new_role}")
+    new_role = body.role
     sa = resolve_superadmin_user(db, claims)
     old_role = user.role
     user.role = new_role
+    linked = False
+    if new_role == "owner" and user.store_id is not None:
+        exists = (
+            db.query(StoreOwnerLink)
+              .filter_by(owner_id=user.id, store_id=user.store_id)
+              .first()
+        )
+        if exists is None:
+            db.add(StoreOwnerLink(owner_id=user.id, store_id=user.store_id))
+            linked = True
+    revoked = revoke_refresh_tokens(db, user_id=user.id)
     _audit_and_commit(
         db, sa,
         "change_user_role",
         target_id=str(user.id),
-        details=f"User {user.username}: {old_role} → {new_role}",
+        details=(
+            f"User {user.username}: {old_role} → {new_role}"
+            + (" (home store linked to the owner umbrella)" if linked else "")
+            + f"; {revoked} sessions ended"
+        ),
     )
     return {"ok": True, "role": new_role}
 
@@ -476,11 +509,18 @@ def toggle_user_active_route(
         raise HTTPException(status_code=403, detail="Cannot disable superadmin")
     sa = resolve_superadmin_user(db, claims)
     user.is_active = not user.is_active
+    # Disabling ends the sessions too: the live-principal check
+    # already refuses the next call, and the refresh rows must not
+    # outlive the account so a later re-enable starts clean.
+    revoked = revoke_refresh_tokens(db, user_id=user.id) if not user.is_active else 0
     _audit_and_commit(
         db, sa,
         "disable_user" if not user.is_active else "enable_user",
         target_id=str(user.id),
-        details=f"User {user.username} (role={user.role})",
+        details=(
+            f"User {user.username} (role={user.role})"
+            + (f"; {revoked} sessions ended" if not user.is_active else "")
+        ),
     )
     return {"ok": True, "is_active": user.is_active}
 
@@ -529,11 +569,14 @@ def force_password_reset_route(
     sa = resolve_superadmin_user(db, claims)
     temp_pw = secrets.token_urlsafe(12)
     user.set_password(temp_pw)
+    # A reset password ends every session the old one opened — the
+    # same rule the store-admin reset follows (Auth INVARIANTS).
+    revoked = revoke_refresh_tokens(db, user_id=user.id)
     _audit_and_commit(
         db, sa,
         "force_password_reset",
         target_id=str(user.id),
-        details=f"User {user.username}",
+        details=f"User {user.username}; {revoked} sessions ended",
     )
     return {"ok": True, "temp_password": temp_pw}
 
@@ -576,14 +619,73 @@ def revoke_user_sessions_route(
 # ── Impersonation ──────────────────────────────────────────
 
 
+IMPERSONATION_TTL_SECONDS = 3600
+
+
+@router.post("/impersonate/stop")
+def stop_impersonation_route(
+    response: Response,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> dict[str, Any]:
+    """End an impersonation: audit it against the superadmin behind
+    the token and drop the access cookie. The superadmin's own
+    refresh cookie was never touched, so the SPA re-mints their
+    session with one ``/auth/refresh`` call and returns to the
+    platform pages.
+
+    Runs on the IMPERSONATION token (the principal is the customer),
+    so the superadmin gate is the ``impersonated_by`` claim, not
+    the role. A token without that claim gets a 400 — there is no
+    impersonation to end — whatever role it carries. Registered
+    before ``/impersonate/{user_id}`` so the literal path wins."""
+    by = claims.get("impersonated_by")
+    if by is None:
+        raise HTTPException(
+            status_code=400, detail="This session is not an impersonation.",
+        )
+    from api.Modules.Tenancy.Models import User
+    sa = db.get(User, int(by))
+    target = db.get(User, int(claims["sub"]))
+    if sa is None or sa.role != "superadmin":
+        raise HTTPException(status_code=400, detail="Impersonation is no longer valid.")
+    _audit_and_commit(
+        db, sa, "impersonation_ended",
+        target_id=str(claims["sub"]),
+        details=(
+            f"User {target.username if target else claims.get('username', '')}"
+            f" (role={claims.get('role', '')}, store_id={claims.get('store_id')})"
+        ),
+    )
+    clear_access_token_cookie(response)
+    return {"ok": True}
+
+
 @router.post("/impersonate/{user_id}")
 def impersonate_route(
+    response: Response,
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict[str, Any]:
-    """Mint a short-lived JWT for impersonating another user.
-    Audit-logged, 1-hour TTL, carries impersonated_by claim."""
+    """Sign the superadmin in AS another user so support can see
+    exactly what the customer sees.
+
+    The token is minted with the person's live role, store and
+    permission overlay (the same resolution login does), a
+    ``IMPERSONATION_TTL_SECONDS`` TTL and two extra claims —
+    ``impersonated_by`` (the superadmin's user id) and
+    ``impersonator_name`` — that ``/auth/session-status`` surfaces
+    for the banner and ``audit_operator`` writes on every action
+    taken during the session. The SPA authenticates with the
+    httpOnly cookie, so the token is set there (the JSON copy is for
+    API callers and tests). The superadmin's refresh cookie is left
+    alone: ``POST /impersonate/stop`` + ``/auth/refresh`` is the
+    way back.
+
+    An inactive login is refused (409): the live-principal check
+    would 401 every call and the superadmin would only see a login
+    bounce. Enable the login first, impersonate, disable again."""
     _require_superadmin(claims)
     from api.Modules.Auth.Services.jwt_issuer import JWTIssuer, issue_access_token
     from api.Modules.Auth.Services.login import permissions_for
@@ -593,6 +695,14 @@ def impersonate_route(
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == "superadmin":
         raise HTTPException(status_code=403, detail="Cannot impersonate superadmin")
+    if not user.is_active:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This login is disabled, so every call would be refused. "
+                "Enable it first, then sign in as them."
+            ),
+        )
     sa = resolve_superadmin_user(db, claims)
     issuer = JWTIssuer(
         sub=user.id,
@@ -605,13 +715,20 @@ def impersonate_route(
         full_name=user.full_name or "",
         username=user.username,
     )
-    token = issue_access_token(issuer, ttl_seconds=3600)
+    token = issue_access_token(
+        issuer, ttl_seconds=IMPERSONATION_TTL_SECONDS,
+        extra={
+            "impersonated_by": sa.id,
+            "impersonator_name": sa.full_name or sa.username or "",
+        },
+    )
     _audit_and_commit(
         db, sa,
         "impersonate_user",
         target_id=str(user.id),
         details=f"User {user.username} (role={user.role}, store_id={user.store_id})",
     )
+    set_access_token_cookie(response, token)
     return {
         "token": token,
         "user": {
@@ -848,6 +965,82 @@ def store_drill_route(
             "fees": fees_30d,
         },
     }
+
+
+@router.get(
+    "/stores/{store_id}/features",
+    response_model=SuperadminStoreFeatureListResponse,
+)
+def store_features_route(
+    store_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> SuperadminStoreFeatureListResponse:
+    """Every module, add-on and platform flag as it applies to ONE
+    store: the default it would get (business-type bundle for
+    ``module_*``, global default otherwise), the per-store override
+    if any, and the effective value its users see right now.
+
+    Read-only. Changes go through the existing
+    ``PUT`` / ``DELETE /feature-flags/{key}/stores/{store_id}``, so
+    the store page and the Feature-flags page stay one mechanism.
+    Rows come from the flag registry (``DEFAULT_FEATURE_FLAGS``)
+    plus any flag a superadmin added; modules first."""
+    _require_superadmin(claims)
+    from api.Core.Bootstrap import DEFAULT_FEATURE_FLAGS
+    from api.Modules.Billing.Models import FeatureFlag, StoreFeatureOverride
+    from api.Modules.Billing.Services.feature_flags import (
+        MODULE_FLAG_KEYS, module_bundle_default, store_feature_enabled,
+    )
+    from api.Modules.Tenancy.Models import Store
+    store = db.get(Store, store_id)
+    if store is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    overrides = {
+        o.flag_key: bool(o.enabled)
+        for o in db.query(StoreFeatureOverride)
+                    .filter(StoreFeatureOverride.store_id == store_id)
+                    .all()
+    }
+    flags = {f.key: f for f in db.query(FeatureFlag).all()}
+    registry = {key: (label, desc, enabled)
+                for key, label, desc, enabled in DEFAULT_FEATURE_FLAGS}
+    keys = list(registry) + sorted(k for k in flags if k not in registry)
+
+    def _kind(key: str) -> str:
+        if key in MODULE_FLAG_KEYS:
+            return "module"
+        if key.startswith("addon_"):
+            return "addon"
+        return "flag"
+
+    rows: list[SuperadminStoreFeatureRow] = []
+    for key in keys:
+        flag = flags.get(key)
+        label, desc, reg_default = registry.get(key, ("", "", True))
+        bundled = module_bundle_default(store.business_type, key)
+        default = bundled if bundled is not None else (
+            bool(flag.enabled_by_default) if flag is not None else reg_default
+        )
+        rows.append(SuperadminStoreFeatureRow(
+            key=key,
+            label=(flag.label if flag is not None and flag.label else label) or key,
+            description=(
+                flag.description if flag is not None and flag.description
+                else desc
+            ) or "",
+            kind=_kind(key),  # type: ignore[arg-type]
+            default=bool(default),
+            override=overrides.get(key),
+            effective=store_feature_enabled(db, store, key),
+        ))
+    order = {"module": 0, "addon": 1, "flag": 2}
+    rows.sort(key=lambda r: (order[r.kind], keys.index(r.key)))
+    return SuperadminStoreFeatureListResponse(
+        store_id=store.id,
+        business_type=store.business_type or "msb_hybrid",
+        rows=rows,
+    )
 
 
 @router.get("/system-health")
@@ -1263,9 +1456,11 @@ def update_store_route(
     if body.address is not None and body.address.strip() != (s.address or ""):
         s.address = body.address.strip()
         changed.append("address")
-    if body.plan is not None and body.plan != (s.plan or ""):
-        s.plan = body.plan
-        changed.append("plan")
+    if body.plan is not None:
+        # Off "inactive" clears the retention timer; onto "trial"
+        # with no running window opens one — see
+        # ``Superadmin.Services.trials.apply_plan_change``.
+        changed += apply_plan_change(s, body.plan)
     if (
         body.business_type is not None
         and body.business_type != (s.business_type or "msb_hybrid")
@@ -1292,33 +1487,52 @@ def update_store_route(
 # ── Store actions (single + bulk) ──────────────────────────
 
 
-@router.post("/stores/{store_id}/extend-trial")
+@router.post(
+    "/stores/{store_id}/extend-trial",
+    response_model=SuperadminExtendTrialResponse,
+)
 def extend_trial_route(
+    body: SuperadminExtendTrialRequest | None = None,
     store_id: int = Path(..., ge=1),
-    body: dict[str, Any] = {},
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
-) -> dict[str, Any]:
-    """Extend a store's trial by N days (default 14)."""
+) -> SuperadminExtendTrialResponse:
+    """Give a store more trial: ``days`` (default 14) counted from
+    the later of its current end and today, or an explicit
+    ``ends_on`` date. Revives an inactive store (plan back to
+    trial, retention timer cleared). 409 on a paid plan. The
+    arithmetic is ``Superadmin.Services.trials.extend_store_trial``
+    and is shared with the bulk action."""
     _require_superadmin(claims)
-    from datetime import timedelta
+    from api.Modules.Billing.Services.trial import get_trial_status
     from api.Modules.Tenancy.Models import Store
+    body = body or SuperadminExtendTrialRequest()
     sa = resolve_superadmin_user(db, claims)
     s = db.get(Store, store_id)
     if s is None:
         raise HTTPException(status_code=404, detail="Store not found")
-    days = int(body.get("days", 14))
-    if days < 1 or days > 365:
-        raise HTTPException(status_code=422, detail="Days must be 1–365")
-    base = s.trial_ends_at or utc_now()
-    s.trial_ends_at = base + timedelta(days=days)
-    if s.grace_ends_at:
-        s.grace_ends_at = s.trial_ends_at + timedelta(days=7)
-    if s.plan == "inactive":
-        s.plan = "trial"
-    _audit_and_commit(db, sa, "extend_trial", target_id=str(s.id),
-                      details=f"+{days} days → {s.trial_ends_at.isoformat()[:10]}")
-    return {"ok": True, "trial_ends_at": s.trial_ends_at.isoformat()}
+    try:
+        result = extend_store_trial(s, days=body.days, ends_on=body.ends_on)
+    except TrialWindowError as exc:
+        status = 409 if s.plan in ("basic", "pro") else 422
+        raise HTTPException(status_code=status, detail=str(exc))
+    how = (
+        f"until {body.ends_on.isoformat()}" if body.ends_on is not None
+        else f"+{body.days} days"
+    )
+    _audit_and_commit(
+        db, sa, "extend_trial", target_id=str(s.id),
+        details=(
+            f"{how} → {result['trial_ends_at'].isoformat()[:10]}"
+            + (" (revived from inactive)" if "plan" in result["changed"] else "")
+        ),
+    )
+    return SuperadminExtendTrialResponse(
+        ok=True, plan=s.plan or "",
+        trial_ends_at=_iso(s.trial_ends_at),
+        grace_ends_at=_iso(s.grace_ends_at),
+        trial_status=get_trial_status(s),
+    )
 
 
 @router.post("/stores/{store_id}/toggle-active")
@@ -1400,21 +1614,18 @@ def clear_retention_route(
 
 @router.post("/bulk-action")
 def bulk_action_route(
-    body: dict[str, Any],
+    body: SuperadminBulkActionRequest,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict[str, Any]:
     """Bulk action on multiple stores. Actions: extend_trial,
-    enable, disable."""
+    enable, disable. ``extend_trial`` uses the same arithmetic as
+    the single-store route; a paid store in the list is skipped
+    and reported rather than failing the batch."""
     _require_superadmin(claims)
-    from datetime import timedelta
     sa = resolve_superadmin_user(db, claims)
-    store_ids = body.get("store_ids", [])
-    action = body.get("action", "")
-    if not store_ids or not isinstance(store_ids, list):
-        raise HTTPException(status_code=422, detail="store_ids must be a non-empty list")
-    if action not in ("extend_trial", "enable", "disable"):
-        raise HTTPException(status_code=422, detail=f"Invalid action: {action}")
+    store_ids = body.store_ids
+    action = body.action
 
     from api.Modules.Superadmin.Repositories import list_stores_by_ids
     stores = list_stores_by_ids(db, store_ids)
@@ -1424,13 +1635,12 @@ def bulk_action_route(
     results = []
     for s in stores:
         if action == "extend_trial":
-            days = int(body.get("days", 14))
-            base = s.trial_ends_at or utc_now()
-            s.trial_ends_at = base + timedelta(days=days)
-            if s.grace_ends_at:
-                s.grace_ends_at = s.trial_ends_at + timedelta(days=7)
-            if s.plan == "inactive":
-                s.plan = "trial"
+            try:
+                extend_store_trial(s, days=body.days)
+            except TrialWindowError as exc:
+                results.append({"store_id": s.id, "name": s.name,
+                                "skipped": str(exc)})
+                continue
             results.append({"store_id": s.id, "name": s.name,
                            "trial_ends_at": s.trial_ends_at.isoformat()})
         elif action == "enable":
@@ -1620,8 +1830,8 @@ def unfreeze_store_route(
 
 @router.post("/stores/{store_id}/email")
 def email_store_route(
+    body: SuperadminStoreEmailRequest,
     store_id: int = Path(..., ge=1),
-    body: dict[str, Any] = {},
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict[str, Any]:
@@ -1633,8 +1843,8 @@ def email_store_route(
     store = db.get(Store, store_id)
     if store is None:
         raise HTTPException(status_code=404, detail="Store not found")
-    subject = body.get("subject", "").strip()
-    message = body.get("message", "").strip()
+    subject = body.subject.strip()
+    message = body.message.strip()
     if not subject or not message:
         raise HTTPException(status_code=422, detail="Subject and message are required")
     from api.Modules.Superadmin.Repositories import list_active_admins_for_store
