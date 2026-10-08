@@ -58,6 +58,31 @@ from api.Modules.Audit.Services.recorder import (
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+# ``OperatorAuditLog.user_name`` is String(120); the impersonation
+# suffix must leave room for the person's own name.
+_USER_NAME_MAX = 120
+
+
+def operator_display_name(claims: dict[str, Any]) -> str:
+    """Who to write on an operator audit row for this token.
+
+    An impersonation token (``impersonated_by`` set by
+    ``POST /superadmin/impersonate/{id}``) names the superadmin
+    behind the action: the row stays attributed to the customer's
+    login (``user_id``, the first part of the name) so their store
+    audit log reads naturally, and the suffix says it was support
+    acting as them, which the plain claims could never show."""
+    own = str(claims.get("username") or claims.get("full_name") or "")
+    if claims.get("impersonated_by") is None:
+        return own[:_USER_NAME_MAX]
+    by = str(claims.get("impersonator_name") or "").strip() or (
+        f"#{claims.get('impersonated_by')}"
+    )
+    suffix = f" (via superadmin {by})"
+    room = max(0, _USER_NAME_MAX - len(suffix))
+    return own[:room] + suffix
+
+
 def audit_operator(
     db: Session,
     claims: dict[str, Any],
@@ -88,9 +113,7 @@ def audit_operator(
         db,
         store_id=sid,
         user_id=int(sub) if sub else None,
-        user_name=str(
-            claims.get("username") or claims.get("full_name") or "",
-        ),
+        user_name=operator_display_name(claims),
         user_role=str(claims.get("role") or ""),
         target_type=target_type,
         target_id=target_id,

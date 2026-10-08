@@ -4793,7 +4793,9 @@ export interface paths {
         /**
          * Bulk Action Route
          * @description Bulk action on multiple stores. Actions: extend_trial,
-         *     enable, disable.
+         *     enable, disable. ``extend_trial`` uses the same arithmetic as
+         *     the single-store route; a paid store in the list is skipped
+         *     and reported rather than failing the batch.
          */
         post: operations["bulk_action_route_superadmin_bulk_action_post"];
         delete?: never;
@@ -4890,6 +4892,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/superadmin/impersonate/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Impersonation Route
+         * @description End an impersonation: audit it against the superadmin behind
+         *     the token and drop the access cookie. The superadmin's own
+         *     refresh cookie was never touched, so the SPA re-mints their
+         *     session with one ``/auth/refresh`` call and returns to the
+         *     platform pages.
+         *
+         *     Runs on the IMPERSONATION token (the principal is the customer),
+         *     so the superadmin gate is the ``impersonated_by`` claim, not
+         *     the role. A token without that claim gets a 400 — there is no
+         *     impersonation to end — whatever role it carries. Registered
+         *     before ``/impersonate/{user_id}`` so the literal path wins.
+         */
+        post: operations["stop_impersonation_route_superadmin_impersonate_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/superadmin/impersonate/{user_id}": {
         parameters: {
             query?: never;
@@ -4901,8 +4933,24 @@ export interface paths {
         put?: never;
         /**
          * Impersonate Route
-         * @description Mint a short-lived JWT for impersonating another user.
-         *     Audit-logged, 1-hour TTL, carries impersonated_by claim.
+         * @description Sign the superadmin in AS another user so support can see
+         *     exactly what the customer sees.
+         *
+         *     The token is minted with the person's live role, store and
+         *     permission overlay (the same resolution login does), a
+         *     ``IMPERSONATION_TTL_SECONDS`` TTL and two extra claims —
+         *     ``impersonated_by`` (the superadmin's user id) and
+         *     ``impersonator_name`` — that ``/auth/session-status`` surfaces
+         *     for the banner and ``audit_operator`` writes on every action
+         *     taken during the session. The SPA authenticates with the
+         *     httpOnly cookie, so the token is set there (the JSON copy is for
+         *     API callers and tests). The superadmin's refresh cookie is left
+         *     alone: ``POST /impersonate/stop`` + ``/auth/refresh`` is the
+         *     way back.
+         *
+         *     An inactive login is refused (409): the live-principal check
+         *     would 401 every call and the superadmin would only see a login
+         *     bounce. Enable the login first, impersonate, disable again.
          */
         post: operations["impersonate_route_superadmin_impersonate__user_id__post"];
         delete?: never;
@@ -5280,9 +5328,43 @@ export interface paths {
         put?: never;
         /**
          * Extend Trial Route
-         * @description Extend a store's trial by N days (default 14).
+         * @description Give a store more trial: ``days`` (default 14) counted from
+         *     the later of its current end and today, or an explicit
+         *     ``ends_on`` date. Revives an inactive store (plan back to
+         *     trial, retention timer cleared). 409 on a paid plan. The
+         *     arithmetic is ``Superadmin.Services.trials.extend_store_trial``
+         *     and is shared with the bulk action.
          */
         post: operations["extend_trial_route_superadmin_stores__store_id__extend_trial_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/superadmin/stores/{store_id}/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Store Features Route
+         * @description Every module, add-on and platform flag as it applies to ONE
+         *     store: the default it would get (business-type bundle for
+         *     ``module_*``, global default otherwise), the per-store override
+         *     if any, and the effective value its users see right now.
+         *
+         *     Read-only. Changes go through the existing
+         *     ``PUT`` / ``DELETE /feature-flags/{key}/stores/{store_id}``, so
+         *     the store page and the Feature-flags page stay one mechanism.
+         *     Rows come from the flag registry (``DEFAULT_FEATURE_FLAGS``)
+         *     plus any flag a superadmin added; modules first.
+         */
+        get: operations["store_features_route_superadmin_stores__store_id__features_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5505,6 +5587,13 @@ export interface paths {
         /**
          * Change User Role Route
          * @description Change a user's role. Valid roles: admin, employee, owner.
+         *
+         *     Ends the person's sessions (their next call signs them out and
+         *     the new role applies at the next login, the same as the store-
+         *     admin path). Promoting to ``owner`` also links their home store
+         *     into the owner umbrella, the shape self-service signup and the
+         *     store-create route produce, so the store switcher works at
+         *     once.
          */
         post: operations["change_user_role_route_superadmin_users__user_id__change_role_post"];
         delete?: never;
@@ -12256,6 +12345,85 @@ export interface components {
             target_type: string;
         };
         /**
+         * SuperadminBulkActionRequest
+         * @description POST body for /superadmin/bulk-action.
+         */
+        SuperadminBulkActionRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "extend_trial" | "enable" | "disable";
+            /**
+             * Days
+             * @default 14
+             */
+            days: number;
+            /** Store Ids */
+            store_ids: number[];
+        };
+        /**
+         * SuperadminChangeRoleRequest
+         * @description POST body for /superadmin/users/{id}/change-role. The store
+         *     roles only — superadmin and support logins are created through
+         *     their own paths and never converted.
+         */
+        SuperadminChangeRoleRequest: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "admin" | "employee" | "owner";
+        };
+        /**
+         * SuperadminExtendTrialRequest
+         * @description POST body for /superadmin/stores/{id}/extend-trial and the
+         *     ``days`` of the bulk ``extend_trial`` action.
+         *
+         *     ``days`` adds to the later of the current trial end and now
+         *     (so an expired store really gets N days); ``ends_on`` sets the
+         *     end to that calendar day instead and wins when both are sent.
+         *     The arithmetic lives in ``Superadmin.Services.trials``.
+         */
+        SuperadminExtendTrialRequest: {
+            /**
+             * Days
+             * @default 14
+             */
+            days: number;
+            /** Ends On */
+            ends_on?: string | null;
+        };
+        /** SuperadminExtendTrialResponse */
+        SuperadminExtendTrialResponse: {
+            /** Grace Ends At */
+            grace_ends_at: string;
+            /** Ok */
+            ok: boolean;
+            /** Plan */
+            plan: string;
+            /** Trial Ends At */
+            trial_ends_at: string;
+            /** Trial Status */
+            trial_status: string;
+        };
+        /**
+         * SuperadminMaintenanceRequest
+         * @description POST body for /superadmin/maintenance.
+         */
+        SuperadminMaintenanceRequest: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+        };
+        /**
          * SuperadminOwnerLinkCreateRequest
          * @description POST body for /superadmin/stores/{id}/owner-links — connect
          *     an existing owner login to a store on the customer's
@@ -12477,6 +12645,53 @@ export interface components {
             stripe_subscription_id: string;
             /** Trial Ends At */
             trial_ends_at: string;
+        };
+        /**
+         * SuperadminStoreEmailRequest
+         * @description POST body for /superadmin/stores/{id}/email — one message to
+         *     every active admin of the store who has an email address.
+         */
+        SuperadminStoreEmailRequest: {
+            /** Message */
+            message: string;
+            /** Subject */
+            subject: string;
+        };
+        /** SuperadminStoreFeatureListResponse */
+        SuperadminStoreFeatureListResponse: {
+            /** Business Type */
+            business_type: string;
+            /** Rows */
+            rows: components["schemas"]["SuperadminStoreFeatureRow"][];
+            /** Store Id */
+            store_id: number;
+        };
+        /**
+         * SuperadminStoreFeatureRow
+         * @description One module / add-on / platform flag as it applies to ONE
+         *     store. ``default`` is what the store gets with no override
+         *     (the business-type bundle for ``module_*`` keys, the global
+         *     default otherwise); ``override`` is the per-store value when
+         *     one is set; ``effective`` is what the store's users see now.
+         */
+        SuperadminStoreFeatureRow: {
+            /** Default */
+            default: boolean;
+            /** Description */
+            description: string;
+            /** Effective */
+            effective: boolean;
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "module" | "addon" | "flag";
+            /** Label */
+            label: string;
+            /** Override */
+            override: boolean | null;
         };
         /**
          * SuperadminStoreFreezeRequest
@@ -22880,9 +23095,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["SuperadminBulkActionRequest"];
             };
         };
         responses: {
@@ -23057,6 +23270,41 @@ export interface operations {
             };
         };
     };
+    stop_impersonation_route_superadmin_impersonate_stop_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     impersonate_route_superadmin_impersonate__user_id__post: {
         parameters: {
             query?: never;
@@ -23142,9 +23390,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["SuperadminMaintenanceRequest"];
             };
         };
         responses: {
@@ -23697,11 +23943,9 @@ export interface operations {
                 db_access_token?: string | null;
             };
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["SuperadminStoreEmailRequest"];
             };
         };
         responses: {
@@ -23742,9 +23986,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["SuperadminExtendTrialRequest"] | null;
             };
         };
         responses: {
@@ -23754,9 +23996,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminExtendTrialResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    store_features_route_superadmin_stores__store_id__features_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                store_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperadminStoreFeatureListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24201,11 +24476,9 @@ export interface operations {
                 db_access_token?: string | null;
             };
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["SuperadminChangeRoleRequest"];
             };
         };
         responses: {

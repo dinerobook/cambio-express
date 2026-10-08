@@ -10,7 +10,7 @@ import { TicketThread } from "../components/TicketThread";
 import { fmtDateTime } from "../lib/formatters";
 import { ApiError } from "../lib/api";
 import {
-  Alert, Breadcrumbs, Button, Card, EmptyState, ErrorState,
+  Alert, AppLink, Breadcrumbs, Button, Card, EmptyState, ErrorState,
   Field, Loading, PageHeader, PageShell, Pill, Select,
   useToast,
 } from "../components/ui";
@@ -167,7 +167,11 @@ function TicketCard({ ticket: t }: { ticket: TicketRow }) {
               )}
             </div>
             <div className={styles.meta}>
-              {t.submitted_by} · {t.store_name || `Store #${t.store_id}`} · {fmtDateTime(t.created_at)}
+              {t.submitted_by} ·{" "}
+              <AppLink to={`/superadmin/stores/${t.store_id}`}>
+                {t.store_name || `Store #${t.store_id}`}
+              </AppLink>
+              {" "}· {fmtDateTime(t.created_at)}
               {" · "}
               <span className={styles.metaCat}>{t.category}</span>
             </div>

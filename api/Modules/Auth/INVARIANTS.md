@@ -299,6 +299,38 @@ Never make `get_principal` DB-free again.
 
 Tests: `tests/Modules/Auth/test_principal_liveness.py`.
 
+### Impersonation — a superadmin signed in AS a customer
+
+`POST /superadmin/impersonate/{user_id}` mints the person's own
+token (live role, store, permission overlay — the same resolution
+login does), with a one-hour TTL, no `sid`, and two extra claims:
+`impersonated_by` (the superadmin's user id) and
+`impersonator_name`. The SPA authenticates with the httpOnly
+access cookie, so the route SETS that cookie (the JSON `token` is
+for API callers and tests); the superadmin's refresh cookie is
+never touched. Rules the flow keeps:
+
+- a superadmin is never a target (403); a disabled login is
+  refused with a 409 that says to enable it first, because the
+  live-principal check would 401 every call;
+- `GET /auth/session-status` carries `impersonation`
+  (`{by_user_id, by_name}` or null) — the shell's banner and
+  "Exit impersonation" read the server's answer, never local
+  state;
+- every operator audit row written on an impersonation token
+  (`api.Core.Audit.audit_operator`) keeps the customer's
+  `user_id` and suffixes the actor name with
+  `(via superadmin <name>)`;
+- `POST /superadmin/impersonate/stop` runs on the impersonation
+  token (gate = the `impersonated_by` claim, 400 without it),
+  audits `impersonation_ended` against the superadmin and clears
+  the access cookie; the SPA then calls `/auth/refresh`, which
+  re-mints the superadmin from their untouched refresh cookie.
+- the store gate still applies: a frozen or lapsed store shows
+  the superadmin exactly the screen its users see.
+
+Tests: `tests/Modules/Superadmin/test_impersonation.py`.
+
 
 ## The 2FA gate — `needs_totp` is THE single role check
 
@@ -696,6 +728,13 @@ What needs a security discussion FIRST:
   legacy bodies are 422 and unaudited, a save rolls back whole
   with its audit row, global edits sign the role out platform-wide,
   impersonation honours overlays, `revoke_refresh_tokens` scopes.
+- `tests/Modules/Superadmin/test_impersonation.py` — the cookie,
+  the claims, the audit trace, the stop route.
+- `tests/Modules/Superadmin/test_user_controls.py` — superadmin
+  password reset / disable / role change end the sessions.
+- `tests/Modules/Superadmin/test_route_contracts.py` — walks the
+  `/superadmin` + `/feature-flags` routers: role gate on every
+  route, no untyped bodies, an audit call in every mutation.
 - `test_password_change_service.py` — current-password verify,
   new-password hashing.
 - `test_jwt_issuer.py` — claims shape, expiry, decode.

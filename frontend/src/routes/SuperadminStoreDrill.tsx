@@ -7,14 +7,17 @@ import { toggleMatrixCell } from "../lib/permissions";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   creditStore, emailStore, extendTrial, freezeStore, linkOwnerToStore,
-  toggleStoreActive, unfreezeStore, unlinkOwnerFromStore, useStoreOwnerLinks,
+  toggleStoreActive, unfreezeStore, unlinkOwnerFromStore,
+  useStoreFeatures, useStoreOwnerLinks, type StoreFeatureRow,
 } from "../api/superadmin";
+import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
+import { startImpersonation } from "../lib/impersonation";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Card, EmptyState,
   ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal,
-  PageHeader, PageShell, Pill, Section, SectionTitle, Table, tdStyle,
-  Textarea, thStyle, useToast,
+  PageHeader, PageShell, Pill, Section, SectionTitle, Select, Switch,
+  Table, tdStyle, Textarea, thStyle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
@@ -83,6 +86,31 @@ export default function SuperadminStoreDrill() {
   const [freezeReason, setFreezeReason] = useState("");
   const [freezeBusy, setFreezeBusy] = useState(false);
   const [freezeError, setFreezeError] = useState<string | null>(null);
+  const [trialDays, setTrialDays] = useState("14");
+
+  async function doExtendTrial(id: number) {
+    setActionBusy(true);
+    try {
+      const res = await extendTrial(id, { days: Number(trialDays) });
+      toast({
+        message: `Trial now ends ${formatDate(res.trial_ends_at)} (${res.trial_status.replace("_", " ")}).`,
+        tone: "success",
+      });
+      void refetch();
+    } catch (e) {
+      toastApiError(e, "Could not extend the trial");
+    } finally { setActionBusy(false); }
+  }
+
+  async function doImpersonate(userId: number) {
+    setActionBusy(true);
+    try {
+      await startImpersonation(userId);
+    } catch (e) {
+      toastApiError(e, "Could not sign in as this user");
+      setActionBusy(false);
+    }
+  }
 
   async function doUnfreeze(id: number) {
     setActionBusy(true);
@@ -144,22 +172,27 @@ export default function SuperadminStoreDrill() {
                     Freeze
                   </Button>
                 )}
-                <Button
-                  tone="secondary" size="sm"
-                  busy={actionBusy}
-                  onClick={async () => {
-                    setActionBusy(true);
-                    try {
-                      await extendTrial(data.store.id, 14);
-                      toast({ message: "Trial extended by 14 days.", tone: "success" });
-                      void refetch();
-                    } catch (e) {
-                      toastApiError(e, "Failed");
-                    } finally { setActionBusy(false); }
-                  }}
-                >
-                  +14d trial
-                </Button>
+                {data.store.plan !== "basic" && data.store.plan !== "pro" && (
+                  <span className={styles.trialControl}>
+                    <Select
+                      aria-label="Trial extension"
+                      value={trialDays}
+                      onChange={(e) => setTrialDays(e.target.value)}
+                      disabled={actionBusy}
+                    >
+                      {[7, 14, 30, 60, 90].map((d) => (
+                        <option key={d} value={String(d)}>+{d} days</option>
+                      ))}
+                    </Select>
+                    <Button
+                      tone="secondary" size="sm"
+                      busy={actionBusy} disabled={actionBusy}
+                      onClick={() => { void doExtendTrial(data.store.id); }}
+                    >
+                      Extend trial
+                    </Button>
+                  </span>
+                )}
                 <Button
                   tone="secondary" size="sm"
                   busy={actionBusy}
@@ -250,6 +283,15 @@ export default function SuperadminStoreDrill() {
                           : "neutral"
                         }>{u.role}</Pill>
                         {!u.is_active && <Pill tone="neutral">Inactive</Pill>}
+                        {u.is_active && (
+                          <Button
+                            size="sm" tone="secondary"
+                            busy={actionBusy} disabled={actionBusy}
+                            onClick={() => { void doImpersonate(u.id); }}
+                          >
+                            Sign in as
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))
@@ -257,6 +299,8 @@ export default function SuperadminStoreDrill() {
               </Card>
             </Section>
           </div>
+
+          <StoreFeaturesSection storeId={storeId} />
 
           <OwnerLinksSection storeId={storeId} />
 
@@ -644,6 +688,117 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
 // on the customer's instruction" — list the owners connected to
 // this store, connect an existing owner by username, disconnect
 // on request. Home-store links are protected server-side.
+
+// Modules, add-ons and platform flags as they apply to THIS store.
+// The switch sets a per-store override on the same endpoint the
+// Feature-flags page uses; "Reset" clears it so the store follows
+// its business-type bundle (modules) or the global default again.
+// A module change reaches the store's users on their next shell
+// load (session-status carries the live module list).
+const FEATURE_KIND_LABEL: Record<StoreFeatureRow["kind"], string> = {
+  module: "Module", addon: "Add-on", flag: "Platform flag",
+};
+
+function StoreFeaturesSection({ storeId }: { storeId: number | undefined }) {
+  const features = useStoreFeatures(storeId);
+  const qc = useQueryClient();
+  const toast = useToast();
+  const toastApiError = useApiErrorToast();
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  function refresh() {
+    void qc.invalidateQueries({
+      queryKey: ["superadmin", "store-features", storeId],
+    });
+  }
+
+  async function setOverride(row: StoreFeatureRow, enabled: boolean) {
+    if (storeId == null) return;
+    setBusyKey(row.key);
+    try {
+      await setStoreOverride(row.key, storeId, enabled);
+      refresh();
+      toast({
+        message: `${row.label}: ${enabled ? "on" : "off"} for this store.`,
+        tone: "success",
+      });
+    } catch (e) {
+      toastApiError(e, "Could not change this setting");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function reset(row: StoreFeatureRow) {
+    if (storeId == null) return;
+    setBusyKey(row.key);
+    try {
+      await clearStoreOverride(row.key, storeId);
+      refresh();
+      toast({ message: `${row.label}: back to the default.`, tone: "success" });
+    } catch (e) {
+      toastApiError(e, "Could not reset this setting");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  const rows = features.data?.rows ?? [];
+  return (
+    <Section title="Modules & add-ons">
+      <Card>
+        {features.isLoading && <Loading />}
+        {features.isError && (
+          <ErrorState
+            message="Could not load this store's modules."
+            onRetry={() => { void features.refetch(); }}
+          />
+        )}
+        {features.data && rows.length === 0 && (
+          <EmptyState title="No flags registered." />
+        )}
+        {rows.map((row) => (
+          <div key={row.key} className={styles.featureRow}>
+            <div className={styles.featureText}>
+              <div className={styles.teamName}>
+                {row.label}
+                <span className={styles.featureKind}>{FEATURE_KIND_LABEL[row.kind]}</span>
+              </div>
+              {row.description && (
+                <div className={styles.teamMeta}>{row.description}</div>
+              )}
+              <div className={styles.teamMeta}>
+                {row.override == null
+                  ? `Default for this store: ${row.default ? "on" : "off"}`
+                  : `Overridden (default ${row.default ? "on" : "off"})`}
+                {row.override != null && (
+                  <>
+                    {" · "}
+                    <button
+                      type="button"
+                      className={styles.linkButton}
+                      disabled={busyKey === row.key}
+                      onClick={() => { void reset(row); }}
+                    >
+                      Reset to default
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            <Switch
+              checked={row.effective}
+              disabled={busyKey === row.key}
+              aria-label={`${row.label} for this store`}
+              onChange={(next) => { void setOverride(row, next); }}
+            />
+          </div>
+        ))}
+      </Card>
+    </Section>
+  );
+}
+
 
 function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
   const links = useStoreOwnerLinks(storeId);

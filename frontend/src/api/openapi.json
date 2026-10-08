@@ -12958,6 +12958,143 @@
         "title": "SuperadminAuditRow",
         "type": "object"
       },
+      "SuperadminBulkActionRequest": {
+        "additionalProperties": false,
+        "description": "POST body for /superadmin/bulk-action.",
+        "properties": {
+          "action": {
+            "enum": [
+              "extend_trial",
+              "enable",
+              "disable"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "days": {
+            "default": 14,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Days",
+            "type": "integer"
+          },
+          "store_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Store Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "store_ids",
+          "action"
+        ],
+        "title": "SuperadminBulkActionRequest",
+        "type": "object"
+      },
+      "SuperadminChangeRoleRequest": {
+        "additionalProperties": false,
+        "description": "POST body for /superadmin/users/{id}/change-role. The store\nroles only \u2014 superadmin and support logins are created through\ntheir own paths and never converted.",
+        "properties": {
+          "role": {
+            "enum": [
+              "admin",
+              "employee",
+              "owner"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "SuperadminChangeRoleRequest",
+        "type": "object"
+      },
+      "SuperadminExtendTrialRequest": {
+        "additionalProperties": false,
+        "description": "POST body for /superadmin/stores/{id}/extend-trial and the\n``days`` of the bulk ``extend_trial`` action.\n\n``days`` adds to the later of the current trial end and now\n(so an expired store really gets N days); ``ends_on`` sets the\nend to that calendar day instead and wins when both are sent.\nThe arithmetic lives in ``Superadmin.Services.trials``.",
+        "properties": {
+          "days": {
+            "default": 14,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Days",
+            "type": "integer"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          }
+        },
+        "title": "SuperadminExtendTrialRequest",
+        "type": "object"
+      },
+      "SuperadminExtendTrialResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "grace_ends_at": {
+            "title": "Grace Ends At",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "trial_ends_at": {
+            "title": "Trial Ends At",
+            "type": "string"
+          },
+          "trial_status": {
+            "title": "Trial Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "plan",
+          "trial_ends_at",
+          "grace_ends_at",
+          "trial_status"
+        ],
+        "title": "SuperadminExtendTrialResponse",
+        "type": "object"
+      },
+      "SuperadminMaintenanceRequest": {
+        "additionalProperties": false,
+        "description": "POST body for /superadmin/maintenance.",
+        "properties": {
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "message": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "SuperadminMaintenanceRequest",
+        "type": "object"
+      },
       "SuperadminOwnerLinkCreateRequest": {
         "additionalProperties": false,
         "description": "POST body for /superadmin/stores/{id}/owner-links \u2014 connect\nan existing owner login to a store on the customer's\ninstruction (concierge onboarding).",
@@ -13352,6 +13489,114 @@
           "stripe_subscription_id"
         ],
         "title": "SuperadminStoreDetailRow",
+        "type": "object"
+      },
+      "SuperadminStoreEmailRequest": {
+        "additionalProperties": false,
+        "description": "POST body for /superadmin/stores/{id}/email \u2014 one message to\nevery active admin of the store who has an email address.",
+        "properties": {
+          "message": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "message"
+        ],
+        "title": "SuperadminStoreEmailRequest",
+        "type": "object"
+      },
+      "SuperadminStoreFeatureListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "business_type": {
+            "title": "Business Type",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminStoreFeatureRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "store_id",
+          "business_type",
+          "rows"
+        ],
+        "title": "SuperadminStoreFeatureListResponse",
+        "type": "object"
+      },
+      "SuperadminStoreFeatureRow": {
+        "additionalProperties": false,
+        "description": "One module / add-on / platform flag as it applies to ONE\nstore. ``default`` is what the store gets with no override\n(the business-type bundle for ``module_*`` keys, the global\ndefault otherwise); ``override`` is the per-store value when\none is set; ``effective`` is what the store's users see now.",
+        "properties": {
+          "default": {
+            "title": "Default",
+            "type": "boolean"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "effective": {
+            "title": "Effective",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "module",
+              "addon",
+              "flag"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "override": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "description",
+          "kind",
+          "default",
+          "override",
+          "effective"
+        ],
+        "title": "SuperadminStoreFeatureRow",
         "type": "object"
       },
       "SuperadminStoreFreezeRequest": {
@@ -35970,7 +36215,7 @@
     },
     "/superadmin/bulk-action": {
       "post": {
-        "description": "Bulk action on multiple stores. Actions: extend_trial,\nenable, disable.",
+        "description": "Bulk action on multiple stores. Actions: extend_trial,\nenable, disable. ``extend_trial`` uses the same arithmetic as\nthe single-store route; a paid store in the list is skipped\nand reported rather than failing the batch.",
         "operationId": "bulk_action_route_superadmin_bulk_action_post",
         "parameters": [
           {
@@ -36010,9 +36255,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/SuperadminBulkActionRequest"
               }
             }
           },
@@ -36394,9 +36637,77 @@
         ]
       }
     },
+    "/superadmin/impersonate/stop": {
+      "post": {
+        "description": "End an impersonation: audit it against the superadmin behind\nthe token and drop the access cookie. The superadmin's own\nrefresh cookie was never touched, so the SPA re-mints their\nsession with one ``/auth/refresh`` call and returns to the\nplatform pages.\n\nRuns on the IMPERSONATION token (the principal is the customer),\nso the superadmin gate is the ``impersonated_by`` claim, not\nthe role. A token without that claim gets a 400 \u2014 there is no\nimpersonation to end \u2014 whatever role it carries. Registered\nbefore ``/impersonate/{user_id}`` so the literal path wins.",
+        "operationId": "stop_impersonation_route_superadmin_impersonate_stop_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Stop Impersonation Route Superadmin Impersonate Stop Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop Impersonation Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
     "/superadmin/impersonate/{user_id}": {
       "post": {
-        "description": "Mint a short-lived JWT for impersonating another user.\nAudit-logged, 1-hour TTL, carries impersonated_by claim.",
+        "description": "Sign the superadmin in AS another user so support can see\nexactly what the customer sees.\n\nThe token is minted with the person's live role, store and\npermission overlay (the same resolution login does), a\n``IMPERSONATION_TTL_SECONDS`` TTL and two extra claims \u2014\n``impersonated_by`` (the superadmin's user id) and\n``impersonator_name`` \u2014 that ``/auth/session-status`` surfaces\nfor the banner and ``audit_operator`` writes on every action\ntaken during the session. The SPA authenticates with the\nhttpOnly cookie, so the token is set there (the JSON copy is for\nAPI callers and tests). The superadmin's refresh cookie is left\nalone: ``POST /impersonate/stop`` + ``/auth/refresh`` is the\nway back.\n\nAn inactive login is refused (409): the live-principal check\nwould 401 every call and the superadmin would only see a login\nbounce. Enable the login first, impersonate, disable again.",
         "operationId": "impersonate_route_superadmin_impersonate__user_id__post",
         "parameters": [
           {
@@ -36578,9 +36889,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/SuperadminMaintenanceRequest"
               }
             }
           },
@@ -37774,13 +38083,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "default": {},
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/SuperadminStoreEmailRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -37814,7 +38121,7 @@
     },
     "/superadmin/stores/{store_id}/extend-trial": {
       "post": {
-        "description": "Extend a store's trial by N days (default 14).",
+        "description": "Give a store more trial: ``days`` (default 14) counted from\nthe later of its current end and today, or an explicit\n``ends_on`` date. Revives an inactive store (plan back to\ntrial, retention timer cleared). 409 on a paid plan. The\narithmetic is ``Superadmin.Services.trials.extend_store_trial``\nand is shared with the bulk action.",
         "operationId": "extend_trial_route_superadmin_stores__store_id__extend_trial_post",
         "parameters": [
           {
@@ -37864,10 +38171,15 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "default": {},
-                "title": "Body",
-                "type": "object"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SuperadminExtendTrialRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
               }
             }
           }
@@ -37877,9 +38189,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Extend Trial Route Superadmin Stores  Store Id  Extend Trial Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminExtendTrialResponse"
                 }
               }
             },
@@ -37897,6 +38207,82 @@
           }
         },
         "summary": "Extend Trial Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
+    "/superadmin/stores/{store_id}/features": {
+      "get": {
+        "description": "Every module, add-on and platform flag as it applies to ONE\nstore: the default it would get (business-type bundle for\n``module_*``, global default otherwise), the per-store override\nif any, and the effective value its users see right now.\n\nRead-only. Changes go through the existing\n``PUT`` / ``DELETE /feature-flags/{key}/stores/{store_id}``, so\nthe store page and the Feature-flags page stay one mechanism.\nRows come from the flag registry (``DEFAULT_FEATURE_FLAGS``)\nplus any flag a superadmin added; modules first.",
+        "operationId": "store_features_route_superadmin_stores__store_id__features_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "store_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Store Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuperadminStoreFeatureListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Store Features Route",
         "tags": [
           "superadmin"
         ]
@@ -38853,7 +39239,7 @@
     },
     "/superadmin/users/{user_id}/change-role": {
       "post": {
-        "description": "Change a user's role. Valid roles: admin, employee, owner.",
+        "description": "Change a user's role. Valid roles: admin, employee, owner.\n\nEnds the person's sessions (their next call signs them out and\nthe new role applies at the next login, the same as the store-\nadmin path). Promoting to ``owner`` also links their home store\ninto the owner umbrella, the shape self-service signup and the\nstore-create route produce, so the store switcher works at\nonce.",
         "operationId": "change_user_role_route_superadmin_users__user_id__change_role_post",
         "parameters": [
           {
@@ -38903,13 +39289,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "default": {},
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/SuperadminChangeRoleRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {

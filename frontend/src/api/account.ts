@@ -277,6 +277,9 @@ export interface SessionStatus {
   permissions: string[];
   /** Trial countdown for the topbar (W-1). null for paid stores. */
   trial: TrialBanner | null;
+  /** Set while a superadmin is signed in AS this person. The shell
+   *  shows the impersonation banner and the exit control from this. */
+  impersonation: { by_user_id: number; by_name: string } | null;
 }
 
 export interface TrialBanner {

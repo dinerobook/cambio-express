@@ -14,6 +14,8 @@ field set so the SPA covers every input the Jinja form had:
     legacy form (admin / Store Admin / changeme123!).
 """
 import re
+from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -218,13 +220,105 @@ class SuperadminStoreFreezeResponse(BaseModel):
     frozen_reason: str
 
 
+class SuperadminExtendTrialRequest(BaseModel):
+    """POST body for /superadmin/stores/{id}/extend-trial and the
+    ``days`` of the bulk ``extend_trial`` action.
+
+    ``days`` adds to the later of the current trial end and now
+    (so an expired store really gets N days); ``ends_on`` sets the
+    end to that calendar day instead and wins when both are sent.
+    The arithmetic lives in ``Superadmin.Services.trials``."""
+    model_config = ConfigDict(extra="forbid")
+
+    days:    int = Field(14, ge=1, le=365)
+    ends_on: date | None = None
+
+
+class SuperadminExtendTrialResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ok:            bool
+    plan:          str
+    trial_ends_at: str
+    grace_ends_at: str
+    trial_status:  str
+
+
+class SuperadminBulkActionRequest(BaseModel):
+    """POST body for /superadmin/bulk-action."""
+    model_config = ConfigDict(extra="forbid")
+
+    store_ids: list[int] = Field(..., min_length=1, max_length=500)
+    action:    Literal["extend_trial", "enable", "disable"]
+    days:      int = Field(14, ge=1, le=365)
+
+
+class SuperadminChangeRoleRequest(BaseModel):
+    """POST body for /superadmin/users/{id}/change-role. The store
+    roles only — superadmin and support logins are created through
+    their own paths and never converted."""
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["admin", "employee", "owner"]
+
+
+class SuperadminStoreFeatureRow(BaseModel):
+    """One module / add-on / platform flag as it applies to ONE
+    store. ``default`` is what the store gets with no override
+    (the business-type bundle for ``module_*`` keys, the global
+    default otherwise); ``override`` is the per-store value when
+    one is set; ``effective`` is what the store's users see now."""
+    model_config = ConfigDict(extra="forbid")
+
+    key:         str
+    label:       str
+    description: str
+    kind:        Literal["module", "addon", "flag"]
+    default:     bool
+    override:    bool | None
+    effective:   bool
+
+
+class SuperadminStoreFeatureListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    store_id:      int
+    business_type: str
+    rows:          list[SuperadminStoreFeatureRow]
+
+
+class SuperadminMaintenanceRequest(BaseModel):
+    """POST body for /superadmin/maintenance."""
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    message: str = Field("", max_length=500)
+
+
+class SuperadminStoreEmailRequest(BaseModel):
+    """POST body for /superadmin/stores/{id}/email — one message to
+    every active admin of the store who has an email address."""
+    model_config = ConfigDict(extra="forbid")
+
+    subject: str = Field(..., min_length=1, max_length=200)
+    message: str = Field(..., min_length=1, max_length=5000)
+
+
 __all__ = [
+    "SuperadminBulkActionRequest",
+    "SuperadminChangeRoleRequest",
+    "SuperadminExtendTrialRequest",
+    "SuperadminExtendTrialResponse",
+    "SuperadminMaintenanceRequest",
     "SuperadminStoreCreateRequest",
     "SuperadminStoreCreditRequest",
     "SuperadminStoreCreditResponse",
     "SuperadminStoreDetailResponse",
     "SuperadminStoreDetailRow",
     "SuperadminStoreFreezeRequest",
+    "SuperadminStoreFeatureListResponse",
+    "SuperadminStoreEmailRequest",
+    "SuperadminStoreFeatureRow",
     "SuperadminStoreFreezeResponse",
     "SuperadminStoreUpdateRequest",
 ]

@@ -574,6 +574,23 @@ at all. Regression coverage:
 audit row is durably persisted (read in a fresh session after the
 request lifecycle closes) for every previously-buggy route.
 
+**2026-10-08 — superadmin controls hardened** (one PR, after
+#927). Impersonation had not worked in the SPA since the cookie
+cutover (PR #559): the token came back in JSON only, so the browser
+kept calling as the superadmin. It now sets the access cookie,
+carries `impersonated_by`, shows a banner with "Exit impersonation"
+(`POST /superadmin/impersonate/stop` + `/auth/refresh`), refuses
+disabled logins, and every operator audit row written meanwhile says
+"(via superadmin …)". Trial arithmetic lives in
+`Superadmin/Services/trials.py` (extend from today once expired,
+`ends_on`, revive clears retention); the superadmin password reset /
+disable / role change end the person's sessions; the store page has
+a **Modules & add-ons** panel (`GET /superadmin/stores/{id}/features`)
+and "Sign in as" per team member; the tickets page links to the
+store. `tests/Modules/Superadmin/test_route_contracts.py` walks the
+routers so a new control cannot ship without its role gate, a typed
+body and an audit call.
+
 **Guard against regression:** any new superadmin mutation MUST end with
 `_audit_and_commit(...)` — never a bare `db.commit()` followed by a
 separate `_audit_store(...)`.

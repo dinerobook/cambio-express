@@ -68,3 +68,58 @@
 
 /* The permission matrix renders through the shared
  * components/PermissionMatrixTable — its styles live there. */
+
+/* Trial control: a days picker + the button, kept together in the
+   header action row. */
+.trialControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.trialControl select {
+  min-height: 2rem;
+  padding-block: 0.2rem;
+  font-size: 0.82rem;
+}
+
+/* Modules & add-ons rows: text column + the switch. */
+.featureRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--db-border, #2a2a2a);
+}
+
+.featureRow:last-child { border-bottom: none; }
+
+.featureText {
+  min-width: 0;
+  flex: 1;
+}
+
+.featureKind {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--db-text-muted, #a3a3a3);
+}
+
+.linkButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--db-accent, #3fff00);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.linkButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
