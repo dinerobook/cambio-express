@@ -174,6 +174,10 @@ def get_store_info(
     if _sees_referrals(claims) and store_has_paid_plan(store):
         rc = ensure_referral_code(db, store)
         if rc:
+            # ensure_referral_code only flushes; without this commit the
+            # freshly minted code is rolled back and the next load shows
+            # a different one.
+            db.commit()
             ref_code = rc.code
     return StoreInfoResponse(store=_to_row(store), referral_code=ref_code)
 
@@ -746,6 +750,7 @@ def subscription_summary_route(
         from api.Modules.Billing.Services import ensure_referral_code
         rc = ensure_referral_code(db, store)
         if rc:
+            db.commit()  # persist a freshly minted code (flush-only helper)
             referral_code_str = rc.code
 
     return {
