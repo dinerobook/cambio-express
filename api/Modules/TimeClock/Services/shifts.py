@@ -19,19 +19,15 @@ from sqlalchemy.orm import Session
 
 from api.Modules.TimeClock.Models import TimeClockShift
 from api.Modules.Tenancy.Models import StoreEmployee
+# One class for "that roster member isn't at this store", shared with
+# the punch flow so the controller's single except clause catches both.
+from api.Modules.TimeClock.Services import RosterEmployeeNotFoundError
 
 
 class ShiftNotFoundError(ValueError):
     """Raised when a CRUD call targets a shift id that doesn't
     belong to the JWT's store — keeps a tampered POST from
     editing another store's schedule."""
-
-
-class RosterEmployeeNotFoundError(ValueError):
-    """The picked ``store_employee_id`` doesn't belong to the
-    store on the JWT.  Same name as the punch-flow exception
-    intentionally — the controller layer maps both to a 422 with
-    the same message."""
 
 
 def _ensure_roster_in_store(
