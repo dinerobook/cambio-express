@@ -255,7 +255,7 @@ describe("SettlementsWidget", () => {
     const dialog = await openList("Owed to us");
     const row = within(dialog).getByText("Store #2 (Raj)").closest("tr")!;
     await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
-    const form = screen.getAllByRole("dialog").at(-1)!;
+    const form = screen.getByRole("dialog", { name: "Change date" });
     const input = within(form).getByLabelText("Settle by");
     expect(input).toHaveValue(lent.settle_by);
     await userEvent.clear(input);
@@ -267,7 +267,7 @@ describe("SettlementsWidget", () => {
 
     updateLineItem.mockClear();
     await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
-    const again = screen.getAllByRole("dialog").at(-1)!;
+    const again = screen.getByRole("dialog", { name: "Change date" });
     const field = within(again).getByLabelText("Settle by");
     await userEvent.clear(field);
     await userEvent.type(field, "2030-01-15");
@@ -285,7 +285,7 @@ describe("SettlementsWidget", () => {
     const dialog = await openList("Owed to us");
     const row = within(dialog).getByText("Maria").closest("tr")!;
     await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
-    const form = screen.getAllByRole("dialog").at(-1)!;
+    const form = screen.getByRole("dialog", { name: "Change date" });
     await userEvent.click(within(form).getByRole("button", { name: "Save" }));
     expect(await within(form).findByText(/can't be before/)).toBeInTheDocument();
   });
