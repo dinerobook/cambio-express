@@ -412,10 +412,12 @@ def _purge_store_owned_rows(db: Session, store_id: int) -> None:
               .delete(synchronize_session=False)
         )
     try:
-        from api.Core.Permissions import _get_enforcer
-        e = _get_enforcer()
-        e.remove_filtered_policy(1, str(store_id))
-        e.save_policy()
+        # Row-level delete through the adapter's auto-save; never
+        # ``save_policy()``, which rewrites the whole table from
+        # this process's copy (see api/Core/Permissions).
+        from api.Core.Permissions import _enforcer_for_write, reload_policy
+        _enforcer_for_write().remove_filtered_policy(1, str(store_id))
+        reload_policy()
     except Exception:
         pass
 

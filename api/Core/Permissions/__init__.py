@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Any
 
 import casbin
@@ -75,26 +76,57 @@ LEGACY_ROLE_PERMISSIONS: dict[str, list[str]] = {
 
 
 # ── Enforcer singleton ─────────────────────────────────────
+#
+# One enforcer PER PROCESS, and production runs several gunicorn
+# workers against one database. Two rules keep them consistent:
+#
+#   * Writers change rows incrementally (``add_policy`` /
+#     ``remove_filtered_policy`` persist each row through the
+#     adapter's auto-save) and NEVER call ``save_policy()``. That
+#     call rewrites the whole ``casbin_rule`` table from THIS
+#     worker's memory, so a worker that had not seen another
+#     worker's write silently erased it — a store's Employee-role
+#     edit "kept going back to the default" whenever any later
+#     permission write landed on the other worker.
+#   * Readers re-load from the DB once their copy is older than
+#     ``_RELOAD_INTERVAL`` seconds, so a write on one worker is
+#     enforced on every worker within that window. A writer
+#     reloads right before and after its own write, so what it
+#     changes is current the moment it returns.
 
 _enforcer: casbin.Enforcer | None = None
+_loaded_at: float = 0.0
+_RELOAD_INTERVAL = float(os.environ.get("PERMISSIONS_RELOAD_SECONDS", "2"))
 
 
 def _model_path() -> str:
     return os.path.join(os.path.dirname(__file__), "model.conf")
 
 
-def _get_enforcer() -> casbin.Enforcer:
-    """Lazy-init the module-level enforcer singleton. If the prior
-    init failed (or the singleton was reset), try again — letting a
-    transient DB hiccup poison the process forever was an outage
-    waiting to happen."""
-    global _enforcer
-    if _enforcer is not None:
-        return _enforcer
+def _build_enforcer() -> casbin.Enforcer:
     from api.Core.Database.session import _get_engine
-    engine = _get_engine()
-    adapter = CasbinAdapter(engine)
-    _enforcer = casbin.Enforcer(_model_path(), adapter)
+    return casbin.Enforcer(_model_path(), CasbinAdapter(_get_engine()))
+
+
+def _get_enforcer() -> casbin.Enforcer:
+    """Lazy-init the module-level enforcer singleton, re-reading
+    the policy from the DB once it is ``_RELOAD_INTERVAL`` old.
+    If the prior init failed (or the singleton was reset), try
+    again — letting a transient DB hiccup poison the process
+    forever was an outage waiting to happen."""
+    global _enforcer, _loaded_at
+    if _enforcer is None:
+        _enforcer = _build_enforcer()
+        _loaded_at = time.monotonic()
+    elif time.monotonic() - _loaded_at > _RELOAD_INTERVAL:
+        try:
+            reload_policy()
+        except Exception:  # noqa: BLE001 — keep serving the last good copy
+            _log.warning(
+                "Casbin: periodic policy reload failed; serving the "
+                "copy loaded %.0fs ago", time.monotonic() - _loaded_at,
+                exc_info=True,
+            )
     return _enforcer
 
 
@@ -105,8 +137,26 @@ def _reset_enforcer() -> None:
 
 
 def reload_policy() -> None:
-    """Re-read all rules from the DB into the in-memory enforcer."""
-    _get_enforcer().load_policy()
+    """Re-read all rules from the DB into the in-memory enforcer.
+    pycasbin builds the new policy aside and swaps it in, so a
+    request checking permissions mid-reload sees the old or the
+    new set, never a half-loaded one."""
+    global _enforcer, _loaded_at
+    if _enforcer is None:
+        _enforcer = _build_enforcer()
+    else:
+        _enforcer.load_policy()
+    _loaded_at = time.monotonic()
+
+
+def _enforcer_for_write() -> casbin.Enforcer:
+    """The enforcer with the DB's current rows loaded, for a
+    writer about to change them. Starting from a stale copy would
+    skip ``add_policy`` for a row memory thinks exists, or keep a
+    row in memory the DB no longer has."""
+    reload_policy()
+    assert _enforcer is not None
+    return _enforcer
 
 
 # ── Internal helpers ───────────────────────────────────────
@@ -392,7 +442,7 @@ def set_store_permissions(
     the platform later fall back to global defaults until the
     matrix is saved again (see ``_resolve_grants``)."""
     matrix = _normalized_matrix(matrix)
-    e = _get_enforcer()
+    e = _enforcer_for_write()
     dom = str(store_id)
     e.remove_filtered_policy(0, role, dom)
     for resource in RBAC_RESOURCES:
@@ -404,7 +454,6 @@ def set_store_permissions(
                 any_allowed = True
         if not any_allowed:
             e.add_policy(role, dom, resource, _RESOURCE_NONE)
-    e.save_policy()
     reload_policy()
 
 
@@ -414,7 +463,7 @@ def set_global_permissions(
 ) -> None:
     """Replace global defaults for a role."""
     matrix = _normalized_matrix(matrix)
-    e = _get_enforcer()
+    e = _enforcer_for_write()
     e.remove_filtered_policy(0, role, "global")
     for resource, actions in matrix.items():
         if resource not in RBAC_RESOURCES:
@@ -424,15 +473,13 @@ def set_global_permissions(
                 continue
             if allowed:
                 e.add_policy(role, "global", resource, action)
-    e.save_policy()
     reload_policy()
 
 
 def reset_store_to_defaults(store_id: int, role: str) -> None:
     """Remove per-store overrides for a role."""
-    e = _get_enforcer()
+    e = _enforcer_for_write()
     e.remove_filtered_policy(0, role, str(store_id))
-    e.save_policy()
     reload_policy()
 
 
@@ -447,7 +494,7 @@ def set_user_permissions(
     saved again. This is a SECURITY write — callers must audit it
     and revoke the user's live sessions so old JWT perms die."""
     matrix = _normalized_matrix(matrix)
-    e = _get_enforcer()
+    e = _enforcer_for_write()
     sub, dom = _user_subject(user_id), str(store_id)
     e.remove_filtered_policy(0, sub, dom)
     for resource in RBAC_RESOURCES:
@@ -459,16 +506,14 @@ def set_user_permissions(
                 any_allowed = True
         if not any_allowed:
             e.add_policy(sub, dom, resource, _RESOURCE_NONE)
-    e.save_policy()
     reload_policy()
 
 
 def clear_user_permissions(store_id: int, user_id: int) -> None:
     """Remove the per-user overlay — the user goes back to pure
     role resolution. Also a session-revoking security write."""
-    e = _get_enforcer()
+    e = _enforcer_for_write()
     e.remove_filtered_policy(0, _user_subject(user_id), str(store_id))
-    e.save_policy()
     reload_policy()
 
 
@@ -498,14 +543,14 @@ def get_user_permission_matrix(
 
 def seed_defaults() -> None:
     """Seed global defaults if Casbin is empty. Idempotent."""
-    e = _get_enforcer()
+    e = _enforcer_for_write()
     if e.get_policy():
         return
     for role, perms in RBAC_DEFAULTS.items():
         for perm in perms:
             resource, action = perm.split(".", 1)
             e.add_policy(role, "global", resource, action)
-    e.save_policy()
+    reload_policy()
     _log.info("Casbin: seeded %d default rules",
               sum(len(v) for v in RBAC_DEFAULTS.values()))
 
@@ -520,7 +565,7 @@ def ensure_resource_defaults(resource: str) -> None:
     nothing is ever removed, so per-store overrides and superadmin
     edits survive. Idempotent — safe to call on every boot.
     """
-    e = _get_enforcer()
+    e = _enforcer_for_write()
     if not e.get_policy():
         return  # empty store → seed_defaults handles the full set
     added = 0
@@ -533,7 +578,7 @@ def ensure_resource_defaults(resource: str) -> None:
                 e.add_policy(role, "global", r, action)
                 added += 1
     if added:
-        e.save_policy()
+        reload_policy()
         _log.info(
             "Casbin: additively seeded %d default rules for new "
             "resource %r", added, resource,

@@ -76,6 +76,19 @@ of truth has two layers:
    via the per-store-permissions UI; live enforcement reads them
    on every request (no JWT-staleness anymore).
 
+   **One in-memory copy per web worker, several workers in prod.**
+   Writers change rows one at a time (`add_policy` /
+   `remove_filtered_policy`, persisted by the adapter's auto-save)
+   through `_enforcer_for_write()`, which reloads first, and
+   **never call `save_policy()`** — that rewrites the whole table
+   from the calling worker's memory and erased every edit another
+   worker had made since this one last loaded (the 2026-10-08
+   "Employee role keeps going back to the default" bug). Readers
+   reload once their copy is older than `PERMISSIONS_RELOAD_SECONDS`
+   (default 2 s), so a write on one worker is enforced on all of
+   them within that window. `tests/Core/test_permissions_multiworker.py`
+   pins both rules.
+
 Resolution order (R-1 added the per-USER layer on top):
 1. **Per-user overlay** — rows whose subject is `user:<id>` in
    the store's domain (written by `set_user_permissions`, read
