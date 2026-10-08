@@ -86,6 +86,14 @@ export function SlimSidebar({
     ? groups.find((g) => g.title === openGroup) ?? null
     : null;
 
+  // Exactly one rail item is highlighted at a time: while a fly-out
+  // is open, only its group is; otherwise the item that owns the
+  // current route (direct links via NavLink's own match).
+  const railClass = (base: string, routeActive: boolean, title?: string) => {
+    const on = openGroup !== null ? openGroup === title : routeActive;
+    return `${base}${on ? " " + styles.isActive : ""}`;
+  };
+
   return (
     <aside
       className={`app-sidebar${drawerOpen ? " is-open" : ""}`}
@@ -113,8 +121,7 @@ export function SlimSidebar({
                 key={group.title}
                 to={group.to}
                 className={({ isActive }) =>
-                  `${styles.groupBtn}${isActive ? " " + styles.isActive : ""}`
-                }
+                  railClass(styles.groupBtn, isActive, group.title)}
                 title={group.title}
                 aria-label={group.title}
               >
@@ -123,13 +130,14 @@ export function SlimSidebar({
               </NavLink>
             );
           }
-          const isActive = openGroup === group.title
-            || group.items.some((i) => location.pathname.startsWith(i.to));
+          const onRoute = group.items.some(
+            (i) => location.pathname.startsWith(i.to),
+          );
           return (
             <button
               key={group.title}
               type="button"
-              className={`${styles.groupBtn}${isActive ? " " + styles.isActive : ""}`}
+              className={railClass(styles.groupBtn, onRoute, group.title)}
               onClick={() => setOpenGroup(
                 openGroup === group.title ? null : group.title,
               )}
@@ -146,9 +154,7 @@ export function SlimSidebar({
         {supportLink && (
           <NavLink
             to={supportLink.to}
-            className={({ isActive }) =>
-              `${styles.supportBtn}${isActive ? " " + styles.isActive : ""}`
-            }
+            className={({ isActive }) => railClass(styles.supportBtn, isActive)}
             title={supportLink.label}
             aria-label={
               supportBadge > 0

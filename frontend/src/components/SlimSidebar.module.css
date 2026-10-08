@@ -102,6 +102,9 @@
   padding: 0.55rem 0.25rem;
   border-radius: 0.55rem;
   cursor: pointer;
+  /* Direct-link groups (Dashboard, Reports) render as <a>; keep
+     them looking like the button groups, no link underline. */
+  text-decoration: none;
   position: relative;
   transition: background 120ms ease, color 120ms ease;
 }
