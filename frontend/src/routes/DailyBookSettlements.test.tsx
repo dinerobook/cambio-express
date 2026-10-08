@@ -1,0 +1,362 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { SettlementPill, SettlementsWidget } from "./DailyBookSettlements";
+import { ApiError } from "../lib/api";
+import { setCurrentIdentity } from "../lib/auth";
+import { addDaysIso, todayIso } from "../lib/datetime";
+import { TEST_ADMIN } from "../test/setup";
+import type { LineItemRow, OpenSettlement } from "../api/dailybook";
+
+// Money that comes back, in the daily book:
+//   - "Owed to us" lists open Other cash outs, "We owe" open Other
+//     cash ins, each only up to the day being viewed.
+//   - The tile shows what is still out and how much is overdue.
+//   - Record return books the opposite kind on the viewed day,
+//     linked to the original; a partial amount is fine, more than
+//     what's left is refused before the call.
+//   - Close unticks the original after a confirm.
+//   - A locked day, or someone without the right, gets no buttons.
+
+const useOpenSettlements = vi.fn();
+const createLineItem = vi.fn();
+const updateLineItem = vi.fn();
+
+vi.mock("../api/dailybook", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../api/dailybook")>();
+  return {
+    ...real,
+    useOpenSettlements: () => useOpenSettlements(),
+    createLineItem: (...a: unknown[]) => createLineItem(...a),
+    updateLineItem: (...a: unknown[]) => updateLineItem(...a),
+  };
+});
+
+const TODAY = todayIso();
+const VIEWED = TODAY;
+
+const lent: OpenSettlement = {
+  id: 11, kind: "other_cash_out", report_date: addDaysIso(TODAY, -4),
+  amount: 2000, note: "Store #2 (Raj)", settle_by: addDaysIso(TODAY, -2),
+  settled: 500, outstanding: 1500,
+  returns: [{ id: 15, report_date: addDaysIso(TODAY, -2), amount: 500 }],
+};
+const lentNoDate: OpenSettlement = {
+  id: 12, kind: "other_cash_out", report_date: addDaysIso(TODAY, -1),
+  amount: 850, note: "Maria", settle_by: null,
+  settled: 0, outstanding: 850, returns: [],
+};
+const lentLater: OpenSettlement = {
+  id: 13, kind: "other_cash_out", report_date: addDaysIso(TODAY, 2),
+  amount: 99, note: "After the viewed day", settle_by: null,
+  settled: 0, outstanding: 99, returns: [],
+};
+const borrowed: OpenSettlement = {
+  id: 21, kind: "other_cash_in", report_date: addDaysIso(TODAY, -3),
+  amount: 800, note: "From Ana", settle_by: addDaysIso(TODAY, 5),
+  settled: 0, outstanding: 800, returns: [],
+};
+
+function renderWidget(
+  direction: "owed_to_us" | "we_owe" = "owed_to_us",
+  { locked = false, onChange = vi.fn() } = {},
+) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={qc}>
+      <SettlementsWidget
+        direction={direction}
+        storeId={1}
+        date={VIEWED}
+        locked={locked}
+        onChange={onChange}
+      />
+    </QueryClientProvider>,
+  );
+  return { onChange };
+}
+
+async function openList(title: string) {
+  await userEvent.click(screen.getByRole("button", { name: new RegExp(title) }));
+  return screen.getByRole("dialog");
+}
+
+describe("SettlementsWidget", () => {
+  beforeEach(() => {
+    setCurrentIdentity(TEST_ADMIN);
+    useOpenSettlements.mockReset();
+    createLineItem.mockReset();
+    updateLineItem.mockReset();
+    useOpenSettlements.mockReturnValue({
+      data: [lent, lentNoDate, lentLater, borrowed], isError: false,
+    });
+  });
+
+  it("totals what is still owed up to the viewed day", () => {
+    renderWidget();
+    const tile = screen.getByRole("button", { name: /Owed to us/ });
+    // 1,500 + 850; the entry made after the viewed day is left out.
+    expect(tile).toHaveTextContent("$2,350.00");
+    expect(tile).toHaveTextContent("2 open");
+    expect(tile).toHaveTextContent("1 overdue");
+  });
+
+  it("lists borrowed money under We owe only", async () => {
+    renderWidget("we_owe");
+    const tile = screen.getByRole("button", { name: /We owe/ });
+    expect(tile).toHaveTextContent("$800.00");
+    expect(tile).not.toHaveTextContent("overdue");
+    const dialog = await openList("We owe");
+    expect(within(dialog).getByText("From Ana")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Maria")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getAllByRole("button", { name: "Record payback" }),
+    ).toHaveLength(1);
+  });
+
+  it("shows partial returns and the overdue date in the list", async () => {
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Store #2 (Raj)").closest("tr")!;
+    expect(row).toHaveTextContent("$500.00 on");
+    expect(row).toHaveTextContent("$1,500.00");
+    expect(row).toHaveTextContent("overdue");
+    expect(within(dialog).getByText("No date")).toBeInTheDocument();
+    expect(within(dialog).queryByText("After the viewed day")).not.toBeInTheDocument();
+  });
+
+  it("says so when nothing is open", async () => {
+    useOpenSettlements.mockReturnValue({ data: [], isError: false });
+    renderWidget();
+    expect(screen.getByRole("button", { name: /Owed to us/ }))
+      .toHaveTextContent("Nothing open");
+    const dialog = await openList("Owed to us");
+    expect(dialog).toHaveTextContent("Nothing is owed to the store");
+  });
+
+  it("shows a load failure inside the list", async () => {
+    useOpenSettlements.mockReturnValue({
+      data: undefined, isError: true,
+      error: new ApiError(500, "Server unavailable", null),
+    });
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    expect(dialog).toHaveTextContent("Server unavailable");
+  });
+
+  it("records a partial return as a linked Other cash in on the viewed day", async () => {
+    createLineItem.mockResolvedValue({});
+    const { onChange } = renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Store #2 (Raj)").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Record return" }));
+
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    const amount = within(form).getByLabelText(/Amount/);
+    expect(amount).toHaveValue("1500");
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "400");
+    await userEvent.click(within(form).getByRole("button", { name: "Record return" }));
+
+    await waitFor(() => expect(createLineItem).toHaveBeenCalledTimes(1));
+    expect(createLineItem).toHaveBeenCalledWith(1, VIEWED, {
+      kind: "other_cash_in", at_time: "", amount: 400,
+      note: "Store #2 (Raj)", settles_item_id: 11,
+    });
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+  });
+
+  it("pays borrowed money back as an Other cash out", async () => {
+    createLineItem.mockResolvedValue({});
+    renderWidget("we_owe");
+    const dialog = await openList("We owe");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Record payback" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    await userEvent.click(within(form).getByRole("button", { name: "Record payback" }));
+    await waitFor(() => expect(createLineItem).toHaveBeenCalledWith(
+      1, VIEWED, expect.objectContaining({
+        kind: "other_cash_out", amount: 800, settles_item_id: 21,
+      }),
+    ));
+  });
+
+  it("refuses more than is outstanding without calling the server", async () => {
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Maria").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Record return" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    const amount = within(form).getByLabelText(/Amount/);
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "900");
+    await userEvent.click(within(form).getByRole("button", { name: "Record return" }));
+    expect(form).toHaveTextContent("Only $850.00 is still outstanding.");
+    expect(createLineItem).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's refusal when recording fails", async () => {
+    createLineItem.mockRejectedValue(
+      new ApiError(403, "Daily report is locked — unlock it before editing.", null),
+    );
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Maria").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Record return" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    await userEvent.click(within(form).getByRole("button", { name: "Record return" }));
+    expect(await within(form).findByText(/Daily report is locked/)).toBeInTheDocument();
+  });
+
+  it("closes an entry after confirming", async () => {
+    updateLineItem.mockResolvedValue({});
+    const { onChange } = renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Maria").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Close" }));
+    const confirm = screen.getAllByRole("dialog").at(-1)!;
+    expect(confirm).toHaveTextContent("Nothing already booked changes.");
+    await userEvent.click(within(confirm).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(updateLineItem).toHaveBeenCalledWith(
+      1, 12, { expects_settlement: false },
+    ));
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+  });
+
+  it("keeps the confirm open with the reason when closing fails", async () => {
+    updateLineItem.mockRejectedValue(
+      new ApiError(403, "Daily report is locked — unlock it before editing.", null),
+    );
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Maria").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Close" }));
+    const confirm = screen.getAllByRole("dialog").at(-1)!;
+    await userEvent.click(within(confirm).getByRole("button", { name: "Close" }));
+    expect(await within(confirm).findByText(/unlock it before editing/)).toBeInTheDocument();
+  });
+
+  it("offers no Record on a locked day, but still Change date and Close", async () => {
+    renderWidget("owed_to_us", { locked: true });
+    const dialog = await openList("Owed to us");
+    expect(within(dialog).queryByRole("button", { name: "Record return" }))
+      .not.toBeInTheDocument();
+    expect(within(dialog).getAllByRole("button", { name: "Change date" }))
+      .toHaveLength(2);
+    expect(within(dialog).getAllByRole("button", { name: "Close" }))
+      .toHaveLength(2);
+    expect(dialog).toHaveTextContent("This day is locked");
+  });
+
+  it("changes the date, or clears it", async () => {
+    updateLineItem.mockResolvedValue({});
+    const { onChange } = renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Store #2 (Raj)").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    const input = within(form).getByLabelText("Settle by");
+    expect(input).toHaveValue(lent.settle_by);
+    await userEvent.clear(input);
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateLineItem).toHaveBeenCalledWith(
+      1, 11, { settle_by: null },
+    ));
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+
+    updateLineItem.mockClear();
+    await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
+    const again = screen.getAllByRole("dialog").at(-1)!;
+    const field = within(again).getByLabelText("Settle by");
+    await userEvent.clear(field);
+    await userEvent.type(field, "2030-01-15");
+    await userEvent.click(within(again).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateLineItem).toHaveBeenCalledWith(
+      1, 11, { settle_by: "2030-01-15" },
+    ));
+  });
+
+  it("shows why a date change failed", async () => {
+    updateLineItem.mockRejectedValue(
+      new ApiError(409, "The settle-by date can't be before the entry's own day.", null),
+    );
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Maria").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+    expect(await within(form).findByText(/can't be before/)).toBeInTheDocument();
+  });
+
+  it("hides the actions from someone who may only read the book", async () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee", permissions: ["daily_book.read"],
+    });
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    expect(within(dialog).getByText("Maria")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Record return" }))
+      .not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Close" }))
+      .not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Change date" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("lets someone with create but not update record and not close", async () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee",
+      permissions: ["daily_book.read", "daily_book.create"],
+    });
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    expect(within(dialog).getAllByRole("button", { name: "Record return" }))
+      .toHaveLength(2);
+    expect(within(dialog).queryByRole("button", { name: "Close" }))
+      .not.toBeInTheDocument();
+  });
+});
+
+describe("SettlementPill", () => {
+  const base: LineItemRow = {
+    id: 1, kind: "other_cash_out", at_time: "", amount: 2000, note: "",
+    return_check_id: null, expects_settlement: false, settle_by: null,
+    settled: 0, settles_item_id: null,
+  };
+
+  it("shows nothing on a plain entry", () => {
+    const { container } = render(<SettlementPill item={base} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows what is left on an open cash out", () => {
+    render(<SettlementPill item={{ ...base, expects_settlement: true, settled: 500 }} />);
+    expect(screen.getByText(/Expected back · \$1,500.00 left/)).toBeInTheDocument();
+  });
+
+  it("names borrowed money as owed", () => {
+    render(<SettlementPill item={{
+      ...base, kind: "other_cash_in", expects_settlement: true,
+    }} />);
+    expect(screen.getByText(/We owe · \$2,000.00 left/)).toBeInTheDocument();
+  });
+
+  it("marks a fully returned entry settled", () => {
+    render(<SettlementPill item={{ ...base, expects_settlement: true, settled: 2000 }} />);
+    expect(screen.getByText("Settled")).toBeInTheDocument();
+  });
+
+  it("marks a closed entry that got some back", () => {
+    render(<SettlementPill item={{ ...base, settled: 500 }} />);
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+  });
+
+  it("labels the return entry itself", () => {
+    render(<SettlementPill item={{
+      ...base, kind: "other_cash_in", settles_item_id: 7,
+    }} />);
+    expect(screen.getByText("Return")).toBeInTheDocument();
+  });
+});

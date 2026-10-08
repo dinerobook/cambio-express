@@ -25,7 +25,10 @@ from api.Modules.DailyBook.Requests import (
     MTBreakdownResponse,
     MTBreakdownRowResponse,
     MTBreakdownWriteRequest,
+    OpenSettlementListResponse,
+    OpenSettlementRow,
     PeriodSummaryResponse,
+    SettlementReturnRow,
     TransferCompanyTotalsResponse,
     TransfersSummaryResponse,
 )
@@ -35,16 +38,20 @@ from api.Modules.DailyBook.Services import (
     LINE_ITEM_KINDS,
     LineItemValidationError,
     MTWriteRow,
+    SETTLEMENT_PAIRS,
     add_line_item,
     delete_line_item,
     field_for_kind,
+    is_daily_report_locked,
     is_known_kind,
+    list_open_settlements,
     lock_report,
     parse_amount,
     parse_at_time,
     read_mt_breakdown,
     recompute_line_items_total,
     replace_mt_breakdown,
+    settled_cents,
     summarize_period,
     summarize_report,
     summarize_transfers_for_day,
@@ -417,7 +424,9 @@ def unlock_daily_route(
 # ── Line items ─────────────────────────────────────────────
 
 
-def _line_item_row(item: DailyLineItem) -> LineItemRow:
+def _line_item_row(
+    item: DailyLineItem, *, settled_cents_: int = 0,
+) -> LineItemRow:
     return LineItemRow(
         id=item.id,
         kind=item.kind,
@@ -425,7 +434,29 @@ def _line_item_row(item: DailyLineItem) -> LineItemRow:
         amount=float(item.amount or 0),
         note=item.note or "",
         return_check_id=item.return_check_id,
+        expects_settlement=bool(item.expects_settlement),
+        settle_by=item.settle_by,
+        settled=settled_cents_ / 100.0,
+        settles_item_id=item.settles_item_id,
     )
+
+
+def _line_item_row_with_settled(
+    db: Session, item: DailyLineItem,
+) -> LineItemRow:
+    item_id = int(item.id)
+    done = settled_cents(db, int(item.store_id), [item_id]).get(item_id, 0)
+    return _line_item_row(item, settled_cents_=done)
+
+
+def _refuse_locked_day(db: Session, store_id: int, d: date) -> None:
+    """The lock is the kill-switch for EVERY line-item write
+    (INVARIANTS.md "Lock rules") — create and delete included."""
+    if is_daily_report_locked(db, store_id, d):
+        raise HTTPException(
+            status_code=403,
+            detail="Daily report is locked — unlock it before editing.",
+        )
 
 
 def _require_store_match(claims: dict[str, Any], store_id: int) -> None:
@@ -474,7 +505,16 @@ def line_items_list_route(
         db, int(store_id), d,
         kinds=[kind] if kind else None,
     )
-    return LineItemListResponse(items=[_line_item_row(r) for r in rows])
+    # How much came back, for every entry that could have been lent
+    # or borrowed — a closed one still shows what it got back.
+    done = settled_cents(
+        db, int(store_id),
+        [int(r.id) for r in rows if str(r.kind) in SETTLEMENT_PAIRS],
+    )
+    return LineItemListResponse(items=[
+        _line_item_row(r, settled_cents_=done.get(int(r.id), 0))
+        for r in rows
+    ])
 
 
 @router.post(
@@ -521,6 +561,7 @@ def line_items_create_route(
                 "(Add Payment). The daily-book line auto-populates."
             ),
         )
+    _refuse_locked_day(db, int(store_id), d)
     try:
         at = parse_at_time(body.at_time) if body.at_time.strip() else None
         amt = parse_amount(str(body.amount))
@@ -534,6 +575,9 @@ def line_items_create_route(
             note=body.note,
             created_by=user_id,
             allowed_kinds=LINE_ITEM_KINDS.keys(),
+            expects_settlement=body.expects_settlement,
+            settle_by=body.settle_by,
+            settles_item_id=body.settles_item_id,
         )
         # Re-derive the DailyReport's matching field so the daily
         # P&L stays in sync without a separate save round-trip.
@@ -557,6 +601,11 @@ def line_items_create_route(
         summary=(
             f"kind={body.kind} amount=${float(amt):,.2f} "
             f"at={at.isoformat() if at else ''}"
+            + (" expects_settlement" if body.expects_settlement else "")
+            + (
+                f" settles=#{body.settles_item_id}"
+                if body.settles_item_id is not None else ""
+            )
         ),
     )
     db.commit()
@@ -596,17 +645,22 @@ def line_items_update_route(
         # Same opaque 404 for missing IDs and cross-tenant probes.
         raise HTTPException(status_code=404, detail="Line item not found")
 
-    # Lock check — the parent daily report's lock blanket-rejects
-    # every mutation, including line-item edits.  Match the
-    # update_daily_report path's 403 + "unlock first" UX.
-    from api.Modules.DailyBook.Services.locks import is_locked
-    if is_locked(db, int(store_id), item.report_date):
-        raise HTTPException(
-            status_code=403,
-            detail="Daily report is locked — unlock it before editing.",
-        )
-
     fields = body.model_dump(exclude_unset=True)
+    # Closing a lent / borrowed entry and moving its settle-by date
+    # touch only the open list, never a number on the day, so they
+    # are the one edit a locked day takes (owner's call, 2026-10-08;
+    # INVARIANTS.md "Settlements"). Re-marking stays an edit.
+    tracking_only = (
+        bool(fields)
+        and set(fields) <= {"expects_settlement", "settle_by"}
+        and fields.get("expects_settlement", False) is False
+    )
+
+    # Lock check — the parent daily report's lock blanket-rejects
+    # every other mutation, including line-item edits.  Match the
+    # update_daily_report path's 403 + "unlock first" UX.
+    if not tracking_only:
+        _refuse_locked_day(db, int(store_id), item.report_date)
     parsed_time = None
     # Time is OPTIONAL. The SPA's inline-edit always sends `at_time`
     # (even when the row has no time), so a blank value must mean
@@ -627,19 +681,28 @@ def line_items_update_route(
         )
 
     original_amount = float(item.amount or 0)
+    original_marked = bool(item.expects_settlement)
+    settle_kwargs: dict[str, Any] = {}
+    if "expects_settlement" in fields:
+        settle_kwargs["expects_settlement"] = fields["expects_settlement"]
+    if "settle_by" in fields:
+        settle_kwargs["settle_by"] = fields["settle_by"]
     try:
         update_line_item(
             db, item,
             at_time=parsed_time,
             amount=amount,
             note=fields.get("note"),
+            **settle_kwargs,
         )
     except LineItemValidationError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
     # Recompute parent roll-up so the DailyReport stays in sync.
+    # A tracking-only change moves no money and must not stamp a
+    # (possibly locked) report.
     target_field = field_for_kind(item.kind)
-    if target_field:
+    if target_field and not tracking_only:
         recompute_line_items_total(
             db, int(store_id), item.report_date,
             kind=item.kind, daily_report_field=target_field,
@@ -655,18 +718,16 @@ def line_items_update_route(
         summary=(
             f"kind={item.kind} amount=${original_amount:,.2f}"
             f"→${new_amount:,.2f}"
+            + (
+                f" expects_settlement={original_marked}"
+                f"→{bool(item.expects_settlement)}"
+                if original_marked != bool(item.expects_settlement) else ""
+            )
         ),
     )
     db.commit()
 
-    return LineItemRow(
-        id=item.id,
-        kind=item.kind,
-        at_time=item.at_time.strftime("%H:%M") if item.at_time else "",
-        amount=float(item.amount or 0),
-        note=item.note or "",
-        return_check_id=item.return_check_id,
-    )
+    return _line_item_row_with_settled(db, item)
 
 
 @router.delete(
@@ -696,6 +757,7 @@ def line_items_delete_route(
         raise HTTPException(status_code=404, detail="Line item not found")
 
     report_date = item.report_date
+    _refuse_locked_day(db, int(store_id), report_date)
     kind = item.kind
     deleted_amount = float(getattr(item, "amount", 0) or 0)
     try:
@@ -719,6 +781,42 @@ def line_items_delete_route(
         summary=f"kind={kind} amount=${deleted_amount:,.2f}",
     )
     db.commit()
+
+
+@router.get(
+    "/{store_id}/settlements/open",
+    response_model=OpenSettlementListResponse,
+)
+def open_settlements_route(
+    store_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> OpenSettlementListResponse:
+    """Every Other cash out lent out and Other cash in borrowed that
+    still has money outstanding, across all days — the daily book's
+    "Owed to us" / "We owe" tiles. See Services/settlements.py."""
+    require_permission(claims, "daily_book", "read")
+    _require_store_match(claims, store_id)
+    return OpenSettlementListResponse(items=[
+        OpenSettlementRow(
+            id=o.item.id,
+            kind=o.item.kind,
+            report_date=o.item.report_date,
+            amount=float(o.item.amount or 0),
+            note=o.item.note or "",
+            settle_by=o.item.settle_by,
+            settled=o.settled_cents / 100.0,
+            outstanding=o.outstanding_cents / 100.0,
+            returns=[
+                SettlementReturnRow(
+                    id=r.id, report_date=r.report_date,
+                    amount=float(r.amount or 0),
+                )
+                for r in o.settlements
+            ],
+        )
+        for o in list_open_settlements(db, int(store_id))
+    ])
 
 
 # ── Money-transfer auto-fill ──────────────────────────────────

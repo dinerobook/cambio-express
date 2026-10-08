@@ -1,7 +1,8 @@
 # DailyBook — Invariants
 
 > **Read this before editing anything in `api/Modules/DailyBook/`,
-> `frontend/src/routes/EditDailyBook.tsx`, or `frontend/src/api/dailybook.ts`.**
+> `frontend/src/routes/EditDailyBook.tsx`,
+> `frontend/src/routes/DailyBookSettlements.tsx`, or `frontend/src/api/dailybook.ts`.**
 >
 > The daily book is the per-store, per-day money-flow ledger.
 > Real US dollars depend on it being correct. Casual edits to "fix"
@@ -349,8 +350,61 @@ If you change the carry formula, update `carry_forward_from`,
   `test_put_rejects_locked_report`); a locked report is an
   archived close-out.
 
+(One carve-out: closing a lent / borrowed entry or changing its
+settle-by date — see "Settlements".)
+
+The line-item routes enforce this on create, update AND delete
+(`_refuse_locked_day` in the controller). Create and delete used to
+skip the check — the SPA hid the buttons, the API did not refuse.
+
 To re-open: `POST /api/v2/daily/{store}/{date}/unlock` (admin /
 owner / superadmin only). The unlock writes an operator audit row.
+
+
+## Settlements — cash lent out or borrowed that comes back
+
+An `other_cash_out` given to another store / a friend, or an
+`other_cash_in` borrowed from one, can be ticked
+`expects_settlement`. It stays OPEN — listed by
+`GET /api/v2/daily/{store}/settlements/open` and shown as the
+"Owed to us" / "We owe" tiles on every day — until entries of the
+opposite kind pointing at it (`settles_item_id`) add up to its
+amount, or until the operator unticks it ("Close").
+`Services/settlements.py` holds the rules; `add_line_item` /
+`update_line_item` / `delete_line_item` enforce them, so every
+writer goes through them.
+
+- **The money only moves through the two ordinary kinds.** A return
+  is an `other_cash_in` (or a payback an `other_cash_out`) booked on
+  the day the cash actually moved, rolled up by
+  `recompute_line_items_total` like any other entry. No formula,
+  column total, over/short or monthly line changes because of this
+  feature, and the open list is never added into a total.
+- **Plain entries are untouched.** The three columns are NULL on
+  every entry that is not part of a settlement, which is every row
+  written before the feature. NULL `expects_settlement` = plain.
+- **Pairs**: `SETTLEMENT_PAIRS` — `other_cash_out` ↔ `other_cash_in`.
+  Only those two kinds can be marked; a return must be the opposite
+  kind of what it settles.
+- **A return** must point at a marked entry of the same store, be
+  dated on or after it, and not exceed what is still outstanding
+  (on create and on edit). A return can't itself be marked.
+- **An original** can't be edited below what has already come back,
+  and can't be deleted while returns point at it (remove the
+  returns first). Unticking it keeps its returns linked and booked.
+- **`settle_by`** is optional, only on a marked entry, never before
+  the entry's own day. It drives "overdue" in the SPA, nothing else.
+- **Lock**: a return is a create on its own day, so a locked day
+  refuses it. **Closing (`expects_settlement: false`) and changing
+  `settle_by` are the one exception to the lock rules** (owner's
+  call, 2026-10-08): they touch only the open list, never a number,
+  so a PATCH carrying nothing but those two keys goes through on a
+  locked day and does not recompute or stamp the report. Marking an
+  entry, or any PATCH that also carries amount / time / note, is
+  still refused on a locked day.
+- `settles_item_id` has no database foreign key on purpose (adding a
+  constraint scans and locks the live table); the service is the
+  only writer and checks it.
 
 
 ## Audit invariants
@@ -365,7 +419,9 @@ Actions audited today:
 - `update_daily_report` (summary: comma-separated list of fields
   the operator touched)
 - `lock_daily_report` / `unlock_daily_report`
-- Line-item create / **update** / delete
+- Line-item create / **update** / delete. The create summary adds
+  `expects_settlement` / `settles=#<id>` for settlement entries; the
+  update summary records an `expects_settlement` change.
 
 If you add a new mutation route to this module, add the matching
 `_audit_daily_action` call.
@@ -462,6 +518,8 @@ Things that need a design discussion FIRST:
 - `test_transfers_summary.py` — Transfer → `msb_mt_summary` recompute.
 - `test_audit_coverage.py` — every mutation route writes an
   audit row.
+- `test_settlements.py` — lent / borrowed entries, returns, close,
+  the lock on create / delete, and the access gates.
 
 Before changing this module, run:
 

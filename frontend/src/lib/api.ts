@@ -29,6 +29,14 @@ export class ApiError extends Error {
   }
 }
 
+/** The server's message for a failed API call, or `fallback` for
+ *  anything else (a network failure, a bug) — the one way to turn a
+ *  caught error into text for an inline `<Alert>`. Toasts go through
+ *  `useApiErrorToast`, which uses this. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError && err.message ? err.message : fallback;
+}
+
 interface ApiOptions extends Omit<RequestInit, "body"> {
   // JSON-serializable body. Use `null` (or omit) for GET/DELETE.
   json?: unknown;

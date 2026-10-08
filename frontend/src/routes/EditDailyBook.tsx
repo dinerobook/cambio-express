@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  canSettle,
   createLineItem,
   deleteLineItem,
   lockDailyReport,
@@ -25,7 +26,7 @@ import {
 import { useSessionStatus, useStoreInfo } from "../api/account";
 import { fmtMoney2 } from "../lib/formatters";
 import { addDaysIso } from "../lib/datetime";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
@@ -37,6 +38,9 @@ import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { computeTotals, type FormState } from "./editDailyBook.totals";
 import styles from "./EditDailyBook.module.css";
 import { ImportReportModal } from "./ImportReportModal";
+import {
+  SettleFields, SettlementPill, SettlementsWidget,
+} from "./DailyBookSettlements";
 
 // /app/daily/edit?date=YYYY-MM-DD — the per-day editor.
 //
@@ -300,6 +304,10 @@ export default function EditDailyBook() {
     void queryClient.invalidateQueries({
       queryKey: ["dailybook", "line-items", storeId, date],
     });
+    // A lent / borrowed entry or its return may have changed.
+    void queryClient.invalidateQueries({
+      queryKey: ["dailybook", "settlements", storeId],
+    });
   }, [queryClient, storeId, date]);
 
   async function persistEdits(): Promise<void> {
@@ -333,7 +341,7 @@ export default function EditDailyBook() {
       await persistEdits();
       setSavedAt(new Date());
     } catch (err) {
-      setError(humanizeError(err, "Could not save the daily book."));
+      setError(apiErrorMessage(err, "Could not save the daily book."));
     } finally {
       setBusy(false);
     }
@@ -356,7 +364,7 @@ export default function EditDailyBook() {
         queryKey: ["dailybook", "report", storeId, date],
       });
     } catch (err) {
-      setError(humanizeError(err, "Could not change lock state."));
+      setError(apiErrorMessage(err, "Could not change lock state."));
     } finally {
       setBusy(false);
     }
@@ -837,6 +845,14 @@ function ReceiptsPanel(
             onChange={props.onLineItemChange}
           />
         ))}
+        {/* Cash lent out that comes back — any day's book shows it. */}
+        <SettlementsWidget
+          direction="owed_to_us"
+          storeId={props.storeId}
+          date={props.date}
+          locked={props.locked}
+          onChange={props.onLineItemChange}
+        />
       </div>
     </Card>
   );
@@ -929,6 +945,14 @@ function DisbursementsPanel(props: PanelProps) {
             onChange={props.onLineItemChange}
           />
         ))}
+        {/* Cash borrowed that has to be paid back. */}
+        <SettlementsWidget
+          direction="we_owe"
+          storeId={props.storeId}
+          date={props.date}
+          locked={props.locked}
+          onChange={props.onLineItemChange}
+        />
       </div>
     </Card>
   );
@@ -1026,7 +1050,7 @@ function SalesWidget({
       await persist();
       setOpen(false);
     } catch (e) {
-      setErr(humanizeError(e, "Could not save sales."));
+      setErr(apiErrorMessage(e, "Could not save sales."));
     } finally {
       setBusy(false);
     }
@@ -1148,7 +1172,7 @@ function FeesWidget({
       await persist();
       setOpen(false);
     } catch (e) {
-      setErr(humanizeError(e, "Could not save fees."));
+      setErr(apiErrorMessage(e, "Could not save fees."));
     } finally {
       setBusy(false);
     }
@@ -1321,7 +1345,7 @@ function MoneyTransferWidget({
       onChange();
       setOpen(false);
     } catch (e) {
-      setErr(humanizeError(e, "Could not save the breakdown."));
+      setErr(apiErrorMessage(e, "Could not save the breakdown."));
     } finally {
       setBusy(false);
     }
@@ -1712,6 +1736,10 @@ function LineItemEntriesEditor({
   const [time, setTime] = useState("");
   const [amount, setAmount] = useState(0);
   const [note, setNote] = useState("");
+  // "Comes back" mark — Other cash out / Other cash in only.
+  const settleable = canSettle(kind);
+  const [expects, setExpects] = useState(false);
+  const [settleBy, setSettleBy] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -1722,12 +1750,19 @@ function LineItemEntriesEditor({
   const [editTime, setEditTime] = useState("");
   const [editAmount, setEditAmount] = useState(0);
   const [editNote, setEditNote] = useState("");
+  const [editExpects, setEditExpects] = useState(false);
+  const [editSettleBy, setEditSettleBy] = useState("");
+  // A return can't itself be marked; only the original carries it.
+  const [editSettleable, setEditSettleable] = useState(false);
 
   function startEdit(item: LineItemRow) {
     setEditingId(item.id);
     setEditTime(item.at_time || "");
     setEditAmount(item.amount);
     setEditNote(item.note || "");
+    setEditExpects(Boolean(item.expects_settlement));
+    setEditSettleBy(item.settle_by ?? "");
+    setEditSettleable(settleable && item.settles_item_id == null);
     setErr(null);
   }
 
@@ -1749,11 +1784,15 @@ function LineItemEntriesEditor({
         at_time: editTime,
         amount: editAmount,
         note: editNote,
+        ...(editSettleable ? {
+          expects_settlement: editExpects,
+          settle_by: editExpects && editSettleBy ? editSettleBy : null,
+        } : {}),
       });
       setEditingId(null);
       onChange();
     } catch (e) {
-      setErr(humanizeError(e, "Could not save entry."));
+      setErr(apiErrorMessage(e, "Could not save entry."));
     } finally {
       setBusy(false);
     }
@@ -1769,13 +1808,19 @@ function LineItemEntriesEditor({
     try {
       await createLineItem(storeId, date, {
         kind, at_time: time, amount, note,
+        ...(settleable && expects ? {
+          expects_settlement: true,
+          settle_by: settleBy || null,
+        } : {}),
       });
       setTime("");
       setAmount(0);
       setNote("");
+      setExpects(false);
+      setSettleBy("");
       onChange();
     } catch (e) {
-      setErr(humanizeError(e, "Could not add entry."));
+      setErr(apiErrorMessage(e, "Could not add entry."));
     } finally {
       setBusy(false);
     }
@@ -1789,7 +1834,7 @@ function LineItemEntriesEditor({
       await deleteLineItem(storeId, itemId);
       onChange();
     } catch (e) {
-      setErr(humanizeError(e, "Could not delete entry."));
+      setErr(apiErrorMessage(e, "Could not delete entry."));
     } finally {
       setBusy(false);
     }
@@ -1841,6 +1886,18 @@ function LineItemEntriesEditor({
             + Add
           </Button>
         </div>
+        {settleable && (
+          <div className={styles.addRowSettle}>
+            <SettleFields
+              kind={kind}
+              checked={expects}
+              onCheckedChange={setExpects}
+              settleBy={settleBy}
+              onSettleByChange={setSettleBy}
+              disabled={busy}
+            />
+          </div>
+        )}
       </div>
     )}
 
@@ -1860,6 +1917,7 @@ function LineItemEntriesEditor({
               <th className={styles.widgetTh}>Time</th>
               <th className={styles.widgetTh}>Amount</th>
               <th className={styles.widgetTh}>Note</th>
+              {settleable && <th className={styles.widgetTh}>Status</th>}
               {!readOnly && <th className={styles.widgetTh} aria-label="actions" />}
             </tr>
           </thead>
@@ -1899,6 +1957,20 @@ function LineItemEntriesEditor({
                         placeholder="optional"
                       />
                     </td>
+                    {settleable && (
+                      <td className={styles.widgetTd}>
+                        {editSettleable && (
+                          <SettleFields
+                            kind={kind}
+                            checked={editExpects}
+                            onCheckedChange={setEditExpects}
+                            settleBy={editSettleBy}
+                            onSettleByChange={setEditSettleBy}
+                            disabled={busy}
+                          />
+                        )}
+                      </td>
+                    )}
                     <td className={styles.widgetTd}>
                       <div className={styles.editRowActions}>
                         <Button
@@ -1924,6 +1996,11 @@ function LineItemEntriesEditor({
                   <td className={styles.widgetTdMono}>{item.at_time || "—"}</td>
                   <td className={styles.widgetTdMono}>{fmtMoney2(item.amount)}</td>
                   <td className={styles.widgetTd}>{item.note || "—"}</td>
+                  {settleable && (
+                    <td className={styles.widgetTd}>
+                      <SettlementPill item={item} />
+                    </td>
+                  )}
                   {!readOnly && (
                     <td className={styles.widgetTd}>
                       {fromReturnCheck ? (
@@ -2177,9 +2254,4 @@ function formatLockedAt(iso: string | undefined): string {
   });
 }
 
-function humanizeError(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) return err.message || fallback;
-  if (err instanceof Error) return err.message || fallback;
-  return fallback;
-}
 
