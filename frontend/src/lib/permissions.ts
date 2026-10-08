@@ -39,3 +39,12 @@ export function toggleMatrixCell(
   }
   return next;
 }
+
+/** Human label for a login's account type. "owner" is the
+ *  signup account that owns the store; it is shown but never
+ *  managed from the team pages (the rank rule). */
+export function accountTypeLabel(role: string | null | undefined): string {
+  if (role === "owner") return "Owner";
+  if (role === "admin") return "Super Admin";
+  return "Employee";
+}

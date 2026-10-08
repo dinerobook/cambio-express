@@ -541,6 +541,17 @@
       "AdminUserListResponse": {
         "additionalProperties": false,
         "properties": {
+          "assignable_roles": {
+            "default": [
+              "admin",
+              "employee"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "title": "Assignable Roles",
+            "type": "array"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/AdminUserRow"
@@ -558,6 +569,11 @@
       "AdminUserRow": {
         "additionalProperties": false,
         "properties": {
+          "can_manage": {
+            "default": true,
+            "title": "Can Manage",
+            "type": "boolean"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -3924,6 +3940,11 @@
         "additionalProperties": false,
         "description": "The login half of a person, when one is linked.",
         "properties": {
+          "can_manage": {
+            "default": true,
+            "title": "Can Manage",
+            "type": "boolean"
+          },
           "has_custom_permissions": {
             "title": "Has Custom Permissions",
             "type": "boolean"
@@ -6274,6 +6295,11 @@
         "additionalProperties": false,
         "description": "A store login with no HR record yet \u2014 shown in the hub with\nLink / Create-record actions so it can't go invisible.",
         "properties": {
+          "can_manage": {
+            "default": true,
+            "title": "Can Manage",
+            "type": "boolean"
+          },
           "full_name": {
             "title": "Full Name",
             "type": "string"

@@ -830,9 +830,19 @@ def owner_update_store_permissions_route(
     affected_roles: set[str] = set()
 
     if matrix:
+        # Validate every role BEFORE the first write so a rejected
+        # body never half-applies (persisted, unaudited, nobody
+        # signed out).
+        if not isinstance(matrix, dict):
+            raise HTTPException(status_code=422, detail="matrix must be an object.")
         for role, resources in matrix.items():
             if role not in editable_roles:
                 raise HTTPException(status_code=403, detail=f"Cannot edit {role} permissions")
+            if not isinstance(resources, dict):
+                raise HTTPException(
+                    status_code=422, detail=f"matrix.{role} must be an object.",
+                )
+        for role, resources in matrix.items():
             set_store_permissions(store_id, role, resources)
             affected_roles.add(role)
     elif changes:
