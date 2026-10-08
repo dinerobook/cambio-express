@@ -980,7 +980,6 @@ def _enforce_passkey_gate(
     from webauthn.helpers import base64url_to_bytes
     from api.Modules.Auth.Services.passkey import rp_id as _rp_id, origin as _origin
     from api.Modules.TimeClock.Services.passkey import (
-        PasskeyNotRegisteredError,
         decode_assert_token,
         passkey_for_employee,
     )
@@ -1005,7 +1004,17 @@ def _enforce_passkey_gate(
     expected_challenge = base64url_to_bytes(claims["challenge"])
     pk = passkey_for_employee(db, store_id, store_employee_id)
     if pk is None:
-        raise PasskeyNotRegisteredError  # turned into 422 below
+        # Token was valid but the credential was removed after the
+        # challenge was issued. Nothing downstream maps
+        # PasskeyNotRegisteredError, so answer 422 here (it used to
+        # escape as a 500).
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "This roster member has no passkey registered. Ask an "
+                "admin to enroll their device."
+            ),
+        )
     host   = request.url.netloc
     scheme = request.url.scheme
     try:
