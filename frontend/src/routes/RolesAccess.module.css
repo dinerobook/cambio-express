@@ -1,0 +1,89 @@
+/* Roles & access — page-specific layout only. Tables, pills and
+ * row actions are kit primitives. */
+
+.num {
+  font-family: var(--db-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.lede {
+  margin: 0 0 0.75rem;
+  color: var(--db-text-muted);
+  font-size: 0.88rem;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+/* Access by area: area rows × role columns. */
+.areaTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.areaTable th {
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--db-text-muted);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--db-border);
+  white-space: nowrap;
+}
+
+.areaTable td {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--db-border);
+  white-space: nowrap;
+}
+
+.areaTable td:first-child {
+  font-weight: 500;
+}
+
+.areaTable tr.groupRow td {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--db-text-muted);
+  background: var(--db-surface-2);
+}
+
+.chips {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.chip,
+.chipOn {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 0.25rem;
+  font-family: var(--db-font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.chip {
+  background: var(--db-surface-2);
+  color: var(--db-text-muted);
+}
+
+.chipOn {
+  background: var(--db-accent);
+  color: var(--db-on-accent);
+}
+
+.legend {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  color: var(--db-text-muted);
+}

@@ -75,3 +75,43 @@ export async function assignAccessRole(
     method: "PUT", json: { role_id: roleId },
   });
 }
+
+// ── Built-in roles (Admin / Employee) ─────────────────────────
+// The store's own defaults for its two base roles — what a person
+// who is in no saved role and has no custom access can do. A store
+// admin may edit the Employee row only (`editable_roles`).
+
+export interface BuiltinRolesResponse {
+  roles: string[];
+  editable_roles: string[];
+  resources: string[];
+  actions: string[];
+  matrix: Record<string, PermMatrix>;
+  has_overrides: string[];
+}
+
+export function useBuiltinRoles(enabled = true) {
+  return useQuery<BuiltinRolesResponse>({
+    enabled,
+    queryKey: ["store-permissions"],
+    queryFn: () =>
+      api<BuiltinRolesResponse>("/api/v2/admin/store-permissions"),
+  });
+}
+
+export async function saveBuiltinRole(
+  role: string, matrix: PermMatrix,
+): Promise<BuiltinRolesResponse> {
+  return api<BuiltinRolesResponse>("/api/v2/admin/store-permissions", {
+    method: "PUT", json: { matrix: { [role]: matrix } },
+  });
+}
+
+export async function resetBuiltinRole(
+  role: string,
+): Promise<BuiltinRolesResponse> {
+  return api<BuiltinRolesResponse>(
+    "/api/v2/admin/store-permissions/reset",
+    { method: "POST", json: { role } },
+  );
+}

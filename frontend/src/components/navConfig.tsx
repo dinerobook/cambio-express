@@ -190,10 +190,10 @@ export const NAV: NavGroup[] = [
         desc: "Profile, payroll, and login for everyone here.",
       },
       {
-        to: "/admin/store-permissions", label: "Permissions",
+        to: "/team/roles", label: "Roles & access",
         roles: ["admin"],
         icon: iconShield(),
-        desc: "Control what each role can do.",
+        desc: "Roles, and what each one can do.",
       },
     ],
   },

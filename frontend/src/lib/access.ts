@@ -110,7 +110,9 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/employees/:id/edit", perm: "users.update" },
   { path: "/admin/users/new", perm: "users.create" },
   { path: "/admin/users/:uid/edit", perm: "users.update" },
-  { path: "/admin/store-permissions", perm: "settings.read" },
+  { path: "/team/roles", perm: "users.read" },
+  { path: "/team/roles/by-area", perm: "users.read" },
+  { path: "/team/roles/:roleId", perm: "users.read" },
 
   // ── Displays ───────────────────────────────────────────────
   { path: "/tv-display", perm: "settings.read" },

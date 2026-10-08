@@ -87,7 +87,8 @@ const PosImport = lazy(() => import("./routes/PosImport"));
 const ReturnChecks = lazy(() => import("./routes/ReturnChecks"));
 const SectionHub = lazy(() => import("./routes/SectionHub"));
 const Settings = lazy(() => import("./routes/Settings"));
-const StorePermissions = lazy(() => import("./routes/StorePermissions"));
+const RolesAccess = lazy(() => import("./routes/RolesAccess"));
+const RoleEdit = lazy(() => import("./routes/RoleEdit"));
 const SettingsProfile = lazy(
   () => import("./routes/Settings").then(
     (m) => ({ default: m.SettingsProfile }),
@@ -362,7 +363,13 @@ export default function App() {
           <Route path="admin/timeclock/schedule"      element={<Gate><AdminTimeClockSchedule /></Gate>} />
           <Route path="admin/timeclock/paystub/:id"   element={<Gate><TimeClockPaystub /></Gate>} />
           <Route path="admin/audit-log"       element={<Gate><AdminAuditLog /></Gate>} />
-          <Route path="admin/store-permissions" element={<Gate><StorePermissions /></Gate>} />
+          {/* Team → Roles & access replaced the old Store
+              Permissions page (built-in roles are rows there now)
+              and the roles section at the bottom of Employees. */}
+          <Route path="admin/store-permissions" element={<Navigate to="/team/roles" replace />} />
+          <Route path="team/roles"              element={<Gate><RolesAccess /></Gate>} />
+          <Route path="team/roles/by-area"      element={<Gate><RolesAccess view="area" /></Gate>} />
+          <Route path="team/roles/:roleId"      element={<Gate><RoleEdit /></Gate>} />
           {/* Unified Employees hub (E-2) — merges the old Cashiers
               roster + Team Users pages into one person-centric
               place. /admin/users/* survives only as the login

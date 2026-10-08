@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   clearAdminUserPermissions, createAdminUser, setAdminUserPermissions,
@@ -8,27 +8,31 @@ import {
   type AdminUserCreateBody, type AdminUserUpdateBody, type PermMatrix,
 } from "../api/admin";
 import { useSessionStatus } from "../api/account";
-import { api, ApiError } from "../lib/api";
+import { ApiError } from "../lib/api";
 import { toggleMatrixCell } from "../lib/permissions";
 import { modulesOffForGrants } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs,
+  AppLink, Breadcrumbs,
   Alert, Button, Card, Checkbox, ConfirmDialog, ErrorState, Field, Input,
   Loading, PageHeader, PageShell, Select, space,
   useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
-import { assignAccessRole, useAccessRoles } from "../api/roles";
+import {
+  assignAccessRole, useAccessRoles, useBuiltinRoles,
+} from "../api/roles";
+import { areasGranted, emptyMatrix } from "../lib/roleTemplates";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./AdminUserForm.module.css";
 
-// R-2 access presets. "role" = no overlay (pure role permissions);
-// the others seed a custom-access matrix the operator can tweak.
-// R-3 adds the store's SAVED roles to the same picker, as
-// `saved:<id>` — one control for "what can this person do",
-// rather than a second dropdown competing with this one.
-type AccessMode = "role" | "hr" | "bookkeeper" | "custom" | `saved:${number}`;
+// What this person can do — ONE picker. "role" = no overlay: they
+// follow the built-in role of their account type. `saved:<id>` =
+// one of the store's saved roles. "custom" = a grid for this one
+// person. Roles themselves are built and edited on Team → Roles &
+// access; this form only picks one, so it stays short however many
+// areas the product grows (the grid only renders for "custom").
+type AccessMode = "role" | "custom" | `saved:${number}`;
 
 function savedRoleId(mode: AccessMode): number | null {
   return mode.startsWith("saved:")
@@ -74,41 +78,6 @@ const FALLBACK_RESOURCES = [
 ];
 const FALLBACK_ACTIONS = ["create", "read", "update", "delete"];
 
-function emptyMatrix(resources: string[], actions: string[]): PermMatrix {
-  const m: PermMatrix = {};
-  for (const r of resources) {
-    m[r] = {};
-    for (const a of actions) m[r][a] = false;
-  }
-  return m;
-}
-
-// HR & payroll: run the time clock, see the roster — nothing else.
-function hrMatrix(resources: string[], actions: string[]): PermMatrix {
-  const m = emptyMatrix(resources, actions);
-  if (m.time_clock) for (const a of actions) m.time_clock[a] = true;
-  if (m.users) m.users.read = true;
-  return m;
-}
-
-// Bookkeeper: view every ledger, move no money, change nothing.
-function bookkeeperMatrix(
-  resources: string[], actions: string[],
-): PermMatrix {
-  const m = emptyMatrix(resources, actions);
-  for (const r of resources) {
-    if (r === "settings" || r === "users") continue;
-    if (m[r]) m[r].read = true;
-  }
-  return m;
-}
-
-interface StorePermissionsPayload {
-  resources: string[];
-  actions: string[];
-  matrix: Record<string, PermMatrix>;
-}
-
 // Human labels for the store-module flags (keys mirror the
 // backend's MODULE_FLAG_KEYS; the checkbox list only renders keys
 // present in the store's session-status `features`).
@@ -147,14 +116,11 @@ export default function AdminUserForm() {
   const session = useSessionStatus();
   const userPerms = useAdminUserPermissions(isEdit ? uid : null);
   const accessRoles = useAccessRoles();
-  // Role matrices seed the "Custom" editor on create; shares the
-  // Store Permissions page's cache key + payload shape.
-  const storePerms = useQuery<StorePermissionsPayload>({
-    enabled: identity?.role === "admin" || identity?.role === "owner",
-    queryKey: ["store-permissions"],
-    queryFn: () =>
-      api<StorePermissionsPayload>("/api/v2/admin/store-permissions"),
-  });
+  // Built-in role matrices seed the "Custom" editor on create and
+  // feed the "N of M areas" summary under the picker.
+  const storePerms = useBuiltinRoles(
+    identity?.role === "admin" || identity?.role === "owner",
+  );
 
   // Form state — three sources hydrate it: the detail response on
   // edit, blank defaults on create.
@@ -257,9 +223,7 @@ export default function AdminUserForm() {
         // tick a box that the next role edit silently reverts.
         const role = accessRoles.data?.roles.find((r) => r.id === saved);
         perm = role ? structuredClone(role.matrix) : perm;
-      } else if (mode === "hr") perm = hrMatrix(resources, actions);
-      else if (mode === "bookkeeper") perm = bookkeeperMatrix(resources, actions);
-      else if (mode === "custom") perm = perm ?? seedCustomMatrix();
+      } else if (mode === "custom") perm = perm ?? seedCustomMatrix();
       else perm = null;
       return { ...d, access: mode, perm };
     });
@@ -481,24 +445,24 @@ export default function AdminUserForm() {
           </Field>
 
           <Field
-            label="Role *"
+            label="Account type *"
             error={fieldErrors.role}
-            hint={isSelf ? "You can't change your own role. Ask another admin to do it." : undefined}
+            hint={isSelf ? "You can't change your own account type. Ask another admin to do it." : undefined}
           >
             <Select
               value={draft.role}
               onChange={(e) => set("role", e.target.value)}
               disabled={busy || isSelf}
             >
-              <option value="employee">Employee (Transfer only)</option>
-              <option value="admin">Super Admin (Full access)</option>
+              <option value="employee">Employee</option>
+              <option value="admin">Admin (full access)</option>
             </Select>
           </Field>
 
           {!isSelf && (
             <Field
-              label="Access"
-              hint="What this user can actually do — enforced on every request, not just hidden in the UI. Pick a preset or customize per area."
+              label="Role"
+              hint="What this person can do, enforced on every request. Roles are set up on Team → Roles & access."
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
                 <Select
@@ -507,15 +471,10 @@ export default function AdminUserForm() {
                   disabled={busy}
                 >
                   <option value="role">
-                    {draft.role === "admin"
-                      ? "Full access (role default)"
-                      : "Standard employee access (role default)"}
+                    {draft.role === "admin" ? "Admin (built-in)" : "Employee (built-in)"}
                   </option>
-                  <option value="hr">HR &amp; payroll — time clock only, no financials</option>
-                  <option value="bookkeeper">Bookkeeper — view books, move no money</option>
-                  <option value="custom">Custom — pick exactly what they can do</option>
                   {(accessRoles.data?.roles ?? []).length > 0 && (
-                    <optgroup label="Your saved roles">
+                    <optgroup label="Your roles">
                       {(accessRoles.data?.roles ?? []).map((r) => (
                         <option key={r.id} value={`saved:${r.id}`}>
                           {r.name}
@@ -523,19 +482,29 @@ export default function AdminUserForm() {
                       ))}
                     </optgroup>
                   )}
+                  <option value="custom">Custom for this person only</option>
                 </Select>
-                {savedRoleId(draft.access) != null && (
-                  <Alert tone="info">
-                    This person follows the{" "}
-                    <strong>
-                      {accessRoles.data?.roles.find(
-                        (r) => r.id === savedRoleId(draft.access),
-                      )?.name}
-                    </strong>{" "}
-                    role. Editing the role changes them too — pick
-                    “Custom” instead to give this one person their own
-                    access.
-                  </Alert>
+                {draft.access !== "custom" && (
+                  <RoleSummary
+                    name={
+                      savedRoleId(draft.access) != null
+                        ? accessRoles.data?.roles.find(
+                            (r) => r.id === savedRoleId(draft.access),
+                          )?.name
+                        : draft.role === "admin" ? "Admin" : "Employee"
+                    }
+                    to={
+                      savedRoleId(draft.access) != null
+                        ? `/team/roles/${savedRoleId(draft.access)}`
+                        : `/team/roles/${draft.role === "admin" ? "admin" : "employee"}`
+                    }
+                    granted={areasGranted(
+                      savedRoleId(draft.access) != null
+                        ? draft.perm ?? undefined
+                        : storePerms.data?.matrix[draft.role],
+                    )}
+                    total={resources.length}
+                  />
                 )}
                 {draft.access !== "role" && draft.perm
                   && modulesOffForGrants(draft.perm, session.data?.features)
@@ -543,20 +512,29 @@ export default function AdminUserForm() {
                       <Alert key={flag} tone="warning">
                         <strong>{MODULE_LABELS[flag] ?? flag}</strong> is
                         turned off for this store, so those pages are
-                        hidden from everyone here and the boxes below
-                        for that area will not show them. Turn the
-                        module on for the store first.
+                        hidden from everyone here and the boxes for
+                        that area will not show them. Turn the module
+                        on for the store first.
                       </Alert>
                     ))}
-                {draft.access !== "role" && draft.perm && (
-                  <PermissionMatrixTable
-                    resources={resources}
-                    actions={actions}
-                    checked={(resource, action) => draft.perm?.[resource]?.[action] ?? false}
-                    onToggle={togglePerm}
-                    disabled={busy || savedRoleId(draft.access) != null}
-                    resourceHeader="Area"
-                  />
+                {draft.access === "custom" && draft.perm && (
+                  <>
+                    <Alert tone="info">
+                      Only this person gets these boxes. Editing a role
+                      won't change them. If several people need the same
+                      access, add it as a role on Roles &amp; access
+                      instead.
+                    </Alert>
+                    <PermissionMatrixTable
+                      resources={resources}
+                      actions={actions}
+                      checked={(resource, action) => draft.perm?.[resource]?.[action] ?? false}
+                      onToggle={togglePerm}
+                      disabled={busy}
+                      resourceHeader="Area"
+                      grouped
+                    />
+                  </>
                 )}
               </div>
             </Field>
@@ -657,5 +635,23 @@ export default function AdminUserForm() {
 
       <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
+  );
+}
+
+/** One line under the role picker in place of the grid: how much
+ *  the role covers, and where to see or change it. */
+function RoleSummary({
+  name, to, granted, total,
+}: {
+  name: string | undefined;
+  to: string;
+  granted: number;
+  total: number;
+}) {
+  return (
+    <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--db-text-muted)" }}>
+      {total > 0 && <>Can use {granted} of {total} areas. </>}
+      <AppLink to={to}>See {name ?? "this role"} in Roles &amp; access</AppLink>
+    </p>
   );
 }
