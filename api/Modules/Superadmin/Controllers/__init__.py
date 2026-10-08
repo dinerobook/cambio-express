@@ -33,7 +33,10 @@ from api.Modules.Superadmin.Requests import (
     PlatformUserCreateRequest,
     SuperadminBulkActionRequest,
     SuperadminChangeRoleRequest,
+    SuperadminCompPlanRequest,
+    SuperadminCompPlanResponse,
     SuperadminExtendTrialRequest,
+    SuperadminImpersonateRequest,
     SuperadminExtendTrialResponse,
     SuperadminMaintenanceRequest,
     SuperadminStoreEmailRequest,
@@ -67,6 +70,9 @@ from typing import Any
 from api.Core.Clock import utc_now
 from api.Modules.Superadmin.Services.trials import (
     TrialWindowError, apply_plan_change, extend_store_trial,
+)
+from api.Modules.Superadmin.Services.comp import (
+    NotCompedError, comp_store, end_comp, is_comped,
 )
 
 
@@ -664,6 +670,7 @@ def stop_impersonation_route(
 @router.post("/impersonate/{user_id}")
 def impersonate_route(
     response: Response,
+    body: SuperadminImpersonateRequest | None = None,
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -685,8 +692,13 @@ def impersonate_route(
 
     An inactive login is refused (409): the live-principal check
     would 401 every call and the superadmin would only see a login
-    bounce. Enable the login first, impersonate, disable again."""
+    bounce. Enable the login first, impersonate, disable again.
+
+    ``mode: read_only`` adds ``impersonation_mode = read_only`` and
+    ``api.Core.ReadOnlyImpersonation`` refuses every write on the
+    token — look, never touch."""
     _require_superadmin(claims)
+    body = body or SuperadminImpersonateRequest()
     from api.Modules.Auth.Services.jwt_issuer import JWTIssuer, issue_access_token
     from api.Modules.Auth.Services.login import permissions_for
     from api.Modules.Tenancy.Models import User
@@ -715,18 +727,23 @@ def impersonate_route(
         full_name=user.full_name or "",
         username=user.username,
     )
+    extra: dict[str, Any] = {
+        "impersonated_by": sa.id,
+        "impersonator_name": sa.full_name or sa.username or "",
+    }
+    if body.mode == "read_only":
+        extra["impersonation_mode"] = "read_only"
     token = issue_access_token(
-        issuer, ttl_seconds=IMPERSONATION_TTL_SECONDS,
-        extra={
-            "impersonated_by": sa.id,
-            "impersonator_name": sa.full_name or sa.username or "",
-        },
+        issuer, ttl_seconds=IMPERSONATION_TTL_SECONDS, extra=extra,
     )
     _audit_and_commit(
         db, sa,
         "impersonate_user",
         target_id=str(user.id),
-        details=f"User {user.username} (role={user.role}, store_id={user.store_id})",
+        details=(
+            f"User {user.username} (role={user.role}, store_id={user.store_id})"
+            + (" read-only" if body.mode == "read_only" else "")
+        ),
     )
     set_access_token_cookie(response, token)
     return {
@@ -955,6 +972,9 @@ def store_drill_route(
             "frozen": store.frozen_at is not None,
             "frozen_at": _iso(store.frozen_at),
             "frozen_reason": store.frozen_reason or "",
+            "comped": is_comped(store),
+            "comped_at": _iso(store.comped_at),
+            "comp_reason": store.comp_reason or "",
         },
         "team": team,
         "roster": roster,
@@ -964,6 +984,141 @@ def store_drill_route(
             "volume": volume_30d,
             "fees": fees_30d,
         },
+    }
+
+
+def _comp_response(s: Any, **flags: bool) -> SuperadminCompPlanResponse:
+    return SuperadminCompPlanResponse(
+        ok=True, plan=s.plan or "", billing_cycle=s.billing_cycle or "",
+        comped=is_comped(s), comped_at=_iso(s.comped_at),
+        comp_reason=s.comp_reason or "", **flags,
+    )
+
+
+@router.post(
+    "/stores/{store_id}/comp-plan",
+    response_model=SuperadminCompPlanResponse,
+)
+def comp_plan_route(
+    body: SuperadminCompPlanRequest,
+    store_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> SuperadminCompPlanResponse:
+    """Give a store a paid plan for free. A live Stripe subscription
+    is paused (not cancelled) first, so a Stripe failure leaves the
+    store untouched: 503 when Stripe is not configured but the store
+    has a subscription, 502 when Stripe refuses. See
+    ``Superadmin.Services.comp``."""
+    _require_superadmin(claims)
+    from api.Modules.Billing.Services.checkout import StripeServiceError
+    from api.Modules.Billing.Services.config import StripeNotConfiguredError
+    from api.Modules.Tenancy.Models import Store
+    s = db.get(Store, store_id)
+    if s is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    sa = resolve_superadmin_user(db, claims)
+    try:
+        result = comp_store(s, plan=body.plan, reason=body.reason)
+    except StripeNotConfiguredError:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "This store has a Stripe subscription and billing isn't "
+                "configured on this server, so it can't be paused. Set "
+                "STRIPE_SECRET_KEY first."
+            ),
+        )
+    except StripeServiceError:
+        raise HTTPException(
+            status_code=502,
+            detail="Stripe refused to pause the subscription. Nothing was changed.",
+        )
+    _audit_and_commit(
+        db, sa, "comp_plan", target_id=str(s.id),
+        details=(
+            f"{s.name} ({s.slug}) → {body.plan}"
+            + (" (Stripe paused)" if result["stripe_paused"] else "")
+            + (f" — {body.reason.strip()[:80]}" if body.reason.strip() else "")
+        ),
+    )
+    return _comp_response(s, stripe_paused=bool(result["stripe_paused"]))
+
+
+@router.post(
+    "/stores/{store_id}/end-comp",
+    response_model=SuperadminCompPlanResponse,
+)
+def end_comp_route(
+    store_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> SuperadminCompPlanResponse:
+    """Take the comp off: resume Stripe collection and put the plan
+    back to what the subscription says, or, for a store that never
+    paid, open a fresh trial window. 409 when not comped."""
+    _require_superadmin(claims)
+    from api.Modules.Billing.Services.checkout import StripeServiceError
+    from api.Modules.Billing.Services.config import StripeNotConfiguredError
+    from api.Modules.Tenancy.Models import Store
+    s = db.get(Store, store_id)
+    if s is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    sa = resolve_superadmin_user(db, claims)
+    try:
+        result = end_comp(s)
+    except NotCompedError:
+        raise HTTPException(status_code=409, detail="This store is not comped.")
+    except StripeNotConfiguredError:
+        raise HTTPException(
+            status_code=503,
+            detail="Billing isn't configured on this server; the subscription can't be resumed.",
+        )
+    except StripeServiceError:
+        raise HTTPException(
+            status_code=502,
+            detail="Stripe refused to resume the subscription. Nothing was changed.",
+        )
+    _audit_and_commit(
+        db, sa, "end_comp", target_id=str(s.id),
+        details=(
+            f"{s.name} ({s.slug}) → {s.plan}"
+            + (" (Stripe resumed)" if result["stripe_resumed"] else "")
+        ),
+    )
+    return _comp_response(s, stripe_resumed=bool(result["stripe_resumed"]))
+
+
+@router.get("/stores/{store_id}/audit-log")
+def store_audit_log_route(
+    store_id: int = Path(..., ge=1),
+    target: str = Query("", max_length=40),
+    action: str = Query("", max_length=40),
+    page: int = Query(1, ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> dict[str, Any]:
+    """The store's own activity: the same merged operator + transfer
+    feed its admin sees on /app/admin/audit-log
+    (``Admin.Services.audit_log.list_audit_rows``), read by the
+    superadmin from the store page. Rows written during an
+    impersonation carry "(via superadmin …)" in the actor name."""
+    _require_superadmin(claims)
+    from api.Modules.Admin.Services.audit_log import list_audit_rows
+    from api.Modules.Tenancy.Models import Store
+    if db.get(Store, store_id) is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    payload = list_audit_rows(
+        db, store_id=store_id,
+        target_filter=target.strip(), action_filter=action.strip(),
+        page=page,
+    )
+    return {
+        "rows": payload["rows"],
+        "total": payload["total"],
+        "page": payload["page"],
+        "per_page": payload["per_page"],
+        "total_pages": payload["total_pages"],
     }
 
 

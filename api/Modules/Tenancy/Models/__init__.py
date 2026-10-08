@@ -87,6 +87,13 @@ class Store(Base):
     # superadmin UI (not surfaced to the store's users).
     frozen_at             = Column(DateTime, nullable=True)
     frozen_reason         = Column(String(200), default="")
+    # Superadmin comp plan. ``comped_at`` set = the store has a paid
+    # plan for free; any Stripe subscription is paused meanwhile
+    # (``Superadmin.Services.comp``). ``comp_reason`` is operator
+    # context for the store page + audit log. A real checkout ends
+    # the comp; a Stripe cancellation leaves a comped store alone.
+    comped_at             = Column(DateTime, nullable=True)
+    comp_reason           = Column(String(200), default="")
     # Trial-reminder dedup. send_trial_reminders() stamps this the
     # first time it sends; cleared on checkout.session.completed so a
     # second trial (post-reactivation) gets its own fresh reminder.

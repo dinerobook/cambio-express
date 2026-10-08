@@ -2,18 +2,17 @@ import { useSearchParams } from "react-router-dom";
 
 import {
   useAdminAuditLog,
-  type AdminAuditRow,
   type AdminAuditUserOption,
 } from "../api/admin";
 import { useProfile, useStoreInfo } from "../api/account";
-import { formatTimestamp } from "../lib/datetime";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
   Button, Card, Empty, Field, InfoTip, PageHeader, PageShell,
-  Pager, Select, space, Table, TableStates, tdStyle, thStyle,
+  Pager, Select, space, TableStates,
 } from "../components/ui";
-import { AuditActionBadge } from "../components/AuditActionBadge";
+import { AuditTable } from "../components/AuditTable";
+import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
 import styles from "./AdminAuditLog.module.css";
 
 // /app/admin/audit-log — merged operator + transfer audit feed
@@ -83,10 +82,9 @@ export default function AdminAuditLog() {
               value={target}
               onChange={(e) => setParam("target", e.target.value)}
             >
-              <option value="">All</option>
-              <option value="transfer">Transfer</option>
-              <option value="daily_report">Daily Report</option>
-              <option value="batch">ACH Batch</option>
+              {AUDIT_TARGET_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </Select>
           </Field>
           <Field label="Action" style={{ minWidth: "10rem" }}>
@@ -94,13 +92,9 @@ export default function AdminAuditLog() {
               value={action}
               onChange={(e) => setParam("action", e.target.value)}
             >
-              <option value="">All</option>
-              <option value="create">Create</option>
-              <option value="update">Update</option>
-              <option value="delete">Delete</option>
-              <option value="lock">Lock</option>
-              <option value="unlock">Unlock</option>
-              <option value="status_changed">Status changed</option>
+              {AUDIT_ACTION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </Select>
           </Field>
           <Field label="User" style={{ minWidth: "10rem" }}>
@@ -167,60 +161,3 @@ export default function AdminAuditLog() {
     </PageShell>
   );
 }
-
-
-function AuditTable({
-  rows, userTimezone, storeTimezone,
-}: {
-  rows: AdminAuditRow[];
-  userTimezone: string;
-  storeTimezone: string;
-}) {
-  return (
-    <Table>
-      <thead>
-        <tr>
-          {["When", "Actor", "Action", "Target", "Details"].map((h) => (
-            <th key={h} style={thStyle}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          // ts + target_id is unique enough; (source, ts) collisions
-          // can happen across the same wallclock second so we add
-          // the index as the final tiebreaker.
-          <tr key={`${r.source}-${r.ts}-${r.target_id}-${i}`}>
-            <td style={tdStyle}>
-              <span className={styles.monoMuted}>
-                {formatTimestamp(r.ts, { userTimezone, storeTimezone })}
-              </span>
-            </td>
-            <td style={tdStyle}>
-              <strong>{r.user_name || "—"}</strong>
-              {r.user_role && (
-                <span className={styles.userRole}>
-                  ({r.user_role})
-                </span>
-              )}
-            </td>
-            <td style={tdStyle}>
-              <AuditActionBadge action={r.action} />
-            </td>
-            <td style={tdStyle}>
-              <span className={styles.targetType}>
-                {r.target_type || "—"}
-              </span>
-              {r.target_label && <div>{r.target_label}</div>}
-            </td>
-            <td style={{ ...tdStyle }} className={styles.detailCell}>
-              {r.summary || "—"}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
-}
-
-

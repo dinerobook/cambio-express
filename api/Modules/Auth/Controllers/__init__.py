@@ -927,6 +927,7 @@ def session_status_route(
             {
                 "by_user_id": int(impersonated_by),
                 "by_name": str(claims.get("impersonator_name") or ""),
+                "read_only": claims.get("impersonation_mode") == "read_only",
             }
             if impersonated_by is not None else None
         ),

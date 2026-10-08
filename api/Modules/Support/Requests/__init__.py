@@ -93,10 +93,16 @@ class UnreadCountResponse(BaseModel):
 
 
 class TicketListResponse(BaseModel):
+    """``page`` / ``per_page`` / ``total_pages`` are filled by the
+    paged platform list (``GET /tickets/all``); the store's own list
+    returns everything on one page."""
     model_config = ConfigDict(extra="forbid")
 
     tickets: list[TicketRow]
     total: int
+    page: int = 1
+    per_page: int = 0
+    total_pages: int = 1
 
 
 class TicketResponse(BaseModel):

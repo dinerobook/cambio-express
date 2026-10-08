@@ -4,6 +4,10 @@
   gap: 0.5rem;
 }
 
+.searchInput {
+  min-width: 14rem;
+}
+
 .cardInner {
   padding: 1rem 1.25rem;
 }

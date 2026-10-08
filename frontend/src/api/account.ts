@@ -278,8 +278,10 @@ export interface SessionStatus {
   /** Trial countdown for the topbar (W-1). null for paid stores. */
   trial: TrialBanner | null;
   /** Set while a superadmin is signed in AS this person. The shell
-   *  shows the impersonation banner and the exit control from this. */
-  impersonation: { by_user_id: number; by_name: string } | null;
+   *  shows the impersonation banner and the exit control from this.
+   *  `read_only`: the server refuses every write on this session
+   *  (403 with reason `read_only_impersonation`). */
+  impersonation: { by_user_id: number; by_name: string; read_only: boolean } | null;
 }
 
 export interface TrialBanner {

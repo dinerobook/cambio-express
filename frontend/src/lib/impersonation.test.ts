@@ -44,6 +44,23 @@ describe("impersonation", () => {
     expect(cached).toMatchObject({ user_id: 42, role: "admin", store_id: 7 });
     expect(cached.permissions).toEqual(["transfers.view"]);
     expect(assign).toHaveBeenCalledWith("/app/dashboard");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ mode: "full" });
+  });
+
+  it("start in read-only mode asks the server for a read-only session", async () => {
+    const token = fakeJwt({
+      sub: "42", role: "admin", store_id: 7, username: "maria@shop.com",
+      name: "Maria Lopez", perms: [], impersonated_by: 1,
+      impersonation_mode: "read_only",
+    });
+    fetchMock.mockResolvedValueOnce(new Response(
+      JSON.stringify({ token, user: { id: 42, username: "maria@shop.com", role: "admin", store_id: 7, full_name: "Maria Lopez" } }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    await startImpersonation(42, "read_only");
+    expect(String(fetchMock.mock.calls[0][0])).toBe("/api/v2/superadmin/impersonate/42");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ mode: "read_only" });
+    expect(assign).toHaveBeenCalledWith("/app/dashboard");
   });
 
   it("stop ends it server-side, restores the superadmin and returns to Users", async () => {

@@ -4951,6 +4951,10 @@ export interface paths {
          *     An inactive login is refused (409): the live-principal check
          *     would 401 every call and the superadmin would only see a login
          *     bounce. Enable the login first, impersonate, disable again.
+         *
+         *     ``mode: read_only`` adds ``impersonation_mode = read_only`` and
+         *     ``api.Core.ReadOnlyImpersonation`` refuses every write on the
+         *     token — look, never touch.
          */
         post: operations["impersonate_route_superadmin_impersonate__user_id__post"];
         delete?: never;
@@ -5210,6 +5214,30 @@ export interface paths {
         patch: operations["update_store_route_superadmin_stores__store_id__patch"];
         trace?: never;
     };
+    "/superadmin/stores/{store_id}/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Store Audit Log Route
+         * @description The store's own activity: the same merged operator + transfer
+         *     feed its admin sees on /app/admin/audit-log
+         *     (``Admin.Services.audit_log.list_audit_rows``), read by the
+         *     superadmin from the store page. Rows written during an
+         *     impersonation carry "(via superadmin …)" in the actor name.
+         */
+        get: operations["store_audit_log_route_superadmin_stores__store_id__audit_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/superadmin/stores/{store_id}/clear-retention": {
         parameters: {
             query?: never;
@@ -5231,6 +5259,30 @@ export interface paths {
          *       * forensic / support-investigation hold
          */
         post: operations["clear_retention_route_superadmin_stores__store_id__clear_retention_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/superadmin/stores/{store_id}/comp-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Comp Plan Route
+         * @description Give a store a paid plan for free. A live Stripe subscription
+         *     is paused (not cancelled) first, so a Stripe failure leaves the
+         *     store untouched: 503 when Stripe is not configured but the store
+         *     has a subscription, 502 when Stripe refuses. See
+         *     ``Superadmin.Services.comp``.
+         */
+        post: operations["comp_plan_route_superadmin_stores__store_id__comp_plan_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5311,6 +5363,28 @@ export interface paths {
          * @description Send an email to a store's admin(s).
          */
         post: operations["email_store_route_superadmin_stores__store_id__email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/superadmin/stores/{store_id}/end-comp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End Comp Route
+         * @description Take the comp off: resume Stripe collection and put the plan
+         *     back to what the subscription says, or, for a store that never
+         *     paid, open a fresh trial window. 409 when not comped.
+         */
+        post: operations["end_comp_route_superadmin_stores__store_id__end_comp_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5724,7 +5798,9 @@ export interface paths {
         };
         /**
          * List All Tickets
-         * @description Platform staff: list every ticket across all stores.
+         * @description Platform staff: every ticket across all stores, newest first,
+         *     paged. ``q`` (2+ characters) matches the subject, who filed it
+         *     and the store's name; ``store_id`` narrows to one store.
          */
         get: operations["list_all_tickets_tickets_all_get"];
         put?: never;
@@ -12376,6 +12452,51 @@ export interface components {
             role: "admin" | "employee" | "owner";
         };
         /**
+         * SuperadminCompPlanRequest
+         * @description POST body for /superadmin/stores/{id}/comp-plan.
+         */
+        SuperadminCompPlanRequest: {
+            /**
+             * Plan
+             * @enum {string}
+             */
+            plan: "basic" | "pro";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /**
+         * SuperadminCompPlanResponse
+         * @description State after a comp / end-comp. ``stripe_paused`` /
+         *     ``stripe_resumed`` say whether a subscription was touched.
+         */
+        SuperadminCompPlanResponse: {
+            /** Billing Cycle */
+            billing_cycle: string;
+            /** Comp Reason */
+            comp_reason: string;
+            /** Comped */
+            comped: boolean;
+            /** Comped At */
+            comped_at: string;
+            /** Ok */
+            ok: boolean;
+            /** Plan */
+            plan: string;
+            /**
+             * Stripe Paused
+             * @default false
+             */
+            stripe_paused: boolean;
+            /**
+             * Stripe Resumed
+             * @default false
+             */
+            stripe_resumed: boolean;
+        };
+        /**
          * SuperadminExtendTrialRequest
          * @description POST body for /superadmin/stores/{id}/extend-trial and the
          *     ``days`` of the bulk ``extend_trial`` action.
@@ -12406,6 +12527,20 @@ export interface components {
             trial_ends_at: string;
             /** Trial Status */
             trial_status: string;
+        };
+        /**
+         * SuperadminImpersonateRequest
+         * @description POST body for /superadmin/impersonate/{id}. ``read_only``
+         *     mints a token every write is refused on (see
+         *     ``api.Core.ReadOnlyImpersonation``).
+         */
+        SuperadminImpersonateRequest: {
+            /**
+             * Mode
+             * @default full
+             * @enum {string}
+             */
+            mode: "full" | "read_only";
         };
         /**
          * SuperadminMaintenanceRequest
@@ -13084,12 +13219,32 @@ export interface components {
             /** Name */
             name?: string | null;
         };
-        /** TicketListResponse */
+        /**
+         * TicketListResponse
+         * @description ``page`` / ``per_page`` / ``total_pages`` are filled by the
+         *     paged platform list (``GET /tickets/all``); the store's own list
+         *     returns everything on one page.
+         */
         TicketListResponse: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /**
+             * Per Page
+             * @default 0
+             */
+            per_page: number;
             /** Tickets */
             tickets: components["schemas"]["TicketRow"][];
             /** Total */
             total: number;
+            /**
+             * Total Pages
+             * @default 1
+             */
+            total_pages: number;
         };
         /** TicketResponse */
         TicketResponse: {
@@ -23318,7 +23473,11 @@ export interface operations {
                 db_access_token?: string | null;
             };
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SuperadminImpersonateRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -23817,6 +23976,47 @@ export interface operations {
             };
         };
     };
+    store_audit_log_route_superadmin_stores__store_id__audit_log_get: {
+        parameters: {
+            query?: {
+                target?: string;
+                action?: string;
+                page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                store_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     clear_retention_route_superadmin_stores__store_id__clear_retention_post: {
         parameters: {
             query?: never;
@@ -23841,6 +24041,45 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    comp_plan_route_superadmin_stores__store_id__comp_plan_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                store_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuperadminCompPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperadminCompPlanResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23958,6 +24197,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_comp_route_superadmin_stores__store_id__end_comp_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                store_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperadminCompPlanResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24729,6 +25003,12 @@ export interface operations {
             query?: {
                 status?: string | null;
                 category?: string | null;
+                q?: string;
+                store_id?: number | null;
+                /** @description 1-based page number */
+                page?: number;
+                /** @description Rows per page (1 to 200) */
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
