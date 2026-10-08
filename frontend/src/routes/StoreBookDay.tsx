@@ -8,7 +8,7 @@ import {
   type StoreBookField,
 } from "../api/storebook";
 import {
-  Alert, Breadcrumbs, Button, Card, ConfirmDialog, ErrorState, Field,
+  Alert, Breadcrumbs, Button, Card, ConfirmDialog, DateInput, ErrorState, Field,
   IconButton, Input, Loading, MoneyInput, PageHeader, PageShell,
   Textarea, useToast,
 } from "../components/ui";
@@ -187,8 +187,8 @@ export default function StoreBookDay() {
             >
               ←
             </Button>
-            <Input
-              type="date" value={day}
+            <DateInput
+              aria-label="Day" value={day}
               onChange={(e) => {
                 const params = new URLSearchParams(sp);
                 params.set("date", e.target.value);

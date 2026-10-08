@@ -20,11 +20,6 @@
   margin-bottom: 1rem;
 }
 
-.muted {
-  color: var(--db-text-muted, #a3a3a3);
-  margin: 0;
-}
-
 .deltaPos {
   color: var(--db-accent, #3fff00);
 }

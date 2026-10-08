@@ -45,10 +45,6 @@
   white-space: nowrap;
 }
 
-.deptAmount {
-  max-width: 9rem;
-}
-
 /* A close whose drawer was never counted — same accent-bar nag as
    the lottery uncounted-pack row. */
 .uncountedRow td:first-child {

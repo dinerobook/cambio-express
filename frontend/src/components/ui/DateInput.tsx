@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/src/style.css";
 
+import { toIsoDate } from "../../lib/datetime";
 import { Input } from "./Input";
 import styles from "./DateInput.module.css";
 
@@ -37,12 +38,7 @@ export function DateInput({
 
   function handleSelect(day: Date | undefined) {
     if (!day) return;
-    const iso = [
-      day.getFullYear(),
-      String(day.getMonth() + 1).padStart(2, "0"),
-      String(day.getDate()).padStart(2, "0"),
-    ].join("-");
-    onChange({ target: { value: iso } });
+    onChange({ target: { value: toIsoDate(day) } });
     setOpen(false);
   }
 

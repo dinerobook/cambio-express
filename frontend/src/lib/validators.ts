@@ -89,7 +89,7 @@ export const zFraction = z.coerce
 export const zRequiredSelect = (label = "Selection") =>
   z.string().min(1, `${label} is required`);
 
-/** A required date string (`<input type="date">` → "YYYY-MM-DD"). */
+/** A required date string (a `<DateInput>` value, "YYYY-MM-DD"). */
 export const zRequiredDate = (label = "Date") =>
   z.string().min(1, `${label} is required`);
 

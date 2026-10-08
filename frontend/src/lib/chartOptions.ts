@@ -18,6 +18,7 @@
 // doesn't mutate other charts.
 
 import type { ChartOptions, ChartType, TooltipItem } from "chart.js";
+import { fmtMoney } from "./formatters";
 
 // All Line + Bar charts in the SPA share these options. The
 // chart.js type system makes a strict `ChartOptions<"line">` vs.
@@ -180,7 +181,7 @@ export function moneyChartOptions<T extends ChartType = "line">(
 ): ChartOptions<T> {
   return baseOptions<T>(
     label,
-    (v) => `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+    (v) => fmtMoney(v),
   );
 }
 

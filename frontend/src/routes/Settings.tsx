@@ -231,11 +231,7 @@ function ProfileCard() {
     );
   }
 
-  const memberSince = data.created_at
-    ? new Date(data.created_at).toLocaleDateString("en-US", {
-        month: "short", day: "2-digit", year: "numeric",
-      })
-    : "—";
+  const memberSince = formatDate(data.created_at);
   const lastLogin = data.last_login_at
     ? formatTimestamp(data.last_login_at, {
         userTimezone: data.timezone,

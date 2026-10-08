@@ -11,7 +11,7 @@ import { fmtMoney2 } from "../lib/formatters";
 import {
   Breadcrumbs,
   Card, Empty, Input, PageHeader, PageShell,
-  Table, TableStates, tdStyle, thStyle,
+  Table, TableStates, TabsBar, TabsButton, tdStyle, thStyle,
 } from "../components/ui";
 import styles from "./OwnerLocations.module.css";
 
@@ -69,18 +69,17 @@ export default function OwnerLocations() {
       />
 
       <div className={styles.toolbar}>
-        <div className={styles.periodGroup}>
+        <TabsBar>
           {PERIODS.map((p) => (
-            <button
+            <TabsButton
               key={p.slug}
-              type="button"
+              active={period === p.slug}
               onClick={() => setParam("period", p.slug)}
-              className={period === p.slug ? styles.periodBtnActive : styles.periodBtn}
             >
               {p.label}
-            </button>
+            </TabsButton>
           ))}
-        </div>
+        </TabsBar>
         <Input
           type="search"
           value={qDraft}
