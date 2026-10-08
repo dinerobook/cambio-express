@@ -71,9 +71,16 @@ export default function RoleEdit() {
   const fromUserRow = fromUser != null
     ? users.data?.rows.find((u) => u.id === fromUser) ?? null
     : null;
+  // A built-in row saves through the store-permissions route
+  // (Settings: edit); a saved role through the roles route (Team:
+  // edit). Someone who holds neither sees the grid, not a form the
+  // server would refuse.
   const canEditBuiltin = builtinKey != null
-    && (builtin.data?.editable_roles.includes(builtinKey) ?? false);
-  const readOnly = builtinKey != null && !canEditBuiltin;
+    && (builtin.data?.editable_roles.includes(builtinKey) ?? false)
+    && hasPermission("settings", "update");
+  const readOnly = builtinKey != null
+    ? !canEditBuiltin
+    : !hasPermission("users", "update");
 
   /** Where this page's matrix starts — null until the data it
    *  needs has loaded. */
@@ -298,8 +305,9 @@ export default function RoleEdit() {
               {error && <Alert tone="error">{error}</Alert>}
               {readOnly && (
                 <Alert tone="info">
-                  Admins can do everything in the store. This role is
-                  shown for reference and can't be changed here.
+                  {builtinKey === "admin"
+                    ? "Admins can do everything in the store. This role is shown for reference and can't be changed here."
+                    : "This role is shown for reference. You don't have the access needed to change it."}
                 </Alert>
               )}
               <PermissionMatrixTable

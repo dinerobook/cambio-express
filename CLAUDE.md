@@ -543,6 +543,12 @@ a monthly P&L edit needs the monthly ones.
     deactivating or resetting a password signs the person out on
     their next call. Don't add a user-editing route that skips
     the rank helpers, and don't make `get_principal` DB-free.
+    Every matrix route is typed by and runs through
+    `api/Core/Permissions/matrix_update.py` on the request's own
+    session (body shape 422, non-editable role 403, nothing
+    written before the audit row commits); sessions end only
+    through `revoke_refresh_tokens`. Don't write a fourth copy of
+    that loop, and never touch `RefreshToken.revoked_at` inline.
 
 ## Migrations
 **Every schema change is an Alembic revision.** Generate one with:
@@ -729,7 +735,7 @@ Cross-cutting (under `api/Core/`):
 | `Observability` | structlog config, Sentry init, `RequestIDMiddleware`, `SecurityHeadersMiddleware` (CSP + frame options) |
 | `Pagination` | `PaginationParams` + `paginate()` + `paginate_list()` — shared list-endpoint envelope |
 | `PasswordHash` | bcrypt wrappers used by signup + change-password |
-| `Permissions` | Casbin-backed RBAC — `check_permission`, `require_permission`, `permissions_for`, `set_store_permissions`, etc. |
+| `Permissions` | Casbin-backed RBAC — `check_permission`, `permissions_for`, `set_store_permissions`, the rank rule (`ranks.py`), the one matrix-route path (`matrix_update.py`) |
 | `RateLimit` | slowapi singleton + decorator |
 
 Top-level files:

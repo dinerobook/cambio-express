@@ -136,7 +136,7 @@ export default function RolesAccess({
         title="Roles & access"
         subtitle="What each role can do here. Give people a role from their login; edit the role and everyone in it changes together."
         actions={
-          <ButtonLink tone="primary" to="/team/roles/new">
+          <ButtonLink tone="primary" to="/team/roles/new" perm="users.update">
             + Add role
           </ButtonLink>
         }
@@ -169,7 +169,8 @@ export default function RolesAccess({
               <tbody>
                 {builtinColumns.map((col) => {
                   const editable =
-                    builtin.data?.editable_roles.includes(col.key) ?? false;
+                    (builtin.data?.editable_roles.includes(col.key) ?? false)
+                    && hasPermission("settings", "update");
                   return (
                     <tr key={`builtin-${col.key}`}>
                       <td style={tdStyle}>

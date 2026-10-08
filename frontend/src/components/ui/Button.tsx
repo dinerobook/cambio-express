@@ -86,7 +86,7 @@ export function Button({
  */
 export function ButtonLink({
   tone = "secondary", children, to, href, style, className, size = "md",
-  ...rest
+  perm, ...rest
 }: {
   tone?: ButtonTone;
   to?: string;
@@ -95,10 +95,15 @@ export function ButtonLink({
   style?: CSSProperties;
   className?: string;
   size?: "sm" | "md" | "lg";
+  /** Same as on `Button`: the right the destination's action needs
+   *  when the route itself is open to more people than that (a
+   *  "new" page under a read-gated list). */
+  perm?: string;
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>,
          "style" | "children" | "href" | "className">) {
   const target = to ?? (href && isAppPath(href) ? href : undefined);
   if (target !== undefined && !canAccess(target)) return null;
+  if (perm && !canDo(perm)) return null;
   const sizing = buttonSizing[size];
   const cls = ["ds-btn", `ds-btn--${tone}`];
   if (className) cls.push(className);

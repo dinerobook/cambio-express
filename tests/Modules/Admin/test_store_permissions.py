@@ -80,35 +80,33 @@ class TestGetStorePermissions:
                     assert isinstance(data["matrix"][role][resource][action], bool)
 
 
+def _put_cell(client, headers, role, resource, action, allowed):
+    """Fetch the role's current grid, flip one cell, PUT it back."""
+    cur = client.get(
+        "/api/v2/admin/store-permissions", headers=headers,
+    ).json()["matrix"][role]
+    cur[resource][action] = allowed
+    return client.put(
+        "/api/v2/admin/store-permissions", headers=headers,
+        json={"matrix": {role: cur}},
+    )
+
+
 class TestUpdateStorePermissions:
     def test_admin_can_edit_employee(self, client, admin_headers):
-        resp = client.put(
-            "/api/v2/admin/store-permissions",
-            headers=admin_headers,
-            json={"changes": [
-                {"role": "employee", "resource": "settings", "action": "delete", "allowed": True},
-            ]},
-        )
+        resp = _put_cell(client, admin_headers, "employee", "settings", "delete", True)
         assert resp.status_code == 200
         data = resp.json()
         assert data["matrix"]["employee"]["settings"]["delete"] is True
         assert "employee" in data["has_overrides"]
         # Revert
-        client.put(
-            "/api/v2/admin/store-permissions",
-            headers=admin_headers,
-            json={"changes": [
-                {"role": "employee", "resource": "settings", "action": "delete", "allowed": False},
-            ]},
-        )
+        _put_cell(client, admin_headers, "employee", "settings", "delete", False)
 
     def test_admin_cannot_edit_admin_role(self, client, admin_headers):
         resp = client.put(
             "/api/v2/admin/store-permissions",
             headers=admin_headers,
-            json={"changes": [
-                {"role": "admin", "resource": "transfers", "action": "delete", "allowed": False},
-            ]},
+            json={"matrix": {"admin": {"transfers": {"delete": False}}}},
         )
         assert resp.status_code == 403
 
@@ -116,43 +114,55 @@ class TestUpdateStorePermissions:
         resp = client.put(
             "/api/v2/admin/store-permissions",
             headers=admin_headers,
-            json={"changes": [
-                {"role": "owner", "resource": "reports", "action": "read", "allowed": False},
-            ]},
+            json={"matrix": {"owner": {"reports": {"read": False}}}},
         )
         assert resp.status_code == 403
 
-    def test_invalid_resource_ignored(self, client, admin_headers):
+    def test_unknown_resource_is_rejected(self, client, admin_headers):
+        """A cell the platform does not have is a stale client, not
+        something to drop silently: 422, nothing written."""
         resp = client.put(
             "/api/v2/admin/store-permissions",
             headers=admin_headers,
-            json={"changes": [
-                {"role": "employee", "resource": "nonexistent", "action": "read", "allowed": True},
-            ]},
+            json={"matrix": {"employee": {"nonexistent": {"read": True}}}},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 422
+        assert "nonexistent" in resp.json()["detail"]
+        check = client.get("/api/v2/admin/store-permissions", headers=admin_headers)
+        assert "employee" not in check.json()["has_overrides"]
 
-    def test_invalid_action_ignored(self, client, admin_headers):
+    def test_unknown_action_is_rejected(self, client, admin_headers):
         resp = client.put(
             "/api/v2/admin/store-permissions",
             headers=admin_headers,
-            json={"changes": [
-                {"role": "employee", "resource": "transfers", "action": "nuke", "allowed": True},
-            ]},
+            json={"matrix": {"employee": {"transfers": {"nuke": True}}}},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 422
 
-
-class TestResetStorePermissions:
-    def test_admin_can_reset_employee(self, client, admin_headers):
-        # First create an override
-        client.put(
+    def test_legacy_changes_body_is_rejected(self, client, admin_headers):
+        """The cell-diff body is gone; a client still sending it
+        gets a 422 rather than a silent no-op."""
+        resp = client.put(
             "/api/v2/admin/store-permissions",
             headers=admin_headers,
             json={"changes": [
                 {"role": "employee", "resource": "settings", "action": "delete", "allowed": True},
             ]},
         )
+        assert resp.status_code == 422
+
+    def test_empty_matrix_is_rejected(self, client, admin_headers):
+        resp = client.put(
+            "/api/v2/admin/store-permissions",
+            headers=admin_headers, json={"matrix": {}},
+        )
+        assert resp.status_code == 422
+
+
+class TestResetStorePermissions:
+    def test_admin_can_reset_employee(self, client, admin_headers):
+        # First create an override
+        _put_cell(client, admin_headers, "employee", "settings", "delete", True)
         # Verify override exists
         check = client.get("/api/v2/admin/store-permissions", headers=admin_headers)
         assert "employee" in check.json()["has_overrides"]

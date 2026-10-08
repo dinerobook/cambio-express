@@ -102,36 +102,47 @@ def require_permission(
         )
 
 
-def invalidate_sessions_for_role(db: Session, store_id: int, role: str) -> None:
-    """Revoke active refresh tokens for all users of a given role at a
-    store. Forces re-login so fresh permissions take effect immediately
-    instead of waiting up to 30 minutes for the access token to expire."""
+def revoke_refresh_tokens(
+    db: Session,
+    *,
+    user_id: int | None = None,
+    store_id: int | None = None,
+    role: str | None = None,
+) -> int:
+    """Revoke live refresh tokens on ``db``'s transaction and return
+    how many. The ONE session-revoking write: every route that
+    changes what a person may do, or who they are, ends a session
+    through here so the next request re-authenticates against the
+    new state (``_require_live_principal`` refuses the old access
+    token at once).
+
+    Pick the scope by keyword:
+
+    * ``user_id`` — one person, active or not (a deactivated login
+      is exactly the one to sign out).
+    * ``role`` — every ACTIVE login of that role, at ``store_id``
+      when given, platform-wide when ``store_id`` is None (a global
+      matrix edit).
+
+    Exactly one scope is required; a call with neither would revoke
+    the whole platform, so it refuses."""
     from api.Modules.Auth.Models import RefreshToken
+    if user_id is None and role is None:
+        raise ValueError("revoke_refresh_tokens needs user_id or role")
     now = utc_now()
-    db.query(RefreshToken).filter(
-        RefreshToken.user_id.in_(
-            db.query(User.id).filter(
-                User.store_id == store_id,
-                User.role == role,
-                User.is_active.is_(True),
-            )
-        ),
+    q = db.query(RefreshToken).filter(
         RefreshToken.revoked_at.is_(None),
         RefreshToken.expires_at > now,
-    ).update({"revoked_at": now}, synchronize_session="fetch")
+    )
+    if user_id is not None:
+        q = q.filter(RefreshToken.user_id == int(user_id))
+    else:
+        people = db.query(User.id).filter(
+            User.role == role, User.is_active.is_(True),
+        )
+        if store_id is not None:
+            people = people.filter(User.store_id == int(store_id))
+        q = q.filter(RefreshToken.user_id.in_(people))
+    count = q.update({"revoked_at": now}, synchronize_session="fetch")
     db.flush()
-
-
-def invalidate_sessions_for_user(db: Session, user_id: int) -> None:
-    """Revoke ONE user's active refresh tokens — the per-user twin
-    of ``invalidate_sessions_for_role``. Called whenever a user's
-    custom permission overlay is written or cleared, so a token
-    baked with the old perms can't outlive the change."""
-    from api.Modules.Auth.Models import RefreshToken
-    now = utc_now()
-    db.query(RefreshToken).filter(
-        RefreshToken.user_id == int(user_id),
-        RefreshToken.revoked_at.is_(None),
-        RefreshToken.expires_at > now,
-    ).update({"revoked_at": now}, synchronize_session="fetch")
-    db.flush()
+    return int(count)

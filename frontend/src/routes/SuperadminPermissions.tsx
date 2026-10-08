@@ -102,27 +102,31 @@ export default function SuperadminPermissions() {
     if (!data || !draft) return;
     setBusy(true);
     setSaveError(null);
-    const changes: Array<{ role: string; resource: string; action: string; allowed: boolean }> = [];
+    // The server replaces a role's whole grid, so send only the
+    // roles that changed, each in full.
+    const matrix: PermissionMatrix["matrix"] = {};
+    let changed = 0;
     for (const role of draft.roles) {
+      let roleChanged = false;
       for (const resource of draft.resources) {
         for (const action of draft.actions) {
-          const was = data.matrix[role][resource][action];
-          const now = draft.matrix[role][resource][action];
-          if (was !== now) {
-            changes.push({ role, resource, action, allowed: now });
+          if (data.matrix[role][resource][action] !== draft.matrix[role][resource][action]) {
+            roleChanged = true;
+            changed += 1;
           }
         }
       }
+      if (roleChanged) matrix[role] = draft.matrix[role];
     }
-    if (changes.length === 0) return;
+    if (changed === 0) return;
     try {
       const result = await api<PermissionMatrix>("/api/v2/superadmin/permissions", {
         method: "PUT",
-        json: { changes },
+        json: { matrix },
       });
       setDraft(structuredClone(result));
       qc.setQueryData(["superadmin", "permissions"], result);
-      toast({ message: `${changes.length} permission${changes.length === 1 ? "" : "s"} updated.`, tone: "success" });
+      toast({ message: `${changed} permission${changed === 1 ? "" : "s"} updated.`, tone: "success" });
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : "Could not save permissions.");
     } finally {

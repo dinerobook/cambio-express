@@ -143,6 +143,23 @@ so a failure before the commit changes nobody. The data-retention
 purge drops a store's rows the same way, inside the purge
 transaction. `tests/Core/test_permissions_writer.py` pins it.
 
+**One route path.** Every matrix route (Admin `store-permissions`,
+Owners `store/{id}/permissions` and `bulk-permissions`, Superadmin
+`permissions` and `stores/{id}/permissions`) is typed by
+`api/Core/Permissions/matrix_update.py` and runs through
+`apply_matrix_update` / `apply_matrix_reset` on the request's own
+session: body shape is a 422 before the route runs, a role the
+caller may not edit or an unknown resource / action is refused
+before the first write (never dropped silently), and the audit
+row, the rows and the revoked sessions commit together. A matrix
+body replaces each named role's grid WHOLE; the cell-by-cell
+`changes` body is gone (it bypassed the ceiling checks and
+half-applied). Sessions end through ONE helper,
+`revoke_refresh_tokens(db, user_id=… | store_id=…, role=…)` —
+no route writes `RefreshToken.revoked_at` itself. Impersonation
+tokens bake the person's own overlay (`user_id=`), the same as
+login. `tests/Core/test_matrix_update.py` pins all of it.
+
 **Seed once.** `api.Core.Boot.seed_new_resources` adds a later
 resource's default rows ONCE per database and records it in
 `platform_setting` (`casbin_seeded:<resource>`); a superadmin's
@@ -674,6 +691,11 @@ What needs a security discussion FIRST:
 - `tests/Modules/Admin/test_rank_rule.py` — the rank rule: owner
   rows out of an admin's reach, the Team permission is not a
   store takeover, rejected matrix bodies write nothing.
+- `tests/Core/test_matrix_update.py` — the one matrix-route path:
+  non-editable roles refused on every route, empty / malformed /
+  legacy bodies are 422 and unaudited, a save rolls back whole
+  with its audit row, global edits sign the role out platform-wide,
+  impersonation honours overlays, `revoke_refresh_tokens` scopes.
 - `test_password_change_service.py` — current-password verify,
   new-password hashing.
 - `test_jwt_issuer.py` — claims shape, expiry, decode.

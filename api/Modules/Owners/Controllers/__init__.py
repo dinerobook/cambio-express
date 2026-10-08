@@ -21,7 +21,13 @@ from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams, paginate, pagination_dep
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Models import User
-from api.Modules.Auth.Services.principal import require_permission
+from api.Modules.Auth.Services.principal import (
+    require_permission, revoke_refresh_tokens,
+)
+from api.Core.Permissions.matrix_update import (
+    PermissionMatrixBody, ResetRoleBody, apply_matrix_reset,
+    apply_matrix_update, validate_role_matrix,
+)
 from api.Modules.Owners.Requests import (
     OwnerBillingResponse,
     OwnerBillingRow,
@@ -29,6 +35,9 @@ from api.Modules.Owners.Requests import (
     OwnerBulkAddUserRequest,
     OwnerBulkAddUserResponse,
     OwnerBulkAddUserResultRow,
+    OwnerBulkPermissionsRequest,
+    OwnerBulkPermissionsResponse,
+    OwnerBulkPermissionsResultRow,
     OwnerConnectCodeListResponse,
     OwnerConnectCodeResponse,
     OwnerConnectCodeRow,
@@ -805,81 +814,27 @@ def owner_store_permissions_route(
 
 @router.put("/store/{store_id}/permissions")
 def owner_update_store_permissions_route(
+    body: PermissionMatrixBody,
     store_id: int = Path(..., ge=1),
-    body: dict = ...,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict:
-    """Update per-store permission overrides for a store in the owner's
-    umbrella. Owner can edit employee roles."""
+    """Replace the Employee matrix of one store in the owner's
+    umbrella. The Admin row is the platform's."""
     require_permission(claims, "settings", "update")
     user = _require_owner_principal(db, claims)
-    sids = owner_store_ids(db, user)
-    if store_id not in sids:
+    if store_id not in owner_store_ids(db, user):
         raise HTTPException(status_code=403, detail="Store not in your umbrella")
-
-    from api.Core.Permissions import (
-        apply_cell_change,
-        get_permission_matrix, set_store_permissions,
-        RBAC_RESOURCES, RBAC_ACTIONS,
+    affected = apply_matrix_update(
+        db, store_id=store_id, matrix=body.matrix,
+        editable_roles=_OWNER_EDITABLE_ROLES,
     )
-    editable_roles = ["employee"]
-
-    matrix = body.get("matrix", {})
-    changes = body.get("changes", [])
-    affected_roles: set[str] = set()
-
-    if matrix:
-        # Validate every role BEFORE the first write so a rejected
-        # body never half-applies (persisted, unaudited, nobody
-        # signed out).
-        if not isinstance(matrix, dict):
-            raise HTTPException(status_code=422, detail="matrix must be an object.")
-        for role, resources in matrix.items():
-            if role not in editable_roles:
-                raise HTTPException(status_code=403, detail=f"Cannot edit {role} permissions")
-            if not isinstance(resources, dict):
-                raise HTTPException(
-                    status_code=422, detail=f"matrix.{role} must be an object.",
-                )
-        for role, resources in matrix.items():
-            set_store_permissions(store_id, role, resources)
-            affected_roles.add(role)
-    elif changes:
-        # Legacy diff mode: read current matrix, apply changes, write back
-        current = get_permission_matrix(store_id, editable_roles, editable_roles)
-        current_matrix = current["matrix"]
-        for ch in changes:
-            target_role = ch.get("role", "")
-            resource = ch.get("resource", "")
-            action = ch.get("action", "")
-            allowed = ch.get("allowed", False)
-            if target_role not in editable_roles:
-                continue
-            if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
-                continue
-            apply_cell_change(current_matrix[target_role][resource], action, allowed)
-            affected_roles.add(target_role)
-        for r in affected_roles:
-            set_store_permissions(store_id, r, current_matrix[r])
-
-    if affected_roles:
-        from api.Modules.Audit.Services import record_operator_action
-        record_operator_action(
-            db,
-            store_id=store_id,
-            user_id=int(claims.get("sub", 0)),
-            user_name=claims.get("full_name", ""),
-            user_role=claims.get("role", ""),
-            target_type="store_role_override",
-            target_id=str(store_id),
-            target_label=f"{len(matrix) + len(changes)} permission change(s)",
-            action="update_store_permissions",
-            summary=f"owner updated employee permissions for store {store_id}",
-        )
-        from api.Modules.Auth.Services.principal import invalidate_sessions_for_role
-        for r in affected_roles:
-            invalidate_sessions_for_role(db, store_id, r)
+    _audit_store_permissions(
+        db, claims, store_id,
+        target_label=f"{len(affected)} role(s): {', '.join(affected)}",
+        action="update_store_permissions",
+        summary=f"owner updated employee permissions for store {store_id}",
+    )
     db.commit()
     return owner_store_permissions_route(
         store_id=store_id, db=db, claims=claims,
@@ -888,8 +843,8 @@ def owner_update_store_permissions_route(
 
 @router.post("/store/{store_id}/permissions/reset")
 def owner_reset_store_permissions_route(
+    body: ResetRoleBody,
     store_id: int = Path(..., ge=1),
-    body: dict = ...,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict:
@@ -897,14 +852,31 @@ def owner_reset_store_permissions_route(
     in the owner's umbrella."""
     require_permission(claims, "settings", "update")
     user = _require_owner_principal(db, claims)
-    sids = owner_store_ids(db, user)
-    if store_id not in sids:
+    if store_id not in owner_store_ids(db, user):
         raise HTTPException(status_code=403, detail="Store not in your umbrella")
-    target_role = body.get("role", "")
-    if target_role not in ["employee"]:
-        raise HTTPException(status_code=403, detail=f"Cannot reset {target_role} permissions")
-    from api.Core.Permissions import reset_store_to_defaults
-    reset_store_to_defaults(store_id, target_role)
+    apply_matrix_reset(
+        db, store_id=store_id, role=body.role,
+        editable_roles=_OWNER_EDITABLE_ROLES,
+    )
+    _audit_store_permissions(
+        db, claims, store_id,
+        target_label=f"reset {body.role} permissions",
+        action="reset_store_permissions",
+        summary=f"owner reset {body.role} permissions to global defaults for store {store_id}",
+    )
+    db.commit()
+    return owner_store_permissions_route(
+        store_id=store_id, db=db, claims=claims,
+    )
+
+
+_OWNER_EDITABLE_ROLES = ("employee",)
+
+
+def _audit_store_permissions(
+    db: Session, claims: dict[str, Any], store_id: int,
+    *, target_label: str, action: str, summary: str,
+) -> None:
     from api.Modules.Audit.Services import record_operator_action
     record_operator_action(
         db,
@@ -914,15 +886,9 @@ def owner_reset_store_permissions_route(
         user_role=claims.get("role", ""),
         target_type="store_role_override",
         target_id=str(store_id),
-        target_label=f"reset {target_role} permissions",
-        action="reset_store_permissions",
-        summary=f"owner reset {target_role} permissions to global defaults for store {store_id}",
-    )
-    from api.Modules.Auth.Services.principal import invalidate_sessions_for_role
-    invalidate_sessions_for_role(db, store_id, target_role)
-    db.commit()
-    return owner_store_permissions_route(
-        store_id=store_id, db=db, claims=claims,
+        target_label=target_label,
+        action=action,
+        summary=summary,
     )
 
 
@@ -1018,73 +984,59 @@ def owner_activity_route(
 @_rate_limiter.limit("10/minute")
 def owner_bulk_permissions_route(
     request: Request,
-    body: dict = ...,
+    body: OwnerBulkPermissionsRequest,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
-) -> dict:
-    """Push permission overrides to multiple stores at once.
-    Only employee role is editable by owners."""
+) -> OwnerBulkPermissionsResponse:
+    """Push a template store's Employee matrix onto several stores
+    at once. Every store named is written in ONE transaction, so a
+    push lands everywhere or nowhere; a store outside the umbrella
+    is reported as rejected and the rest still go through. A store
+    whose matrix already matches is left alone (no row, no audit
+    entry) and reports ``changes: 0``."""
     require_permission(claims, "settings", "update")
     user = _require_owner_principal(db, claims)
     sids = owner_store_ids(db, user)
     if not sids:
         raise HTTPException(status_code=422, detail="No linked stores")
-
-    target_ids: list[int] = body.get("store_ids", [])
-    changes: list[dict] = body.get("changes", [])
-    if not target_ids or not changes:
-        raise HTTPException(status_code=422, detail="store_ids and changes required")
+    for role, rows in body.matrix.items():
+        if role not in _OWNER_EDITABLE_ROLES:
+            raise HTTPException(
+                status_code=403, detail=f"Cannot edit {role} permissions",
+            )
+        validate_role_matrix(rows, where=f"matrix.{role}")
 
     from api.Core.Permissions import (
-        apply_cell_change,
-        get_permission_matrix, set_store_permissions,
-        RBAC_RESOURCES, RBAC_ACTIONS,
+        RBAC_ACTIONS, RBAC_RESOURCES, get_permission_matrix,
+        set_store_permissions,
     )
-    editable_roles = ["employee"]
-
-    results: list[dict] = []
-    for sid in target_ids:
+    results: list[OwnerBulkPermissionsResultRow] = []
+    for sid in body.store_ids:
         if sid not in sids:
-            results.append({"store_id": sid, "status": "rejected", "reason": "not in umbrella"})
+            results.append(OwnerBulkPermissionsResultRow(
+                store_id=sid, status="rejected", reason="not in umbrella",
+            ))
             continue
-        # Read current matrix, apply changes, write back
-        current = get_permission_matrix(sid, editable_roles, editable_roles)
-        current_matrix = current["matrix"]
-        affected_roles: set[str] = set()
-        applied = 0
-        for ch in changes:
-            target_role = ch.get("role", "")
-            resource = ch.get("resource", "")
-            action = ch.get("action", "")
-            allowed = ch.get("allowed", False)
-            if target_role not in editable_roles:
-                continue
-            if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
-                continue
-            old_val = current_matrix[target_role][resource][action]
-            if old_val != allowed:
-                apply_cell_change(current_matrix[target_role][resource], action, allowed)
-                affected_roles.add(target_role)
-                applied += 1
-        for r in affected_roles:
-            set_store_permissions(sid, r, current_matrix[r])
-        if applied > 0:
-            from api.Modules.Audit.Services import record_operator_action
-            record_operator_action(
-                db,
-                store_id=sid,
-                user_id=int(claims.get("sub", 0)),
-                user_name=claims.get("full_name", ""),
-                user_role=claims.get("role", ""),
-                target_type="store_role_override",
-                target_id=str(sid),
-                target_label=f"{applied} permission change(s)",
+        current = get_permission_matrix(sid, list(body.matrix))["matrix"]
+        changed = 0
+        for role, rows in body.matrix.items():
+            diff = sum(
+                1 for res in RBAC_RESOURCES for act in RBAC_ACTIONS
+                if bool(rows.get(res, {}).get(act)) != current[role][res][act]
+            )
+            if diff:
+                set_store_permissions(sid, role, rows, session=db)
+                revoke_refresh_tokens(db, store_id=sid, role=role)
+                changed += diff
+        if changed:
+            _audit_store_permissions(
+                db, claims, sid,
+                target_label=f"{changed} permission change(s)",
                 action="bulk_update_store_permissions",
                 summary=f"owner bulk-pushed permissions to store {sid}",
             )
-            from api.Modules.Auth.Services.principal import invalidate_sessions_for_role
-            for r in affected_roles:
-                invalidate_sessions_for_role(db, sid, r)
-        results.append({"store_id": sid, "status": "applied", "changes": applied})
+        results.append(OwnerBulkPermissionsResultRow(
+            store_id=sid, status="applied", changes=changed,
+        ))
     db.commit()
-    return {"results": results}
+    return OwnerBulkPermissionsResponse(results=results)

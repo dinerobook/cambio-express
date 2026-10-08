@@ -14,7 +14,16 @@ from sqlalchemy.orm import Session
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services import resolve_store_scope
-from api.Modules.Auth.Services.principal import require_permission
+from api.Modules.Auth.Services.principal import (
+    require_permission, revoke_refresh_tokens,
+)
+from api.Core.Permissions.matrix_update import (
+    PermissionMatrixBody, ResetRoleBody, RoleMatrixBody,
+    apply_matrix_reset, apply_matrix_update, validate_role_matrix,
+)
+from api.Modules.Admin.Requests.roles import (
+    AssignRoleRequest, RoleCreateRequest, RoleUpdateRequest,
+)
 from api.Modules.Admin.Repositories import (
     find_store,
     find_store_user,
@@ -1220,7 +1229,9 @@ def create_user_route(
         # the operator submitted it from — a brand-new user has no
         # sessions to revoke yet.
         from api.Core.Permissions import set_user_permissions
-        set_user_permissions(store_id, user.id, body.permissions)
+        set_user_permissions(
+            store_id, user.id, body.permissions, session=db,
+        )
         custom = " with custom access"
     _audit_user_action(
         db, claims=claims, action="create",
@@ -1325,10 +1336,7 @@ def update_user_route(
         (user.role, bool(user.is_active)) != standing_before
         or bool(fields.get("password"))
     ):
-        from api.Modules.Auth.Services.principal import (
-            invalidate_sessions_for_user,
-        )
-        invalidate_sessions_for_user(db, user.id)
+        revoke_refresh_tokens(db, user_id=user.id)
     db.commit()
     return _user_row(user, claims)
 
@@ -1380,7 +1388,7 @@ def get_user_permissions_route(
 
 @router.put("/users/{user_id}/permissions")
 def set_user_permissions_route(
-    body: dict,
+    body: RoleMatrixBody,
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1390,16 +1398,12 @@ def set_user_permissions_route(
     require_permission(claims, "users", "update")
     store_id = resolve_store_scope(claims)
     user = _find_permission_target(db, claims, store_id, user_id)
-    matrix = body.get("matrix")
-    if not isinstance(matrix, dict):
-        raise HTTPException(
-            status_code=422, detail="Body must carry a matrix object.",
-        )
-    _require_within_ceiling(claims, store_id, matrix=matrix)
+    validate_role_matrix(body.matrix)
+    _require_within_ceiling(claims, store_id, matrix=body.matrix)
     from api.Core.Permissions import (
         get_user_permission_matrix, set_user_permissions,
     )
-    set_user_permissions(store_id, user.id, matrix)
+    set_user_permissions(store_id, user.id, body.matrix, session=db)
     # Editing one member by hand DETACHES them from their saved
     # role (R-3). They keep the matrix just given to them; leaving
     # them attached would let the next role edit silently revert an
@@ -1416,10 +1420,7 @@ def set_user_permissions_route(
             + (" — detached from their saved role" if had_role else "")
         ),
     )
-    from api.Modules.Auth.Services.principal import (
-        invalidate_sessions_for_user,
-    )
-    invalidate_sessions_for_user(db, user.id)
+    revoke_refresh_tokens(db, user_id=user.id)
     db.commit()
     return get_user_permission_matrix(
         user.id, user.role or "employee", store_id,
@@ -1446,7 +1447,7 @@ def clear_user_permissions_route(
         claims, store_id,
         grants=_resolve_grants(user.role or "employee", store_id),
     )
-    clear_user_permissions(store_id, user.id)
+    clear_user_permissions(store_id, user.id, session=db)
     # No overlay means no saved role either — the label would claim
     # an access set that is no longer being applied.
     from api.Modules.Admin.Services.roles import detach_member
@@ -1459,10 +1460,7 @@ def clear_user_permissions_route(
             "(back to role permissions)"
         ),
     )
-    from api.Modules.Auth.Services.principal import (
-        invalidate_sessions_for_user,
-    )
-    invalidate_sessions_for_user(db, user.id)
+    revoke_refresh_tokens(db, user_id=user.id)
     db.commit()
     return get_user_permission_matrix(
         user.id, user.role or "employee", store_id,
@@ -1529,126 +1527,70 @@ def get_store_permissions_route(
     Shows per-store overrides if any, else global defaults."""
     require_permission(claims, "settings", "read")
     sid = resolve_store_scope(claims)
-    role = claims.get("role", "")
     from api.Core.Permissions import get_permission_matrix
-    editable_roles = _editable_roles_for(role)
-    visible_roles = ["admin", "employee"] if role != "superadmin" else ["admin", "employee", "owner"]
-    return get_permission_matrix(sid, visible_roles, editable_roles)
+    return get_permission_matrix(
+        sid, ["admin", "employee"], _editable_roles_for(claims),
+    )
 
 
 @router.put("/store-permissions")
 def update_store_permissions_route(
-    body: dict,
+    body: PermissionMatrixBody,
     db: Session = Depends(get_db),
     claims: dict = Depends(get_principal),
 ) -> dict:
-    """Update per-store permission overrides. Only editable roles
-    allowed (admin can only edit employee, owner can edit admin+employee)."""
+    """Replace the per-store matrix of one or more roles. A store
+    admin (or the owner working in the store) edits the Employee
+    row only; the Admin row is the platform's."""
     require_permission(claims, "settings", "update")
     sid = resolve_store_scope(claims)
-    role = claims.get("role", "")
-    editable_roles = _editable_roles_for(role)
-    from api.Core.Permissions import (
-        apply_cell_change,
-        get_permission_matrix, set_store_permissions,
-        RBAC_RESOURCES, RBAC_ACTIONS,
+    affected = apply_matrix_update(
+        db, store_id=sid, matrix=body.matrix,
+        editable_roles=_editable_roles_for(claims),
+        check_ceiling=lambda m: _require_within_ceiling(claims, sid, matrix=m),
     )
-
-    matrix = body.get("matrix", {})
-    changes = body.get("changes", [])
-    affected_roles: set[str] = set()
-
-    if matrix:
-        # Every role in the body is checked BEFORE the first write.
-        # A 403 half-way through used to leave the first role
-        # persisted with no audit entry and nobody signed out.
-        if not isinstance(matrix, dict):
-            raise HTTPException(status_code=422, detail="matrix must be an object.")
-        for role, resources in matrix.items():
-            if role not in editable_roles:
-                raise HTTPException(status_code=403, detail=f"Cannot edit {role} permissions")
-            if not isinstance(resources, dict):
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"matrix.{role} must be an object.",
-                )
-            _require_within_ceiling(claims, sid, matrix=resources)
-        for role, resources in matrix.items():
-            set_store_permissions(sid, role, resources)
-            affected_roles.add(role)
-    elif changes:
-        # Legacy diff mode: read current matrix, apply changes, write back
-        current = get_permission_matrix(sid, editable_roles, editable_roles)
-        current_matrix = current["matrix"]
-        for ch in changes:
-            target_role = ch.get("role", "")
-            resource = ch.get("resource", "")
-            action = ch.get("action", "")
-            allowed = ch.get("allowed", False)
-            if target_role not in editable_roles:
-                raise HTTPException(status_code=403, detail=f"Cannot edit {target_role} permissions")
-            if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
-                continue
-            apply_cell_change(current_matrix[target_role][resource], action, allowed)
-            affected_roles.add(target_role)
-        for r in affected_roles:
-            _require_within_ceiling(claims, sid, matrix=current_matrix[r])
-        for r in affected_roles:
-            set_store_permissions(sid, r, current_matrix[r])
-
-    if affected_roles:
-        _audit_admin_action(
-            db, claims=claims, action="update_store_permissions",
-            target_type="store_role_override",
-            target_id=str(sid),
-            target_label=f"{len(matrix) + len(changes)} permission change(s)",
-            summary="updated store permission overrides",
-        )
-        from api.Modules.Auth.Services.principal import invalidate_sessions_for_role
-        for r in affected_roles:
-            invalidate_sessions_for_role(db, sid, r)
+    _audit_admin_action(
+        db, claims=claims, action="update_store_permissions",
+        target_type="store_role_override",
+        target_id=str(sid),
+        target_label=f"{len(affected)} role(s): {', '.join(affected)}",
+        summary="updated store permission overrides",
+    )
     db.commit()
     return get_store_permissions_route(db=db, claims=claims)
 
 
 @router.post("/store-permissions/reset")
 def reset_store_permissions_route(
-    body: dict,
+    body: ResetRoleBody,
     db: Session = Depends(get_db),
     claims: dict = Depends(get_principal),
 ) -> dict:
     """Reset a role's permissions to global defaults (delete all overrides)."""
     require_permission(claims, "settings", "update")
     sid = resolve_store_scope(claims)
-    role = claims.get("role", "")
-    target_role = body.get("role", "")
-    editable_roles = _editable_roles_for(role)
-    if target_role not in editable_roles:
-        raise HTTPException(status_code=403, detail=f"Cannot reset {target_role} permissions")
-    from api.Core.Permissions import reset_store_to_defaults
-    reset_store_to_defaults(sid, target_role)
+    apply_matrix_reset(
+        db, store_id=sid, role=body.role,
+        editable_roles=_editable_roles_for(claims),
+    )
     _audit_admin_action(
         db, claims=claims, action="reset_store_permissions",
         target_type="store_role_override",
         target_id=str(sid),
-        target_label=f"reset {target_role} permissions",
-        summary=f"reset {target_role} permissions to global defaults",
+        target_label=f"reset {body.role} permissions",
+        summary=f"reset {body.role} permissions to global defaults",
     )
-    from api.Modules.Auth.Services.principal import invalidate_sessions_for_role
-    invalidate_sessions_for_role(db, sid, target_role)
     db.commit()
     return get_store_permissions_route(db=db, claims=claims)
 
 
-def _editable_roles_for(caller_role: str) -> list[str]:
-    """Which roles the caller can edit permissions for."""
-    if caller_role == "superadmin":
-        return ["admin", "employee"]
-    if caller_role == "owner":
-        return ["employee"]
-    if caller_role == "admin":
-        return ["employee"]
-    return []
+def _editable_roles_for(claims: dict) -> list[str]:
+    """Which built-in roles the caller may edit at this store: the
+    Employee row, for a store admin or an owner working in the
+    store (whose token carries role ``admin``). Superadmin edits a
+    store through ``/superadmin/stores/{id}/permissions``, never
+    here, and an employee-rank token has no Settings edit."""
+    return ["employee"] if claims.get("role") in ("admin", "owner") else []
 
 
 # ── Connect-code redemption (store admin) ──────────────────
@@ -1736,11 +1678,8 @@ def _role_row(role, member_count: int) -> dict:
 
 
 def _revoke_all(db: Session, users: list) -> None:
-    from api.Modules.Auth.Services.principal import (
-        invalidate_sessions_for_user,
-    )
     for user in users:
-        invalidate_sessions_for_user(db, user.id)
+        revoke_refresh_tokens(db, user_id=user.id)
 
 
 def _member_label(user) -> str:
@@ -1800,23 +1739,19 @@ def role_members_route(
 
 @router.post("/roles", status_code=201)
 def create_role_route(
-    body: dict,
+    body: RoleCreateRequest,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict:
     require_permission(claims, "users", "update")
     store_id = resolve_store_scope(claims)
-    matrix = body.get("matrix")
-    if not isinstance(matrix, dict):
-        raise HTTPException(
-            status_code=422, detail="Body must carry a matrix object.",
-        )
-    _require_within_ceiling(claims, store_id, matrix=matrix)
+    validate_role_matrix(body.matrix)
+    _require_within_ceiling(claims, store_id, matrix=body.matrix)
     from api.Modules.Admin.Services.roles import RoleError, create_role
     try:
         role = create_role(
-            db, store_id, name=str(body.get("name") or ""),
-            matrix=matrix,
+            db, store_id, name=body.name,
+            matrix=body.matrix,
             created_by=int(claims["sub"]) if claims.get("sub") else None,
         )
     except RoleError as exc:
@@ -1833,7 +1768,7 @@ def create_role_route(
 
 @router.put("/roles/{role_id}")
 def update_role_route(
-    body: dict,
+    body: RoleUpdateRequest,
     role_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1847,22 +1782,15 @@ def update_role_route(
     """
     require_permission(claims, "users", "update")
     store_id = resolve_store_scope(claims)
-    matrix = body.get("matrix")
-    if matrix is not None and not isinstance(matrix, dict):
-        raise HTTPException(
-            status_code=422, detail="matrix must be an object.",
-        )
-    if matrix is not None:
-        _require_within_ceiling(claims, store_id, matrix=matrix)
-    name = body.get("name")
+    if body.matrix is not None:
+        validate_role_matrix(body.matrix)
+        _require_within_ceiling(claims, store_id, matrix=body.matrix)
     from api.Modules.Admin.Services.roles import (
         RoleError, RoleNotFoundError, member_counts, update_role,
     )
     try:
         role, affected = update_role(
-            db, store_id, role_id,
-            name=str(name) if name is not None else None,
-            matrix=matrix,
+            db, store_id, role_id, name=body.name, matrix=body.matrix,
         )
     except RoleNotFoundError:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -1929,7 +1857,7 @@ def delete_role_route(
 
 @router.put("/users/{user_id}/role")
 def assign_user_role_route(
-    body: dict,
+    body: AssignRoleRequest,
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1944,8 +1872,7 @@ def assign_user_role_route(
     require_permission(claims, "users", "update")
     store_id = resolve_store_scope(claims)
     user = _find_permission_target(db, claims, store_id, user_id)
-    raw = body.get("role_id")
-    role_id = None if raw in (None, "", 0) else int(raw)
+    role_id = body.role_id
     from api.Modules.Admin.Services.roles import (
         RoleNotFoundError, assign_role, get_role, role_matrix,
     )
@@ -1968,10 +1895,7 @@ def assign_user_role_route(
             "(access unchanged)"
         ),
     )
-    from api.Modules.Auth.Services.principal import (
-        invalidate_sessions_for_user,
-    )
-    invalidate_sessions_for_user(db, user.id)
+    revoke_refresh_tokens(db, user_id=user.id)
     db.commit()
     from api.Core.Permissions import get_user_permission_matrix
     out = get_user_permission_matrix(
