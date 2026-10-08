@@ -111,8 +111,43 @@ Resolution order (R-1 added the per-USER layer on top):
    platform resource (lottery, day_close, catalog…) reach stores
    whose matrix predates it** — the old wholesale-replacement
    semantics froze such stores out of every later resource (the
-   "admin can't see new modules" bug).
-4. `RBAC_DEFAULTS` hardcoded → boot-time/Casbin-down fallback
+   "admin can't see new modules" bug). The global layer is itself
+   a per-resource overlay with the same `__none__` markers, so
+   "the superadmin turned this off for everyone" is stored as
+   such; all-off is all-off, never "unseeded".
+4. `RBAC_DEFAULTS` hardcoded → only for a resource NO global row
+   mentions: the unseeded database, and a resource added to the
+   platform after the last global save.
+
+A principal with no store scope (an owner's umbrella token)
+resolves against the global rows, so a superadmin edit to the
+owner row applies to owners everywhere. `resolve_grants(role,
+store_id, user_id)` is the ONE resolver; `check_permission` and
+`permissions_for` are thin wrappers over it.
+
+**One writer.** Every matrix save becomes the complete row set for
+one subject in one domain, and `_replace_subject_rows` swaps old
+for new inside ONE database transaction (DELETE, INSERT, COMMIT;
+Postgres takes an advisory lock per subject so two saves of the
+same role cannot interleave). Nothing goes through the enforcer's
+row-by-row `add_policy` / `remove_filtered_policy`, whose
+autocommit let a reader on another worker see NO override between
+the delete and the inserts (a restricted admin becoming a full
+admin for a moment) and whose in-memory short-circuits let two
+writers leave a union behind. A writer may join the caller's
+SQLAlchemy session (`session=db`): the rows then commit together
+with the audit entry, the role rows and the revoked sessions, and
+a once-only `after_commit` hook reloads this worker's copy. Saved
+roles propagate to every member that way (`apply_to_members`),
+so a failure before the commit changes nobody. The data-retention
+purge drops a store's rows the same way, inside the purge
+transaction. `tests/Core/test_permissions_writer.py` pins it.
+
+**Seed once.** `api.Core.Boot.seed_new_resources` adds a later
+resource's default rows ONCE per database and records it in
+`platform_setting` (`casbin_seeded:<resource>`); a superadmin's
+explicit off is never undone by a deploy. `ensure_resource_defaults`
+also skips any role whose global rows already mention the resource.
 
 **Any write implies read.** A resource with create / update /
 delete granted at any layer also resolves `read`
@@ -161,13 +196,24 @@ Legacy compatibility: a lone `__override_active__` sentinel row
 partial snapshots have no markers, so their switched-off
 resources fall back to global once and re-freeze on next save.
 
-**Defensive fallback (PR #768):** if Casbin throws (DB hiccup,
-adapter fault) both `permissions_for` and `check_permission`
-catch the exception and return `RBAC_DEFAULTS` for the role.
-Login never 500s on a permissions-system fault.
+**Fault policy (fail closed).** `_get_enforcer` keeps serving the
+last good copy through a failed periodic reload, so a lookup that
+still raises means something is genuinely wrong, and the answer
+is NO (`permissions_for` returns the legacy markers only;
+`check_permission` is False). Only a process that has NEVER
+loaded a policy (database unreachable since boot) answers from
+`RBAC_DEFAULTS`, so the platform is not dead on arrival. The old
+rule returned the role's defaults on any exception, which handed
+a restricted admin the whole store for the duration of a fault.
+`tests/Core/test_permissions_fallback.py` pins both halves.
 
 Unknown roles get `[]` — defensive against future role tiers
-that aren't in the matrix yet.
+that aren't in the matrix yet, and because a blank subject would
+match every row in a filtered lookup.
+
+`api.Core.Permissions.require_permission` no longer exists: it
+ignored per-user overlays and shadowed the real one in
+`Auth/Services/principal`. Controllers import that one.
 
 **Changing the defaults or adding new resources/actions is a
 security-sensitive change.** Open a PR that's explicit about

@@ -411,15 +411,11 @@ def _purge_store_owned_rows(db: Session, store_id: int) -> None:
               .filter_by(**{fk: store_id})
               .delete(synchronize_session=False)
         )
-    try:
-        # Row-level delete through the adapter's auto-save; never
-        # ``save_policy()``, which rewrites the whole table from
-        # this process's copy (see api/Core/Permissions).
-        from api.Core.Permissions import _enforcer_for_write, reload_policy
-        _enforcer_for_write().remove_filtered_policy(1, str(store_id))
-        reload_policy()
-    except Exception:
-        pass
+    # The store's permission rows go in the same transaction as the
+    # rest of its data; this worker reloads its policy after the
+    # caller's commit (api/Core/Permissions).
+    from api.Core.Permissions import purge_store_rows
+    purge_store_rows(store_id, session=db)
 
 
 def retention_purge_dry_run(db: Session) -> dict[str, Any]:

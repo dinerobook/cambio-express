@@ -38,9 +38,13 @@ one **Superadmin**.
   PR #761; legacy tables dropped in PR #763. Live enforcement
   (no JWT staleness) — see `api/Core/Permissions/`. One enforcer
   per web worker: permission writers go through
-  `_enforcer_for_write()` and never call `save_policy()` (it
-  rewrites the whole table from one worker's memory); readers
-  reload every `PERMISSIONS_RELOAD_SECONDS` (2 s).
+  one transactional writer (`_replace_subject_rows`: one
+  subject's rows swapped in one DB transaction, optionally
+  joining the request session) and never call `save_policy()`
+  (it rewrites the whole table from one worker's memory) or the
+  enforcer's row-by-row API; readers reload every
+  `PERMISSIONS_RELOAD_SECONDS` (2 s). Faults fail closed once a
+  policy has loaded. See `api/Modules/Auth/INVARIANTS.md`.
 - pytest for the Python suite; Vitest + Testing Library for the SPA.
 
 ## Design system — READ BEFORE TOUCHING ANY UI

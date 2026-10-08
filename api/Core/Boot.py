@@ -24,6 +24,7 @@ import os
 from typing import Optional, cast
 
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 
 def warn_default_seed_passwords(
@@ -47,6 +48,45 @@ def warn_default_seed_passwords(
             "change the password in the UI immediately on first login.",
             ", ".join(missing),
         )
+
+
+# Resources added AFTER the first Casbin seed. An existing database
+# needs their default rows added once (``seed_defaults`` no-ops once
+# policy exists). Append new resources here when they join
+# ``RBAC_RESOURCES``.
+LATER_RESOURCES: tuple[str, ...] = ("lottery", "day_close", "catalog")
+
+_SEED_MARKER = "casbin_seeded:{resource}"
+
+
+def seed_new_resources(
+    session: "Session", log: logging.Logger | None = None,
+) -> list[str]:
+    """Seed each later resource's defaults ONCE per database.
+
+    The additive seed used to run on every boot, so a global row
+    the superadmin had turned off came back with the next deploy
+    (the 2026-10-08 audit, finding 3). Now a ``platform_setting``
+    marker records that a resource was seeded, and a seeded
+    resource is never touched again — whatever the superadmin
+    decides afterwards stands. (``ensure_resource_defaults``
+    itself also skips a role whose global rows already mention
+    the resource, so even a stray call cannot undo an explicit
+    off.) Returns the resources seeded on this call.
+    """
+    from api.Core.Permissions import ensure_resource_defaults
+    from api.Modules.Superadmin.Models import get_setting, set_setting
+    seeded: list[str] = []
+    for resource in LATER_RESOURCES:
+        key = _SEED_MARKER.format(resource=resource)
+        if get_setting(session, key) == "1":
+            continue
+        ensure_resource_defaults(resource)
+        set_setting(session, key, "1")
+        seeded.append(resource)
+    if seeded and log is not None:
+        log.info("Casbin: seeded defaults for new resources %s", seeded)
+    return seeded
 
 
 def init_db(logger: Optional[logging.Logger] = None) -> None:
@@ -124,17 +164,8 @@ def init_db(logger: Optional[logging.Logger] = None) -> None:
                 log.info("Seeded superadmin user (custom password set via env).")
 
         try:
-            from api.Core.Permissions import (
-                ensure_resource_defaults as _ensure_resource,
-                seed_defaults as _seed_casbin,
-            )
+            from api.Core.Permissions import seed_defaults as _seed_casbin
             _seed_casbin()
-            # Resources added AFTER the first seed need an additive
-            # sync on existing databases (seed_defaults no-ops once
-            # policy exists). Append new resources here when they
-            # join RBAC_RESOURCES.
-            _ensure_resource("lottery")
-            _ensure_resource("day_close")
-            _ensure_resource("catalog")
+            seed_new_resources(session, log)
         except Exception as exc:
             log.warning("Casbin seed skipped: %s", exc)

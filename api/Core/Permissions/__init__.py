@@ -9,12 +9,23 @@ adapter). Each row is (ptype, v0=role, v1=domain, v2=resource,
 v3=action). Domain is ``"global"`` for defaults or ``str(store_id)``
 for per-store overrides.
 
-Resolution:
-  1. Per-store rules (domain = store_id) → use exclusively
-  2. Global rules (domain = "global") → fallback
-  3. RBAC_DEFAULTS (hardcoded) → boot-time only, before first seed
+Resolution (``resolve_grants`` is the ONE entry point):
+  1. Per-user overlay (subject ``user:<id>``, domain = store_id)
+  2. Per-store role rows (domain = store_id) — per-resource overlay
+  3. Global role rows (domain = "global") — per-resource overlay
+  4. RBAC_DEFAULTS (hardcoded) → only for resources no global row
+     mentions, i.e. before the first seed
 
-Superadmin bypasses all checks.
+Superadmin bypasses all checks. A principal with no store scope
+(an owner's umbrella token) resolves against the global rows.
+
+Writes: every writer replaces ONE subject's rows in ONE database
+transaction (``_replace_subject_rows``) and never goes through the
+enforcer's row-by-row API, so a reader on another worker sees the
+old set or the new set, never an empty one in between, and two
+writers can never leave a union of their rows behind. A writer may
+join a caller's SQLAlchemy session so the rows commit together
+with the audit entry and whatever else the request changes.
 """
 from __future__ import annotations
 
@@ -24,8 +35,9 @@ import time
 from typing import Any
 
 import casbin
-from casbin_sqlalchemy_adapter import Adapter as CasbinAdapter
-from fastapi import HTTPException
+from casbin_sqlalchemy_adapter import Adapter as CasbinAdapter, CasbinRule
+from sqlalchemy import event, text
+from sqlalchemy.orm import Session, sessionmaker
 
 _log = logging.getLogger(__name__)
 
@@ -205,15 +217,30 @@ def apply_cell_change(
         row["read"] = True
 
 
-def _global_grants(role: str) -> set[tuple[str, str]]:
-    """Global (resource, action) grants for a role — Casbin global
-    domain, falling back to RBAC_DEFAULTS when unseeded."""
-    e = _get_enforcer()
-    global_rules = e.get_filtered_policy(0, role, "global")
-    if global_rules:
-        return _with_implied_read({(r[2], r[3]) for r in global_rules})
+def _default_grants(role: str) -> set[tuple[str, str]]:
     defaults = RBAC_DEFAULTS.get(role, [])
-    return {tuple(p.split(".", 1)) for p in defaults if "." in p}
+    return {tuple(p.split(".", 1)) for p in defaults if "." in p}  # type: ignore[misc]
+
+
+def _global_grants(role: str) -> set[tuple[str, str]]:
+    """Global (resource, action) grants for a role.
+
+    Same per-resource overlay as the store layer: a global row
+    governs the resource it mentions (a ``__none__`` marker
+    mentions it with every action off, which is how "the
+    superadmin turned this off for everyone" is stored), and a
+    resource no global row mentions falls back to
+    ``RBAC_DEFAULTS`` — that is the unseeded case and a resource
+    added to the platform after the last global save."""
+    e = _get_enforcer()
+    mentioned, grants, _legacy = _store_overlay(
+        e.get_filtered_policy(0, role, "global"),
+    )
+    return _with_implied_read(grants) | {
+        (resource, action)
+        for resource, action in _default_grants(role)
+        if resource not in mentioned
+    }
 
 
 def _store_overlay(
@@ -334,6 +361,58 @@ def user_has_custom_permissions(user_id: int, store_id: int) -> bool:
 
 # ── Public read API ────────────────────────────────────────
 
+def resolve_grants(
+    role: str, store_id: int | None = None, user_id: int | None = None,
+) -> set[tuple[str, str]]:
+    """THE resolver. Every permission question goes through here.
+
+    * superadmin → everything;
+    * no store scope (an owner's umbrella token) → the global rows
+      for the role, so a superadmin edit to the owner row applies
+      to owners wherever they are;
+    * a store scope → the store overlay over the global rows, and
+      the user's own overlay on top when ``user_id`` is given.
+
+    Raises when the policy cannot be read; the public wrappers
+    decide what that means for their caller.
+    """
+    if role == "superadmin":
+        return {(r, a) for r in RBAC_RESOURCES for a in RBAC_ACTIONS}
+    if role not in RBAC_DEFAULTS:
+        # Unknown or blank role: nothing. (A blank subject would
+        # also match EVERY row in a filtered policy lookup.)
+        return set()
+    if store_id is None:
+        return _global_grants(role)
+    if user_id is not None:
+        return resolve_user_grants(int(user_id), role, store_id)
+    return _resolve_grants(role, store_id)
+
+
+def _grants_on_fault(role: str, where: str, exc: Exception) -> set[tuple[str, str]]:
+    """What a permission question answers when the policy cannot
+    be read. Only a process that has NEVER loaded a policy (the
+    database was unreachable since boot) falls back to the
+    hardcoded defaults so the platform is not dead on arrival.
+    Once a policy was loaded, ``_get_enforcer`` keeps serving the
+    last good copy through a failed reload, so an exception here
+    means something is genuinely wrong — and the safe answer for a
+    permission system is NO, not "whatever the role usually
+    gets": the defaults would hand a restricted admin the whole
+    store."""
+    if _enforcer is None:
+        _log.warning(
+            "%s: no policy has ever been loaded (role=%s); answering "
+            "from RBAC_DEFAULTS. Error: %s", where, role, exc,
+        )
+        return _default_grants(role)
+    _log.error(
+        "%s: policy lookup failed for role=%s; denying. Error: %s",
+        where, role, exc, exc_info=True,
+    )
+    return set()
+
+
 def check_permission(
     role: str, store_id: int | None,
     resource: str, action: str,
@@ -343,47 +422,14 @@ def check_permission(
 
     ``user_id`` (when provided with a store scope) applies the
     per-user overlay above the role layers — callers that omit it
-    get pure role resolution, so pre-R-1 call sites keep their
-    exact behavior.
-
-    If Casbin throws, we fall back to ``RBAC_DEFAULTS`` so a
-    permission-system fault doesn't lock everyone out. The
-    Auth/Services/principal layer additionally checks the JWT
-    perms claim, so the user's view doesn't get more open than
-    what was baked into their token at login time."""
+    get pure role resolution."""
     if role == "superadmin":
         return True
-    if store_id is None:
-        return f"{resource}.{action}" in RBAC_DEFAULTS.get(role, [])
     try:
-        if user_id is not None:
-            return (resource, action) in resolve_user_grants(
-                int(user_id), role, store_id,
-            )
-        return (resource, action) in _resolve_grants(role, store_id)
-    except Exception as exc:
-        _log.warning(
-            "check_permission: Casbin lookup failed for role=%s "
-            "store_id=%s resource=%s action=%s — falling back to "
-            "RBAC_DEFAULTS. Error: %s",
-            role, store_id, resource, action, exc,
-        )
-        return f"{resource}.{action}" in RBAC_DEFAULTS.get(role, [])
-
-
-def require_permission(
-    claims: dict[str, Any], resource: str, action: str,
-) -> None:
-    """Raise 403 if the principal lacks permission."""
-    role = claims.get("role", "")
-    if role == "superadmin":
-        return
-    store_id = claims.get("store_id")
-    if not check_permission(role, store_id, resource, action):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Missing permission: {resource}.{action}",
-        )
+        grants = resolve_grants(role, store_id, user_id)
+    except Exception as exc:  # noqa: BLE001 — see _grants_on_fault
+        grants = _grants_on_fault(role, "check_permission", exc)
+    return (resource, action) in grants
 
 
 def permissions_for(
@@ -395,34 +441,27 @@ def permissions_for(
 
     ``user_id`` (with a store scope) bakes the per-user overlay
     into the list, so a restricted user's token never carries
-    perms their overlay denies. Role-only callers are unchanged.
-
-    If Casbin throws (DB connection issue, missing table, etc.)
-    we fall back to ``RBAC_DEFAULTS`` so login never 500s on a
-    permissions-system fault. The login path then issues a JWT
-    with the hardcoded defaults; the user can still operate and
-    ops can fix Casbin without an outage."""
+    perms their overlay denies. Role-only callers are unchanged."""
     legacy = list(LEGACY_ROLE_PERMISSIONS.get(role, []))
-    if role == "superadmin":
-        return legacy + [f"{r}.{a}" for r in RBAC_RESOURCES for a in RBAC_ACTIONS]
-    if store_id is None:
-        return legacy + list(RBAC_DEFAULTS.get(role, []))
     try:
-        if user_id is not None:
-            grants = resolve_user_grants(int(user_id), role, store_id)
-        else:
-            grants = _resolve_grants(role, store_id)
-        return legacy + [f"{r}.{a}" for r, a in grants]
-    except Exception as exc:
-        _log.warning(
-            "permissions_for: Casbin lookup failed for role=%s "
-            "store_id=%s — falling back to RBAC_DEFAULTS. Error: %s",
-            role, store_id, exc,
-        )
-        return legacy + list(RBAC_DEFAULTS.get(role, []))
+        grants = resolve_grants(role, store_id, user_id)
+    except Exception as exc:  # noqa: BLE001 — see _grants_on_fault
+        grants = _grants_on_fault(role, "permissions_for", exc)
+    return legacy + sorted(f"{r}.{a}" for r, a in grants)
 
 
 # ── Write API ──────────────────────────────────────────────
+#
+# One writer. A matrix becomes the complete row set for ONE
+# subject in ONE domain, and ``_replace_subject_rows`` swaps the
+# old set for the new one inside a single database transaction:
+# DELETE the subject's rows, INSERT the new ones, COMMIT. Nothing
+# goes through the enforcer's ``add_policy`` / ``remove_*`` API,
+# whose adapter autocommits every row (a reader on another worker
+# could reload between the delete and the inserts and see NO
+# override — a restricted admin becoming a full admin for a
+# moment) and whose in-memory short-circuits let two writers
+# leave a union of their rows behind.
 
 # Legacy all-off marker (read-compat only — no longer written).
 _OVERRIDE_SENTINEL = "__override_active__"
@@ -431,89 +470,215 @@ _OVERRIDE_SENTINEL = "__override_active__"
 # the overlay knows "explicitly off" from "didn't exist yet".
 _RESOURCE_NONE = "__none__"
 
+Rows = list[tuple[str, str]]
+
+
+def _rows_for_matrix(matrix: dict[str, dict[str, bool]]) -> Rows:
+    """The complete row set a matrix stands for: a grant row per
+    allowed action (read implied by any write), and a ``__none__``
+    marker for every CURRENT resource with nothing allowed, so a
+    resource added to the platform later is "not mentioned" and
+    falls through to the layer below until the next save."""
+    normalized = _normalized_matrix(matrix)
+    rows: Rows = []
+    for resource in RBAC_RESOURCES:
+        actions = normalized.get(resource, {})
+        allowed = [a for a in RBAC_ACTIONS if actions.get(a)]
+        if allowed:
+            rows.extend((resource, a) for a in allowed)
+        else:
+            rows.append((resource, _RESOURCE_NONE))
+    return rows
+
+
+_write_session_factory: sessionmaker[Session] | None = None
+
+
+def _write_session() -> Session:
+    global _write_session_factory
+    if _write_session_factory is None:
+        from api.Core.Database.session import _get_engine
+        _write_session_factory = sessionmaker(
+            bind=_get_engine(), autoflush=False, expire_on_commit=False,
+        )
+    return _write_session_factory()
+
+
+def _lock_subject(session: Session, subject: str, domain: str) -> None:
+    """Serialize writers for one (subject, domain) on Postgres so
+    two saves of the same role cannot interleave their delete and
+    insert statements. SQLite serializes writers on its own."""
+    if session.get_bind().dialect.name != "postgresql":
+        return
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"casbin:{domain}:{subject}"},
+    )
+
+
+def _write_subject_rows(
+    session: Session, domain: str, rows_by_subject: dict[str, Rows | None],
+) -> None:
+    """Replace each subject's rows in ``domain`` within the caller's
+    transaction. ``None`` removes the subject's rows and writes
+    nothing (reset / clear). Does not commit."""
+    for subject in sorted(rows_by_subject):
+        _lock_subject(session, subject, domain)
+    for subject, rows in rows_by_subject.items():
+        (
+            session.query(CasbinRule)
+            .filter(
+                CasbinRule.ptype == "p",
+                CasbinRule.v0 == subject,
+                CasbinRule.v1 == domain,
+            )
+            .delete(synchronize_session=False)
+        )
+        for resource, action in rows or []:
+            session.add(CasbinRule(
+                ptype="p", v0=subject, v1=domain, v2=resource, v3=action,
+            ))
+    session.flush()
+
+
+def _replace_subject_rows(
+    domain: str, rows_by_subject: dict[str, Rows | None],
+    *, session: Session | None = None,
+) -> None:
+    """Swap the row sets for one or more subjects in ``domain``.
+
+    Without ``session``: one transaction of its own, committed here,
+    and this worker reloads its policy before returning. With
+    ``session``: the rows join the caller's transaction (commit
+    together with the audit entry, the role rows, the revoked
+    sessions…) and this worker reloads right after that commit —
+    a once-only ``after_commit`` hook on the session does it, so
+    no caller has to remember to.
+    """
+    if session is not None:
+        _write_subject_rows(session, domain, rows_by_subject)
+        event.listen(
+            session, "after_commit", _reload_after_commit, once=True,
+        )
+        return
+    own = _write_session()
+    try:
+        _write_subject_rows(own, domain, rows_by_subject)
+        own.commit()
+    except Exception:
+        own.rollback()
+        raise
+    finally:
+        own.close()
+    reload_policy()
+
+
+def _reload_after_commit(_session: Session) -> None:
+    try:
+        reload_policy()
+    except Exception:  # noqa: BLE001 — the periodic reload catches up
+        _log.warning("Casbin: reload after commit failed", exc_info=True)
+
 
 def set_store_permissions(
     store_id: int, role: str,
     matrix: dict[str, dict[str, bool]],
+    *, session: Session | None = None,
 ) -> None:
     """Replace the per-store overlay for a role. Every CURRENT
     resource is written explicitly — grants, or a ``__none__``
     marker when all its actions are off — so resources added to
     the platform later fall back to global defaults until the
     matrix is saved again (see ``_resolve_grants``)."""
-    matrix = _normalized_matrix(matrix)
-    e = _enforcer_for_write()
-    dom = str(store_id)
-    e.remove_filtered_policy(0, role, dom)
-    for resource in RBAC_RESOURCES:
-        actions = matrix.get(resource, {})
-        any_allowed = False
-        for action in RBAC_ACTIONS:
-            if actions.get(action):
-                e.add_policy(role, dom, resource, action)
-                any_allowed = True
-        if not any_allowed:
-            e.add_policy(role, dom, resource, _RESOURCE_NONE)
-    reload_policy()
+    _replace_subject_rows(
+        str(store_id), {role: _rows_for_matrix(matrix)}, session=session,
+    )
 
 
 def set_global_permissions(
     role: str,
     matrix: dict[str, dict[str, bool]],
+    *, session: Session | None = None,
 ) -> None:
-    """Replace global defaults for a role."""
-    matrix = _normalized_matrix(matrix)
-    e = _enforcer_for_write()
-    e.remove_filtered_policy(0, role, "global")
-    for resource, actions in matrix.items():
-        if resource not in RBAC_RESOURCES:
-            continue
-        for action, allowed in actions.items():
-            if action not in RBAC_ACTIONS:
-                continue
-            if allowed:
-                e.add_policy(role, "global", resource, action)
-    reload_policy()
+    """Replace the global defaults for a role. Same explicit-write
+    contract as the store layer: a resource with nothing allowed
+    gets a ``__none__`` marker, so "the superadmin turned it off
+    for everyone" is stored as such and does not read back as
+    "never configured" (which would resurrect the hardcoded
+    defaults — all-off used to restore everything)."""
+    _replace_subject_rows(
+        "global", {role: _rows_for_matrix(matrix)}, session=session,
+    )
 
 
-def reset_store_to_defaults(store_id: int, role: str) -> None:
+def reset_store_to_defaults(
+    store_id: int, role: str, *, session: Session | None = None,
+) -> None:
     """Remove per-store overrides for a role."""
-    e = _enforcer_for_write()
-    e.remove_filtered_policy(0, role, str(store_id))
-    reload_policy()
+    _replace_subject_rows(str(store_id), {role: None}, session=session)
 
 
 def set_user_permissions(
     store_id: int, user_id: int,
     matrix: dict[str, dict[str, bool]],
+    *, session: Session | None = None,
 ) -> None:
     """Replace the per-USER overlay at a store. Same explicit-write
-    contract as ``set_store_permissions``: every CURRENT resource
-    gets grants or a ``__none__`` marker, so resources added to the
-    platform later fall back to the user's role until the matrix is
-    saved again. This is a SECURITY write — callers must audit it
-    and revoke the user's live sessions so old JWT perms die."""
-    matrix = _normalized_matrix(matrix)
-    e = _enforcer_for_write()
-    sub, dom = _user_subject(user_id), str(store_id)
-    e.remove_filtered_policy(0, sub, dom)
-    for resource in RBAC_RESOURCES:
-        actions = matrix.get(resource, {})
-        any_allowed = False
-        for action in RBAC_ACTIONS:
-            if actions.get(action):
-                e.add_policy(sub, dom, resource, action)
-                any_allowed = True
-        if not any_allowed:
-            e.add_policy(sub, dom, resource, _RESOURCE_NONE)
-    reload_policy()
+    contract as ``set_store_permissions``. This is a SECURITY
+    write — callers must audit it and revoke the user's live
+    sessions so old JWT perms die."""
+    set_user_permissions_bulk(store_id, {user_id: matrix}, session=session)
 
 
-def clear_user_permissions(store_id: int, user_id: int) -> None:
+def set_user_permissions_bulk(
+    store_id: int, matrices: dict[int, dict[str, dict[str, bool]]],
+    *, session: Session | None = None,
+) -> None:
+    """Replace several users' overlays at a store in ONE
+    transaction — a saved role pushing its matrix onto every
+    member either lands for all of them or for none."""
+    if not matrices:
+        return
+    _replace_subject_rows(
+        str(store_id),
+        {
+            _user_subject(uid): _rows_for_matrix(matrix)
+            for uid, matrix in matrices.items()
+        },
+        session=session,
+    )
+
+
+def clear_user_permissions(
+    store_id: int, user_id: int, *, session: Session | None = None,
+) -> None:
     """Remove the per-user overlay — the user goes back to pure
     role resolution. Also a session-revoking security write."""
-    e = _enforcer_for_write()
-    e.remove_filtered_policy(0, _user_subject(user_id), str(store_id))
+    _replace_subject_rows(
+        str(store_id), {_user_subject(user_id): None}, session=session,
+    )
+
+
+def purge_store_rows(store_id: int, *, session: Session | None = None) -> None:
+    """Drop every row in a store's domain (role overrides and user
+    overlays alike) — the data-retention purge."""
+    def _run(s: Session) -> None:
+        (
+            s.query(CasbinRule)
+            .filter(CasbinRule.ptype == "p", CasbinRule.v1 == str(store_id))
+            .delete(synchronize_session=False)
+        )
+        s.flush()
+    if session is not None:
+        _run(session)
+        event.listen(session, "after_commit", _reload_after_commit, once=True)
+        return
+    own = _write_session()
+    try:
+        _run(own)
+        own.commit()
+    finally:
+        own.close()
     reload_policy()
 
 
@@ -546,43 +711,51 @@ def seed_defaults() -> None:
     e = _enforcer_for_write()
     if e.get_policy():
         return
-    for role, perms in RBAC_DEFAULTS.items():
-        for perm in perms:
-            resource, action = perm.split(".", 1)
-            e.add_policy(role, "global", resource, action)
-    reload_policy()
+    rows_by_role: dict[str, Rows | None] = {
+        role: [tuple(perm.split(".", 1)) for perm in perms]  # type: ignore[misc]
+        for role, perms in RBAC_DEFAULTS.items()
+    }
+    _replace_subject_rows("global", rows_by_role)
     _log.info("Casbin: seeded %d default rules",
               sum(len(v) for v in RBAC_DEFAULTS.values()))
 
 
-def ensure_resource_defaults(resource: str) -> None:
+def ensure_resource_defaults(resource: str) -> int:
     """Additively seed the default rules for ONE resource into an
     ALREADY-SEEDED policy store — the path a brand-new resource
     (e.g. "lottery") takes on existing databases, where
     ``seed_defaults`` is a no-op because policy is non-empty.
 
-    Additive only: rows that already exist are left alone and
-    nothing is ever removed, so per-store overrides and superadmin
-    edits survive. Idempotent — safe to call on every boot.
-    """
+    A role whose global rows already MENTION the resource (a
+    grant, or a ``__none__`` marker left by a superadmin who
+    turned it off) is left alone: the superadmin's decision wins
+    over the shipped default, on this boot and every later one.
+    Returns the number of rows added. ``api.Core.Boot`` runs this
+    once per resource and records that it did."""
     e = _enforcer_for_write()
     if not e.get_policy():
-        return  # empty store → seed_defaults handles the full set
+        return 0  # empty store → seed_defaults handles the full set
     added = 0
     for role, perms in RBAC_DEFAULTS.items():
-        for perm in perms:
-            r, action = perm.split(".", 1)
-            if r != resource:
-                continue
-            if not e.has_policy(role, "global", r, action):
-                e.add_policy(role, "global", r, action)
-                added += 1
+        wanted = [
+            tuple(perm.split(".", 1)) for perm in perms
+            if perm.split(".", 1)[0] == resource
+        ]
+        if not wanted:
+            continue
+        current = e.get_filtered_policy(0, role, "global")
+        if any(r[2] == resource for r in current):
+            continue  # mentioned: the stored decision stands
+        rows: Rows = [(r[2], r[3]) for r in current]
+        rows.extend(wanted)  # type: ignore[arg-type]
+        _replace_subject_rows("global", {role: rows})
+        added += len(wanted)
     if added:
-        reload_policy()
         _log.info(
             "Casbin: additively seeded %d default rules for new "
             "resource %r", added, resource,
         )
+    return added
 
 
 # ── Matrix builders (for permission UI endpoints) ──────────
