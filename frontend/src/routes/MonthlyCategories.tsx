@@ -142,7 +142,7 @@ export default function MonthlyCategories() {
         />
       )}
 
-      {draft && (
+      {draft && !lines.isError && (
         <form onSubmit={onSubmit} className="ds-form">
           {err && <Alert tone="error">{err}</Alert>}
 

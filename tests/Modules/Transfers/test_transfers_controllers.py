@@ -954,3 +954,133 @@ def test_update_blocked_when_outside_business_hours(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 422
+
+
+# The edit form reads GET /transfers/{id} and PUTs every field back
+# (PUT replaces the whole row). Before the detail shape, GET returned
+# only the list row, so an edit saved blanks over the sender's phone,
+# address and DOB, the recipient's phone, the commission and the notes.
+_EDIT_FIELDS = (
+    "send_date", "company", "service_type", "status", "sender_name",
+    "sender_phone", "sender_phone_country", "sender_address",
+    "sender_dob", "recipient_name", "recipient_phone", "country",
+    "send_amount", "fee", "commission", "confirm_number",
+    "status_notes", "internal_notes", "batch_id", "employee_id",
+    "customer_id",
+)
+
+
+def _dispatcher_token(client_, test_store_id):
+    login = client_.post(
+        "/api/v2/auth/login",
+        json={"username": "admin@test.com", "password": "testpass123!",
+              "store_id": test_store_id},
+    )
+    assert login.status_code == 200, login.get_data(as_text=True)
+    return login.get_json()["access_token"]
+
+
+def test_get_detail_round_trips_every_edit_field(client, test_store_id):
+    from api.Modules.Transfers.Models import Transfer
+    from tests._app import db
+    with db_session():
+        emp_id = _seed_employee(test_store_id, name="RT-cashier")
+    token = _dispatcher_token(client, test_store_id)
+    auth = {"Authorization": f"Bearer {token}"}
+
+    created = client.post(
+        "/api/v2/transfers",
+        json={
+            "send_date": "2026-03-04",
+            "company": "Intermex",
+            "service_type": "Money Transfer",
+            "sender_name": "Round Trip",
+            "sender_phone": "5550001111",
+            "sender_phone_country": "+52",
+            "sender_address": "12 Main St",
+            "sender_dob": "1980-05-06",
+            "recipient_name": "Rec",
+            "recipient_phone": "5559998888",
+            "country": "Mexico",
+            "send_amount": 300.0,
+            "fee": 6.0,
+            "commission": 1.5,
+            "status_notes": "called sender",
+            "internal_notes": "regular",
+            "employee_id": emp_id,
+        },
+        headers=auth,
+    )
+    assert created.status_code == 201, created.get_data(as_text=True)
+    tid = created.get_json()["transfer"]["id"]
+
+    got = client.get(
+        f"/api/v2/transfers/{tid}?store_ids={test_store_id}", headers=auth,
+    )
+    assert got.status_code == 200, got.get_data(as_text=True)
+    detail = got.get_json()["transfer"]
+    assert detail["sender_phone"] == "5550001111"
+    assert detail["sender_phone_country"] == "+52"
+    assert detail["sender_address"] == "12 Main St"
+    assert detail["sender_dob"] == "1980-05-06"
+    assert detail["recipient_phone"] == "5559998888"
+    assert detail["commission"] == 1.5
+    assert detail["status_notes"] == "called sender"
+    assert detail["internal_notes"] == "regular"
+    assert detail["employee_id"] == emp_id
+    assert detail["customer_id"] is not None
+
+    # Save the edit form unchanged: only what GET returned goes back.
+    body = {k: detail[k] for k in _EDIT_FIELDS}
+    put = client.put(f"/api/v2/transfers/{tid}", json=body, headers=auth)
+    assert put.status_code == 200, put.get_data(as_text=True)
+    assert {k: put.get_json()["transfer"][k] for k in _EDIT_FIELDS} == body
+
+    with db_session():
+        t = db.session.get(Transfer, tid)
+        assert t.sender_phone == "5550001111"
+        assert t.sender_address == "12 Main St"
+        assert t.sender_dob.isoformat() == "1980-05-06"
+        assert t.recipient_phone == "5559998888"
+        assert t.commission == 1.5
+        assert t.internal_notes == "regular"
+
+
+def test_get_detail_blank_optional_fields(test_store_id, client):
+    """A transfer with no sender details still reads back cleanly:
+    empty strings, no DOB, no linked employee."""
+    from api.Modules.Transfers.Models import Transfer
+    from tests._app import db
+    with db_session():
+        t = Transfer(
+            store_id=test_store_id, send_date=date(2026, 1, 2),
+            company="Maxi", service_type="Money Transfer",
+            sender_name="Bare", send_amount=10.0, status="Sent",
+        )
+        db.session.add(t); db.session.commit()
+        tid = t.id
+    token = _dispatcher_token(client, test_store_id)
+    got = client.get(
+        f"/api/v2/transfers/{tid}?store_ids={test_store_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert got.status_code == 200, got.get_data(as_text=True)
+    d = got.get_json()["transfer"]
+    assert d["sender_dob"] == ""
+    assert d["sender_phone"] == ""
+    assert d["sender_phone_country"] == "+1"
+    assert d["employee_id"] is None
+    assert d["commission"] == 0.0
+
+
+def test_detail_carries_every_field_the_put_writes():
+    """A field added to the PUT body but not to the detail would be
+    blanked by every edit (see INVARIANTS: edits replace the row)."""
+    from api.Modules.Transfers.Requests import (
+        CreateTransferRequest, TransferDetail,
+    )
+    missing = set(CreateTransferRequest.model_fields) - set(
+        TransferDetail.model_fields,
+    )
+    assert not missing, f"add to TransferDetail + _to_detail: {missing}"
+    assert set(_EDIT_FIELDS) == set(CreateTransferRequest.model_fields)

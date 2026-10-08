@@ -79,8 +79,11 @@ export default function EditMonthly() {
   const toast = useToast();
   const identity = getCurrentIdentity();
   const [sp]     = useSearchParams();
-  const year  = Number(sp.get("year"));
-  const month = Number(sp.get("month"));
+  // Number(null) is 0, which counts as "finite" — a missing param must
+  // stay NaN so the "Missing year or month" guard below fires and no
+  // /monthly/0/0 request goes out.
+  const year  = Number(sp.get("year") || NaN);
+  const month = Number(sp.get("month") || NaN);
 
   const detail = useMonthly(
     Number.isFinite(year) ? year : undefined,

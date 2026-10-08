@@ -203,7 +203,7 @@ export default function TransferReceipt() {
                 {fmtMoney2(transfer.federal_tax)}
               </td>
               <td className={`${styles.numCol} ${styles.totalCell}`}>
-                ${total}
+                {total}
               </td>
             </tr>
           </tbody>
@@ -212,7 +212,7 @@ export default function TransferReceipt() {
 
         <div className={styles.totalBlock}>
           <span className={styles.totalLabel}>Customer paid</span>
-          <span className={styles.totalAmount}>${total}</span>
+          <span className={styles.totalAmount}>{total}</span>
         </div>
 
         <section className={styles.signatures}>

@@ -110,6 +110,10 @@ export default function BankRules() {
       await rules.refetch();
       setPendingDelete(null);
       toast({ message: "Rule deleted.", tone: "success" });
+    } catch (e) {
+      // Keep the prompt open so the operator can retry or cancel; a
+      // bare rejection here used to vanish as an unhandled promise.
+      toastApiError(e, "Could not delete rule.");
     } finally {
       setDeleteBusy(false);
     }
