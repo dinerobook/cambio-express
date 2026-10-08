@@ -273,23 +273,22 @@ class TestPermissions:
         assert "owner" in data["matrix"]
 
     def test_update_permissions(self, client, sa_headers):
+        cur = client.get(
+            "/api/v2/superadmin/permissions", headers=sa_headers,
+        ).json()["matrix"]["employee"]
+        cur["settings"]["delete"] = True
         resp = client.put(
             "/api/v2/superadmin/permissions",
-            headers=sa_headers,
-            json={"changes": [
-                {"role": "employee", "resource": "settings", "action": "delete", "allowed": True},
-            ]},
+            headers=sa_headers, json={"matrix": {"employee": cur}},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["matrix"]["employee"]["settings"]["delete"] is True
         # Revert
+        cur["settings"]["delete"] = False
         client.put(
             "/api/v2/superadmin/permissions",
-            headers=sa_headers,
-            json={"changes": [
-                {"role": "employee", "resource": "settings", "action": "delete", "allowed": False},
-            ]},
+            headers=sa_headers, json={"matrix": {"employee": cur}},
         )
 
     def test_requires_superadmin(self, client):

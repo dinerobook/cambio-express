@@ -234,21 +234,24 @@ class TestGlobalPermissionUpdate:
 
     def test_update_and_read_back(self, client, test_store_id):
         token = login_superadmin(client)
+        cur = client.get(
+            "/api/v2/superadmin/permissions", headers=_headers(token),
+        ).get_json()["matrix"]["admin"]
+        # Taking View away takes every write with it (the grid is
+        # saved coherent, the way the SPA's toggle keeps it).
+        cur["transfers"] = {a: False for a in cur["transfers"]}
         resp = client.put(
             "/api/v2/superadmin/permissions",
-            json={"changes": [
-                {"role": "admin", "resource": "transfers", "action": "read", "allowed": False},
-            ]},
+            json={"matrix": {"admin": cur}},
             headers=_headers(token),
         )
         assert resp.status_code == 200
         matrix = resp.get_json()["matrix"]
         assert matrix["admin"]["transfers"]["read"] is False
+        cur["transfers"]["read"] = True
         resp2 = client.put(
             "/api/v2/superadmin/permissions",
-            json={"changes": [
-                {"role": "admin", "resource": "transfers", "action": "read", "allowed": True},
-            ]},
+            json={"matrix": {"admin": cur}},
             headers=_headers(token),
         )
         assert resp2.get_json()["matrix"]["admin"]["transfers"]["read"] is True
@@ -362,14 +365,15 @@ class TestPerStorePermissions:
         )
         assert resp.status_code == 403
 
-    def test_empty_changes_noop(self, client, test_store_id):
+    def test_empty_body_is_rejected(self, client, test_store_id):
+        """Nothing to save is a 422, not a 200 that audits nothing."""
         token = login_admin(client, test_store_id)
         resp = client.put(
             "/api/v2/admin/store-permissions",
-            json={"changes": []},
+            json={"matrix": {}},
             headers=_headers(token),
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 422
 
 
 class TestSuperadminPerStorePermissions:

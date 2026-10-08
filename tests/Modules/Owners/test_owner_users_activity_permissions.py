@@ -221,7 +221,20 @@ def test_put_store_permissions_matrix_mode_updates_employee(client):
     assert "employee" in body["has_overrides"]
 
 
-def test_put_store_permissions_changes_mode_updates_employee(client):
+def _put_cell(client, token, sid, resource, action, allowed):
+    """Fetch the store's Employee grid, flip one cell, PUT it back."""
+    headers = {"Authorization": f"Bearer {token}"}
+    cur = client.get(
+        f"/api/v2/owner/store/{sid}/permissions", headers=headers,
+    ).get_json()["matrix"]["employee"]
+    cur[resource][action] = allowed
+    return client.put(
+        f"/api/v2/owner/store/{sid}/permissions",
+        json={"matrix": {"employee": cur}}, headers=headers,
+    )
+
+
+def test_put_store_permissions_legacy_changes_body_rejected(client):
     with db_session():
         owner_id, _, pw = _make_owner()
         sid = _link_store(owner_id, name="Changes Store", slug="changes-store")
@@ -231,12 +244,10 @@ def test_put_store_permissions_changes_mode_updates_employee(client):
         json={"changes": [
             {"role": "employee", "resource": "settings",
              "action": "delete", "allowed": True},
-        ]},
+        ]},  # legacy cell-diff body
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert resp.status_code == 200, resp.get_data(as_text=True)
-    body = resp.get_json()
-    assert body["matrix"]["employee"]["settings"]["delete"] is True
+    assert resp.status_code == 422
 
 
 def test_put_store_permissions_rejects_editing_admin_role(client):
@@ -266,10 +277,7 @@ def test_put_store_permissions_rejects_store_outside_umbrella(client):
     token = _login_owner(client, "boss-oup@x.com", pw)
     resp = client.put(
         f"/api/v2/owner/store/{sid_out}/permissions",
-        json={"changes": [
-            {"role": "employee", "resource": "settings",
-             "action": "delete", "allowed": True},
-        ]},
+        json={"matrix": {"employee": {"settings": {"delete": True}}}},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 403
@@ -291,14 +299,7 @@ def test_put_store_permissions_writes_audit_and_invalidates_sessions(client):
     assert resp_login.status_code == 200
 
     token = _login_owner(client, "boss-oup@x.com", pw)
-    resp = client.put(
-        f"/api/v2/owner/store/{sid}/permissions",
-        json={"changes": [
-            {"role": "employee", "resource": "settings",
-             "action": "delete", "allowed": True},
-        ]},
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    resp = _put_cell(client, token, sid, "settings", "delete", True)
     assert resp.status_code == 200
     with db_session():
         rows = (
@@ -371,14 +372,7 @@ def test_reset_store_permissions_happy_path_removes_overrides(client):
     token = _login_owner(client, "boss-oup@x.com", pw)
     headers = {"Authorization": f"Bearer {token}"}
     # First create an override.
-    client.put(
-        f"/api/v2/owner/store/{sid}/permissions",
-        json={"changes": [
-            {"role": "employee", "resource": "settings",
-             "action": "delete", "allowed": True},
-        ]},
-        headers=headers,
-    )
+    _put_cell(client, token, sid, "settings", "delete", True)
     check = client.get(
         f"/api/v2/owner/store/{sid}/permissions", headers=headers,
     )
@@ -506,10 +500,17 @@ def test_owner_activity_rejects_store_outside_umbrella(client):
 # ── POST /owner/bulk-permissions ────────────────────────────
 
 
+def _employee_grid(client, token, sid):
+    return client.get(
+        f"/api/v2/owner/store/{sid}/permissions",
+        headers={"Authorization": f"Bearer {token}"},
+    ).get_json()["matrix"]["employee"]
+
+
 def test_bulk_permissions_requires_jwt(client):
     resp = client.post(
         "/api/v2/owner/bulk-permissions",
-        json={"store_ids": [1], "changes": []},
+        json={"store_ids": [1], "matrix": {"employee": {}}},
     )
     assert resp.status_code == 401
 
@@ -518,7 +519,7 @@ def test_bulk_permissions_rejects_admin_role(client, test_store_id):
     token = _login_admin(client, test_store_id)
     resp = client.post(
         "/api/v2/owner/bulk-permissions",
-        json={"store_ids": [test_store_id], "changes": []},
+        json={"store_ids": [test_store_id], "matrix": {"employee": {}}},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 403
@@ -530,26 +531,58 @@ def test_bulk_permissions_requires_linked_stores(client):
     token = _login_owner(client, "boss-oup@x.com", pw)
     resp = client.post(
         "/api/v2/owner/bulk-permissions",
-        json={"store_ids": [1], "changes": [
-            {"role": "employee", "resource": "settings",
-             "action": "read", "allowed": True},
-        ]},
+        json={"store_ids": [1],
+              "matrix": {"employee": {"settings": {"read": True}}}},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 422
 
 
-def test_bulk_permissions_requires_store_ids_and_changes(client):
+def test_bulk_permissions_requires_store_ids_and_matrix(client):
     with db_session():
         owner_id, _, pw = _make_owner()
         _link_store(owner_id, name="Req Fields", slug="req-fields")
     token = _login_owner(client, "boss-oup@x.com", pw)
+    headers = {"Authorization": f"Bearer {token}"}
     resp = client.post(
         "/api/v2/owner/bulk-permissions",
-        json={"store_ids": [], "changes": []},
-        headers={"Authorization": f"Bearer {token}"},
+        json={"store_ids": [], "matrix": {}}, headers=headers,
     )
     assert resp.status_code == 422
+    # The cell-diff body is gone.
+    resp = client.post(
+        "/api/v2/owner/bulk-permissions",
+        json={"store_ids": [1], "changes": []}, headers=headers,
+    )
+    assert resp.status_code == 422
+
+
+def test_bulk_permissions_rejects_admin_row_and_unknown_cells(client):
+    """Only the Employee row is an owner's to push, and a cell the
+    platform does not have is refused before any store is touched."""
+    with db_session():
+        owner_id, _, pw = _make_owner()
+        sid = _link_store(owner_id, name="Bulk Guard", slug="bulk-guard")
+    token = _login_owner(client, "boss-oup@x.com", pw)
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = client.post(
+        "/api/v2/owner/bulk-permissions",
+        json={"store_ids": [sid],
+              "matrix": {"admin": {"settings": {"read": True}}}},
+        headers=headers,
+    )
+    assert resp.status_code == 403
+    resp = client.post(
+        "/api/v2/owner/bulk-permissions",
+        json={"store_ids": [sid],
+              "matrix": {"employee": {"nonexistent": {"read": True}}}},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    check = client.get(
+        f"/api/v2/owner/store/{sid}/permissions", headers=headers,
+    )
+    assert "employee" not in check.get_json()["has_overrides"]
 
 
 def test_bulk_permissions_applies_to_every_umbrella_store(client):
@@ -559,15 +592,11 @@ def test_bulk_permissions_applies_to_every_umbrella_store(client):
         sid_a = _link_store(owner_id, name="Bulk A", slug="bulk-a")
         sid_b = _link_store(owner_id, name="Bulk B", slug="bulk-b")
     token = _login_owner(client, "boss-oup@x.com", pw)
+    grid = _employee_grid(client, token, sid_a)
+    grid["settings"]["delete"] = True
     resp = client.post(
         "/api/v2/owner/bulk-permissions",
-        json={
-            "store_ids": [sid_a, sid_b],
-            "changes": [
-                {"role": "employee", "resource": "settings",
-                 "action": "delete", "allowed": True},
-            ],
-        },
+        json={"store_ids": [sid_a, sid_b], "matrix": {"employee": grid}},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200, resp.get_data(as_text=True)
@@ -576,6 +605,8 @@ def test_bulk_permissions_applies_to_every_umbrella_store(client):
     assert by_store[sid_a]["status"] == "applied"
     assert by_store[sid_a]["changes"] == 1
     assert by_store[sid_b]["status"] == "applied"
+    assert by_store[sid_b]["changes"] == 1
+    assert _employee_grid(client, token, sid_b)["settings"]["delete"] is True
     with db_session():
         rows = (
             db.session.query(OperatorAuditLog)
@@ -599,15 +630,11 @@ def test_bulk_permissions_rejects_store_outside_umbrella(client):
         db.session.add(outsider); db.session.commit()
         sid_out = outsider.id
     token = _login_owner(client, "boss-oup@x.com", pw)
+    grid = _employee_grid(client, token, sid_a)
+    grid["settings"]["delete"] = True
     resp = client.post(
         "/api/v2/owner/bulk-permissions",
-        json={
-            "store_ids": [sid_a, sid_out],
-            "changes": [
-                {"role": "employee", "resource": "settings",
-                 "action": "delete", "allowed": True},
-            ],
-        },
+        json={"store_ids": [sid_a, sid_out], "matrix": {"employee": grid}},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
@@ -618,25 +645,24 @@ def test_bulk_permissions_rejects_store_outside_umbrella(client):
 
 
 def test_bulk_permissions_no_op_when_values_already_match(client):
-    """A change that doesn't flip anything (``allowed`` already
-    matches the current matrix) reports 0 applied and skips the
-    audit row for that store."""
+    """A template identical to the store's current grid reports 0
+    changes, writes no override row and skips the audit row."""
     with db_session():
         owner_id, _, pw = _make_owner()
         sid = _link_store(owner_id, name="Bulk Noop", slug="bulk-noop")
     token = _login_owner(client, "boss-oup@x.com", pw)
+    grid = _employee_grid(client, token, sid)
     resp = client.post(
         "/api/v2/owner/bulk-permissions",
-        json={
-            "store_ids": [sid],
-            "changes": [
-                {"role": "employee", "resource": "settings",
-                 "action": "delete", "allowed": False},
-            ],
-        },
+        json={"store_ids": [sid], "matrix": {"employee": grid}},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["results"][0]["status"] == "applied"
     assert body["results"][0]["changes"] == 0
+    check = client.get(
+        f"/api/v2/owner/store/{sid}/permissions",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert "employee" not in check.get_json()["has_overrides"]

@@ -21,6 +21,11 @@ from api.Modules.Audit.Services import record_superadmin_action
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Models import User
 from api.Modules.Auth.Services import resolve_superadmin_user
+from api.Modules.Auth.Services.principal import revoke_refresh_tokens
+from api.Core.Permissions.matrix_update import (
+    PermissionMatrixBody, ResetRoleBody, apply_matrix_reset,
+    apply_matrix_update,
+)
 from api.Modules.Superadmin.Requests import (
     DiscountCodeListResponse,
     PlatformUserCreateRequest,
@@ -296,78 +301,25 @@ def get_permissions_route(
 
 @router.put("/permissions")
 def update_permissions_route(
-    body: dict[str, Any],
+    body: PermissionMatrixBody,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict[str, Any]:
-    """Bulk-update the RBAC matrix. Body: {matrix: {role: {resource: {action: bool}}}}
-    or legacy {changes: [{role, resource, action, allowed}]}."""
+    """Replace the GLOBAL matrix of one or more roles — the layer
+    every store inherits unless it has its own row for the role.
+    Every active login of an affected role, at every store, is
+    signed out."""
     _require_superadmin(claims)
-    from api.Core.Permissions import (
-        apply_cell_change,
-        get_global_matrix, set_global_permissions,
-        RBAC_RESOURCES, RBAC_ACTIONS,
-    )
     sa = resolve_superadmin_user(db, claims)
-    valid_roles = {"admin", "employee", "owner"}
-
-    matrix = body.get("matrix", {})
-    changes = body.get("changes", [])
-
-    if matrix:
-        # Full-state replacement per role
-        affected_roles: set[str] = set()
-        for role, resources in matrix.items():
-            if role not in valid_roles:
-                continue
-            set_global_permissions(role, resources)
-            affected_roles.add(role)
-    elif changes:
-        # Legacy diff mode: read current, apply changes, write back
-        current = get_global_matrix()
-        current_matrix = current["matrix"]
-        affected_roles = set()
-        for ch in changes:
-            role = ch.get("role", "")
-            resource = ch.get("resource", "")
-            action = ch.get("action", "")
-            allowed = ch.get("allowed", False)
-            if role not in valid_roles:
-                continue
-            if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
-                continue
-            apply_cell_change(current_matrix[role][resource], action, allowed)
-            affected_roles.add(role)
-        for role in affected_roles:
-            set_global_permissions(role, current_matrix[role])
-    else:
-        affected_roles = set()
-
-    if affected_roles:
-        # Invalidate sessions for affected roles globally
-        from api.Modules.Auth.Models import RefreshToken
-        from api.Modules.Tenancy.Models import User as _User
-        now = utc_now()
-        for r in affected_roles:
-            db.query(RefreshToken).filter(
-                RefreshToken.user_id.in_(
-                    db.query(_User.id).filter(
-                        _User.role == r,
-                        _User.is_active.is_(True),
-                    )
-                ),
-                RefreshToken.revoked_at.is_(None),
-                RefreshToken.expires_at > now,
-            ).update({"revoked_at": now}, synchronize_session="fetch")
-    # Audit + commit together so the session-revocations and the
-    # audit row land in one transaction. The bare `db.commit()` used
-    # to sit *before* the audit (and only inside the `if`), so the
-    # audit row was rolled back by `db.close()` (invariant #7).
+    affected = apply_matrix_update(
+        db, store_id=None, matrix=body.matrix,
+        editable_roles=("admin", "employee", "owner"),
+    )
     _audit_and_commit(
         db, sa,
         "update_permissions",
         target_id="role_permission",
-        details=f"Updated global permissions for roles: {', '.join(sorted(affected_roles))}",
+        details=f"Updated global permissions for roles: {', '.join(affected)}",
     )
     return get_permissions_route(db=db, claims=claims)
 
@@ -603,7 +555,6 @@ def revoke_user_sessions_route(
     already exists.
     """
     _require_superadmin(claims)
-    from api.Modules.Auth.Models import RefreshToken
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -612,20 +563,14 @@ def revoke_user_sessions_route(
             status_code=403,
             detail="Cannot revoke superadmin sessions via API",
         )
-    now = utc_now()
-    revoked = (
-        db.query(RefreshToken)
-          .filter(RefreshToken.user_id == user_id)
-          .filter(RefreshToken.revoked_at.is_(None))
-          .update({"revoked_at": now}, synchronize_session=False)
-    )
+    revoked = revoke_refresh_tokens(db, user_id=user.id)
     sa = resolve_superadmin_user(db, claims)
     _audit_and_commit(
         db, sa, "revoke_user_sessions",
         target_id=str(user.id),
-        details=f"User {user.username} ({int(revoked)} tokens revoked)",
+        details=f"User {user.username} ({revoked} tokens revoked)",
     )
-    return {"ok": True, "revoked_count": int(revoked)}
+    return {"ok": True, "revoked_count": revoked}
 
 
 # ── Impersonation ──────────────────────────────────────────
@@ -653,7 +598,10 @@ def impersonate_route(
         sub=user.id,
         role=user.role or "employee",
         store_id=user.store_id,
-        permissions=permissions_for(user.role or "employee", db, store_id=user.store_id),
+        permissions=permissions_for(
+            user.role or "employee", db,
+            store_id=user.store_id, user_id=user.id,
+        ),
         full_name=user.full_name or "",
         username=user.username,
     )
@@ -2030,66 +1978,31 @@ def superadmin_store_permissions_route(
 
 @router.put("/stores/{store_id}/permissions")
 def superadmin_update_store_permissions_route(
+    body: PermissionMatrixBody,
     store_id: int = Path(..., ge=1),
-    body: dict = ...,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict:
-    """Update per-store permission overrides. Superadmin can edit
-    admin + employee roles."""
+    """Replace a store's matrix for the admin and/or employee role."""
     _require_superadmin(claims)
     from api.Modules.Tenancy.Models import Store
     store = db.get(Store, store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
-
-    from api.Core.Permissions import (
-        apply_cell_change,
-        get_permission_matrix, set_store_permissions,
-        RBAC_RESOURCES, RBAC_ACTIONS,
+    affected = apply_matrix_update(
+        db, store_id=store_id, matrix=body.matrix,
+        editable_roles=("admin", "employee"),
     )
-    editable_roles = ["admin", "employee"]
-
-    matrix = body.get("matrix", {})
-    changes = body.get("changes", [])
-    affected_roles: set[str] = set()
-
-    if matrix:
-        for role, resources in matrix.items():
-            if role not in editable_roles:
-                continue
-            set_store_permissions(store_id, role, resources)
-            affected_roles.add(role)
-    elif changes:
-        # Legacy diff mode: read current matrix, apply changes, write back
-        current = get_permission_matrix(store_id, editable_roles, editable_roles)
-        current_matrix = current["matrix"]
-        for ch in changes:
-            target_role = ch.get("role", "")
-            resource = ch.get("resource", "")
-            action = ch.get("action", "")
-            allowed = ch.get("allowed", False)
-            if target_role not in editable_roles:
-                continue
-            if resource not in RBAC_RESOURCES or action not in RBAC_ACTIONS:
-                continue
-            apply_cell_change(current_matrix[target_role][resource], action, allowed)
-            affected_roles.add(target_role)
-        for role in affected_roles:
-            set_store_permissions(store_id, role, current_matrix[role])
-
-    if affected_roles:
-        sa = resolve_superadmin_user(db, claims)
-        _audit_store(
-            db, sa,
-            "update_store_permissions",
-            target_id=str(store_id),
-            details=f"superadmin updated permissions for store '{store.name}'",
-        )
-        from api.Modules.Auth.Services.principal import invalidate_sessions_for_role
-        for r in affected_roles:
-            invalidate_sessions_for_role(db, store_id, r)
-    db.commit()
+    sa = resolve_superadmin_user(db, claims)
+    _audit_and_commit(
+        db, sa,
+        "update_store_permissions",
+        target_id=str(store_id),
+        details=(
+            f"superadmin updated {', '.join(affected)} permissions "
+            f"for store '{store.name}'"
+        ),
+    )
     return superadmin_store_permissions_route(
         store_id=store_id, db=db, claims=claims,
     )
@@ -2097,8 +2010,8 @@ def superadmin_update_store_permissions_route(
 
 @router.post("/stores/{store_id}/permissions/reset")
 def superadmin_reset_store_permissions_route(
+    body: ResetRoleBody,
     store_id: int = Path(..., ge=1),
-    body: dict = ...,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict:
@@ -2108,21 +2021,17 @@ def superadmin_reset_store_permissions_route(
     store = db.get(Store, store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
-    target_role = body.get("role", "")
-    if target_role not in ["admin", "employee"]:
-        raise HTTPException(status_code=403, detail=f"Cannot reset {target_role} permissions")
-    from api.Core.Permissions import reset_store_to_defaults
-    reset_store_to_defaults(store_id, target_role)
+    apply_matrix_reset(
+        db, store_id=store_id, role=body.role,
+        editable_roles=("admin", "employee"),
+    )
     sa = resolve_superadmin_user(db, claims)
-    _audit_store(
+    _audit_and_commit(
         db, sa,
         "reset_store_permissions",
         target_id=str(store_id),
-        details=f"superadmin reset {target_role} permissions to global defaults for store '{store.name}'",
+        details=f"superadmin reset {body.role} permissions to global defaults for store '{store.name}'",
     )
-    from api.Modules.Auth.Services.principal import invalidate_sessions_for_role
-    invalidate_sessions_for_role(db, store_id, target_role)
-    db.commit()
     return superadmin_store_permissions_route(
         store_id=store_id, db=db, claims=claims,
     )

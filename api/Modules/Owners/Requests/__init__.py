@@ -275,3 +275,35 @@ class OwnerCrossStoreResponse(BaseModel):
     updated:  int
     rejected: int
     results:  list[OwnerCrossStoreResultRow]
+
+
+# ── Bulk permission push ────────────────────────────────────
+
+from api.Core.Permissions.matrix_update import RoleMatrix  # noqa: E402
+
+
+class OwnerBulkPermissionsRequest(BaseModel):
+    """Push one role matrix onto several stores of the umbrella.
+    ``matrix`` carries the template store's grid per role; only
+    the Employee row is an owner's to push."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    store_ids: list[int] = Field(..., min_length=1)
+    matrix: dict[str, RoleMatrix] = Field(..., min_length=1)
+
+
+class OwnerBulkPermissionsResultRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    store_id: int
+    status: Literal["applied", "rejected"]
+    # Cells that differed from the store's matrix before the push.
+    changes: int = 0
+    reason: str = ""
+
+
+class OwnerBulkPermissionsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    results: list[OwnerBulkPermissionsResultRow]

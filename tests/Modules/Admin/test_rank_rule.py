@@ -311,12 +311,6 @@ def test_employee_cannot_widen_their_own_role_via_store_permissions(
             json={"matrix": {"employee": widened}},
         )
         assert r.status_code == 403, r.text
-        r = client.put(
-            "/api/v2/admin/store-permissions", headers=_h(tok),
-            json={"changes": [{"role": "employee", "resource": "users",
-                               "action": "delete", "allowed": True}]},
-        )
-        assert r.status_code == 403, r.text
     finally:
         reset_store_to_defaults(test_store_id, "employee")
 

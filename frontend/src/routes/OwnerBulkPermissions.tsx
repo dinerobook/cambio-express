@@ -58,16 +58,11 @@ export default function OwnerBulkPermissions() {
     setError(null);
     setResults(null);
 
-    const changes: Array<{ role: string; resource: string; action: string; allowed: boolean }> = [];
+    // Only the rows an owner may edit travel; the server replaces
+    // each one whole at every selected store.
+    const matrix: Record<string, Record<string, Record<string, boolean>>> = {};
     for (const role of templatePerms.editable_roles) {
-      for (const resource of templatePerms.resources) {
-        for (const action of templatePerms.actions) {
-          changes.push({
-            role, resource, action,
-            allowed: templatePerms.matrix[role][resource][action],
-          });
-        }
-      }
+      matrix[role] = templatePerms.matrix[role];
     }
 
     try {
@@ -75,7 +70,7 @@ export default function OwnerBulkPermissions() {
         method: "POST",
         json: {
           store_ids: [...selectedStores],
-          changes,
+          matrix,
         },
       });
       setResults(resp.results);

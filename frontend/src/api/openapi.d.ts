@@ -324,8 +324,9 @@ export interface paths {
         get: operations["get_store_permissions_route_admin_store_permissions_get"];
         /**
          * Update Store Permissions Route
-         * @description Update per-store permission overrides. Only editable roles
-         *     allowed (admin can only edit employee, owner can edit admin+employee).
+         * @description Replace the per-store matrix of one or more roles. A store
+         *     admin (or the owner working in the store) edits the Employee
+         *     row only; the Admin row is the platform's.
          */
         put: operations["update_store_permissions_route_admin_store_permissions_put"];
         post?: never;
@@ -3450,8 +3451,12 @@ export interface paths {
         put?: never;
         /**
          * Owner Bulk Permissions Route
-         * @description Push permission overrides to multiple stores at once.
-         *     Only employee role is editable by owners.
+         * @description Push a template store's Employee matrix onto several stores
+         *     at once. Every store named is written in ONE transaction, so a
+         *     push lands everywhere or nowhere; a store outside the umbrella
+         *     is reported as rejected and the rest still go through. A store
+         *     whose matrix already matches is left alone (no row, no audit
+         *     entry) and reports ``changes: 0``.
          */
         post: operations["owner_bulk_permissions_route_owner_bulk_permissions_post"];
         delete?: never;
@@ -3670,8 +3675,8 @@ export interface paths {
         get: operations["owner_store_permissions_route_owner_store__store_id__permissions_get"];
         /**
          * Owner Update Store Permissions Route
-         * @description Update per-store permission overrides for a store in the owner's
-         *     umbrella. Owner can edit employee roles.
+         * @description Replace the Employee matrix of one store in the owner's
+         *     umbrella. The Admin row is the platform's.
          */
         put: operations["owner_update_store_permissions_route_owner_store__store_id__permissions_put"];
         post?: never;
@@ -4938,8 +4943,10 @@ export interface paths {
         get: operations["get_permissions_route_superadmin_permissions_get"];
         /**
          * Update Permissions Route
-         * @description Bulk-update the RBAC matrix. Body: {matrix: {role: {resource: {action: bool}}}}
-         *     or legacy {changes: [{role, resource, action, allowed}]}.
+         * @description Replace the GLOBAL matrix of one or more roles — the layer
+         *     every store inherits unless it has its own row for the role.
+         *     Every active login of an affected role, at every store, is
+         *     signed out.
          */
         put: operations["update_permissions_route_superadmin_permissions_put"];
         post?: never;
@@ -5373,8 +5380,7 @@ export interface paths {
         get: operations["superadmin_store_permissions_route_superadmin_stores__store_id__permissions_get"];
         /**
          * Superadmin Update Store Permissions Route
-         * @description Update per-store permission overrides. Superadmin can edit
-         *     admin + employee roles.
+         * @description Replace a store's matrix for the admin and/or employee role.
          */
         put: operations["superadmin_update_store_permissions_route_superadmin_stores__store_id__permissions_put"];
         post?: never;
@@ -6748,6 +6754,14 @@ export interface components {
         AnnouncementToggleRequest: {
             /** Is Active */
             is_active: boolean;
+        };
+        /**
+         * AssignRoleRequest
+         * @description ``role_id: null`` takes the person out of their saved role.
+         */
+        AssignRoleRequest: {
+            /** Role Id */
+            role_id?: number | null;
         };
         /**
          * BankAccountListResponse
@@ -10183,6 +10197,49 @@ export interface components {
              */
             store_name: string;
         };
+        /**
+         * OwnerBulkPermissionsRequest
+         * @description Push one role matrix onto several stores of the umbrella.
+         *     ``matrix`` carries the template store's grid per role; only
+         *     the Employee row is an owner's to push.
+         */
+        OwnerBulkPermissionsRequest: {
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** Store Ids */
+            store_ids: number[];
+        };
+        /** OwnerBulkPermissionsResponse */
+        OwnerBulkPermissionsResponse: {
+            /** Results */
+            results: components["schemas"]["OwnerBulkPermissionsResultRow"][];
+        };
+        /** OwnerBulkPermissionsResultRow */
+        OwnerBulkPermissionsResultRow: {
+            /**
+             * Changes
+             * @default 0
+             */
+            changes: number;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "applied" | "rejected";
+            /** Store Id */
+            store_id: number;
+        };
         /** OwnerConnectCodeListResponse */
         OwnerConnectCodeListResponse: {
             /** Rows */
@@ -10584,6 +10641,22 @@ export interface components {
             total_disbursements: number;
             /** Total Receipts */
             total_receipts: number;
+        };
+        /**
+         * PermissionMatrixBody
+         * @description ``PUT …/permissions`` — replace the matrix of one or more
+         *     roles. Every role named is replaced whole; a role left out is
+         *     untouched.
+         */
+        PermissionMatrixBody: {
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: {
+                        [key: string]: boolean;
+                    };
+                };
+            };
         };
         /**
          * PlatformUserCreateRequest
@@ -11237,6 +11310,14 @@ export interface components {
             /** Token */
             token: string;
         };
+        /**
+         * ResetRoleBody
+         * @description ``POST …/permissions/reset`` — drop one role's per-store rows.
+         */
+        ResetRoleBody: {
+            /** Role */
+            role: string;
+        };
         /** ReturnCheckListResponse */
         ReturnCheckListResponse: {
             /** Rows */
@@ -11399,6 +11480,44 @@ export interface components {
              * @default 0
              */
             return_check_fee: number;
+        };
+        /** RoleCreateRequest */
+        RoleCreateRequest: {
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: boolean;
+                };
+            };
+            /** Name */
+            name: string;
+        };
+        /**
+         * RoleMatrixBody
+         * @description A body carrying exactly one role's grid (a person's custom
+         *     access, a saved role).
+         */
+        RoleMatrixBody: {
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: boolean;
+                };
+            };
+        };
+        /**
+         * RoleUpdateRequest
+         * @description PATCH semantics — an omitted field stays unchanged.
+         */
+        RoleUpdateRequest: {
+            /** Matrix */
+            matrix?: {
+                [key: string]: {
+                    [key: string]: boolean;
+                };
+            } | null;
+            /** Name */
+            name?: string | null;
         };
         /**
          * RosterResponse
@@ -13882,9 +14001,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["RoleCreateRequest"];
             };
         };
         responses: {
@@ -13925,9 +14042,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["RoleUpdateRequest"];
             };
         };
         responses: {
@@ -14145,9 +14260,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["PermissionMatrixBody"];
             };
         };
         responses: {
@@ -14186,9 +14299,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["ResetRoleBody"];
             };
         };
         responses: {
@@ -15200,9 +15311,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["RoleMatrixBody"];
             };
         };
         responses: {
@@ -15280,9 +15389,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["AssignRoleRequest"];
             };
         };
         responses: {
@@ -19992,9 +20099,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["OwnerBulkPermissionsRequest"];
             };
         };
         responses: {
@@ -20004,9 +20109,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["OwnerBulkPermissionsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -20388,9 +20491,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["PermissionMatrixBody"];
             };
         };
         responses: {
@@ -20431,9 +20532,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["ResetRoleBody"];
             };
         };
         responses: {
@@ -23119,9 +23218,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["PermissionMatrixBody"];
             };
         };
         responses: {
@@ -23874,9 +23971,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["PermissionMatrixBody"];
             };
         };
         responses: {
@@ -23917,9 +24012,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["ResetRoleBody"];
             };
         };
         responses: {

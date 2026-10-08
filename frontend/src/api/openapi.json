@@ -1087,6 +1087,26 @@
         "title": "AnnouncementToggleRequest",
         "type": "object"
       },
+      "AssignRoleRequest": {
+        "additionalProperties": false,
+        "description": "``role_id: null`` takes the person out of their saved role.",
+        "properties": {
+          "role_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Id"
+          }
+        },
+        "title": "AssignRoleRequest",
+        "type": "object"
+      },
       "BankAccountListResponse": {
         "additionalProperties": false,
         "description": "Envelope for /bank/accounts. Order matches the Repository:\nnickname \u2192 display_name \u2192 institution_name (case-insensitive)\n+ id tie-break for stable rendering.",
@@ -8334,6 +8354,90 @@
         "title": "OwnerBulkAddUserResultRow",
         "type": "object"
       },
+      "OwnerBulkPermissionsRequest": {
+        "additionalProperties": false,
+        "description": "Push one role matrix onto several stores of the umbrella.\n``matrix`` carries the template store's grid per role; only\nthe Employee row is an owner's to push.",
+        "properties": {
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "minProperties": 1,
+            "title": "Matrix",
+            "type": "object"
+          },
+          "store_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Store Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "store_ids",
+          "matrix"
+        ],
+        "title": "OwnerBulkPermissionsRequest",
+        "type": "object"
+      },
+      "OwnerBulkPermissionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerBulkPermissionsResultRow"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "OwnerBulkPermissionsResponse",
+        "type": "object"
+      },
+      "OwnerBulkPermissionsResultRow": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "default": 0,
+            "title": "Changes",
+            "type": "integer"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "store_id",
+          "status"
+        ],
+        "title": "OwnerBulkPermissionsResultRow",
+        "type": "object"
+      },
       "OwnerConnectCodeListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -9276,6 +9380,31 @@
           "days_logged"
         ],
         "title": "PeriodSummaryResponse",
+        "type": "object"
+      },
+      "PermissionMatrixBody": {
+        "additionalProperties": false,
+        "description": "``PUT \u2026/permissions`` \u2014 replace the matrix of one or more\nroles. Every role named is replaced whole; a role left out is\nuntouched.",
+        "properties": {
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "minProperties": 1,
+            "title": "Matrix",
+            "type": "object"
+          }
+        },
+        "required": [
+          "matrix"
+        ],
+        "title": "PermissionMatrixBody",
         "type": "object"
       },
       "PlatformUserCreateRequest": {
@@ -10762,6 +10891,23 @@
         "title": "ResetPasswordRequest",
         "type": "object"
       },
+      "ResetRoleBody": {
+        "additionalProperties": false,
+        "description": "``POST \u2026/permissions/reset`` \u2014 drop one role's per-store rows.",
+        "properties": {
+          "role": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "ResetRoleBody",
+        "type": "object"
+      },
       "ReturnCheckListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -11041,6 +11187,92 @@
           "amount"
         ],
         "title": "ReturnCheckWriteRequest",
+        "type": "object"
+      },
+      "RoleCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "matrix"
+        ],
+        "title": "RoleCreateRequest",
+        "type": "object"
+      },
+      "RoleMatrixBody": {
+        "additionalProperties": false,
+        "description": "A body carrying exactly one role's grid (a person's custom\naccess, a saved role).",
+        "properties": {
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          }
+        },
+        "required": [
+          "matrix"
+        ],
+        "title": "RoleMatrixBody",
+        "type": "object"
+      },
+      "RoleUpdateRequest": {
+        "additionalProperties": false,
+        "description": "PATCH semantics \u2014 an omitted field stays unchanged.",
+        "properties": {
+          "matrix": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matrix"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "RoleUpdateRequest",
         "type": "object"
       },
       "RosterResponse": {
@@ -16334,9 +16566,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/RoleCreateRequest"
               }
             }
           },
@@ -16500,9 +16730,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/RoleUpdateRequest"
               }
             }
           },
@@ -16823,7 +17051,7 @@
         ]
       },
       "put": {
-        "description": "Update per-store permission overrides. Only editable roles\nallowed (admin can only edit employee, owner can edit admin+employee).",
+        "description": "Replace the per-store matrix of one or more roles. A store\nadmin (or the owner working in the store) edits the Employee\nrow only; the Admin row is the platform's.",
         "operationId": "update_store_permissions_route_admin_store_permissions_put",
         "parameters": [
           {
@@ -16863,9 +17091,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/PermissionMatrixBody"
               }
             }
           },
@@ -16943,9 +17169,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/ResetRoleBody"
               }
             }
           },
@@ -19216,9 +19440,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/RoleMatrixBody"
               }
             }
           },
@@ -19306,9 +19528,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/AssignRoleRequest"
               }
             }
           },
@@ -29051,7 +29271,7 @@
     },
     "/owner/bulk-permissions": {
       "post": {
-        "description": "Push permission overrides to multiple stores at once.\nOnly employee role is editable by owners.",
+        "description": "Push a template store's Employee matrix onto several stores\nat once. Every store named is written in ONE transaction, so a\npush lands everywhere or nowhere; a store outside the umbrella\nis reported as rejected and the rest still go through. A store\nwhose matrix already matches is left alone (no row, no audit\nentry) and reports ``changes: 0``.",
         "operationId": "owner_bulk_permissions_route_owner_bulk_permissions_post",
         "parameters": [
           {
@@ -29091,9 +29311,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/OwnerBulkPermissionsRequest"
               }
             }
           },
@@ -29104,9 +29322,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Owner Bulk Permissions Route Owner Bulk Permissions Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/OwnerBulkPermissionsResponse"
                 }
               }
             },
@@ -29900,7 +30116,7 @@
         ]
       },
       "put": {
-        "description": "Update per-store permission overrides for a store in the owner's\numbrella. Owner can edit employee roles.",
+        "description": "Replace the Employee matrix of one store in the owner's\numbrella. The Admin row is the platform's.",
         "operationId": "owner_update_store_permissions_route_owner_store__store_id__permissions_put",
         "parameters": [
           {
@@ -29950,9 +30166,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/PermissionMatrixBody"
               }
             }
           },
@@ -30040,9 +30254,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/ResetRoleBody"
               }
             }
           },
@@ -36472,7 +36684,7 @@
         ]
       },
       "put": {
-        "description": "Bulk-update the RBAC matrix. Body: {matrix: {role: {resource: {action: bool}}}}\nor legacy {changes: [{role, resource, action, allowed}]}.",
+        "description": "Replace the GLOBAL matrix of one or more roles \u2014 the layer\nevery store inherits unless it has its own row for the role.\nEvery active login of an affected role, at every store, is\nsigned out.",
         "operationId": "update_permissions_route_superadmin_permissions_put",
         "parameters": [
           {
@@ -36512,9 +36724,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/PermissionMatrixBody"
               }
             }
           },
@@ -38102,7 +38312,7 @@
         ]
       },
       "put": {
-        "description": "Update per-store permission overrides. Superadmin can edit\nadmin + employee roles.",
+        "description": "Replace a store's matrix for the admin and/or employee role.",
         "operationId": "superadmin_update_store_permissions_route_superadmin_stores__store_id__permissions_put",
         "parameters": [
           {
@@ -38152,9 +38362,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/PermissionMatrixBody"
               }
             }
           },
@@ -38242,9 +38450,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/ResetRoleBody"
               }
             }
           },
