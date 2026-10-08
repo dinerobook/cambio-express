@@ -35,6 +35,7 @@ from sqlalchemy.orm import Session
 from api.Core.Clock import utc_now
 from api.Core.Permissions import (
     RBAC_ACTIONS, RBAC_RESOURCES, set_user_permissions,
+    set_user_permissions_bulk,
 )
 from api.Modules.Tenancy.Models import StoreRole, StoreRolePermission, User
 
@@ -209,11 +210,17 @@ def apply_to_members(
     db: Session, store_id: int, role: StoreRole,
 ) -> list[User]:
     """Push the role's matrix onto every member's overlay — the
-    live propagation the whole feature is for."""
+    live propagation the whole feature is for.
+
+    The overlays are written through ``db`` so they commit together
+    with the role's own rows, the audit entry and the revoked
+    sessions: a failure anywhere leaves every member exactly where
+    they were, never half the team on the new matrix."""
     resolved = role_matrix(role)
     affected = members(db, store_id, role.id)
-    for user in affected:
-        set_user_permissions(store_id, user.id, resolved)
+    set_user_permissions_bulk(
+        store_id, {user.id: resolved for user in affected}, session=db,
+    )
     return affected
 
 
@@ -236,7 +243,7 @@ def assign_role(
         return None
     role = get_role(db, store_id, role_id)
     user.store_role_id = role.id
-    set_user_permissions(store_id, user.id, role_matrix(role))
+    set_user_permissions(store_id, user.id, role_matrix(role), session=db)
     db.flush()
     return role
 

@@ -1,77 +1,78 @@
-"""Tests for the Casbin-failure fallback in api.Core.Permissions.
+"""What a permission question answers when the policy cannot be read.
 
-The risk this guards against: if Casbin throws (DB connection issue,
-adapter bug, missing table), login must not 500. The fallback path
-returns RBAC_DEFAULTS so the user can still get in.
+Two cases, and they answer differently on purpose:
+
+* A process that has NEVER loaded a policy (the database was
+  unreachable since boot) falls back to ``RBAC_DEFAULTS`` so the
+  platform is not dead on arrival.
+* A process that HAS a policy keeps serving its last good copy
+  through a failed reload (``_get_enforcer``), so an exception out
+  of a lookup means something is genuinely wrong — and the answer
+  is NO. The old behaviour (audit of 2026-10-08, finding 10) was
+  to hand back the role's defaults, which gave a restricted admin
+  the whole store for the duration of a fault.
+
+Superadmin never consults the policy at all.
 """
 from unittest.mock import patch
 
 
-def test_permissions_for_falls_back_when_casbin_throws():
-    """If _resolve_grants raises, permissions_for returns
-    legacy + RBAC_DEFAULTS for the role instead of propagating."""
+def test_lookup_failure_with_a_loaded_policy_denies():
     from api.Core.Permissions import (
-        permissions_for, RBAC_DEFAULTS, LEGACY_ROLE_PERMISSIONS,
+        LEGACY_ROLE_PERMISSIONS, _get_enforcer, check_permission,
+        permissions_for,
     )
+    _get_enforcer()  # a policy is loaded in this process
     with patch(
         "api.Core.Permissions._resolve_grants",
-        side_effect=RuntimeError("simulated Casbin failure"),
+        side_effect=ConnectionError("db unreachable"),
     ):
-        perms = permissions_for("admin", store_id=1)
-    expected = (
-        list(LEGACY_ROLE_PERMISSIONS["admin"])
-        + list(RBAC_DEFAULTS["admin"])
-    )
-    assert perms == expected
+        assert check_permission("admin", 1, "transfers", "read") is False
+        assert check_permission("employee", 1, "transfers", "read") is False
+        assert permissions_for("admin", store_id=1) == list(
+            LEGACY_ROLE_PERMISSIONS["admin"],
+        )
 
 
-def test_permissions_for_falls_back_employee_role():
+def test_no_policy_ever_loaded_answers_from_defaults(monkeypatch):
+    import api.Core.Permissions as P
     from api.Core.Permissions import (
-        permissions_for, RBAC_DEFAULTS, LEGACY_ROLE_PERMISSIONS,
+        LEGACY_ROLE_PERMISSIONS, RBAC_DEFAULTS, check_permission,
+        permissions_for,
     )
-    with patch(
-        "api.Core.Permissions._resolve_grants",
-        side_effect=Exception("boom"),
-    ):
-        perms = permissions_for("employee", store_id=1)
+    monkeypatch.setattr(P, "_enforcer", None)
+    monkeypatch.setattr(
+        P, "_build_enforcer",
+        lambda: (_ for _ in ()).throw(ConnectionError("db down at boot")),
+    )
+    assert check_permission("admin", 1, "transfers", "read") is True
+    assert check_permission("admin", 1, "fake", "delete") is False
+    assert check_permission("employee", 1, "transfers", "delete") is False
+    assert check_permission("employee", 1, "settings", "update") is False
+    perms = permissions_for("employee", store_id=1)
     for p in RBAC_DEFAULTS["employee"]:
         assert p in perms
     for legacy in LEGACY_ROLE_PERMISSIONS["employee"]:
         assert legacy in perms
 
 
-def test_check_permission_falls_back_to_defaults():
-    """If _resolve_grants throws, check_permission consults
-    RBAC_DEFAULTS instead of crashing the request."""
+def test_failed_reload_keeps_the_last_good_policy(monkeypatch):
+    """A DB blip during the periodic reload is not a lookup failure:
+    the previous copy keeps answering, and it answers correctly."""
+    import api.Core.Permissions as P
     from api.Core.Permissions import check_permission
-    with patch(
-        "api.Core.Permissions._resolve_grants",
-        side_effect=ConnectionError("db unreachable"),
-    ):
-        # transfers.read IS in admin defaults
-        assert check_permission("admin", 1, "transfers", "read") is True
-        # nonexistent action is NOT in defaults → False
-        assert check_permission("admin", 1, "fake", "delete") is False
-
-
-def test_check_permission_fallback_respects_employee_scope():
-    """Employee defaults: transfers.create/read/update yes,
-    transfers.delete no. Fallback must preserve this."""
-    from api.Core.Permissions import check_permission
-    with patch(
-        "api.Core.Permissions._resolve_grants",
-        side_effect=Exception("Casbin down"),
-    ):
-        assert check_permission("employee", 1, "transfers", "read") is True
-        assert check_permission("employee", 1, "transfers", "create") is True
-        assert check_permission("employee", 1, "transfers", "delete") is False
-        assert check_permission("employee", 1, "settings", "update") is False
+    P.reload_policy()
+    monkeypatch.setattr(P, "_RELOAD_INTERVAL", 0.0)
+    monkeypatch.setattr(
+        P._enforcer, "load_policy",
+        lambda *a, **k: (_ for _ in ()).throw(ConnectionError("blip")),
+    )
+    assert check_permission("admin", 1, "transfers", "read") is True
+    assert check_permission("employee", 1, "settings", "update") is False
 
 
 def test_superadmin_bypass_skips_resolve_grants():
-    """Superadmin must never hit Casbin — return all permissions
-    directly, so a Casbin outage doesn't lock out the platform admin."""
-    from api.Core.Permissions import permissions_for, check_permission
+    from api.Core.Permissions import check_permission, permissions_for
     with patch(
         "api.Core.Permissions._resolve_grants",
         side_effect=RuntimeError("should not be called"),
@@ -80,3 +81,11 @@ def test_superadmin_bypass_skips_resolve_grants():
         assert "transfers.read" in perms
         assert check_permission("superadmin", 1, "anything", "delete") is True
         mock.assert_not_called()
+
+
+def test_the_overlay_blind_require_permission_is_gone():
+    """``api.Core.Permissions.require_permission`` ignored per-user
+    overlays and shadowed the real one in Auth/Services/principal;
+    nothing may import it again."""
+    import api.Core.Permissions as P
+    assert not hasattr(P, "require_permission")
