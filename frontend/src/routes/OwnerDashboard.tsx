@@ -15,7 +15,7 @@ import { AppLink,
   tdStyleRight,
 } from "../components/ui";
 import { chartSeries, moneyChartOptions, seriesFill } from "../lib/chartOptions";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
 import styles from "./OwnerDashboard.module.css";
 
 ChartJS.register(
@@ -75,12 +75,12 @@ export default function OwnerDashboard() {
             />
             <KpiCard
               label="Total Volume"
-              value={`$${Math.round(data.agg_volume).toLocaleString()}`}
+              value={fmtMoney(data.agg_volume)}
               sub={fmtDelta(data.agg_volume_delta, "$", "")}
             />
             <KpiCard
               label="Net Over/Short"
-              value={`${data.agg_over_short >= 0 ? "+" : "-"}$${Math.abs(Math.round(data.agg_over_short)).toLocaleString()}`}
+              value={`${data.agg_over_short >= 0 ? "+" : "-"}${fmtMoney(Math.abs(data.agg_over_short))}`}
               sub={fmtDelta(data.agg_over_short_delta, "$", "")}
               tone={data.agg_over_short < 0 ? "negative" : "neutral"}
             />
@@ -120,8 +120,8 @@ export default function OwnerDashboard() {
                 <AppLink key={s.id} to={`/owner/store/${s.id}`} className={styles.storeCard}>
                   <div className={styles.storeName}>{s.name}</div>
                   <div className={styles.storeMeta}>
-                    {s.count.toLocaleString()} transfers ·{" "}
-                    ${Math.round(s.volume).toLocaleString()}
+                    {fmtNumber(s.count)} transfers ·{" "}
+                    {fmtMoney(s.volume)}
                   </div>
                   <div className={styles.storeOver}>
                     {s.over_short >= 0 ? "+" : "-"}{fmtMoney2(Math.abs(s.over_short))} over/short

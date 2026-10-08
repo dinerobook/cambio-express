@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useTransactions } from "../api/posimport";
 import { AppLink,
-  Breadcrumbs, Card, Checkbox, EmptyState, ErrorState, Field, InfoTip,
+  Breadcrumbs, Card, Checkbox, EmptyState, ErrorState, DateInput, Field, InfoTip,
   Input, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pager, Pill,
   Section, Select, Table, tdStyle, thStyle, tokens,
 } from "../components/ui";
@@ -62,15 +62,13 @@ export default function Transactions() {
 
       <div className={styles.filters}>
         <Field label="From">
-          <Input
-            type="date"
+          <DateInput
             value={filters.params.start}
             onChange={(e) => filters.setParam("start", e.target.value)}
           />
         </Field>
         <Field label="To">
-          <Input
-            type="date"
+          <DateInput
             value={filters.params.end}
             onChange={(e) => filters.setParam("end", e.target.value)}
           />

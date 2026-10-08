@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 
 import { ReportDrilldown } from "../../components/ReportDrilldown";
+import { fmtMoney2, fmtNumber } from "../../lib/formatters";
 
 // Period vs prior-period delta. Row shape: `label`, `current`,
 // `prior`, `delta`, `pct`, `is_money`. KPIs surface the headline
@@ -37,10 +38,5 @@ export default function PeriodComparison() {
 
 function fmtCell(row: Record<string, unknown>, key: string = "current"): string {
   const v = Number(row[key] ?? 0);
-  if (row.is_money) {
-    return `$${v.toLocaleString(undefined, {
-      minimumFractionDigits: 2, maximumFractionDigits: 2,
-    })}`;
-  }
-  return v.toLocaleString();
+  return row.is_money ? fmtMoney2(v) : fmtNumber(v);
 }

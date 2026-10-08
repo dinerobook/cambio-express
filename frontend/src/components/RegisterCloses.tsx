@@ -10,7 +10,7 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Alert, Button, ButtonLink, Card, EmptyState, ErrorState, Field,
-  InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, RowActions, Section,
+  InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, RowActions, Section,
   Table, Textarea, tdStyle, thStyle, useToast,
 } from "./ui";
 import styles from "./RegisterCloses.module.css";
@@ -259,28 +259,20 @@ function CloseForm({
     existing?.register_label ?? "Register 1",
   );
   const [shiftLabel, setShiftLabel] = useState(existing?.shift_label ?? "");
-  const [gross, setGross] = useState(
-    existing ? String(existing.gross_sales) : "",
-  );
-  const [tax, setTax] = useState(existing ? String(existing.sales_tax) : "");
-  const [cash, setCash] = useState(
-    existing ? String(existing.cash_total) : "",
-  );
-  const [card, setCard] = useState(
-    existing ? String(existing.card_total) : "",
-  );
-  const [other, setOther] = useState(
-    existing ? String(existing.other_total) : "",
-  );
+  const [gross, setGross] = useState(existing?.gross_sales ?? 0);
+  const [tax, setTax] = useState(existing?.sales_tax ?? 0);
+  const [cash, setCash] = useState(existing?.cash_total ?? 0);
+  const [card, setCard] = useState(existing?.card_total ?? 0);
+  const [other, setOther] = useState(existing?.other_total ?? 0);
   const [counted, setCounted] = useState(
     existing?.cash_counted != null ? String(existing.cash_counted) : "",
   );
   const [notes, setNotes] = useState(existing?.notes ?? "");
-  const [deptAmounts, setDeptAmounts] = useState<Record<number, string>>(
+  const [deptAmounts, setDeptAmounts] = useState<Record<number, number>>(
     () => {
-      const amounts: Record<number, string> = {};
+      const amounts: Record<number, number> = {};
       for (const line of existing?.department_sales ?? []) {
-        amounts[line.department_id] = String(line.amount);
+        amounts[line.department_id] = line.amount;
       }
       return amounts;
     },
@@ -295,18 +287,18 @@ function CloseForm({
     const lines = departments
       .map((d) => ({
         department_id: d.id,
-        amount: Number.parseFloat(deptAmounts[d.id] ?? "") || 0,
+        amount: deptAmounts[d.id] ?? 0,
       }))
       .filter((l) => l.amount > 0);
     try {
       await upsertRegisterClose(day, {
         register_label: registerLabel.trim(),
         shift_label: shiftLabel.trim(),
-        gross_sales: Number.parseFloat(gross) || 0,
-        sales_tax: Number.parseFloat(tax) || 0,
-        cash_total: Number.parseFloat(cash) || 0,
-        card_total: Number.parseFloat(card) || 0,
-        other_total: Number.parseFloat(other) || 0,
+        gross_sales: gross,
+        sales_tax: tax,
+        cash_total: cash,
+        card_total: card,
+        other_total: other,
         cash_counted:
           counted.trim() === "" ? null : Number.parseFloat(counted) || 0,
         notes: notes.trim(),
@@ -339,36 +331,14 @@ function CloseForm({
             onChange={(e) => setShiftLabel(e.target.value)}
           />
         </Field>
-        <Field label="Gross sales">
-          <Input
-            type="number" min={0} step="0.01" value={gross} required
-            onChange={(e) => setGross(e.target.value)}
-          />
-        </Field>
-        <Field label="Sales tax">
-          <Input
-            type="number" min={0} step="0.01" value={tax}
-            onChange={(e) => setTax(e.target.value)}
-          />
-        </Field>
-        <Field label="Cash tender">
-          <Input
-            type="number" min={0} step="0.01" value={cash}
-            onChange={(e) => setCash(e.target.value)}
-          />
-        </Field>
-        <Field label="Card tender">
-          <Input
-            type="number" min={0} step="0.01" value={card}
-            onChange={(e) => setCard(e.target.value)}
-          />
-        </Field>
-        <Field label="Other tender">
-          <Input
-            type="number" min={0} step="0.01" value={other}
-            onChange={(e) => setOther(e.target.value)}
-          />
-        </Field>
+        <MoneyInput label="Gross sales" value={gross} onChange={setGross} fullWidth />
+        <MoneyInput label="Sales tax" value={tax} onChange={setTax} fullWidth />
+        <MoneyInput label="Cash tender" value={cash} onChange={setCash} fullWidth />
+        <MoneyInput label="Card tender" value={card} onChange={setCard} fullWidth />
+        <MoneyInput label="Other tender" value={other} onChange={setOther} fullWidth />
+        {/* Not a MoneyInput on purpose: blank means "not counted"
+            (null, no variance) and 0 means "counted, drawer empty".
+            MoneyInput renders 0 as blank, so it would merge the two. */}
         <Field label="Counted drawer cash">
           <Input
             type="number" min={0} step="0.01" value={counted}
@@ -383,15 +353,11 @@ function CloseForm({
             {departments.map((d) => (
               <div key={d.id} className={styles.deptRow}>
                 <span className={styles.deptName}>{d.name}</span>
-                <Input
-                  type="number" min={0} step="0.01"
-                  className={styles.deptAmount}
+                <MoneyInput
                   aria-label={`${d.name} sales`}
-                  value={deptAmounts[d.id] ?? ""}
-                  onChange={(e) =>
-                    setDeptAmounts((prev) => ({
-                      ...prev, [d.id]: e.target.value,
-                    }))
+                  value={deptAmounts[d.id] ?? 0}
+                  onChange={(next) =>
+                    setDeptAmounts((prev) => ({ ...prev, [d.id]: next }))
                   }
                 />
               </div>

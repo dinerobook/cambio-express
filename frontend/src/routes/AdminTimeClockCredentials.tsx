@@ -13,8 +13,8 @@ import { ApiError } from "../lib/api";
 import { passkeysSupported, performPasskeyRegister } from "../lib/webauthn";
 import {
   Breadcrumbs,
-  Alert, Button, Card, ConfirmDialog, EmptyState, ErrorState, Loading,
-  PageHeader, PageShell, Pill, Table, tdStyle, thStyle,
+  Alert, Card, ConfirmDialog, EmptyState, ErrorState, Loading,
+  PageHeader, PageShell, Pill, RowActions, Table, tdStyle, thStyle,
 } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
@@ -194,30 +194,24 @@ export default function AdminTimeClockCredentials() {
                     </span>
                   </td>
                   <td style={tdStyle}>
-                    <div className={styles.rowActions}>
-                      <Button
-                        size="sm"
-                        tone={r.has_passkey ? "secondary" : "primary"}
-                        busy={busyEmpId === r.store_employee_id}
-                        disabled={
-                          !browserSupports
-                          || busyEmpId !== null
-                        }
-                        onClick={() => register(r)}
-                      >
-                        {r.has_passkey ? "Re-enroll" : "Enroll passkey"}
-                      </Button>
-                      {r.has_passkey && (
-                        <Button
-                          size="sm" tone="secondary"
-                          busy={busyEmpId === r.store_employee_id}
-                          disabled={busyEmpId !== null}
-                          onClick={() => setPendingRemove(r)}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
+                    <RowActions
+                      title={r.employee_name}
+                      actions={[
+                        {
+                          label: r.has_passkey ? "Re-enroll" : "Enroll passkey",
+                          tone: r.has_passkey ? "secondary" : "primary",
+                          busy: busyEmpId === r.store_employee_id,
+                          disabled: !browserSupports || busyEmpId !== null,
+                          onClick: () => register(r),
+                        },
+                        {
+                          label: "Remove",
+                          hidden: !r.has_passkey,
+                          disabled: busyEmpId !== null,
+                          onClick: () => setPendingRemove(r),
+                        },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

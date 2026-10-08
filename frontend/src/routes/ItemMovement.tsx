@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useItemMovement } from "../api/posimport";
 import {
-  Breadcrumbs, Card, EmptyState, ErrorState, Field, InfoTip, Input,
+  Breadcrumbs, Card, EmptyState, ErrorState, DateInput, Field, InfoTip, Input,
   KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pager, Pill,
   Section, Table, tdStyle, thStyle, tokens,
 } from "../components/ui";
@@ -48,15 +48,13 @@ export default function ItemMovement() {
 
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Field label="From">
-          <Input
-            type="date"
+          <DateInput
             value={filters.params.start}
             onChange={(e) => filters.setParam("start", e.target.value)}
           />
         </Field>
         <Field label="To">
-          <Input
-            type="date"
+          <DateInput
             value={filters.params.end}
             onChange={(e) => filters.setParam("end", e.target.value)}
           />

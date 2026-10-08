@@ -14,10 +14,10 @@ import { AppLink,
   PageHeader, PageShell, Section, TabsBar, TabsButton, Table, tdStyle,
   thStyle, useToast,
   thStyleRight,
-  tdStyleRight,
+  tdStyleRight, EmptyState,
 } from "../components/ui";
 import { chartSeries, chartTokens, moneyChartOptions, seriesFill } from "../lib/chartOptions";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney, fmtMoney2 } from "../lib/formatters";
 import styles from "./OwnerStoreDetail.module.css";
 
 ChartJS.register(
@@ -129,7 +129,7 @@ export default function OwnerStoreDetail() {
             />
             <KpiCard
               label="Volume"
-              value={`$${Math.round(data.period_volume).toLocaleString()}`}
+              value={fmtMoney(data.period_volume)}
               sub={fmtDelta(data.period_volume - data.prev_volume, "$", " vs prior")}
             />
             <KpiCard label="Fees" value={fmtMoney2(data.period_fees)} />
@@ -198,7 +198,7 @@ export default function OwnerStoreDetail() {
                             label: (ctx) => {
                               const y = (ctx.parsed as { y?: number | null }).y ?? 0;
                               const lbl = ctx.dataset.label || "";
-                              return `${lbl}: $${y.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+                              return `${lbl}: ${fmtMoney(y)}`;
                             },
                           },
                         },
@@ -208,7 +208,7 @@ export default function OwnerStoreDetail() {
                           beginAtZero: true,
                           ticks: {
                             color: t.textMuted,
-                            callback: (v) => `$${(typeof v === "number" ? v : Number(v)).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+                            callback: (v) => fmtMoney(Number(v)),
                           },
                           grid: { color: t.borderSubtle },
                         },
@@ -217,7 +217,7 @@ export default function OwnerStoreDetail() {
                           beginAtZero: true,
                           ticks: {
                             color: t.textMuted,
-                            callback: (v) => `$${(typeof v === "number" ? v : Number(v)).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+                            callback: (v) => fmtMoney(Number(v)),
                           },
                           grid: { drawOnChartArea: false },
                         },
@@ -278,7 +278,7 @@ export default function OwnerStoreDetail() {
           <Section title="Recent transfers">
             <Card>
               {data.recent_transfers.length === 0 ? (
-                <p className={styles.muted}>No transfers yet for this store.</p>
+                <EmptyState title="No transfers yet for this store." />
               ) : (
                 <Table>
                   <thead>

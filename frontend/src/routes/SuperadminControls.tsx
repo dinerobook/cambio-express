@@ -1,6 +1,6 @@
 
 import { useDashboardSummary } from "../api/dashboard";
-import { fmtNumber } from "../lib/formatters";
+import { fmtMoney, fmtNumber } from "../lib/formatters";
 import { AppLink,
   Breadcrumbs,
   ErrorState, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Section,
@@ -88,7 +88,7 @@ export default function SuperadminControls() {
               label="MRR"
               value={
                 typeof d.mrr_total === "number"
-                  ? `$${d.mrr_total.toLocaleString()}`
+                  ? fmtMoney(d.mrr_total)
                   : "—"
               }
               tone="primary"
@@ -97,7 +97,7 @@ export default function SuperadminControls() {
               label="ARR"
               value={
                 typeof d.arr_total === "number"
-                  ? `$${d.arr_total.toLocaleString()}`
+                  ? fmtMoney(d.arr_total)
                   : "—"
               }
               tone="primary"

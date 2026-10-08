@@ -4,10 +4,11 @@ import {
   RETURN_CHECK_STATUS_TONES, useReturnChecks, type ReturnCheckRow,
 } from "../api/returnChecks";
 import { getCurrentIdentity } from "../lib/auth";
+import { formatDate } from "../lib/datetime";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   ButtonLink, Card, Empty, PageHeader,
-  PageShell, Pill, Table as KitTable, TableStates, tdStyle,
+  PageShell, Pill, Table as KitTable, TableStates, TabsBar, TabsButton, tdStyle,
   thStyle,
 } from "../components/ui";
 import styles from "./ReturnChecks.module.css";
@@ -65,21 +66,17 @@ export default function ReturnChecks() {
         )}
       />
 
-      <div className={styles.filters}>
-        {STATUSES.map((s) => {
-          const active = status === s.slug;
-          return (
-            <button
-              key={s.slug}
-              type="button"
-              onClick={() => setStatus(s.slug)}
-              className={active ? styles.filterBtnActive : styles.filterBtn}
-            >
-              {s.label}
-            </button>
-          );
-        })}
-      </div>
+      <TabsBar>
+        {STATUSES.map((s) => (
+          <TabsButton
+            key={s.slug}
+            active={status === s.slug}
+            onClick={() => setStatus(s.slug)}
+          >
+            {s.label}
+          </TabsButton>
+        ))}
+      </TabsBar>
 
       <Card>
         <div style={{ overflowX: "auto" }}>
@@ -128,7 +125,7 @@ function Table({ rows }: { rows: ReturnCheckRow[] }) {
                 onClick={open}
               >
                 <td style={tdStyle}>
-                  <span className={styles.monoMuted}>{r.bounced_on}</span>
+                  <span className={styles.monoMuted}>{formatDate(r.bounced_on)}</span>
                 </td>
                 <td style={tdStyle}>{r.customer_name}</td>
                 <td style={tdStyle}>

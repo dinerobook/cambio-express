@@ -151,13 +151,6 @@
   gap: 0.45rem;
 }
 
-.empty {
-  text-align: center;
-  padding: 2rem 1rem;
-  color: var(--db-text-muted, #a3a3a3);
-  font-size: 0.9rem;
-}
-
 .answer {
   background: var(--db-fill-neutral, rgba(255,255,255,0.04));
   border: 1px solid var(--db-border, #262626);

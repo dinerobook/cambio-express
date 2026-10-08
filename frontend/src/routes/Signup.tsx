@@ -8,6 +8,7 @@ import { autoEnterOwnerStore } from "../api/switchStore";
 import { ApiError } from "../lib/api";
 import { persistLoginResponse } from "../lib/auth";
 import styles from "./auth.module.css";
+import { fmtMoney } from "../lib/formatters";
 
 // Owner-first signup at /app/signup (U-4b). Creates a store + its
 // OWNER user + JWT in one POST, then auto-enters the new store so
@@ -95,7 +96,7 @@ export default function Signup() {
       {referral && (
         <div className={styles.referralBanner}>
           🎉 Referred by a DineroBook user — you'll get{" "}
-          <strong>${(referral.reward_referee_cents / 100).toFixed(0)}</strong>{" "}
+          <strong>{fmtMoney(referral.reward_referee_cents / 100)}</strong>{" "}
           off your first paid month when you subscribe.
         </div>
       )}

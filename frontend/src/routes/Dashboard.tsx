@@ -46,7 +46,7 @@ import { BATCH_STATUS_TONES } from "../api/batches";
 import { TRANSFER_STATUS_TONES } from "../api/transfers";
 import { getCurrentIdentity } from "../lib/auth";
 import { getOpenStatus } from "../lib/datetime";
-import { fmtMoney2, fmtNumber, fmtShortDate } from "../lib/formatters";
+import { fmtMoney, fmtMoney2, fmtNumber, fmtShortDate } from "../lib/formatters";
 
 // Role-shaped dashboard. /api/v2/dashboard/summary returns one
 // payload tagged by role; we render the matching panel.
@@ -272,7 +272,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
         {d.kpis.net_income_month != null && (
           <KpiCard
             label={`Net income (${monthName})`}
-            value={`$${Math.round(d.kpis.net_income_month).toLocaleString()}`}
+            value={fmtMoney(d.kpis.net_income_month)}
             sub={
               <AppLink to="/monthly" className="ds-link" style={{ color: tokens.accent }}>
                 View P&amp;L →
@@ -904,12 +904,12 @@ function SuperadminPanel({ d }: { d: SuperadminContextLite & { role: string } })
         <KpiCard label="Paid" value={fmtNumber(d.paid_stores)} tone="positive" />
         <KpiCard
           label="MRR"
-          value={typeof d.mrr_total === "number" ? `$${d.mrr_total.toLocaleString()}` : "—"}
+          value={typeof d.mrr_total === "number" ? fmtMoney(d.mrr_total) : "—"}
           tone="positive"
         />
         <KpiCard
           label="ARR"
-          value={typeof d.arr_total === "number" ? `$${d.arr_total.toLocaleString()}` : "—"}
+          value={typeof d.arr_total === "number" ? fmtMoney(d.arr_total) : "—"}
           tone="positive"
         />
         <KpiCard label="New (last 30 days)" value={fmtNumber(d.new_stores_30d)} tone="positive" />

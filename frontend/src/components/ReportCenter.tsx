@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import {
-  ButtonLink, Card, Input, PageHeader, Pill,
+  ButtonLink, Card, Input, PageHeader, Pill, EmptyState,
 } from "./ui";
 import styles from "./ReportCenter.module.css";
 
@@ -67,7 +67,7 @@ export default function ReportCenter({
       />
 
       {!anyVisible && (
-        <div className={styles.empty}>No reports match that search.</div>
+        <EmptyState title="No reports match that search." />
       )}
 
       <div className={styles.catGrid}>

@@ -6,7 +6,7 @@ import {
 } from "../api/admin";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney, fmtMoney2 } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
 import {
   Button, ButtonLink, Card, Empty, ErrorState, KpiCard, KpiGrid, Loading,
@@ -96,9 +96,9 @@ export default function AdminReferrals() {
           <section className={styles.howBox}>
             <strong>How it works.</strong>{" "}
             Give the code (or the link) to anyone signing up.
-            Their ${(data.reward_referee_cents / 100).toFixed(0)} posts
-            the moment they start a paid plan; your $
-            {(data.reward_self_cents / 100).toFixed(0)} posts the same
+            Their {fmtMoney(data.reward_referee_cents / 100)} posts
+            the moment they start a paid plan; your{" "}
+            {fmtMoney(data.reward_self_cents / 100)} posts the same
             moment. Credits apply to your next invoice via Stripe's
             customer-balance system — no coupon codes to redeem, no
             accounting from your side.
@@ -150,9 +150,9 @@ function Hero({
       <p className={styles.heroMeta}>
         Share this with friends who run a money-service business.
         When they sign up and subscribe,{" "}
-        <strong>they get ${(rewardRefereeCents / 100).toFixed(0)} off</strong>{" "}
+        <strong>they get {fmtMoney(rewardRefereeCents / 100)} off</strong>{" "}
         their first paid month and{" "}
-        <strong>you get ${(rewardSelfCents / 100).toFixed(0)} off</strong>{" "}
+        <strong>you get {fmtMoney(rewardSelfCents / 100)} off</strong>{" "}
         yours — applied automatically to your next invoice as a credit.
       </p>
       <div className={styles.shareRow}>

@@ -43,6 +43,20 @@ describe("source guards", () => {
     expect(offenders(/"Jan",\s*"Feb"/, ["/datetime.ts"])).toEqual([]);
   });
 
+  it("formats money through fmtMoney / fmtMoney2", () => {
+    // `$${n.toLocaleString()}` / `$${n.toFixed(2)}` are private
+    // clones of the formatters (UI-STANDARDS §4). A 4-decimal unit
+    // cost (toFixed(4)) is a deliberate exception.
+    expect(
+      offenders(/\$\$\{[^}]*(toLocaleString\(|toFixed\([0-2]\))/,
+        ["/formatters.ts"]),
+    ).toEqual([]);
+  });
+
+  it("uses DateInput, never a raw date input", () => {
+    expect(offenders(/type="date"/, ["/DateInput.tsx"])).toEqual([]);
+  });
+
   it("toasts API errors through useApiErrorToast", () => {
     // toast({ message: err instanceof ApiError ? err.message : "…",
     // tone: "error" }) is what useApiErrorToast(err, "…") does.

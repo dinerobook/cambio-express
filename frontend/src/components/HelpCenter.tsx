@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { HELP_REGISTRY, type HelpEntry } from "../lib/help/registry";
 import { searchHelp } from "../lib/help/search";
 import styles from "./HelpCenter.module.css";
-import { AppLink } from "./ui";
+import { AppLink, Empty } from "./ui";
 
 
 /** Floating help bubble + searchable answer panel.
@@ -108,11 +108,10 @@ export function HelpCenter() {
 
             <div className={styles.results}>
               {results.length === 0 && (
-                <div className={styles.empty}>
-                  No matches.  Try a different word — most pages
-                  on the SPA have a help entry that mentions the
-                  page title.
-                </div>
+                <Empty>
+                  No matches. Try a different word — most pages
+                  have a help entry that mentions the page title.
+                </Empty>
               )}
               {results.map((entry) => (
                 <AnswerCard

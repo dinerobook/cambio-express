@@ -11,7 +11,7 @@ import {
   KpiGrid, PageHeader, PageShell, TableSkeleton, tdStyle, thStyle,
 } from "./ui";
 import styles from "./ReportDrilldown.module.css";
-import { monthStartIso, todayIso } from "../lib/datetime";
+import { formatDate, monthStartIso, todayIso } from "../lib/datetime";
 
 export interface KpiSpec {
   label: string;
@@ -158,7 +158,7 @@ export function ReportDrilldown({
 
       <div className={styles.filterRow}>
         <span className={styles.muted}>
-          {fmtDate(from)} – {fmtDate(to)}
+          {formatDate(from)} – {formatDate(to)}
         </span>
         {data && (
           <span className={styles.muted}>
@@ -236,13 +236,5 @@ function csvFilename(url: string, from: string, to: string): string {
   const path = url.split("?")[0];
   const slug = path.split("/").pop()?.replace(/\.csv$/, "") || "report";
   return `${slug}_${from}_${to}.csv`;
-}
-
-function fmtDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString(undefined, {
-    month: "short", day: "numeric", year: "numeric",
-  });
 }
 

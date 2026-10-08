@@ -13,7 +13,7 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
 import { AppLink,
-  Alert, Breadcrumbs, Button, Card, EmptyState, Field, InfoTip,
+  Alert, Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
   Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill, Section,
   Select, Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
@@ -348,6 +348,10 @@ function AgentSection() {
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const [busyDay, setBusyDay] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
+  // The key a revoke is waiting on confirmation for. A revoked key
+  // stops the site agent uploading at once, so it is never one click.
+  const [revoking, setRevoking] = useState<{ id: number; label: string } | null>(null);
+  const [revokeBusy, setRevokeBusy] = useState(false);
 
   async function bookDay(day: string) {
     setBusyDay(day);
@@ -380,12 +384,18 @@ function AgentSection() {
     }
   }
 
-  async function onRevoke(id: number) {
+  async function onRevoke() {
+    if (!revoking) return;
+    setRevokeBusy(true);
     try {
-      await revokeAgentKey(id);
+      await revokeAgentKey(revoking.id);
+      toast({ message: "Agent key revoked.", tone: "success" });
       void qc.invalidateQueries({ queryKey: ["posimport", "agent-keys"] });
+      setRevoking(null);
     } catch (err) {
       toastApiError(err, "Could not revoke the key.");
+    } finally {
+      setRevokeBusy(false);
     }
   }
 
@@ -497,7 +507,7 @@ function AgentSection() {
                       {!k.revoked && (
                         <Button
                           size="sm" tone="secondary"
-                          onClick={() => { void onRevoke(k.id); }}
+                          onClick={() => setRevoking({ id: k.id, label: k.label })}
                         >
                           Revoke
                         </Button>
@@ -510,6 +520,20 @@ function AgentSection() {
           </div>
         )}
       </Card>
+      <ConfirmDialog
+        open={revoking !== null}
+        title="Revoke agent key"
+        message={
+          `Revoke ${revoking?.label ? `"${revoking.label}"` : "this key"}? `
+          + "The site agent using it stops uploading journal files until "
+          + "it is given a new key."
+        }
+        confirmLabel="Revoke"
+        confirmTone="danger"
+        busy={revokeBusy}
+        onConfirm={() => { void onRevoke(); }}
+        onCancel={() => setRevoking(null)}
+      />
     </Section>
   );
 }

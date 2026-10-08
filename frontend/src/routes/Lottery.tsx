@@ -12,7 +12,7 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Alert, Breadcrumbs, Button, Card, DateInput, EmptyState, ErrorState,
-  Field, InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, PageHeader,
+  Field, InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, PageHeader,
   PageShell, Pill, RowActions, Section, Select, TabsBar, TabsButton,
   Table, tdStyle, thStyle, useToast, type PillTone,
 } from "../components/ui";
@@ -557,7 +557,7 @@ function AddGameModal({
 }) {
   const [gameNumber, setGameNumber] = useState("");
   const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
+  const [price, setPrice] = useState(0);
   const [perPack, setPerPack] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -569,10 +569,10 @@ function AddGameModal({
     try {
       await createLotteryGame({
         game_number: gameNumber.trim(), name: name.trim(),
-        ticket_price: Number.parseFloat(price) || 0,
+        ticket_price: price,
         tickets_per_pack: Number.parseInt(perPack, 10) || 0,
       });
-      setGameNumber(""); setName(""); setPrice(""); setPerPack("");
+      setGameNumber(""); setName(""); setPrice(0); setPerPack("");
       onDone();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not save.");
@@ -604,12 +604,7 @@ function AddGameModal({
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
-        <Field label="Ticket price">
-          <Input
-            type="number" min={0} step="0.01" value={price} required
-            onChange={(e) => setPrice(e.target.value)}
-          />
-        </Field>
+        <MoneyInput label="Ticket price" value={price} onChange={setPrice} fullWidth />
         <Field label="Tickets per pack">
           <Input
             type="number" min={1} value={perPack} required

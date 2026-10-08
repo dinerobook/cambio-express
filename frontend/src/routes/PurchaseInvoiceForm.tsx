@@ -11,7 +11,7 @@ import { ApiError } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Alert, Breadcrumbs, Button, Card, Checkbox, DateInput, ErrorState,
-  Field, InfoTip, Input, Loading, PageHeader, PageShell, Section,
+  Field, InfoTip, Input, Loading, MoneyInput, PageHeader, PageShell, Section,
   Select, Textarea, useToast,
 } from "../components/ui";
 import styles from "./PurchaseInvoices.module.css";
@@ -102,16 +102,9 @@ function InvoiceForm({
     existing?.invoice_date ?? todayIso(),
   );
   const [dueDate, setDueDate] = useState(existing?.due_date ?? "");
-  const [subtotal, setSubtotal] = useState(
-    existing != null && existing.subtotal > 0
-      ? String(existing.subtotal) : "",
-  );
-  const [tax, setTax] = useState(
-    existing != null && existing.tax > 0 ? String(existing.tax) : "",
-  );
-  const [other, setOther] = useState(
-    existing != null && existing.other > 0 ? String(existing.other) : "",
-  );
+  const [subtotal, setSubtotal] = useState(existing?.subtotal ?? 0);
+  const [tax, setTax] = useState(existing?.tax ?? 0);
+  const [other, setOther] = useState(existing?.other ?? 0);
   const [status, setStatus] = useState(existing?.status ?? "open");
   const [paidOn, setPaidOn] = useState(existing?.paid_on ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
@@ -167,10 +160,7 @@ function InvoiceForm({
     const cost = Number.parseFloat(line.unitCost) || 0;
     return sum + qty * cost;
   }, 0);
-  const invoiceTotal =
-    (Number.parseFloat(subtotal) || 0)
-    + (Number.parseFloat(tax) || 0)
-    + (Number.parseFloat(other) || 0);
+  const invoiceTotal = subtotal + tax + other;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -181,9 +171,9 @@ function InvoiceForm({
       invoice_number: number.trim(),
       invoice_date: invoiceDate,
       due_date: dueDate || null,
-      subtotal: Number.parseFloat(subtotal) || 0,
-      tax: Number.parseFloat(tax) || 0,
-      other: Number.parseFloat(other) || 0,
+      subtotal,
+      tax,
+      other,
       status,
       paid_on: status === "paid" && paidOn ? paidOn : null,
       notes: notes.trim(),
@@ -266,31 +256,20 @@ function InvoiceForm({
                   onChange={(e) => setDueDate(e.target.value)}
                 />
               </Field>
-              <Field label="Merchandise subtotal">
-                <Input
-                  type="number" min={0} step="0.01" value={subtotal}
-                  onChange={(e) => setSubtotal(e.target.value)}
-                />
-              </Field>
-              <Field label="Tax">
-                <Input
-                  type="number" min={0} step="0.01" value={tax}
-                  onChange={(e) => setTax(e.target.value)}
-                />
-              </Field>
-              <Field
+              <MoneyInput
+                label="Merchandise subtotal" value={subtotal}
+                onChange={setSubtotal} fullWidth
+              />
+              <MoneyInput label="Tax" value={tax} onChange={setTax} fullWidth />
+              <MoneyInput
                 label={
                   <>
                     Other charges
                     <InfoTip text="Freight, deposits, CRV — anything on the paper that isn't merchandise or tax." />
                   </>
                 }
-              >
-                <Input
-                  type="number" min={0} step="0.01" value={other}
-                  onChange={(e) => setOther(e.target.value)}
-                />
-              </Field>
+                value={other} onChange={setOther} fullWidth
+              />
               <Field label="Status">
                 <Select
                   value={status}

@@ -27,12 +27,18 @@ export function InfoTip({
 }) {
   return (
     <Tooltip label={text} multiline placement="top" delayMs={150}>
-      <button
-        type="button"
+      {/* A focusable span with role="button", NOT a <button>.
+          InfoTips sit inside <Field> labels, and a <label> labels its
+          FIRST labelable descendant: a real <button> there steals the
+          label from the input it describes, so screen readers read the
+          input with no name and a click on the label text lands on the
+          icon. A span is not labelable, so the input keeps its label.
+          It is still tabbable and announced as a button; hover/focus
+          alone reveal the tip, and it can never submit a form. */}
+      <span
+        role="button"
+        tabIndex={0}
         aria-label={label}
-        // A button (not a bare span) so it's tabbable + announced;
-        // it never submits (type="button") and never handles click —
-        // hover/focus alone reveal the tip.
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -59,7 +65,7 @@ export function InfoTip({
           <line x1="12" y1="11" x2="12" y2="16" />
           <line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
-      </button>
+      </span>
     </Tooltip>
   );
 }

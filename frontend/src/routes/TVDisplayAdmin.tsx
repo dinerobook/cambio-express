@@ -16,7 +16,7 @@ import { formatTimestamp } from "../lib/datetime";
 import { AppLink,
   Button, ButtonLink, Card, ConfirmDialog, ErrorState, Field,
   IconButton, Input, Loading, PageShell, Section, Select,
-  Switch, TabsBar, TabsLink, useToast,
+  Switch, TabsBar, TabsLink, useToast, EmptyState,
 } from "../components/ui";
 import styles from "./TVDisplayAdmin.module.css";
 
@@ -682,12 +682,10 @@ function CountrySections({
         </div>
       </div>
       {countries.length === 0 && (
-        <div className={styles.empty}>
-          <h3 className={styles.sectionTitle} style={{ fontSize: 17 }}>No country sections yet</h3>
-          <p style={{ margin: 0 }}>
-            Add Mexico, Guatemala, Honduras — anywhere your store sends money — to start the rate board.
-          </p>
-        </div>
+        <EmptyState
+          title="No country sections yet"
+          body="Add Mexico, Guatemala, Honduras — anywhere your store sends money — to start the rate board."
+        />
       )}
       <div className={styles.countryGrid}>
         {countries.map((c) => (

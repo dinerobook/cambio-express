@@ -11,7 +11,7 @@ import { ApiError } from "../lib/api";
 import { AppLink,
   Breadcrumbs,
   Alert, Button, ButtonLink, Card, ConfirmDialog, ErrorState, Loading,
-  PageHeader, PageShell, Pill,
+  PageHeader, PageShell, Pill, Empty,
 } from "../components/ui";
 import styles from "./AdminSubscription.module.css";
 
@@ -258,7 +258,7 @@ export default function AdminSubscription() {
           </Card>
         ))}
         {data.addons.length === 0 && (
-          <p className={styles.muted}>No add-ons available right now.</p>
+          <Empty>No add-ons available right now.</Empty>
         )}
       </div>
 

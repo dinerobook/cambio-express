@@ -13,7 +13,7 @@ import { accountTypeLabel } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Card, Checkbox,
-  ConfirmDialog, DateInput, Empty, ErrorState, Field, Input, Loading,
+  ConfirmDialog, DateInput, Empty, ErrorState, Field, Input, Loading, MoneyInput,
   PageHeader, PageShell, Pill, Section, Select, TabsBar, TabsButton,
   useToast,
 } from "../components/ui";
@@ -51,7 +51,7 @@ const SCHEDULES = [
 interface Draft {
   name: string;
   is_active: boolean;
-  hourly_rate: string;
+  hourly_rate: number;
   hired_on: string;
   date_of_birth: string;
   email: string;
@@ -62,7 +62,7 @@ interface Draft {
 }
 
 const BLANK: Draft = {
-  name: "", is_active: true, hourly_rate: "",
+  name: "", is_active: true, hourly_rate: 0,
   hired_on: "", date_of_birth: "", email: "", phone: "",
   address_line1: "", address_line2: "", payroll_schedule: "",
 };
@@ -108,8 +108,7 @@ export default function EmployeeForm() {
     const hydrated: Draft = {
       name: existing.name,
       is_active: existing.is_active,
-      hourly_rate: existing.hourly_rate > 0
-        ? String(existing.hourly_rate) : "",
+      hourly_rate: existing.hourly_rate,
       hired_on: existing.hired_on ?? "",
       date_of_birth: existing.date_of_birth ?? "",
       email: existing.email,
@@ -156,7 +155,7 @@ export default function EmployeeForm() {
         const body: EmployeeUpdateBody = {
           name: draft.name,
           is_active: draft.is_active,
-          hourly_rate: Number(draft.hourly_rate) || 0,
+          hourly_rate: draft.hourly_rate,
           email: draft.email,
           phone: draft.phone,
           address_line1: draft.address_line1,
@@ -172,7 +171,7 @@ export default function EmployeeForm() {
       } else {
         const body: EmployeeCreateBody = {
           name: draft.name.trim(),
-          hourly_rate: Number(draft.hourly_rate) || 0,
+          hourly_rate: draft.hourly_rate,
           email: draft.email,
           phone: draft.phone,
           address_line1: draft.address_line1,
@@ -353,17 +352,13 @@ export default function EmployeeForm() {
         {tab === "payroll" && (
           <Card>
             <Section title="Payroll">
-              <Field
+              <MoneyInput
                 label="Hourly rate"
                 hint="Used by the time-clock payroll rollup and paystubs."
-              >
-                <Input
-                  type="number" min={0} step="0.01"
-                  value={draft.hourly_rate}
-                  onChange={(e) => set("hourly_rate", e.target.value)}
-                  disabled={busy}
-                />
-              </Field>
+                value={draft.hourly_rate}
+                onChange={(next) => set("hourly_rate", next)}
+                disabled={busy}
+              />
               <Field label="Hired on">
                 <DateInput
                   value={draft.hired_on}
