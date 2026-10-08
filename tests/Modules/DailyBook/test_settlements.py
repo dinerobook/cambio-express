@@ -385,15 +385,50 @@ def test_return_onto_a_locked_day_is_refused(client, test_store_id, admin):
     assert _open(client, test_store_id, admin)[0]["outstanding"] == 2000.0
 
 
-def test_closing_needs_the_original_day_unlocked(client, test_store_id, admin):
-    lent = _lend(client, test_store_id, admin)
+def test_closing_works_on_a_locked_day(client, test_store_id, admin):
+    """Closing and re-dating only change the open list, so a locked
+    day takes them; its numbers and its report row don't move."""
+    from api.Modules.DailyBook.Models import DailyReport
+    lent = _lend(client, test_store_id, admin, settle_by=DAY2.isoformat())
+    _lock(test_store_id, DAY1)
+    with db_session():
+        before = db.session.query(DailyReport).filter_by(
+            store_id=test_store_id, report_date=DAY1,
+        ).one().updated_at
+    url = f"/api/v2/daily/{test_store_id}/line-items/{lent['id']}"
+    moved = client.patch(url, json={"settle_by": DAY3.isoformat()}, headers=admin)
+    assert moved.status_code == 200
+    assert moved.get_json()["settle_by"] == DAY3.isoformat()
+    closed = client.patch(url, json={"expects_settlement": False}, headers=admin)
+    assert closed.status_code == 200
+    assert _open(client, test_store_id, admin) == []
+    assert _report_field(test_store_id, DAY1, "other_cash_out") == 2000.0
+    with db_session():
+        after = db.session.query(DailyReport).filter_by(
+            store_id=test_store_id, report_date=DAY1,
+        ).one().updated_at
+    assert after == before
+
+
+@pytest.mark.parametrize("body", [
+    {"expects_settlement": True},
+    {"amount": 10.0},
+    {"note": "x"},
+    {"settle_by": None, "note": "x"},
+    {"expects_settlement": False, "amount": 2000.0},
+])
+def test_a_locked_day_still_refuses_every_other_edit(
+    client, test_store_id, admin, body,
+):
+    plain = _add(client, test_store_id, admin, DAY1, kind="other_cash_out",
+                 amount=2000.0).get_json()
     _lock(test_store_id, DAY1)
     resp = client.patch(
-        f"/api/v2/daily/{test_store_id}/line-items/{lent['id']}",
-        json={"expects_settlement": False}, headers=admin,
+        f"/api/v2/daily/{test_store_id}/line-items/{plain['id']}",
+        json=body, headers=admin,
     )
     assert resp.status_code == 403
-    assert len(_open(client, test_store_id, admin)) == 1
+    assert _open(client, test_store_id, admin) == []
 
 
 # ── Access ─────────────────────────────────────────────────

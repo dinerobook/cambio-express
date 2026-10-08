@@ -645,17 +645,22 @@ def line_items_update_route(
         # Same opaque 404 for missing IDs and cross-tenant probes.
         raise HTTPException(status_code=404, detail="Line item not found")
 
-    # Lock check — the parent daily report's lock blanket-rejects
-    # every mutation, including line-item edits.  Match the
-    # update_daily_report path's 403 + "unlock first" UX.
-    from api.Modules.DailyBook.Services.locks import is_locked
-    if is_locked(db, int(store_id), item.report_date):
-        raise HTTPException(
-            status_code=403,
-            detail="Daily report is locked — unlock it before editing.",
-        )
-
     fields = body.model_dump(exclude_unset=True)
+    # Closing a lent / borrowed entry and moving its settle-by date
+    # touch only the open list, never a number on the day, so they
+    # are the one edit a locked day takes (owner's call, 2026-10-08;
+    # INVARIANTS.md "Settlements"). Re-marking stays an edit.
+    tracking_only = (
+        bool(fields)
+        and set(fields) <= {"expects_settlement", "settle_by"}
+        and fields.get("expects_settlement", False) is False
+    )
+
+    # Lock check — the parent daily report's lock blanket-rejects
+    # every other mutation, including line-item edits.  Match the
+    # update_daily_report path's 403 + "unlock first" UX.
+    if not tracking_only:
+        _refuse_locked_day(db, int(store_id), item.report_date)
     parsed_time = None
     # Time is OPTIONAL. The SPA's inline-edit always sends `at_time`
     # (even when the row has no time), so a blank value must mean
@@ -694,8 +699,10 @@ def line_items_update_route(
         raise HTTPException(status_code=409, detail=str(exc))
 
     # Recompute parent roll-up so the DailyReport stays in sync.
+    # A tracking-only change moves no money and must not stamp a
+    # (possibly locked) report.
     target_field = field_for_kind(item.kind)
-    if target_field:
+    if target_field and not tracking_only:
         recompute_line_items_total(
             db, int(store_id), item.report_date,
             kind=item.kind, daily_report_field=target_field,

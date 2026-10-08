@@ -350,6 +350,9 @@ If you change the carry formula, update `carry_forward_from`,
   `test_put_rejects_locked_report`); a locked report is an
   archived close-out.
 
+(One carve-out: closing a lent / borrowed entry or changing its
+settle-by date — see "Settlements".)
+
 The line-item routes enforce this on create, update AND delete
 (`_refuse_locked_day` in the controller). Create and delete used to
 skip the check — the SPA hid the buttons, the API did not refuse.
@@ -392,8 +395,13 @@ writer goes through them.
 - **`settle_by`** is optional, only on a marked entry, never before
   the entry's own day. It drives "overdue" in the SPA, nothing else.
 - **Lock**: a return is a create on its own day, so a locked day
-  refuses it. Marking, re-dating and closing are updates of the
-  original, so the original's day must be unlocked.
+  refuses it. **Closing (`expects_settlement: false`) and changing
+  `settle_by` are the one exception to the lock rules** (owner's
+  call, 2026-10-08): they touch only the open list, never a number,
+  so a PATCH carrying nothing but those two keys goes through on a
+  locked day and does not recompute or stamp the report. Marking an
+  entry, or any PATCH that also carries amount / time / note, is
+  still refused on a locked day.
 - `settles_item_id` has no database foreign key on purpose (adding a
   constraint scans and locks the live table); the service is the
   only writer and checks it.

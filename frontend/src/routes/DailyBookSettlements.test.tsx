@@ -237,12 +237,57 @@ describe("SettlementsWidget", () => {
     expect(await within(confirm).findByText(/unlock it before editing/)).toBeInTheDocument();
   });
 
-  it("offers no Record on a locked day", async () => {
+  it("offers no Record on a locked day, but still Change date and Close", async () => {
     renderWidget("owed_to_us", { locked: true });
     const dialog = await openList("Owed to us");
     expect(within(dialog).queryByRole("button", { name: "Record return" }))
       .not.toBeInTheDocument();
+    expect(within(dialog).getAllByRole("button", { name: "Change date" }))
+      .toHaveLength(2);
+    expect(within(dialog).getAllByRole("button", { name: "Close" }))
+      .toHaveLength(2);
     expect(dialog).toHaveTextContent("This day is locked");
+  });
+
+  it("changes the date, or clears it", async () => {
+    updateLineItem.mockResolvedValue({});
+    const { onChange } = renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Store #2 (Raj)").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    const input = within(form).getByLabelText("Settle by");
+    expect(input).toHaveValue(lent.settle_by);
+    await userEvent.clear(input);
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateLineItem).toHaveBeenCalledWith(
+      1, 11, { settle_by: null },
+    ));
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+
+    updateLineItem.mockClear();
+    await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
+    const again = screen.getAllByRole("dialog").at(-1)!;
+    const field = within(again).getByLabelText("Settle by");
+    await userEvent.clear(field);
+    await userEvent.type(field, "2030-01-15");
+    await userEvent.click(within(again).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateLineItem).toHaveBeenCalledWith(
+      1, 11, { settle_by: "2030-01-15" },
+    ));
+  });
+
+  it("shows why a date change failed", async () => {
+    updateLineItem.mockRejectedValue(
+      new ApiError(409, "The settle-by date can't be before the entry's own day.", null),
+    );
+    renderWidget();
+    const dialog = await openList("Owed to us");
+    const row = within(dialog).getByText("Maria").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Change date" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+    expect(await within(form).findByText(/can't be before/)).toBeInTheDocument();
   });
 
   it("hides the actions from someone who may only read the book", async () => {
@@ -255,6 +300,8 @@ describe("SettlementsWidget", () => {
     expect(within(dialog).queryByRole("button", { name: "Record return" }))
       .not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Close" }))
+      .not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Change date" }))
       .not.toBeInTheDocument();
   });
 

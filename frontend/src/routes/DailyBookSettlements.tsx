@@ -7,7 +7,10 @@
 //   - <SettleFields>      the tick box + optional date on an entry
 //   - <SettlementPill>    an entry's state in the entries table
 //   - <SettlementsWidget> the "Owed to us" / "We owe" tile, its list
-//                         and the Record return / Close actions
+//                         and the Record return / Change date /
+//                         Close actions (the last two also work when
+//                         the entry's own day is locked — they move
+//                         no money)
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -130,6 +133,7 @@ export function SettlementsWidget({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [recording, setRecording] = useState<OpenSettlement | null>(null);
+  const [redating, setRedating] = useState<OpenSettlement | null>(null);
   const [closing, setClosing] = useState<OpenSettlement | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
   const [closeErr, setCloseErr] = useState<string | null>(null);
@@ -253,6 +257,11 @@ export function SettlementsWidget({
                               onClick: () => setRecording(o),
                             },
                             {
+                              label: "Change date",
+                              perm: "daily_book.update",
+                              onClick: () => setRedating(o),
+                            },
+                            {
                               label: "Close",
                               perm: "daily_book.update",
                               onClick: () => { setCloseErr(null); setClosing(o); },
@@ -283,6 +292,15 @@ export function SettlementsWidget({
           date={date}
           onClose={() => setRecording(null)}
           onDone={() => { setRecording(null); refresh(); }}
+        />
+      )}
+
+      {redating && (
+        <SettleByModal
+          item={redating}
+          storeId={storeId}
+          onClose={() => setRedating(null)}
+          onDone={() => { setRedating(null); refresh(); }}
         />
       )}
 
@@ -386,6 +404,71 @@ function RecordSettlementModal({
         <p className={styles.widgetTdSmall} style={{ margin: 0 }}>
           Adds {fmtMoney2(amount || 0)} to {settleKind} on {formatDate(date)}.
         </p>
+        {err && <Alert tone="error">{err}</Alert>}
+      </div>
+    </Modal>
+  );
+}
+
+function SettleByModal({
+  item, storeId, onClose, onDone,
+}: {
+  item: OpenSettlement;
+  storeId: number;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [settleBy, setSettleBy] = useState(item.settle_by ?? "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save() {
+    if (busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await updateLineItem(storeId, item.id, { settle_by: settleBy || null });
+      onDone();
+    } catch (e) {
+      setErr(apiErrorMessage(e, "Could not change the date."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      title="Change date"
+      size="sm"
+      onClose={onClose}
+      disabled={busy}
+      actions={(
+        <>
+          <Button type="button" tone="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            type="button" tone="primary" busy={busy}
+            onClick={() => { void save(); }}
+          >
+            Save
+          </Button>
+        </>
+      )}
+    >
+      <div className={styles.lineModalBody}>
+        <p style={{ margin: 0 }}>
+          {item.note || "This entry"} · {fmtMoney2(item.outstanding)} left
+        </p>
+        <Field label="By (leave empty for no date)">
+          <DateInput
+            value={settleBy}
+            onChange={(e) => setSettleBy(e.target.value)}
+            disabled={busy}
+            aria-label="Settle by"
+          />
+        </Field>
         {err && <Alert tone="error">{err}</Alert>}
       </div>
     </Modal>
