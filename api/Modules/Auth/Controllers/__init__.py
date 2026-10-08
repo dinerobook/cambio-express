@@ -209,6 +209,7 @@ def _clear_access_token_cookie(response: Response) -> None:
 def get_principal(
     authorization: str | None = Header(default=None),
     db_access_token: str | None = Cookie(default=None),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """FastAPI dependency: decode + verify a JWT and return the
     claims dict. Accepts the token from either the
@@ -217,7 +218,9 @@ def get_principal(
     ``db_access_token`` cookie (used by the SPA after the
     cookie-JWT cutover in PR #559).
 
-    Raises 401 on missing / malformed / expired / bad signature.
+    Raises 401 on missing / malformed / expired / bad signature,
+    and 401 when the token no longer describes a live principal
+    (see ``_require_live_principal``).
     """
     token: str | None = None
     if authorization and authorization.lower().startswith("bearer "):
@@ -231,7 +234,7 @@ def get_principal(
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        return decode_access_token(token)
+        claims = decode_access_token(token)
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=401, detail="Token has expired",
@@ -242,6 +245,72 @@ def get_principal(
             status_code=401, detail="Invalid token",
             headers={"WWW-Authenticate": 'Bearer error="invalid"'},
         )
+    _require_live_principal(db, claims)
+    return claims
+
+
+def _require_live_principal(db: Session, claims: dict[str, Any]) -> None:
+    """A signed token is not enough: the person it names must still
+    be who it says, and the session it belongs to must not have
+    been signed out.
+
+    Before this check an access token outlived every revocation
+    for its 30-minute TTL: a demoted admin kept admin access, a
+    deactivated login kept working, and "revoke sessions" only
+    bit at the next refresh. Three cheap checks per request, all
+    on indexed columns:
+
+    * the user row exists and is active;
+    * the token's ``role`` is the row's role (an owner's
+      switch-store token carries ``role=admin`` plus ``owner_id``
+      and is the one sanctioned mismatch);
+    * when the token names a session (``sid``), at least one
+      refresh row of that session is still alive. A session with
+      no rows at all (tokens minted outside the login flow) is
+      left alone: only the signing secret can mint those.
+    """
+    sub = claims.get("sub")
+    if sub is None:
+        return
+    try:
+        user_id = int(sub)
+    except (TypeError, ValueError):
+        return
+    user = db.get(User, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=401, detail="Account is no longer active",
+            headers={"WWW-Authenticate": 'Bearer error="invalid"'},
+        )
+    role = str(claims.get("role") or "")
+    owner_context = (
+        user.role == "owner" and claims.get("owner_id") is not None
+        and str(claims.get("owner_id")) == str(user_id)
+    )
+    if role != (user.role or "") and not owner_context:
+        raise HTTPException(
+            status_code=401,
+            detail="Your account type changed; sign in again",
+            headers={"WWW-Authenticate": 'Bearer error="invalid"'},
+        )
+    sid = claims.get("sid")
+    if sid:
+        from api.Modules.Auth.Models import RefreshToken
+        rows = (
+            db.query(RefreshToken.revoked_at, RefreshToken.expires_at)
+              .filter(RefreshToken.user_id == user_id,
+                      RefreshToken.session_id == str(sid))
+              .all()
+        )
+        now = utc_now()
+        if rows and not any(
+            revoked_at is None and expires_at > now
+            for revoked_at, expires_at in rows
+        ):
+            raise HTTPException(
+                status_code=401, detail="Session was signed out",
+                headers={"WWW-Authenticate": 'Bearer error="invalid"'},
+            )
 
 
 def _client_user_agent(request: Request | None) -> str:

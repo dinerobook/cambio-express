@@ -22,12 +22,21 @@ class AdminUserRow(BaseModel):
     # generic "Custom access" pill.
     store_role_id: int | None = None
     store_role_name: str = ""
+    # The rank rule (api/Core/Permissions/ranks.py): False when this
+    # row outranks the person asking, e.g. the owner's own login
+    # seen by a store admin. The SPA hides the edit controls; the
+    # API refuses the write either way.
+    can_manage: bool = True
 
 
 class AdminUserListResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rows: list[AdminUserRow]
+    # Account types the asker may hand out: at or below their own
+    # rank. Feeds the account-type picker so it never offers a
+    # choice the server would refuse.
+    assignable_roles: list[str] = ["admin", "employee"]
 
 
 class AdminUserDetailResponse(BaseModel):

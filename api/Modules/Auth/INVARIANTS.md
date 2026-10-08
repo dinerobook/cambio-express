@@ -133,23 +133,24 @@ Per-user overlay contract (R-1):
   restricted user's `perms` claim never exceeds their overlay.
 - **Owner switch-store tokens deliberately skip the overlay**
   (`permissions_for("admin", store_id=…)`, role-only): owners
-  entering their own store are never restricted, and no code
-  path writes overlay rows for owner user ids.
+  entering their own store are never restricted. The rank rule
+  below is what keeps overlay rows off owner user ids: nobody
+  below owner rank may write one, and an owner may not write
+  their own.
 - Every overlay write (`PUT`/`DELETE /admin/users/{id}/
   permissions`) must: 404 opaquely cross-store, refuse
   self-edit, write an audit entry, and call
   `invalidate_sessions_for_user` so tokens carrying the old
   perms die immediately.
-- That revoke kills the REFRESH row only — `get_principal` is
-  deliberately DB-free, so an access token (30 min TTL) keeps
-  verifying with its stale `perms` claim. The API is safe (live
-  Casbin above), but the SPA's nav and route guard read the
-  cached claim. `GET /auth/session-status` therefore carries the
-  principal's live `permissions` (same resolution as
-  `permissions_for`, owner switch-store context stays role-only)
-  and the shell adopts it on load (`syncPermissions`), so a
-  revoked page drops out of the chrome on the next shell load
-  rather than at token expiry.
+- That revoke also kills the ACCESS token: `get_principal`
+  refuses a token whose session has no live refresh row (see
+  "Live principal" below), so the person is bounced to a fresh
+  login that bakes the new perms. `GET /auth/session-status`
+  still carries the principal's live `permissions` (same
+  resolution as `permissions_for`, owner switch-store context
+  stays role-only) and the shell adopts it on load
+  (`syncPermissions`), for changes that do not revoke (a
+  store-role edit for a role the person is not in, say).
 - Dashboard summary blocks are permission-gated per resource
   (`_admin_summary` / `_employee_summary`) — an overlay that
   denies e.g. `day_close.read` removes the numbers from the
@@ -171,6 +172,69 @@ that aren't in the matrix yet.
 **Changing the defaults or adding new resources/actions is a
 security-sensitive change.** Open a PR that's explicit about
 what's moving and why.
+
+### The rank rule — who may change whom
+
+`users.*` and `settings.update` are a privilege-escalation
+surface: whoever can edit a login or a matrix can hand out
+access. `api/Core/Permissions/ranks.py` is the one place the
+limit lives, and every team / access route in the Admin
+controller calls it through `_require_can_manage`,
+`_require_assignable_role` and `_require_within_ceiling`
+before it writes:
+
+- Ranks: `employee` < `admin` < `owner` < `superadmin`. An
+  owner's switch-store token (`role=admin` + `owner_id` naming
+  the subject) ranks as `owner`.
+- You may manage people at or below your own rank, never above
+  (`PATCH /admin/users/{id}` for role / password / active flag /
+  name, the overlay routes, saved-role assignment). An admin
+  therefore cannot touch the owner's row at the home store,
+  and an employee with the Team permission cannot touch admins.
+  Peer admins may still manage each other (a store runs on
+  that); tightening it is a product decision, not a bug.
+- You may assign roles at or below your own rank only
+  (`assignable_roles`), so an employee can never create or
+  promote an admin.
+- You may not grant access you do not hold yourself. Admin rank
+  and above are unbounded at their store; an employee-rank actor
+  is capped at their own effective grants (`resolve_user_grants`)
+  for a colleague's overlay, a saved role they create or edit, a
+  role they assign, clearing an overlay (which hands the role's
+  grants back), and the built-in Employee matrix on
+  `/admin/store-permissions`. The 403 names the extra grants.
+- The roster reports `can_manage` per row and `assignable_roles`
+  per response; the SPA hides the controls from them (UI-STANDARDS
+  §8). Self-edits are the self-edit guards' business (no self
+  demotion / deactivation, no self overlay), not rank.
+- A matrix body is validated in full (every role editable, every
+  value an object, within the ceiling) BEFORE the first Casbin
+  write, in the Admin and Owners controllers alike. A rejected
+  body persists nothing, audits nothing, signs nobody out.
+
+Tests: `tests/Modules/Admin/test_rank_rule.py`.
+
+### Live principal — a token is only as good as its row
+
+`get_principal` decodes the JWT and then, on every request, runs
+`_require_live_principal` (one PK read plus one indexed read):
+
+- the user row must exist and be active;
+- the token's `role` must equal the row's role (an owner's
+  switch-store token is the one sanctioned mismatch);
+- when the token carries `sid`, at least one refresh row of that
+  session must be alive. A session with no rows at all is left
+  alone (only the signing secret mints those).
+
+Any of them failing is a 401, so a demotion, deactivation,
+password reset (`PATCH /admin/users/{id}` revokes the person's
+refresh rows for all three), an overlay or saved-role change,
+`/auth/sessions/*` revokes, logout and the superadmin
+"revoke sessions" button all bite on the next API call, not at
+token expiry. Name and module-access edits keep the session.
+Never make `get_principal` DB-free again.
+
+Tests: `tests/Modules/Auth/test_principal_liveness.py`.
 
 
 ## The 2FA gate — `needs_totp` is THE single role check
@@ -558,6 +622,12 @@ What needs a security discussion FIRST:
   `exclude_credentials` / `is_eligible`.
 - `test_password_reset_service.py` — token hashing, expiry,
   single-use.
+- `test_principal_liveness.py` — the live-principal check in
+  `get_principal`: deactivation, demotion, password reset and
+  every session revoke refuse the old access token at once.
+- `tests/Modules/Admin/test_rank_rule.py` — the rank rule: owner
+  rows out of an admin's reach, the Team permission is not a
+  store takeover, rejected matrix bodies write nothing.
 - `test_password_change_service.py` — current-password verify,
   new-password hashing.
 - `test_jwt_issuer.py` — claims shape, expiry, decode.

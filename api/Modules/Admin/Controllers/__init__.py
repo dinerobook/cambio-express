@@ -343,7 +343,83 @@ def deactivate_team_member_route(
 # roster ids) until the SPA cutover removes their pages.
 
 
-def _employee_row(e, u) -> "EmployeeRecord":
+# ── The rank rule (api/Core/Permissions/ranks.py) ──────────
+#
+# Who may change whom. Every route below that touches another
+# person's role, password, active flag, custom access or saved
+# role calls one of these first, so the rule lives in one place
+# and a reviewer can grep for it.
+
+
+def _require_can_manage(claims: dict[str, Any], user: User) -> None:
+    """403 when the target outranks the actor (an admin editing the
+    owner's row, an employee with the Team permission editing an
+    admin). Self-edits are governed by the self-edit guards."""
+    from api.Core.Permissions.ranks import can_manage
+    sub = claims.get("sub")
+    if sub is not None and int(sub) == user.id:
+        return
+    if not can_manage(claims, user.role):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "You can't change this account: it has a higher "
+                "account type than yours."
+            ),
+        )
+
+
+def _require_assignable_role(claims: dict[str, Any], role: str | None) -> None:
+    """403 when the actor hands out a role above their own rank."""
+    if role is None:
+        return
+    from api.Core.Permissions.ranks import ASSIGNABLE_ROLES, can_assign_role
+    if (role or "").strip() not in ASSIGNABLE_ROLES:
+        return  # not a role at all: the Service's 422 names it
+    if not can_assign_role(claims, role):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "You can't give someone a higher account type "
+                "than your own."
+            ),
+        )
+
+
+def _require_within_ceiling(
+    claims: dict[str, Any], store_id: int,
+    *, matrix: dict | None = None,
+    grants: set[tuple[str, str]] | None = None,
+) -> None:
+    """403 when the access being handed out exceeds what the actor
+    holds. Unbounded for admin rank and above; an employee with the
+    Team permission can only pass on their own access."""
+    from api.Core.Permissions.ranks import (
+        grants_beyond_ceiling, matrix_grants,
+    )
+    wanted = set(grants or set())
+    if matrix is not None:
+        wanted |= matrix_grants(matrix)
+    beyond = grants_beyond_ceiling(claims, store_id, wanted)
+    if beyond:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "You can't grant access you don't have yourself: "
+                + ", ".join(beyond)
+            ),
+        )
+
+
+def _can_manage(claims: dict[str, Any], u) -> bool:
+    from api.Core.Permissions.ranks import can_manage
+    sub = claims.get("sub")
+    if sub is not None and int(sub) == u.id:
+        return True
+    return can_manage(claims, u.role)
+
+
+def _employee_row(e, u, claims: dict[str, Any] | None = None) -> "EmployeeRecord":
     from api.Core.Permissions import user_has_custom_permissions
     login = None
     if u is not None:
@@ -356,6 +432,7 @@ def _employee_row(e, u) -> "EmployeeRecord":
                 user_has_custom_permissions(u.id, e.store_id)
             ),
             store_role_name=_role_name_for(u),
+            can_manage=_can_manage(claims, u) if claims else True,
         )
     return EmployeeRecord(
         id=e.id,
@@ -386,7 +463,7 @@ def list_employees_route(
     store_id = resolve_store_scope(claims)
     rows, login_only = list_employees_unified(db, store_id)
     return EmployeesListResponse(
-        rows=[_employee_row(e, u) for e, u in rows],
+        rows=[_employee_row(e, u, claims) for e, u in rows],
         login_only=[
             LoginOnlyRow(
                 user_id=u.id,
@@ -394,6 +471,7 @@ def list_employees_route(
                 full_name=u.full_name or "",
                 role=u.role or "employee",
                 is_active=bool(u.is_active),
+                can_manage=_can_manage(claims, u),
             )
             for u in login_only
         ],
@@ -440,7 +518,7 @@ def create_employee_route(
     )
     db.commit()
     linked = db.get(User, emp.user_id) if emp.user_id else None
-    return _employee_row(emp, linked)
+    return _employee_row(emp, linked, claims)
 
 
 @router.patch(
@@ -513,7 +591,7 @@ def update_employee_route(
     )
     db.commit()
     linked = db.get(User, emp.user_id) if emp.user_id else None
-    return _employee_row(emp, linked)
+    return _employee_row(emp, linked, claims)
 
 
 @router.post(
@@ -544,7 +622,7 @@ def link_employee_login_route(
     )
     db.commit()
     linked = db.get(User, emp.user_id) if emp.user_id else None
-    return _employee_row(emp, linked)
+    return _employee_row(emp, linked, claims)
 
 
 @router.delete(
@@ -572,7 +650,7 @@ def unlink_employee_login_route(
         summary=f"unlinked login user_id={prior}",
     )
     db.commit()
-    return _employee_row(emp, None)
+    return _employee_row(emp, None, claims)
 
 
 # ── Subscription add-ons ────────────────────────────────────
@@ -959,7 +1037,7 @@ def export_admin_audit_log_csv_route(
 # ── Per-store user management ───────────────────────────────
 
 
-def _user_row(u) -> AdminUserRow:
+def _user_row(u, claims: dict[str, Any] | None = None) -> AdminUserRow:
     # module_access CSV → list: NULL = None (all store modules),
     # "" = [] (none of the optional modules) — see U-3 semantics
     # on the User model.
@@ -983,6 +1061,7 @@ def _user_row(u) -> AdminUserRow:
         ),
         store_role_id=getattr(u, "store_role_id", None),
         store_role_name=_role_name_for(u),
+        can_manage=_can_manage(claims, u) if claims else True,
     )
 
 
@@ -1065,7 +1144,11 @@ def list_users_route(
     require_permission(claims, "users", "read")
     store_id = resolve_store_scope(claims)
     rows = list_store_users(db, store_id)
-    return AdminUserListResponse(rows=[_user_row(u) for u in rows])
+    from api.Core.Permissions.ranks import assignable_roles
+    return AdminUserListResponse(
+        rows=[_user_row(u, claims) for u in rows],
+        assignable_roles=assignable_roles(claims),
+    )
 
 
 @router.post(
@@ -1085,6 +1168,20 @@ def create_user_route(
     """
     require_permission(claims, "users", "create")
     store_id = resolve_store_scope(claims)
+    _require_assignable_role(claims, body.role)
+    if body.store_role_id is not None:
+        from api.Modules.Admin.Services.roles import (
+            RoleNotFoundError as _RoleNotFound, get_role, role_matrix,
+        )
+        try:
+            _require_within_ceiling(
+                claims, store_id,
+                matrix=role_matrix(get_role(db, store_id, body.store_role_id)),
+            )
+        except _RoleNotFound:
+            raise HTTPException(status_code=404, detail="Role not found")
+    elif body.permissions is not None:
+        _require_within_ceiling(claims, store_id, matrix=body.permissions)
     try:
         user = create_store_user(
             db, store_id=store_id,
@@ -1134,7 +1231,7 @@ def create_user_route(
         ),
     )
     db.commit()
-    return _user_row(user)
+    return _user_row(user, claims)
 
 
 @router.get(
@@ -1152,7 +1249,7 @@ def get_user_route(
     user = find_store_user(db, store_id, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return AdminUserDetailResponse(user=_user_row(user))
+    return AdminUserDetailResponse(user=_user_row(user, claims))
 
 
 @router.patch(
@@ -1174,9 +1271,13 @@ def update_user_route(
     user = find_store_user(db, store_id, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    _require_can_manage(claims, user)
     fields = body.model_dump(exclude_unset=True)
+    if fields.get("role") is not None:
+        _require_assignable_role(claims, fields["role"])
     actor_id_raw = claims.get("sub")
     actor_id = int(actor_id_raw) if actor_id_raw is not None else None
+    standing_before = (user.role, bool(user.is_active))
     try:
         update_kwargs: dict[str, Any] = {}
         if "module_access" in fields:
@@ -1216,8 +1317,20 @@ def update_user_route(
         db, claims=claims, action="update",
         target_user=user, summary=summary,
     )
+    # A change to WHO this person is (role, active flag) or to
+    # their password signs them out everywhere: the refresh rows
+    # die here and `get_principal` refuses the access token on its
+    # next use. Name and module changes keep their sessions.
+    if (
+        (user.role, bool(user.is_active)) != standing_before
+        or bool(fields.get("password"))
+    ):
+        from api.Modules.Auth.Services.principal import (
+            invalidate_sessions_for_user,
+        )
+        invalidate_sessions_for_user(db, user.id)
     db.commit()
-    return _user_row(user)
+    return _user_row(user, claims)
 
 
 # ── Per-user permission overlays (R-1) ─────────────────────
@@ -1242,6 +1355,7 @@ def _find_permission_target(db, claims, store_id: int, user_id: int):
             status_code=422,
             detail="You cannot edit your own access.",
         )
+    _require_can_manage(claims, user)
     return user
 
 
@@ -1281,6 +1395,7 @@ def set_user_permissions_route(
         raise HTTPException(
             status_code=422, detail="Body must carry a matrix object.",
         )
+    _require_within_ceiling(claims, store_id, matrix=matrix)
     from api.Core.Permissions import (
         get_user_permission_matrix, set_user_permissions,
     )
@@ -1323,7 +1438,13 @@ def clear_user_permissions_route(
     store_id = resolve_store_scope(claims)
     user = _find_permission_target(db, claims, store_id, user_id)
     from api.Core.Permissions import (
-        clear_user_permissions, get_user_permission_matrix,
+        _resolve_grants, clear_user_permissions, get_user_permission_matrix,
+    )
+    # Clearing hands them their role's access: that too must be
+    # within what the actor may give.
+    _require_within_ceiling(
+        claims, store_id,
+        grants=_resolve_grants(user.role or "employee", store_id),
     )
     clear_user_permissions(store_id, user.id)
     # No overlay means no saved role either — the label would claim
@@ -1438,9 +1559,21 @@ def update_store_permissions_route(
     affected_roles: set[str] = set()
 
     if matrix:
+        # Every role in the body is checked BEFORE the first write.
+        # A 403 half-way through used to leave the first role
+        # persisted with no audit entry and nobody signed out.
+        if not isinstance(matrix, dict):
+            raise HTTPException(status_code=422, detail="matrix must be an object.")
         for role, resources in matrix.items():
             if role not in editable_roles:
                 raise HTTPException(status_code=403, detail=f"Cannot edit {role} permissions")
+            if not isinstance(resources, dict):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"matrix.{role} must be an object.",
+                )
+            _require_within_ceiling(claims, sid, matrix=resources)
+        for role, resources in matrix.items():
             set_store_permissions(sid, role, resources)
             affected_roles.add(role)
     elif changes:
@@ -1458,6 +1591,8 @@ def update_store_permissions_route(
                 continue
             apply_cell_change(current_matrix[target_role][resource], action, allowed)
             affected_roles.add(target_role)
+        for r in affected_roles:
+            _require_within_ceiling(claims, sid, matrix=current_matrix[r])
         for r in affected_roles:
             set_store_permissions(sid, r, current_matrix[r])
 
@@ -1676,6 +1811,7 @@ def create_role_route(
         raise HTTPException(
             status_code=422, detail="Body must carry a matrix object.",
         )
+    _require_within_ceiling(claims, store_id, matrix=matrix)
     from api.Modules.Admin.Services.roles import RoleError, create_role
     try:
         role = create_role(
@@ -1716,6 +1852,8 @@ def update_role_route(
         raise HTTPException(
             status_code=422, detail="matrix must be an object.",
         )
+    if matrix is not None:
+        _require_within_ceiling(claims, store_id, matrix=matrix)
     name = body.get("name")
     from api.Modules.Admin.Services.roles import (
         RoleError, RoleNotFoundError, member_counts, update_role,
@@ -1809,9 +1947,14 @@ def assign_user_role_route(
     raw = body.get("role_id")
     role_id = None if raw in (None, "", 0) else int(raw)
     from api.Modules.Admin.Services.roles import (
-        RoleNotFoundError, assign_role,
+        RoleNotFoundError, assign_role, get_role, role_matrix,
     )
     try:
+        if role_id is not None:
+            _require_within_ceiling(
+                claims, store_id,
+                matrix=role_matrix(get_role(db, store_id, role_id)),
+            )
         role = assign_role(db, store_id, user, role_id)
     except RoleNotFoundError:
         raise HTTPException(status_code=404, detail="Role not found")

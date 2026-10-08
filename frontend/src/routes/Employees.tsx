@@ -10,6 +10,7 @@ import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { fmtMoney2 } from "../lib/formatters";
+import { accountTypeLabel } from "../lib/permissions";
 import {
   Breadcrumbs, ButtonLink, Card, ConfirmDialog, PageHeader,
   PageShell, Pill, RowActions, Section, Table, TableStates, tdStyle,
@@ -126,8 +127,8 @@ export default function Employees() {
                   <td style={tdStyle}>
                     {r.login ? (
                       <>
-                        <Pill tone={r.login.role === "admin" ? "accent" : "neutral"}>
-                          {r.login.role === "admin" ? "Super Admin" : "Employee"}
+                        <Pill tone={r.login.role === "employee" ? "neutral" : "accent"}>
+                          {accountTypeLabel(r.login.role)}
                         </Pill>{" "}
                         <span>{r.login.username}</span>
                         {/* Name the saved role when there is one —
@@ -177,29 +178,36 @@ export default function Employees() {
                           perm: "users.update",
                           onClick: () => navigate(`/employees/${r.id}/edit`),
                         },
-                        {
-                          // Deep-links the form's Login tab (E-3) —
-                          // "who can sign in" is the most common
-                          // reason to open somebody's record.
-                          label: r.login ? "Manage access" : "Add login",
-                          perm: "users.update",
-                          onClick: () => navigate(
-                            `/employees/${r.id}/edit?tab=login`,
-                          ),
-                        },
-                        r.is_active
-                          ? {
-                              label: "Deactivate", tone: "danger" as const,
-                              perm: "users.update",
-                              onClick: () => setConfirmRow(r),
-                              disabled: busy,
-                            }
-                          : {
-                              label: "Reactivate",
-                              perm: "users.update",
-                              onClick: () => { void toggleActive(r); },
-                              disabled: busy,
-                            },
+                        // No access, no control: a login that
+                        // outranks the viewer (the owner's own
+                        // account seen by an admin) gets no
+                        // access or deactivate actions — the
+                        // server refuses them anyway.
+                        ...(r.login && !r.login.can_manage ? [] : [
+                          {
+                            // Deep-links the form's Login tab (E-3) —
+                            // "who can sign in" is the most common
+                            // reason to open somebody's record.
+                            label: r.login ? "Manage access" : "Add login",
+                            perm: "users.update",
+                            onClick: () => navigate(
+                              `/employees/${r.id}/edit?tab=login`,
+                            ),
+                          },
+                          r.is_active
+                            ? {
+                                label: "Deactivate", tone: "danger" as const,
+                                perm: "users.update",
+                                onClick: () => setConfirmRow(r),
+                                disabled: busy,
+                              }
+                            : {
+                                label: "Reactivate",
+                                perm: "users.update",
+                                onClick: () => { void toggleActive(r); },
+                                disabled: busy,
+                              },
+                        ]),
                       ]}
                     />
                   </td>
@@ -232,8 +240,8 @@ export default function Employees() {
                     <td style={tdStyle}><strong>{u.username}</strong></td>
                     <td style={tdStyle}>{u.full_name || "—"}</td>
                     <td style={tdStyle}>
-                      <Pill tone={u.role === "admin" ? "accent" : "neutral"}>
-                        {u.role === "admin" ? "Super Admin" : "Employee"}
+                      <Pill tone={u.role === "employee" ? "neutral" : "accent"}>
+                        {accountTypeLabel(u.role)}
                       </Pill>
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right" }}>

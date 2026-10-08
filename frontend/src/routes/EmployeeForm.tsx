@@ -8,6 +8,7 @@ import {
   type EmployeeCreateBody, type EmployeeUpdateBody,
 } from "../api/employees";
 import { ApiError } from "../lib/api";
+import { accountTypeLabel } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Card, Checkbox,
@@ -398,8 +399,8 @@ export default function EmployeeForm() {
                 <div className={styles.stack}>
                   <div>
                     <strong>{existing.login.username}</strong>{" "}
-                    <Pill tone={existing.login.role === "admin" ? "accent" : "neutral"}>
-                      {existing.login.role === "admin" ? "Super Admin" : "Employee"}
+                    <Pill tone={existing.login.role === "employee" ? "neutral" : "accent"}>
+                      {accountTypeLabel(existing.login.role)}
                     </Pill>{" "}
                     <Pill tone={existing.login.is_active ? "accent" : "neutral"}>
                       {existing.login.is_active ? "Active" : "Inactive"}
@@ -412,12 +413,16 @@ export default function EmployeeForm() {
                     )}
                   </div>
                   <div className={styles.actionRow}>
-                    <ButtonLink
-                      to={`/admin/users/${existing.login.user_id}/edit`}
-                      tone="secondary" size="sm"
-                    >
-                      Edit login &amp; access
-                    </ButtonLink>
+                    {/* Rank rule: an account above the viewer's
+                        own (the owner's) is shown, not edited. */}
+                    {existing.login.can_manage !== false && (
+                      <ButtonLink
+                        to={`/admin/users/${existing.login.user_id}/edit`}
+                        tone="secondary" size="sm"
+                      >
+                        Edit login &amp; access
+                      </ButtonLink>
+                    )}
                     <Button
                       type="button" tone="secondary" size="sm"
                       onClick={() => setConfirmUnlink(true)}

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   clearAdminUserPermissions, createAdminUser, setAdminUserPermissions,
-  updateAdminUser, useAdminUser, useAdminUserPermissions,
+  updateAdminUser, useAdminUser, useAdminUserPermissions, useAdminUsers,
   type AdminUserCreateBody, type AdminUserUpdateBody, type PermMatrix,
 } from "../api/admin";
 import { useSessionStatus } from "../api/account";
@@ -113,6 +113,11 @@ export default function AdminUserForm() {
   const identity    = getCurrentIdentity();
 
   const detail  = useAdminUser(isEdit ? uid : null);
+  // The roster carries which account types the viewer may hand
+  // out (rank rule) — the picker never offers one the server
+  // would refuse.
+  const roster  = useAdminUsers();
+  const assignableRoles = roster.data?.assignable_roles ?? ["admin", "employee"];
   const session = useSessionStatus();
   const userPerms = useAdminUserPermissions(isEdit ? uid : null);
   const accessRoles = useAccessRoles();
@@ -267,6 +272,22 @@ export default function AdminUserForm() {
           message={`Couldn't load this user.${detail.error instanceof Error ? ` ${detail.error.message}` : ""}`}
           onRetry={() => { void detail.refetch(); }}
         />
+      </PageShell>
+    );
+  }
+  if (isEdit && detail.data && detail.data.user.can_manage === false) {
+    // Rank rule: this login outranks the viewer (the owner's own
+    // account seen by a store admin). Nothing here is editable,
+    // so there is no form to show.
+    return (
+      <PageShell maxWidth="36rem">
+        <Breadcrumbs crumbs={[{ label: "Employees", to: "/employees" }, { label: "Edit User" }]} />
+        <PageHeader title="Edit User" />
+        <Alert tone="info">
+          {detail.data.user.full_name || detail.data.user.username} has a
+          higher account type than yours, so their login and access
+          can only be changed by that person.
+        </Alert>
       </PageShell>
     );
   }
@@ -454,8 +475,12 @@ export default function AdminUserForm() {
               onChange={(e) => set("role", e.target.value)}
               disabled={busy || isSelf}
             >
-              <option value="employee">Employee</option>
-              <option value="admin">Admin (full access)</option>
+              {assignableRoles.includes("employee") && (
+                <option value="employee">Employee</option>
+              )}
+              {assignableRoles.includes("admin") && (
+                <option value="admin">Admin (full access)</option>
+              )}
             </Select>
           </Field>
 

@@ -6517,11 +6517,24 @@ export interface components {
         };
         /** AdminUserListResponse */
         AdminUserListResponse: {
+            /**
+             * Assignable Roles
+             * @default [
+             *       "admin",
+             *       "employee"
+             *     ]
+             */
+            assignable_roles: string[];
             /** Rows */
             rows: components["schemas"]["AdminUserRow"][];
         };
         /** AdminUserRow */
         AdminUserRow: {
+            /**
+             * Can Manage
+             * @default true
+             */
+            can_manage: boolean;
             /** Created At */
             created_at: string;
             /** Full Name */
@@ -8315,6 +8328,11 @@ export interface components {
          * @description The login half of a person, when one is linked.
          */
         EmployeeLoginInfo: {
+            /**
+             * Can Manage
+             * @default true
+             */
+            can_manage: boolean;
             /** Has Custom Permissions */
             has_custom_permissions: boolean;
             /** Is Active */
@@ -9152,6 +9170,11 @@ export interface components {
          *     Link / Create-record actions so it can't go invisible.
          */
         LoginOnlyRow: {
+            /**
+             * Can Manage
+             * @default true
+             */
+            can_manage: boolean;
             /** Full Name */
             full_name: string;
             /** Is Active */

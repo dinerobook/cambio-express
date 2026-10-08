@@ -103,10 +103,16 @@ export interface AdminUserRow {
   // "Custom access" pill.
   store_role_id?: number | null;
   store_role_name?: string;
+  // Rank rule: false when this account outranks the viewer (the
+  // owner's login seen by an admin). The form goes read-only.
+  can_manage?: boolean;
 }
 
 export interface AdminUserListResponse {
   rows: AdminUserRow[];
+  // Account types the viewer may hand out (at or below their own
+  // rank) — the picker offers only these.
+  assignable_roles?: string[];
 }
 
 export interface AdminUserDetailResponse {

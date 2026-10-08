@@ -315,13 +315,15 @@ def test_jwt_perms_and_live_enforcement(client, test_store_id):
     )
     assert put.status_code == 200
     try:
-        # Live enforcement: the stale token is blocked immediately.
+        # The overlay write signed the person out: the token minted
+        # before it is refused outright, not merely 403'd on the
+        # pages it no longer covers.
         assert client.get(
             f"/api/v2/transfers?store_ids={test_store_id}",
-        headers=_headers(pre_token),
-        ).status_code == 403
+            headers=_headers(pre_token),
+        ).status_code == 401
 
-        # Fresh login bakes the restricted perms into the claim.
+        # Fresh login bakes the restricted perms into the claim…
         login = client.post(
             "/api/v2/auth/login",
             json={
@@ -334,6 +336,12 @@ def test_jwt_perms_and_live_enforcement(client, test_store_id):
         assert "time_clock.read" in perms
         assert "transfers.read" not in perms
         assert "daily_book.read" not in perms
+        # …and enforcement is live on the new session regardless of
+        # what the claim says.
+        assert client.get(
+            f"/api/v2/transfers?store_ids={test_store_id}",
+            headers=_headers(login["access_token"]),
+        ).status_code == 403
     finally:
         clear_user_permissions(test_store_id, uid)
 

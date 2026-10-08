@@ -17,6 +17,9 @@ class EmployeeLoginInfo(BaseModel):
     # R-3: name the saved role instead of the generic "Custom
     # access" pill — "Shift lead" tells the reader something.
     store_role_name: str = ""
+    # Rank rule: False when this login outranks the asker (the
+    # owner's account seen by an admin). Hides "Manage access".
+    can_manage: bool = True
 
 
 class EmployeeRecord(BaseModel):
@@ -47,6 +50,7 @@ class LoginOnlyRow(BaseModel):
     full_name: str
     role:      str
     is_active: bool
+    can_manage: bool = True
 
 
 class EmployeesListResponse(BaseModel):

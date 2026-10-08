@@ -527,6 +527,18 @@ a monthly P&L edit needs the monthly ones.
     cookie-authenticated form-POST surface, add CSRF protection
     back at that point — don't bolt cookie auth onto a JSON
     endpoint without it.
+18. **The rank rule and the live principal** — see
+    `api/Modules/Auth/INVARIANTS.md`. Every route that changes
+    another person's role, password, active flag, custom access
+    or saved role goes through `api/Core/Permissions/ranks.py`
+    (manage at or below your own rank, assign roles at or below
+    it, never grant what you don't hold). A matrix body is
+    validated in full before the first Casbin write.
+    `get_principal` checks the user row and the session's refresh
+    rows on every request, so revoking sessions, demoting,
+    deactivating or resetting a password signs the person out on
+    their next call. Don't add a user-editing route that skips
+    the rank helpers, and don't make `get_principal` DB-free.
 
 ## Migrations
 **Every schema change is an Alembic revision.** Generate one with:
