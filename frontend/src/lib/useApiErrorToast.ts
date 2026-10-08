@@ -25,13 +25,13 @@
  * argument through `useToast()`.
  */
 import { useToast } from "../components/ui";
-import { ApiError } from "./api";
+import { apiErrorMessage } from "./api";
 
 export function useApiErrorToast(): (err: unknown, fallback: string) => void {
   const toast = useToast();
   return (err: unknown, fallback: string) => {
     toast({
-      message: err instanceof ApiError ? err.message : fallback,
+      message: apiErrorMessage(err, fallback),
       tone: "error",
     });
   };

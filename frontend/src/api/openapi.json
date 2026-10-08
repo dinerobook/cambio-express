@@ -6166,6 +6166,11 @@
             "title": "At Time",
             "type": "string"
           },
+          "expects_settlement": {
+            "default": false,
+            "title": "Expects Settlement",
+            "type": "boolean"
+          },
           "kind": {
             "title": "Kind",
             "type": "string"
@@ -6174,6 +6179,29 @@
             "default": "",
             "title": "Note",
             "type": "string"
+          },
+          "settle_by": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settle By"
+          },
+          "settles_item_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settles Item Id"
           }
         },
         "required": [
@@ -6213,6 +6241,11 @@
             "title": "At Time",
             "type": "string"
           },
+          "expects_settlement": {
+            "default": false,
+            "title": "Expects Settlement",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -6236,6 +6269,34 @@
               }
             ],
             "title": "Return Check Id"
+          },
+          "settle_by": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settle By"
+          },
+          "settled": {
+            "default": 0.0,
+            "title": "Settled",
+            "type": "number"
+          },
+          "settles_item_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settles Item Id"
           }
         },
         "required": [
@@ -6273,6 +6334,17 @@
             ],
             "title": "At Time"
           },
+          "expects_settlement": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expects Settlement"
+          },
           "note": {
             "anyOf": [
               {
@@ -6283,6 +6355,18 @@
               }
             ],
             "title": "Note"
+          },
+          "settle_by": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settle By"
           }
         },
         "title": "LineItemUpdateRequest",
@@ -8010,6 +8094,89 @@
           }
         },
         "title": "NotificationsUpdateRequest",
+        "type": "object"
+      },
+      "OpenSettlementListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OpenSettlementRow"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "OpenSettlementListResponse",
+        "type": "object"
+      },
+      "OpenSettlementRow": {
+        "additionalProperties": false,
+        "description": "A lent-out (`other_cash_out`) or borrowed (`other_cash_in`)\nentry with money still outstanding.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "outstanding": {
+            "title": "Outstanding",
+            "type": "number"
+          },
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          },
+          "returns": {
+            "items": {
+              "$ref": "#/components/schemas/SettlementReturnRow"
+            },
+            "title": "Returns",
+            "type": "array"
+          },
+          "settle_by": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settle By"
+          },
+          "settled": {
+            "title": "Settled",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "report_date",
+          "amount",
+          "settled",
+          "outstanding",
+          "returns"
+        ],
+        "title": "OpenSettlementRow",
         "type": "object"
       },
       "OwnerAddStoreRequest": {
@@ -11452,6 +11619,32 @@
           "revoked"
         ],
         "title": "SessionRevokeResponse",
+        "type": "object"
+      },
+      "SettlementReturnRow": {
+        "additionalProperties": false,
+        "description": "One entry that settled part of an open one.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "report_date",
+          "amount"
+        ],
+        "title": "SettlementReturnRow",
         "type": "object"
       },
       "ShiftCreateRequest": {
@@ -26384,6 +26577,82 @@
           }
         },
         "summary": "Period Route",
+        "tags": [
+          "daily"
+        ]
+      }
+    },
+    "/daily/{store_id}/settlements/open": {
+      "get": {
+        "description": "Every Other cash out lent out and Other cash in borrowed that\nstill has money outstanding, across all days \u2014 the daily book's\n\"Owed to us\" / \"We owe\" tiles. See Services/settlements.py.",
+        "operationId": "open_settlements_route_daily__store_id__settlements_open_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "store_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Store Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenSettlementListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Open Settlements Route",
         "tags": [
           "daily"
         ]

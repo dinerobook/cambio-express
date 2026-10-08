@@ -11,7 +11,10 @@ from api.Modules.DailyBook.Requests.reports import (
     MTBreakdownRowResponse,
     MTBreakdownWriteRequest,
     MTBreakdownWriteRow,
+    OpenSettlementListResponse,
+    OpenSettlementRow,
     PeriodSummaryResponse,
+    SettlementReturnRow,
     TransferCompanyTotalsResponse,
     TransfersSummaryResponse,
 )
@@ -28,7 +31,10 @@ __all__ = [
     "MTBreakdownRowResponse",
     "MTBreakdownWriteRequest",
     "MTBreakdownWriteRow",
+    "OpenSettlementListResponse",
+    "OpenSettlementRow",
     "PeriodSummaryResponse",
+    "SettlementReturnRow",
     "TransferCompanyTotalsResponse",
     "TransfersSummaryResponse",
 ]

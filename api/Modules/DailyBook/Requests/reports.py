@@ -1,4 +1,6 @@
 """Pydantic schemas for the daily-book read-side."""
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -112,6 +114,14 @@ class LineItemRow(BaseModel):
     # cashier can't strip a payback that's mirrored from the
     # Return Checks page.
     return_check_id: int | None = None
+    # Settlements (Services/settlements.py). `expects_settlement`
+    # marks money lent out / borrowed; `settled` is how much has come
+    # back so far. `settles_item_id` is set on an entry that is (part
+    # of) the return of another one.
+    expects_settlement: bool = False
+    settle_by: date | None = None
+    settled: float = 0.0
+    settles_item_id: int | None = None
 
 
 class LineItemListResponse(BaseModel):
@@ -134,6 +144,11 @@ class LineItemCreateRequest(BaseModel):
     at_time: str = ""  # HH:MM; empty = no time recorded
     amount: float  # > 0; the Service rejects ≤0
     note: str = ""
+    # Mark an other_cash_out / other_cash_in as money that comes back.
+    expects_settlement: bool = False
+    settle_by: date | None = None
+    # Book this entry as (part of) the return of an open entry.
+    settles_item_id: int | None = None
 
 
 class LineItemUpdateRequest(BaseModel):
@@ -148,6 +163,10 @@ class LineItemUpdateRequest(BaseModel):
     at_time: str | None = None  # HH:MM
     amount: float | None = None  # > 0; the Service rejects ≤0
     note: str | None = None
+    # Tick / untick "comes back". Unticking closes an open entry.
+    expects_settlement: bool | None = None
+    # Sent as null to clear the date; omitted to leave it alone.
+    settle_by: date | None = None
 
 
 class TransferCompanyTotalsResponse(BaseModel):
@@ -277,3 +296,37 @@ class DailyReportUpdateRequest(BaseModel):
     # server-side (DailyReport.computed_over_short), never sent by the
     # client. `extra="forbid"` above means a stray over_short → 422.
     notes:                   str = ""
+
+
+class SettlementReturnRow(BaseModel):
+    """One entry that settled part of an open one."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    report_date: date
+    amount: float
+
+
+class OpenSettlementRow(BaseModel):
+    """A lent-out (`other_cash_out`) or borrowed (`other_cash_in`)
+    entry with money still outstanding."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    kind: str
+    report_date: date
+    amount: float
+    note: str = ""
+    settle_by: date | None = None
+    settled: float
+    outstanding: float
+    returns: list[SettlementReturnRow]
+
+
+class OpenSettlementListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[OpenSettlementRow]
+

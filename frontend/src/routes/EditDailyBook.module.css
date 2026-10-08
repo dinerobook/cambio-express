@@ -387,6 +387,19 @@
   padding-bottom: 0.2rem;
 }
 
+/* "Expected back" / "We pay this back" — its own full-width line
+   under the add row (Other cash out / Other cash in only). */
+.addRowSettle {
+  flex: 1 0 100%;
+}
+
+.settleFields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 1.25rem;
+}
+
 .widgetTable {
   width: 100%;
   border-collapse: collapse;

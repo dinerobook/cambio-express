@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    BigInteger, Column, Date, DateTime, ForeignKey, Integer, String,
+    BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer, String,
     Text, Time, UniqueConstraint,
 )
 
@@ -282,6 +282,18 @@ class DailyLineItem(Base):
     # behind. NULL for line items the cashier added manually.
     return_check_id = Column(Integer, ForeignKey("msb_return_check.id"),
                               nullable=True)
+    # Money that has to come back (Services/settlements.py). An
+    # `other_cash_out` lent to someone, or an `other_cash_in`
+    # borrowed from someone, is ticked `expects_settlement` and
+    # stays open until linked entries of the opposite kind
+    # (`settles_item_id` → this row) add up to its amount, or until
+    # the operator unticks it. NULL on every row written before the
+    # feature = a plain entry, exactly as before. No DB foreign key
+    # on `settles_item_id`: the link is enforced by the service, and
+    # adding a constraint to a live table would scan and lock it.
+    expects_settlement = Column(Boolean, nullable=True)
+    settle_by   = Column(Date, nullable=True)
+    settles_item_id = Column(Integer, nullable=True)
     created_by  = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
     created_at  = Column(DateTime, default=datetime.utcnow)
 

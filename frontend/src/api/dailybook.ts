@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { components } from "./openapi";
 
 // Full DailyReport payload — every model column the editor needs
 // to hydrate every input, plus derived totals + lock state.
@@ -140,14 +141,12 @@ export async function unlockDailyReport(
 
 // ── Line items ──────────────────────────────────────────────
 
-export interface LineItemRow {
-  id: number;
-  kind: string;
-  at_time: string;  // HH:MM
-  amount: number;
-  note: string;
-  return_check_id: number | null;
-}
+// `expects_settlement` marks an Other cash out lent to someone (or an
+// Other cash in borrowed from someone) that comes back; `settled` is
+// how much has come back so far. `settles_item_id` is set on the
+// entry that returned (part of) another one. See the API's
+// DailyBook/Services/settlements.py.
+export type LineItemRow = components["schemas"]["LineItemRow"];
 
 interface LineItemListResponse {
   items: LineItemRow[];
@@ -178,6 +177,11 @@ export interface LineItemCreateBody {
   at_time: string;  // HH:MM
   amount: number;
   note?: string;
+  /** Mark an Other cash out / Other cash in as coming back. */
+  expects_settlement?: boolean;
+  settle_by?: string | null;  // YYYY-MM-DD
+  /** Book this entry as (part of) the return of an open one. */
+  settles_item_id?: number | null;
 }
 
 export async function createLineItem(
@@ -193,6 +197,10 @@ export interface LineItemUpdateBody {
   at_time?: string;  // HH:MM
   amount?: number;
   note?: string;
+  /** false closes an open entry (its returns stay booked). */
+  expects_settlement?: boolean;
+  /** null clears the date; omit to leave it alone. */
+  settle_by?: string | null;
 }
 
 /** PATCH one line item.  All fields optional — only the ones the
@@ -224,6 +232,39 @@ export async function deleteLineItem(
     `/api/v2/daily/${storeId}/line-items/${itemId}`,
     { method: "DELETE" },
   );
+}
+
+// ── Money that comes back (settlements) ─────────────────────
+
+export type OpenSettlement = components["schemas"]["OpenSettlementRow"];
+
+/** The kind that settles each markable kind: a cash out lent comes
+ *  back as a cash in, a cash in borrowed is paid back as a cash out.
+ *  Mirrors SETTLEMENT_PAIRS in the API. */
+export const SETTLEMENT_PAIRS: Record<string, string> = {
+  other_cash_out: "other_cash_in",
+  other_cash_in: "other_cash_out",
+};
+
+/** True for the kinds an entry can be marked "comes back" on. */
+export function canSettle(kind: string): boolean {
+  return kind in SETTLEMENT_PAIRS;
+}
+
+/** Every lent / borrowed entry with money still outstanding, across
+ *  all days — the daily book's "Owed to us" / "We owe" tiles. */
+export function useOpenSettlements() {
+  const identity = getCurrentIdentity();
+  const storeId = identity?.store_id;
+  return useQuery<OpenSettlement[]>({
+    enabled: storeId !== null && storeId !== undefined,
+    queryKey: ["dailybook", "settlements", storeId],
+    queryFn: async () => (
+      await api<components["schemas"]["OpenSettlementListResponse"]>(
+        `/api/v2/daily/${storeId}/settlements/open`,
+      )
+    ).items,
+  });
 }
 
 // `date` is YYYY-MM-DD. When undefined the hook is disabled.

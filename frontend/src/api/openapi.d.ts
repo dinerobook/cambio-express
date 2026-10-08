@@ -2704,6 +2704,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/daily/{store_id}/settlements/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open Settlements Route
+         * @description Every Other cash out lent out and Other cash in borrowed that
+         *     still has money outstanding, across all days — the daily book's
+         *     "Owed to us" / "We owe" tiles. See Services/settlements.py.
+         */
+        get: operations["open_settlements_route_daily__store_id__settlements_open_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/daily/{store_id}/{report_date}": {
         parameters: {
             query?: never;
@@ -9272,6 +9294,11 @@ export interface components {
              * @default
              */
             at_time: string;
+            /**
+             * Expects Settlement
+             * @default false
+             */
+            expects_settlement: boolean;
             /** Kind */
             kind: string;
             /**
@@ -9279,6 +9306,10 @@ export interface components {
              * @default
              */
             note: string;
+            /** Settle By */
+            settle_by?: string | null;
+            /** Settles Item Id */
+            settles_item_id?: number | null;
         };
         /**
          * LineItemListResponse
@@ -9300,6 +9331,11 @@ export interface components {
             amount: number;
             /** At Time */
             at_time: string;
+            /**
+             * Expects Settlement
+             * @default false
+             */
+            expects_settlement: boolean;
             /** Id */
             id: number;
             /** Kind */
@@ -9311,6 +9347,15 @@ export interface components {
             note: string;
             /** Return Check Id */
             return_check_id?: number | null;
+            /** Settle By */
+            settle_by?: string | null;
+            /**
+             * Settled
+             * @default 0
+             */
+            settled: number;
+            /** Settles Item Id */
+            settles_item_id?: number | null;
         };
         /**
          * LineItemUpdateRequest
@@ -9325,8 +9370,12 @@ export interface components {
             amount?: number | null;
             /** At Time */
             at_time?: string | null;
+            /** Expects Settlement */
+            expects_settlement?: boolean | null;
             /** Note */
             note?: string | null;
+            /** Settle By */
+            settle_by?: string | null;
         };
         /**
          * LoginCrossStoreRequest
@@ -10198,6 +10247,42 @@ export interface components {
             notify_trial_reminders?: boolean | null;
             /** Notify Trial Reminders Push */
             notify_trial_reminders_push?: boolean | null;
+        };
+        /** OpenSettlementListResponse */
+        OpenSettlementListResponse: {
+            /** Items */
+            items: components["schemas"]["OpenSettlementRow"][];
+        };
+        /**
+         * OpenSettlementRow
+         * @description A lent-out (`other_cash_out`) or borrowed (`other_cash_in`)
+         *     entry with money still outstanding.
+         */
+        OpenSettlementRow: {
+            /** Amount */
+            amount: number;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Outstanding */
+            outstanding: number;
+            /**
+             * Report Date
+             * Format: date
+             */
+            report_date: string;
+            /** Returns */
+            returns: components["schemas"]["SettlementReturnRow"][];
+            /** Settle By */
+            settle_by?: string | null;
+            /** Settled */
+            settled: number;
         };
         /**
          * OwnerAddStoreRequest
@@ -11765,6 +11850,21 @@ export interface components {
         SessionRevokeResponse: {
             /** Revoked */
             revoked: number;
+        };
+        /**
+         * SettlementReturnRow
+         * @description One entry that settled part of an open one.
+         */
+        SettlementReturnRow: {
+            /** Amount */
+            amount: number;
+            /** Id */
+            id: number;
+            /**
+             * Report Date
+             * Format: date
+             */
+            report_date: string;
         };
         /**
          * ShiftCreateRequest
@@ -19005,6 +19105,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeriodSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_settlements_route_daily__store_id__settlements_open_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                store_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenSettlementListResponse"];
                 };
             };
             /** @description Validation Error */
