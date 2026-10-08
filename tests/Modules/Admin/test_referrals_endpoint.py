@@ -190,3 +190,44 @@ def test_legacy_admin_referrals_redirects_to_app(
     )
     assert resp.status_code == 301
     assert resp.headers["Location"] == "/app/account/referrals"
+
+
+# ── employees never see referrals ───────────────────────────
+
+
+def test_referrals_rejects_employee(client, test_store_id):
+    """Employees may hold settings.read (store info) but referrals
+    are the store admin's alone."""
+    from tests.conftest import make_employee_client
+    _put_on_paid_plan(test_store_id)
+    _, jwt = make_employee_client(test_store_id)
+    resp = client.get(
+        "/api/v2/admin/referrals",
+        headers={"Authorization": f"Bearer {jwt}"},
+    )
+    assert resp.status_code == 403
+
+
+def test_store_info_hides_referral_code_from_employee(
+    client, test_store_id,
+):
+    """The topbar $100 badge renders off store-info's referral_code,
+    so an employee must get None even on a paid store; the admin
+    still gets the code."""
+    from api.Core.Permissions import set_store_permissions
+    from tests.conftest import make_employee_client
+    _put_on_paid_plan(test_store_id)
+    set_store_permissions(test_store_id, "employee", {"settings": {"read": True}})
+    _, jwt = make_employee_client(test_store_id)
+    emp = client.get(
+        "/api/v2/admin/store-info",
+        headers={"Authorization": f"Bearer {jwt}"},
+    )
+    assert emp.status_code == 200
+    assert emp.get_json()["referral_code"] is None
+
+    admin = client.get(
+        "/api/v2/admin/store-info",
+        headers={"Authorization": f"Bearer {_login(client, test_store_id)}"},
+    )
+    assert admin.get_json()["referral_code"]

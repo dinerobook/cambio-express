@@ -139,6 +139,15 @@ def _to_row(s) -> StoreInfoRow:
     )
 
 
+def _sees_referrals(claims: dict[str, Any]) -> bool:
+    """Referrals are the store admin's business (an owner signed
+    into a store carries role ``admin`` too). Employees can hold
+    ``settings.read`` for store info, so the permission alone is not
+    enough: they must never get the referral code or the $100 badge.
+    Mirrors ``/settings/referrals`` in ``frontend/src/lib/access.ts``."""
+    return claims.get("role") == "admin"
+
+
 @router.get("/store-info", response_model=StoreInfoResponse)
 def get_store_info(
     db: Session = Depends(get_db),
@@ -153,7 +162,7 @@ def get_store_info(
         ensure_referral_code, store_has_paid_plan,
     )
     ref_code: str | None = None
-    if store_has_paid_plan(store):
+    if _sees_referrals(claims) and store_has_paid_plan(store):
         rc = ensure_referral_code(db, store)
         if rc:
             ref_code = rc.code
@@ -646,7 +655,7 @@ def subscription_summary_route(
     # stores — the crown self-gates on plan, so trial/inactive
     # stores get None and the topbar hides the icon.
     referral_code_str: str | None = None
-    if store_has_paid_plan(store):
+    if _sees_referrals(claims) and store_has_paid_plan(store):
         from api.Modules.Billing.Services import ensure_referral_code
         rc = ensure_referral_code(db, store)
         if rc:
@@ -1354,6 +1363,10 @@ def get_admin_referrals_route(
     /app/account/referrals."""
     require_permission(claims, "settings", "read")
     store_id = resolve_store_scope(claims)
+    if not _sees_referrals(claims):
+        raise HTTPException(
+            status_code=403, detail="Only store admins can view referrals",
+        )
     # Build the share URL on the canonical host so the SPA copy
     # button always offers a public-facing link, even when the
     # admin is using a custom domain or Render preview URL.
