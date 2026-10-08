@@ -9,6 +9,7 @@ import {
 } from "../components/ui";
 import { canAccess } from "../lib/access";
 import styles from "./DailyBook.module.css";
+import { MONTH_NAMES, todayIso } from "../lib/datetime";
 
 // /app/daily — the Daily Book landing page. A calendar of the
 // chosen month + a monthly summary strip. Each day cell is a link
@@ -16,18 +17,8 @@ import styles from "./DailyBook.module.css";
 // lives. Mirrors the legacy Jinja `/daily` UX: pick the day from
 // the calendar, then enter that day's book.
 
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
 function pad2(n: number): string {
   return n.toString().padStart(2, "0");
-}
-
-function todayIso(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 function firstOfMonthIso(year: number, monthZeroIdx: number): string {

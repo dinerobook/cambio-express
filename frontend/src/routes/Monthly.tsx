@@ -10,17 +10,13 @@ import {
   PageShell, Section, Select, tokens,
 } from "../components/ui";
 import styles from "./Monthly.module.css";
+import { MONTH_NAMES_SHORT } from "../lib/datetime";
 
 // Monthly P&L at /app/monthly?year=Y&month=M.
 //
 // Read-only for now; the legacy /monthly/<year>/<month> Jinja
 // page handles edits + the auto-derived bank-charges/line-item
 // totals. Defaults to the most recent logged month for the store.
-
-const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 
 interface YearMonth { year: number; month: number; }
 
@@ -140,7 +136,7 @@ export default function Monthly() {
         title="Monthly P&L"
         subtitle={year && month ? (
           <span style={{ fontFamily: tokens.fontMono }}>
-            {MONTH_NAMES[month - 1]} {year}
+            {MONTH_NAMES_SHORT[month - 1]} {year}
           </span>
         ) : "—"}
         actions={(
@@ -163,7 +159,7 @@ export default function Monthly() {
                   key={`${m.year}-${m.month}`}
                   value={`${m.year}-${m.month}`}
                 >
-                  {MONTH_NAMES[m.month - 1]} {m.year}
+                  {MONTH_NAMES_SHORT[m.month - 1]} {m.year}
                 </option>
               ))}
             </Select>
@@ -196,7 +192,7 @@ export default function Monthly() {
       )}
       {detail.data?.report == null && !detail.isLoading && year && month && (
         <EmptyState
-          title={`No P&L logged for ${MONTH_NAMES[month - 1]} ${year} yet.`}
+          title={`No P&L logged for ${MONTH_NAMES_SHORT[month - 1]} ${year} yet.`}
         />
       )}
       {detail.data?.report && (

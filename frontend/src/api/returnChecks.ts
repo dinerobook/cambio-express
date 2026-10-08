@@ -4,6 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { PillTone } from "../components/ui";
+
+/** Return-check status → Pill tone (UI-STANDARDS §3). */
+export const RETURN_CHECK_STATUS_TONES: Record<string, PillTone> = {
+  pending:   "warning",
+  recovered: "success",
+  loss:      "negative",
+  fraud:     "negative",
+};
 
 export interface ReturnCheckRow {
   id: number;

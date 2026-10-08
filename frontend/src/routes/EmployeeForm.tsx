@@ -8,6 +8,7 @@ import {
   type EmployeeCreateBody, type EmployeeUpdateBody,
 } from "../api/employees";
 import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { accountTypeLabel } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import {
@@ -75,6 +76,7 @@ export default function EmployeeForm() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const list = useEmployees();
 
   const existing = useMemo(
@@ -203,11 +205,7 @@ export default function EmployeeForm() {
       setLinkPick("");
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not link the login.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not link the login.");
     } finally {
       setBusy(false);
     }
@@ -221,11 +219,7 @@ export default function EmployeeForm() {
       toast({ message: "Login unlinked.", tone: "success" });
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not unlink the login.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not unlink the login.");
     } finally {
       setBusy(false);
       setConfirmUnlink(false);

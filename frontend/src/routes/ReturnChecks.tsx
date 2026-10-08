@@ -1,12 +1,14 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { useReturnChecks, type ReturnCheckRow } from "../api/returnChecks";
+import {
+  RETURN_CHECK_STATUS_TONES, useReturnChecks, type ReturnCheckRow,
+} from "../api/returnChecks";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   ButtonLink, Card, Empty, PageHeader,
   PageShell, Pill, Table as KitTable, TableStates, tdStyle,
-  thStyle, type PillTone,
+  thStyle,
 } from "../components/ui";
 import styles from "./ReturnChecks.module.css";
 
@@ -173,16 +175,7 @@ function Table({ rows }: { rows: ReturnCheckRow[] }) {
 }
 
 function StatusPill({ status }: { status: string }) {
-  // Maps return-check status → shared Pill tone so the badge
-  // palette stays in lock-step with every other tone surface in
-  // the SPA (Alert / ErrorState / audit-log badges / plan pills).
-  const toneByStatus: Record<string, PillTone> = {
-    pending:   "warning",
-    recovered: "success",
-    loss:      "negative",
-    fraud:     "negative",
-  };
-  const tone: PillTone = toneByStatus[status] ?? "neutral";
+  const tone = RETURN_CHECK_STATUS_TONES[status] ?? "neutral";
   const label = status.charAt(0).toUpperCase() + status.slice(1);
   return <Pill tone={tone}>{label}</Pill>;
 }

@@ -99,6 +99,53 @@ export function formatDate(
 }
 
 
+/** Month names, January first: index with ``month - 1`` for a
+ *  1-based month, or ``getMonth()`` directly. */
+export const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+] as const;
+
+/** Three-letter month names, same indexing as ``MONTH_NAMES``. */
+export const MONTH_NAMES_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const;
+
+
+/** A ``Date`` as the ``YYYY-MM-DD`` calendar day it falls on in the
+ *  browser's local timezone. The one way to turn a Date into a date
+ *  string: ``toISOString().slice(0, 10)`` reads the UTC day, which is
+ *  already tomorrow for a US store after about 7pm. */
+export function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+
+/** Today's local calendar day as ``YYYY-MM-DD``. */
+export function todayIso(now: Date = new Date()): string {
+  return toIsoDate(now);
+}
+
+
+/** The local calendar day ``n`` days before ``now`` (negative ``n``
+ *  looks ahead), as ``YYYY-MM-DD``. */
+export function daysAgoIso(n: number, now: Date = new Date()): string {
+  const d = new Date(now);
+  d.setDate(d.getDate() - n);
+  return toIsoDate(d);
+}
+
+
+/** First day of ``now``'s local month as ``YYYY-MM-DD``. */
+export function monthStartIso(now: Date = new Date()): string {
+  return toIsoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+}
+
+
 /** Add ``delta`` days to a ``YYYY-MM-DD`` calendar date, returning a
  *  new ``YYYY-MM-DD`` string. Timezone-safe: the date is built at UTC
  *  midnight and stepped in UTC, so a local offset or DST boundary can

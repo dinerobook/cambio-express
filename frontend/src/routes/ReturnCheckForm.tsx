@@ -7,6 +7,7 @@ import {
   createReturnCheckPayment,
   deleteReturnCheckPayment,
   markFraud,
+  RETURN_CHECK_STATUS_TONES,
   markLoss,
   reopenReturnCheck,
   updateReturnCheck,
@@ -24,10 +25,10 @@ import {
   Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, Field,
   FormActions, Input, Loading, MoneyInput, PageHeader, PageShell, Pill,
   SectionTitle, Select, Table, Textarea, tdStyle, thStyle,
-  type PillTone,
   useToast,
 } from "../components/ui";
 import styles from "./ReturnCheckForm.module.css";
+import { todayIso } from "../lib/datetime";
 
 const PAYMENT_METHODS: Array<{ value: string; label: string }> = [
   { value: "cash",        label: "Cash"        },
@@ -45,22 +46,6 @@ const PAYMENT_METHODS: Array<{ value: string; label: string }> = [
 //
 // Per-payment write endpoints (record / delete) ship in a follow-
 // up PR — here we only show what's already on file.
-
-function todayIso() {
-  const d = new Date();
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-// Status → Pill tone. Keeps the top status strip's color vocabulary
-// aligned with the rest of the SPA (success = recovered, negative =
-// written off, warning = still open).
-const STATUS_TONE: Record<string, PillTone> = {
-  pending:   "warning",
-  recovered: "success",
-  loss:      "negative",
-  fraud:     "negative",
-};
 
 export default function ReturnCheckForm() {
   const { id } = useParams<{ id?: string }>();
@@ -222,7 +207,7 @@ export default function ReturnCheckForm() {
       {isEdit && (
         <div className={styles.statusBar}>
           <div className={styles.statusBarInfo}>
-            <Pill tone={STATUS_TONE[status] ?? "neutral"} dot>
+            <Pill tone={RETURN_CHECK_STATUS_TONES[status] ?? "neutral"} dot>
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </Pill>
             <span className={styles.statusMeta}>

@@ -7,7 +7,7 @@ import {
 import { Bar, Line } from "react-chartjs-2";
 
 import { unlinkStore, useOwnerStoreDetail } from "../api/owner";
-import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { AppLink,
   Breadcrumbs, Button,
   Card, ConfirmDialog, ErrorState, KpiCard, KpiGrid, Loading,
@@ -41,6 +41,7 @@ export default function OwnerStoreDetail() {
   const [period, setPeriod] = useState<Period>("month");
   const { data, isLoading, isError, error, refetch } = useOwnerStoreDetail(sid, period);
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
 
@@ -54,11 +55,7 @@ export default function OwnerStoreDetail() {
       });
       navigate("/owner/locations");
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not unlink store.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not unlink store.");
     } finally {
       setUnlinking(false);
       setConfirmUnlink(false);

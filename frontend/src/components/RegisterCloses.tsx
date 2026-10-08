@@ -6,6 +6,7 @@ import {
   type Department, type RegisterClose,
 } from "../api/dayclose";
 import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Alert, Button, ButtonLink, Card, EmptyState, ErrorState, Field,
@@ -34,6 +35,7 @@ export default function RegisterCloses({
   const departments = useDepartments();
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [editing, setEditing] = useState<RegisterClose | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -47,11 +49,7 @@ export default function RegisterCloses({
       refresh();
       toast({ message: "Register close removed.", tone: "success" });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not remove the close.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not remove the close.");
     }
   }
 

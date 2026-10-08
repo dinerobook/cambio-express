@@ -5,7 +5,7 @@ import {
   deleteInvoice, updateInvoice, useInvoices, useVendors,
   type InvoiceRow,
 } from "../api/catalog";
-import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -15,15 +15,12 @@ import {
   RowActions, Section, Select, Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
 import styles from "./PurchaseInvoices.module.css";
+import { todayIso } from "../lib/datetime";
 
 // /app/purchase-invoices — vendor invoice log (P3-2). Key each
 // paper invoice, optionally line-by-line with price-book links so
 // costs flow back into the catalog. List here; entry/edit on the
 // dedicated form page (lines don't fit a modal).
-
-function localToday(): string {
-  return new Date().toLocaleDateString("en-CA");
-}
 
 export default function PurchaseInvoices() {
   const canManage = hasPermission("catalog", "update");
@@ -39,6 +36,7 @@ export default function PurchaseInvoices() {
   const vendors = useVendors();
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const navigate = useNavigate();
 
   function refresh() {
@@ -51,15 +49,11 @@ export default function PurchaseInvoices() {
         inv.id,
         inv.status === "paid"
           ? { status: "open" }
-          : { status: "paid", paid_on: localToday() },
+          : { status: "paid", paid_on: todayIso() },
       );
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not update the invoice.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not update the invoice.");
     }
   }
 
@@ -72,11 +66,7 @@ export default function PurchaseInvoices() {
         tone: "success",
       });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not delete the invoice.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not delete the invoice.");
     }
   }
 

@@ -73,6 +73,12 @@ same tone on every screen:
 | Timestamp | `formatTimestamp` (timezone-aware) | `toLocaleString()` inline |
 | Date | `formatDate`; `fmtDateCompact` in dense tables | `.slice(0, 10)` (wrong calendar date for US stores on UTC timestamps) |
 | Counts | `fmtNumber` | — |
+| Today / a day N ago / a month start as `YYYY-MM-DD` | `todayIso`, `daysAgoIso`, `monthStartIso`, `toIsoDate` | `toISOString().slice(0, 10)` (the UTC day: tomorrow for a US store after ~7pm), per-route `todayIso` copies |
+| Month names | `MONTH_NAMES` / `MONTH_NAMES_SHORT` | a per-route array |
+
+`src/lib/sourceGuards.test.ts` fails on the banned patterns in
+this table and on a hand-written API-error toast (use
+`useApiErrorToast(err, "fallback")`).
 
 ## 5. Overlay & interaction behavior — headless primitives, never hand-rolled
 
@@ -139,6 +145,8 @@ Known shared components, and what they own:
 | `RowActions` | inline row buttons (it handles the mobile sheet) |
 | `TabsBar` / `TabsLink` / `TabsButton` | a hand-built tab strip |
 | `ConfirmDialog` | `window.confirm` |
+| `useApiErrorToast` | `toast({ message: err instanceof ApiError ? … , tone: "error" })` |
+| `*_STATUS_TONES` in `api/` (`BATCH_`, `TRANSFER_`, `RETURN_CHECK_`, `TICKET_`) | a per-route status → tone map |
 | `fmtMoney2` / `formatDate` / `formatTimestamp` | `toFixed(2)`, `.slice(0, 10)` |
 | `Modal`, `Tooltip`, `Switch`, `Checkbox`, `Pill`, `KpiCard` | hand-rolled equivalents |
 

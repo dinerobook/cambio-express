@@ -9,6 +9,16 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { PillTone } from "../components/ui";
+
+/** Batch status → Pill tone (UI-STANDARDS §3). Statuses are
+ *  BatchForm's list; unknown values fall back to neutral. */
+export const BATCH_STATUS_TONES: Record<string, PillTone> = {
+  Pending:  "warning",
+  Cleared:  "success",
+  Returned: "negative",
+  Held:     "info",
+};
 
 export interface BatchRow {
   id: number;

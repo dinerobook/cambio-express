@@ -17,6 +17,7 @@ import {
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./BatchForm.module.css";
+import { todayIso } from "../lib/datetime";
 
 // Combined New/Edit form for ACH batches at /app/batches/new
 // and /app/batches/:id/edit. Mirrors the legacy batch_form.html
@@ -28,12 +29,6 @@ const COMPANIES = [
   "MoneyGram", "Cibao", "RIA", "Other",
 ];
 const STATUSES = ["Pending", "Cleared", "Returned", "Held"];
-
-function todayIso() {
-  const d = new Date();
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 // Blank new-batch form. A factory (not a const) so `form` and
 // `baseline` each get an independent copy with the same values —

@@ -1,6 +1,7 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
+  BATCH_STATUS_TONES,
   useBatches,
   type BatchDir,
   type BatchRow,
@@ -11,7 +12,7 @@ import { fmtMoney2 } from "../lib/formatters";
 import {
   Breadcrumbs,
   ButtonLink, Card, Empty, PageHeader, PageShell, Pill,
-  Table, TableStates, tdStyle, thStyle, type PillTone,
+  Table, TableStates, tdStyle, thStyle,
 } from "../components/ui";
 import styles from "./Batches.module.css";
 
@@ -32,19 +33,6 @@ const COLUMNS: Array<{ slug: BatchSort; label: string; align?: "right" }> = [
   { slug: "",           label: "Variance" },
   { slug: "status",     label: "Status" },
 ];
-
-// Batch status → shared Pill tone, matching the palette every other
-// status surface in the SPA uses (return-check pills, audit badges).
-// Statuses come from BatchForm's STATUSES list.
-function statusTone(status: string): PillTone {
-  const toneByStatus: Record<string, PillTone> = {
-    Pending:  "warning",
-    Cleared:  "success",
-    Returned: "negative",
-    Held:     "info",
-  };
-  return toneByStatus[status] ?? "neutral";
-}
 
 export default function Batches() {
   const identity = getCurrentIdentity();
@@ -197,7 +185,7 @@ function BatchesTable({
                 </span>
               </td>
               <td style={tdStyle}>
-                <Pill tone={statusTone(r.status)}>{r.status}</Pill>
+                <Pill tone={BATCH_STATUS_TONES[r.status] ?? "neutral"}>{r.status}</Pill>
               </td>
             </tr>
           );

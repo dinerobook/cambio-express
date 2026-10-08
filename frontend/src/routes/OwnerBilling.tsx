@@ -6,9 +6,9 @@ import { switchStore } from "../api/switchStore";
 import {
   Breadcrumbs, Button, Card, Empty, KpiCard, KpiGrid, monoStyle,
   PageHeader, PageShell, Pill, Section, Table, TableStates, tdStyle,
-  thStyle, useToast, type PillTone,
+  thStyle, type PillTone,
 } from "../components/ui";
-import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./OwnerBilling.module.css";
@@ -61,7 +61,7 @@ function detailFor(row: OwnerBillingRow): string {
 export default function OwnerBilling() {
   const identity = getCurrentIdentity();
   const navigate = useNavigate();
-  const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [busyId, setBusyId] = useState<number | null>(null);
   const { data, isLoading, isError, error, refetch } = useOwnerBilling();
 
@@ -82,12 +82,7 @@ export default function OwnerBilling() {
       // Stripe portal on its subscription page.
       navigate(row.has_paid_plan ? "/admin/subscription" : "/subscribe");
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message
-          : "Could not open that store's billing.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not open that store's billing.");
       setBusyId(null);
     }
   }

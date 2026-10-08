@@ -20,6 +20,7 @@ import { AppLink,
   PageHeader, PageShell, TableSkeleton, tdStyle, thStyle, tokens,
 } from "../../components/ui";
 import styles from "./SuperadminBIDrilldown.module.css";
+import { monthStartIso, todayIso } from "../../lib/datetime";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -74,13 +75,6 @@ const _TITLES: Record<string, string> = {
   "webhook-health":          "Webhook Health",
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
-const monthStart = () => {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1)
-    .toISOString().slice(0, 10);
-};
-
 interface Envelope {
   rows: Array<Record<string, unknown>>;
   totals: Record<string, unknown>;
@@ -112,8 +106,8 @@ function saveViewMode(slug: string, mode: ViewMode): void {
 export default function SuperadminBIDrilldown() {
   const { slug } = useParams<{ slug: string }>();
   const [params, setParams] = useSearchParams();
-  const [from, setFrom] = useState(() => params.get("from") || monthStart());
-  const [to, setTo] = useState(() => params.get("to") || today());
+  const [from, setFrom] = useState(() => params.get("from") || monthStartIso());
+  const [to, setTo] = useState(() => params.get("to") || todayIso());
   const [data, setData] = useState<Envelope | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setLoading] = useState(true);

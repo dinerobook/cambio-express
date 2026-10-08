@@ -12,6 +12,7 @@ import {
 } from "../api/posimport";
 import { useDepartments, type Department } from "../api/dayclose";
 import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -91,7 +92,7 @@ function ItemsTab() {
   const departments = useDepartments();
   const vendors = useVendors();
   const qc = useQueryClient();
-  const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<PriceBookItem | null>(null);
   const [seeding, setSeeding] = useState(false);
@@ -105,11 +106,7 @@ function ItemsTab() {
       await updateItem(item.id, { is_active: !item.is_active });
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not update the item.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not update the item.");
     }
   }
 
@@ -798,7 +795,7 @@ function VendorsTab() {
   const [showInactive, setShowInactive] = useState(false);
   const vendors = useVendors(showInactive);
   const qc = useQueryClient();
-  const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Vendor | null>(null);
 
@@ -811,11 +808,7 @@ function VendorsTab() {
       await updateVendor(v.id, { is_active: !v.is_active });
       refresh();
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not update the vendor.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not update the vendor.");
     }
   }
 

@@ -7,7 +7,7 @@ import {
   deleteAccessRole, useAccessRoles, useBuiltinRoles,
   type AccessRole, type PermMatrix,
 } from "../api/roles";
-import { ApiError } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { hasPermission } from "../lib/permissions";
 import { areasGranted } from "../lib/roleTemplates";
 import {
@@ -71,6 +71,7 @@ export default function RolesAccess({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
   const saved = useAccessRoles();
   // The built-in defaults sit behind settings.read; without it the
   // page still works for saved roles, it just can't show them.
@@ -94,11 +95,7 @@ export default function RolesAccess({
         tone: "success",
       });
     } catch (err) {
-      toast({
-        message: err instanceof ApiError
-          ? err.message : "Could not delete the role.",
-        tone: "error",
-      });
+      toastApiError(err, "Could not delete the role.");
     } finally {
       setBusy(false);
       setConfirmDelete(null);
