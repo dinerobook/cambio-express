@@ -104,8 +104,11 @@ def _monthly_pl_csv(db: Session, store_id: int, year: int) -> str:
     if sample is None:
         money_cols = ["taxable_sales", "non_taxable", "over_short"]
     else:
+        # Stored as integer cents; export the DollarView twin
+        # (``taxable_sales``) so the CSV is in dollars.
         money_cols = [
-            c.name for c in MonthlyFinancial.__table__.columns
+            c.name.removesuffix("_cents")
+            for c in MonthlyFinancial.__table__.columns
             if c.name not in (
                 "id", "store_id", "year", "month",
                 "notes", "updated_at",

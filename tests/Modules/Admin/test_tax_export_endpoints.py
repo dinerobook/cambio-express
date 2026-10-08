@@ -239,3 +239,234 @@ def test_tax_pack_rejects_invalid_year(client, test_store_id):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 422
+
+
+# ── ZIP contents ────────────────────────────────────────────
+
+
+def _zip_csv(client_, token, year, name):
+    """Download the pack and return one CSV as a list of rows."""
+    import csv
+    import io
+    import zipfile
+    resp = client_.get(
+        f"/api/v2/admin/tax-export.zip?year={year}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(resp.get_data())) as zf:
+        text = zf.read(f"{name}_{year}.csv").decode("utf-8")
+    return list(csv.reader(io.StringIO(text)))
+
+
+def test_tax_pack_transfers_csv_includes_canceled_and_year_bounds(
+    client, test_store_id, test_admin_id,
+):
+    """Canceled rows stay in the ledger (audit trail); Jan 1 and
+    Dec 31 are inside the year, the neighbouring days are not.
+    Total Collected = send + fee + federal tax."""
+    from tests.conftest import seed_transfer
+    seed_transfer(test_store_id, test_admin_id,
+                  send_date=date(2023, 12, 31), sender_name="Prev Year")
+    seed_transfer(test_store_id, test_admin_id,
+                  send_date=date(2024, 1, 1), sender_name="New Year",
+                  send_amount=200.0, fee=4.0)
+    seed_transfer(test_store_id, test_admin_id,
+                  send_date=date(2024, 12, 31), sender_name="Last Day",
+                  status="Canceled")
+    seed_transfer(test_store_id, test_admin_id,
+                  send_date=date(2025, 1, 1), sender_name="Next Year")
+    token = _login(client, test_store_id)
+    rows = _zip_csv(client, token, 2024, "transfers")
+    header, body = rows[0], rows[1:]
+    col = {name: i for i, name in enumerate(header)}
+    assert [r[col["Sender Name"]] for r in body] == ["New Year", "Last Day"]
+    first, last = body
+    assert first[col["Send Date"]] == "2024-01-01"
+    assert float(first[col["Total Collected"]]) == (
+        float(first[col["Send Amount"]]) + float(first[col["Fee"]])
+        + float(first[col["Federal Tax"]])
+    ) == 206.0
+    assert last[col["Status"]] == "Canceled"
+
+
+def test_tax_pack_transfers_csv_creator_name_and_missing_user(
+    client, test_store_id, test_admin_id,
+):
+    """Created By shows the user's name; a transfer whose creator
+    is gone exports a blank, not a crash."""
+    from tests.conftest import seed_transfer
+    from api.Modules.Tenancy.Models import User
+    from api.Modules.Transfers.Models import Transfer
+    seed_transfer(test_store_id, test_admin_id,
+                  send_date=date(2024, 5, 1), sender_name="Has Creator")
+    gone_id = seed_transfer(test_store_id, test_admin_id,
+                            send_date=date(2024, 5, 2),
+                            sender_name="Orphan")
+    with db_session():
+        db.session.get(Transfer, gone_id).created_by = 999999
+        db.session.commit()
+        admin = db.session.get(User, test_admin_id)
+        expected = admin.full_name or admin.username
+    token = _login(client, test_store_id)
+    rows = _zip_csv(client, token, 2024, "transfers")
+    col = {name: i for i, name in enumerate(rows[0])}
+    by_sender = {r[col["Sender Name"]]: r for r in rows[1:]}
+    assert by_sender["Has Creator"][col["Created By"]] == expected
+    assert by_sender["Orphan"][col["Created By"]] == ""
+
+
+def test_tax_pack_empty_year_has_headers_and_twelve_month_rows(
+    client, test_store_id,
+):
+    """A year with no data still yields well-formed CSVs: headers
+    only for ledgers, 12 zeroed rows for the monthly P&L."""
+    token = _login(client, test_store_id)
+    assert len(_zip_csv(client, token, 2019, "transfers")) == 1
+    assert len(_zip_csv(client, token, 2019, "daily_summary")) == 1
+    assert len(_zip_csv(client, token, 2019, "customers")) == 1
+    pl = _zip_csv(client, token, 2019, "monthly_pl")
+    assert len(pl) == 13
+    assert pl[1][0] == "2019-01" and pl[12][0] == "2019-12"
+    assert all(float(v) == 0.0 for r in pl[1:] for v in r[1:])
+
+
+def test_tax_pack_daily_summary_rows_and_locked_flag(
+    client, test_store_id,
+):
+    from datetime import datetime
+    from api.Modules.DailyBook.Models import DailyReport
+    with db_session():
+        db.session.add_all([
+            DailyReport(
+                store_id=test_store_id, report_date=date(2024, 3, 2),
+                taxable_sales_cents=10000, locked_at=datetime(2024, 3, 3),
+            ),
+            DailyReport(store_id=test_store_id,
+                        report_date=date(2024, 3, 1)),
+            DailyReport(store_id=test_store_id,
+                        report_date=date(2023, 12, 31)),
+        ])
+        db.session.commit()
+    token = _login(client, test_store_id)
+    rows = _zip_csv(client, token, 2024, "daily_summary")
+    assert rows[0] == [
+        "Date", "Total Receipts", "Total Disbursements",
+        "Over/Short", "Locked",
+    ]
+    assert [r[0] for r in rows[1:]] == ["2024-03-01", "2024-03-02"]
+    assert rows[1][4] == "no"
+    assert rows[2][4] == "yes"
+    assert float(rows[2][1]) == 100.0
+
+
+def test_tax_pack_monthly_pl_reports_dollars_not_cents(
+    client, test_store_id,
+):
+    """A $123.45 taxable-sales month must export as 123.45."""
+    from api.Modules.Monthly.Models import MonthlyFinancial
+    with db_session():
+        db.session.add(MonthlyFinancial(
+            store_id=test_store_id, year=2024, month=2,
+            taxable_sales_cents=12345,
+        ))
+        db.session.commit()
+    token = _login(client, test_store_id)
+    rows = _zip_csv(client, token, 2024, "monthly_pl")
+    header = rows[0]
+    feb = rows[2]
+    assert feb[0] == "2024-02"
+    idx = [i for i, h in enumerate(header)
+           if h.lower().startswith("taxable sales")][0]
+    assert float(feb[idx]) == 123.45
+
+
+def test_tax_pack_customers_csv_excludes_canceled_and_buckets_walkins(
+    client, test_store_id, test_admin_id,
+):
+    from api.Modules.Customers.Models import Customer
+    from api.Modules.Transfers.Models import Transfer
+    with db_session():
+        c = Customer(
+            store_id=test_store_id, full_name="Ana Perez",
+            address="1 Main St", phone_country="+1",
+            phone_number="5551234",
+        )
+        db.session.add(c)
+        db.session.commit()
+        cid = c.id
+
+        def _t(**kw):
+            base = dict(
+                store_id=test_store_id, created_by=test_admin_id,
+                send_date=date(2024, 6, 1), company="Intermex",
+                send_amount=100, fee=5, federal_tax=1,
+            )
+            base.update(kw)
+            db.session.add(Transfer(**base))
+
+        _t(customer_id=cid, sender_name="Ana P.", send_amount=300)
+        _t(customer_id=cid, sender_name="Ana P.", send_amount=200)
+        _t(customer_id=cid, sender_name="Ana P.", send_amount=999,
+           status="Canceled")
+        _t(customer_id=None, sender_name="Walker", send_amount=50)
+        _t(customer_id=None, sender_name="")
+        db.session.commit()
+    token = _login(client, test_store_id)
+    rows = _zip_csv(client, token, 2024, "customers")
+    assert rows[0] == [
+        "Customer", "Phone", "Address", "Count", "Total Sent",
+        "Total Fees",
+    ]
+    by_name = {r[0]: r for r in rows[1:]}
+    ana = by_name["Ana Perez"]
+    assert ana[1] == "+15551234"
+    assert ana[2] == "1 Main St"
+    assert ana[3] == "2"                       # canceled excluded
+    assert float(ana[4]) == 500.0
+    assert float(ana[5]) == 10.0
+    assert by_name["Walker"][1:3] == ["", ""]
+    assert "(walk-in)" in by_name
+
+
+def test_tax_pack_is_scoped_to_callers_store(
+    client, test_store_id,
+):
+    """Another store's transfers never leak into this store's pack."""
+    from api.Modules.Tenancy.Models import Store
+    from api.Modules.Transfers.Models import Transfer
+    with db_session():
+        other = Store(name="Other Shop", slug="other-shop")
+        db.session.add(other)
+        db.session.commit()
+        db.session.add(Transfer(
+            store_id=other.id, send_date=date(2024, 4, 1),
+            company="Maxi", send_amount=10, fee=1, federal_tax=0,
+            sender_name="Foreign Sender",
+        ))
+        db.session.commit()
+    token = _login(client, test_store_id)
+    assert len(_zip_csv(client, token, 2024, "transfers")) == 1
+    assert len(_zip_csv(client, token, 2024, "customers")) == 1
+
+
+def test_tax_pack_filename_and_readme(client, test_store_id):
+    import io
+    import zipfile
+    from api.Modules.Tenancy.Models import Store
+    with db_session():
+        s = db.session.get(Store, test_store_id)
+        s.slug = "a/b"
+        name = s.name
+        db.session.commit()
+    token = _login(client, test_store_id)
+    resp = client.get(
+        "/api/v2/admin/tax-export.zip?year=2024",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert 'filename="a-b-tax-pack-2024.zip"' in (
+        resp.headers["Content-Disposition"]
+    )
+    with zipfile.ZipFile(io.BytesIO(resp.get_data())) as zf:
+        readme = zf.read("README.txt").decode()
+    assert name in readme and "Year:   2024" in readme
