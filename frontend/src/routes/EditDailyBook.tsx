@@ -845,7 +845,6 @@ function ReceiptsPanel(
 function DisbursementsPanel(props: PanelProps) {
   return (
     <Card padding="1.25rem 1.5rem">
-      <PanelTitle>Manual disbursements</PanelTitle>
       <InputGrid>
         {DISBURSEMENT_INPUTS.map((f) => (
           <NumberInput

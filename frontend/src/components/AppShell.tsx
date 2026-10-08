@@ -176,7 +176,12 @@ function Topbar({
   onToggleDrawer: () => void;
 }) {
   const storeInfo = useStoreInfo();
-  const referralCode = storeInfo.data?.referral_code;
+  // The server already withholds the code from employees; the
+  // access check keeps the badge off for anyone who could not open
+  // the referrals page it links to.
+  const referralCode = canAccess("/settings/referrals")
+    ? storeInfo.data?.referral_code
+    : undefined;
   return (
     <header className="app-topbar">
       <button
