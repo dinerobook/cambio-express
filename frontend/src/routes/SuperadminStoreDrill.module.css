@@ -123,3 +123,19 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Activity section: the two filters + the event count. */
+.activityFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.activityCount {
+  margin-left: auto;
+  align-self: center;
+  color: var(--db-text-muted, #a3a3a3);
+  font-size: 0.85rem;
+}

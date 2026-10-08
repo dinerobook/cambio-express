@@ -6,20 +6,24 @@ import { api, ApiError } from "../lib/api";
 import { toggleMatrixCell } from "../lib/permissions";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  creditStore, emailStore, extendTrial, freezeStore, linkOwnerToStore,
-  toggleStoreActive, unfreezeStore, unlinkOwnerFromStore,
-  useStoreFeatures, useStoreOwnerLinks, type StoreFeatureRow,
+  compStore, creditStore, emailStore, endComp, extendTrial, freezeStore,
+  linkOwnerToStore, toggleStoreActive, unfreezeStore, unlinkOwnerFromStore,
+  useStoreAuditLog, useStoreFeatures, useStoreOwnerLinks,
+  type ImpersonationMode, type StoreFeatureRow,
 } from "../api/superadmin";
+import { useProfile } from "../api/account";
 import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Card, EmptyState,
   ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal,
-  PageHeader, PageShell, Pill, Section, SectionTitle, Select, Switch,
-  Table, tdStyle, Textarea, thStyle, useToast,
+  PageHeader, PageShell, Pager, Pill, Section, SectionTitle, Select,
+  Switch, Table, TableStates, tdStyle, Textarea, thStyle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
+import { AuditTable } from "../components/AuditTable";
+import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
 import styles from "./SuperadminStoreDrill.module.css";
@@ -32,6 +36,9 @@ interface StoreInfo {
   trial_ends_at: string; canceled_at: string;
   stripe_customer_id: string;
   frozen: boolean; frozen_at: string; frozen_reason: string;
+  /** On a free Basic/Pro plan handed out by a superadmin; Stripe
+   *  collection is paused while this is set. */
+  comped: boolean; comped_at: string; comp_reason: string;
 }
 
 interface TeamMember {
@@ -87,6 +94,27 @@ export default function SuperadminStoreDrill() {
   const [freezeBusy, setFreezeBusy] = useState(false);
   const [freezeError, setFreezeError] = useState<string | null>(null);
   const [trialDays, setTrialDays] = useState("14");
+  const [showComp, setShowComp] = useState(false);
+  const [compPlan, setCompPlan] = useState<"basic" | "pro">("pro");
+  const [compReason, setCompReason] = useState("");
+  const [compBusy, setCompBusy] = useState(false);
+  const [compError, setCompError] = useState<string | null>(null);
+
+  async function doEndComp(id: number) {
+    setActionBusy(true);
+    try {
+      const res = await endComp(id);
+      toast({
+        message: res.stripe_resumed
+          ? `Comp ended — billing resumed on the ${res.plan} plan.`
+          : `Comp ended — the store is on ${res.plan} now.`,
+        tone: "success",
+      });
+      void refetch();
+    } catch (e) {
+      toastApiError(e, "Could not end the comp");
+    } finally { setActionBusy(false); }
+  }
 
   async function doExtendTrial(id: number) {
     setActionBusy(true);
@@ -102,10 +130,10 @@ export default function SuperadminStoreDrill() {
     } finally { setActionBusy(false); }
   }
 
-  async function doImpersonate(userId: number) {
+  async function doImpersonate(userId: number, mode: ImpersonationMode) {
     setActionBusy(true);
     try {
-      await startImpersonation(userId);
+      await startImpersonation(userId, mode);
     } catch (e) {
       toastApiError(e, "Could not sign in as this user");
       setActionBusy(false);
@@ -172,6 +200,22 @@ export default function SuperadminStoreDrill() {
                     Freeze
                   </Button>
                 )}
+                {data.store.comped ? (
+                  <Button
+                    tone="secondary" size="sm"
+                    busy={actionBusy} disabled={actionBusy}
+                    onClick={() => { void doEndComp(data.store.id); }}
+                  >
+                    End comp
+                  </Button>
+                ) : (
+                  <Button
+                    tone="secondary" size="sm"
+                    onClick={() => { setShowComp(true); setCompError(null); }}
+                  >
+                    Comp plan
+                  </Button>
+                )}
                 {data.store.plan !== "basic" && data.store.plan !== "pro" && (
                   <span className={styles.trialControl}>
                     <Select
@@ -228,8 +272,17 @@ export default function SuperadminStoreDrill() {
             </Alert>
           )}
 
+          {data.store.comped && (
+            <Alert tone="info">
+              This store is <strong>comped</strong> on the {data.store.plan} plan
+              {data.store.comped_at ? ` since ${formatDate(data.store.comped_at)}` : ""}
+              {data.store.stripe_customer_id ? "; Stripe collection is paused" : ""}.
+              {data.store.comp_reason ? ` Reason: ${data.store.comp_reason}.` : ""}
+            </Alert>
+          )}
+
           <KpiGrid>
-            <KpiCard label="Plan" value={data.store.plan} tone={
+            <KpiCard label="Plan" value={data.store.comped ? `${data.store.plan} (comp)` : data.store.plan} tone={
               data.store.plan === "pro" ? "neon"
               : data.store.plan === "basic" ? "positive"
               : data.store.plan === "trial" ? "warning"
@@ -284,13 +337,22 @@ export default function SuperadminStoreDrill() {
                         }>{u.role}</Pill>
                         {!u.is_active && <Pill tone="neutral">Inactive</Pill>}
                         {u.is_active && (
-                          <Button
-                            size="sm" tone="secondary"
-                            busy={actionBusy} disabled={actionBusy}
-                            onClick={() => { void doImpersonate(u.id); }}
-                          >
-                            Sign in as
-                          </Button>
+                          <>
+                            <Button
+                              size="sm" tone="secondary"
+                              busy={actionBusy} disabled={actionBusy}
+                              onClick={() => { void doImpersonate(u.id, "read_only"); }}
+                            >
+                              View as
+                            </Button>
+                            <Button
+                              size="sm" tone="secondary"
+                              busy={actionBusy} disabled={actionBusy}
+                              onClick={() => { void doImpersonate(u.id, "full"); }}
+                            >
+                              Sign in as
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -362,11 +424,81 @@ export default function SuperadminStoreDrill() {
             </Card>
           </Section>
 
+          <StoreActivitySection storeId={data.store.id} />
+
           <Section title="Permissions">
             <StorePermissionsPanel storeId={data.store.id} storeName={data.store.name} />
           </Section>
         </>
       )}
+
+      <Modal
+        open={showComp}
+        title={`Comp ${data?.store.name ?? "store"}`}
+        onClose={() => { setShowComp(false); setCompError(null); }}
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!storeId) return;
+            setCompBusy(true);
+            setCompError(null);
+            try {
+              const res = await compStore(storeId, { plan: compPlan, reason: compReason.trim() });
+              toast({
+                message: res.stripe_paused
+                  ? `Comped on ${res.plan} — Stripe billing paused.`
+                  : `Comped on ${res.plan}.`,
+                tone: "success",
+              });
+              setShowComp(false);
+              setCompReason("");
+              void refetch();
+            } catch (err) {
+              setCompError(err instanceof ApiError ? err.message : "Could not comp this store.");
+            } finally {
+              setCompBusy(false);
+            }
+          }}
+          style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+        >
+          <p style={{ fontSize: "0.85rem", color: "var(--db-text-muted)", margin: 0 }}>
+            Gives the store a paid plan for free. If it pays through
+            Stripe, the subscription stays but collection is paused —
+            nothing is invoiced until you end the comp. A cancellation
+            from Stripe while comped does not take the plan away.
+          </p>
+          <Field label="Plan">
+            <Select
+              value={compPlan}
+              onChange={(e) => setCompPlan(e.target.value === "basic" ? "basic" : "pro")}
+            >
+              <option value="pro">Pro</option>
+              <option value="basic">Basic</option>
+            </Select>
+          </Field>
+          <Field label="Reason (optional)">
+            <Input
+              type="text" value={compReason}
+              onChange={(e) => setCompReason(e.target.value)}
+              placeholder="Design partner, make-good, friends & family…"
+              maxLength={200}
+            />
+          </Field>
+          {compError && <Alert tone="error">{compError}</Alert>}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+            <Button
+              tone="secondary" type="button"
+              onClick={() => { setShowComp(false); setCompError(null); }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" busy={compBusy} disabled={compBusy}>
+              {compBusy ? "Applying…" : "Comp this store"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal
         open={showEmail}
@@ -893,6 +1025,77 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
             Connect
           </Button>
         </div>
+      </Card>
+    </Section>
+  );
+}
+
+
+// ── Activity ──────────────────────────────────────────────────
+//
+// The store's own audit feed (what its admin sees on
+// /app/admin/audit-log), read here so a support question about
+// "who changed this" is answered from the store page. Rows written
+// during an impersonation carry "(via superadmin …)" in the actor.
+function StoreActivitySection({ storeId }: { storeId: number }) {
+  const [page, setPage] = useState(1);
+  const [target, setTarget] = useState("");
+  const [action, setAction] = useState("");
+  const { data: profile } = useProfile();
+  const log = useStoreAuditLog(storeId, { page, target, action });
+  const userTz = profile?.timezone ?? "";
+
+  return (
+    <Section title="Activity">
+      <Card>
+        <div className={styles.activityFilters}>
+          <Field label="Target" style={{ minWidth: "10rem" }}>
+            <Select
+              aria-label="Activity target"
+              value={target}
+              onChange={(e) => { setTarget(e.target.value); setPage(1); }}
+            >
+              {AUDIT_TARGET_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Action" style={{ minWidth: "10rem" }}>
+            <Select
+              aria-label="Activity action"
+              value={action}
+              onChange={(e) => { setAction(e.target.value); setPage(1); }}
+            >
+              {AUDIT_ACTION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </Select>
+          </Field>
+          <span className={styles.activityCount}>
+            {log.data ? `${log.data.total.toLocaleString()} ${log.data.total === 1 ? "event" : "events"}` : ""}
+          </span>
+        </div>
+        <TableStates
+          isLoading={log.isLoading} isError={log.isError} error={log.error}
+          isEmpty={!log.data || log.data.rows.length === 0}
+          onRetry={() => { void log.refetch(); }}
+          errorMessage="Could not load this store's activity."
+          emptyTitle="No activity matches these filters."
+        />
+        {log.data && log.data.rows.length > 0 && (
+          <>
+            <AuditTable
+              rows={log.data.rows}
+              userTimezone={userTz}
+              storeTimezone=""
+            />
+            <Pager
+              page={log.data.page}
+              totalPages={log.data.total_pages}
+              onPage={setPage}
+            />
+          </>
+        )}
       </Card>
     </Section>
   );

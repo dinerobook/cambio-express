@@ -13015,6 +13015,81 @@
         "title": "SuperadminChangeRoleRequest",
         "type": "object"
       },
+      "SuperadminCompPlanRequest": {
+        "additionalProperties": false,
+        "description": "POST body for /superadmin/stores/{id}/comp-plan.",
+        "properties": {
+          "plan": {
+            "enum": [
+              "basic",
+              "pro"
+            ],
+            "title": "Plan",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "SuperadminCompPlanRequest",
+        "type": "object"
+      },
+      "SuperadminCompPlanResponse": {
+        "additionalProperties": false,
+        "description": "State after a comp / end-comp. ``stripe_paused`` /\n``stripe_resumed`` say whether a subscription was touched.",
+        "properties": {
+          "billing_cycle": {
+            "title": "Billing Cycle",
+            "type": "string"
+          },
+          "comp_reason": {
+            "title": "Comp Reason",
+            "type": "string"
+          },
+          "comped": {
+            "title": "Comped",
+            "type": "boolean"
+          },
+          "comped_at": {
+            "title": "Comped At",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "stripe_paused": {
+            "default": false,
+            "title": "Stripe Paused",
+            "type": "boolean"
+          },
+          "stripe_resumed": {
+            "default": false,
+            "title": "Stripe Resumed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "plan",
+          "billing_cycle",
+          "comped",
+          "comped_at",
+          "comp_reason"
+        ],
+        "title": "SuperadminCompPlanResponse",
+        "type": "object"
+      },
       "SuperadminExtendTrialRequest": {
         "additionalProperties": false,
         "description": "POST body for /superadmin/stores/{id}/extend-trial and the\n``days`` of the bulk ``extend_trial`` action.\n\n``days`` adds to the later of the current trial end and now\n(so an expired store really gets N days); ``ends_on`` sets the\nend to that calendar day instead and wins when both are sent.\nThe arithmetic lives in ``Superadmin.Services.trials``.",
@@ -13074,6 +13149,23 @@
           "trial_status"
         ],
         "title": "SuperadminExtendTrialResponse",
+        "type": "object"
+      },
+      "SuperadminImpersonateRequest": {
+        "additionalProperties": false,
+        "description": "POST body for /superadmin/impersonate/{id}. ``read_only``\nmints a token every write is refused on (see\n``api.Core.ReadOnlyImpersonation``).",
+        "properties": {
+          "mode": {
+            "default": "full",
+            "enum": [
+              "full",
+              "read_only"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "SuperadminImpersonateRequest",
         "type": "object"
       },
       "SuperadminMaintenanceRequest": {
@@ -14451,7 +14543,18 @@
       },
       "TicketListResponse": {
         "additionalProperties": false,
+        "description": "``page`` / ``per_page`` / ``total_pages`` are filled by the\npaged platform list (``GET /tickets/all``); the store's own list\nreturns everything on one page.",
         "properties": {
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 0,
+            "title": "Per Page",
+            "type": "integer"
+          },
           "tickets": {
             "items": {
               "$ref": "#/components/schemas/TicketRow"
@@ -14461,6 +14564,11 @@
           },
           "total": {
             "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "default": 1,
+            "title": "Total Pages",
             "type": "integer"
           }
         },
@@ -36707,7 +36815,7 @@
     },
     "/superadmin/impersonate/{user_id}": {
       "post": {
-        "description": "Sign the superadmin in AS another user so support can see\nexactly what the customer sees.\n\nThe token is minted with the person's live role, store and\npermission overlay (the same resolution login does), a\n``IMPERSONATION_TTL_SECONDS`` TTL and two extra claims \u2014\n``impersonated_by`` (the superadmin's user id) and\n``impersonator_name`` \u2014 that ``/auth/session-status`` surfaces\nfor the banner and ``audit_operator`` writes on every action\ntaken during the session. The SPA authenticates with the\nhttpOnly cookie, so the token is set there (the JSON copy is for\nAPI callers and tests). The superadmin's refresh cookie is left\nalone: ``POST /impersonate/stop`` + ``/auth/refresh`` is the\nway back.\n\nAn inactive login is refused (409): the live-principal check\nwould 401 every call and the superadmin would only see a login\nbounce. Enable the login first, impersonate, disable again.",
+        "description": "Sign the superadmin in AS another user so support can see\nexactly what the customer sees.\n\nThe token is minted with the person's live role, store and\npermission overlay (the same resolution login does), a\n``IMPERSONATION_TTL_SECONDS`` TTL and two extra claims \u2014\n``impersonated_by`` (the superadmin's user id) and\n``impersonator_name`` \u2014 that ``/auth/session-status`` surfaces\nfor the banner and ``audit_operator`` writes on every action\ntaken during the session. The SPA authenticates with the\nhttpOnly cookie, so the token is set there (the JSON copy is for\nAPI callers and tests). The superadmin's refresh cookie is left\nalone: ``POST /impersonate/stop`` + ``/auth/refresh`` is the\nway back.\n\nAn inactive login is refused (409): the live-principal check\nwould 401 every call and the superadmin would only see a login\nbounce. Enable the login first, impersonate, disable again.\n\n``mode: read_only`` adds ``impersonation_mode = read_only`` and\n``api.Core.ReadOnlyImpersonation`` refuses every write on the\ntoken \u2014 look, never touch.",
         "operationId": "impersonate_route_superadmin_impersonate__user_id__post",
         "parameters": [
           {
@@ -36753,6 +36861,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SuperadminImpersonateRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -37789,6 +37914,117 @@
         ]
       }
     },
+    "/superadmin/stores/{store_id}/audit-log": {
+      "get": {
+        "description": "The store's own activity: the same merged operator + transfer\nfeed its admin sees on /app/admin/audit-log\n(``Admin.Services.audit_log.list_audit_rows``), read by the\nsuperadmin from the store page. Rows written during an\nimpersonation carry \"(via superadmin \u2026)\" in the actor name.",
+        "operationId": "store_audit_log_route_superadmin_stores__store_id__audit_log_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "store_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Store Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 40,
+              "title": "Target",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 40,
+              "title": "Action",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Store Audit Log Route Superadmin Stores  Store Id  Audit Log Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Store Audit Log Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
     "/superadmin/stores/{store_id}/clear-retention": {
       "post": {
         "description": "Cancel a store's retention timer so the purge cron will\nleave it alone \u2014 does NOT reactivate the Stripe subscription\n(that goes through Checkout). Use when:\n  * a stuck `customer.subscription.deleted` retry stamped a\n    fresh window on a near-expired store\n  * the operator asks for an extension while they decide\n    whether to reactivate\n  * forensic / support-investigation hold",
@@ -37862,6 +38098,92 @@
           }
         },
         "summary": "Clear Retention Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
+    "/superadmin/stores/{store_id}/comp-plan": {
+      "post": {
+        "description": "Give a store a paid plan for free. A live Stripe subscription\nis paused (not cancelled) first, so a Stripe failure leaves the\nstore untouched: 503 when Stripe is not configured but the store\nhas a subscription, 502 when Stripe refuses. See\n``Superadmin.Services.comp``.",
+        "operationId": "comp_plan_route_superadmin_stores__store_id__comp_plan_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "store_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Store Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuperadminCompPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuperadminCompPlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Comp Plan Route",
         "tags": [
           "superadmin"
         ]
@@ -38114,6 +38436,82 @@
           }
         },
         "summary": "Email Store Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
+    "/superadmin/stores/{store_id}/end-comp": {
+      "post": {
+        "description": "Take the comp off: resume Stripe collection and put the plan\nback to what the subscription says, or, for a store that never\npaid, open a fresh trial window. 409 when not comped.",
+        "operationId": "end_comp_route_superadmin_stores__store_id__end_comp_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "store_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Store Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuperadminCompPlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "End Comp Route",
         "tags": [
           "superadmin"
         ]
@@ -39795,7 +40193,7 @@
     },
     "/tickets/all": {
       "get": {
-        "description": "Platform staff: list every ticket across all stores.",
+        "description": "Platform staff: every ticket across all stores, newest first,\npaged. ``q`` (2+ characters) matches the subject, who filed it\nand the store's name; ``store_id`` narrows to one store.",
         "operationId": "list_all_tickets_tickets_all_get",
         "parameters": [
           {
@@ -39828,6 +40226,61 @@
                 }
               ],
               "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 120,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "store_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Store Id"
+            }
+          },
+          {
+            "description": "1-based page number",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "1-based page number",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page (1 to 200)",
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Rows per page (1 to 200)",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
             }
           },
           {

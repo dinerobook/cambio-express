@@ -28,28 +28,7 @@
   align-items: flex-end;
 }
 
-.userRole {
-  margin-left: 0.4rem;
-  color: var(--db-text-muted, #a3a3a3);
-  font-size: 0.85rem;
-}
-
-.targetType {
-  color: var(--db-text-muted, #a3a3a3);
-  font-size: 0.85rem;
-}
-
-.detailCell {
-  font-size: 0.9rem;
-  max-width: 30rem;
-}
-
-.monoMuted {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
-  font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
-  white-space: nowrap;
-}
+/* Row styles live in components/AuditTable.module.css. */
 
 .fine {
   margin-top: 1rem;

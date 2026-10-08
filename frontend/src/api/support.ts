@@ -37,6 +37,9 @@ export interface TicketRow {
 interface TicketListResponse {
   tickets: TicketRow[];
   total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
 }
 
 interface TicketResponse {
@@ -67,18 +70,42 @@ export function useMyTickets(status?: string) {
   });
 }
 
-export function useAllTickets(status?: string, category?: string) {
-  const identity = getCurrentIdentity();
+export interface AllTicketsFilters {
+  status?: string;
+  category?: string;
+  /** Free-text search over subject, submitter and store name. The
+   *  server ignores anything under 2 characters, so the query string
+   *  leaves it out too (no refetch for a single keystroke). */
+  q?: string;
+  store_id?: string | number;
+  page?: number;
+}
+
+/** The query string for `GET /tickets/all`. Pure so it is testable:
+ *  blank filters are left out, a page of 1 is left out, a search
+ *  under 2 characters is left out. */
+export function allTicketsQueryString(f: AllTicketsFilters): string {
   const params = new URLSearchParams();
-  if (status) params.set("status", status);
-  if (category) params.set("category", category);
-  const qs = params.toString() ? `?${params}` : "";
+  if (f.status) params.set("status", f.status);
+  if (f.category) params.set("category", f.category);
+  const q = (f.q ?? "").trim();
+  if (q.length >= 2) params.set("q", q);
+  if (f.store_id) params.set("store_id", String(f.store_id));
+  if (f.page && f.page > 1) params.set("page", String(f.page));
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export function useAllTickets(filters: AllTicketsFilters = {}) {
+  const identity = getCurrentIdentity();
+  const qs = allTicketsQueryString(filters);
   return useQuery<TicketListResponse>({
     enabled:
       identity != null &&
       ["superadmin", "support"].includes(identity.role),
-    queryKey: ["tickets", "all", status, category],
+    queryKey: ["tickets", "all", qs],
     queryFn: () => api<TicketListResponse>(`/api/v2/tickets/all${qs}`),
+    placeholderData: (prev) => prev,
   });
 }
 

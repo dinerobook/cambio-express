@@ -12,14 +12,28 @@
 // shell was built for the superadmin; a reload rebuilds all of it
 // for the customer in one step instead of chasing stale state.
 
-import { impersonateUser, stopImpersonationRequest } from "../api/superadmin";
+import {
+  impersonateUser, stopImpersonationRequest, type ImpersonationMode,
+} from "../api/superadmin";
 import { clearAccessToken, refreshToken, setAccessToken } from "./auth";
 
 /** Where the superadmin lands after stepping back out. */
 export const IMPERSONATION_RETURN_PATH = "/app/superadmin/users";
 
-export async function startImpersonation(userId: number): Promise<void> {
-  const res = await impersonateUser(userId);
+/** The server's reason code on the 403 a read-only session gets
+ *  for any write; `api()` already surfaces the message as the
+ *  thrown error's text, so pages need no special handling. */
+export const READ_ONLY_REASON = "read_only_impersonation";
+
+/**
+ * `mode` "full" acts as the person; "read_only" only looks (every
+ * write is refused server-side, so a support agent can walk through
+ * a customer's books without the risk of changing them).
+ */
+export async function startImpersonation(
+  userId: number, mode: ImpersonationMode = "full",
+): Promise<void> {
+  const res = await impersonateUser(userId, mode);
   // The cookie was set by the server; this caches the non-secret
   // claims (role, store, permissions) so the chrome renders the
   // customer's nav on first paint.

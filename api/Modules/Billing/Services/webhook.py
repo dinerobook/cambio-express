@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from api.Modules.Billing.Models import Store
 from api.Modules.Billing.Services.cancellation import (
+    clear_comp_state,
     DEFAULT_RETENTION_DAYS,
     apply_subscription_cancelled,
     clear_cancellation_state,
@@ -159,8 +160,9 @@ def _handle_checkout_session_completed(
 
     # Returning customer: clear cancellation + retention timer +
     # trial-reminder dedup flag. Idempotent on first-time
-    # subscribers.
+    # subscribers. A comped store that checks out is paying now.
     clear_cancellation_state(store)
+    clear_comp_state(store)
 
     # Referral flow: mint the referrer's own code so they get the
     # topbar crown immediately, and apply any pending referee

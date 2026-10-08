@@ -18,6 +18,20 @@ describe("<ImpersonationBannerView>", () => {
     expect(screen.getByText(/via superadmin Platform Admin/)).toBeInTheDocument();
   });
 
+  it("read-only mode says saves are blocked instead of recorded", () => {
+    render(
+      <ImpersonationBannerView
+        actingAs="Maria Lopez" role="admin" storeName="Cambio Express"
+        byName="Platform Admin" readOnly onExit={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/viewing as a customer \(read-only\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/every save is blocked/i)).toBeInTheDocument();
+    expect(screen.queryByText(/recorded against them/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /exit view/i })).toBeInTheDocument();
+    expect(screen.getByTestId("impersonation-banner")).toHaveAttribute("data-read-only", "true");
+  });
+
   it("exit fires the handler and shows the button busy while it runs", async () => {
     let resolve: () => void = () => {};
     const onExit = vi.fn(() => new Promise<void>((r) => { resolve = r; }));

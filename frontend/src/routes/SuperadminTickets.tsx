@@ -5,13 +5,15 @@ import {
   claimTicket, releaseTicket, TICKET_STATUS_TONES, updateTicket,
   useAllTickets, type TicketRow,
 } from "../api/support";
+import { useSuperadminStores } from "../api/superadmin";
 import { getCurrentIdentity } from "../lib/auth";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { TicketThread } from "../components/TicketThread";
 import { fmtDateTime } from "../lib/formatters";
 import { ApiError } from "../lib/api";
 import {
   Alert, AppLink, Breadcrumbs, Button, Card, EmptyState, ErrorState,
-  Field, Loading, PageHeader, PageShell, Pill, Select,
+  Field, Input, Loading, PageHeader, PageShell, Pager, Pill, Select,
   useToast,
 } from "../components/ui";
 import styles from "./SuperadminTickets.module.css";
@@ -41,10 +43,19 @@ const PRIORITY_TONES: Record<string, "negative" | "warning" | "info" | "neutral"
 };
 
 
+// Filters live in the URL (shareable, survive a reload); the search
+// box is debounced 300 ms with the 2-char minimum every table search
+// in the SPA uses (CLAUDE.md "Table search UX").
 export default function SuperadminTickets() {
-  const [statusFilter, setStatusFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const tickets = useAllTickets(statusFilter || undefined, categoryFilter || undefined);
+  const filters = useUrlFilterState({ q: "", status: "", category: "", store_id: "" });
+  const stores = useSuperadminStores();
+  const tickets = useAllTickets({
+    q: filters.params.q,
+    status: filters.params.status,
+    category: filters.params.category,
+    store_id: filters.params.store_id,
+    page: filters.page,
+  });
 
   return (
     <PageShell>
@@ -54,13 +65,43 @@ export default function SuperadminTickets() {
       ]} />
       <PageHeader
         title="Support tickets"
-        subtitle={`${tickets.data?.total ?? 0} tickets across all stores`}
+        subtitle={
+          tickets.data
+            ? `${tickets.data.total.toLocaleString()} ${tickets.data.total === 1 ? "ticket" : "tickets"}${filters.params.store_id || filters.params.q ? " matching" : " across all stores"}`
+            : "—"
+        }
         actions={(
           <div className={styles.filterRow}>
-            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <Input
+              type="search"
+              aria-label="Search tickets"
+              placeholder="Search subject, sender, store…"
+              value={filters.draft.q ?? filters.params.q}
+              onChange={(e) => filters.debounced("q", e.target.value)}
+              className={styles.searchInput}
+            />
+            <Select
+              aria-label="Store"
+              value={filters.params.store_id}
+              onChange={(e) => filters.setParam("store_id", e.target.value)}
+            >
+              <option value="">All stores</option>
+              {(stores.data?.rows ?? []).map((s) => (
+                <option key={s.store_id} value={String(s.store_id)}>{s.name}</option>
+              ))}
+            </Select>
+            <Select
+              aria-label="Status"
+              value={filters.params.status}
+              onChange={(e) => filters.setParam("status", e.target.value)}
+            >
               {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </Select>
-            <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <Select
+              aria-label="Category"
+              value={filters.params.category}
+              onChange={(e) => filters.setParam("category", e.target.value)}
+            >
               {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </Select>
           </div>
@@ -82,6 +123,14 @@ export default function SuperadminTickets() {
       {tickets.data && tickets.data.tickets.map((t) => (
         <TicketCard key={t.id} ticket={t} />
       ))}
+
+      {tickets.data && tickets.data.total_pages > 1 && (
+        <Pager
+          page={tickets.data.page}
+          totalPages={tickets.data.total_pages}
+          onPage={filters.setPage}
+        />
+      )}
     </PageShell>
   );
 }
