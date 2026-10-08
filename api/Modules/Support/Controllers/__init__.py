@@ -152,7 +152,12 @@ def list_my_tickets(
     """List tickets submitted by users in the caller's store.
     Platform staff see all tickets (same as /all) since they have no store."""
     if _is_platform_staff(claims):
-        return list_all_tickets(status=status, category=None, db=db, claims=claims)
+        # Same answer as /all with no search, no store filter and the
+        # default page — the SPA's queue page passes those itself.
+        return list_all_tickets(
+            status=status, category=None, q="", store_id=None,
+            pagination=PaginationParams(), db=db, claims=claims,
+        )
     sid = resolve_store_scope(claims)
     q = db.query(SupportTicket).filter(
         SupportTicket.store_id == sid,
