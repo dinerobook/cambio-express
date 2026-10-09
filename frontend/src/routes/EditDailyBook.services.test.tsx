@@ -14,9 +14,11 @@ import type { MTBreakdownRow, MTServiceRow } from "../api/dailybook";
 //     how it splits ("Transfers $X · Bill payments $Y").
 //   - Open, it has a tab per service: Money transfer (amount / fees /
 //     federal tax / commission), Bill payments, Top-ups, Recharges
-//     (amount / fee), and a By company table adding each company's
-//     transfers and services.
-//   - Save sends transfers and every non-zero service line.
+//     (amount / fee), Money orders (the day's money order entries +
+//     the money order fee), and a By company table adding each
+//     company's transfers and services.
+//   - Save sends transfers and every non-zero service line, then
+//     saves the day's form so the money order fee is kept.
 //   - A locked day can be read but not changed.
 
 const DAY = "2026-10-06";
@@ -24,16 +26,21 @@ const DAY = "2026-10-06";
 const useDailyReport = vi.fn();
 const useMTBreakdown = vi.fn();
 const replaceMTBreakdown = vi.fn();
+const updateDailyReport = vi.fn();
+const createLineItem = vi.fn();
+const useLineItems = vi.fn();
 
 vi.mock("../api/dailybook", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/dailybook")>();
   return {
     ...real,
     useDailyReport: () => useDailyReport(),
-    useLineItems: () => LINES,
+    useLineItems: () => useLineItems(),
     useMTBreakdown: () => useMTBreakdown(),
     useOpenSettlements: () => NOTHING_OPEN,
     replaceMTBreakdown: (...a: unknown[]) => replaceMTBreakdown(...a),
+    updateDailyReport: (...a: unknown[]) => updateDailyReport(...a),
+    createLineItem: (...a: unknown[]) => createLineItem(...a),
   };
 });
 
@@ -44,6 +51,15 @@ vi.mock("../api/account", () => ({
 
 // Stable objects: the page syncs local drafts from these in effects.
 const LINES = { data: { items: [] } };
+const MONEY_ORDER_LINES = {
+  data: {
+    items: [{
+      id: 7, kind: "money_order", at_time: "10:15", amount: 300, note: "MO #1",
+      return_check_id: null, expects_settlement: false, settle_by: null,
+      settled: 0, settles_item_id: null,
+    }],
+  },
+};
 const NOTHING_OPEN = { data: [], isError: false };
 const STORE_INFO = { data: { store: { sales_tax_rate: 0 } } };
 const SESSION = { data: undefined };
@@ -116,6 +132,9 @@ async function typeInto(input: HTMLElement, value: string) {
 beforeEach(() => {
   setCurrentIdentity(TEST_ADMIN);
   replaceMTBreakdown.mockReset().mockResolvedValue({});
+  updateDailyReport.mockReset().mockResolvedValue({});
+  createLineItem.mockReset().mockResolvedValue({});
+  useLineItems.mockReturnValue(LINES);
   useDailyReport.mockReturnValue(savedDay({ money_transfer: 848 }));
   useMTBreakdown.mockReturnValue(NO_SERVICES);
 });
@@ -142,7 +161,7 @@ describe("EditDailyBook — Services box", () => {
     const tabs = within(dialog).getAllByRole("tab").map((t) => t.textContent);
     expect(tabs).toEqual([
       "Money transfer · $848.00", "Bill payments · $0.00",
-      "Top-ups · $0.00", "Recharges · $0.00",
+      "Top-ups · $0.00", "Recharges · $0.00", "Money orders · $0.00",
     ]);
     expect(within(dialog).getByText("Federal tax")).toBeInTheDocument();
   });
@@ -170,6 +189,8 @@ describe("EditDailyBook — Services box", () => {
       { company: "Maxi", amount: 800, fees: 40, federal_tax: 8, commission: 0 },
     ]);
     expect(services).toEqual([MAXI_BILL]);
+    // The day's form is saved too (it carries the money order fee).
+    await waitFor(() => expect(updateDailyReport).toHaveBeenCalled());
   });
 
   it("keeps recharges separate from top-ups", async () => {
@@ -218,5 +239,52 @@ describe("EditDailyBook — Services box", () => {
     }
     expect(within(dialog).getByRole("button", { name: /Save services/ })).toBeDisabled();
     expect(replaceMTBreakdown).not.toHaveBeenCalled();
+  });
+
+  it("holds the money orders and their fee", async () => {
+    useDailyReport.mockReturnValue(savedDay({
+      money_transfer: 848, money_order: 300, money_order_fees: 4,
+    }));
+    useLineItems.mockReturnValue(MONEY_ORDER_LINES);
+    renderPage();
+    // The tile adds money orders and their fee to the transfers.
+    expect(box()).toHaveTextContent("$1,152.00");
+    expect(box()).toHaveTextContent("Transfers $848.00 · Money orders $304.00");
+    // No separate Money order box any more.
+    expect(screen.queryByRole("button", { name: /^Money order/ })).not.toBeInTheDocument();
+
+    await userEvent.click(box());
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    expect(within(dialog).getByText("MO #1")).toBeInTheDocument();
+    const fee = within(dialog).getByLabelText(/^Money order fees/);
+    expect(fee).toHaveValue("4");
+    await typeInto(fee, "6");
+    expect(within(dialog).getByRole("tab", { name: /^Money orders/ }))
+      .toHaveTextContent("$306.00");
+    expect(within(dialog).getByText(/Grand total/)).toHaveTextContent("$1,154.00");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: /Save services/ }));
+    await waitFor(() => expect(updateDailyReport).toHaveBeenCalled());
+    expect(updateDailyReport.mock.calls[0].at(-1)).toMatchObject({ money_order_fees: 6 });
+  });
+
+  it("adds a money order entry from the Money orders tab", async () => {
+    const dialog = await openBox();
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    await typeInto(within(dialog).getByLabelText(/^Amount/), "250");
+    await userEvent.click(within(dialog).getByRole("button", { name: /\+ Add/ }));
+    await waitFor(() => expect(createLineItem).toHaveBeenCalled());
+    expect(createLineItem.mock.calls[0]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "money_order", amount: 250 })]),
+    );
+  });
+
+  it("offers money orders even when no companies are set up", async () => {
+    useMTBreakdown.mockReturnValue(breakdown([]));
+    const dialog = await openBox();
+    expect(within(dialog).getByText(/No companies configured/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    expect(within(dialog).getByLabelText(/^Money order fees/)).toBeInTheDocument();
   });
 });

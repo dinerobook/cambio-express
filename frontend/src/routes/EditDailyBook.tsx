@@ -41,7 +41,6 @@ import {
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { computeTotals, type FormState } from "./editDailyBook.totals";
 import styles from "./EditDailyBook.module.css";
-import { ImportReportModal } from "./ImportReportModal";
 import {
   SettleFields, SettlementPill, SettlementsList, SettlementsWidget,
 } from "./DailyBookSettlements";
@@ -744,69 +743,9 @@ function ReceiptsPanel(
     persist: () => Promise<void>;
   },
 ) {
-  const [importOpen, setImportOpen] = useState(false);
   return (
     <Card padding="1.25rem 1.5rem">
-      <PanelTitle>Tap to edit</PanelTitle>
-      <div className={styles.widgetGrid}>
-        <SalesWidget
-          form={props.form}
-          set={props.set}
-          locked={props.locked}
-          salesTaxRate={props.salesTaxRate}
-          persist={props.persist}
-        />
-        <FeesWidget
-          form={props.form}
-          set={props.set}
-          locked={props.locked}
-          persist={props.persist}
-        />
-        <ServicesWidget
-          total={Number(props.report?.money_transfer ?? 0)}
-          storeId={props.storeId}
-          date={props.date}
-          locked={props.locked}
-          onChange={props.onLineItemChange}
-        />
-        {/* Money orders sold — multi-entry like the Fees modal's
-            siblings: one aggregate entry for the day or one entry
-            per money order, whichever the operator prefers. */}
-        <LineItemWidget
-          kind="money_order"
-          label="Money order"
-          readOnly={props.locked}
-          total={Number(props.report?.money_order ?? 0)}
-          items={props.lineItems.filter((li) => li.kind === "money_order")}
-          storeId={props.storeId}
-          date={props.date}
-          onChange={props.onLineItemChange}
-        />
-      </div>
-
-      {!props.locked && (
-        <div style={{ marginTop: "0.6rem" }}>
-          <Button
-            type="button"
-            tone="secondary"
-            size="sm"
-            onClick={() => setImportOpen(true)}
-          >
-            Import Intermex report
-          </Button>
-        </div>
-      )}
-      <ImportReportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        storeId={props.storeId}
-        reportDate={props.date}
-        onCommitted={props.onLineItemChange}
-      />
-
-      <div className={styles.panelDivider} />
-
-      <PanelTitle>Other receipts</PanelTitle>
+      {/* Opening cash comes first: it is where the day starts. */}
       <InputGrid>
         <ForwardBalanceInput
           value={props.form.forward_balance}
@@ -841,6 +780,39 @@ function ReceiptsPanel(
           />
         ))}
       </InputGrid>
+
+      <div className={styles.panelDivider} />
+
+      <div className={styles.widgetGrid}>
+        <SalesWidget
+          form={props.form}
+          set={props.set}
+          locked={props.locked}
+          salesTaxRate={props.salesTaxRate}
+          persist={props.persist}
+        />
+        <FeesWidget
+          form={props.form}
+          set={props.set}
+          locked={props.locked}
+          persist={props.persist}
+        />
+        <ServicesWidget
+          transfersTotal={Number(props.report?.money_transfer ?? 0)}
+          moneyOrderTotal={Number(props.report?.money_order ?? 0)}
+          moneyOrderItems={props.lineItems.filter((li) => li.kind === "money_order")}
+          form={props.form}
+          set={props.set}
+          persist={props.persist}
+          storeId={props.storeId}
+          date={props.date}
+          locked={props.locked}
+          onChange={props.onLineItemChange}
+        />
+      </div>
+      {/* The Intermex report import (ImportReportModal) is switched
+          off for now; the owner will bring it back with its own
+          integration. The modal and its API are untouched. */}
 
       <div className={styles.panelDivider} />
 
@@ -1184,8 +1156,8 @@ function FeesWidget({
     session?.features == null
     || session.features.includes("module_check_cashing");
 
+  // Money order fees live with the money orders in the Services box.
   const total =
-    (form.money_order_fees || 0) +
     (form.check_cashing_fees || 0) +
     (form.return_check_hold_fees || 0) +
     (form.rebates_commissions || 0);
@@ -1216,7 +1188,7 @@ function FeesWidget({
           <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
         </span>
         <span className={styles.widgetCount}>
-          Money order · Check cashing · Return check · Rebates
+          {checkCashing ? "Check cashing · Return check · Rebates" : "Rebates"}
         </span>
       </button>
 
@@ -1227,14 +1199,6 @@ function FeesWidget({
       >
         <div className={styles.lineModalBody}>
           <div className={styles.widgetAddRow}>
-            <div className={styles.addRowAmount}>
-              <MoneyInput
-                label="Money order fee"
-                value={form.money_order_fees}
-                onChange={(v) => set("money_order_fees", v)}
-                disabled={locked}
-              />
-            </div>
             {checkCashing && (
               <>
                 <div className={styles.addRowAmount}>
@@ -1298,18 +1262,34 @@ function FeesWidget({
 //     that integration is finished (the backend still returns
 //     `auto_*`, so re-enabling it is UI-only).
 //   • Bill payments / Top-ups / Recharges — amount and fee only.
+//   • Money orders — the day's money order entries (kind
+//     `money_order`, saved as they are added, like any line item)
+//     and the day's money order fee (`money_order_fees`, a report
+//     field saved with the rest of the form through `persist`).
 // Under the tabs, each company's total across all its services is
-// the number its cash drop is checked against.
-type ServicesTab = "transfer" | ServiceKind;
+// the number its cash drop is checked against. Money orders are not
+// per company, so they sit outside that table. The tile total adds
+// the three report fields that make up the box: money_transfer,
+// money_order and money_order_fees — all already in Money In.
+type ServicesTab = "transfer" | ServiceKind | "money_order";
 
 interface ServiceDraft { amount: number; fees: number }
 
 const svcKey = (service: ServiceKind, company: string) => `${service}|${company}`;
 
 function ServicesWidget({
-  total, storeId, date, locked, onChange,
+  transfersTotal, moneyOrderTotal, moneyOrderItems, form, set, persist,
+  storeId, date, locked, onChange,
 }: {
-  total: number;
+  /** Saved `money_transfer`: transfers + bill payments + top-ups +
+   *  recharges. */
+  transfersTotal: number;
+  /** Saved `money_order` (sum of the money_order entries). */
+  moneyOrderTotal: number;
+  moneyOrderItems: LineItemRow[];
+  form: FormState;
+  set: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+  persist: () => Promise<void>;
   storeId: number;
   date: string;
   locked: boolean;
@@ -1392,15 +1372,19 @@ function ServicesWidget({
     return s;
   }
 
+  const moneyOrderFees = form.money_order_fees || 0;
+  const moneyOrdersTab = moneyOrderTotal + moneyOrderFees;
+  const total = transfersTotal + moneyOrdersTab;
   const draftTotal =
-    transferTotal + SERVICE_KINDS.reduce((s, k) => s + serviceTotal(k.key), 0);
+    transferTotal + SERVICE_KINDS.reduce((s, k) => s + serviceTotal(k.key), 0)
+    + moneyOrdersTab;
 
   // Tile sub-line, from what is SAVED (the tile total is the saved
   // money_transfer): which services make up the day's number.
   const savedServices = breakdown.data?.services ?? [];
   const savedTransfers = rows.reduce((s, r) => s + r.saved_total, 0);
   const savedParts: string[] = [];
-  if (savedServices.length > 0) {
+  if (savedServices.length > 0 || moneyOrdersTab > 0) {
     if (savedTransfers > 0) savedParts.push(`Transfers ${fmtMoney2(savedTransfers)}`);
     for (const k of SERVICE_KINDS) {
       const sum = savedServices
@@ -1408,6 +1392,7 @@ function ServicesWidget({
         .reduce((acc, s) => acc + s.amount + s.fees, 0);
       if (sum > 0) savedParts.push(`${k.label} ${fmtMoney2(sum)}`);
     }
+    if (moneyOrdersTab > 0) savedParts.push(`Money orders ${fmtMoney2(moneyOrdersTab)}`);
   }
   const enteredCount = rows.filter(
     (r) => r.saved_total > 0 || savedServices.some((s) => s.company === r.company),
@@ -1440,6 +1425,9 @@ function ServicesWidget({
         }
       }
       await replaceMTBreakdown(storeId, date, writeRows, writeServices);
+      // The money order fee is a report field: it saves with the
+      // day's form, the same way the Fees box saves its fields.
+      await persist();
       // money_transfer was mirrored server-side; refresh the report
       // (drives the tile total + Money In) and the breakdown query
       // (re-hydrates the modal from the saved rows).
@@ -1459,7 +1447,7 @@ function ServicesWidget({
   }
 
   const isLoading = breakdown.isLoading || breakdown.data == null;
-  const activeService = tab === "transfer" ? null : tab;
+  const activeService = tab === "transfer" || tab === "money_order" ? null : tab;
 
   return (
     <>
@@ -1487,7 +1475,7 @@ function ServicesWidget({
         title={
           <>
             Services
-            <InfoTip text="Money transfers, bill payments, top-ups and recharges by company. The grand total saves to this day's Services line and flows into Money In." />
+            <InfoTip text="Money transfers, bill payments, top-ups and recharges by company, plus money orders. Everything here flows into Money In." />
           </>
         }
         onClose={() => { setOpen(false); setErr(null); }}
@@ -1495,10 +1483,6 @@ function ServicesWidget({
         <div className={styles.lineModalBody}>
           {isLoading ? (
             <Loading />
-          ) : rows.length === 0 ? (
-            <p className={styles.emptyEntries}>
-              No companies configured for this store.
-            </p>
           ) : (
             <>
               <TabsBar>
@@ -1517,128 +1501,165 @@ function ServicesWidget({
                     {k.label} · {fmtMoney2(serviceTotal(k.key))}
                   </TabsButton>
                 ))}
+                <TabsButton
+                  active={tab === "money_order"}
+                  onClick={() => setTab("money_order")}
+                >
+                  Money orders · {fmtMoney2(moneyOrdersTab)}
+                </TabsButton>
               </TabsBar>
 
-              <div style={{ overflowX: "auto" }}>
-                {activeService === null ? (
-                  <table className={styles.mtTable}>
-                    <thead>
-                      <tr>
-                        <th className={styles.mtTh}>Company</th>
-                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Amount</th>
-                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fees</th>
-                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Federal tax</th>
-                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Commission</th>
-                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((r) => (
-                        <MTEditableRow
-                          key={r.company}
-                          row={r}
-                          draft={drafts.get(r.company) ?? emptyDraft()}
-                          locked={locked}
-                          onCellChange={(cell, value) => setCell(r.company, cell, value)}
-                        />
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
-                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                          {fmtMoney2(sumDraftField(drafts, "amount"))}
-                        </td>
-                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                          {fmtMoney2(sumDraftField(drafts, "fees"))}
-                        </td>
-                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                          {fmtMoney2(sumDraftField(drafts, "federal_tax"))}
-                        </td>
-                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                          {fmtMoney2(sumDraftField(drafts, "commission"))}
-                        </td>
-                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
-                          {fmtMoney2(transferTotal)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                ) : (
-                  <table className={styles.mtTable}>
-                    <thead>
-                      <tr>
-                        <th className={styles.mtTh}>Company</th>
-                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Amount</th>
-                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fee</th>
-                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {companies.map((co) => {
-                        const d = svcDraft(activeService, co);
-                        return (
-                          <tr key={co}>
-                            <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>
-                              <span style={{ color: companyAccent(co) }}>•</span>{" "}
-                              {co}
+              {tab === "money_order" ? (
+                <>
+                  <div className={styles.widgetAddRow}>
+                    <div className={styles.addRowAmount}>
+                      <MoneyInput
+                        label="Money order fees"
+                        value={form.money_order_fees}
+                        onChange={(v) => set("money_order_fees", v)}
+                        disabled={locked}
+                      />
+                    </div>
+                  </div>
+                  {/* One aggregate entry for the day or one per money
+                      order, whichever the operator prefers. */}
+                  <LineItemEntriesEditor
+                    kind="money_order"
+                    readOnly={locked}
+                    items={moneyOrderItems}
+                    storeId={storeId}
+                    date={date}
+                    onChange={onChange}
+                  />
+                </>
+              ) : rows.length === 0 ? (
+                <p className={styles.emptyEntries}>
+                  No companies configured for this store.
+                </p>
+              ) : (
+                <>
+                  <div style={{ overflowX: "auto" }}>
+                    {activeService === null ? (
+                      <table className={styles.mtTable}>
+                        <thead>
+                          <tr>
+                            <th className={styles.mtTh}>Company</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>Amount</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fees</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>Federal tax</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>Commission</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((r) => (
+                            <MTEditableRow
+                              key={r.company}
+                              row={r}
+                              draft={drafts.get(r.company) ?? emptyDraft()}
+                              locked={locked}
+                              onCellChange={(cell, value) => setCell(r.company, cell, value)}
+                            />
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                              {fmtMoney2(sumDraftField(drafts, "amount"))}
                             </td>
-                            <MTCellInput
-                              value={d.amount}
-                              onChange={(v) => setSvcCell(activeService, co, "amount", v)}
-                              locked={locked}
-                            />
-                            <MTCellInput
-                              value={d.fees}
-                              onChange={(v) => setSvcCell(activeService, co, "fees", v)}
-                              locked={locked}
-                            />
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                              {fmtMoney2(sumDraftField(drafts, "fees"))}
+                            </td>
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                              {fmtMoney2(sumDraftField(drafts, "federal_tax"))}
+                            </td>
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                              {fmtMoney2(sumDraftField(drafts, "commission"))}
+                            </td>
                             <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
-                              {fmtMoney2((Number(d.amount) || 0) + (Number(d.fees) || 0))}
+                              {fmtMoney2(transferTotal)}
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
-                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                          {fmtMoney2(companies.reduce(
-                            (s, co) => s + (Number(svcDraft(activeService, co).amount) || 0), 0))}
-                        </td>
-                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                          {fmtMoney2(companies.reduce(
-                            (s, co) => s + (Number(svcDraft(activeService, co).fees) || 0), 0))}
-                        </td>
-                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
-                          {fmtMoney2(serviceTotal(activeService))}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                )}
-              </div>
+                        </tfoot>
+                      </table>
+                    ) : (
+                      <table className={styles.mtTable}>
+                        <thead>
+                          <tr>
+                            <th className={styles.mtTh}>Company</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>Amount</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fee</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {companies.map((co) => {
+                            const d = svcDraft(activeService, co);
+                            return (
+                              <tr key={co}>
+                                <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>
+                                  <span style={{ color: companyAccent(co) }}>•</span>{" "}
+                                  {co}
+                                </td>
+                                <MTCellInput
+                                  value={d.amount}
+                                  onChange={(v) => setSvcCell(activeService, co, "amount", v)}
+                                  locked={locked}
+                                />
+                                <MTCellInput
+                                  value={d.fees}
+                                  onChange={(v) => setSvcCell(activeService, co, "fees", v)}
+                                  locked={locked}
+                                />
+                                <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
+                                  {fmtMoney2((Number(d.amount) || 0) + (Number(d.fees) || 0))}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                              {fmtMoney2(companies.reduce(
+                                (s, co) => s + (Number(svcDraft(activeService, co).amount) || 0), 0))}
+                            </td>
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                              {fmtMoney2(companies.reduce(
+                                (s, co) => s + (Number(svcDraft(activeService, co).fees) || 0), 0))}
+                            </td>
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
+                              {fmtMoney2(serviceTotal(activeService))}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    )}
+                  </div>
 
-              <PanelTitle>
-                By company
-                <InfoTip text="Each company's transfers and services together — the number to check against that company's cash drop." />
-              </PanelTitle>
-              <table className={styles.mtTable} aria-label="Total by company">
-                <tbody>
-                  {companies.map((co) => (
-                    <tr key={co}>
-                      <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>
-                        <span style={{ color: companyAccent(co) }}>•</span>{" "}
-                        {co}
-                      </td>
-                      <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
-                        {fmtMoney2(companyTotal(co))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  <PanelTitle>
+                    By company
+                    <InfoTip text="Each company's transfers and services together — the number to check against that company's cash drop." />
+                  </PanelTitle>
+                  <table className={styles.mtTable} aria-label="Total by company">
+                    <tbody>
+                      {companies.map((co) => (
+                        <tr key={co}>
+                          <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>
+                            <span style={{ color: companyAccent(co) }}>•</span>{" "}
+                            {co}
+                          </td>
+                          <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
+                            {fmtMoney2(companyTotal(co))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
             </>
           )}
 
