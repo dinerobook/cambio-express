@@ -893,6 +893,12 @@ def session_status_route(
     switched into a store — sub resolves to the owner row) and
     superadmin are never restricted.
 
+    ``timezone`` is the IANA zone every date and time in the SPA
+    renders in, and the zone "today" is read in: the store's
+    (Settings → General), else the person's own (store-less
+    principals: superadmin, owner portfolio), else "" — the
+    device's zone.
+
     ``permissions`` is the principal's LIVE effective list — the
     same resolution ``permissions_for`` bakes into a token at login,
     read from Casbin now. The SPA gates its nav and routes on the
@@ -908,6 +914,7 @@ def session_status_route(
     from api.Modules.Billing.Services.feature_flags import (
         enabled_module_flags_for_user,
     )
+    from api.Core.Clock import display_timezone
     from api.Modules.Billing.Services.trial import trial_banner
     from api.Modules.Tenancy.Models import Store, User
     store_id = claims.get("store_id")
@@ -933,6 +940,7 @@ def session_status_route(
         ),
         "plan": (store.plan or "") if store is not None else "",
         "store_name": (store.name or "") if store is not None else "",
+        "timezone": display_timezone(store, user),
         "business_type": (
             (store.business_type or "msb_hybrid")
             if store is not None else ""

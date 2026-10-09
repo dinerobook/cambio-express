@@ -18,6 +18,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import local_today
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
 from typing import Any
@@ -463,12 +464,12 @@ def _admin_summary(
     from api.Modules.Owners.Services import OWNER_TRANSFER_EXCLUDED
     from api.Modules.Transfers.Models import Transfer
     from api.Modules.Transfers.Services import store_mt_companies
-    today = date.today()
-    month_start = date(today.year, today.month, 1)
-
     store = db.get(Store, store_id)
     if store is None:
         raise HTTPException(status_code=404, detail="Store not found.")
+    # The store's calendar day, not the server's UTC one.
+    today = local_today(store.timezone)
+    month_start = date(today.year, today.month, 1)
 
     # The dashboard is module-driven (P1-10): each enabled module
     # contributes its section; disabled modules cost zero queries.
@@ -667,8 +668,8 @@ def _employee_summary(
     def _can(resource: str) -> bool:
         return has_permission(claims, resource, "read")
 
-    today = date.today()
     store = db.get(Store, store_id)
+    today = local_today(store.timezone if store is not None else None)
     modules = enabled_module_flags(db, store)
     rows = []
     if "module_money_services" in modules and _can("transfers"):

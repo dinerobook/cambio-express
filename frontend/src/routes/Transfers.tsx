@@ -13,6 +13,7 @@ import {
   tdStyle, thStyle,
 } from "../components/ui";
 import styles from "./Transfers.module.css";
+import { formatTime } from "../lib/datetime";
 
 // Poll the transfers list this often so two cashiers sharing one
 // employee login on different machines see each other's edits
@@ -247,7 +248,5 @@ function formatSyncTime(ms: number): string {
   if (!ms) return "—";
   const diff = Date.now() - ms;
   if (diff < 60_000) return "just now";
-  return new Date(ms).toLocaleTimeString(undefined, {
-    hour: "numeric", minute: "2-digit",
-  });
+  return formatTime(new Date(ms));
 }

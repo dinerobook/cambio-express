@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  MONTH_NAMES, MONTH_NAMES_SHORT, daysAgoIso, formatDate, monthStartIso,
-  toIsoDate, todayIso,
+  MONTH_NAMES, MONTH_NAMES_SHORT, daysAgoIso, formatDate, formatDateCompact,
+  formatDateTime, formatDayLabel, formatShortDate, formatTime, formatTimestamp,
+  getDisplayTimezone, monthStartIso, parseTimestamp, setDisplayTimezone,
+  storeNow, toIsoDate, todayIso, utcToZonedInput, zonedInputToUtcIso,
 } from "./datetime";
 import { fmtMoney, fmtMoney2 } from "./formatters";
 
@@ -95,5 +97,147 @@ describe("MONTH_NAMES", () => {
     MONTH_NAMES.forEach((name, i) => {
       expect(name.startsWith(MONTH_NAMES_SHORT[i])).toBe(true);
     });
+  });
+});
+
+
+// ── Store timezone ────────────────────────────────────────────
+//
+// The server stores naive UTC and sends it with no offset. The bug
+// the owner saw: an employee locked the daily book at 10:00 in
+// Chicago and the app showed 3:00 PM, because `new Date(naive)`
+// read the UTC wall clock as local time.
+
+describe("parseTimestamp", () => {
+  it("reads an offset-less API timestamp as UTC", () => {
+    expect(parseTimestamp("2026-10-09T15:00:00")?.toISOString())
+      .toBe("2026-10-09T15:00:00.000Z");
+    // Python isoformat() microseconds, and a space separator.
+    expect(parseTimestamp("2026-10-09T15:00:00.123456")?.toISOString())
+      .toBe("2026-10-09T15:00:00.123Z");
+    expect(parseTimestamp("2026-10-09 15:00")?.toISOString())
+      .toBe("2026-10-09T15:00:00.000Z");
+  });
+
+  it("keeps an explicit offset", () => {
+    expect(parseTimestamp("2026-10-09T15:00:00Z")?.toISOString())
+      .toBe("2026-10-09T15:00:00.000Z");
+    expect(parseTimestamp("2026-10-09T10:00:00-05:00")?.toISOString())
+      .toBe("2026-10-09T15:00:00.000Z");
+  });
+
+  it("returns null for empty or garbage input", () => {
+    expect(parseTimestamp("")).toBeNull();
+    expect(parseTimestamp(null)).toBeNull();
+    expect(parseTimestamp("not-a-date")).toBeNull();
+  });
+});
+
+describe("display timezone", () => {
+  it("renders the reported lock time on the store's clock", () => {
+    setDisplayTimezone("America/Chicago");
+    expect(formatDateTime("2026-10-09T15:00:00")).toBe("Oct 9, 10:00 AM");
+    expect(formatTime("2026-10-09T15:00:00")).toBe("10:00 AM");
+    expect(formatTimestamp("2026-10-09T15:00:00"))
+      .toBe("Oct 9, 2026, 10:00 CDT");
+  });
+
+  it("follows a different store's zone", () => {
+    setDisplayTimezone("America/Los_Angeles");
+    expect(formatTime("2026-10-09T15:00:00")).toBe("8:00 AM");
+    expect(formatTimestamp("2026-01-09T15:00:00"))
+      .toBe("Jan 9, 2026, 07:00 PST");
+  });
+
+  it("dates a late-evening timestamp on the store's day, not UTC's", () => {
+    setDisplayTimezone("America/New_York");
+    // 02:30 UTC on Oct 10 is 22:30 on Oct 9 in New York.
+    expect(formatDate("2026-10-10T02:30:00")).toBe("Oct 9, 2026");
+    expect(formatShortDate("2026-10-10T02:30:00")).toBe("Oct 9");
+    expect(formatDateCompact("2026-10-10T02:30:00")).toBe("10/09/26");
+  });
+
+  it("never shifts a bare calendar day", () => {
+    setDisplayTimezone("Pacific/Honolulu");
+    expect(formatDate("2026-10-09")).toBe("Oct 9, 2026");
+    expect(formatShortDate("2026-10-09")).toBe("Oct 9");
+    expect(formatDayLabel("2026-10-09")).toBe("Fri, Oct 9, 2026");
+    expect(formatDateTime("2026-10-09")).toBe("Oct 9");
+  });
+
+  it("an explicit zone wins over the display zone", () => {
+    setDisplayTimezone("America/Chicago");
+    expect(formatTime("2026-10-09T15:00:00", { timeZone: "UTC" }))
+      .toBe("3:00 PM");
+  });
+
+  it("ignores blank and unknown zones", () => {
+    setDisplayTimezone("Not/AZone");
+    expect(getDisplayTimezone()).toBeUndefined();
+    setDisplayTimezone("  ");
+    expect(getDisplayTimezone()).toBeUndefined();
+    setDisplayTimezone("America/Chicago");
+    expect(getDisplayTimezone()).toBe("America/Chicago");
+    setDisplayTimezone(null);
+    expect(getDisplayTimezone()).toBeUndefined();
+  });
+
+  it("remembers the zone on this device for the next load", () => {
+    setDisplayTimezone("America/Denver");
+    expect(localStorage.getItem("dinerobook.display_tz")).toBe("America/Denver");
+    setDisplayTimezone("");
+    expect(localStorage.getItem("dinerobook.display_tz")).toBeNull();
+  });
+});
+
+describe("store-local today", () => {
+  // 01:30 UTC on Oct 10 — still Oct 9 (evening) in every US zone.
+  const utcAfterMidnight = new Date(Date.UTC(2026, 9, 10, 1, 30));
+
+  it("todayIso is the store's day", () => {
+    setDisplayTimezone("America/Chicago");
+    expect(todayIso(utcAfterMidnight)).toBe("2026-10-09");
+    setDisplayTimezone("Asia/Manila");
+    expect(todayIso(utcAfterMidnight)).toBe("2026-10-10");
+  });
+
+  it("daysAgoIso and monthStartIso step from the store's day", () => {
+    setDisplayTimezone("America/Chicago");
+    expect(daysAgoIso(9, utcAfterMidnight)).toBe("2026-09-30");
+    expect(daysAgoIso(-1, utcAfterMidnight)).toBe("2026-10-10");
+    expect(monthStartIso(new Date(Date.UTC(2026, 10, 1, 3, 0))))
+      .toBe("2026-10-01");
+  });
+
+  it("storeNow reads the store's wall clock in its local fields", () => {
+    setDisplayTimezone("America/Chicago");
+    const n = storeNow(utcAfterMidnight);
+    expect([n.getFullYear(), n.getMonth() + 1, n.getDate(), n.getHours(), n.getMinutes()])
+      .toEqual([2026, 10, 9, 20, 30]);
+  });
+});
+
+describe("datetime-local inputs on the store clock", () => {
+  it("round-trips a punch time without drifting", () => {
+    setDisplayTimezone("America/Chicago");
+    expect(utcToZonedInput("2026-10-09T15:00:00")).toBe("2026-10-09T10:00");
+    expect(zonedInputToUtcIso("2026-10-09T10:00")).toBe("2026-10-09T15:00:00.000Z");
+    // Saving the prefilled value unchanged keeps the same instant
+    // (the old copy moved an edited punch by the UTC offset).
+    expect(zonedInputToUtcIso(utcToZonedInput("2026-10-09T15:00:00")))
+      .toBe("2026-10-09T15:00:00.000Z");
+  });
+
+  it("uses the right offset on each side of a DST change", () => {
+    setDisplayTimezone("America/New_York");
+    expect(zonedInputToUtcIso("2026-11-01T00:30")).toBe("2026-11-01T04:30:00.000Z");
+    expect(zonedInputToUtcIso("2026-11-01T12:00")).toBe("2026-11-01T17:00:00.000Z");
+  });
+
+  it("returns blank for blank or malformed input", () => {
+    expect(zonedInputToUtcIso("")).toBe("");
+    expect(zonedInputToUtcIso("10:00")).toBe("");
+    expect(utcToZonedInput("")).toBe("");
+    expect(utcToZonedInput("garbage")).toBe("");
   });
 });

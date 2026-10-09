@@ -13,13 +13,9 @@ import styles from "./AuditTable.module.css";
  *  Rows written while a superadmin was signed in as someone carry
  *  "(via superadmin …)" inside `user_name`; nothing to do here. */
 export function AuditTable({
-  rows, userTimezone, storeTimezone,
+  rows,
 }: {
   rows: AdminAuditRow[];
-  /** The viewer's timezone (profile) — blank falls back to the
-   *  store's, then the browser's. */
-  userTimezone: string;
-  storeTimezone: string;
 }) {
   return (
     <Table>
@@ -38,7 +34,7 @@ export function AuditTable({
           <tr key={`${r.source}-${r.ts}-${r.target_id}-${i}`}>
             <td style={tdStyle}>
               <span className={styles.monoMuted}>
-                {formatTimestamp(r.ts, { userTimezone, storeTimezone })}
+                {formatTimestamp(r.ts)}
               </span>
             </td>
             <td style={tdStyle}>

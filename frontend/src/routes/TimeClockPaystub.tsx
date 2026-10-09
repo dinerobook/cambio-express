@@ -1,7 +1,7 @@
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { usePaystub } from "../api/timeclock";
-import { useProfile, useStoreInfo } from "../api/account";
+import { useStoreInfo } from "../api/account";
 import { formatTimestamp } from "../lib/datetime";
 import {
   Breadcrumbs, Button, ErrorState, Loading, PageShell,
@@ -25,10 +25,7 @@ export default function TimeClockPaystub() {
   const to   = sp.get("to") ?? "";
 
   const identity = getCurrentIdentity();
-  const { data: profile }   = useProfile();
   const { data: storeInfo } = useStoreInfo();
-  const userTz   = profile?.timezone ?? "";
-  const storeTz  = storeInfo?.store?.timezone ?? "";
 
   const canView = identity?.role === "admin"
                   || identity?.role === "owner"
@@ -158,15 +155,11 @@ export default function TimeClockPaystub() {
             {data.shifts.map((s) => (
               <tr key={s.id}>
                 <td className={styles.mono}>
-                  {formatTimestamp(s.clock_in_at, {
-                    userTimezone: userTz, storeTimezone: storeTz,
-                  })}
+                  {formatTimestamp(s.clock_in_at)}
                 </td>
                 <td className={styles.mono}>
                   {s.clock_out_at
-                    ? formatTimestamp(s.clock_out_at, {
-                        userTimezone: userTz, storeTimezone: storeTz,
-                      })
+                    ? formatTimestamp(s.clock_out_at)
                     : "—"}
                 </td>
                 <td className={styles.mono}>
@@ -188,7 +181,7 @@ export default function TimeClockPaystub() {
           Only <strong>approved</strong> shifts count toward gross pay.
           Pending / rejected / open rows appear in the itemised list
           so the operator can spot anything the admin still needs to
-          review. Generated {new Date().toLocaleString()}.
+          review. Generated {formatTimestamp(new Date().toISOString())}.
         </div>
       </div>
     </PageShell>

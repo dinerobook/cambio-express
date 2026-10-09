@@ -29,7 +29,9 @@ import {
 } from "../api/dailybook";
 import { useSessionStatus, useStoreInfo } from "../api/account";
 import { fmtMoney2 } from "../lib/formatters";
-import { addDaysIso } from "../lib/datetime";
+import {
+  addDaysIso, formatDateTime, formatDayLabel, formatTime, parseTimestamp,
+} from "../lib/datetime";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
@@ -424,7 +426,7 @@ export default function EditDailyBook() {
         <div className={styles.toolbarLead}>
           <Breadcrumbs crumbs={[
             { label: "Daily book", to: "/daily" },
-            { label: formatHumanDate(date) },
+            { label: formatDayLabel(date) },
           ]} />
         </div>
 
@@ -550,7 +552,7 @@ function DayStepper({
       >
         <ChevronLeftIcon />
       </button>
-      <span className={styles.stepDate}>{formatHumanDate(date)}</span>
+      <span className={styles.stepDate}>{formatDayLabel(date)}</span>
       <button
         type="button"
         className={styles.stepBtn}
@@ -2604,26 +2606,9 @@ function buildInitialForm(r: DailyReportRow | null | undefined): FormState {
 // `fmtMoney` retired alongside the TabBar — was only used for the
 // fmtMoney2 imported from lib/formatters (was local, consolidated).
 
-function formatHumanDate(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return iso;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return d.toLocaleDateString(undefined, {
-    weekday: "short", month: "short", day: "numeric", year: "numeric",
-  });
-}
-
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
+// The lock stamp is a UTC timestamp: shown on the store's clock.
 function formatLockedAt(iso: string | undefined): string {
-  if (!iso) return "locked";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "locked";
-  return d.toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-  });
+  return iso && parseTimestamp(iso) ? formatDateTime(iso) : "locked";
 }
 
 

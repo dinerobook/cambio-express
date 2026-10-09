@@ -29,35 +29,5 @@ export function fmtNumber(n: number | null | undefined): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
-/** Short date: "May 7" or "May 7, 2026" — good for chart labels
- *  and compact table cells. */
-export function fmtShortDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short", day: "numeric",
-    });
-  } catch { return iso; }
-}
-
-/** Date + time: "May 7, 12:50 AM" — good for activity feeds
- *  and logs where time matters. */
-export function fmtDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-  } catch { return iso; }
-}
-
-/** Compact date: "05/26/26" (MM/DD/YY) — for dense report tables. */
-export function fmtDateCompact(iso: string | null | undefined): string {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "2-digit", day: "2-digit", year: "2-digit",
-    });
-  } catch { return iso ?? ""; }
-}
+// Date and time formatters live in lib/datetime.ts (store
+// timezone, UTC parsing of API timestamps).

@@ -1,101 +1,197 @@
 // Date / time rendering helpers.
 //
 // Single source of truth for "what timezone do we render in?"
-// across the SPA. The fallback chain (per BACKLOG "Store
-// timezone") is:
+// across the SPA: the STORE's timezone (Settings → General). The
+// shell sets it once from session-status (`setDisplayTimezone`,
+// see `DisplayTimezoneSync` in AppShell) and every helper below
+// reads it, so a page never threads a timezone through props.
+// The server picks the zone: the store's, else the person's own
+// (store-less principals: superadmin, owner portfolio), else ""
+// — and "" means "the device's timezone".
 //
-//   user.timezone → store.timezone → browser default
-//
-// Both upstream sources are optional (an admin who hasn't set
-// either falls through to whatever `toLocaleString` picks). We
-// resolve once per render — pass an explicit ``timezone`` if the
-// caller already knows it; otherwise the helper picks the best
-// available.
+// The server stores every timestamp as NAIVE UTC and serialises
+// it without an offset ("2026-10-09T15:00:00"). JavaScript reads
+// an offset-less date-time as LOCAL time, which shifted every
+// time in the app by the browser's UTC offset (a 10:00 lock in
+// Chicago read 3:00 PM). `parseTimestamp` is the one parser that
+// reads those strings as UTC — never `new Date(apiString)`.
 
-const _MONTH_LONG_FMT = (timezone?: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: timezone || undefined,
-  });
+// Last known zone, per device, so the first paint after a reload
+// is already right while session-status is in flight.
+const _TZ_CACHE_KEY = "dinerobook.display_tz";
 
-const _DATE_ONLY_FMT = (timezone?: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: timezone || undefined,
-  });
+let _displayTz: string | undefined = (() => {
+  try {
+    const cached = localStorage.getItem(_TZ_CACHE_KEY) || "";
+    return cached && isValidTimezone(cached) ? cached : undefined;
+  } catch {
+    return undefined;
+  }
+})();
 
+function isValidTimezone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-/** Resolve the active timezone. Empty / undefined values fall
- *  through to the next layer. ``undefined`` return means
- *  "use the browser default" (Intl skips ``timeZone`` then). */
-function resolveTimezone(
-  userTimezone?: string | null,
-  storeTimezone?: string | null,
-): string | undefined {
-  const u = (userTimezone || "").trim();
-  if (u) return u;
-  const s = (storeTimezone || "").trim();
-  if (s) return s;
-  return undefined;
+/** Set the timezone every helper renders in. Blank or unknown
+ *  values clear it (the device's timezone is used). */
+export function setDisplayTimezone(tz: string | null | undefined): void {
+  const t = (tz || "").trim();
+  _displayTz = t && isValidTimezone(t) ? t : undefined;
+  try {
+    if (_displayTz) localStorage.setItem(_TZ_CACHE_KEY, _displayTz);
+    else localStorage.removeItem(_TZ_CACHE_KEY);
+  } catch {
+    // Storage blocked (private mode) — the in-memory zone still works.
+  }
+}
+
+/** The timezone the helpers render in; ``undefined`` = the device's. */
+export function getDisplayTimezone(): string | undefined {
+  return _displayTz;
+}
+
+/** An explicit per-call zone wins; otherwise the display zone. */
+function zoneFor(timeZone?: string | null): string | undefined {
+  const t = (timeZone || "").trim();
+  if (t && isValidTimezone(t)) return t;
+  return _displayTz;
+}
+
+const _NAIVE_DATETIME =
+  /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)(\.\d+)?$/;
+const _DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Parse an API timestamp. Offset-less date-times are UTC (how the
+ *  server stores them); strings with ``Z`` / ``+hh:mm`` keep their
+ *  offset. Returns ``null`` for empty or unparseable input. Bare
+ *  ``YYYY-MM-DD`` days are not instants — use ``formatDate``. */
+export function parseTimestamp(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const s = iso.trim();
+  const m = _NAIVE_DATETIME.exec(s);
+  // Python's isoformat() can carry microseconds; keep milliseconds.
+  const v = m ? `${m[1]}T${m[2]}${(m[3] || "").slice(0, 4)}Z` : s;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function fmt(
+  d: Date, opts: Intl.DateTimeFormatOptions, timeZone?: string | null,
+): string {
+  return new Intl.DateTimeFormat("en-US", {
+    ...opts, timeZone: zoneFor(timeZone),
+  }).format(d);
+}
+
+/** A bare ``YYYY-MM-DD`` names a calendar day, not an instant: it
+ *  renders as that day verbatim, never shifted by a timezone. */
+function calendarDay(iso: string): Date | null {
+  if (!_DATE_ONLY.test(iso)) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12));
+}
+
+type TzOpt = { timeZone?: string | null };
+
+function render(
+  iso: string | null | undefined,
+  opts: Intl.DateTimeFormatOptions,
+  o: TzOpt,
+  empty = "—",
+): string {
+  if (!iso) return empty;
+  const day = calendarDay(iso);
+  if (day) {
+    // Calendar days: format in UTC so the day never moves.
+    const dayOpts = { ...opts };
+    delete dayOpts.hour; delete dayOpts.minute; delete dayOpts.hourCycle;
+    delete dayOpts.timeZoneName;
+    return new Intl.DateTimeFormat("en-US", { ...dayOpts, timeZone: "UTC" })
+      .format(day);
+  }
+  const d = parseTimestamp(iso);
+  if (!d) return iso;
+  return fmt(d, opts, o.timeZone);
 }
 
 
-/** Format a UTC ISO-8601 timestamp ("2026-05-09T17:42:00Z") for
- *  display. Includes a TZ suffix so the reader can tell where
- *  the displayed time is grounded.
- *
- *  ``May 09, 2026 17:42 CST``   (when timezone resolves to America/Chicago)
- *  ``May 09, 2026 17:42 UTC``   (fallback when nothing is set)
- *  ``"—"``                      (empty / unparseable input)
- */
+/** Full timestamp with the zone named, for audit trails and logs:
+ *  ``Oct 9, 2026, 10:00 CDT``. */
 export function formatTimestamp(
-  iso: string | null | undefined,
-  opts: {
-    userTimezone?: string | null;
-    storeTimezone?: string | null;
-  } = {},
+  iso: string | null | undefined, o: TzOpt = {},
 ): string {
   if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const tz = resolveTimezone(opts.userTimezone, opts.storeTimezone);
-  const base = _MONTH_LONG_FMT(tz).format(d);
-  const tzLabel = formatTzAbbrev(d, tz);
+  const d = parseTimestamp(iso);
+  if (!d) return iso;
+  const base = fmt(d, {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit", hourCycle: "h23",
+  }, o.timeZone);
+  const tzLabel = formatTzAbbrev(d, zoneFor(o.timeZone));
   return tzLabel ? `${base} ${tzLabel}` : base;
 }
 
 
-/** Date-only formatter — for column cells where the time of day
- *  doesn't matter and would just clutter the view.
- *
- *  Accepts full timestamps AND bare ``YYYY-MM-DD`` strings. A
- *  bare date names a calendar day, not an instant — it renders
- *  as that day verbatim (no timezone math), because parsing it
- *  as UTC midnight and converting would show the PREVIOUS day
- *  everywhere west of Greenwich. This is the standard cell
- *  formatter (UI-STANDARDS §4); never ``iso.slice(0, 10)``. */
+/** Date-only cell formatter: ``Oct 9, 2026``. Accepts timestamps
+ *  (the store-local day they fall on) AND bare ``YYYY-MM-DD``
+ *  strings (rendered verbatim). The standard cell formatter
+ *  (UI-STANDARDS §4); never ``iso.slice(0, 10)``. */
 export function formatDate(
-  iso: string | null | undefined,
-  opts: {
-    userTimezone?: string | null;
-    storeTimezone?: string | null;
-  } = {},
+  iso: string | null | undefined, o: TzOpt = {},
 ): string {
-  if (!iso) return "—";
-  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
-  const d = new Date(dateOnly ? `${iso}T00:00:00` : iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const tz = dateOnly
-    ? undefined
-    : resolveTimezone(opts.userTimezone, opts.storeTimezone);
-  return _DATE_ONLY_FMT(tz).format(d);
+  return render(iso, { month: "short", day: "numeric", year: "numeric" }, o);
+}
+
+/** Short date: ``Oct 9`` — chart labels and compact cells. */
+export function formatShortDate(
+  iso: string | null | undefined, o: TzOpt = {},
+): string {
+  return render(iso, { month: "short", day: "numeric" }, o);
+}
+
+/** Compact date: ``10/09/26`` — dense report tables. */
+export function formatDateCompact(
+  iso: string | null | undefined, o: TzOpt = {},
+): string {
+  return render(
+    iso, { month: "2-digit", day: "2-digit", year: "2-digit" }, o, "",
+  );
+}
+
+/** Day heading with the weekday: ``Fri, Oct 9, 2026``. */
+export function formatDayLabel(
+  iso: string | null | undefined, o: TzOpt = {},
+): string {
+  return render(iso, {
+    weekday: "short", month: "short", day: "numeric", year: "numeric",
+  }, o);
+}
+
+/** Date and time without the year: ``Oct 9, 10:00 AM`` — activity
+ *  feeds, "locked at", "as of". */
+export function formatDateTime(
+  iso: string | null | undefined, o: TzOpt = {},
+): string {
+  return render(iso, {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  }, o);
+}
+
+/** Time of day only: ``10:00 AM``. Accepts an API timestamp or a
+ *  ``Date`` (e.g. "saved at" stamps taken in the browser). */
+export function formatTime(
+  value: string | Date | null | undefined, o: TzOpt = {},
+): string {
+  if (!value) return "—";
+  const d = value instanceof Date ? value : parseTimestamp(value);
+  if (!d) return typeof value === "string" ? value : "—";
+  return fmt(d, { hour: "numeric", minute: "2-digit" }, o.timeZone);
 }
 
 
@@ -113,10 +209,11 @@ export const MONTH_NAMES_SHORT = [
 ] as const;
 
 
-/** A ``Date`` as the ``YYYY-MM-DD`` calendar day it falls on in the
- *  browser's local timezone. The one way to turn a Date into a date
- *  string: ``toISOString().slice(0, 10)`` reads the UTC day, which is
- *  already tomorrow for a US store after about 7pm. */
+/** A ``Date`` built from calendar fields (a picker click, a grid
+ *  cell) as ``YYYY-MM-DD``, read from its LOCAL fields. Not for
+ *  "now": use ``todayIso`` / ``storeNow``, which follow the store's
+ *  timezone. ``toISOString().slice(0, 10)`` reads the UTC day,
+ *  which is already tomorrow for a US store after about 7pm. */
 export function toIsoDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -125,24 +222,83 @@ export function toIsoDate(d: Date): string {
 }
 
 
-/** Today's local calendar day as ``YYYY-MM-DD``. */
+interface ZonedParts {
+  year: number; month: number; day: number;
+  hour: number; minute: number; second: number;
+}
+
+function zonedParts(d: Date, tz: string | undefined): ZonedParts {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(d);
+  const n = (t: string) =>
+    Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return {
+    year: n("year"), month: n("month"), day: n("day"),
+    hour: n("hour") % 24, minute: n("minute"), second: n("second"),
+  };
+}
+
+/** The store's wall clock now, as a ``Date`` whose LOCAL fields
+ *  (getFullYear / getMonth / getDate / getHours) read the store's
+ *  date and time. For calendar math — "this month", "this week" —
+ *  never for display or for sending to the server. */
+export function storeNow(now: Date = new Date()): Date {
+  const p = zonedParts(now, _displayTz);
+  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+}
+
+/** Today's calendar day in the store's timezone, ``YYYY-MM-DD``. */
 export function todayIso(now: Date = new Date()): string {
-  return toIsoDate(now);
+  return toIsoDate(storeNow(now));
 }
 
 
-/** The local calendar day ``n`` days before ``now`` (negative ``n``
- *  looks ahead), as ``YYYY-MM-DD``. */
+/** The store's calendar day ``n`` days before ``now`` (negative
+ *  ``n`` looks ahead), as ``YYYY-MM-DD``. */
 export function daysAgoIso(n: number, now: Date = new Date()): string {
-  const d = new Date(now);
-  d.setDate(d.getDate() - n);
-  return toIsoDate(d);
+  return addDaysIso(todayIso(now), -n);
 }
 
 
-/** First day of ``now``'s local month as ``YYYY-MM-DD``. */
+/** First day of the store's current month as ``YYYY-MM-DD``. */
 export function monthStartIso(now: Date = new Date()): string {
-  return toIsoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  return `${todayIso(now).slice(0, 8)}01`;
+}
+
+
+/** Offset of ``tz`` from UTC at instant ``d``, in milliseconds. */
+function tzOffsetMs(d: Date, tz: string | undefined): number {
+  const p = zonedParts(d, tz);
+  const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return asUtc - Math.floor(d.getTime() / 1000) * 1000;
+}
+
+/** A ``datetime-local`` input value (``YYYY-MM-DDTHH:mm``), read as
+ *  the store's wall clock, as a UTC ISO string for the API. ``""``
+ *  for blank or malformed input. */
+export function zonedInputToUtcIso(local: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local || "");
+  if (!m) return "";
+  const guess = Date.UTC(
+    Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]),
+  );
+  // Two passes settle the offset across a DST change.
+  let t = guess - tzOffsetMs(new Date(guess), _displayTz);
+  t = guess - tzOffsetMs(new Date(t), _displayTz);
+  return new Date(t).toISOString();
+}
+
+/** An API timestamp as a ``datetime-local`` input value on the
+ *  store's wall clock. ``""`` for empty or unparseable input. */
+export function utcToZonedInput(iso: string | null | undefined): string {
+  const d = parseTimestamp(iso);
+  if (!d) return "";
+  const p = zonedParts(d, _displayTz);
+  const z = (v: number) => String(v).padStart(2, "0");
+  return `${p.year}-${z(p.month)}-${z(p.day)}T${z(p.hour)}:${z(p.minute)}`;
 }
 
 
@@ -205,7 +361,7 @@ export function getOpenStatus(
   now: Date = new Date(),
 ): OpenStatus | null {
   if (!Array.isArray(hours) || hours.length !== 7) return null;
-  const tz = (storeTimezone || "").trim() || undefined;
+  const tz = zoneFor(storeTimezone);
   // Parse the wall-clock weekday + minute-of-day in the target tz.
   // ``Intl.DateTimeFormat`` with a single ``weekday`` part returns
   // English long names; we map back to the ISO 0..6 we store.
@@ -251,11 +407,9 @@ function _toMinutes(value: string): number | null {
 }
 
 
-/** Pull a short timezone abbreviation ("CST", "PST", "UTC") from
- *  an Intl format pass. Falls back to "UTC" when no timezone is
- *  passed (matches the default rendering before the helper). */
+/** Pull a short timezone abbreviation ("CDT", "PST") from an Intl
+ *  format pass. No ``tz`` names the device's own zone. */
 function formatTzAbbrev(d: Date, tz?: string): string {
-  if (!tz) return "UTC";
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: tz,

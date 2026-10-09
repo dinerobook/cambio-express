@@ -16,7 +16,9 @@ stored value in the DB are naive UTC.  Mixing aware + naive in
 comparisons would raise ``TypeError`` at runtime.  When the DB layer
 is ready for aware timestamps, flip the implementation here.
 """
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 def utc_now() -> datetime:
@@ -66,3 +68,43 @@ def iso_or_none(dt: object) -> str | None:
     if hasattr(dt, "isoformat"):
         return dt.isoformat()  # type: ignore[attr-defined]
     return str(dt)
+
+
+def _zone(name: str | None) -> ZoneInfo:
+    """ZoneInfo for an IANA name; blank or unknown names are UTC."""
+    try:
+        return ZoneInfo((name or "").strip() or "UTC")
+    except (ZoneInfoNotFoundError, ValueError):
+        return ZoneInfo("UTC")
+
+
+def local_now(timezone: str | None) -> datetime:
+    """Wall-clock time now in ``timezone`` (naive). Blank or unknown
+    zones read UTC — the server's clock, so a store that never set a
+    timezone keeps exactly the behaviour it had."""
+    return datetime.now(tz=_zone(timezone)).replace(tzinfo=None)
+
+
+def local_today(timezone: str | None) -> date:
+    """Today's calendar day in ``timezone``. Use with the store's
+    ``Store.timezone`` wherever a store-scoped route means "today" —
+    ``date.today()`` reads the server's UTC day, which is already
+    tomorrow for a US store after about 7pm."""
+    return local_now(timezone).date()
+
+
+def display_timezone(store: Any, user: Any) -> str:
+    """The zone the SPA renders every date and time in: the store's
+    (Settings → General), else the person's own (store-less
+    principals), else "" (the device's zone). Unknown names are
+    skipped so a bad value never reaches ``Intl``."""
+    for owner in (store, user):
+        name = str(getattr(owner, "timezone", "") or "").strip()
+        if not name:
+            continue
+        try:
+            ZoneInfo(name)
+        except (ZoneInfoNotFoundError, ValueError):
+            continue
+        return name
+    return ""

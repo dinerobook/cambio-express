@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 
-import { useMyActivity, useProfile, useStoreInfo } from "../api/account";
+import { useMyActivity } from "../api/account";
 import type { MyActivityRow } from "../api/account";
 import { formatTimestamp } from "../lib/datetime";
 import {
@@ -17,10 +17,6 @@ import styles from "./AccountActivity.module.css";
 // store cashier or an owner who works behind the counter).
 
 export default function AccountActivity() {
-  const { data: profile } = useProfile();
-  const { data: storeInfo } = useStoreInfo();
-  const userTz  = profile?.timezone ?? "";
-  const storeTz = storeInfo?.store?.timezone ?? "";
   const [sp, setSP] = useSearchParams();
   const page   = Number(sp.get("page") ?? 1) || 1;
   const target = sp.get("target") ?? "";
@@ -118,11 +114,7 @@ export default function AccountActivity() {
         />
         {data && data.rows.length > 0 && (
           <>
-            <ActivityTable
-              rows={data.rows}
-              userTimezone={userTz}
-              storeTimezone={storeTz}
-            />
+            <ActivityTable rows={data.rows} />
             <Pager
               page={data.page}
               totalPages={data.total_pages}
@@ -138,11 +130,9 @@ export default function AccountActivity() {
 
 
 function ActivityTable({
-  rows, userTimezone, storeTimezone,
+  rows,
 }: {
   rows: MyActivityRow[];
-  userTimezone: string;
-  storeTimezone: string;
 }) {
   return (
     <Table>
@@ -158,7 +148,7 @@ function ActivityTable({
           <tr key={`${r.source}-${r.ts}-${r.target_id}-${i}`}>
             <td style={tdStyle}>
               <span className={styles.monoMuted}>
-                {formatTimestamp(r.ts, { userTimezone, storeTimezone })}
+                {formatTimestamp(r.ts)}
               </span>
             </td>
             <td style={tdStyle}>

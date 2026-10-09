@@ -8,6 +8,7 @@ import {
   clearAccessToken, getCurrentIdentity, syncPermissions,
 } from "../lib/auth";
 import StoreGate from "./StoreGate";
+import { DisplayTimezone } from "./DisplayTimezone";
 import { clearVisits, recordVisit } from "../lib/recency";
 import { reconcileTheme } from "../lib/theme";
 import { AnnouncementBanner } from "./AnnouncementBanner";
@@ -158,7 +159,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         onSignOut={onSignOut}
         onToggleDrawer={() => setDrawerOpen((v) => !v)}
       />
-      <ContentColumn>{children}</ContentColumn>
+      <ContentColumn>
+        <DisplayTimezone timezone={sessionStatus?.timezone}>
+          {children}
+        </DisplayTimezone>
+      </ContentColumn>
       <button
         type="button"
         aria-hidden={!drawerOpen}

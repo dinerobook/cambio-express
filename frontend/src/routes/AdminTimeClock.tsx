@@ -7,10 +7,12 @@ import {
   type TimeClockEntryRow, type TimeClockStatus,
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
-import { updateStoreInfo, useProfile, useStoreInfo } from "../api/account";
+import { updateStoreInfo, useStoreInfo } from "../api/account";
 import { ApiError } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
-import { daysAgoIso, formatDate, formatTimestamp } from "../lib/datetime";
+import {
+  daysAgoIso, formatDate, formatTimestamp, utcToZonedInput, zonedInputToUtcIso,
+} from "../lib/datetime";
 import {
   Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, ErrorState,
@@ -47,17 +49,12 @@ export default function AdminTimeClock() {
   const identity      = getCurrentIdentity();
   const queryClient   = useQueryClient();
   const roster        = useEmployees();
-  const { data: profile }   = useProfile();
   const { data: storeInfo } = useStoreInfo();
-  const userTz   = profile?.timezone ?? "";
-  const storeTz  = storeInfo?.store?.timezone ?? "";
 
   // Default window: today and the prior 13 days (a typical
   // biweekly pay period). ``to`` is half-open per the API.
-  const today = useMemo(() => new Date(), []);
-  const [from, setFrom] = useState(() => daysAgoIso(13, today));
-  const [to,   setTo]   = useState(() =>
-    daysAgoIso(-1, today));   // tomorrow
+  const [from, setFrom] = useState(() => daysAgoIso(13));
+  const [to,   setTo]   = useState(() => daysAgoIso(-1));   // tomorrow
   const [empFilter, setEmpFilter] = useState<number | "">("");
 
   const [modal, setModal] = useState<ModalState>({ kind: "closed" });
@@ -201,17 +198,13 @@ export default function AdminTimeClock() {
                   <tr>
                     <td style={tdStyle}>
                       <span className={styles.mono}>
-                        {formatTimestamp(r.clock_in_at, {
-                          userTimezone: userTz, storeTimezone: storeTz,
-                        })}
+                        {formatTimestamp(r.clock_in_at)}
                       </span>
                     </td>
                     <td style={tdStyle}>
                       <span className={styles.mono}>
                         {r.clock_out_at
-                          ? formatTimestamp(r.clock_out_at, {
-                              userTimezone: userTz, storeTimezone: storeTz,
-                            })
+                          ? formatTimestamp(r.clock_out_at)
                           : <em className={styles.openTag}>in progress</em>}
                       </span>
                     </td>
@@ -550,10 +543,10 @@ function EntryModal({
     row ? row.store_employee_id : (roster[0]?.id ?? ""),
   );
   const [clockIn, setClockIn]   = useState(
-    row ? _toLocalInput(row.clock_in_at) : "",
+    row ? utcToZonedInput(row.clock_in_at) : "",
   );
   const [clockOut, setClockOut] = useState(
-    row && row.clock_out_at ? _toLocalInput(row.clock_out_at) : "",
+    row && row.clock_out_at ? utcToZonedInput(row.clock_out_at) : "",
   );
   const [notes, setNotes]   = useState(row?.notes ?? "");
   const [status, setStatus] = useState<TimeClockStatus>(
@@ -569,10 +562,10 @@ function EntryModal({
       if (isEdit && row) {
         await adminUpdateEntry(row.id, {
           clock_in_at:  clockIn
-            ? new Date(clockIn).toISOString()
+            ? zonedInputToUtcIso(clockIn)
             : undefined,
           clock_out_at: clockOut
-            ? new Date(clockOut).toISOString()
+            ? zonedInputToUtcIso(clockOut)
             : null,
           notes,
           status,
@@ -584,9 +577,9 @@ function EntryModal({
         }
         await adminCreateEntry({
           store_employee_id: Number(empId),
-          clock_in_at:  new Date(clockIn).toISOString(),
+          clock_in_at:  zonedInputToUtcIso(clockIn),
           clock_out_at: clockOut
-            ? new Date(clockOut).toISOString()
+            ? zonedInputToUtcIso(clockOut)
             : null,
           notes,
         });
@@ -686,19 +679,3 @@ function EntryModal({
   );
 }
 
-
-// ── Date utils ──────────────────────────────────────────────
-
-/** Convert a server-side ISO-8601 UTC string into the format
- *  ``<input type="datetime-local">`` expects ("YYYY-MM-DDTHH:MM"
- *  in local time). The form value gets re-converted back to
- *  ISO/UTC on save so the round-trip preserves the wall-clock
- *  the admin saw. */
-function _toLocalInput(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-    + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}

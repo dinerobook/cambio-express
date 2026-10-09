@@ -12,6 +12,7 @@ import {
   Pill, Table, TableStates, tdStyle, thStyle,
 } from "../components/ui";
 import styles from "./SuperadminAuditLog.module.css";
+import { formatTimestamp } from "../lib/datetime";
 
 // Platform-wide superadmin audit log at /app/superadmin/audit-log.
 // Mirrors the legacy /superadmin/reports/audit-log report —
@@ -116,7 +117,7 @@ function AuditTable({ rows }: { rows: SuperadminAuditRow[] }) {
           <tr key={r.id}>
             <td style={tdStyle}>
               <span className={styles.monoMuted}>
-                {r.created_at.replace("T", " ").slice(0, 19)}
+                {formatTimestamp(r.created_at)}
               </span>
             </td>
             <td style={tdStyle}>{r.admin_name || "—"}</td>

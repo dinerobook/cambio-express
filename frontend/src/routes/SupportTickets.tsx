@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { createTicket, TICKET_STATUS_TONES, useMyTickets, type TicketRow } from "../api/support";
 import { TicketThread } from "../components/TicketThread";
-import { fmtDateTime } from "../lib/formatters";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
@@ -14,6 +13,7 @@ import {
   useToast,
 } from "../components/ui";
 import styles from "./SupportTickets.module.css";
+import { formatDateTime } from "../lib/datetime";
 
 const CATEGORIES = [
   { value: "bug", label: "Bug report" },
@@ -192,7 +192,7 @@ function TicketRowView({ ticket: t }: { ticket: TicketRow }) {
             {t.status.replace("_", " ")}
           </Pill>
         </td>
-        <td style={tdStyle}>{fmtDateTime(t.created_at)}</td>
+        <td style={tdStyle}>{formatDateTime(t.created_at)}</td>
       </tr>
       {expanded && (
         <tr>

@@ -9,7 +9,7 @@ import {
   type PunchInput, type TimeClockEntryRow,
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
-import { useStoreInfo, useProfile } from "../api/account";
+import { useStoreInfo } from "../api/account";
 import { ApiError } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
 import { getCurrentCoordinates } from "../lib/geolocation";
@@ -31,10 +31,7 @@ export default function TimeClock() {
   const queryClient   = useQueryClient();
   const roster        = useEmployees();
   const status        = useTimeClockStatus();
-  const { data: profile }   = useProfile();
   const { data: storeInfo } = useStoreInfo();
-  const userTz   = profile?.timezone ?? "";
-  const storeTz  = storeInfo?.store?.timezone ?? "";
   const clockIn   = useClockInMutation();
   const clockOut  = useClockOutMutation();
   const startBrk  = useStartBreakMutation();
@@ -293,9 +290,7 @@ export default function TimeClock() {
                   <td style={tdStyle}>{r.employee_name}</td>
                   <td style={tdStyle}>
                     <span className={styles.mono}>
-                      {formatTimestamp(r.clock_in_at, {
-                        userTimezone: userTz, storeTimezone: storeTz,
-                      })}
+                      {formatTimestamp(r.clock_in_at)}
                     </span>
                   </td>
                   <td style={tdStyle}>{r.notes || "—"}</td>

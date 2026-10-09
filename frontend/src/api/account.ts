@@ -265,6 +265,10 @@ export interface SessionStatus {
   reason:     "frozen" | "subscription" | "";
   plan:       string;
   store_name: string;
+  /** IANA zone every date and time renders in — the store's, else
+   *  the person's own, else "" (the device's). Read by
+   *  `DisplayTimezone` in the shell; pages never read it directly. */
+  timezone: string;
   /** cstore | gas_station | grocery | msb_hybrid ("" for
    *  store-less principals like superadmin). */
   business_type: string;

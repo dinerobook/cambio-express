@@ -19,7 +19,9 @@ import {
 import { useSuperadminStores } from "../api/superadmin";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate } from "../lib/datetime";
+import {
+  formatDate, formatDateTime, formatShortDate, parseTimestamp, zonedInputToUtcIso,
+} from "../lib/datetime";
 import styles from "./SuperadminAnnouncements.module.css";
 
 // Superadmin-only banner CRUD at /app/superadmin/announcements.
@@ -126,12 +128,9 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
         level,
         expires_days: Number(expiresDays) || 0,
         broadcast,
-        // Convert "2026-05-15T14:00" (browser-local) to a real
-        // ISO datetime so the server interprets the correct UTC
-        // instant. Empty stays empty.
-        start_at_iso: scheduleLocal
-          ? new Date(scheduleLocal).toISOString()
-          : "",
+        // "2026-05-15T14:00" is read on the same clock every
+        // other time on screen uses; sent as a UTC instant.
+        start_at_iso: zonedInputToUtcIso(scheduleLocal),
         target_store_ids,
       });
       setMessage(""); setExpiresDays("0"); setBroadcast(false);
@@ -428,24 +427,20 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
 // True when `starts_at` is a parseable future date — drives the
 // "scheduled" status pill on each table row.
 function isScheduledForFuture(iso: string): boolean {
-  if (!iso) return false;
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return false;
-  return t > Date.now();
+  const d = parseTimestamp(iso);
+  return d != null && d.getTime() > Date.now();
 }
 
 // Short, human-readable hint for when the schedule will fire,
 // rendered inside the scheduled status pill.
 function formatScheduleHint(iso: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
+  const d = parseTimestamp(iso);
+  if (!d) return iso;
   const diffMs = d.getTime() - Date.now();
   const diffH = Math.round(diffMs / 3_600_000);
   if (diffH < 24) return `in ${diffH}h`;
-  return d.toLocaleDateString(undefined, {
-    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-  });
+  return formatDateTime(iso);
 }
 
 
@@ -484,11 +479,6 @@ function BroadcastCell({ row }: { row: AnnouncementRow }) {
   if (!row.broadcast_sent_at) {
     return <Pill tone="warning">pending</Pill>;
   }
-  const sent = new Date(row.broadcast_sent_at);
-  const stamp = Number.isNaN(sent.getTime())
-    ? formatDate(row.broadcast_sent_at)
-    : sent.toLocaleDateString(undefined, {
-        month: "short", day: "numeric",
-      });
+  const stamp = formatShortDate(row.broadcast_sent_at);
   return <Pill tone="accent">sent · {stamp}</Pill>;
 }

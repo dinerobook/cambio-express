@@ -10,7 +10,6 @@ import {
   useSaveTVDisplaySettings,
   useTVDisplayOverview,
 } from "../api/tvDisplay";
-import { useProfile, useStoreInfo } from "../api/account";
 import { ApiError } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
 import { AppLink,
@@ -64,14 +63,6 @@ function flagEmoji(iso2: string): string {
   return String.fromCodePoint(
     ...[...code].map((c) => 0x1f1e6 + (c.charCodeAt(0) - 65)),
   );
-}
-
-function formatPairTimestamp(
-  iso: string,
-  userTimezone: string,
-  storeTimezone: string,
-): string {
-  return formatTimestamp(iso, { userTimezone, storeTimezone });
 }
 
 // /app/tv-display — tabbed admin hub.  Layout route: this
@@ -142,15 +133,11 @@ export default function TVDisplayAdmin() {
  *  minimal: existing sub-components are unchanged. */
 export function TVDisplayOverview() {
   const { data } = useTVDisplayOverview();
-  const { data: profile } = useProfile();
-  const { data: storeInfo } = useStoreInfo();
   const regenerateToken = useRegenerateTVDisplayToken();
   if (!data) return null;
-  const userTz = profile?.timezone ?? "";
-  const storeTz = storeInfo?.store?.timezone ?? "";
   return (
     <>
-      <Hero data={data} userTimezone={userTz} storeTimezone={storeTz} />
+      <Hero data={data} />
       <PublicUrlBar
         publicUrl={data.public_url}
         onRegenerate={() => regenerateToken.mutate()}
@@ -180,14 +167,10 @@ export function TVDisplayContent() {
 
 export function TVDisplayDevice() {
   const { data } = useTVDisplayOverview();
-  const { data: profile } = useProfile();
-  const { data: storeInfo } = useStoreInfo();
   const saveSettings = useSaveTVDisplaySettings();
   const claimPair = useClaimTVPairCode();
   const revokePair = useRevokeTVPairing();
   if (!data) return null;
-  const userTz = profile?.timezone ?? "";
-  const storeTz = storeInfo?.store?.timezone ?? "";
   return (
     <>
       <PairFireTV
@@ -197,8 +180,6 @@ export function TVDisplayDevice() {
         claimError={extractClaimError(claimPair.error)}
         claimPending={claimPair.isPending}
         revokePending={revokePair.isPending}
-        userTimezone={userTz}
-        storeTimezone={storeTz}
       />
       <SettingsAndStatsGrid
         data={data}
@@ -213,14 +194,12 @@ export function TVDisplayDevice() {
 // ── Hero ──────────────────────────────────────────────────────
 
 function Hero({
-  data, userTimezone, storeTimezone,
+  data,
 }: {
   data: import("../api/tvDisplay").TVDisplayOverviewResponse;
-  userTimezone: string;
-  storeTimezone: string;
 }) {
   const lastEdited = data.last_updated_at
-    ? formatPairTimestamp(data.last_updated_at, userTimezone, storeTimezone)
+    ? formatTimestamp(data.last_updated_at)
     : null;
   return (
     <section className={styles.hero}>
@@ -357,7 +336,6 @@ function PublicUrlBar({
 function PairFireTV({
   activePairing, onClaim, onRevoke,
   claimError, claimPending, revokePending,
-  userTimezone, storeTimezone,
 }: {
   activePairing: import("../api/tvDisplay").TVPairingSummary | null;
   onClaim: (code: string) => Promise<unknown>;
@@ -365,8 +343,6 @@ function PairFireTV({
   claimError: string | null;
   claimPending: boolean;
   revokePending: boolean;
-  userTimezone: string;
-  storeTimezone: string;
 }) {
   const [code, setCode] = useState("");
   const [flash, setFlash] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
@@ -468,8 +444,8 @@ function PairFireTV({
               {activePairing.device_label ? ` — ${activePairing.device_label}` : ""}
             </b>
             <div className={styles.mutedSmall}>
-              Paired {formatPairTimestamp(activePairing.paired_at, userTimezone, storeTimezone)} · last seen{" "}
-              {formatPairTimestamp(activePairing.last_seen_at, userTimezone, storeTimezone)}
+              Paired {formatTimestamp(activePairing.paired_at)} · last seen{" "}
+              {formatTimestamp(activePairing.last_seen_at)}
             </div>
           </div>
           <Button

@@ -38,6 +38,31 @@ describe("source guards", () => {
     ).toEqual([]);
   });
 
+  it("renders dates and times through lib/datetime", () => {
+    // `toLocaleDateString()` / `toLocaleTimeString()` render on the
+    // DEVICE's clock, and `new Date(apiString)` reads the server's
+    // offset-less UTC timestamps as local time (a 10:00 lock in
+    // Chicago showed 3:00 PM). Use formatDate / formatDateTime /
+    // formatTime / formatTimestamp, and parseTimestamp to compare.
+    expect(
+      offenders(/toLocale(Date|Time)String\(/, ["/datetime.ts"]),
+    ).toEqual([]);
+    expect(
+      offenders(/new Date\([\w.?]*(_at|At|iso)\)/, ["/datetime.ts"]),
+    ).toEqual([]);
+    expect(
+      offenders(/_at\??\.(slice\(0,\s*1[069]\)|replace\("T")/),
+    ).toEqual([]);
+  });
+
+  it("reads datetime-local inputs on the store clock", () => {
+    // `new Date(inputValue).toISOString()` reads the field on the
+    // device's clock; zonedInputToUtcIso reads it on the store's.
+    expect(
+      offenders(/new Date\((clock\w*|schedule\w*|\w*Local)\)\.toISOString/),
+    ).toEqual([]);
+  });
+
   it("keeps one copy of the month names", () => {
     expect(offenders(/"January",\s*"February"/, ["/datetime.ts"])).toEqual([]);
     expect(offenders(/"Jan",\s*"Feb"/, ["/datetime.ts"])).toEqual([]);

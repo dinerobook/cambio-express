@@ -530,3 +530,38 @@ def test_list_rejects_superadmin(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 403
+
+
+# ── Status dates are the store's calendar day ──────────────────
+
+
+def test_status_change_is_dated_on_the_stores_day(
+    client, test_store_id, monkeypatch,
+):
+    """Marked a loss at 9:30pm in Chicago (02:30 UTC the next day):
+    the check is dated that evening's day, not the server's UTC
+    tomorrow."""
+    from datetime import datetime, timezone
+
+    import api.Core.Clock as clock
+    from api.Modules.Tenancy.Models import Store
+
+    class _LateEvening(datetime):
+        @classmethod
+        def now(cls, tz=None):  # type: ignore[override]
+            fixed = datetime(2026, 10, 10, 2, 30, tzinfo=timezone.utc)
+            return fixed.astimezone(tz) if tz else fixed.replace(tzinfo=None)
+
+    with db_session():
+        db.session.get(Store, test_store_id).timezone = "America/Chicago"
+        db.session.commit()
+        rid = _seed_rc(test_store_id, status="pending",
+                       bounced_on_=date(2026, 10, 1))
+    token = _login(client, test_store_id)
+    monkeypatch.setattr(clock, "datetime", _LateEvening)
+    resp = client.post(
+        f"/api/v2/return-checks/{rid}/mark-loss",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["return_check"]["status_changed_on"] == "2026-10-09"

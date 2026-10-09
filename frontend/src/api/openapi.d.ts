@@ -1648,6 +1648,12 @@ export interface paths {
          *     switched into a store — sub resolves to the owner row) and
          *     superadmin are never restricted.
          *
+         *     ``timezone`` is the IANA zone every date and time in the SPA
+         *     renders in, and the zone "today" is read in: the store's
+         *     (Settings → General), else the person's own (store-less
+         *     principals: superadmin, owner portfolio), else "" — the
+         *     device's zone.
+         *
          *     ``permissions`` is the principal's LIVE effective list — the
          *     same resolution ``permissions_for`` bakes into a token at login,
          *     read from Casbin now. The SPA gates its nav and routes on the

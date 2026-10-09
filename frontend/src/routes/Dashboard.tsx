@@ -45,8 +45,10 @@ import { AppLink,
 import { BATCH_STATUS_TONES } from "../api/batches";
 import { TRANSFER_STATUS_TONES } from "../api/transfers";
 import { getCurrentIdentity } from "../lib/auth";
-import { getOpenStatus } from "../lib/datetime";
-import { fmtMoney, fmtMoney2, fmtNumber, fmtShortDate } from "../lib/formatters";
+import {
+  formatDateTime, formatShortDate, formatTime, getOpenStatus, MONTH_NAMES_SHORT,
+} from "../lib/datetime";
+import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
 
 // Role-shaped dashboard. /api/v2/dashboard/summary returns one
 // payload tagged by role; we render the matching panel.
@@ -153,7 +155,7 @@ function Body({ summary }: { summary: DashboardSummary }) {
 // ── Admin ─────────────────────────────────────────────────────
 
 function AdminPanel({ d }: { d: AdminDashboard }) {
-  const monthName = monthShort(d.today);
+  const monthName = MONTH_NAMES_SHORT[Number(d.today.slice(5, 7)) - 1];
   // Module-driven layout (P1-10 → D-1): the dashboard leads with
   // generic STORE numbers (sales, purchases, labor); each module
   // contributes its section; money services is one module section
@@ -178,7 +180,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
             <KpiCard
               label="Yesterday's sales"
               value={fmtMoney2(d.sales.yesterday)}
-              sub={fmtShortDate(d.today)}
+              sub={formatShortDate(d.today)}
             />
             <KpiCard
               label={`Sales (${monthName} to date)`}
@@ -209,7 +211,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
         )}
         {d.lottery && (
           <KpiCard
-            label={`Lottery (${shortDate(d.lottery.date)})`}
+            label={`Lottery (${formatShortDate(d.lottery.date)})`}
             value={fmtMoney2(d.lottery.value)}
             sub={
               d.lottery.uncounted_active_packs > 0
@@ -257,7 +259,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
           sub={
             d.stripe_accounts.length > 0 ? (
               d.stripe_accounts[0].last_balance_as_of ? (
-                `Last sync: ${fmtTime(d.stripe_accounts[0].last_balance_as_of)}`
+                `Last sync: ${formatDateTime(d.stripe_accounts[0].last_balance_as_of)}`
               ) : (
                 "—"
               )
@@ -329,7 +331,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
             <div style={{ height: "16rem" }}>
               <Line
                 data={{
-                  labels: d.sales.trend.map((t) => shortDate(t.date)),
+                  labels: d.sales.trend.map((t) => formatShortDate(t.date)),
                   datasets: [{
                     label: "Sales ($)",
                     data: d.sales.trend.map((t) => t.amount),
@@ -377,7 +379,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                   datasets: [
                     ...(d.sales.hourly.previous
                       ? [{
-                          label: `Previous (${shortDate(d.sales.hourly.previous_date ?? "")})`,
+                          label: `Previous (${formatShortDate(d.sales.hourly.previous_date ?? "")})`,
                           data: d.sales.hourly.previous,
                           borderColor: chartSeries().neutral,
                           borderDash: [6, 4],
@@ -388,7 +390,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                         }]
                       : []),
                     {
-                      label: `Current (${shortDate(d.sales.hourly.current_date)})`,
+                      label: `Current (${formatShortDate(d.sales.hourly.current_date)})`,
                       data: d.sales.hourly.current,
                       borderColor: chartSeries().accent,
                       backgroundColor: seriesFill("positive", 0.12),
@@ -422,7 +424,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
               {d.clocked_in.map((c) => (
                 <Pill key={`${c.name}-${c.clock_in_at}`} tone="accent">
                   {c.name}
-                  {c.clock_in_at ? ` · since ${shortTime(c.clock_in_at)}` : ""}
+                  {c.clock_in_at ? ` · since ${formatTime(c.clock_in_at)}` : ""}
                 </Pill>
               ))}
             </div>
@@ -441,7 +443,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
       <RecentReceipts receipts={d.recent_receipts} />
 
       {d.day_close && d.day_close.top_departments.length > 0 && (
-        <Section title={`Department sales (${shortDate(d.day_close.date)})`}>
+        <Section title={`Department sales (${formatShortDate(d.day_close.date)})`}>
           <div
             style={{
               display: "grid",
@@ -470,7 +472,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
           <KpiCard
             label="Today's transfers"
             value={d.kpis.today_transfers.toLocaleString()}
-            sub={fmtShortDate(d.today)}
+            sub={formatShortDate(d.today)}
             tone="positive"
           />
           <KpiCard
@@ -569,7 +571,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
             <tbody>
               {d.recent_transfers.map((t) => (
                 <tr key={t.id}>
-                  <td style={dashTdStyle}>{shortDate(t.send_date)}</td>
+                  <td style={dashTdStyle}>{formatShortDate(t.send_date)}</td>
                   <td style={dashTdStyle}>{t.sender_name}</td>
                   <td style={dashTdStyle}>{t.company}</td>
                   <td style={{ ...dashTdStyle, fontFamily: tokens.fontMono }}>
@@ -626,7 +628,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
               <tbody>
                 {d.recent_batches.map((b) => (
                   <tr key={b.id}>
-                    <td style={dashTdStyle}>{shortDate(b.ach_date)}</td>
+                    <td style={dashTdStyle}>{formatShortDate(b.ach_date)}</td>
                     <td style={dashTdStyle}>{b.company}</td>
                     <td style={{ ...dashTdStyle, fontFamily: tokens.fontMono }}>
                       {fmtMoney2(b.ach_amount)}
@@ -719,12 +721,12 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
           <KpiCard
             label="Today's transfers"
             value={d.totals.count.toLocaleString()}
-            sub={fmtShortDate(d.today)}
+            sub={formatShortDate(d.today)}
           />
         )}
         {d.day_close && (
           <KpiCard
-            label={`Store sales (${shortDate(d.day_close.date)})`}
+            label={`Store sales (${formatShortDate(d.day_close.date)})`}
             value={fmtMoney2(d.day_close.gross_sales)}
             sub={
               <AppLink to="/store-book" className="ds-link" style={{ color: tokens.accent }}>
@@ -792,7 +794,7 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
               {d.today_transfers.map((t) => (
                 <tr key={t.id}>
                   <td style={dashTdStyle}>
-                    {t.created_at ? shortTime(t.created_at) : "—"}
+                    {t.created_at ? formatTime(t.created_at) : "—"}
                   </td>
                   <td style={dashTdStyle}>{t.sender_name}</td>
                   <td style={dashTdStyle}>{t.company}</td>
@@ -959,30 +961,6 @@ function StatusPill({
   value, tones,
 }: { value: string; tones: Record<string, PillTone> }) {
   return <Pill tone={tones[value] ?? "neutral"}>{value}</Pill>;
-}
-
-function shortDate(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString(undefined, { month: "2-digit", day: "2-digit" });
-}
-
-function shortTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
-function fmtTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function monthShort(iso: string) {
-  return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { month: "short" });
 }
 
 // Local table cell styles — extends the DS tokens with the dense

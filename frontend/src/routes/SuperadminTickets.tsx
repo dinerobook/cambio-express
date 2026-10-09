@@ -9,7 +9,6 @@ import { useSuperadminStores } from "../api/superadmin";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { TicketThread } from "../components/TicketThread";
-import { fmtDateTime } from "../lib/formatters";
 import { ApiError } from "../lib/api";
 import {
   Alert, AppLink, Breadcrumbs, Button, Card, EmptyState, ErrorState,
@@ -17,6 +16,7 @@ import {
   useToast,
 } from "../components/ui";
 import styles from "./SuperadminTickets.module.css";
+import { formatDateTime } from "../lib/datetime";
 
 const CATEGORIES = [
   { value: "", label: "All categories" },
@@ -220,7 +220,7 @@ function TicketCard({ ticket: t }: { ticket: TicketRow }) {
               <AppLink to={`/superadmin/stores/${t.store_id}`}>
                 {t.store_name || `Store #${t.store_id}`}
               </AppLink>
-              {" "}· {fmtDateTime(t.created_at)}
+              {" "}· {formatDateTime(t.created_at)}
               {" · "}
               <span className={styles.metaCat}>{t.category}</span>
             </div>

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import EditDailyBook from "./EditDailyBook";
 import { setCurrentIdentity } from "../lib/auth";
+import { setDisplayTimezone } from "../lib/datetime";
 import { TEST_ADMIN } from "../test/setup";
 
 // The MSB daily book's Lock / Unlock button follows the "Lock /
@@ -117,5 +118,22 @@ describe("Daily book lock button", () => {
     useDailyReport.mockReturnValue(LOCKED_DAY);
     renderPage();
     expect(await screen.findByRole("button", { name: "Unlock" })).toBeInTheDocument();
+  });
+
+  it("shows the lock time on the store's clock", async () => {
+    // The owner's report: locked at 3:00 PM Chicago, stored as 20:00
+    // UTC with no offset, shown as 8:00 PM (the UTC wall clock read
+    // as local time). It must read 3:00 PM for a Chicago store.
+    setDisplayTimezone("America/Chicago");
+    useDailyReport.mockReturnValue(LOCKED_DAY);
+    renderPage();
+    expect(await screen.findByText("Locked · Oct 6, 3:00 PM")).toBeInTheDocument();
+  });
+
+  it("shows the same lock in another store's timezone", async () => {
+    setDisplayTimezone("America/Los_Angeles");
+    useDailyReport.mockReturnValue(LOCKED_DAY);
+    renderPage();
+    expect(await screen.findByText("Locked · Oct 6, 1:00 PM")).toBeInTheDocument();
   });
 });

@@ -30,8 +30,10 @@ import { suggestRuleFor } from "../lib/bankRuleSuggest";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { hasPermission } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtDateTime, fmtMoney2 } from "../lib/formatters";
-import { formatDate } from "../lib/datetime";
+import { fmtMoney2 } from "../lib/formatters";
+import {
+  formatDate, formatDateTime,
+} from "../lib/datetime";
 import styles from "./BankTransactions.module.css";
 
 // Bank transactions at /app/bank-transactions. Filters: account,
@@ -610,7 +612,7 @@ function BalanceCards({ accounts }: { accounts: BankAccountRow[] }) {
           value={fmtMoney2(a.last_balance)}
           sub={
             a.last_balance_as_of
-              ? `As of ${fmtDateTime(a.last_balance_as_of)}`
+              ? `As of ${formatDateTime(a.last_balance_as_of)}`
               : "Balance not yet refreshed."
           }
         />
