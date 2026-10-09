@@ -9524,7 +9524,9 @@ export interface components {
          * MTBreakdownResponse
          * @description Per-company MT breakdown for a single (store, date). Empty
          *     `rows` means the store has no MT companies configured (a fresh
-         *     install before the company list is populated).
+         *     install before the company list is populated). `services` holds
+         *     only the saved non-zero service rows; `saved_total` covers
+         *     transfers and services — the In column's Services box.
          */
         MTBreakdownResponse: {
             /** Auto Total */
@@ -9533,6 +9535,8 @@ export interface components {
             rows: components["schemas"]["MTBreakdownRowResponse"][];
             /** Saved Total */
             saved_total: number;
+            /** Services */
+            services: components["schemas"]["MTServiceRow"][];
         };
         /**
          * MTBreakdownRowResponse
@@ -9581,6 +9585,8 @@ export interface components {
         MTBreakdownWriteRequest: {
             /** Rows */
             rows: components["schemas"]["MTBreakdownWriteRow"][];
+            /** Services */
+            services?: components["schemas"]["MTServiceRow"][] | null;
         };
         /**
          * MTBreakdownWriteRow
@@ -9627,6 +9633,31 @@ export interface components {
             enabled: boolean;
             /** Name */
             name: string;
+        };
+        /**
+         * MTServiceRow
+         * @description One company's bill payments, top-ups or recharges for the day:
+         *     amount and fee only (no federal tax or commission on these). Same
+         *     shape on read and write.
+         */
+        MTServiceRow: {
+            /**
+             * Amount
+             * @default 0
+             */
+            amount: number;
+            /** Company */
+            company: string;
+            /**
+             * Fees
+             * @default 0
+             */
+            fees: number;
+            /**
+             * Service
+             * @enum {string}
+             */
+            service: "bill_payment" | "top_up" | "recharge";
         };
         /** MappingListResponse */
         MappingListResponse: {

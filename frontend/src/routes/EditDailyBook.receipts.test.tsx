@@ -123,3 +123,16 @@ describe("EditDailyBook — retired In boxes", () => {
     expect(screen.getByLabelText(/^Phone recargas/)).toBeDisabled();
   });
 });
+
+describe("EditDailyBook — In box names", () => {
+  it("reads Cash In and Cash from Bank", () => {
+    useDailyReport.mockReturnValue(NEW_DAY);
+    renderPage();
+    for (const name of [/^Cash In/, /^Cash from Bank/, /^Services/]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+    for (const name of [/^Other cash in/i, /^Cash from bank/, /^Money transfer/]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+  });
+});

@@ -23,6 +23,9 @@ import {
   type LineItemRow,
   type MTBreakdownRow,
   type MTBreakdownWriteRow,
+  type MTServiceRow,
+  type ServiceKind,
+  SERVICE_KINDS,
 } from "../api/dailybook";
 import { useSessionStatus, useStoreInfo } from "../api/account";
 import { fmtMoney2 } from "../lib/formatters";
@@ -79,7 +82,7 @@ import { useOpenOfKind } from "./dailyBookOpen";
 // Deliberately NOT here (Category 2 / 3 — never sent via this PUT):
 //   - `money_transfer` — derived from `mt_summary` rows; written
 //      via the separate PUT /mt-breakdown endpoint and surfaced in
-//      the "In" tab through <MoneyTransferWidget>, not a form input.
+//      the "In" tab through <ServicesWidget>, not a form input.
 //   - line-item-derived fields (cash_purchases, drops, etc.) —
 //      mutated by adding / removing daily_line_item rows.
 //
@@ -157,8 +160,8 @@ const RETIRED_RECEIPT_INPUTS: InputFieldDef[] = [
 ];
 
 const RECEIPT_LINE_ITEMS: LineItemFieldDef[] = [
-  { key: "from_bank",              label: "Cash from bank",        kind: "from_bank" },
-  { key: "other_cash_in",          label: "Other cash in",         kind: "other_cash_in" },
+  { key: "from_bank",              label: "Cash from Bank",        kind: "from_bank" },
+  { key: "other_cash_in",          label: "Cash In",               kind: "other_cash_in" },
   { key: "return_check_paid_back", label: "Return check payback", kind: "return_payback", readOnly: true },
 ];
 
@@ -759,7 +762,7 @@ function ReceiptsPanel(
           locked={props.locked}
           persist={props.persist}
         />
-        <MoneyTransferWidget
+        <ServicesWidget
           total={Number(props.report?.money_transfer ?? 0)}
           storeId={props.storeId}
           date={props.date}
@@ -1285,15 +1288,25 @@ function FeesWidget({
   );
 }
 
-// Money-transfer breakdown — a tile + modal that mirrors the
-// LineItemWidget pattern (cash purchases / expenses).  The tile
-// lives in the "In" tab and shows the current `money_transfer`
-// total; tapping it opens the per-company breakdown where the
-// operator enters amount / fees / federal tax / commission by
-// hand.  Manual entry only for now — the transfer-log auto-fill is
-// intentionally omitted until that integration is finished (the
-// backend still returns `auto_*`, so re-enabling it is UI-only).
-function MoneyTransferWidget({
+// Services — a tile + modal that mirrors the LineItemWidget pattern.
+// The tile lives in the "In" tab and shows the day's `money_transfer`
+// total, which is transfers + bill payments + top-ups + recharges
+// (see DailyBook/INVARIANTS.md "Services"). Tapping it opens one tab
+// per service, each listing the store's companies:
+//   • Money transfer — amount / fees / federal tax / commission, by
+//     hand. The transfer-log auto-fill is intentionally omitted until
+//     that integration is finished (the backend still returns
+//     `auto_*`, so re-enabling it is UI-only).
+//   • Bill payments / Top-ups / Recharges — amount and fee only.
+// Under the tabs, each company's total across all its services is
+// the number its cash drop is checked against.
+type ServicesTab = "transfer" | ServiceKind;
+
+interface ServiceDraft { amount: number; fees: number }
+
+const svcKey = (service: ServiceKind, company: string) => `${service}|${company}`;
+
+function ServicesWidget({
   total, storeId, date, locked, onChange,
 }: {
   total: number;
@@ -1306,24 +1319,30 @@ function MoneyTransferWidget({
   const breakdown = useMTBreakdown(date || undefined);
 
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<ServicesTab>("transfer");
   // Local draft state, hydrated from the server payload. Keyed by
-  // company name so re-ordering doesn't lose edits.
+  // company name (and service) so re-ordering doesn't lose edits.
   const [drafts, setDrafts] = useState<Map<string, MTRowDraft>>(new Map());
+  const [svcDrafts, setSvcDrafts] = useState<Map<string, ServiceDraft>>(new Map());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   // Hydrate once the server payload settles.
   useEffect(() => {
     if (breakdown.isLoading || breakdown.isFetching) return;
-    const rows = breakdown.data?.rows ?? [];
     const next = new Map<string, MTRowDraft>();
-    for (const r of rows) next.set(r.company, draftFromRow(r));
+    for (const r of breakdown.data?.rows ?? []) next.set(r.company, draftFromRow(r));
+    const nextSvc = new Map<string, ServiceDraft>();
+    for (const s of breakdown.data?.services ?? []) {
+      nextSvc.set(svcKey(s.service, s.company), { amount: s.amount, fees: s.fees });
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local draft state from server payload
     setDrafts(next);
+    setSvcDrafts(nextSvc);
   }, [breakdown.data, breakdown.isLoading, breakdown.isFetching]);
 
   const rows = breakdown.data?.rows ?? [];
-  const enteredCount = rows.filter((r) => r.saved_total > 0).length;
+  const companies = rows.map((r) => r.company);
 
   function setCell(company: string, cell: MTCell, value: number) {
     setDrafts((prev) => {
@@ -1334,11 +1353,65 @@ function MoneyTransferWidget({
     });
   }
 
-  const draftTotal = useMemo(() => {
+  function setSvcCell(
+    service: ServiceKind, company: string, cell: keyof ServiceDraft, value: number,
+  ) {
+    setSvcDrafts((prev) => {
+      const next = new Map(prev);
+      const key = svcKey(service, company);
+      const cur = next.get(key) ?? { amount: 0, fees: 0 };
+      next.set(key, { ...cur, [cell]: value });
+      return next;
+    });
+  }
+
+  const svcDraft = (service: ServiceKind, company: string): ServiceDraft =>
+    svcDrafts.get(svcKey(service, company)) ?? { amount: 0, fees: 0 };
+
+  const transferTotal = useMemo(() => {
     let s = 0;
     for (const [, d] of drafts) s += rowDraftTotal(d);
     return s;
   }, [drafts]);
+
+  function serviceTotal(service: ServiceKind): number {
+    let s = 0;
+    for (const co of companies) {
+      const d = svcDraft(service, co);
+      s += (Number(d.amount) || 0) + (Number(d.fees) || 0);
+    }
+    return s;
+  }
+
+  function companyTotal(company: string): number {
+    let s = rowDraftTotal(drafts.get(company) ?? emptyDraft());
+    for (const k of SERVICE_KINDS) {
+      const d = svcDraft(k.key, company);
+      s += (Number(d.amount) || 0) + (Number(d.fees) || 0);
+    }
+    return s;
+  }
+
+  const draftTotal =
+    transferTotal + SERVICE_KINDS.reduce((s, k) => s + serviceTotal(k.key), 0);
+
+  // Tile sub-line, from what is SAVED (the tile total is the saved
+  // money_transfer): which services make up the day's number.
+  const savedServices = breakdown.data?.services ?? [];
+  const savedTransfers = rows.reduce((s, r) => s + r.saved_total, 0);
+  const savedParts: string[] = [];
+  if (savedServices.length > 0) {
+    if (savedTransfers > 0) savedParts.push(`Transfers ${fmtMoney2(savedTransfers)}`);
+    for (const k of SERVICE_KINDS) {
+      const sum = savedServices
+        .filter((s) => s.service === k.key)
+        .reduce((acc, s) => acc + s.amount + s.fees, 0);
+      if (sum > 0) savedParts.push(`${k.label} ${fmtMoney2(sum)}`);
+    }
+  }
+  const enteredCount = rows.filter(
+    (r) => r.saved_total > 0 || savedServices.some((s) => s.company === r.company),
+  ).length;
 
   async function onSave() {
     if (busy || locked) return;
@@ -1355,7 +1428,18 @@ function MoneyTransferWidget({
           commission: Number(d.commission) || 0,
         };
       });
-      await replaceMTBreakdown(storeId, date, writeRows);
+      const writeServices: MTServiceRow[] = [];
+      for (const k of SERVICE_KINDS) {
+        for (const co of companies) {
+          const d = svcDraft(k.key, co);
+          const amount = Number(d.amount) || 0;
+          const fees = Number(d.fees) || 0;
+          if (amount !== 0 || fees !== 0) {
+            writeServices.push({ company: co, service: k.key, amount, fees });
+          }
+        }
+      }
+      await replaceMTBreakdown(storeId, date, writeRows, writeServices);
       // money_transfer was mirrored server-side; refresh the report
       // (drives the tile total + Money In) and the breakdown query
       // (re-hydrates the modal from the saved rows).
@@ -1368,13 +1452,14 @@ function MoneyTransferWidget({
       onChange();
       setOpen(false);
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not save the breakdown."));
+      setErr(apiErrorMessage(e, "Could not save the services."));
     } finally {
       setBusy(false);
     }
   }
 
   const isLoading = breakdown.isLoading || breakdown.data == null;
+  const activeService = tab === "transfer" ? null : tab;
 
   return (
     <>
@@ -1384,13 +1469,15 @@ function MoneyTransferWidget({
         className={styles.widgetCard}
       >
         <span className={styles.widgetCardTop}>
-          <span className={styles.widgetLabel}>Money transfer</span>
+          <span className={styles.widgetLabel}>Services</span>
           <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
         </span>
         <span className={styles.widgetCount}>
-          {enteredCount > 0
-            ? `${enteredCount} ${enteredCount === 1 ? "company" : "companies"}`
-            : "Tap to enter breakdown"}
+          {savedParts.length > 0
+            ? savedParts.join(" · ")
+            : enteredCount > 0
+              ? `${enteredCount} ${enteredCount === 1 ? "company" : "companies"}`
+              : "Tap to enter transfers and services"}
         </span>
       </button>
 
@@ -1399,8 +1486,8 @@ function MoneyTransferWidget({
         size="lg"
         title={
           <>
-            Money transfer — per-company breakdown
-            <InfoTip text="Enter each company's amount, fees, federal tax, and commission. The grand total saves to this day's Money transfer line and flows into Money In." />
+            Services
+            <InfoTip text="Money transfers, bill payments, top-ups and recharges by company. The grand total saves to this day's Services line and flows into Money In." />
           </>
         }
         onClose={() => { setOpen(false); setErr(null); }}
@@ -1413,51 +1500,146 @@ function MoneyTransferWidget({
               No companies configured for this store.
             </p>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table className={styles.mtTable}>
-                <thead>
-                  <tr>
-                    <th className={styles.mtTh}>Company</th>
-                    <th className={`${styles.mtTh} ${styles.mtThNum}`}>Amount</th>
-                    <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fees</th>
-                    <th className={`${styles.mtTh} ${styles.mtThNum}`}>Federal tax</th>
-                    <th className={`${styles.mtTh} ${styles.mtThNum}`}>Commission</th>
-                    <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
-                  </tr>
-                </thead>
+            <>
+              <TabsBar>
+                <TabsButton
+                  active={tab === "transfer"}
+                  onClick={() => setTab("transfer")}
+                >
+                  Money transfer · {fmtMoney2(transferTotal)}
+                </TabsButton>
+                {SERVICE_KINDS.map((k) => (
+                  <TabsButton
+                    key={k.key}
+                    active={tab === k.key}
+                    onClick={() => setTab(k.key)}
+                  >
+                    {k.label} · {fmtMoney2(serviceTotal(k.key))}
+                  </TabsButton>
+                ))}
+              </TabsBar>
+
+              <div style={{ overflowX: "auto" }}>
+                {activeService === null ? (
+                  <table className={styles.mtTable}>
+                    <thead>
+                      <tr>
+                        <th className={styles.mtTh}>Company</th>
+                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Amount</th>
+                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fees</th>
+                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Federal tax</th>
+                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Commission</th>
+                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r) => (
+                        <MTEditableRow
+                          key={r.company}
+                          row={r}
+                          draft={drafts.get(r.company) ?? emptyDraft()}
+                          locked={locked}
+                          onCellChange={(cell, value) => setCell(r.company, cell, value)}
+                        />
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
+                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                          {fmtMoney2(sumDraftField(drafts, "amount"))}
+                        </td>
+                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                          {fmtMoney2(sumDraftField(drafts, "fees"))}
+                        </td>
+                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                          {fmtMoney2(sumDraftField(drafts, "federal_tax"))}
+                        </td>
+                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                          {fmtMoney2(sumDraftField(drafts, "commission"))}
+                        </td>
+                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
+                          {fmtMoney2(transferTotal)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                ) : (
+                  <table className={styles.mtTable}>
+                    <thead>
+                      <tr>
+                        <th className={styles.mtTh}>Company</th>
+                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Amount</th>
+                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fee</th>
+                        <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {companies.map((co) => {
+                        const d = svcDraft(activeService, co);
+                        return (
+                          <tr key={co}>
+                            <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>
+                              <span style={{ color: companyAccent(co) }}>•</span>{" "}
+                              {co}
+                            </td>
+                            <MTCellInput
+                              value={d.amount}
+                              onChange={(v) => setSvcCell(activeService, co, "amount", v)}
+                              locked={locked}
+                            />
+                            <MTCellInput
+                              value={d.fees}
+                              onChange={(v) => setSvcCell(activeService, co, "fees", v)}
+                              locked={locked}
+                            />
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
+                              {fmtMoney2((Number(d.amount) || 0) + (Number(d.fees) || 0))}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
+                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                          {fmtMoney2(companies.reduce(
+                            (s, co) => s + (Number(svcDraft(activeService, co).amount) || 0), 0))}
+                        </td>
+                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                          {fmtMoney2(companies.reduce(
+                            (s, co) => s + (Number(svcDraft(activeService, co).fees) || 0), 0))}
+                        </td>
+                        <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
+                          {fmtMoney2(serviceTotal(activeService))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+              </div>
+
+              <PanelTitle>
+                By company
+                <InfoTip text="Each company's transfers and services together — the number to check against that company's cash drop." />
+              </PanelTitle>
+              <table className={styles.mtTable} aria-label="Total by company">
                 <tbody>
-                  {rows.map((r) => (
-                    <MTEditableRow
-                      key={r.company}
-                      row={r}
-                      draft={drafts.get(r.company) ?? emptyDraft()}
-                      locked={locked}
-                      onCellChange={(cell, value) => setCell(r.company, cell, value)}
-                    />
+                  {companies.map((co) => (
+                    <tr key={co}>
+                      <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>
+                        <span style={{ color: companyAccent(co) }}>•</span>{" "}
+                        {co}
+                      </td>
+                      <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
+                        {fmtMoney2(companyTotal(co))}
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr>
-                    <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
-                    <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                      {fmtMoney2(sumDraftField(drafts, "amount"))}
-                    </td>
-                    <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                      {fmtMoney2(sumDraftField(drafts, "fees"))}
-                    </td>
-                    <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                      {fmtMoney2(sumDraftField(drafts, "federal_tax"))}
-                    </td>
-                    <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                      {fmtMoney2(sumDraftField(drafts, "commission"))}
-                    </td>
-                    <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
-                      {fmtMoney2(draftTotal)}
-                    </td>
-                  </tr>
-                </tfoot>
               </table>
-            </div>
+            </>
           )}
 
           {err && <Alert tone="error">{err}</Alert>}
@@ -1474,7 +1656,7 @@ function MoneyTransferWidget({
               disabled={busy || locked || isLoading}
               onClick={onSave}
             >
-              {busy ? "Saving…" : "Save breakdown"}
+              {busy ? "Saving…" : "Save services"}
             </Button>
           </div>
         </div>

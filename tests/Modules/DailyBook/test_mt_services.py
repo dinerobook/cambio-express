@@ -1,0 +1,297 @@
+"""Bill payments, top-ups and recharges in the In column's Services box.
+
+They live per company beside the money-transfer rows
+(`msb_mt_service`), and the day's Services total — mirrored into
+`DailyReport.money_transfer` — is transfers + services, so a
+provider's total matches its cash drop. See INVARIANTS.md "Services".
+"""
+from datetime import date, datetime, timedelta
+from typing import get_args
+
+import pytest
+
+from tests._app import db, db_session
+from tests.conftest import login_admin, login_employee
+
+DAY = date.today() - timedelta(days=2)
+
+
+def _h(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def admin(client, test_store_id):
+    return _h(login_admin(client, test_store_id))
+
+
+def _url(sid, d=DAY):
+    return f"/api/v2/daily/{sid}/{d.isoformat()}/mt-breakdown"
+
+
+MAXI_TRANSFERS = {"company": "Maxi", "amount": 800.0, "fees": 40.0,
+                  "federal_tax": 8.0, "commission": 0.0}
+MAXI_BILL = {"company": "Maxi", "service": "bill_payment",
+             "amount": 120.0, "fees": 3.0}
+
+
+def _report(sid, d=DAY):
+    from api.Modules.DailyBook.Models import DailyReport
+    with db_session():
+        return (db.session.query(DailyReport)
+                  .filter_by(store_id=sid, report_date=d).first())
+
+
+def _service_rows(sid, d=DAY):
+    from api.Modules.DailyBook.Models import MoneyServiceSummary
+    with db_session():
+        return {
+            (r.company, r.service): (float(r.amount), float(r.fees))
+            for r in db.session.query(MoneyServiceSummary)
+                       .filter_by(store_id=sid, report_date=d)
+        }
+
+
+# ── Service layer ──────────────────────────────────────────
+
+
+def test_services_save_and_count_in_the_day_total(test_store_id):
+    from api.Modules.DailyBook.Services import (
+        MTWriteRow, ServiceRow, read_mt_breakdown, replace_mt_breakdown,
+    )
+    with db_session():
+        total = replace_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=DAY,
+            rows=[MTWriteRow(company="Maxi", amount=800, fees=40,
+                             federal_tax=8, commission=0)],
+            services=[
+                ServiceRow("Maxi", "recharge", 20, 1),
+                ServiceRow("Maxi", "bill_payment", 120, 3),
+                ServiceRow("Intermex", "top_up", 10, 0),
+            ],
+        )
+        db.session.commit()
+        breakdown = read_mt_breakdown(db.session, test_store_id, DAY)
+    assert total == 848 + 123 + 21 + 10
+    assert breakdown.saved_total == total
+    assert _report(test_store_id).money_transfer == total
+    # Tab order (bill payments, top-ups, recharges), then company.
+    assert [(s.company, s.service) for s in breakdown.services] == [
+        ("Maxi", "bill_payment"), ("Intermex", "top_up"), ("Maxi", "recharge"),
+    ]
+
+
+def test_transfers_only_caller_keeps_and_counts_services(test_store_id):
+    """The Intermex import replaces transfer rows only — it must not
+    drop the day's bill payments or leave them out of the total."""
+    from api.Modules.DailyBook.Services import (
+        MTWriteRow, ServiceRow, replace_mt_breakdown,
+    )
+    with db_session():
+        replace_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=DAY,
+            rows=[MTWriteRow("Maxi", 800, 40, 8, 0)],
+            services=[ServiceRow("Maxi", "bill_payment", 120, 3)],
+        )
+        db.session.commit()
+        total = replace_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=DAY,
+            rows=[MTWriteRow("Maxi", 900, 45, 9, 0)],
+        )
+        db.session.commit()
+    assert total == 954 + 123
+    assert _service_rows(test_store_id) == {("Maxi", "bill_payment"): (120, 3)}
+    assert _report(test_store_id).money_transfer == 1077
+
+
+def test_empty_list_clears_and_zero_rows_are_skipped(test_store_id):
+    from api.Modules.DailyBook.Services import (
+        MTWriteRow, ServiceRow, replace_mt_breakdown,
+    )
+    with db_session():
+        replace_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=DAY,
+            rows=[MTWriteRow("Maxi", 100, 0, 0, 0)],
+            services=[ServiceRow("Maxi", "bill_payment", 50, 2),
+                      ServiceRow("Barri", "top_up", 0, 0)],
+        )
+        db.session.commit()
+        assert _service_rows(test_store_id) == {("Maxi", "bill_payment"): (50, 2)}
+        replace_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=DAY,
+            rows=[MTWriteRow("Maxi", 100, 0, 0, 0)], services=[],
+        )
+        db.session.commit()
+    assert _service_rows(test_store_id) == {}
+    assert _report(test_store_id).money_transfer == 100
+
+
+def test_duplicate_lines_for_one_company_merge(test_store_id):
+    from api.Modules.DailyBook.Services import (
+        ServiceRow, replace_mt_breakdown,
+    )
+    with db_session():
+        replace_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=DAY, rows=[],
+            services=[ServiceRow(" Maxi ", "top_up", 10, 1),
+                      ServiceRow("Maxi", "top_up", 5, 0)],
+        )
+        db.session.commit()
+    assert _service_rows(test_store_id) == {("Maxi", "top_up"): (15, 1)}
+
+
+def test_unknown_service_is_refused(test_store_id):
+    from api.Modules.DailyBook.Services import (
+        ServiceRow, UnknownServiceError, replace_mt_breakdown,
+    )
+    with db_session():
+        with pytest.raises(UnknownServiceError):
+            replace_mt_breakdown(
+                db.session, store_id=test_store_id, report_date=DAY, rows=[],
+                services=[ServiceRow("Maxi", "lottery", 10, 0)],
+            )
+
+
+def test_company_with_only_a_service_gets_a_row(test_store_id):
+    """A service saved under a company that is no longer configured
+    still shows a row so the box can display and clear it."""
+    from api.Modules.DailyBook.Services import (
+        ServiceRow, read_mt_breakdown, replace_mt_breakdown,
+    )
+    with db_session():
+        replace_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=DAY, rows=[],
+            services=[ServiceRow("Ria", "bill_payment", 30, 1)],
+        )
+        db.session.commit()
+        companies = [r.company for r in
+                     read_mt_breakdown(db.session, test_store_id, DAY).rows]
+    assert companies[-1] == "Ria"
+
+
+def test_service_keys_match_the_request_schema():
+    from api.Modules.DailyBook.Requests.reports import ServiceKind
+    from api.Modules.DailyBook.Services import SERVICE_KINDS
+    assert set(get_args(ServiceKind)) == set(SERVICE_KINDS)
+
+
+def test_existing_day_without_services_is_unchanged(test_store_id):
+    """A day saved before services existed reads exactly as before."""
+    from api.Modules.DailyBook.Services import (
+        MTWriteRow, read_mt_breakdown, replace_mt_breakdown,
+    )
+    with db_session():
+        replace_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=DAY,
+            rows=[MTWriteRow("Maxi", 800, 40, 8, 0)],
+        )
+        db.session.commit()
+        breakdown = read_mt_breakdown(db.session, test_store_id, DAY)
+    assert breakdown.services == []
+    assert breakdown.saved_total == 848
+
+
+# ── HTTP ───────────────────────────────────────────────────
+
+
+def test_put_and_get_round_trip(client, test_store_id, admin):
+    resp = client.put(_url(test_store_id), headers=admin, json={
+        "rows": [MAXI_TRANSFERS], "services": [MAXI_BILL],
+    })
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    body = resp.get_json()
+    assert body["services"] == [MAXI_BILL]
+    assert body["saved_total"] == 848 + 123
+
+    got = client.get(_url(test_store_id), headers=admin).get_json()
+    assert got["services"] == [MAXI_BILL]
+    day = client.get(
+        f"/api/v2/daily/{test_store_id}/{DAY.isoformat()}", headers=admin,
+    ).get_json()["report"]
+    assert day["money_transfer"] == 971
+    assert day["total_receipts"] == 971
+
+
+def test_put_without_services_leaves_them(client, test_store_id, admin):
+    client.put(_url(test_store_id), headers=admin, json={
+        "rows": [MAXI_TRANSFERS], "services": [MAXI_BILL],
+    })
+    resp = client.put(_url(test_store_id), headers=admin,
+                      json={"rows": [MAXI_TRANSFERS]})
+    assert resp.status_code == 200
+    assert resp.get_json()["services"] == [MAXI_BILL]
+
+
+def test_put_rejects_unknown_service(client, test_store_id, admin):
+    resp = client.put(_url(test_store_id), headers=admin, json={
+        "rows": [], "services": [{**MAXI_BILL, "service": "lottery"}],
+    })
+    assert resp.status_code == 422
+    assert _service_rows(test_store_id) == {}
+
+
+def test_put_refuses_locked_day(client, test_store_id, admin):
+    from api.Modules.DailyBook.Models import DailyReport
+    with db_session():
+        db.session.add(DailyReport(store_id=test_store_id, report_date=DAY,
+                                   locked_at=datetime.utcnow()))
+        db.session.commit()
+    resp = client.put(_url(test_store_id), headers=admin, json={
+        "rows": [], "services": [MAXI_BILL],
+    })
+    assert resp.status_code == 403
+    assert _service_rows(test_store_id) == {}
+
+
+def test_put_is_audited(client, test_store_id, admin):
+    from api.Modules.Audit.Models import OperatorAuditLog
+    client.put(_url(test_store_id), headers=admin, json={
+        "rows": [MAXI_TRANSFERS], "services": [MAXI_BILL],
+    })
+    with db_session():
+        row = (db.session.query(OperatorAuditLog)
+                 .filter_by(store_id=test_store_id,
+                            action="replace_mt_breakdown")
+                 .order_by(OperatorAuditLog.id.desc()).first())
+    assert "services=Maxi:bill_payment" in (row.summary or "")
+
+
+def _employee(client, sid, username, matrix):
+    from api.Core.Permissions import set_user_permissions
+    from api.Modules.Tenancy.Models import User
+    with db_session():
+        u = User(store_id=sid, username=username, role="employee",
+                 is_active=True)
+        u.set_password("emppass1234")
+        db.session.add(u)
+        db.session.commit()
+        uid = u.id
+    set_user_permissions(sid, uid, matrix)
+    return _h(login_employee(client, sid, username, "emppass1234"))
+
+
+def test_reader_sees_services_but_cannot_save(client, test_store_id, admin):
+    client.put(_url(test_store_id), headers=admin, json={
+        "rows": [], "services": [MAXI_BILL],
+    })
+    reader = _employee(client, test_store_id, "svc_ro",
+                       {"daily_book": {"read": True}})
+    assert client.get(_url(test_store_id), headers=reader).get_json()[
+        "services"] == [MAXI_BILL]
+    resp = client.put(_url(test_store_id), headers=reader,
+                      json={"rows": [], "services": []})
+    assert resp.status_code == 403
+    assert _service_rows(test_store_id) == {("Maxi", "bill_payment"): (120, 3)}
+
+    writer = _employee(client, test_store_id, "svc_rw",
+                       {"daily_book": {"read": True, "update": True}})
+    resp = client.put(_url(test_store_id), headers=writer,
+                      json={"rows": [], "services": []})
+    assert resp.status_code == 200
+    assert _service_rows(test_store_id) == {}
+
+
+def test_no_book_access_gets_nothing(client, test_store_id, admin):
+    nobody = _employee(client, test_store_id, "svc_none",
+                       {"time_clock": {"read": True}})
+    assert client.get(_url(test_store_id), headers=nobody).status_code == 403

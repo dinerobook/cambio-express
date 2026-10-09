@@ -46,7 +46,8 @@ from api.Core.Clock import utc_now
 STORE_OWNED_MODELS: list[str] = [
     "TransferAudit", "OperatorAuditLog",
     "Transfer", "ACHBatch", "DailyReport", "DailyDrop", "CheckDeposit",
-    "DailyLineItem", "MoneyTransferSummary", "ReturnCheck",
+    "DailyLineItem", "MoneyTransferSummary", "MoneyServiceSummary",
+    "ReturnCheck",
     "MonthlyFinancial", "MonthlyLineLabel", "BankRule", "BankTransaction",
     "StripeBankAccount", "StoreOwnerLink",
     # Lottery: counts FK packs FK games — purge in that order.
@@ -113,7 +114,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
     from api.Modules.Customers.Models import Customer
     from api.Modules.DailyBook.Models import (
         CheckDeposit, DailyDrop, DailyLineItem, DailyReport,
-        MoneyTransferSummary,
+        MoneyServiceSummary, MoneyTransferSummary,
     )
     from api.Modules.Monthly.Models import (
         MonthlyFinancial, MonthlyLineLabel,
@@ -159,6 +160,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
         (CheckDeposit, "store_id"),
         (DailyLineItem, "store_id"),
         (MoneyTransferSummary, "store_id"),
+        (MoneyServiceSummary, "store_id"),
         (ReturnCheck, "store_id"),
         # Lottery: counts FK packs FK games — purge in that order.
         (LotteryDayCount, "store_id"),

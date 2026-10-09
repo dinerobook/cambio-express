@@ -166,7 +166,7 @@ describe("SettlementsWidget", () => {
     expect(dialog).toHaveTextContent("Server unavailable");
   });
 
-  it("records a partial return as a linked Other cash in on the viewed day", async () => {
+  it("records a partial return as a linked Cash In on the viewed day", async () => {
     createLineItem.mockResolvedValue({});
     const { onChange } = renderWidget();
     const dialog = await openList("Owed to us");

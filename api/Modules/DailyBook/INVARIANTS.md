@@ -32,7 +32,7 @@ locked, the row is immutable until an admin unlocks it.
 
 ## Data model
 
-Five tables, three of them line-item-shaped:
+Six tables, three of them line-item-shaped:
 
 | Table | What it holds |
 |---|---|
@@ -40,7 +40,8 @@ Five tables, three of them line-item-shaped:
 | `msb_daily_line_item` | Generic time + amount + note rows keyed by `kind`. Backs every list-shaped section of the book (drops, deposits, cash purchases, etc.). |
 | `msb_daily_drop` | Legacy bespoke table for outside-cash drops. **Preserved for historical data; new writes go through `msb_daily_line_item` with `kind='drop'`.** Don't add new code that reads from this table — see `Services/kinds.py` line 40-44. |
 | `msb_check_deposit` | Same story as `msb_daily_drop` — legacy, preserved for history, new writes go through `msb_daily_line_item` with `kind='check_deposit'`. |
-| `msb_mt_summary` | Per-(store, date, company) money-transfer roll-up: amount, fees, commission, federal_tax. Source of truth for `DailyReport.money_transfer`. |
+| `msb_mt_summary` | Per-(store, date, company) money-transfer roll-up: amount, fees, commission, federal_tax. With `msb_mt_service`, source of truth for `DailyReport.money_transfer`. |
+| `msb_mt_service` | Per-(store, date, company, service) bill payments / top-ups / recharges: amount, fees. See "Services". |
 
 The `DailyReport` row has ~25 dollar columns. They fall into THREE
 categories, and **the category determines whether you can write to
@@ -119,13 +120,43 @@ Only one field today:
 
 | Field | Source | Endpoint |
 |---|---|---|
-| `money_transfer` | Sum of `msb_mt_summary` rows for `(store, date)` | `PUT /api/v2/daily/{store}/{date}/mt-breakdown` |
+| `money_transfer` | Sum of `msb_mt_summary` rows + `msb_mt_service` rows for `(store, date)` — the In column's **Services** box | `PUT /api/v2/daily/{store}/{date}/mt-breakdown` |
 
 `money_transfer` is treated like Category 2 by the daily PUT — it's
 NOT in the writable schema. Try to PUT it and you'll 422. This
 was a real bug in `EditDailyBook.tsx` (had `money_transfer` in
 `EDITABLE_KEYS`, save broke with 422); see test
 `test_put_rejects_extra_fields`.
+
+
+### Services (bill payments, top-ups, recharges)
+
+The In column's **Services** box (it was "Money transfer") holds every
+service a transfer provider handles at the counter, one tab each:
+Money transfer (`msb_mt_summary`: amount, fees, federal tax,
+commission) and Bill payments / Top-ups / Recharges (`msb_mt_service`,
+`service` ∈ `SERVICE_KINDS` = `bill_payment`, `top_up`, `recharge`:
+amount and fee only). Rules, enforced in
+`Services/mt_breakdown.py::replace_mt_breakdown` and pinned by
+`tests/Modules/DailyBook/test_mt_services.py`:
+
+- `DailyReport.money_transfer` = transfers + services for the day.
+  A provider's total across its services is what its cash drop is
+  checked against, so they are never split into separate In lines.
+- `services` omitted (null) on the PUT leaves the day's services
+  untouched **and still counts them** — the Intermex import only
+  knows transfers and must not drop a bill payment. A list replaces
+  them all; `[]` clears.
+- Zero lines are not stored; two lines for one company + service
+  merge. An unknown service key is a 422 (schema) /
+  `UnknownServiceError` (service).
+- Same lock and permission rules as the transfer rows
+  (`daily_book.update`, locked day → 403), same audit row
+  (`replace_mt_breakdown`, summary lists `services=Company:service`).
+- A day with no `msb_mt_service` rows reads exactly as before.
+
+The old `bill_payment_charge` / `phone_recargas` / `boost_mobile`
+columns are separate and retired from the editor (see Category 1).
 
 
 ## The 422 trap — explicit DO-NOT-WRITE list

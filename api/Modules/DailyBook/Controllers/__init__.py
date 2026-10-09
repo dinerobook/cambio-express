@@ -25,6 +25,7 @@ from api.Modules.DailyBook.Requests import (
     MTBreakdownResponse,
     MTBreakdownRowResponse,
     MTBreakdownWriteRequest,
+    MTServiceRow,
     OpenSettlementListResponse,
     OpenSettlementRow,
     PeriodSummaryResponse,
@@ -37,8 +38,10 @@ from api.Modules.DailyBook.Services import (
     DailyReportSummary,
     LINE_ITEM_KINDS,
     LineItemValidationError,
+    MTBreakdown,
     MTWriteRow,
     SETTLEMENT_PAIRS,
+    ServiceRow,
     add_line_item,
     delete_line_item,
     field_for_kind,
@@ -878,6 +881,35 @@ def transfers_summary_route(
 # ── Editable per-company MT breakdown ────────────────────────
 
 
+def _mt_breakdown_response(breakdown: MTBreakdown) -> MTBreakdownResponse:
+    return MTBreakdownResponse(
+        rows=[
+            MTBreakdownRowResponse(
+                company=row.company,
+                saved_amount=row.saved_amount,
+                saved_fees=row.saved_fees,
+                saved_federal_tax=row.saved_federal_tax,
+                saved_commission=row.saved_commission,
+                saved_total=row.saved_total,
+                auto_amount=row.auto_amount,
+                auto_fees=row.auto_fees,
+                auto_federal_tax=row.auto_federal_tax,
+                auto_commission=row.auto_commission,
+                auto_count=row.auto_count,
+                auto_total=row.auto_total,
+            )
+            for row in breakdown.rows
+        ],
+        services=[
+            MTServiceRow(company=svc.company, service=svc.service,  # type: ignore[arg-type]
+                         amount=svc.amount, fees=svc.fees)
+            for svc in breakdown.services
+        ],
+        saved_total=breakdown.saved_total,
+        auto_total=breakdown.auto_total,
+    )
+
+
 @router.get(
     "/{store_id}/{report_date}/mt-breakdown",
     response_model=MTBreakdownResponse,
@@ -901,27 +933,7 @@ def mt_breakdown_get_route(
     _require_store_match(claims, store_id)
     d = _parse_date(report_date, field="report_date")
     breakdown = read_mt_breakdown(db, int(store_id), d)
-    return MTBreakdownResponse(
-        rows=[
-            MTBreakdownRowResponse(
-                company=row.company,
-                saved_amount=row.saved_amount,
-                saved_fees=row.saved_fees,
-                saved_federal_tax=row.saved_federal_tax,
-                saved_commission=row.saved_commission,
-                saved_total=row.saved_total,
-                auto_amount=row.auto_amount,
-                auto_fees=row.auto_fees,
-                auto_federal_tax=row.auto_federal_tax,
-                auto_commission=row.auto_commission,
-                auto_count=row.auto_count,
-                auto_total=row.auto_total,
-            )
-            for row in breakdown.rows
-        ],
-        saved_total=breakdown.saved_total,
-        auto_total=breakdown.auto_total,
-    )
+    return _mt_breakdown_response(breakdown)
 
 
 @router.put(
@@ -965,6 +977,11 @@ def mt_breakdown_put_route(
                 )
                 for r in body.rows
             ],
+            services=None if body.services is None else [
+                ServiceRow(company=svc.company, service=svc.service,
+                           amount=svc.amount, fees=svc.fees)
+                for svc in body.services
+            ],
         )
     except DailyReportLockedError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
@@ -978,37 +995,27 @@ def mt_breakdown_put_route(
         if (r.amount or 0) or (r.fees or 0)
            or (r.federal_tax or 0) or (r.commission or 0)
     })
+    summary = (
+        f"companies={','.join(company_list)}" if company_list else "cleared"
+    )
+    if body.services is not None:
+        service_list = sorted({
+            f"{(svc.company or '').strip()}:{svc.service}"
+            for svc in body.services if (svc.amount or 0) or (svc.fees or 0)
+        })
+        summary += (
+            f"; services={','.join(service_list)}" if service_list
+            else "; services cleared"
+        )
     _audit_daily_action(
         db, claims, "replace_mt_breakdown",
         target_type="mt_breakdown",
         target_id=f"{store_id}:{d.isoformat()}",
         target_label=f"MT breakdown {d.isoformat()}",
-        summary=(
-            f"companies={','.join(company_list)}" if company_list else "cleared"
-        ),
+        summary=summary,
     )
     db.commit()
 
     # Re-read so the response carries the fresh saved + auto view.
     breakdown = read_mt_breakdown(db, int(store_id), d)
-    return MTBreakdownResponse(
-        rows=[
-            MTBreakdownRowResponse(
-                company=row.company,
-                saved_amount=row.saved_amount,
-                saved_fees=row.saved_fees,
-                saved_federal_tax=row.saved_federal_tax,
-                saved_commission=row.saved_commission,
-                saved_total=row.saved_total,
-                auto_amount=row.auto_amount,
-                auto_fees=row.auto_fees,
-                auto_federal_tax=row.auto_federal_tax,
-                auto_commission=row.auto_commission,
-                auto_count=row.auto_count,
-                auto_total=row.auto_total,
-            )
-            for row in breakdown.rows
-        ],
-        saved_total=breakdown.saved_total,
-        auto_total=breakdown.auto_total,
-    )
+    return _mt_breakdown_response(breakdown)

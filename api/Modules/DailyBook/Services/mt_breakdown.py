@@ -22,13 +22,22 @@ This module wraps two flows:
     field is updated to the grand sum so the daily P&L stays
     consistent in one transaction. Caller commits.
 
+Services (bill payments, top-ups, recharges) ride the same two flows:
+`MTBreakdown.services` carries the saved `MoneyServiceSummary` rows,
+and `replace_mt_breakdown(..., services=[...])` replaces them in the
+same transaction. The day's mirrored `money_transfer` is the grand
+total of transfers AND services — the In column's "Services" box.
+`services=None` (a caller that only knows transfers, e.g. the
+Intermex import) leaves the day's services untouched and still
+counts them in the total.
+
 Locked-day guard: writes are refused when the daily report's lock
 is set — matches the contract on
 `update_daily_report` (DailyReportLockedError → HTTP 403).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from sqlalchemy.orm import Session
@@ -82,15 +91,41 @@ class MTRow:
         )
 
 
+# Services a transfer provider handles besides transfers. key → label.
+# The key is what `msb_mt_service.service` stores; the order is the
+# order of the tabs in the Services box.
+SERVICE_KINDS: dict[str, str] = {
+    "bill_payment": "Bill payments",
+    "top_up":       "Top-ups",
+    "recharge":     "Recharges",
+}
+
+
+@dataclass
+class ServiceRow:
+    """One company's saved amount + fee for one service on one day.
+    Used for both the read payload and the write payload."""
+    company: str
+    service: str
+    amount: float
+    fees: float
+
+    @property
+    def total(self) -> float:
+        return float(self.amount or 0) + float(self.fees or 0)
+
+
 @dataclass
 class MTBreakdown:
-    """Full per-day breakdown — rows + grand-total properties for
-    both saved and auto views."""
+    """Full per-day breakdown — transfer rows, saved service rows, and
+    grand-total properties for both saved and auto views."""
     rows: list[MTRow]
+    services: list[ServiceRow] = field(default_factory=list)
 
     @property
     def saved_total(self) -> float:
-        return sum(r.saved_total for r in self.rows)
+        return (sum(r.saved_total for r in self.rows)
+                + sum(s.total for s in self.services))
 
     @property
     def auto_total(self) -> float:
@@ -125,7 +160,9 @@ def read_mt_breakdown(
     # Coerce dict keys to ``str`` — ``saved_by_co`` may be keyed
     # off Column[str] values; mypy can't see SQLAlchemy's runtime
     # equality semantics, but ``str(col)`` round-trips cleanly.
+    services = _read_services(db, store_id, report_date)
     saved_keys: set[str] = {str(k) for k in saved_by_co.keys()}
+    saved_keys |= {s.company for s in services}
     auto_keys:  set[str] = {str(k) for k in auto_by_co.keys()}
     extras = sorted(
         {c for c in (saved_keys | auto_keys) if c not in configured},
@@ -149,7 +186,30 @@ def read_mt_breakdown(
             auto_commission=float(auto.commission) if auto else 0.0,
             auto_count=int(auto.count) if auto else 0,
         ))
-    return MTBreakdown(rows=rows)
+    return MTBreakdown(rows=rows, services=services)
+
+
+def _read_services(
+    db: Session, store_id: int, report_date: date,
+) -> list[ServiceRow]:
+    from api.Modules.DailyBook.Models import MoneyServiceSummary
+
+    order = list(SERVICE_KINDS)
+    saved = (
+        db.query(MoneyServiceSummary)
+          .filter_by(store_id=int(store_id), report_date=report_date)
+          .all()
+    )
+    rows = [
+        ServiceRow(company=str(r.company), service=str(r.service),
+                   amount=float(r.amount or 0), fees=float(r.fees or 0))
+        for r in saved
+    ]
+    rows.sort(key=lambda r: (
+        order.index(r.service) if r.service in order else len(order),
+        r.company.lower(),
+    ))
+    return rows
 
 
 @dataclass
@@ -164,9 +224,15 @@ class MTWriteRow:
     commission: float
 
 
+class UnknownServiceError(ValueError):
+    """A service key outside SERVICE_KINDS. The request schema already
+    refuses these (422); this guards direct Service callers."""
+
+
 def replace_mt_breakdown(
     db: Session, *, store_id: int, report_date: date,
     rows: list[MTWriteRow],
+    services: list[ServiceRow] | None = None,
 ) -> float:
     """Bulk-replace the per-company breakdown for (store, date).
 
@@ -181,7 +247,13 @@ def replace_mt_breakdown(
     Empty `rows` is valid (clears every saved row for the day +
     sets `money_transfer` to 0).
     """
-    from api.Modules.DailyBook.Models import MoneyTransferSummary
+    from api.Modules.DailyBook.Models import (
+        MoneyServiceSummary, MoneyTransferSummary,
+    )
+
+    for svc in services or []:
+        if svc.service not in SERVICE_KINDS:
+            raise UnknownServiceError(f"Unknown service: {svc.service!r}")
 
     report = ensure_daily_report(db, store_id, report_date)
     if report.locked_at is not None:
@@ -220,12 +292,38 @@ def replace_mt_breakdown(
         ))
         grand_total += row_total
 
+    if services is not None:
+        (
+            db.query(MoneyServiceSummary)
+              .filter_by(store_id=int(store_id), report_date=report_date)
+              .delete(synchronize_session=False)
+        )
+        merged: dict[tuple[str, str], tuple[float, float]] = {}
+        for svc in services:
+            co = (svc.company or "").strip()
+            amt, fees = float(svc.amount or 0), float(svc.fees or 0)
+            if not co or (amt == 0 and fees == 0):
+                continue
+            prev = merged.get((co, svc.service), (0.0, 0.0))
+            merged[(co, svc.service)] = (prev[0] + amt, prev[1] + fees)
+        for (co, kind), (amt, fees) in merged.items():
+            db.add(MoneyServiceSummary(
+                store_id=int(store_id), report_date=report_date,
+                company=co, service=kind, amount=amt, fees=fees,
+            ))
+    db.flush()
+    # Services count in the day's total whether or not this call
+    # replaced them — a transfers-only caller must not drop them.
+    grand_total += sum(
+        s.total for s in _read_services(db, store_id, report_date)
+    )
+
     # Mirror the grand total into the daily report so the receipts
     # tab + total_receipts both pick it up. Keep the existing
     # value if the caller passed zero rows — that way "clear the
     # breakdown" doesn't accidentally wipe a manually-typed
     # money_transfer field.
-    if rows:
+    if rows or services is not None:
         report.money_transfer = float(grand_total)
         # money_transfer feeds total_receipts, so the derived
         # over_short reconciliation has to be refreshed with it.
