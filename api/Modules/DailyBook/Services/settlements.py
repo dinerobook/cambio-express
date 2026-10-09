@@ -78,7 +78,7 @@ def check_expectation(
     )
     if kind not in SETTLEMENT_PAIRS:
         raise LineItemValidationError(
-            "Only Cash Out, Other cash in and checks on hold "
+            "Only Cash Out, Cash In and checks on hold "
             "can be marked as open.",
         )
     if settle_by is not None and settle_by < report_date:
@@ -113,7 +113,7 @@ def check_settlement(
             "Held checks are closed with a held-check deposit."
             if str(origin.kind) in ALWAYS_OPEN_KINDS
             or kind in SETTLES_ONLY_KINDS
-            else "A return has to go the opposite way: Other cash in "
+            else "A return has to go the opposite way: Cash In "
             "for a cash out, Cash Out for a cash in.",
         )
     if report_date < origin.report_date:

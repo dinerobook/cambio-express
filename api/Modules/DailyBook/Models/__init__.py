@@ -14,6 +14,8 @@ Five classes that own the per-day close-out book:
                              tables for cash purchases, expenses,
                              etc.).
 * ``MoneyTransferSummary`` — per-company per-day MT roll-up.
+* ``MoneyServiceSummary`` — per-company per-day bill payments,
+                             top-ups and recharges (the Services box).
 """
 from __future__ import annotations
 
@@ -347,11 +349,42 @@ class MoneyTransferSummary(Base):
         return to_dollars(self.individual_total_cents)
 
 
+class MoneyServiceSummary(Base):
+    """One company's non-transfer service for one day: bill payments,
+    top-ups or recharges taken at the counter on that provider's
+    terminal (``service`` is a key of ``mt_breakdown.SERVICE_KINDS``).
+
+    Sits beside ``MoneyTransferSummary`` (the transfers) so a provider's
+    day total is transfers + services, which is what its cash drop is
+    checked against. Amount and fee stay separate; there is no federal
+    tax or commission on these. The day's grand total of both tables
+    is mirrored into ``DailyReport.money_transfer`` (the Services box)
+    by ``replace_mt_breakdown`` — see INVARIANTS.md "Services"."""
+    __tablename__ = "msb_mt_service"
+    id           = Column(Integer, primary_key=True)
+    store_id     = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False)
+    report_date  = Column(Date, nullable=False)
+    company      = Column(String(40), nullable=False)
+    service      = Column(String(20), nullable=False)
+    amount_cents = Column(BigInteger, default=0)
+    fees_cents   = Column(BigInteger, default=0)
+    amount = DollarView("amount_cents")
+    fees   = DollarView("fees_cents")
+    __table_args__ = (
+        UniqueConstraint("store_id", "report_date", "company", "service",
+                         name="uq_msb_mt_service_day"),
+    )
+
+    @property
+    def total_cents(self) -> int:
+        return int((self.amount_cents or 0) + (self.fees_cents or 0))
+
+
 # Re-export sibling models the DailyBook services touch.
 from api.Modules.Tenancy.Models import Store, User  # noqa: E402
 
 
 __all__ = [
     "CheckDeposit", "DailyDrop", "DailyLineItem", "DailyReport",
-    "MoneyTransferSummary", "Store", "User",
+    "MoneyServiceSummary", "MoneyTransferSummary", "Store", "User",
 ]

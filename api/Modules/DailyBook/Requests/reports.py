@@ -1,5 +1,6 @@
 """Pydantic schemas for the daily-book read-side."""
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -231,14 +232,34 @@ class MTBreakdownRowResponse(BaseModel):
     auto_total: float
 
 
+# Keys of `mt_breakdown.SERVICE_KINDS`; a test pins the two together.
+ServiceKind = Literal["bill_payment", "top_up", "recharge"]
+
+
+class MTServiceRow(BaseModel):
+    """One company's bill payments, top-ups or recharges for the day:
+    amount and fee only (no federal tax or commission on these). Same
+    shape on read and write."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company: str
+    service: ServiceKind
+    amount: float = 0.0
+    fees: float = 0.0
+
+
 class MTBreakdownResponse(BaseModel):
     """Per-company MT breakdown for a single (store, date). Empty
     `rows` means the store has no MT companies configured (a fresh
-    install before the company list is populated)."""
+    install before the company list is populated). `services` holds
+    only the saved non-zero service rows; `saved_total` covers
+    transfers and services — the In column's Services box."""
 
     model_config = ConfigDict(extra="forbid")
 
     rows: list[MTBreakdownRowResponse]
+    services: list[MTServiceRow]
     saved_total: float
     auto_total: float
 
@@ -266,6 +287,9 @@ class MTBreakdownWriteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rows: list[MTBreakdownWriteRow]
+    # Omitted (null) = leave the day's services as they are. A list
+    # replaces every service row for the day (an empty list clears).
+    services: list[MTServiceRow] | None = None
 
 
 class DailyReportUpdateRequest(BaseModel):

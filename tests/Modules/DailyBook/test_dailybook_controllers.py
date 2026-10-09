@@ -242,6 +242,32 @@ def test_put_persists_money_order_fees(client, test_store_id):
     assert row["total_receipts"] == 25.0
 
 
+def test_retired_in_fields_still_read_save_and_count(client, test_store_id):
+    """Bill payment charge / Phone recargas / Boost Mobile no longer
+    show as boxes on new days, but past days carry amounts in them.
+    Those amounts must still come back on GET, still count in
+    total_receipts, and still save through the PUT."""
+    day = date.today() - timedelta(days=3)
+    with db_session():
+        _seed_report(test_store_id, day, bill_payment_charge=10.0,
+                     phone_recargas=20.0, boost_mobile=30.0)
+    token = _login_admin_token(client, test_store_id)
+    auth = {"Authorization": f"Bearer {token}"}
+    url = f"/api/v2/daily/{test_store_id}/{day.isoformat()}"
+
+    row = client.get(url, headers=auth).get_json()["report"]
+    assert (row["bill_payment_charge"], row["phone_recargas"],
+            row["boost_mobile"]) == (10.0, 20.0, 30.0)
+    assert row["total_receipts"] == 60.0
+
+    resp = client.put(url, json={"phone_recargas": 0.0}, headers=auth)
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    row = resp.get_json()["report"]
+    assert row["phone_recargas"] == 0.0
+    assert row["bill_payment_charge"] == 10.0
+    assert row["total_receipts"] == 40.0
+
+
 def test_put_rejects_locked_report(client, test_store_id):
     from api.Modules.DailyBook.Models import DailyReport
     from tests._app import db

@@ -6582,7 +6582,7 @@
       },
       "MTBreakdownResponse": {
         "additionalProperties": false,
-        "description": "Per-company MT breakdown for a single (store, date). Empty\n`rows` means the store has no MT companies configured (a fresh\ninstall before the company list is populated).",
+        "description": "Per-company MT breakdown for a single (store, date). Empty\n`rows` means the store has no MT companies configured (a fresh\ninstall before the company list is populated). `services` holds\nonly the saved non-zero service rows; `saved_total` covers\ntransfers and services \u2014 the In column's Services box.",
         "properties": {
           "auto_total": {
             "title": "Auto Total",
@@ -6598,10 +6598,18 @@
           "saved_total": {
             "title": "Saved Total",
             "type": "number"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/MTServiceRow"
+            },
+            "title": "Services",
+            "type": "array"
           }
         },
         "required": [
           "rows",
+          "services",
           "saved_total",
           "auto_total"
         ],
@@ -6688,6 +6696,20 @@
             },
             "title": "Rows",
             "type": "array"
+          },
+          "services": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MTServiceRow"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Services"
           }
         },
         "required": [
@@ -6750,6 +6772,41 @@
           "name"
         ],
         "title": "MTCompanyEntry",
+        "type": "object"
+      },
+      "MTServiceRow": {
+        "additionalProperties": false,
+        "description": "One company's bill payments, top-ups or recharges for the day:\namount and fee only (no federal tax or commission on these). Same\nshape on read and write.",
+        "properties": {
+          "amount": {
+            "default": 0.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "fees": {
+            "default": 0.0,
+            "title": "Fees",
+            "type": "number"
+          },
+          "service": {
+            "enum": [
+              "bill_payment",
+              "top_up",
+              "recharge"
+            ],
+            "title": "Service",
+            "type": "string"
+          }
+        },
+        "required": [
+          "company",
+          "service"
+        ],
+        "title": "MTServiceRow",
         "type": "object"
       },
       "MappingListResponse": {

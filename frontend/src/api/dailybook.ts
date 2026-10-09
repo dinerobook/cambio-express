@@ -378,8 +378,23 @@ export interface MTBreakdownRow {
   auto_total: number;
 }
 
+// One company's bill payments, top-ups or recharges for the day.
+export type MTServiceRow = components["schemas"]["MTServiceRow"];
+export type ServiceKind = MTServiceRow["service"];
+
+// The Services box's tabs after Money transfer, in order. Keys match
+// SERVICE_KINDS in api/Modules/DailyBook/Services/mt_breakdown.py.
+export const SERVICE_KINDS: ReadonlyArray<{ key: ServiceKind; label: string }> = [
+  { key: "bill_payment", label: "Bill payments" },
+  { key: "top_up",       label: "Top-ups" },
+  { key: "recharge",     label: "Recharges" },
+];
+
 export interface MTBreakdown {
   rows: MTBreakdownRow[];
+  /** Saved non-zero service rows only. */
+  services: MTServiceRow[];
+  /** Transfers + services: the day's Services total. */
   saved_total: number;
   auto_total: number;
 }
@@ -412,14 +427,17 @@ export function useMTBreakdown(date: string | undefined) {
 }
 
 // PUT /api/v2/daily/{store}/{date}/mt-breakdown — bulk-replace
-// every saved row + sync the grand total into the daily report's
-// `money_transfer` field in one transaction.
+// every saved row + sync the grand total (transfers + services) into
+// the daily report's `money_transfer` field in one transaction.
+// `services` omitted leaves the day's services as they are; a list
+// replaces them all.
 export async function replaceMTBreakdown(
   storeId: number, date: string, rows: MTBreakdownWriteRow[],
+  services?: MTServiceRow[],
 ): Promise<MTBreakdown> {
   return api<MTBreakdown>(
     `/api/v2/daily/${storeId}/${date}/mt-breakdown`,
-    { method: "PUT", json: { rows } },
+    { method: "PUT", json: services === undefined ? { rows } : { rows, services } },
   );
 }
 

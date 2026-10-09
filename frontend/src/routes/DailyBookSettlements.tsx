@@ -1,5 +1,5 @@
 // Money that comes back — cash lent out of the drawer (a Cash Out
-// entry ticked "Expected back") or borrowed into it (an Other cash in
+// entry ticked "Expected back") or borrowed into it (a Cash In
 // ticked "We pay this back"). The API keeps the books: the return is
 // an ordinary entry of the opposite kind on the day the cash moved,
 // linked to the original. See DailyBook/INVARIANTS.md "Settlements".
@@ -45,7 +45,7 @@ function settleLabel(kind: string): string {
 }
 
 /** Tick box + optional "back by" date, for the add row and the
- *  inline edit of a Cash Out / Other cash in entry. A check on hold
+ *  inline edit of a Cash Out / Cash In entry. A check on hold
  *  is always open, so it gets the date alone. */
 export function SettleFields({
   kind, checked, onCheckedChange, settleBy, onSettleByChange, disabled,
@@ -128,10 +128,10 @@ const DIRECTION: Record<Direction, {
   title: string; kind: string; record: string; settleKind: string;
   empty: string; lockedHint: string; cashNote?: string;
 }> = {
-  // Lent out of the drawer → comes back as an Other cash in.
+  // Lent out of the drawer → comes back as a Cash In entry.
   owed_to_us: {
     title: "Owed to us", kind: "other_cash_out",
-    record: "Record return", settleKind: "Other cash in",
+    record: "Record return", settleKind: "Cash In",
     empty: "Nothing is owed to the store. Tick \"Expected back\" on a Cash Out entry to track one.",
     lockedHint: "This day is locked. Open an unlocked day to record a return.",
   },
@@ -139,7 +139,7 @@ const DIRECTION: Record<Direction, {
   we_owe: {
     title: "We owe", kind: "other_cash_in",
     record: "Record payback", settleKind: "Cash Out",
-    empty: "The store owes nothing. Tick \"We pay this back\" on an Other cash in to track one.",
+    empty: "The store owes nothing. Tick \"We pay this back\" on a Cash In entry to track one.",
     lockedHint: "This day is locked. Open an unlocked day to record a payback.",
   },
   // Checks cashed and kept → deposited on a later day. The deposit

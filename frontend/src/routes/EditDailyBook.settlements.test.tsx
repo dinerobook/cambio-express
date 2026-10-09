@@ -8,7 +8,7 @@ import EditDailyBook from "./EditDailyBook";
 import type { LineItemRow } from "../api/dailybook";
 
 // The daily book's entry boxes and money that comes back:
-//   - Cash Out offers "Expected back", Other cash in offers
+//   - Cash Out offers "Expected back", Cash In offers
 //     "We pay this back"; no other box offers either.
 //   - A plain add sends exactly what it always did.
 //   - A ticked add sends the mark and the optional date.
@@ -125,7 +125,7 @@ describe("EditDailyBook — money that comes back", () => {
 
   it("marks a borrowed cash in as paid back, date optional", async () => {
     renderPage();
-    const dialog = await openBox(/Other cash in/);
+    const dialog = await openBox(/^Cash In/);
     await userEvent.type(within(dialog).getByLabelText(/Amount/), "800");
     await userEvent.click(within(dialog).getByLabelText("We pay this back"));
     await userEvent.click(within(dialog).getByRole("button", { name: "+ Add" }));
