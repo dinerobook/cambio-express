@@ -47,12 +47,32 @@ RBAC_RESOURCES = [
     "transfers", "customers", "daily_book", "monthly",
     "batches", "bank_sync", "reports", "settings",
     "users", "time_clock", "return_checks", "lottery",
-    "day_close", "catalog",
+    "day_close", "catalog", "day_lock",
 ]
 RBAC_ACTIONS = ["create", "read", "update", "delete"]
 
+# Resources that are a single switch rather than an area with
+# create / view / edit / delete. ``day_lock`` is "may lock and
+# unlock a day" on both daily books (MSB and store), stored as its
+# ``update`` action. An action a resource does not list here is
+# never written, granted, implied or shown — see ``actions_for``.
+RBAC_RESOURCE_ACTIONS: dict[str, list[str]] = {
+    "day_lock": ["update"],
+}
+
+
+def actions_for(resource: str) -> list[str]:
+    """The actions ``resource`` has (every action unless it is a
+    single-switch resource in ``RBAC_RESOURCE_ACTIONS``)."""
+    return RBAC_RESOURCE_ACTIONS.get(resource, RBAC_ACTIONS)
+
+
+ALL_GRANTS: frozenset[tuple[str, str]] = frozenset(
+    (r, a) for r in RBAC_RESOURCES for a in actions_for(r)
+)
+
 RBAC_DEFAULTS: dict[str, list[str]] = {
-    "admin": [f"{r}.{a}" for r in RBAC_RESOURCES for a in RBAC_ACTIONS],
+    "admin": [f"{r}.{a}" for r, a in sorted(ALL_GRANTS)],
     "employee": [
         "transfers.create", "transfers.read", "transfers.update",
         "customers.create", "customers.read", "customers.update",
@@ -66,9 +86,14 @@ RBAC_DEFAULTS: dict[str, list[str]] = {
         # Cashiers look items up in the price book; managing the
         # catalog (items + vendors) stays admin-side.
         "catalog.read",
+        # Lock / unlock a day. Only bites together with Edit on that
+        # book (which employees do not get by default), so granting
+        # it keeps what employees could do before the switch existed;
+        # a store admin turns it off on Roles & access.
+        "day_lock.update",
     ],
     "owner": (
-        [f"{r}.read" for r in RBAC_RESOURCES]
+        [f"{r}.read" for r in RBAC_RESOURCES if "read" in actions_for(r)]
         + ["settings.create", "settings.update", "settings.delete",
            "users.create"]
     ),
@@ -183,7 +208,10 @@ def _with_implied_read(
     "back to calendar" button to the dashboard. Applied on every
     resolution path so a matrix saved before the editor coupled the
     boxes still resolves coherently."""
-    return grants | {(resource, "read") for resource, _ in grants}
+    return grants | {
+        (resource, "read") for resource, _ in grants
+        if "read" in actions_for(resource)
+    }
 
 
 def _normalized_matrix(
@@ -195,7 +223,7 @@ def _normalized_matrix(
     out: dict[str, dict[str, bool]] = {}
     for resource, actions in matrix.items():
         row = dict(actions)
-        if any(row.values()):
+        if any(row.values()) and "read" in actions_for(resource):
             row["read"] = True
         out[resource] = row
     return out
@@ -361,7 +389,7 @@ def resolve_grants(
     decide what that means for their caller.
     """
     if role == "superadmin":
-        return {(r, a) for r in RBAC_RESOURCES for a in RBAC_ACTIONS}
+        return set(ALL_GRANTS)
     if role not in RBAC_DEFAULTS:
         # Unknown or blank role: nothing. (A blank subject would
         # also match EVERY row in a filtered policy lookup.)
@@ -462,12 +490,13 @@ def _rows_for_matrix(matrix: dict[str, dict[str, bool]]) -> Rows:
     allowed action (read implied by any write), and a ``__none__``
     marker for every CURRENT resource with nothing allowed, so a
     resource added to the platform later is "not mentioned" and
-    falls through to the layer below until the next save."""
+    falls through to the layer below until the next save. An action
+    the resource does not have (``actions_for``) is never written."""
     normalized = _normalized_matrix(matrix)
     rows: Rows = []
     for resource in RBAC_RESOURCES:
         actions = normalized.get(resource, {})
-        allowed = [a for a in RBAC_ACTIONS if actions.get(a)]
+        allowed = [a for a in actions_for(resource) if actions.get(a)]
         if allowed:
             rows.extend((resource, a) for a in allowed)
         else:

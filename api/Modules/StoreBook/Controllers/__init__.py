@@ -194,8 +194,11 @@ def storebook_lock_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> StoreBookDayResponse:
-    """Lock or unlock the day."""
+    """Lock or unlock the day. Needs Edit on the store daily book
+    AND the ``day_lock`` switch (same switch as the MSB daily
+    book's lock)."""
     require_permission(claims, "day_close", "update")
+    require_permission(claims, "day_lock", "update")
     store_id = resolve_store_scope(claims)
     entry = get_or_create_entry(db, store_id, _parse_day(day))
     set_lock(db, entry, locked=body.locked, user_id=int(claims["sub"]))

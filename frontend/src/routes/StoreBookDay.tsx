@@ -13,6 +13,7 @@ import {
   Textarea, useToast,
 } from "../components/ui";
 import RegisterCloses from "../components/RegisterCloses";
+import { canDo } from "../lib/access";
 import { ApiError } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
@@ -201,25 +202,31 @@ export default function StoreBookDay() {
             >
               →
             </Button>
-            <Button
-              tone={locked ? "primary" : "secondary"} size="sm"
-              busy={busy}
-              perm="day_close.update"
-              onClick={() => {
-                if (locked) void onToggleLock();
-                else setConfirmLock(true);
-              }}
-            >
-              {locked ? "Unlock" : "Lock day"}
-            </Button>
+            {/* Locking needs Edit on this book AND the "Lock / unlock
+                days" switch, like the server's lock route. */}
+            {canDo("day_lock.update") && (
+              <Button
+                tone={locked ? "primary" : "secondary"} size="sm"
+                busy={busy}
+                perm="day_close.update"
+                onClick={() => {
+                  if (locked) void onToggleLock();
+                  else setConfirmLock(true);
+                }}
+              >
+                {locked ? "Unlock" : "Lock day"}
+              </Button>
+            )}
           </div>
         }
       />
 
       {locked && (
         <Alert tone="info">
-          This day is locked. Unlock it to make changes — imported
-          register data still lands while it's locked.
+          {canDo("day_close.update") && canDo("day_lock.update")
+            ? "This day is locked. Unlock it to make changes"
+            : "This day is locked. Ask an admin to unlock it to make changes"}
+          {" — imported register data still lands while it's locked."}
         </Alert>
       )}
       {serverError && <Alert tone="error">{serverError}</Alert>}

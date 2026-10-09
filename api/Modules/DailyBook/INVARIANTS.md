@@ -357,8 +357,14 @@ The line-item routes enforce this on create, update AND delete
 (`_refuse_locked_day` in the controller). Create and delete used to
 skip the check — the SPA hid the buttons, the API did not refuse.
 
-To re-open: `POST /api/v2/daily/{store}/{date}/unlock` (admin /
-owner / superadmin only). The unlock writes an operator audit row.
+To re-open: `POST /api/v2/daily/{store}/{date}/unlock`. Lock and
+unlock each need `daily_book.update` AND `day_lock.update` — the
+"Lock / unlock days" switch on Team → Roles & access, shared with
+the store daily book's lock. Admins always hold it; employees get it
+by default (it only bites alongside Edit, which they do not get by
+default) and a store admin can turn it off for the Employee role or
+one person. Both routes write an operator audit row on a state
+change.
 
 
 ## Settlements — cash lent out or borrowed that comes back

@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session
 
 from api.Core.Clock import utc_now
 from api.Core.Permissions import (
-    RBAC_ACTIONS, RBAC_RESOURCES, set_user_permissions,
+    RBAC_ACTIONS, RBAC_RESOURCES, actions_for, set_user_permissions,
     set_user_permissions_bulk,
 )
 from api.Modules.Tenancy.Models import StoreRole, StoreRolePermission, User
@@ -97,7 +97,7 @@ def _write_matrix(
     db.flush()
     for resource in RBAC_RESOURCES:
         actions = matrix.get(resource) or {}
-        for action in RBAC_ACTIONS:
+        for action in actions_for(resource):
             if actions.get(action):
                 role.permissions.append(StoreRolePermission(
                     store_id=role.store_id,

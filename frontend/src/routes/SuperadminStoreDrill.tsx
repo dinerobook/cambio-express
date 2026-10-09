@@ -730,7 +730,7 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
     setDraft((prev) => {
       if (!prev) return prev;
       const next = structuredClone(prev);
-      next.matrix[role][resource] = toggleMatrixCell(next.matrix[role][resource], action);
+      next.matrix[role][resource] = toggleMatrixCell(next.matrix[role][resource], action, resource);
       return next;
     });
   }

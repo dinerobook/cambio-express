@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
-import { toggleMatrixCell } from "../lib/permissions";
+import { actionsFor, toggleMatrixCell } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
 import {
@@ -77,7 +77,7 @@ export default function SuperadminPermissions() {
     setDraft((prev) => {
       if (!prev) return prev;
       const next = structuredClone(prev);
-      next.matrix[role][resource] = toggleMatrixCell(next.matrix[role][resource], action);
+      next.matrix[role][resource] = toggleMatrixCell(next.matrix[role][resource], action, resource);
       return next;
     });
   }
@@ -87,7 +87,7 @@ export default function SuperadminPermissions() {
     setDraft((prev) => {
       if (!prev) return prev;
       const next = structuredClone(prev);
-      for (const action of next.actions) {
+      for (const action of actionsFor(resource, next.actions)) {
         next.matrix[role][resource][action] = value;
       }
       return next;
@@ -167,7 +167,7 @@ export default function SuperadminPermissions() {
             trailingColumn={{
               header: "All",
               render: (resource) => {
-                const allChecked = draft.actions.every(
+                const allChecked = actionsFor(resource, draft.actions).every(
                   (a) => draft.matrix[role][resource][a],
                 );
                 return (

@@ -322,8 +322,13 @@ def lock_daily_route(
     target_type='daily_report'`) on a state transition (was-not-
     locked → locked). Already-locked re-lock attempts are no-ops
     and don't append a second audit row, matching the legacy
-    contract."""
+    contract.
+
+    Needs Edit on the daily book AND the ``day_lock`` switch, so a
+    store admin can let employees edit a day without letting them
+    lock or unlock it."""
     require_permission(claims, "daily_book", "update")
+    require_permission(claims, "day_lock", "update")
     d = _parse_date(report_date, field="report_date")
     claim_store = claims.get("store_id")
     if claim_store is None or int(claim_store) != int(store_id):
@@ -392,8 +397,10 @@ def unlock_daily_route(
 
     Writes an OperatorAuditLog row (`action='unlock'`) on a state
     transition (was-locked → not-locked). Already-unlocked report
-    is a no-op + no second audit row."""
+    is a no-op + no second audit row. Same two permissions as
+    lock."""
     require_permission(claims, "daily_book", "update")
+    require_permission(claims, "day_lock", "update")
     d = _parse_date(report_date, field="report_date")
     claim_store = claims.get("store_id")
     if claim_store is None or int(claim_store) != int(store_id):
