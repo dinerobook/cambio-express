@@ -108,3 +108,28 @@ describe("money_order as a derived receipt", () => {
     expect(receipts).toBe(125);
   });
 });
+
+
+describe("held checks", () => {
+  // Same check, two ways: deposited the same day, or held. The Out
+  // total and over/short must agree; the later deposit of a held
+  // check moves neither.
+  it("counts checks held in Out and over/short like a check deposit", () => {
+    const form = makeForm({ forward_balance: 5000, safe_balance: 1000 });
+    const sameDay = computeTotals(form, makeReport({ checks_deposit: 4000 }));
+    const held = computeTotals(form, makeReport({ checks_held: 4000 }));
+    expect(held.disbursements).toBe(4000);
+    expect(held.disbursements).toBe(sameDay.disbursements);
+    expect(held.overShort).toBe(sameDay.overShort);
+    expect(held.overShort).toBe(0);
+  });
+
+  it("leaves a held-check deposit out of every total", () => {
+    const form = makeForm({ forward_balance: 1000, safe_balance: 1000 });
+    const plain = computeTotals(form, makeReport());
+    const depositDay = computeTotals(
+      form, makeReport({ held_checks_deposited: 4000 }),
+    );
+    expect(depositDay).toEqual(plain);
+  });
+});

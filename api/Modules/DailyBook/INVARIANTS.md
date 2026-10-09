@@ -95,6 +95,8 @@ matching `kind`. The mapping is canonical in
 | `from_bank` | `from_bank` | Cash pulled from the bank into the drawer (multiple bank runs per day) |
 | `money_order` | `money_order` | Money orders sold — one aggregate entry per day or one entry per money order, operator's choice |
 | `payroll_expense` | `payroll_cash` | Payroll paid in CASH — a real daily disbursement |
+| `checks_held` | `check_hold` | Checks cashed for a client and HELD to deposit later — the cash left the drawer today, so it counts in Out and over/short exactly like `checks_deposit`. Always open (see "Held checks") |
+| `held_checks_deposited` | `held_check_deposit` | Held checks reaching the bank on a later day — **in NO total** (the cash left on the day of the hold); only created linked to a hold |
 | `payroll_check` | `payroll_check` | Payroll paid by CHECK — **excluded from total_disbursements and over_short** (a check doesn't move drawer cash); exists only to feed the monthly P&L's `check_payroll` line |
 
 **These fields are NOT writable via the daily-report PUT.** They get
@@ -136,6 +138,8 @@ these fields, or the request 422s:
 - `money_order` (Category 2 — money_order kind)
 - `payroll_expense` (Category 2 — payroll_cash kind)
 - `payroll_check` (Category 2 — payroll_check kind)
+- `checks_held` (Category 2 — check_hold kind)
+- `held_checks_deposited` (Category 2 — held_check_deposit kind)
 
 Plus the database-managed fields (id, store_id, report_date,
 locked_at, locked_by, updated_at) and the computed properties
@@ -186,7 +190,13 @@ total_disbursements = cash_purchases + cash_expense
                     + outside_cash_drops
                     + cash_deposit + checks_deposit
                     + payroll_expense + other_cash_out
+                    + checks_held
 ```
+
+`checks_held` was added 2026-10-09 (NULL, read as 0, on every
+earlier row, so no existing day's totals moved).
+`held_checks_deposited` is deliberately absent from both formulas
+and from `computed_over_short` — see "Held checks".
 
 `payroll_check` is deliberately absent from BOTH formulas and from
 `computed_over_short` — payroll paid by check doesn't move drawer
@@ -413,6 +423,44 @@ writer goes through them.
   only writer and checks it.
 
 
+## Held checks — checks cashed today, deposited later
+
+A store cashes a regular client's checks (say on Friday) and keeps
+them, depositing them on an agreed later day (Thursday). The
+store's Out column treats a same-day `check_deposit` as the stand-in
+for the cash paid out for the checks; a held check has to do the
+same job on Friday without a bank trip. (Owner's design,
+2026-10-09.)
+
+- **Friday: `check_hold`** ("Checks held", Out column). Rolls into
+  `checks_held`, which is in `total_disbursements` and therefore in
+  over/short, exactly like `checks_deposit`. A hold is ALWAYS open
+  (`ALWAYS_OPEN_KINDS`: the service sets `expects_settlement` on
+  create whatever the client sends); `settle_by` is the optional
+  "deposit by" date.
+- **Thursday: `held_check_deposit`** ("Held checks deposited"),
+  created by Deposit on the "Checks on hand" tile, linked to the hold
+  via `settles_item_id`. Rolls into `held_checks_deposited`, which is
+  in **no** total: the cash already left on Friday. It records the
+  deposit so the day matches the bank statement, nothing more.
+  `SETTLES_ONLY_KINDS`: it can't exist unlinked (422).
+- Everything else is the Settlements machinery above, via
+  `SETTLEMENT_PAIRS["check_hold"] = "held_check_deposit"`: partial
+  deposits, a deposit can't exceed what is on hand or predate the
+  hold, a hold can't shrink below or be deleted while deposits point
+  at it, Close and the deposit-by date work on a locked day, a
+  deposit is a create on its own day so a locked day refuses it. A
+  cash entry can't settle a hold and a held deposit can't settle
+  lent cash.
+- **Bank feed**: both kinds are `BOOK_ONLY_KINDS` — never offered or
+  booked by bank tagging (it would count the cash twice or leave a
+  deposit tied to no hold). The bank deposit is tagged with the
+  non-posting `held_checks_deposited` slug instead.
+- Two NULL-able columns on `msb_daily_report`
+  (`checks_held_cents`, `held_checks_deposited_cents`, migration
+  `d8f3b6a2c4e1`); NULL reads as 0, so existing days are unchanged.
+
+
 ## Audit invariants
 
 Every mutation through the FastAPI controllers writes an
@@ -526,6 +574,9 @@ Things that need a design discussion FIRST:
   audit row.
 - `test_settlements.py` — lent / borrowed entries, returns, close,
   the lock on create / delete, and the access gates.
+- `test_held_checks.py` — holds in Out / over-short, deposits that
+  move no cash, partial deposits, the lock, the bank feed exclusion,
+  the migration, and the access gates.
 
 Before changing this module, run:
 

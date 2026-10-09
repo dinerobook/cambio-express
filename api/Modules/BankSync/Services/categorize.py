@@ -123,7 +123,7 @@ def book_to_daily(
     """Post `txn` on the daily book as a `kind` line item and roll
     the day's total up. Raises `DailyBookLockedError` for a locked
     day and `ValueError` for a kind that is not a line-item kind."""
-    if kind not in LINE_ITEM_KINDS:
+    if not _registry_is_daily_book_kind(kind):
         raise ValueError(f"{kind!r} is not a daily-book line-item kind")
     line_date = booking_date_for(txn, report_date)
     existing = find_report_by_date(db, int(txn.store_id), line_date)

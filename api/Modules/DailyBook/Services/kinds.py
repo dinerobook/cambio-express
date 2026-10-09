@@ -65,7 +65,28 @@ LINE_ITEM_KINDS: dict[str, tuple[str, str, str]] = {
     # story as drops — was its own `CheckDeposit` table; now a
     # kind.
     "check_deposit":  ("checks_deposit",         "check deposit",        "deposits"),
+    # Held checks (Services/settlements.py "held checks"). A client's
+    # checks are cashed today but deposited on a later day. The cash
+    # left the drawer today, so `check_hold` is an Out line exactly
+    # like a same-day check deposit. When the checks finally go to
+    # the bank, the `held_check_deposit` entry linked to the hold
+    # records it on that day and rolls into a column that is in NO
+    # daily total — the cash already left on the day of the hold.
+    "check_hold":     ("checks_held",            "checks held",          "entries"),
+    "held_check_deposit": (
+        "held_checks_deposited", "held checks deposited", "deposits",
+    ),
 }
+
+
+# Kinds that only the daily book's own flow may write: a hold is
+# typed by the cashier, and a held-check deposit only exists linked
+# to a hold. The bank feed never books either (tagging a bank
+# deposit into them would count the money a second time or leave a
+# deposit tied to no hold) — see BankSync `is_daily_book_kind`.
+BOOK_ONLY_KINDS: frozenset[str] = frozenset({
+    "check_hold", "held_check_deposit",
+})
 
 
 def is_known_kind(kind: str) -> bool:

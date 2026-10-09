@@ -3,6 +3,7 @@ read-side flows for the daily P&L view + monthly roll-up, plus the
 write-side lifecycle (lock / unlock) and line-item helpers.
 """
 from api.Modules.DailyBook.Services.kinds import (
+    BOOK_ONLY_KINDS,
     LINE_ITEM_KINDS,
     all_kinds,
     field_for_kind,
@@ -58,6 +59,7 @@ __all__ = [
     "DailyReportLockedError",
     "DailyReportSummary",
     "EDITABLE_REPORT_FIELDS",
+    "BOOK_ONLY_KINDS",
     "LINE_ITEM_KINDS",
     "LineItemValidationError",
     "MTBreakdown",

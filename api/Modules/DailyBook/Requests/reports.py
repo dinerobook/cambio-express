@@ -61,6 +61,11 @@ class DailyReportRow(BaseModel):
     outside_cash_drops: float = 0.0
     checks_deposit: float = 0.0
     other_cash_out: float = 0.0
+    # Held checks (line-item derived). `checks_held` is in the Out
+    # total; `held_checks_deposited` is in no total — the cash left
+    # on the day of the hold.
+    checks_held: float = 0.0
+    held_checks_deposited: float = 0.0
     # Other
     over_short: float = 0.0
     locked: bool = False
@@ -145,6 +150,7 @@ class LineItemCreateRequest(BaseModel):
     amount: float  # > 0; the Service rejects ≤0
     note: str = ""
     # Mark an other_cash_out / other_cash_in as money that comes back.
+    # A check_hold is always marked, whatever this says.
     expects_settlement: bool = False
     settle_by: date | None = None
     # Book this entry as (part of) the return of an open entry.
@@ -309,8 +315,9 @@ class SettlementReturnRow(BaseModel):
 
 
 class OpenSettlementRow(BaseModel):
-    """A lent-out (`other_cash_out`) or borrowed (`other_cash_in`)
-    entry with money still outstanding."""
+    """A lent-out (`other_cash_out`), borrowed (`other_cash_in`) or
+    held-check (`check_hold`) entry with money still outstanding —
+    for a hold, "outstanding" is the checks not yet deposited."""
 
     model_config = ConfigDict(extra="forbid")
 

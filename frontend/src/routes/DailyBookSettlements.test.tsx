@@ -60,7 +60,7 @@ const borrowed: OpenSettlement = {
 };
 
 function renderWidget(
-  direction: "owed_to_us" | "we_owe" = "owed_to_us",
+  direction: "owed_to_us" | "we_owe" | "checks_on_hand" = "owed_to_us",
   { locked = false, onChange = vi.fn() } = {},
 ) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -319,6 +319,110 @@ describe("SettlementsWidget", () => {
   });
 });
 
+describe("SettlementsWidget — Checks on hand", () => {
+  const hold: OpenSettlement = {
+    id: 31, kind: "check_hold", report_date: addDaysIso(TODAY, -6),
+    amount: 4000, note: "ABC Construction", settle_by: addDaysIso(TODAY, -1),
+    settled: 2500, outstanding: 1500,
+    returns: [{ id: 35, report_date: addDaysIso(TODAY, -2), amount: 2500 }],
+  };
+  const holdNoDate: OpenSettlement = {
+    id: 32, kind: "check_hold", report_date: addDaysIso(TODAY, -1),
+    amount: 700, note: "Lopez Roofing", settle_by: null,
+    settled: 0, outstanding: 700, returns: [],
+  };
+
+  beforeEach(() => {
+    setCurrentIdentity(TEST_ADMIN);
+    useOpenSettlements.mockReset();
+    createLineItem.mockReset();
+    updateLineItem.mockReset();
+    useOpenSettlements.mockReturnValue({
+      data: [lent, borrowed, hold, holdNoDate], isError: false,
+    });
+  });
+
+  it("totals only held checks, and holds stay out of Owed to us", async () => {
+    renderWidget("checks_on_hand");
+    const tile = screen.getByRole("button", { name: /Checks on hand/ });
+    expect(tile).toHaveTextContent("$2,200.00");
+    expect(tile).toHaveTextContent("2 open");
+    expect(tile).toHaveTextContent("1 overdue");
+    const dialog = await openList("Checks on hand");
+    expect(within(dialog).queryByText("Store #2 (Raj)")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("ABC Construction").closest("tr"))
+      .toHaveTextContent("$2,500.00 on");
+  });
+
+  it("keeps holds out of the Owed to us tile", () => {
+    renderWidget("owed_to_us");
+    expect(screen.getByRole("button", { name: /Owed to us/ }))
+      .toHaveTextContent("$1,500.00");
+  });
+
+  it("deposits part of a hold as a linked no-cash entry on the viewed day", async () => {
+    createLineItem.mockResolvedValue({});
+    const { onChange } = renderWidget("checks_on_hand");
+    const dialog = await openList("Checks on hand");
+    const tr = within(dialog).getByText("ABC Construction").closest("tr")!;
+    await userEvent.click(within(tr).getByRole("button", { name: "Deposit" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    expect(form).toHaveTextContent("Held checks deposited");
+    expect(form).toHaveTextContent("No effect on cash or over/short");
+    const amount = within(form).getByLabelText(/Amount/);
+    expect(amount).toHaveValue("1500");
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "1000");
+    await userEvent.click(within(form).getByRole("button", { name: "Deposit" }));
+    await waitFor(() => expect(createLineItem).toHaveBeenCalledWith(1, VIEWED, {
+      kind: "held_check_deposit", at_time: "", amount: 1000,
+      note: "ABC Construction", settles_item_id: 31,
+    }));
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+  });
+
+  it("refuses depositing more than is on hand without calling the server", async () => {
+    renderWidget("checks_on_hand");
+    const dialog = await openList("Checks on hand");
+    const tr = within(dialog).getByText("Lopez Roofing").closest("tr")!;
+    await userEvent.click(within(tr).getByRole("button", { name: "Deposit" }));
+    const form = screen.getAllByRole("dialog").at(-1)!;
+    const amount = within(form).getByLabelText(/Amount/);
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "701");
+    await userEvent.click(within(form).getByRole("button", { name: "Deposit" }));
+    expect(form).toHaveTextContent("Only $700.00 is still outstanding.");
+    expect(createLineItem).not.toHaveBeenCalled();
+  });
+
+  it("offers no Deposit on a locked day but still Change date and Close", async () => {
+    renderWidget("checks_on_hand", { locked: true });
+    const dialog = await openList("Checks on hand");
+    expect(within(dialog).queryByRole("button", { name: "Deposit" }))
+      .not.toBeInTheDocument();
+    expect(within(dialog).getAllByRole("button", { name: "Close" })).toHaveLength(2);
+    expect(dialog).toHaveTextContent("record a deposit");
+  });
+
+  it("hides Deposit from someone who may only read the book", async () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee", permissions: ["daily_book.read"],
+    });
+    renderWidget("checks_on_hand");
+    const dialog = await openList("Checks on hand");
+    expect(within(dialog).getByText("Lopez Roofing")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Deposit" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("explains how to start when nothing is held", async () => {
+    useOpenSettlements.mockReturnValue({ data: [lent], isError: false });
+    renderWidget("checks_on_hand");
+    const dialog = await openList("Checks on hand");
+    expect(dialog).toHaveTextContent("No checks on hand");
+  });
+});
+
 describe("SettlementPill", () => {
   const base: LineItemRow = {
     id: 1, kind: "other_cash_out", at_time: "", amount: 2000, note: "",
@@ -351,6 +455,26 @@ describe("SettlementPill", () => {
   it("marks a closed entry that got some back", () => {
     render(<SettlementPill item={{ ...base, settled: 500 }} />);
     expect(screen.getByText("Closed")).toBeInTheDocument();
+  });
+
+  it("shows what is still on hand for a hold, then Deposited", () => {
+    const { rerender } = render(<SettlementPill item={{
+      ...base, kind: "check_hold", expects_settlement: true, settled: 2500,
+      amount: 4000,
+    }} />);
+    expect(screen.getByText(/On hand · \$1,500.00 to deposit/)).toBeInTheDocument();
+    rerender(<SettlementPill item={{
+      ...base, kind: "check_hold", expects_settlement: true, settled: 4000,
+      amount: 4000,
+    }} />);
+    expect(screen.getByText("Deposited")).toBeInTheDocument();
+  });
+
+  it("labels a held-check deposit entry", () => {
+    render(<SettlementPill item={{
+      ...base, kind: "held_check_deposit", settles_item_id: 31,
+    }} />);
+    expect(screen.getByText("Deposited")).toBeInTheDocument();
   });
 
   it("labels the return entry itself", () => {

@@ -65,6 +65,11 @@ export interface DailyReportRow {
   outside_cash_drops: number;
   checks_deposit: number;
   other_cash_out: number;
+  // Held checks — line-item derived (read-only). `checks_held` is in
+  // the Out total like a check deposit; `held_checks_deposited` is in
+  // NO total (the cash left on the day of the hold).
+  checks_held: number;
+  held_checks_deposited: number;
   // Other
   over_short: number;
   locked: boolean;
@@ -239,11 +244,13 @@ export async function deleteLineItem(
 export type OpenSettlement = components["schemas"]["OpenSettlementRow"];
 
 /** The kind that settles each markable kind: a cash out lent comes
- *  back as a cash in, a cash in borrowed is paid back as a cash out.
- *  Mirrors SETTLEMENT_PAIRS in the API. */
+ *  back as a cash in, a cash in borrowed is paid back as a cash out,
+ *  checks held are closed by a held-check deposit. Mirrors
+ *  SETTLEMENT_PAIRS in the API. */
 export const SETTLEMENT_PAIRS: Record<string, string> = {
   other_cash_out: "other_cash_in",
   other_cash_in: "other_cash_out",
+  check_hold: "held_check_deposit",
 };
 
 /** True for the kinds an entry can be marked "comes back" on. */
@@ -251,8 +258,16 @@ export function canSettle(kind: string): boolean {
   return kind in SETTLEMENT_PAIRS;
 }
 
-/** Every lent / borrowed entry with money still outstanding, across
- *  all days — the daily book's "Owed to us" / "We owe" tiles. */
+/** Kinds that are always open — a hold IS an open entry, so there is
+ *  no tick box, only the optional deposit-by date. Mirrors
+ *  ALWAYS_OPEN_KINDS in the API. */
+export function isAlwaysOpen(kind: string): boolean {
+  return kind === "check_hold";
+}
+
+/** Every lent / borrowed / held-check entry with money still
+ *  outstanding, across all days — the daily book's "Owed to us",
+ *  "We owe" and "Checks on hand" tiles. */
 export function useOpenSettlements() {
   const identity = getCurrentIdentity();
   const storeId = identity?.store_id;

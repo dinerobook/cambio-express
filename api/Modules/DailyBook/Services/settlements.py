@@ -11,6 +11,12 @@ the day totals, over/short and the monthly P&L are untouched by this
 module — the return is booked on the day the cash actually came
 back, like any other cash in. See INVARIANTS.md "Settlements".
 
+Held checks use the same machinery: a ``check_hold`` (checks cashed
+today, deposited later) is ALWAYS marked, and ``held_check_deposit``
+entries linked to it record the checks reaching the bank. Unlike a
+cash return, a held-check deposit moves no cash: its kind rolls into
+a column that is in no daily total. See INVARIANTS.md "Held checks".
+
 These rules are enforced inside the line-item Service
 (``add_line_item`` / ``update_line_item`` / ``delete_line_item``),
 not in the controller, so every writer goes through them.
@@ -29,7 +35,13 @@ from api.Modules.DailyBook.Models import DailyLineItem
 SETTLEMENT_PAIRS: dict[str, str] = {
     "other_cash_out": "other_cash_in",   # lent out → comes back in
     "other_cash_in": "other_cash_out",   # borrowed → paid back out
+    "check_hold": "held_check_deposit",  # held → deposited later
 }
+
+# Kinds that are always marked: a hold IS an open entry.
+ALWAYS_OPEN_KINDS: frozenset[str] = frozenset({"check_hold"})
+# Kinds that only exist linked to an open entry they settle.
+SETTLES_ONLY_KINDS: frozenset[str] = frozenset({"held_check_deposit"})
 
 
 def settled_cents(
@@ -66,8 +78,8 @@ def check_expectation(
     )
     if kind not in SETTLEMENT_PAIRS:
         raise LineItemValidationError(
-            "Only Other cash out and Other cash in entries can be "
-            "marked as coming back.",
+            "Only Other cash out, Other cash in and Checks held "
+            "entries can be marked as open.",
         )
     if settle_by is not None and settle_by < report_date:
         raise LineItemValidationError(
@@ -98,8 +110,11 @@ def check_settlement(
         )
     if SETTLEMENT_PAIRS.get(str(origin.kind)) != kind:
         raise LineItemValidationError(
-            "A return has to go the opposite way: Other cash in for a "
-            "cash out, Other cash out for a cash in.",
+            "Held checks are closed with a held-check deposit."
+            if str(origin.kind) in ALWAYS_OPEN_KINDS
+            or kind in SETTLES_ONLY_KINDS
+            else "A return has to go the opposite way: Other cash in "
+            "for a cash out, Other cash out for a cash in.",
         )
     if report_date < origin.report_date:
         raise LineItemValidationError(

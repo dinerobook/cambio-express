@@ -35,7 +35,7 @@ they cannot.
 """
 from sqlalchemy.orm import Session
 
-from api.Modules.DailyBook.Services import LINE_ITEM_KINDS
+from api.Modules.DailyBook.Services import BOOK_ONLY_KINDS, LINE_ITEM_KINDS
 
 
 # Static slugs that don't post to the daily book.
@@ -50,6 +50,11 @@ BANK_CATEGORIES_NON_POSTING: dict[str, str] = {
     "mt_ach_barri":       "MT ACH — Barri",
     "bank_charge_210":    "Bank charge — ••0210",
     "bank_charge_230":    "Bank charge — ••0230 (MSB)",
+    # The bank deposit of checks the store HELD. The cash left the
+    # drawer on the day of the hold, so this tag books nothing; the
+    # cashier closes the hold with Deposit on the daily book's
+    # Checks on hand tile (DailyBook INVARIANTS "Held checks").
+    "held_checks_deposited": "Held checks deposited",
     "ignore":             "Ignore (don't reconcile)",
 }
 
@@ -103,13 +108,15 @@ BANK_CHARGES_PL_FIELD = "bank_charges_total"
 
 
 def is_daily_book_kind(slug: str | None) -> bool:
-    """True iff `slug` is a registered DailyBook line-item kind.
+    """True iff `slug` is a DailyBook line-item kind the bank feed
+    may book. The held-check kinds (`BOOK_ONLY_KINDS`) are not: only
+    the daily book's own hold / deposit flow writes them.
 
     Pure read of the LINE_ITEM_KINDS registry — no DB.
     """
     if not slug:
         return False
-    return slug in LINE_ITEM_KINDS
+    return slug in LINE_ITEM_KINDS and slug not in BOOK_ONLY_KINDS
 
 
 def is_bank_charge_family(slug: str | None) -> bool:
@@ -288,6 +295,7 @@ def bank_category_groups(
     daily = [
         (slug, meta[1].title())
         for slug, meta in LINE_ITEM_KINDS.items()
+        if slug not in BOOK_ONLY_KINDS
     ]
     other = _other_options(db, store_id)
     return [
