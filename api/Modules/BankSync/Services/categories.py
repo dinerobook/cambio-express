@@ -52,8 +52,9 @@ BANK_CATEGORIES_NON_POSTING: dict[str, str] = {
     "bank_charge_230":    "Bank charge — ••0230 (MSB)",
     # The bank deposit of checks the store HELD. The cash left the
     # drawer on the day of the hold, so this tag books nothing; the
-    # cashier closes the hold with Deposit on the daily book's
-    # Checks on hand tile (DailyBook INVARIANTS "Held checks").
+    # cashier closes the hold with Deposit on the On hold tab of the
+    # daily book's Check Deposits box (DailyBook INVARIANTS "Held
+    # checks").
     "held_checks_deposited": "Held checks deposited",
     "ignore":             "Ignore (don't reconcile)",
 }

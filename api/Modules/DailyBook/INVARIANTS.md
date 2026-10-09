@@ -432,14 +432,16 @@ for the cash paid out for the checks; a held check has to do the
 same job on Friday without a bank trip. (Owner's design,
 2026-10-09.)
 
-- **Friday: `check_hold`** ("Checks held", Out column). Rolls into
+- **Friday: `check_hold`** (On hold tab of the Out column's Check
+  Deposits box). Rolls into
   `checks_held`, which is in `total_disbursements` and therefore in
   over/short, exactly like `checks_deposit`. A hold is ALWAYS open
   (`ALWAYS_OPEN_KINDS`: the service sets `expects_settlement` on
   create whatever the client sends); `settle_by` is the optional
   "deposit by" date.
-- **Thursday: `held_check_deposit`** ("Held checks deposited"),
-  created by Deposit on the "Checks on hand" tile, linked to the hold
+- **Thursday: `held_check_deposit`** (listed under "From checks on
+  hold" on the Deposited tab of Check Deposits), created by Deposit
+  on the On hold tab's list of checks on hand, linked to the hold
   via `settles_item_id`. Rolls into `held_checks_deposited`, which is
   in **no** total: the cash already left on Friday. It records the
   deposit so the day matches the bank statement, nothing more.

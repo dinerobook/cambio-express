@@ -88,7 +88,8 @@ def add_line_item(
         expects_settlement = True
     if kind in SETTLES_ONLY_KINDS and settles_item_id is None:
         raise LineItemValidationError(
-            "Record a held-check deposit with Deposit on Checks on hand.",
+            "Record a held-check deposit with Deposit on the On hold tab "
+            "of Check Deposits.",
         )
     if expects_settlement and settles_item_id is not None:
         raise LineItemValidationError(
