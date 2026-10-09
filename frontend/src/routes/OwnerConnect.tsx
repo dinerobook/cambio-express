@@ -5,10 +5,9 @@ import {
   generateOwnerConnectCode, revokeOwnerConnectCode, useOwnerConnectCodes,
   type OwnerConnectCodeRow,
 } from "../api/owner";
-import { useProfile } from "../api/account";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate as formatDateTz } from "../lib/datetime";
+import { formatDate } from "../lib/datetime";
 import { AppLink,
   Breadcrumbs,
   Button, Card, ConfirmDialog, ErrorState, Loading, PageHeader, PageShell,
@@ -33,10 +32,6 @@ export default function OwnerConnect() {
   const identity = getCurrentIdentity();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error, refetch } = useOwnerConnectCodes();
-  const { data: profile } = useProfile();
-  const userTz = profile?.timezone ?? "";
-  const formatDate = (iso: string) =>
-    formatDateTz(iso, { userTimezone: userTz });
 
   const [busy, setBusy] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);

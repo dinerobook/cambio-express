@@ -15,7 +15,7 @@ from api.Modules.ReturnChecks.Models import (
 from api.Modules.ReturnChecks.Repositories import (
     find_payment, find_return_check,
 )
-from api.Core.Clock import utc_now
+from api.Core.Clock import local_today, utc_now
 
 
 class ReturnCheckNotFoundError(LookupError):
@@ -88,6 +88,14 @@ def update_return_check(
     return row
 
 
+def _store_today(db: Session, store_id: int) -> date:
+    """The store's calendar day — a status change at 9pm in Chicago
+    is dated that day, not the server's (UTC) tomorrow."""
+    from api.Modules.Tenancy.Models import Store
+    store = db.get(Store, store_id)
+    return local_today(store.timezone if store is not None else None)
+
+
 def _set_status(
     db: Session, store_id: int, rc_id: int,
     *, target_status: str, allowed_from: tuple[str, ...],
@@ -100,7 +108,7 @@ def _set_status(
             f"Cannot move from {row.status} to {target_status}.",
         )
     row.status = target_status
-    row.status_changed_on = date.today()
+    row.status_changed_on = _store_today(db, store_id)
     row.updated_at = utc_now()
     db.flush()
     return row
@@ -245,7 +253,7 @@ def _maybe_auto_recover(
     full = float(rc.total_due)
     if rc.status == "pending" and total >= full and full > 0:
         rc.status = "recovered"
-        rc.status_changed_on = date.today()
+        rc.status_changed_on = _store_today(db, int(rc.store_id))
         rc.updated_at = utc_now()
     elif rc.status == "recovered" and total < full:
         rc.status = "pending"

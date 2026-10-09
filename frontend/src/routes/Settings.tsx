@@ -141,8 +141,6 @@ function DataExportCard() {
 function ProfileCard() {
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error, refetch } = useProfile();
-  const { data: storeInfo } = useStoreInfo();
-  const storeTz = storeInfo?.store?.timezone ?? "";
 
   const toast = useToast();
   const [draft, setDraft] = useState<ProfileUpdateBody>({});
@@ -233,10 +231,7 @@ function ProfileCard() {
 
   const memberSince = formatDate(data.created_at);
   const lastLogin = data.last_login_at
-    ? formatTimestamp(data.last_login_at, {
-        userTimezone: data.timezone,
-        storeTimezone: storeTz,
-      })
+    ? formatTimestamp(data.last_login_at)
     : "—";
 
   // Email-login accounts (admin / owner) sign in with their email —
@@ -708,6 +703,10 @@ function StoreInfoCard() {
       await queryClient.invalidateQueries({
         queryKey: ["admin", "store-info"],
       });
+      // session-status carries the zone every page renders in.
+      await queryClient.invalidateQueries({
+        queryKey: ["account", "session-status"],
+      });
       // Edits are now the saved state — clear the dirty flag.
       setBaseline(snapshot(hours, enforceHours, mtCompanies));
       toast({ message: "Store info saved.", tone: "success" });
@@ -821,6 +820,9 @@ function StoreInfoCard() {
           </Field>
           <Field
             label={<>Timezone<InfoTip text="Used for every date and time across the store — reports, audit trails, receipts. Set it once here; “Detect from address” suggests it from the address above." /></>}
+            hint={data.store.timezone
+              ? undefined
+              : "No timezone saved yet, so each device shows its own time. Pick the store’s timezone (or detect it from the address) and save."}
           >
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <Select
@@ -829,7 +831,7 @@ function StoreInfoCard() {
                 disabled={!canEdit}
                 style={{ flex: "1 1 auto" }}
               >
-                <option value="">Use browser default</option>
+                <option value="">Not set (each device’s own time)</option>
                 {(data.store.timezone_choices ?? []).map((tz) => (
                   <option key={tz} value={tz}>{tz}</option>
                 ))}

@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate } from "../lib/datetime";
+import {
+  formatDate, formatTimestamp,
+} from "../lib/datetime";
 import {
   Breadcrumbs, Card, EmptyState, ErrorState, Input,
   Loading, Pager, PageHeader, PageShell, Pill, Section,
@@ -150,7 +152,7 @@ export default function SuperadminEmailLog() {
                       </td>
                       <td style={tdStyle}>
                         <span className={styles.monoMuted}>
-                          {e.created_at.slice(0, 16).replace("T", " ")}
+                          {formatTimestamp(e.created_at)}
                         </span>
                       </td>
                     </tr>

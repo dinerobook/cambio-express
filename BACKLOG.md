@@ -950,12 +950,20 @@ gaps. Ordered by "what I'd do next" at the top.
       ``/api/v2/admin/store-info``) plus a settings-page dropdown
       so admins set the default for cashiers who haven't
       customized their own ``User.timezone``. SPA renders through
-      a single ``frontend/src/lib/datetime.ts`` helper with the
-      fallback chain ``user TZ → store TZ → browser default``.
-      Audit log + my-activity feed + account profile + owner
-      connect-code pages migrated; the remaining `.toLocaleString(…UTC…)`
-      callsites (AdminUsers, TVDisplayAdmin) can adopt the helper
-      on-touch.
+      a single ``frontend/src/lib/datetime.ts`` helper.
+      2026-10-09: the store's zone now applies everywhere. Order is
+      ``store TZ → user TZ (store-less principals) → device``, sent
+      once on ``/auth/session-status`` (``timezone``) and set by
+      ``DisplayTimezone`` in the shell, so employees get it too.
+      ``parseTimestamp`` reads the server's offset-less UTC strings
+      as UTC (every time had been shown off by the UTC offset);
+      ``todayIso`` / ``storeNow`` are the store's day; datetime-local
+      inputs go through ``zonedInputToUtcIso``. Server: store-scoped
+      "today" is ``Core.Clock.local_today(store.timezone)``
+      (dashboard, return-check status dates). Still on the server's
+      UTC day: report/CSV period defaults (the SPA always sends
+      from/to), the tax-pack default year, the daily-summary cron
+      and ``ReturnCheck.days_outstanding``.
 - [~] **Store hours** (open/close per day) — schema + admin UI
       + read-side indicators landed.
       Schema: ``Store.store_hours`` is a JSON list of 7 entries

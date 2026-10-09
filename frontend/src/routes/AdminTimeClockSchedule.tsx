@@ -16,7 +16,9 @@ import {
   Loading, PageHeader, PageShell, Select, useToast,
 } from "../components/ui";
 import styles from "./AdminTimeClockSchedule.module.css";
-import { toIsoDate } from "../lib/datetime";
+import {
+  formatShortDate, storeNow, toIsoDate,
+} from "../lib/datetime";
 
 // /app/admin/timeclock/schedule — admin shift planner.
 //
@@ -31,7 +33,7 @@ import { toIsoDate } from "../lib/datetime";
 export default function AdminTimeClockSchedule() {
   const queryClient = useQueryClient();
   const roster      = useEmployees();
-  const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
+  const [weekStart, setWeekStart] = useState(() => mondayOf(storeNow()));
   const weekEnd     = useMemo(() => addDays(weekStart, 7), [weekStart]);
   const shifts      = useShifts(toIsoDate(weekStart), toIsoDate(weekEnd));
   const toast = useToast();
@@ -100,7 +102,7 @@ export default function AdminTimeClockSchedule() {
           </Button>
           <Button
             type="button" tone="secondary"
-            onClick={() => setWeekStart(mondayOf(new Date()))}
+            onClick={() => setWeekStart(mondayOf(storeNow()))}
           >
             This week
           </Button>
@@ -153,7 +155,7 @@ function DayColumn({
   onError: (msg: string) => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const isToday = toIsoDate(date) === toIsoDate(new Date());
+  const isToday = toIsoDate(date) === toIsoDate(storeNow());
   return (
     <div className={`${styles.dayCol}${isToday ? " " + styles.dayColToday : ""}`}>
       <div className={styles.dayHeader}>
@@ -408,9 +410,7 @@ function addDays(d: Date, n: number): Date {
 
 function formatWeekRange(start: Date, end: Date): string {
   const e = addDays(end, -1);
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, {
-    month: "short", day: "numeric",
-  });
+  const fmt = (d: Date) => formatShortDate(toIsoDate(d));
   return `${fmt(start)} – ${fmt(e)}, ${start.getFullYear()}`;
 }
 

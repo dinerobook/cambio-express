@@ -18,6 +18,7 @@ import {
   Loading, PageHeader, PageShell, SectionTitle, space, useToast,
 } from "../components/ui";
 import styles from "./Bank.module.css";
+import { formatDateTime } from "../lib/datetime";
 
 declare global {
   interface Window {
@@ -299,7 +300,7 @@ function AccountCard({
       </div>
       <div className={styles.mutedSmall}>
         {acct.last_balance_as_of
-          ? `As of ${new Date(acct.last_balance_as_of).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+          ? `As of ${formatDateTime(acct.last_balance_as_of)}`
           : "Balance not yet refreshed."}
       </div>
       <form

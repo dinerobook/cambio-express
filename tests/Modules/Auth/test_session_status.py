@@ -128,3 +128,57 @@ def test_superadmin_permissions_are_the_full_matrix(client):
     for r in RBAC_RESOURCES:
         for a in actions_for(r):
             assert f"{r}.{a}" in perms
+
+
+# ── timezone: the zone every date/time in the SPA renders in ────
+
+
+def _set_user_tz(username, tz):
+    from api.Modules.Tenancy.Models import User
+    with db_session():
+        u = db.session.query(User).filter_by(username=username).first()
+        u.timezone = tz
+        db.session.commit()
+
+
+def test_timezone_is_the_stores(client, test_store_id):
+    _set_store(test_store_id, timezone="America/Chicago")
+    token = login_admin(client, test_store_id)
+    resp = client.get("/api/v2/auth/session-status", headers=_headers(token))
+    assert resp.json()["timezone"] == "America/Chicago"
+
+
+def test_employee_gets_the_store_timezone_without_settings_rights(
+    client, test_store_id,
+):
+    # Employees cannot read /admin/store-info, yet every time they
+    # see (the daily-book lock, their punches) must be on store time.
+    _set_store(test_store_id, timezone="America/Los_Angeles")
+    from tests.conftest import make_employee_client
+    _emp_client, token = make_employee_client(test_store_id)
+    resp = client.get("/api/v2/auth/session-status", headers=_headers(token))
+    assert resp.status_code == 200
+    assert resp.json()["timezone"] == "America/Los_Angeles"
+
+
+def test_timezone_blank_when_store_has_none(client, test_store_id):
+    _set_store(test_store_id, timezone="")
+    token = login_admin(client, test_store_id)
+    resp = client.get("/api/v2/auth/session-status", headers=_headers(token))
+    # "" = the device's own zone, exactly the behaviour before.
+    assert resp.json()["timezone"] == ""
+
+
+def test_store_timezone_wins_over_the_persons(client, test_store_id):
+    _set_store(test_store_id, timezone="America/Chicago")
+    _set_user_tz("admin@test.com", "Asia/Manila")
+    token = login_admin(client, test_store_id)
+    resp = client.get("/api/v2/auth/session-status", headers=_headers(token))
+    assert resp.json()["timezone"] == "America/Chicago"
+
+
+def test_superadmin_gets_their_own_timezone(client):
+    _set_user_tz("superadmin", "America/New_York")
+    token = login_superadmin(client)
+    resp = client.get("/api/v2/auth/session-status", headers=_headers(token))
+    assert resp.json()["timezone"] == "America/New_York"

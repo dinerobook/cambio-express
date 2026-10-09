@@ -32,6 +32,7 @@ import {
   Textarea,
   useToast,
 } from "../components/ui";
+import { formatDate } from "../lib/datetime";
 
 export default function SuperadminFeatureFlags() {
   const { data, isLoading, isError } = useFeatureFlags();
@@ -161,7 +162,7 @@ function FlagRow({
           </Pill>
         </td>
         <td style={{ fontSize: "0.82rem", color: "var(--db-text-muted)" }}>
-          {new Date(flag.created_at).toLocaleDateString()}
+          {formatDate(flag.created_at)}
         </td>
         <td style={{ textAlign: "right" }}>
           <RowActions

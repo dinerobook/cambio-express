@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from api.Core.Clock import local_now
 
 
 # ── Constants ────────────────────────────────────────────────
@@ -115,15 +115,9 @@ def validate_hours_payload(payload: Any) -> list[dict[str, Any]]:
 
 def store_now(timezone: str | None) -> datetime:
     """Current wall-clock datetime in the given IANA timezone
-    (or UTC if empty / unknown). Naive — strips tzinfo so it
-    composes with ``is_open_at`` cleanly. Bad tz strings degrade
-    to UTC silently; the operator can fix the value in Settings."""
-    tz_name = (timezone or "").strip() or "UTC"
-    try:
-        tz = ZoneInfo(tz_name)
-    except ZoneInfoNotFoundError:
-        tz = ZoneInfo("UTC")
-    return datetime.now(tz=tz).replace(tzinfo=None)
+    (or UTC if empty / unknown). Naive, so it composes with
+    ``is_open_at``. One implementation: ``api.Core.Clock.local_now``."""
+    return local_now(timezone)
 
 
 def is_open_at(stored_hours: Any, when: datetime) -> bool:

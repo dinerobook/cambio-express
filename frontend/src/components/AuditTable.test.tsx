@@ -11,7 +11,7 @@ describe("<AuditTable>", () => {
   it("renders actor, action, target and summary per row", () => {
     render(
       <AuditTable
-        userTimezone="" storeTimezone=""
+
         rows={[{
           ts: "2026-10-08T14:00:00", user_name: "cashier (via superadmin Platform Admin)",
           user_role: "employee", action: "update", target_type: "transfer",

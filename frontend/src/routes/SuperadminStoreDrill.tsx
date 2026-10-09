@@ -11,7 +11,6 @@ import {
   useStoreAuditLog, useStoreFeatures, useStoreOwnerLinks,
   type ImpersonationMode, type StoreFeatureRow,
 } from "../api/superadmin";
-import { useProfile } from "../api/account";
 import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
@@ -1041,9 +1040,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
   const [page, setPage] = useState(1);
   const [target, setTarget] = useState("");
   const [action, setAction] = useState("");
-  const { data: profile } = useProfile();
   const log = useStoreAuditLog(storeId, { page, target, action });
-  const userTz = profile?.timezone ?? "";
 
   return (
     <Section title="Activity">
@@ -1084,11 +1081,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
         />
         {log.data && log.data.rows.length > 0 && (
           <>
-            <AuditTable
-              rows={log.data.rows}
-              userTimezone={userTz}
-              storeTimezone=""
-            />
+            <AuditTable rows={log.data.rows} />
             <Pager
               page={log.data.page}
               totalPages={log.data.total_pages}

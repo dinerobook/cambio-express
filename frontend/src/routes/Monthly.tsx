@@ -10,7 +10,9 @@ import {
   PageShell, Section, Select, tokens,
 } from "../components/ui";
 import styles from "./Monthly.module.css";
-import { MONTH_NAMES_SHORT } from "../lib/datetime";
+import {
+  MONTH_NAMES_SHORT, storeNow,
+} from "../lib/datetime";
 
 // Monthly P&L at /app/monthly?year=Y&month=M.
 //
@@ -26,7 +28,7 @@ interface YearMonth { year: number; month: number; }
 // older than the 12-month window), newest first.
 function buildMonthOptions(logged: YearMonth[]): YearMonth[] {
   const seen = new Map<string, YearMonth>();
-  const now = new Date();
+  const now = storeNow();
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const ym: YearMonth = { year: d.getFullYear(), month: d.getMonth() + 1 };
@@ -102,7 +104,7 @@ export default function Monthly() {
   // page is never blank with an unusable picker.
   useEffect(() => {
     if (yearParam && monthParam) return;
-    const now = new Date();
+    const now = storeNow();
     const target = months.data?.months[0]
       ?? { year: now.getFullYear(), month: now.getMonth() + 1 };
     const params = new URLSearchParams(sp);

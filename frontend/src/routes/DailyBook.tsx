@@ -9,7 +9,9 @@ import {
 } from "../components/ui";
 import { canAccess } from "../lib/access";
 import styles from "./DailyBook.module.css";
-import { MONTH_NAMES, todayIso } from "../lib/datetime";
+import {
+  MONTH_NAMES, storeNow, todayIso,
+} from "../lib/datetime";
 
 // /app/daily — the Daily Book landing page. A calendar of the
 // chosen month + a monthly summary strip. Each day cell is a link
@@ -37,7 +39,7 @@ export default function DailyBook() {
 
   // Read year+month from the URL. Default to current month so the
   // page is shareable + bookmarkable per month.
-  const now = useMemo(() => new Date(), []);
+  const now = useMemo(() => storeNow(), []);
   const yearParam = parseInt(params.get("year") || "", 10);
   const monthParam = parseInt(params.get("month") || "", 10);
   const year = Number.isFinite(yearParam) && yearParam > 1970

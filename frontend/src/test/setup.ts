@@ -15,8 +15,13 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 
+import { setDisplayTimezone } from "../lib/datetime";
+
 afterEach(() => {
   cleanup();
+  // The display timezone is module state (lib/datetime); a test that
+  // sets one must not leak it into the next file's assertions.
+  setDisplayTimezone(undefined);
 });
 
 // Every link, tab, button and row action hides itself when the

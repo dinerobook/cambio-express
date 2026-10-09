@@ -15,6 +15,7 @@ import {
   useToast,
 } from "../components/ui";
 import styles from "./AccountSessions.module.css";
+import { formatDate, formatShortDate, parseTimestamp } from "../lib/datetime";
 
 // /app/account/sessions — every browser the current user is signed
 // in on. Backed by the refresh-token chain: one row per
@@ -264,8 +265,8 @@ function describeUserAgent(ua: string): string {
 // "5 minutes ago", "Today at 14:23", "2 days ago", "May 12".
 function formatRelative(iso: string): string {
   if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
+  const d = parseTimestamp(iso);
+  if (!d) return iso;
   const diffMs = Date.now() - d.getTime();
   if (diffMs < 60_000) return "Just now";
   if (diffMs < 3_600_000) {
@@ -280,8 +281,5 @@ function formatRelative(iso: string): string {
     const days = Math.floor(diffMs / (24 * 3_600_000));
     return `${days} day${days === 1 ? "" : "s"} ago`;
   }
-  return d.toLocaleDateString(undefined, {
-    month: "short", day: "numeric", year:
-      d.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
-  });
+  return diffMs < 300 * 24 * 3_600_000 ? formatShortDate(iso) : formatDate(iso);
 }

@@ -70,11 +70,20 @@ same tone on every screen:
 | Value | Formatter (`lib/formatters.ts`, `lib/datetime.ts`) | Never |
 |---|---|---|
 | Money | `fmtMoney2` (or `fmtMoney` for whole-dollar KPIs) | `` `$${x.toFixed(2)}` `` (drops thousands separators), private clones, inline `toLocaleString` |
-| Timestamp | `formatTimestamp` (timezone-aware) | `toLocaleString()` inline |
-| Date | `formatDate`; `fmtDateCompact` in dense tables | `.slice(0, 10)` (wrong calendar date for US stores on UTC timestamps) |
+| Timestamp | `formatTimestamp` (audit trails, logs; names the zone), `formatDateTime` (feeds, "locked at"), `formatTime` (time of day) | `toLocaleString()` / `toLocaleTimeString()` inline |
+| Date | `formatDate`; `formatShortDate` in charts, `formatDateCompact` in dense tables, `formatDayLabel` for a day heading | `.slice(0, 10)` (wrong calendar date for US stores on UTC timestamps), `toLocaleDateString()` |
+| Comparing an API timestamp | `parseTimestamp` (reads the server's offset-less UTC strings as UTC) | `new Date(row.created_at)` (reads them as local time: off by the UTC offset) |
+| A `datetime-local` input | `utcToZonedInput` to prefill, `zonedInputToUtcIso` to send | `new Date(value).toISOString()` (the device's clock, not the store's) |
 | Counts | `fmtNumber` | — |
-| Today / a day N ago / a month start as `YYYY-MM-DD` | `todayIso`, `daysAgoIso`, `monthStartIso`, `toIsoDate` | `toISOString().slice(0, 10)` (the UTC day: tomorrow for a US store after ~7pm), per-route `todayIso` copies |
+| Today / a day N ago / a month start as `YYYY-MM-DD` | `todayIso`, `daysAgoIso`, `monthStartIso` (the store's day); `storeNow()` for "this month / week" math; `toIsoDate` only for a Date built from calendar fields | `toISOString().slice(0, 10)` (the UTC day: tomorrow for a US store after ~7pm), `new Date()` for the current day or month, per-route `todayIso` copies |
 | Month names | `MONTH_NAMES` / `MONTH_NAMES_SHORT` | a per-route array |
+
+**Every date and time renders in the store's timezone** (Settings →
+General). The shell sets it once from session-status
+(`DisplayTimezone` in `AppShell`); the helpers above read it, so a
+page never fetches or passes a timezone. With none saved, the device's
+zone is used. The server-side twin is `api.Core.Clock.local_today
+(store.timezone)` — never `date.today()` in a store-scoped route.
 
 `src/lib/sourceGuards.test.ts` fails on the banned patterns in
 this table and on a hand-written API-error toast (use
@@ -147,7 +156,7 @@ Known shared components, and what they own:
 | `ConfirmDialog` | `window.confirm` |
 | `useApiErrorToast` | `toast({ message: err instanceof ApiError ? … , tone: "error" })` |
 | `*_STATUS_TONES` in `api/` (`BATCH_`, `TRANSFER_`, `RETURN_CHECK_`, `TICKET_`) | a per-route status → tone map |
-| `fmtMoney2` / `formatDate` / `formatTimestamp` | `toFixed(2)`, `.slice(0, 10)` |
+| `fmtMoney2` / `formatDate` / `formatTimestamp` | `toFixed(2)`, `.slice(0, 10)`, `toLocaleDateString()` |
 | `Modal`, `Tooltip`, `Switch`, `Checkbox`, `Pill`, `KpiCard` | hand-rolled equivalents |
 
 The same rule applies on the backend: a Service that two modules

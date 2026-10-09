@@ -7,14 +7,16 @@ import {
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./StoreBookMonth.module.css";
-import { MONTH_NAMES, todayIso } from "../lib/datetime";
+import {
+  MONTH_NAMES, storeNow, todayIso,
+} from "../lib/datetime";
 
 // /app/store-book — the month calendar. One cell per day with its
 // sales total and lock state; click through to the day sheet.
 
 export default function StoreBookMonth() {
   const [sp, setSP] = useSearchParams();
-  const now = new Date();
+  const now = storeNow();
   const year = Number(sp.get("year") ?? now.getFullYear());
   const month = Number(sp.get("month") ?? now.getMonth() + 1);
 

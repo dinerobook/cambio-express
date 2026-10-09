@@ -12,7 +12,9 @@ import {
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./OwnerPLRollup.module.css";
-import { MONTH_NAMES } from "../lib/datetime";
+import {
+  MONTH_NAMES, storeNow,
+} from "../lib/datetime";
 
 // /app/owner/pl-rollup — side-by-side monthly P&L for every store
 // in the owner umbrella. Mirrors the legacy /owner/pl-rollup view.
@@ -21,7 +23,7 @@ export default function OwnerPLRollup() {
   const identity = getCurrentIdentity();
   const [sp, setSP] = useSearchParams();
 
-  const today = new Date();
+  const today = storeNow();
   const year  = Number(sp.get("year")  ?? today.getFullYear());
   const month = Number(sp.get("month") ?? today.getMonth() + 1);
 

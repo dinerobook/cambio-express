@@ -11,7 +11,9 @@ import {
 import { ApiError } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
-import { formatDate } from "../lib/datetime";
+import {
+  formatDate, formatDateTime,
+} from "../lib/datetime";
 import { AppLink,
   Alert, Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
   Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill, Section,
@@ -495,7 +497,7 @@ function AgentSection() {
                     <td style={tdStyle}>{formatDate(k.created_at)}</td>
                     <td style={tdStyle}>
                       {k.last_used_at
-                        ? k.last_used_at.slice(0, 16).replace("T", " ")
+                        ? formatDateTime(k.last_used_at)
                         : "never"}
                     </td>
                     <td style={tdStyle}>

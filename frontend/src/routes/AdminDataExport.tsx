@@ -9,7 +9,9 @@ import {
   Section, Select,
 } from "../components/ui";
 import styles from "./AdminDataExport.module.css";
-import { toIsoDate } from "../lib/datetime";
+import {
+  daysAgoIso, storeNow, todayIso,
+} from "../lib/datetime";
 
 // /app/admin/data-export — single hub for every authed CSV /
 // ZIP download the admin can pull. Catalogs the scattered
@@ -35,23 +37,22 @@ export default function AdminDataExport() {
   const [customersErr, setCustomersErr] = useState("");
 
   // Transfers CSV — date range picker. Default to last 30 days.
-  const today = new Date();
-  const lastMonth = new Date(today);
-  lastMonth.setDate(today.getDate() - 30);
-  const [transFrom, setTransFrom] = useState(toIsoDate(lastMonth));
-  const [transTo,   setTransTo]   = useState(toIsoDate(today));
+  const today = todayIso();
+  const lastMonth = daysAgoIso(30);
+  const [transFrom, setTransFrom] = useState(lastMonth);
+  const [transTo,   setTransTo]   = useState(today);
   const [transBusy, setTransBusy] = useState(false);
   const [transErr,  setTransErr]  = useState("");
 
   // Journal-entries CSV (P1-8) — same default window as transfers.
-  const [journalFrom, setJournalFrom] = useState(toIsoDate(lastMonth));
-  const [journalTo,   setJournalTo]   = useState(toIsoDate(today));
+  const [journalFrom, setJournalFrom] = useState(lastMonth);
+  const [journalTo,   setJournalTo]   = useState(today);
   const [journalBusy, setJournalBusy] = useState(false);
   const [journalErr,  setJournalErr]  = useState("");
 
   // Time-clock entries CSV — same default window as transfers.
-  const [tcFrom, setTcFrom] = useState(toIsoDate(lastMonth));
-  const [tcTo,   setTcTo]   = useState(toIsoDate(today));
+  const [tcFrom, setTcFrom] = useState(lastMonth);
+  const [tcTo,   setTcTo]   = useState(today);
   const [tcBusy, setTcBusy] = useState(false);
   const [tcErr,  setTcErr]  = useState("");
 
@@ -75,7 +76,7 @@ export default function AdminDataExport() {
 
   const resolvedTaxYear = taxYear
     ?? taxYears.data?.default_year
-    ?? new Date().getFullYear() - 1;
+    ?? storeNow().getFullYear() - 1;
 
   async function onDownloadTaxPack() {
     setTaxBusy(true); setTaxErr("");
@@ -96,7 +97,7 @@ export default function AdminDataExport() {
     try {
       await downloadCsv(
         "/api/v2/customers/export.csv",
-        `customers-${toIsoDate(today)}.csv`,
+        `customers-${today}.csv`,
       );
     } catch (e) {
       setCustomersErr(e instanceof Error ? e.message : "Download failed.");
@@ -157,7 +158,7 @@ export default function AdminDataExport() {
     try {
       await downloadCsv(
         "/api/v2/admin/audit-log.csv",
-        `audit-log-${toIsoDate(today)}.csv`,
+        `audit-log-${today}.csv`,
       );
     } catch (e) {
       setAuditErr(e instanceof Error ? e.message : "Download failed.");

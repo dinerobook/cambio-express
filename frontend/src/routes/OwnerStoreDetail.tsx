@@ -19,6 +19,7 @@ import { AppLink,
 import { chartSeries, chartTokens, moneyChartOptions, seriesFill } from "../lib/chartOptions";
 import { fmtMoney, fmtMoney2 } from "../lib/formatters";
 import styles from "./OwnerStoreDetail.module.css";
+import { formatShortDate } from "../lib/datetime";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip,
@@ -147,9 +148,7 @@ export default function OwnerStoreDetail() {
                 <Line
                   data={{
                     labels: data.daily_labels.map((d) =>
-                      new Date(d + "T00:00:00").toLocaleDateString(undefined, {
-                        month: "numeric", day: "numeric",
-                      }),
+                      formatShortDate(d),
                     ),
                     datasets: [
                       {
@@ -295,7 +294,7 @@ export default function OwnerStoreDetail() {
                     {data.recent_transfers.map((t) => (
                       <tr key={t.id}>
                         <td style={tdStyle}>
-                          {new Date(t.send_date + "T00:00:00").toLocaleDateString(undefined, { month: "2-digit", day: "2-digit" })}
+                          {formatShortDate(t.send_date)}
                         </td>
                         <td style={tdStyle}>{t.sender_name || "—"}</td>
                         <td style={tdStyle}>{t.recipient_name || "—"}</td>

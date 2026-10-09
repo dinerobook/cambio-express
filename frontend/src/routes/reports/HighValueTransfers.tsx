@@ -3,9 +3,8 @@ import { useLocation, useSearchParams } from "react-router-dom";
 
 import { ReportDrilldown } from "../../components/ReportDrilldown";
 import { MoneyInput } from "../../components/ui";
-import {
-  fmtDateCompact, fmtMoney, fmtMoney2, fmtNumber,
-} from "../../lib/formatters";
+import { fmtMoney, fmtMoney2, fmtNumber } from "../../lib/formatters";
+import { formatDateCompact } from "../../lib/datetime";
 
 export default function HighValueTransfers() {
   const isOwner = useLocation().pathname.startsWith("/owner/");
@@ -50,7 +49,7 @@ export default function HighValueTransfers() {
             value: t => fmtMoney2(Number(t.tax ?? 0)) },
         ]}
         columns={[
-          { label: "Date",        field: r => fmtDateCompact(r.send_date as string) },
+          { label: "Date",        field: r => formatDateCompact(r.send_date as string) },
           { label: "Sender",      field: "sender_name" },
           { label: "Recipient",   field: "recipient_name" },
           { label: "Country",     field: "country" },

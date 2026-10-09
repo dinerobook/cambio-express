@@ -2,7 +2,7 @@ import { useLocation } from "react-router-dom";
 
 import { ReportDrilldown } from "../../components/ReportDrilldown";
 import { fmtMoney2 } from "../../lib/formatters";
-import { fmtDateCompact } from "../../lib/formatters";
+import { formatDateCompact } from "../../lib/datetime";
 
 export default function CheckDeposits() {
   const isOwner = useLocation().pathname.startsWith("/owner/");
@@ -23,7 +23,7 @@ export default function CheckDeposits() {
           value: t => fmtMoney2(Number(t.avg_per_day ?? 0)) },
       ]}
       columns={[
-        { label: "Date",   field: r => fmtDateCompact(r.date as string) },
+        { label: "Date",   field: r => formatDateCompact(r.date as string) },
         { label: "Count",  field: r => Number(r.count).toLocaleString(), align: "right", mono: true },
         { label: "Amount", field: r => fmtMoney2(Number(r.amount)),       align: "right", mono: true },
       ]}

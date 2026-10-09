@@ -14,13 +14,14 @@ import { Bar, Line } from "react-chartjs-2";
 
 import { api, downloadCsv } from "../../lib/api";
 import { chartSeries, countChartOptions, moneyChartOptions, seriesFill } from "../../lib/chartOptions";
-import { fmtShortDate } from "../../lib/formatters";
 import { AppLink,
   Button, Card, DateInput, EmptyState, ErrorState, KpiCard, KpiGrid,
   PageHeader, PageShell, TableSkeleton, tdStyle, thStyle, tokens,
 } from "../../components/ui";
 import styles from "./SuperadminBIDrilldown.module.css";
-import { monthStartIso, todayIso } from "../../lib/datetime";
+import {
+  formatShortDate, monthStartIso, todayIso,
+} from "../../lib/datetime";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -218,7 +219,7 @@ export default function SuperadminBIDrilldown() {
       )}
 
       <div className={styles.filterRow}>
-        <span className={styles.muted}>{fmtShortDate(from)} – {fmtShortDate(to)}</span>
+        <span className={styles.muted}>{formatShortDate(from)} – {formatShortDate(to)}</span>
         {data && (
           <span className={styles.muted}>{rows.length.toLocaleString()} {rows.length === 1 ? "row" : "rows"}</span>
         )}

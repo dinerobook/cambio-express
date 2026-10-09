@@ -4,7 +4,6 @@ import {
   useAdminAuditLog,
   type AdminAuditUserOption,
 } from "../api/admin";
-import { useProfile, useStoreInfo } from "../api/account";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
@@ -21,10 +20,6 @@ import styles from "./AdminAuditLog.module.css";
 
 export default function AdminAuditLog() {
   const identity = getCurrentIdentity();
-  const { data: profile } = useProfile();
-  const { data: storeInfo } = useStoreInfo();
-  const userTz  = profile?.timezone ?? "";
-  const storeTz = storeInfo?.store?.timezone ?? "";
   const [sp, setSP] = useSearchParams();
   const page   = Number(sp.get("page") ?? 1) || 1;
   const target = sp.get("target") ?? "";
@@ -144,11 +139,7 @@ export default function AdminAuditLog() {
         />
         {data && data.rows.length > 0 && (
           <>
-            <AuditTable
-              rows={data.rows}
-              userTimezone={userTz}
-              storeTimezone={storeTz}
-            />
+            <AuditTable rows={data.rows} />
             <Pager
               page={data.page}
               totalPages={data.total_pages}

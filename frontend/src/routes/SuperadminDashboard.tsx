@@ -13,7 +13,7 @@ import {
 } from "chart.js";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 
-import { fmtDateTime, fmtMoney, fmtShortDate } from "../lib/formatters";
+import { fmtMoney } from "../lib/formatters";
 import {
   useSuperadminDashboard,
   type ActivityEntry,
@@ -35,6 +35,7 @@ import {
   Section,
 } from "../components/ui";
 import styles from "./SuperadminDashboard.module.css";
+import { formatDateTime, formatShortDate } from "../lib/datetime";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -208,7 +209,7 @@ function SignupChart({
 }) {
   const t = chartTokens();
   const s = chartSeries();
-  const shortLabels = labels.map((l) => fmtShortDate(l));
+  const shortLabels = labels.map((l) => formatShortDate(l));
   return (
     <Line
       data={{
@@ -371,7 +372,7 @@ function ActivityRow({ entry: a }: { entry: ActivityEntry }) {
       </Pill>
       <span className={styles.activityStore}>{a.store_name}</span>
       <span className={styles.activityDetail}>{a.detail}</span>
-      <span className={styles.activityTime}>{fmtDateTime(a.when)}</span>
+      <span className={styles.activityTime}>{formatDateTime(a.when)}</span>
     </div>
   );
 }

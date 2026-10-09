@@ -5,10 +5,10 @@ import {
   postTicketMessage, reopenTicket, useTicketMessages,
   type TicketRow,
 } from "../api/support";
-import { fmtDateTime } from "../lib/formatters";
 import { ApiError } from "../lib/api";
 import { Alert, Button, Loading, Textarea } from "./ui";
 import styles from "./TicketThread.module.css";
+import { formatDateTime } from "../lib/datetime";
 
 /** Chat-style conversation thread for one support ticket, shared by
  *  the store-side Support page and the superadmin ticket queue.
@@ -161,7 +161,7 @@ function Bubble({
     <div className={mine ? styles.rowMine : styles.rowTheirs}>
       <div className={cls}>
         <div className={styles.bubbleMeta}>
-          {author || "—"} · {at ? fmtDateTime(at) : ""}
+          {author || "—"} · {at ? formatDateTime(at) : ""}
         </div>
         <p className={styles.bubbleBody}>{body}</p>
       </div>
