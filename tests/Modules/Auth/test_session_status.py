@@ -120,11 +120,11 @@ def test_permissions_are_live_not_the_token_claim(client, test_store_id):
 
 
 def test_superadmin_permissions_are_the_full_matrix(client):
-    from api.Core.Permissions import RBAC_ACTIONS, RBAC_RESOURCES
+    from api.Core.Permissions import RBAC_RESOURCES, actions_for
     token = login_superadmin(client)
     perms = client.get(
         "/api/v2/auth/session-status", headers=_headers(token),
     ).json()["permissions"]
     for r in RBAC_RESOURCES:
-        for a in RBAC_ACTIONS:
+        for a in actions_for(r):
             assert f"{r}.{a}" in perms

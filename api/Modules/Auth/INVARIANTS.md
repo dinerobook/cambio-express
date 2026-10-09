@@ -236,6 +236,15 @@ ignored per-user overlays and shadowed the real one in
 security-sensitive change.** Open a PR that's explicit about
 what's moving and why.
 
+**Single-switch resources.** `RBAC_RESOURCE_ACTIONS` names a
+resource that is one on/off switch rather than an area (today
+`day_lock` → `["update"]`, "Lock / unlock days"). `actions_for`
+is the one lookup: the writer, the implied-read rule, the rank
+ceiling (`matrix_grants`) and saved roles all ignore an action a
+resource does not have, so a switch never grows a phantom View row.
+A new resource also goes in `LATER_RESOURCES` (`api/Core/Boot.py`)
+so existing databases get its default rows once.
+
 ### The rank rule — who may change whom
 
 `users.*` and `settings.update` are a privilege-escalation

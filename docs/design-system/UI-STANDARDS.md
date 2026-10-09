@@ -173,6 +173,12 @@ needed if the kit had been checked first.
   used twice gets a token.
 - Tables: kit `<Table>`; the permission matrix uses the shared
   matrix component, not a per-route copy.
+- A permission that is one on/off switch rather than an area (e.g.
+  "Lock / unlock days") is a single-switch resource: listed in
+  `RESOURCE_ACTIONS` (`lib/permissions.ts`) and the server's
+  `RBAC_RESOURCE_ACTIONS`, it renders one box in the grid and never
+  implies View. Don't model a switch as a whole create/view/edit/
+  delete row.
 - Access is managed by ROLE, on Team → Roles & access
   (`/team/roles`). A person's login form picks a role and shows a
   one-line summary; the resources × actions grid renders there only

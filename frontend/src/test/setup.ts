@@ -35,7 +35,12 @@ const ACTIONS = ["create", "read", "update", "delete"];
 export const TEST_ADMIN = {
   user_id: 1, username: "admin@test", full_name: "Test Admin",
   role: "admin", store_id: 1,
-  permissions: RESOURCES.flatMap((r) => ACTIONS.map((a) => `${r}.${a}`)),
+  permissions: [
+    ...RESOURCES.flatMap((r) => ACTIONS.map((a) => `${r}.${a}`)),
+    // "Lock / unlock days" is a single switch (lib/permissions.ts
+    // RESOURCE_ACTIONS), so only its one action.
+    "day_lock.update",
+  ],
 };
 
 beforeEach(() => {

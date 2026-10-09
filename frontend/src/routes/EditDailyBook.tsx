@@ -564,7 +564,8 @@ function DayStepper({
 /** Top-right lock control. Red padlock "Lock" while editable; flips to
  *  a green open-padlock "Unlock" once the day is locked. Locking saves
  *  first (handled by the parent's `onLockToggle`) so no stale snapshot
- *  is frozen. */
+ *  is frozen. Hidden without the "Lock / unlock days" switch (the page
+ *  itself already needs daily_book.update). */
 function LockButton({
   locked, busy, onToggle,
 }: {
@@ -579,6 +580,7 @@ function LockButton({
       size="md"
       busy={busy}
       disabled={busy}
+      perm="day_lock.update"
       onClick={onToggle}
     >
       <span className={styles.lockBtnInner}>

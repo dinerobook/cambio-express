@@ -73,14 +73,15 @@ def can_assign_role(claims: Mapping[str, Any], role: str | None) -> bool:
 def matrix_grants(matrix: Mapping[str, Any]) -> set[tuple[str, str]]:
     """The (resource, action) pairs a resource x action matrix
     switches on, with the implied-read rule applied so the check
-    sees what would actually be enforced."""
-    from api.Core.Permissions import _with_implied_read
+    sees what would actually be enforced. An action the resource
+    does not have is never written, so it is not a grant either."""
+    from api.Core.Permissions import _with_implied_read, actions_for
     grants: set[tuple[str, str]] = set()
     for resource, actions in matrix.items():
         if not isinstance(actions, Mapping):
             continue
         for action, on in actions.items():
-            if on:
+            if on and action in actions_for(str(resource)):
                 grants.add((str(resource), str(action)))
     return _with_implied_read(grants)
 

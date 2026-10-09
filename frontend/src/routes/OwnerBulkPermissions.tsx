@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
 import { useOwnerLocations } from "../api/owner";
-import { RESOURCE_LABELS } from "../components/PermissionMatrixTable";
+import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
   Alert, Breadcrumbs, Button, Card, Checkbox, InfoTip, Loading,
   PageHeader, PageShell, Pill, SectionTitle, Table, useToast,
@@ -128,28 +128,15 @@ export default function OwnerBulkPermissions() {
       {templatePerms && (
         <Card>
           <SectionTitle>Employee permissions at source</SectionTitle>
-          <div style={{ overflowX: "auto", fontSize: "0.85rem" }}>
-            <Table>
-              <thead>
-                <tr>
-                  <th>Resource</th>
-                  {templatePerms.actions.map((a) => <th key={a}>{a}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {templatePerms.resources.map((res) => (
-                  <tr key={res}>
-                    <td>{RESOURCE_LABELS[res] ?? res}</td>
-                    {templatePerms.actions.map((act) => (
-                      <td key={act} style={{ textAlign: "center" }}>
-                        {templatePerms.matrix["employee"]?.[res]?.[act] ? "✓" : "—"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
+          <PermissionMatrixTable
+            resources={templatePerms.resources}
+            actions={templatePerms.actions}
+            checked={(res, act) => templatePerms.matrix["employee"]?.[res]?.[act] ?? false}
+            onToggle={() => {}}
+            disabled
+            ariaContext="employee"
+            grouped
+          />
         </Card>
       )}
 

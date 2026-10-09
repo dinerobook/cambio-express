@@ -8,7 +8,7 @@ import {
   type AccessRole, type PermMatrix,
 } from "../api/roles";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
-import { hasPermission } from "../lib/permissions";
+import { actionsFor, hasPermission } from "../lib/permissions";
 import { areasGranted } from "../lib/roleTemplates";
 import {
   ACTION_LABELS, RESOURCE_LABELS, groupResources,
@@ -327,7 +327,8 @@ export default function RolesAccess({
 }
 
 /** Every area × every role, read-only. Each cell is four small
- *  letters (C V E D) lit for what the role grants. */
+ *  letters (C V E D) lit for what the role grants; a single-switch
+ *  area (Lock / unlock days) shows its one letter. */
 function AccessByArea({
   resources, actions, columns,
 }: {
@@ -356,7 +357,7 @@ function AccessByArea({
                   {columns.map((c) => (
                     <td key={c.key}>
                       <span className={styles.chips}>
-                        {actions.map((a) => {
+                        {actionsFor(res, actions).map((a) => {
                           const on = c.matrix[res]?.[a] ?? false;
                           const label = ACTION_LABELS[a] ?? a;
                           return (

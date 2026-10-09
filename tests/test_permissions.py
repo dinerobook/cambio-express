@@ -16,11 +16,11 @@ class TestCasbinPermissions:
 
     def test_superadmin_gets_all_permissions(self):
         from api.Core.Permissions import (
-            RBAC_ACTIONS, RBAC_RESOURCES, permissions_for,
+            RBAC_RESOURCES, actions_for, permissions_for,
         )
         perms = permissions_for("superadmin")
         for r in RBAC_RESOURCES:
-            for a in RBAC_ACTIONS:
+            for a in actions_for(r):
                 assert f"{r}.{a}" in perms
 
     def test_superadmin_check_always_true(self):

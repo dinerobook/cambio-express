@@ -21,16 +21,18 @@ const row = (on: Partial<Record<string, boolean>>) => ({
 });
 
 const rolesResponse = {
-  resources: ["transfers", "monthly"],
+  resources: ["transfers", "monthly", "day_lock"],
   actions: ["create", "read", "update", "delete"],
   roles: [
     {
       id: 1, name: "Shift lead", member_count: 2, updated_at: null,
-      matrix: { transfers: row({ read: true }), monthly: row({}) },
+      matrix: {
+        transfers: row({ read: true }), monthly: row({}), day_lock: row({}),
+      },
     },
     {
       id: 2, name: "Nobody's role", member_count: 0, updated_at: null,
-      matrix: { transfers: row({}), monthly: row({}) },
+      matrix: { transfers: row({}), monthly: row({}), day_lock: row({}) },
     },
   ],
 };
@@ -38,14 +40,19 @@ const rolesResponse = {
 const builtinResponse = {
   roles: ["admin", "employee"],
   editable_roles: ["employee"],
-  resources: ["transfers", "monthly"],
+  resources: ["transfers", "monthly", "day_lock"],
   actions: ["create", "read", "update", "delete"],
   matrix: {
     admin: {
       transfers: row({ create: true, read: true, update: true, delete: true }),
       monthly: row({ read: true }),
+      day_lock: row({ update: true }),
     },
-    employee: { transfers: row({ create: true, read: true }), monthly: row({}) },
+    employee: {
+      transfers: row({ create: true, read: true }),
+      monthly: row({}),
+      day_lock: row({ update: true }),
+    },
   },
   has_overrides: [],
 };
@@ -66,6 +73,7 @@ const usersResponse = {
 
 const fetchRoleMembers = vi.fn();
 const updateAccessRole = vi.fn();
+const saveBuiltinRole = vi.fn();
 
 vi.mock("../api/roles", () => ({
   useAccessRoles: () => ({
@@ -79,8 +87,13 @@ vi.mock("../api/roles", () => ({
   createAccessRole: vi.fn(),
   deleteAccessRole: vi.fn(),
   assignAccessRole: vi.fn(),
-  saveBuiltinRole: vi.fn(),
+  saveBuiltinRole: (...args: unknown[]) => saveBuiltinRole(...args),
   resetBuiltinRole: vi.fn(),
+}));
+
+vi.mock("../lib/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/auth")>()),
+  refreshToken: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../api/admin", () => ({
@@ -110,6 +123,8 @@ function renderAt(path: string) {
 beforeEach(() => {
   fetchRoleMembers.mockReset();
   updateAccessRole.mockReset();
+  saveBuiltinRole.mockReset();
+  saveBuiltinRole.mockResolvedValue(builtinResponse);
   fetchRoleMembers.mockResolvedValue({
     role_id: 1, name: "Shift lead",
     members: [{ id: 10, name: "Amber" }, { id: 11, name: "Ben" }],
@@ -128,7 +143,7 @@ describe("Roles & access list", () => {
     expect(within(employee).getByText("1 person")).toBeInTheDocument();
     const lead = screen.getByText("Shift lead").closest("tr")!;
     expect(within(lead).getByText("2 people")).toBeInTheDocument();
-    expect(within(lead).getByText("1 of 2")).toBeInTheDocument();
+    expect(within(lead).getByText("1 of 3")).toBeInTheDocument();
   });
 
   it("lists people with hand-set access so they aren't forgotten", () => {
@@ -193,6 +208,69 @@ describe("Editing a saved role", () => {
     await waitFor(() => expect(updateAccessRole).toHaveBeenCalledTimes(1));
     expect(
       screen.queryByText("This changes people's access"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+// "Lock / unlock days" — one switch on the role, so a store admin can
+// let employees edit a day without letting them re-open a locked one.
+describe("The Lock / unlock days switch", () => {
+  it("is one box on the role, with no View / Create / Delete", async () => {
+    renderAt("/team/roles/employee");
+    expect(
+      await screen.findByLabelText("Edit — Lock / unlock days (Employee)"),
+    ).toBeChecked();
+    for (const a of ["View", "Create", "Delete"]) {
+      expect(
+        screen.queryByLabelText(`${a} — Lock / unlock days (Employee)`),
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  it("turning it off for employees saves just that switch off", async () => {
+    const user = userEvent.setup();
+    renderAt("/team/roles/employee");
+    await user.click(
+      await screen.findByLabelText("Edit — Lock / unlock days (Employee)"),
+    );
+    await user.click(screen.getByText("Save role"));
+    await waitFor(() => expect(saveBuiltinRole).toHaveBeenCalledTimes(1));
+    const [role, matrix] = saveBuiltinRole.mock.calls[0];
+    expect(role).toBe("employee");
+    // No implied View on a switch; the other rows are untouched.
+    expect(matrix.day_lock).toEqual(row({}));
+    expect(matrix.transfers).toEqual(row({ create: true, read: true }));
+  });
+
+  it("turning it on in a saved role does not tick a View box", async () => {
+    const user = userEvent.setup();
+    renderAt("/team/roles/2");
+    await user.click(
+      await screen.findByLabelText("Edit — Lock / unlock days (Nobody's role)"),
+    );
+    await user.click(screen.getByText("Save role"));
+    await waitFor(() => expect(updateAccessRole).toHaveBeenCalledTimes(1));
+    expect(updateAccessRole.mock.calls[0][1].matrix.day_lock).toEqual(
+      row({ update: true }),
+    );
+  });
+
+  it("is always on for Admin and cannot be changed there", async () => {
+    renderAt("/team/roles/admin");
+    const box = await screen.findByLabelText(
+      "Edit — Lock / unlock days (Admin)",
+    );
+    expect(box).toBeChecked();
+    expect(box).toBeDisabled();
+  });
+
+  it("shows one letter on the by-area tab", () => {
+    renderAt("/team/roles/by-area");
+    expect(
+      screen.getByLabelText("Employee, Lock / unlock days, Edit: yes"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Employee, Lock / unlock days, View: no"),
     ).not.toBeInTheDocument();
   });
 });

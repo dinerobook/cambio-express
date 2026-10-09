@@ -159,7 +159,7 @@ export default function RoleEdit() {
     setDraft((d) => {
       if (!d) return d;
       const matrix = structuredClone(d.matrix);
-      matrix[resource] = toggleMatrixCell(matrix[resource], action);
+      matrix[resource] = toggleMatrixCell(matrix[resource], action, resource);
       return { ...d, matrix };
     });
   }

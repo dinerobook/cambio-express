@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 
+import { actionsFor } from "../lib/permissions";
 import { Checkbox } from "./ui";
 import styles from "./PermissionMatrixTable.module.css";
 
@@ -30,6 +31,9 @@ export const RESOURCE_LABELS: Record<string, string> = {
   lottery: "Lottery",
   day_close: "Store daily book",
   catalog: "Price book & purchases",
+  // One switch for both daily books' Lock / Unlock buttons. Only
+  // bites alongside Edit on that book.
+  day_lock: "Lock / unlock days",
 };
 
 export const ACTION_LABELS: Record<string, string> = {
@@ -46,7 +50,9 @@ export const RESOURCE_GROUPS: { title: string; resources: string[] }[] = [
   },
   {
     title: "Books",
-    resources: ["daily_book", "day_close", "monthly", "lottery", "catalog"],
+    resources: [
+      "daily_book", "day_close", "day_lock", "monthly", "lottery", "catalog",
+    ],
   },
   { title: "Finance", resources: ["bank_sync", "reports"] },
   { title: "Team", resources: ["users", "time_clock"] },
@@ -75,6 +81,8 @@ const defaultResourceLabel = (r: string) => RESOURCE_LABELS[r] ?? r;
 const defaultActionLabel = (a: string) => ACTION_LABELS[a] ?? a;
 
 /** Resources × actions checkbox grid — THE permission matrix.
+ *  A single-switch resource (`RESOURCE_ACTIONS`, e.g. "Lock /
+ *  unlock days") shows only its one box; its other cells are empty.
  *  One shared rendering for every permissions surface (see
  *  UI-STANDARDS.md §5). The component owns the overflow wrapper,
  *  the table markup and the cell checkboxes; callers supply the
@@ -146,14 +154,16 @@ export function PermissionMatrixTable({
                   <td>{resourceLabel(resource)}</td>
                   {actions.map((action) => (
                     <td key={action}>
-                      <div className={styles.checkCell}>
-                        <Checkbox
-                          checked={checked(resource, action)}
-                          onChange={() => onToggle(resource, action)}
-                          disabled={disabled}
-                          aria-label={`${actionLabel(action)} — ${resourceLabel(resource)}${context}`}
-                        />
-                      </div>
+                      {actionsFor(resource, actions).includes(action) && (
+                        <div className={styles.checkCell}>
+                          <Checkbox
+                            checked={checked(resource, action)}
+                            onChange={() => onToggle(resource, action)}
+                            disabled={disabled}
+                            aria-label={`${actionLabel(action)} — ${resourceLabel(resource)}${context}`}
+                          />
+                        </div>
+                      )}
                     </td>
                   ))}
                   {trailingColumn && (

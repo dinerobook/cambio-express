@@ -238,7 +238,7 @@ export default function AdminUserForm() {
     setDraft((d) => {
       if (!d.perm) return d;
       const perm = structuredClone(d.perm);
-      perm[resource] = toggleMatrixCell(perm[resource], action);
+      perm[resource] = toggleMatrixCell(perm[resource], action, resource);
       // Hand-editing any box means the matrix is theirs now.
       return { ...d, access: "custom", perm };
     });
