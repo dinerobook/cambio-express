@@ -68,6 +68,15 @@ cash_deposit, safe_balance
 
 Plus `notes` (text, separate parameter).
 
+**Retired from the editor (2026-10-09):** `bill_payment_charge`,
+`phone_recargas` and `boost_mobile` no longer show as boxes in the
+In column on new days. They stay in `EDITABLE_REPORT_FIELDS`, in
+`total_receipts` and in the API: a day that already has an amount in
+one of them still shows that box (only that one), so old totals are
+unchanged and the value can be corrected. Pinned by
+`test_retired_in_fields_still_read_save_and_count` and
+`EditDailyBook.receipts.test.tsx`.
+
 **`forward_balance` is conditionally operator-editable** (and can
 be explicitly overridden — see "Operator override" below). It is in
 `EDITABLE_REPORT_FIELDS` (so the schema accepts it), but it only

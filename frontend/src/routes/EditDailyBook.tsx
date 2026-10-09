@@ -142,7 +142,15 @@ interface LineItemFieldDef {
 // forward_balance is also NOT in this list — it renders through the
 // dedicated <ForwardBalanceInput> because it's auto-carried from the
 // prior day (read-only) on every day but the store's first.
-const RECEIPT_INPUTS: InputFieldDef[] = [
+//
+// RETIRED_RECEIPT_INPUTS: the owner stopped entering these on their
+// own (bill payments and top-ups belong with the transfer provider
+// that handled them). New days don't show them. A day that already
+// has an amount saved still shows its box, so the stored value stays
+// visible, still counts in Money In (the server and computeTotals sum
+// it either way) and can be corrected. The fields stay in
+// EDITABLE_KEYS and the API so saving such a day keeps working.
+const RETIRED_RECEIPT_INPUTS: InputFieldDef[] = [
   { key: "bill_payment_charge",    label: "Bill payment charge" },
   { key: "phone_recargas",         label: "Phone recargas" },
   { key: "boost_mobile",           label: "Boost Mobile" },
@@ -818,7 +826,9 @@ function ReceiptsPanel(
             if (carry != null) props.set("forward_balance", carry);
           }}
         />
-        {RECEIPT_INPUTS.map((f) => (
+        {RETIRED_RECEIPT_INPUTS.filter(
+          (f) => Number(props.report?.[f.key] ?? 0) !== 0,
+        ).map((f) => (
           <NumberInput
             key={f.key}
             label={f.label}
