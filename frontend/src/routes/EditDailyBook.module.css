@@ -339,12 +339,6 @@
   font-size: 0.92rem;
 }
 
-.widgetCount {
-  color: var(--db-text-muted, #a3a3a3);
-  font-weight: 500;
-  font-size: 0.8rem;
-}
-
 .widgetTotal {
   font-family: var(--db-font-mono, "JetBrains Mono", monospace);
   font-size: 0.95rem;

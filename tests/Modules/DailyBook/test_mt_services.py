@@ -295,3 +295,113 @@ def test_no_book_access_gets_nothing(client, test_store_id, admin):
     nobody = _employee(client, test_store_id, "svc_none",
                        {"time_clock": {"read": True}})
     assert client.get(_url(test_store_id), headers=nobody).status_code == 403
+
+
+# ── Money orders (a service per company) ───────────────────
+
+
+MAXI_MO = {"company": "Maxi", "service": "money_order",
+           "amount": 400.0, "fees": 6.0}
+
+
+def _set_money_orders_off(sid, csv):
+    from api.Modules.Tenancy.Models import Store
+    with db_session():
+        db.session.get(Store, sid).companies_money_orders_off = csv
+        db.session.commit()
+
+
+def test_money_orders_save_per_company_and_count(client, test_store_id, admin):
+    """Money orders ride the services table: they count in the day's
+    Services total, in Money In, and in the company's own total."""
+    resp = client.put(_url(test_store_id), headers=admin, json={
+        "rows": [MAXI_TRANSFERS], "services": [MAXI_BILL, MAXI_MO],
+    })
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    assert resp.get_json()["saved_total"] == 848 + 123 + 406
+    assert _service_rows(test_store_id)[("Maxi", "money_order")] == (400, 6)
+    day = client.get(
+        f"/api/v2/daily/{test_store_id}/{DAY.isoformat()}", headers=admin,
+    ).get_json()["report"]
+    assert day["money_transfer"] == 1377
+    assert day["total_receipts"] == 1377
+    # The money order fee is not double-counted in the old field.
+    assert day["money_order"] == 0 and day["money_order_fees"] == 0
+
+
+def test_money_order_companies_follow_the_settings_switch(
+    client, test_store_id, admin,
+):
+    got = client.get(_url(test_store_id), headers=admin).get_json()
+    assert got["money_order_companies"] == [r["company"] for r in got["rows"]]
+
+    _set_money_orders_off(test_store_id, "Maxi")
+    got = client.get(_url(test_store_id), headers=admin).get_json()
+    assert "Maxi" not in got["money_order_companies"]
+    assert "Maxi" in [r["company"] for r in got["rows"]]
+
+    _set_money_orders_off(test_store_id, ",".join(
+        r["company"] for r in got["rows"]))
+    got = client.get(_url(test_store_id), headers=admin).get_json()
+    assert got["money_order_companies"] == []
+
+
+def test_switched_off_company_keeps_its_saved_money_orders(
+    client, test_store_id, admin,
+):
+    """Turning a company's money orders off later never loses a day
+    that already has them: the row still reads back and counts."""
+    client.put(_url(test_store_id), headers=admin, json={
+        "rows": [], "services": [MAXI_MO],
+    })
+    _set_money_orders_off(test_store_id, "Maxi")
+    got = client.get(_url(test_store_id), headers=admin).get_json()
+    assert got["services"] == [MAXI_MO]
+    assert got["saved_total"] == 406
+
+
+def test_older_money_order_entries_and_fee_still_count(
+    client, test_store_id, admin,
+):
+    """A day from before this change (money order line items + the
+    typed money order fee) reads and totals exactly as before, and
+    adding per-company money orders on top adds, never replaces."""
+    from api.Modules.DailyBook.Models import DailyLineItem, DailyReport
+    with db_session():
+        db.session.add(DailyReport(store_id=test_store_id, report_date=DAY,
+                                   money_order=250.0, money_order_fees=5.0))
+        db.session.add(DailyLineItem(store_id=test_store_id, report_date=DAY,
+                                     kind="money_order", amount=250.0))
+        db.session.commit()
+    day_url = f"/api/v2/daily/{test_store_id}/{DAY.isoformat()}"
+    before = client.get(day_url, headers=admin).get_json()["report"]
+    assert before["total_receipts"] == 255
+
+    client.put(_url(test_store_id), headers=admin, json={
+        "rows": [], "services": [MAXI_MO],
+    })
+    after = client.get(day_url, headers=admin).get_json()["report"]
+    assert after["money_order"] == 250 and after["money_order_fees"] == 5
+    assert after["total_receipts"] == 255 + 406
+
+
+def test_money_orders_refused_on_a_locked_day(client, test_store_id, admin):
+    from api.Modules.DailyBook.Models import DailyReport
+    with db_session():
+        db.session.add(DailyReport(store_id=test_store_id, report_date=DAY,
+                                   locked_at=datetime.utcnow()))
+        db.session.commit()
+    resp = client.put(_url(test_store_id), headers=admin, json={
+        "rows": [], "services": [MAXI_MO],
+    })
+    assert resp.status_code == 403
+    assert _service_rows(test_store_id) == {}
+
+
+def test_reader_cannot_save_money_orders(client, test_store_id, admin):
+    reader = _employee(client, test_store_id, "mo_ro",
+                       {"daily_book": {"read": True}})
+    resp = client.put(_url(test_store_id), headers=reader,
+                      json={"rows": [], "services": [MAXI_MO]})
+    assert resp.status_code == 403
+    assert _service_rows(test_store_id) == {}

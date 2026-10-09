@@ -2,10 +2,11 @@
 from unittest.mock import MagicMock
 
 
-def _store(companies=None, disabled=""):
+def _store(companies=None, disabled="", mo_off=None):
     s = MagicMock()
     s.companies = companies
     s.companies_disabled = disabled
+    s.companies_money_orders_off = mo_off
     return s
 
 
@@ -220,3 +221,54 @@ def test_encode_allows_all_disabled():
     )
     assert companies == "Intermex,Maxi"
     assert disabled == "Intermex,Maxi"
+
+
+# ── money orders per company ──────────────────────────────
+
+
+def test_every_company_sells_money_orders_by_default():
+    """NULL column (every store before the switch existed) = all on,
+    so the daily book's Money orders tab is unchanged on deploy."""
+    from api.Modules.Transfers.Services import (
+        store_money_order_companies, store_mt_company_money_orders,
+    )
+    store = _store("Intermex,Maxi,Barri", mo_off=None)
+    assert store_money_order_companies(store) == ["Intermex", "Maxi", "Barri"]
+    assert store_mt_company_money_orders(store) == {
+        "Intermex": True, "Maxi": True, "Barri": True,
+    }
+    assert store_money_order_companies(None) == ["Intermex", "Maxi", "Barri"]
+
+
+def test_money_orders_off_hides_company_case_insensitively():
+    from api.Modules.Transfers.Services import (
+        store_money_order_companies, store_mt_company_money_orders,
+    )
+    store = _store("Intermex,Maxi,Barri", mo_off="barri")
+    assert store_money_order_companies(store) == ["Intermex", "Maxi"]
+    assert store_mt_company_money_orders(store)["Barri"] is False
+
+
+def test_disabled_company_never_lists_for_money_orders():
+    """A company switched off entirely is off for money orders too,
+    whatever its own money-order switch says."""
+    from api.Modules.Transfers.Services import store_money_order_companies
+    store = _store("Intermex,Maxi", disabled="Maxi", mo_off="")
+    assert store_money_order_companies(store) == ["Intermex"]
+
+
+def test_all_money_orders_off_lists_nothing():
+    from api.Modules.Transfers.Services import store_money_order_companies
+    assert store_money_order_companies(
+        _store("Intermex,Maxi", mo_off="Intermex,Maxi"),
+    ) == []
+
+
+def test_encode_money_orders_off_missing_means_on():
+    from api.Modules.Transfers.Services import encode_mt_money_orders_off
+    assert encode_mt_money_orders_off([
+        {"name": "Intermex", "enabled": True},
+        {"name": " Maxi ", "enabled": True, "money_orders": False},
+        {"name": "Barri", "enabled": False, "money_orders": True},
+    ]) == "Maxi"
+    assert encode_mt_money_orders_off([{"name": "Intermex"}]) == ""

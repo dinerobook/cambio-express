@@ -907,6 +907,7 @@ def _mt_breakdown_response(breakdown: MTBreakdown) -> MTBreakdownResponse:
         ],
         saved_total=breakdown.saved_total,
         auto_total=breakdown.auto_total,
+        money_order_companies=breakdown.money_order_companies,
     )
 
 

@@ -98,6 +98,12 @@ SERVICE_KINDS: dict[str, str] = {
     "bill_payment": "Bill payments",
     "top_up":       "Top-ups",
     "recharge":     "Recharges",
+    # Money orders sold for a company. Per company like the others
+    # (amount + fee), so they count in the company's total. Only the
+    # companies that sell them (`store_money_order_companies`) are
+    # listed on the tab; older days keep their `money_order` line
+    # items and `money_order_fees` field (INVARIANTS.md "Services").
+    "money_order":  "Money orders",
 }
 
 
@@ -121,6 +127,8 @@ class MTBreakdown:
     grand-total properties for both saved and auto views."""
     rows: list[MTRow]
     services: list[ServiceRow] = field(default_factory=list)
+    # Active companies that sell money orders, in roster order.
+    money_order_companies: list[str] = field(default_factory=list)
 
     @property
     def saved_total(self) -> float:
@@ -186,7 +194,14 @@ def read_mt_breakdown(
             auto_commission=float(auto.commission) if auto else 0.0,
             auto_count=int(auto.count) if auto else 0,
         ))
-    return MTBreakdown(rows=rows, services=services)
+    from api.Modules.Tenancy.Models import Store
+    from api.Modules.Transfers.Services import store_money_order_companies
+
+    store = db.get(Store, int(store_id))
+    return MTBreakdown(
+        rows=rows, services=services,
+        money_order_companies=store_money_order_companies(store),
+    )
 
 
 def _read_services(

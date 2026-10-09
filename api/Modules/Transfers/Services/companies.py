@@ -22,6 +22,13 @@ toggled OFF. A disabled company keeps its historical data (the
 MT-summary rows still reference it by name) but is hidden from the
 daily book's breakdown and the transfer form.
 
+Money orders are a third per-company setting: not every provider
+sells them, so `Store.companies_money_orders_off` holds the subset of
+the roster that does NOT. Empty means every company sells them (the
+default, so the daily book's Money orders tab is unchanged until a
+store switches a company off). `store_money_order_companies` is the
+active roster minus that subset.
+
 Pure functions — no DB writes, no I/O. The write path goes through
 `update_store_info` (Admin Services), which encodes via
 `encode_mt_companies` below.
@@ -73,6 +80,48 @@ def store_mt_companies(store: Any) -> list[str]:
     Returns a fresh list every call, so callers can mutate freely.
     """
     return [name for name, enabled in store_mt_company_roster(store) if enabled]
+
+
+def _money_orders_off(store: Any) -> set[str]:
+    return {
+        c.lower()
+        for c in _split_csv(
+            getattr(store, "companies_money_orders_off", None) if store else None
+        )
+    }
+
+
+def store_mt_company_money_orders(store: Any) -> dict[str, bool]:
+    """``{name: sells_money_orders}`` for every company on the roster
+    (enabled or not). The Settings read shape, beside
+    `store_mt_company_roster`."""
+    off = _money_orders_off(store)
+    return {
+        name: name.lower() not in off
+        for name, _enabled in store_mt_company_roster(store)
+    }
+
+
+def store_money_order_companies(store: Any) -> list[str]:
+    """The ACTIVE companies that sell money orders, in roster order —
+    the companies the daily book's Money orders tab lists."""
+    off = _money_orders_off(store)
+    return [c for c in store_mt_companies(store) if c.lower() not in off]
+
+
+def encode_mt_money_orders_off(entries: list[Any]) -> str:
+    """The ``companies_money_orders_off`` CSV for a Settings payload:
+    the names whose ``money_orders`` is False (missing = True). Call
+    after `encode_mt_companies` has validated the same entries."""
+    off: list[str] = []
+    for e in entries:
+        if isinstance(e, dict):
+            name, sells = e.get("name"), e.get("money_orders", True)
+        else:
+            name, sells = getattr(e, "name", None), getattr(e, "money_orders", True)
+        if not bool(sells):
+            off.append(str(name or "").strip())
+    return ",".join(n for n in off if n)
 
 
 def encode_mt_companies(entries: list[Any]) -> tuple[str, str]:

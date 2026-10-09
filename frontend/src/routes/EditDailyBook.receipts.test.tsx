@@ -162,7 +162,9 @@ describe("EditDailyBook — In column layout", () => {
     const fees = screen.getByRole("button", { name: /^Fees/ });
     // Money order fees moved to Services; the Fees total no longer has them.
     expect(fees).toHaveTextContent("$17.00");
-    expect(fees).toHaveTextContent("Check cashing · Return check · Rebates");
+    expect(within(fees).getByText("Check cashing")).toHaveTextContent("$10.00");
+    expect(within(fees).getByText("Return check hold")).toHaveTextContent("$2.00");
+    expect(within(fees).getByText("Rebates")).toHaveTextContent("$5.00");
     expect(fees).not.toHaveTextContent("Money order");
     await userEvent.click(fees);
     const dialog = screen.getByRole("dialog");

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  SettlementPill, SettlementsList, SettlementsWidget,
+  CashFlowWidget, SettlementPill, SettlementsList,
 } from "./DailyBookSettlements";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
@@ -15,7 +15,10 @@ import type { LineItemRow, OpenSettlement } from "../api/dailybook";
 // Money that comes back, in the daily book:
 //   - "Owed to us" lists open Other cash outs, "We owe" open Other
 //     cash ins, each only up to the day being viewed.
-//   - The tile shows what is still out and how much is overdue.
+//   - They live on a tab of the box the money comes back through:
+//     Owed to us on Cash In, We owe on Cash Out. The tile shows what
+//     is still out as an outlined pill (not in today's total) and how
+//     much is overdue.
 //   - Record return books the opposite kind on the viewed day,
 //     linked to the original; a partial amount is fine, more than
 //     what's left is refused before the call.
@@ -68,8 +71,10 @@ function renderWidget(
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <SettlementsWidget
-        direction={direction}
+      <CashFlowWidget
+        direction={direction === "owed_to_us" ? "in" : "out"}
+        total={direction === "owed_to_us" ? 120 : 75}
+        entries={<p>Today's entries</p>}
         storeId={1}
         date={VIEWED}
         locked={locked}
@@ -98,12 +103,17 @@ function renderList({ locked = false, onChange = vi.fn() } = {}) {
   return { container, onChange };
 }
 
-async function openList(title: string) {
-  await userEvent.click(screen.getByRole("button", { name: new RegExp(title) }));
-  return screen.getByRole("dialog");
+const BOX = { "Owed to us": "Cash In", "We owe": "Cash Out" } as const;
+
+/** Open the box the money comes back through, then its owed tab. */
+async function openList(title: keyof typeof BOX) {
+  await userEvent.click(screen.getByRole("button", { name: new RegExp(BOX[title]) }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(within(dialog).getByRole("tab", { name: new RegExp(title) }));
+  return dialog;
 }
 
-describe("SettlementsWidget", () => {
+describe("CashFlowWidget", () => {
   beforeEach(() => {
     setCurrentIdentity(TEST_ADMIN);
     useOpenSettlements.mockReset();
@@ -116,17 +126,43 @@ describe("SettlementsWidget", () => {
 
   it("totals what is still owed up to the viewed day", () => {
     renderWidget();
-    const tile = screen.getByRole("button", { name: /Owed to us/ });
-    // 1,500 + 850; the entry made after the viewed day is left out.
-    expect(tile).toHaveTextContent("$2,350.00");
-    expect(tile).toHaveTextContent("2 open");
+    const tile = screen.getByRole("button", { name: /Cash In/ });
+    // The box total is today's Cash In; what is owed is a separate,
+    // outlined pill: 1,500 + 850, the entry made after the viewed
+    // day left out.
+    expect(tile).toHaveTextContent("$120.00");
+    expect(tile).toHaveTextContent("Received today$120.00");
+    const owed = within(tile).getByText("Owed to us");
+    expect(owed).toHaveTextContent("$2,350.00");
+    expect(owed).toHaveAttribute("data-open");
+    // Overdue wins the one status pill.
     expect(tile).toHaveTextContent("1 overdue");
+    expect(tile).not.toHaveTextContent("2 open");
+  });
+
+  it("opens on today's entries", async () => {
+    renderWidget();
+    await userEvent.click(screen.getByRole("button", { name: /Cash In/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("tab", { name: /Received/ }))
+      .toHaveAttribute("aria-selected", "true");
+    expect(dialog).toHaveTextContent("Today's entries");
+    expect(within(dialog).getByRole("tab", { name: /Owed to us/ }))
+      .toHaveTextContent("$2,350.00");
+  });
+
+  it("counts open entries amber when none is overdue", () => {
+    useOpenSettlements.mockReturnValue({ data: [lentNoDate], isError: false });
+    renderWidget();
+    expect(screen.getByRole("button", { name: /Cash In/ }))
+      .toHaveTextContent("1 open");
   });
 
   it("lists borrowed money under We owe only", async () => {
     renderWidget("we_owe");
-    const tile = screen.getByRole("button", { name: /We owe/ });
-    expect(tile).toHaveTextContent("$800.00");
+    const tile = screen.getByRole("button", { name: /Cash Out/ });
+    expect(within(tile).getByText("We owe")).toHaveTextContent("$800.00");
+    expect(tile).toHaveTextContent("$75.00");
     expect(tile).not.toHaveTextContent("overdue");
     const dialog = await openList("We owe");
     expect(within(dialog).getByText("From Ana")).toBeInTheDocument();
@@ -150,8 +186,9 @@ describe("SettlementsWidget", () => {
   it("says so when nothing is open", async () => {
     useOpenSettlements.mockReturnValue({ data: [], isError: false });
     renderWidget();
-    expect(screen.getByRole("button", { name: /Owed to us/ }))
-      .toHaveTextContent("Nothing open");
+    const tile = screen.getByRole("button", { name: /Cash In/ });
+    expect(within(tile).getByText("Owed to us")).toHaveAttribute("data-zero");
+    expect(tile).not.toHaveTextContent("open");
     const dialog = await openList("Owed to us");
     expect(dialog).toHaveTextContent("Nothing is owed to the store");
   });
@@ -374,8 +411,8 @@ describe("SettlementsList — Checks on hand", () => {
 
   it("keeps holds out of the Owed to us tile", () => {
     renderWidget("owed_to_us");
-    expect(screen.getByRole("button", { name: /Owed to us/ }))
-      .toHaveTextContent("$1,500.00");
+    expect(within(screen.getByRole("button", { name: /Cash In/ }))
+      .getByText("Owed to us")).toHaveTextContent("$1,500.00");
   });
 
   it("deposits part of a hold as a linked no-cash entry on the viewed day", async () => {

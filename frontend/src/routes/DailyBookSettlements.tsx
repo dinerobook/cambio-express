@@ -11,14 +11,14 @@
 //
 //   - <SettleFields>      the tick box + optional date on an entry
 //   - <SettlementPill>    an entry's state in the entries table
-//   - <SettlementsWidget> the "Owed to us" / "We owe" tile around
-//                         a <SettlementsList>
+//   - <CashFlowWidget>    the Cash In / Cash Out box: today's entries
+//                         and, on a second tab, the money still owed
 //   - <SettlementsList>   the open entries with the Record return /
 //                         Change date / Close actions (the last two
 //                         also work when the entry's own day is
 //                         locked — they move no money)
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -37,6 +37,7 @@ import {
   MoneyInput, Pill, RowActions,
 } from "../components/ui";
 import { isOverdue, useOpenOfKind } from "./dailyBookOpen";
+import { BoxTabs, DailyBookTile, OpenStatusPill } from "./DailyBookTile";
 import styles from "./EditDailyBook.module.css";
 
 /** The tick-box label for an entry of `kind`. */
@@ -125,19 +126,19 @@ export function SettlementPill({ item }: { item: LineItemRow }) {
 type Direction = "owed_to_us" | "we_owe" | "checks_on_hand";
 
 const DIRECTION: Record<Direction, {
-  title: string; kind: string; record: string; settleKind: string;
+  kind: string; record: string; settleKind: string;
   empty: string; lockedHint: string; cashNote?: string;
 }> = {
   // Lent out of the drawer → comes back as a Cash In entry.
   owed_to_us: {
-    title: "Owed to us", kind: "other_cash_out",
+    kind: "other_cash_out",
     record: "Record return", settleKind: "Cash In",
     empty: "Nothing is owed to the store. Tick \"Expected back\" on a Cash Out entry to track one.",
     lockedHint: "This day is locked. Open an unlocked day to record a return.",
   },
   // Borrowed into the drawer → paid back as a Cash Out entry.
   we_owe: {
-    title: "We owe", kind: "other_cash_in",
+    kind: "other_cash_in",
     record: "Record payback", settleKind: "Cash Out",
     empty: "The store owes nothing. Tick \"We pay this back\" on a Cash In entry to track one.",
     lockedHint: "This day is locked. Open an unlocked day to record a payback.",
@@ -145,7 +146,7 @@ const DIRECTION: Record<Direction, {
   // Checks cashed and kept → deposited on a later day. The deposit
   // moves no cash: it left the drawer on the day of the hold.
   checks_on_hand: {
-    title: "Checks on hand", kind: "check_hold",
+    kind: "check_hold",
     record: "Deposit", settleKind: "Check Deposits (from hold)",
     empty: "No checks on hand. Add one below when you cash a check to deposit later.",
     lockedHint: "This day is locked. Open the day you go to the bank to record a deposit.",
@@ -153,61 +154,108 @@ const DIRECTION: Record<Direction, {
   },
 };
 
-/** Tile + list for money lent or borrowed. Checks on hand have no
- *  tile of their own: they live in the Check Deposits box. */
-export function SettlementsWidget({
-  direction, storeId, date, locked, onChange,
+// Cash In / Cash Out — one tile, one modal, two tabs:
+//   - Received / Paid out: today's entries of the kind (other_cash_in
+//     / other_cash_out), with the "We pay this back" / "Expected back"
+//     tick box on each.
+//   - Owed to us / We owe: what is still open from ANY day up to this
+//     one (SettlementsList — Record return / payback, Change date,
+//     Close). It is shown on the box the money comes back through:
+//     cash lent out returns as Cash In, a loan is repaid as Cash Out.
+// The tile's total is today's entries only; the open amount is an
+// outlined pill because it is not in today's total.
+// INVARIANTS.md "Settlements".
+const CASH_FLOW = {
+  in: {
+    title: "Cash In",
+    todayLabel: "Received", todayPart: "Received today",
+    openLabel: "Owed to us", settlement: "owed_to_us",
+    todayTip: "Cash put into the drawer today. Tick \"We pay this back\" on a loan to track it under We owe on the Cash Out box.",
+    openTip: "Cash lent out of the drawer (a Cash Out ticked \"Expected back\"). Record return books it here, as Cash In, on this day.",
+  },
+  out: {
+    title: "Cash Out",
+    todayLabel: "Paid out", todayPart: "Paid out today",
+    openLabel: "We owe", settlement: "we_owe",
+    todayTip: "Cash taken out of the drawer today. Tick \"Expected back\" on cash lent out to track it under Owed to us on the Cash In box.",
+    openTip: "Cash borrowed into the drawer (a Cash In ticked \"We pay this back\"). Record payback books it here, as Cash Out, on this day.",
+  },
+} as const;
+
+export function CashFlowWidget({
+  direction, total, entries, storeId, date, locked, onChange,
 }: {
-  direction: Exclude<Direction, "checks_on_hand">;
+  direction: keyof typeof CASH_FLOW;
+  /** Today's total of the kind (other_cash_in / other_cash_out). */
+  total: number;
+  /** The Received / Paid out tab: today's entries editor. */
+  entries: ReactNode;
   storeId: number;
   date: string;
   locked: boolean;
   onChange: () => void;
 }) {
-  const d = DIRECTION[direction];
-  const { items, total, overdue } = useOpenOfKind(DIRECTION[direction].kind, date);
+  const c = CASH_FLOW[direction];
+  const owed = useOpenOfKind(
+    direction === "in" ? "other_cash_out" : "other_cash_in", date,
+  );
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"today" | "open">("today");
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={styles.widgetCard}
-      >
-        <span className={styles.widgetCardTop}>
-          <span className={styles.widgetLabel}>{d.title}</span>
-          <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
-        </span>
-        <span className={styles.widgetCount}>
-          {items.length === 0 ? "Nothing open" : `${items.length} open`}
-          {overdue > 0 && (
-            <>{" · "}<Pill tone="negative">{overdue} overdue</Pill></>
-          )}
-        </span>
-      </button>
+      <DailyBookTile
+        title={c.title}
+        total={total}
+        parts={[
+          { label: c.todayPart, amount: total },
+          { label: c.openLabel, amount: owed.total, open: true },
+        ]}
+        status={
+          <OpenStatusPill open={owed.items.length} overdue={owed.overdue} />
+        }
+        onOpen={() => setOpen(true)}
+      />
 
       <Modal
         open={open}
-        title={d.title}
+        title={c.title}
         size="lg"
         onClose={() => setOpen(false)}
       >
-        <SettlementsList
-          direction={direction}
-          storeId={storeId}
-          date={date}
-          locked={locked}
-          onChange={onChange}
-        />
+        <div className={styles.lineModalBody}>
+          <BoxTabs
+            tabs={[
+              { key: "today", label: c.todayLabel, amount: total },
+              {
+                key: "open", label: c.openLabel, amount: owed.total,
+                status: <OpenStatusPill open={0} overdue={owed.overdue} />,
+              },
+            ]}
+            active={tab}
+            onChange={setTab}
+            tip={tab === "today" ? c.todayTip : c.openTip}
+            tipLabel={`About ${tab === "today" ? c.todayLabel : c.openLabel}`.toLowerCase()}
+          />
+          {tab === "today" ? entries : (
+            <SettlementsList
+              direction={c.settlement}
+              storeId={storeId}
+              date={date}
+              locked={locked}
+              onChange={onChange}
+            />
+          )}
+        </div>
       </Modal>
     </>
   );
 }
 
 /** The open entries of one direction with their Record / Change date
- *  / Close actions — the body of a SettlementsWidget, and the On hold
- *  tab of the Check Deposits box. */
+ *  / Close actions — the Owed to us tab of the Cash In box, the We owe
+ *  tab of the Cash Out box, and the On hold tab of the Check Deposits
+ *  box. */
 export function SettlementsList({
   direction, storeId, date, locked, onChange,
 }: {

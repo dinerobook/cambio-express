@@ -388,6 +388,7 @@ export const SERVICE_KINDS: ReadonlyArray<{ key: ServiceKind; label: string }> =
   { key: "bill_payment", label: "Bill payments" },
   { key: "top_up",       label: "Top-ups" },
   { key: "recharge",     label: "Recharges" },
+  { key: "money_order",  label: "Money orders" },
 ];
 
 export interface MTBreakdown {
@@ -397,6 +398,9 @@ export interface MTBreakdown {
   /** Transfers + services: the day's Services total. */
   saved_total: number;
   auto_total: number;
+  /** Active companies that sell money orders (Settings switch), in
+   *  roster order — the rows of the Money orders tab. */
+  money_order_companies: string[];
 }
 
 export interface MTBreakdownWriteRow {

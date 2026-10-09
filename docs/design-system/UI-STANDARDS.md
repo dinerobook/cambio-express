@@ -65,6 +65,35 @@ same tone on every screen:
   type (see `TICKET_STATUS_TONES` in `api/support.ts`), not copied
   per route.
 
+### Breakdown pills — the parts of a figure
+
+When a total is made of parts (Cash / Check, Taxable / Non-taxable /
+Sales tax, one per service), show the parts under it with
+`<BreakdownPills parts={[{ label, amount, open? }]}>`: one small pill
+per part, stacked in a column, the size of a status `<Pill>`, money via
+`fmtMoney2`. Never a "Cash $X · Check $Y" text line, and never a list of
+names without amounts.
+
+- The colour is the part's **position** (`--db-series-1..5`), not a
+  status. Status stays on `<Pill>` tones, beside the name.
+- A part at zero **fades**, it is never hidden, so cards in a row keep
+  their shape.
+- `open: true` is money still outstanding and NOT in the total (owed
+  to the store, checks on hold): it renders outlined.
+
+### Daily book boxes
+
+Every box on the MSB daily book is a `<DailyBookTile>`
+(`routes/DailyBookTile.tsx`): name, status pills beside the name, the
+total, `<BreakdownPills>`. A box that holds more than one kind of thing
+opens to `<BoxTabs>` — the kit's `TabsBar` / `TabsButton` with each tab
+reading "Label · $amount" and the `(i)` tip for the active tab. Money
+still owed lives on a tab of the box it comes back through (Owed to us
+on Cash In, We owe on Cash Out, On hold on Check Deposits), never as a
+box of its own. The one status pill for open money is
+`<OpenStatusPill>`: red "N overdue" if any is overdue, else amber
+"N open" / "N on hold". New daily book work starts from these.
+
 ## 4. Formatting
 
 | Value | Formatter (`lib/formatters.ts`, `lib/datetime.ts`) | Never |
@@ -158,6 +187,8 @@ Known shared components, and what they own:
 | `*_STATUS_TONES` in `api/` (`BATCH_`, `TRANSFER_`, `RETURN_CHECK_`, `TICKET_`) | a per-route status → tone map |
 | `fmtMoney2` / `formatDate` / `formatTimestamp` | `toFixed(2)`, `.slice(0, 10)`, `toLocaleDateString()` |
 | `Modal`, `Tooltip`, `Switch`, `Checkbox`, `Pill`, `KpiCard` | hand-rolled equivalents |
+| `BreakdownPills` | a "Cash $X · Check $Y" line, or per-card part chips |
+| `DailyBookTile` / `BoxTabs` (daily book) | a hand-built box button or a tab strip with its own "Label · $X" + tip row |
 
 The same rule applies on the backend: a Service that two modules
 need lives in `api/Core/` or the owning module's `Services/`, not

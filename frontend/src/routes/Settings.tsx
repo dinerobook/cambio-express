@@ -20,6 +20,7 @@ import { ApiError } from "../lib/api";
 import { formatDate, formatTimestamp } from "../lib/datetime";
 import { timezoneFromAddress } from "../lib/timezoneFromAddress";
 import { getCurrentIdentity } from "../lib/auth";
+import { hasPermission } from "../lib/permissions";
 import { passkeysSupported } from "../lib/webauthn";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
 import {
@@ -621,7 +622,9 @@ function StoreInfoCard() {
     const taxPct = ((data.store.federal_tax_rate || 0) * 100).toFixed(2);
     const salesPct = ((data.store.sales_tax_rate || 0) * 100).toFixed(2);
     const enforce = Boolean(data.store.enforce_business_hours);
-    const companies = (data.store.mt_companies ?? []).map((c) => ({ ...c }));
+    const companies = (data.store.mt_companies ?? []).map((c) => ({
+      ...c, money_orders: c.money_orders ?? true,
+    }));
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable store-settings fields + dirty baseline from server-fetched row (federal_tax_rate gets a decimal->percent conversion for display)
     setName(data.store.name);
     setEmail(data.store.email);
@@ -655,10 +658,9 @@ function StoreInfoCard() {
     }));
   }, [data]);
 
-  const canEdit =
-    identity?.role === "admin" ||
-    identity?.role === "owner" ||
-    identity?.role === "superadmin";
+  // The server gates the save on settings.update, so the page does
+  // too (UI-STANDARDS §8: never gate on the role).
+  const canEdit = hasPermission("settings", "update");
 
   const isDirty =
     baseline !== "" && snapshot(hours, enforceHours, mtCompanies) !== baseline;
@@ -676,7 +678,9 @@ function StoreInfoCard() {
       toast({ message: `${trimmed} is already on the roster.`, tone: "info" });
       return;
     }
-    setMtCompanies((list) => [...list, { name: trimmed, enabled: true }]);
+    setMtCompanies((list) => [
+      ...list, { name: trimmed, enabled: true, money_orders: true },
+    ]);
     setNewCompany("");
   }
 
@@ -871,7 +875,7 @@ function StoreInfoCard() {
       <Card>
         <SectionTitle>
           Money transfer companies
-          <InfoTip text="The companies available in the daily book's money-transfer breakdown and the transfer form. Toggle one off to hide it without losing its history; remove it to take it off the roster entirely." />
+          <InfoTip text="The companies available in the daily book's money-transfer breakdown and the transfer form. Toggle one off to hide it without losing its history; remove it to take it off the roster entirely. Money orders: only companies with it on appear on the daily book's Money orders tab." />
         </SectionTitle>
         <div style={{ display: "flex", flexDirection: "column", gap: space.sm }}>
           {mtCompanies.map((c, i) => (
@@ -895,6 +899,22 @@ function StoreInfoCard() {
               {!c.enabled && (
                 <Pill tone="neutral">Hidden</Pill>
               )}
+              <span style={{ marginLeft: "auto" }}>
+                <Switch
+                  checked={c.money_orders}
+                  disabled={!canEdit || !c.enabled}
+                  onChange={(next) =>
+                    setMtCompanies((list) =>
+                      list.map((row, j) =>
+                        j === i ? { ...row, money_orders: next } : row,
+                      ),
+                    )
+                  }
+                  aria-label={`${c.name} sells money orders`}
+                >
+                  Money orders
+                </Switch>
+              </span>
               <Button
                 type="button"
                 tone="ghost"
@@ -903,7 +923,6 @@ function StoreInfoCard() {
                 onClick={() =>
                   setMtCompanies((list) => list.filter((_, j) => j !== i))
                 }
-                style={{ marginLeft: "auto" }}
               >
                 Remove
               </Button>

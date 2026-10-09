@@ -155,12 +155,24 @@ amount and fee only). Rules, enforced in
   (`replace_mt_breakdown`, summary lists `services=Company:service`).
 - A day with no `msb_mt_service` rows reads exactly as before.
 
-The box also has a **Money orders** tab (UI only, nothing new
-stored): the day's `money_order` line items plus the
-`money_order_fees` report field, which saves with the day's form
-(the Fees box no longer shows it). The box's tile total is
-`money_transfer + money_order + money_order_fees`; each of the three
-is counted in `total_receipts` exactly as before.
+The box's **Money orders** tab is a service like the others:
+`msb_mt_service` rows with `service = "money_order"`, amount + fee per
+company, so they count in `money_transfer` and in the company's total
+(the number its cash drop is checked against). The tab lists only the
+active companies that sell money orders —
+`Transfers.Services.store_money_order_companies`, driven by the
+nullable `tenancy_store.companies_money_orders_off` CSV (NULL / empty
+= every company sells them, so no store loses the tab on deploy) —
+plus any company that already has a saved money order row that day.
+
+Older days are untouched: their `money_order` line items (column
+`money_order`) and typed `money_order_fees` still count in
+`total_receipts` exactly as before, and the tab shows them under
+"Earlier entries" (the entries stay editable, the fee stays a form
+field) whenever they are non-zero. Nothing creates new `money_order`
+line items any more; the kind stays in `LINE_ITEM_KINDS` so those
+days keep working. The box's tile total is
+`money_transfer + money_order + money_order_fees`, as before.
 
 The old `bill_payment_charge` / `phone_recargas` / `boost_mobile`
 columns are separate and retired from the editor (see Category 1).

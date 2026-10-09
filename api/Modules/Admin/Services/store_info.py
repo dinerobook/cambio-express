@@ -104,12 +104,16 @@ def update_store_info(
             # Virtual field — encode the {name, enabled} rows into
             # the two CSV columns. ValueError propagates to the
             # controller's 422 like every other validation here.
-            from api.Modules.Transfers.Services import encode_mt_companies
+            from api.Modules.Transfers.Services import (
+                encode_mt_companies, encode_mt_money_orders_off,
+            )
             companies_csv, disabled_csv = encode_mt_companies(v)
             # setattr dodges the SQLAlchemy 1.x Column[str] typing
             # trap (same pattern as the loop's setattr below).
             setattr(store, "companies", companies_csv)
             setattr(store, "companies_disabled", disabled_csv)
+            setattr(store, "companies_money_orders_off",
+                    encode_mt_money_orders_off(v))
             continue
         if k == "enforce_business_hours":
             # Coerce truthy values so a CLI / curl POST with "1"

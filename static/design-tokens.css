@@ -87,6 +87,17 @@
   --db-co-maxi:     #b48cff;
   --db-co-barri:    #4dd8e6;
 
+  /* ── Breakdown series (the stacked pills on a daily book box) ──
+     Position colours for the parts of one figure: the jewel tones
+     above, then warning amber and a muted grey. Not status colours:
+     a breakdown pill never means good/bad, and status pills keep
+     their own tones (UI-STANDARDS.md "Breakdown pills"). */
+  --db-series-1: var(--db-co-intermex);
+  --db-series-2: var(--db-co-maxi);
+  --db-series-3: var(--db-co-barri);
+  --db-series-4: var(--db-warning);
+  --db-series-5: var(--db-gray-6, #8a8f9c);
+
   /* ── Referral rewards accents ──
      The ONE sanctioned gold sub-theme — the topbar crown + the
      /settings/referrals share card only. Not a second brand
@@ -245,6 +256,13 @@
      invisible — that was the original bug). */
   --db-fill-subtle:  rgba(15, 18, 32, 0.04);
   --db-fill-neutral: rgba(15, 18, 32, 0.06);
+
+  /* Breakdown series, darkened so the pill text reads on white. */
+  --db-series-1: #1f6fd1;
+  --db-series-2: #7b4fd6;
+  --db-series-3: #0e8f9c;
+  --db-series-4: #b26b00;
+  --db-series-5: #6b7280;
 }
 
 [data-theme="light"] {
