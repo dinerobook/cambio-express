@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -78,7 +78,7 @@ describe("EditDailyBook — retired In boxes", () => {
     for (const name of RETIRED) {
       expect(screen.queryByLabelText(name)).not.toBeInTheDocument();
     }
-    // The rest of Other receipts is still there.
+    // Forward balance is still there.
     expect(screen.getByLabelText(/Forward balance/)).toBeInTheDocument();
   });
 
@@ -134,5 +134,48 @@ describe("EditDailyBook — In box names", () => {
     for (const name of [/^Other cash in/i, /^Cash from bank/, /^Money transfer/]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
+  });
+});
+
+describe("EditDailyBook — In column layout", () => {
+  it("starts with forward balance, without the old headings or import", () => {
+    useDailyReport.mockReturnValue(NEW_DAY);
+    renderPage();
+    const forward = screen.getByLabelText(/Forward balance/);
+    const sales = screen.getByRole("button", { name: /^Sales/ });
+    // Forward balance comes before the Sales / Fees / Services boxes.
+    expect(
+      forward.compareDocumentPosition(sales) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByText(/Tap to edit/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Other receipts/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Import Intermex report/ }))
+      .not.toBeInTheDocument();
+  });
+
+  it("keeps the Fees box to check cashing, return check and rebates", async () => {
+    useDailyReport.mockReturnValue(savedDay({
+      money_order_fees: 4, check_cashing_fees: 10, return_check_hold_fees: 2,
+      rebates_commissions: 5,
+    }));
+    renderPage();
+    const fees = screen.getByRole("button", { name: /^Fees/ });
+    // Money order fees moved to Services; the Fees total no longer has them.
+    expect(fees).toHaveTextContent("$17.00");
+    expect(fees).toHaveTextContent("Check cashing · Return check · Rebates");
+    expect(fees).not.toHaveTextContent("Money order");
+    await userEvent.click(fees);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByLabelText(/Money order/)).not.toBeInTheDocument();
+    for (const name of [/^Check cashing fees/, /^Return check hold fees/, /^Rebates/]) {
+      expect(within(dialog).getByLabelText(name)).toBeInTheDocument();
+    }
+  });
+
+  it("still counts money order fees in In", () => {
+    useDailyReport.mockReturnValue(savedDay({ money_order_fees: 4, taxable_sales: 1000 }));
+    renderPage();
+    // In = sales 1,000 + money order fee 4; no box shows that sum.
+    expect(screen.getAllByText("$1,004.00").length).toBeGreaterThan(0);
   });
 });

@@ -155,6 +155,13 @@ amount and fee only). Rules, enforced in
   (`replace_mt_breakdown`, summary lists `services=Company:service`).
 - A day with no `msb_mt_service` rows reads exactly as before.
 
+The box also has a **Money orders** tab (UI only, nothing new
+stored): the day's `money_order` line items plus the
+`money_order_fees` report field, which saves with the day's form
+(the Fees box no longer shows it). The box's tile total is
+`money_transfer + money_order + money_order_fees`; each of the three
+is counted in `total_receipts` exactly as before.
+
 The old `bill_payment_charge` / `phone_recargas` / `boost_mobile`
 columns are separate and retired from the editor (see Category 1).
 
