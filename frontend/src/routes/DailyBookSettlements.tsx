@@ -1,21 +1,22 @@
-// Money that comes back — cash lent out of the drawer (an Other cash
-// out ticked "Expected back") or borrowed into it (an Other cash in
+// Money that comes back — cash lent out of the drawer (a Cash Out
+// entry ticked "Expected back") or borrowed into it (an Other cash in
 // ticked "We pay this back"). The API keeps the books: the return is
 // an ordinary entry of the opposite kind on the day the cash moved,
 // linked to the original. See DailyBook/INVARIANTS.md "Settlements".
 //
-// Held checks ride the same machinery: a Checks held entry is always
-// open, and Deposit on the "Checks on hand" tile books a linked Held
-// checks deposited entry on the day the checks reach the bank — an
+// Held checks ride the same machinery: a check on hold is always
+// open, and Deposit on the Check Deposits box's On hold tab books a
+// linked held-check deposit on the day the checks reach the bank — an
 // entry that moves no cash (INVARIANTS.md "Held checks").
 //
 //   - <SettleFields>      the tick box + optional date on an entry
 //   - <SettlementPill>    an entry's state in the entries table
-//   - <SettlementsWidget> the "Owed to us" / "We owe" tile, its list
-//                         and the Record return / Change date /
-//                         Close actions (the last two also work when
-//                         the entry's own day is locked — they move
-//                         no money)
+//   - <SettlementsWidget> the "Owed to us" / "We owe" tile around
+//                         a <SettlementsList>
+//   - <SettlementsList>   the open entries with the Record return /
+//                         Change date / Close actions (the last two
+//                         also work when the entry's own day is
+//                         locked — they move no money)
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,7 +26,6 @@ import {
   createLineItem,
   isAlwaysOpen,
   updateLineItem,
-  useOpenSettlements,
   type LineItemRow,
   type OpenSettlement,
 } from "../api/dailybook";
@@ -36,6 +36,7 @@ import {
   Alert, Button, Checkbox, ConfirmDialog, DateInput, Field, Input, Modal,
   MoneyInput, Pill, RowActions,
 } from "../components/ui";
+import { isOverdue, useOpenOfKind } from "./dailyBookOpen";
 import styles from "./EditDailyBook.module.css";
 
 /** The tick-box label for an entry of `kind`. */
@@ -44,8 +45,8 @@ function settleLabel(kind: string): string {
 }
 
 /** Tick box + optional "back by" date, for the add row and the
- *  inline edit of an Other cash out / Other cash in entry. A Checks
- *  held entry is always open, so it gets the date alone. */
+ *  inline edit of a Cash Out / Other cash in entry. A check on hold
+ *  is always open, so it gets the date alone. */
 export function SettleFields({
   kind, checked, onCheckedChange, settleBy, onSettleByChange, disabled,
 }: {
@@ -131,13 +132,13 @@ const DIRECTION: Record<Direction, {
   owed_to_us: {
     title: "Owed to us", kind: "other_cash_out",
     record: "Record return", settleKind: "Other cash in",
-    empty: "Nothing is owed to the store. Tick \"Expected back\" on an Other cash out to track one.",
+    empty: "Nothing is owed to the store. Tick \"Expected back\" on a Cash Out entry to track one.",
     lockedHint: "This day is locked. Open an unlocked day to record a return.",
   },
-  // Borrowed into the drawer → paid back as an Other cash out.
+  // Borrowed into the drawer → paid back as a Cash Out entry.
   we_owe: {
     title: "We owe", kind: "other_cash_in",
-    record: "Record payback", settleKind: "Other cash out",
+    record: "Record payback", settleKind: "Cash Out",
     empty: "The store owes nothing. Tick \"We pay this back\" on an Other cash in to track one.",
     lockedHint: "This day is locked. Open an unlocked day to record a payback.",
   },
@@ -145,67 +146,27 @@ const DIRECTION: Record<Direction, {
   // moves no cash: it left the drawer on the day of the hold.
   checks_on_hand: {
     title: "Checks on hand", kind: "check_hold",
-    record: "Deposit", settleKind: "Held checks deposited",
-    empty: "No checks on hand. Add an entry under Checks held when you cash checks to deposit later.",
+    record: "Deposit", settleKind: "Check Deposits (from hold)",
+    empty: "No checks on hand. Add one below when you cash a check to deposit later.",
     lockedHint: "This day is locked. Open the day you go to the bank to record a deposit.",
     cashNote: "No effect on cash or over/short: the cash left the drawer on the day the checks were held.",
   },
 };
 
-function isOverdue(o: OpenSettlement, today: string): boolean {
-  return o.settle_by != null && o.settle_by < today;
-}
-
-/** Tile + list for one direction. `date` is the day being viewed:
- *  a return is booked there, so entries made after it are left out
- *  (a return can't predate what it settles). */
+/** Tile + list for money lent or borrowed. Checks on hand have no
+ *  tile of their own: they live in the Check Deposits box. */
 export function SettlementsWidget({
   direction, storeId, date, locked, onChange,
 }: {
-  direction: Direction;
+  direction: Exclude<Direction, "checks_on_hand">;
   storeId: number;
   date: string;
   locked: boolean;
   onChange: () => void;
 }) {
   const d = DIRECTION[direction];
-  const query = useOpenSettlements();
-  const queryClient = useQueryClient();
+  const { items, total, overdue } = useOpenOfKind(DIRECTION[direction].kind, date);
   const [open, setOpen] = useState(false);
-  const [recording, setRecording] = useState<OpenSettlement | null>(null);
-  const [redating, setRedating] = useState<OpenSettlement | null>(null);
-  const [closing, setClosing] = useState<OpenSettlement | null>(null);
-  const [closeBusy, setCloseBusy] = useState(false);
-  const [closeErr, setCloseErr] = useState<string | null>(null);
-
-  const today = todayIso();
-  const items = (query.data ?? []).filter(
-    (o) => o.kind === d.kind && o.report_date <= date,
-  );
-  const total = items.reduce((s, o) => s + o.outstanding, 0);
-  const overdue = items.filter((o) => isOverdue(o, today)).length;
-
-  function refresh() {
-    void queryClient.invalidateQueries({
-      queryKey: ["dailybook", "settlements", storeId],
-    });
-    onChange();
-  }
-
-  async function confirmClose() {
-    if (!closing) return;
-    setCloseBusy(true);
-    setCloseErr(null);
-    try {
-      await updateLineItem(storeId, closing.id, { expects_settlement: false });
-      setClosing(null);
-      refresh();
-    } catch (e) {
-      setCloseErr(apiErrorMessage(e, "Could not close this entry."));
-    } finally {
-      setCloseBusy(false);
-    }
-  }
 
   return (
     <>
@@ -232,92 +193,150 @@ export function SettlementsWidget({
         size="lg"
         onClose={() => setOpen(false)}
       >
-        <div className={styles.lineModalBody}>
-          {query.isError ? (
-            <Alert tone="error">
-              {apiErrorMessage(query.error, "Could not load open entries.")}
-            </Alert>
-          ) : items.length === 0 ? (
-            <p className={styles.emptyEntries}>
-              {d.empty}
-            </p>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table className={styles.widgetTable}>
-                <thead>
-                  <tr>
-                    <th className={styles.widgetTh}>Who / note</th>
-                    <th className={styles.widgetTh}>Day</th>
-                    <th className={styles.widgetTh}>Amount</th>
-                    <th className={styles.widgetTh}>Left</th>
-                    <th className={styles.widgetTh}>By</th>
-                    <th className={styles.widgetTh} aria-label="actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((o) => (
-                    <tr key={o.id}>
-                      <td className={styles.widgetTd}>
-                        {o.note || "—"}
-                        {o.returns.map((r) => (
-                          <div key={r.id} className={styles.widgetTdSmall}>
-                            {fmtMoney2(r.amount)} on {formatDate(r.report_date)}
-                          </div>
-                        ))}
-                      </td>
-                      <td className={styles.widgetTdMono}>
-                        {formatDate(o.report_date)}
-                      </td>
-                      <td className={styles.widgetTdMono}>{fmtMoney2(o.amount)}</td>
-                      <td className={styles.widgetTdMono}>
-                        {fmtMoney2(o.outstanding)}
-                      </td>
-                      <td className={styles.widgetTd}>
-                        {o.settle_by == null ? (
-                          <Pill tone="neutral">No date</Pill>
-                        ) : isOverdue(o, today) ? (
-                          <Pill tone="negative">
-                            {formatDate(o.settle_by)} · overdue
-                          </Pill>
-                        ) : (
-                          <Pill tone="warning">{formatDate(o.settle_by)}</Pill>
-                        )}
-                      </td>
-                      <td className={styles.widgetTd}>
-                        <RowActions
-                          label="Actions"
-                          actions={[
-                            {
-                              label: d.record,
-                              tone: "primary",
-                              perm: "daily_book.create",
-                              hidden: locked,
-                              onClick: () => setRecording(o),
-                            },
-                            {
-                              label: "Change date",
-                              perm: "daily_book.update",
-                              onClick: () => setRedating(o),
-                            },
-                            {
-                              label: "Close",
-                              perm: "daily_book.update",
-                              onClick: () => { setCloseErr(null); setClosing(o); },
-                            },
-                          ]}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {locked && items.length > 0 && (
-            <p className={styles.emptyEntries}>{d.lockedHint}</p>
-          )}
-        </div>
+        <SettlementsList
+          direction={direction}
+          storeId={storeId}
+          date={date}
+          locked={locked}
+          onChange={onChange}
+        />
       </Modal>
+    </>
+  );
+}
+
+/** The open entries of one direction with their Record / Change date
+ *  / Close actions — the body of a SettlementsWidget, and the On hold
+ *  tab of the Check Deposits box. */
+export function SettlementsList({
+  direction, storeId, date, locked, onChange,
+}: {
+  direction: Direction;
+  storeId: number;
+  date: string;
+  locked: boolean;
+  onChange: () => void;
+}) {
+  const d = DIRECTION[direction];
+  const { query, items } = useOpenOfKind(DIRECTION[direction].kind, date);
+  const queryClient = useQueryClient();
+  const [recording, setRecording] = useState<OpenSettlement | null>(null);
+  const [redating, setRedating] = useState<OpenSettlement | null>(null);
+  const [closing, setClosing] = useState<OpenSettlement | null>(null);
+  const [closeBusy, setCloseBusy] = useState(false);
+  const [closeErr, setCloseErr] = useState<string | null>(null);
+
+  const today = todayIso();
+
+  function refresh() {
+    void queryClient.invalidateQueries({
+      queryKey: ["dailybook", "settlements", storeId],
+    });
+    onChange();
+  }
+
+  async function confirmClose() {
+    if (!closing) return;
+    setCloseBusy(true);
+    setCloseErr(null);
+    try {
+      await updateLineItem(storeId, closing.id, { expects_settlement: false });
+      setClosing(null);
+      refresh();
+    } catch (e) {
+      setCloseErr(apiErrorMessage(e, "Could not close this entry."));
+    } finally {
+      setCloseBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className={styles.lineModalBody}>
+        {query.isError ? (
+          <Alert tone="error">
+            {apiErrorMessage(query.error, "Could not load open entries.")}
+          </Alert>
+        ) : items.length === 0 ? (
+          <p className={styles.emptyEntries}>
+            {d.empty}
+          </p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table className={styles.widgetTable}>
+              <thead>
+                <tr>
+                  <th className={styles.widgetTh}>Who / note</th>
+                  <th className={styles.widgetTh}>Day</th>
+                  <th className={styles.widgetTh}>Amount</th>
+                  <th className={styles.widgetTh}>Left</th>
+                  <th className={styles.widgetTh}>By</th>
+                  <th className={styles.widgetTh} aria-label="actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((o) => (
+                  <tr key={o.id}>
+                    <td className={styles.widgetTd}>
+                      {o.note || "—"}
+                      {o.returns.map((r) => (
+                        <div key={r.id} className={styles.widgetTdSmall}>
+                          {fmtMoney2(r.amount)} on {formatDate(r.report_date)}
+                        </div>
+                      ))}
+                    </td>
+                    <td className={styles.widgetTdMono}>
+                      {formatDate(o.report_date)}
+                    </td>
+                    <td className={styles.widgetTdMono}>{fmtMoney2(o.amount)}</td>
+                    <td className={styles.widgetTdMono}>
+                      {fmtMoney2(o.outstanding)}
+                    </td>
+                    <td className={styles.widgetTd}>
+                      {o.settle_by == null ? (
+                        <Pill tone="neutral">No date</Pill>
+                      ) : isOverdue(o, today) ? (
+                        <Pill tone="negative">
+                          {formatDate(o.settle_by)} · overdue
+                        </Pill>
+                      ) : (
+                        <Pill tone="warning">{formatDate(o.settle_by)}</Pill>
+                      )}
+                    </td>
+                    <td className={styles.widgetTd}>
+                      <RowActions
+                        label="Actions"
+                        actions={[
+                          {
+                            label: d.record,
+                            tone: "primary",
+                            perm: "daily_book.create",
+                            hidden: locked,
+                            onClick: () => setRecording(o),
+                          },
+                          {
+                            label: "Change date",
+                            perm: "daily_book.update",
+                            onClick: () => setRedating(o),
+                          },
+                          {
+                            label: "Close",
+                            perm: "daily_book.update",
+                            onClick: () => { setCloseErr(null); setClosing(o); },
+                          },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {locked && items.length > 0 && (
+          <p className={styles.emptyEntries}>{d.lockedHint}</p>
+        )}
+      </div>
 
       {recording && (
         <RecordSettlementModal

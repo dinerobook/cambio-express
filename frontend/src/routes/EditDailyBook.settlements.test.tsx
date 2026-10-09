@@ -8,7 +8,7 @@ import EditDailyBook from "./EditDailyBook";
 import type { LineItemRow } from "../api/dailybook";
 
 // The daily book's entry boxes and money that comes back:
-//   - Other cash out offers "Expected back", Other cash in offers
+//   - Cash Out offers "Expected back", Other cash in offers
 //     "We pay this back"; no other box offers either.
 //   - A plain add sends exactly what it always did.
 //   - A ticked add sends the mark and the optional date.
@@ -99,7 +99,7 @@ describe("EditDailyBook — money that comes back", () => {
 
   it("adds a plain cash out exactly as before", async () => {
     renderPage();
-    const dialog = await openBox(/Other cash out/);
+    const dialog = await openBox(/^Cash Out/);
     await userEvent.type(within(dialog).getByLabelText(/Amount/), "50");
     await userEvent.click(within(dialog).getByRole("button", { name: "+ Add" }));
     await waitFor(() => expect(createLineItem).toHaveBeenCalledWith(
@@ -109,7 +109,7 @@ describe("EditDailyBook — money that comes back", () => {
 
   it("marks a cash out as expected back with a date", async () => {
     renderPage();
-    const dialog = await openBox(/Other cash out/);
+    const dialog = await openBox(/^Cash Out/);
     await userEvent.type(within(dialog).getByLabelText(/Amount/), "2000");
     await userEvent.type(within(dialog).getByLabelText(/Note/), "Lent to Store #2");
     expect(within(dialog).queryByLabelText("Settle by")).not.toBeInTheDocument();
@@ -139,14 +139,14 @@ describe("EditDailyBook — money that comes back", () => {
 
   it("does not offer the mark on other boxes", async () => {
     renderPage();
-    const dialog = await openBox(/Outside cash & drops/);
+    const dialog = await openBox(/^Cash Drops/);
     expect(within(dialog).queryByLabelText("Expected back")).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText("We pay this back")).not.toBeInTheDocument();
   });
 
   it("shows each entry's state in the table", async () => {
     renderPage();
-    const outDialog = await openBox(/Other cash out/);
+    const outDialog = await openBox(/^Cash Out/);
     const lentRow = within(outDialog).getByText("Store #2").closest("tr")!;
     expect(lentRow).toHaveTextContent("Expected back · $1,500.00 left");
     const plainRow = within(outDialog).getByText("Ice").closest("tr")!;
@@ -155,7 +155,7 @@ describe("EditDailyBook — money that comes back", () => {
 
   it("can close an entry from its inline edit", async () => {
     renderPage();
-    const dialog = await openBox(/Other cash out/);
+    const dialog = await openBox(/^Cash Out/);
     const lentRow = within(dialog).getByText("Store #2").closest("tr")!;
     await userEvent.click(within(lentRow).getByRole("button", { name: "Edit" }));
     const editRow = within(dialog).getByRole("button", { name: "Save" }).closest("tr")!;

@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SettlementPill, SettlementsWidget } from "./DailyBookSettlements";
+import {
+  SettlementPill, SettlementsList, SettlementsWidget,
+} from "./DailyBookSettlements";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { addDaysIso, todayIso } from "../lib/datetime";
@@ -60,7 +62,7 @@ const borrowed: OpenSettlement = {
 };
 
 function renderWidget(
-  direction: "owed_to_us" | "we_owe" | "checks_on_hand" = "owed_to_us",
+  direction: "owed_to_us" | "we_owe" = "owed_to_us",
   { locked = false, onChange = vi.fn() } = {},
 ) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -76,6 +78,24 @@ function renderWidget(
     </QueryClientProvider>,
   );
   return { onChange };
+}
+
+// The checks-on-hand list lives in the Check Deposits box's On hold
+// tab (EditDailyBook), so it is tested bare.
+function renderList({ locked = false, onChange = vi.fn() } = {}) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { container } = render(
+    <QueryClientProvider client={qc}>
+      <SettlementsList
+        direction="checks_on_hand"
+        storeId={1}
+        date={VIEWED}
+        locked={locked}
+        onChange={onChange}
+      />
+    </QueryClientProvider>,
+  );
+  return { container, onChange };
 }
 
 async function openList(title: string) {
@@ -319,7 +339,7 @@ describe("SettlementsWidget", () => {
   });
 });
 
-describe("SettlementsWidget — Checks on hand", () => {
+describe("SettlementsList — Checks on hand", () => {
   const hold: OpenSettlement = {
     id: 31, kind: "check_hold", report_date: addDaysIso(TODAY, -6),
     amount: 4000, note: "ABC Construction", settle_by: addDaysIso(TODAY, -1),
@@ -342,16 +362,14 @@ describe("SettlementsWidget — Checks on hand", () => {
     });
   });
 
-  it("totals only held checks, and holds stay out of Owed to us", async () => {
-    renderWidget("checks_on_hand");
-    const tile = screen.getByRole("button", { name: /Checks on hand/ });
-    expect(tile).toHaveTextContent("$2,200.00");
-    expect(tile).toHaveTextContent("2 open");
-    expect(tile).toHaveTextContent("1 overdue");
-    const dialog = await openList("Checks on hand");
-    expect(within(dialog).queryByText("Store #2 (Raj)")).not.toBeInTheDocument();
-    expect(within(dialog).getByText("ABC Construction").closest("tr"))
+  it("lists only held checks, with what went to the bank", () => {
+    renderList();
+    const list = screen.getByRole("table");
+    expect(within(list).queryByText("Store #2 (Raj)")).not.toBeInTheDocument();
+    expect(within(list).getByText("ABC Construction").closest("tr"))
       .toHaveTextContent("$2,500.00 on");
+    expect(within(list).getByText("ABC Construction").closest("tr"))
+      .toHaveTextContent("overdue");
   });
 
   it("keeps holds out of the Owed to us tile", () => {
@@ -362,12 +380,12 @@ describe("SettlementsWidget — Checks on hand", () => {
 
   it("deposits part of a hold as a linked no-cash entry on the viewed day", async () => {
     createLineItem.mockResolvedValue({});
-    const { onChange } = renderWidget("checks_on_hand");
-    const dialog = await openList("Checks on hand");
+    const { onChange } = renderList();
+    const dialog = screen.getByRole("table");
     const tr = within(dialog).getByText("ABC Construction").closest("tr")!;
     await userEvent.click(within(tr).getByRole("button", { name: "Deposit" }));
     const form = screen.getAllByRole("dialog").at(-1)!;
-    expect(form).toHaveTextContent("Held checks deposited");
+    expect(form).toHaveTextContent("Check Deposits (from hold)");
     expect(form).toHaveTextContent("No effect on cash or over/short");
     const amount = within(form).getByLabelText(/Amount/);
     expect(amount).toHaveValue("1500");
@@ -382,8 +400,7 @@ describe("SettlementsWidget — Checks on hand", () => {
   });
 
   it("refuses depositing more than is on hand without calling the server", async () => {
-    renderWidget("checks_on_hand");
-    const dialog = await openList("Checks on hand");
+    const { container: dialog } = renderList();
     const tr = within(dialog).getByText("Lopez Roofing").closest("tr")!;
     await userEvent.click(within(tr).getByRole("button", { name: "Deposit" }));
     const form = screen.getAllByRole("dialog").at(-1)!;
@@ -396,8 +413,7 @@ describe("SettlementsWidget — Checks on hand", () => {
   });
 
   it("offers no Deposit on a locked day but still Change date and Close", async () => {
-    renderWidget("checks_on_hand", { locked: true });
-    const dialog = await openList("Checks on hand");
+    const { container: dialog } = renderList({ locked: true });
     expect(within(dialog).queryByRole("button", { name: "Deposit" }))
       .not.toBeInTheDocument();
     expect(within(dialog).getAllByRole("button", { name: "Close" })).toHaveLength(2);
@@ -408,8 +424,7 @@ describe("SettlementsWidget — Checks on hand", () => {
     setCurrentIdentity({
       ...TEST_ADMIN, role: "employee", permissions: ["daily_book.read"],
     });
-    renderWidget("checks_on_hand");
-    const dialog = await openList("Checks on hand");
+    const { container: dialog } = renderList();
     expect(within(dialog).getByText("Lopez Roofing")).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Deposit" }))
       .not.toBeInTheDocument();
@@ -417,8 +432,7 @@ describe("SettlementsWidget — Checks on hand", () => {
 
   it("explains how to start when nothing is held", async () => {
     useOpenSettlements.mockReturnValue({ data: [lent], isError: false });
-    renderWidget("checks_on_hand");
-    const dialog = await openList("Checks on hand");
+    const { container: dialog } = renderList();
     expect(dialog).toHaveTextContent("No checks on hand");
   });
 });

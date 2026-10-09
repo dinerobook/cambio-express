@@ -176,7 +176,7 @@ def test_deposit_without_a_hold_is_refused(client, test_store_id, admin):
     resp = _add(client, test_store_id, admin, THU,
                 kind="held_check_deposit", amount=100.0)
     assert resp.status_code == 422
-    assert "Checks on hand" in resp.get_json()["detail"]
+    assert "On hold tab" in resp.get_json()["detail"]
 
 
 def test_deposit_over_what_is_held_is_refused(client, test_store_id, admin):

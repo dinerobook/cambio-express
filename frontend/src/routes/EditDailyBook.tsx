@@ -40,8 +40,9 @@ import { computeTotals, type FormState } from "./editDailyBook.totals";
 import styles from "./EditDailyBook.module.css";
 import { ImportReportModal } from "./ImportReportModal";
 import {
-  SettleFields, SettlementPill, SettlementsWidget,
+  SettleFields, SettlementPill, SettlementsList, SettlementsWidget,
 } from "./DailyBookSettlements";
+import { useOpenOfKind } from "./dailyBookOpen";
 
 // /app/daily/edit?date=YYYY-MM-DD — the per-day editor.
 //
@@ -161,15 +162,10 @@ const DISBURSEMENT_INPUTS: InputFieldDef[] = [
 // Purchases and expenses render through <MethodSplitWidget> (one
 // Cash|Check tile each, like Payroll) — only the single-kind rows
 // stay in this list.
+// Check deposits and checks on hold share one <CheckDepositsWidget>.
 const DISBURSEMENT_LINE_ITEMS: LineItemFieldDef[] = [
-  { key: "outside_cash_drops", label: "Outside cash & drops", kind: "drop" },
-  { key: "checks_deposit",     label: "Check deposits",       kind: "check_deposit" },
-  // Checks cashed today, deposited on a later day — the cash left
-  // the drawer today, so it counts in Out like a check deposit. The
-  // Checks on hand tile closes it with a Deposit (INVARIANTS.md
-  // "Held checks").
-  { key: "checks_held",        label: "Checks held",          kind: "check_hold" },
-  { key: "other_cash_out",     label: "Other cash out",       kind: "other_cash_out" },
+  { key: "outside_cash_drops", label: "Cash Drops", kind: "drop" },
+  { key: "other_cash_out",     label: "Cash Out",   kind: "other_cash_out" },
 ];
 
 // Layout strategy:
@@ -867,9 +863,6 @@ function ReceiptsPanel(
 }
 
 function DisbursementsPanel(props: PanelProps) {
-  const heldDeposits = props.lineItems.filter(
-    (li) => li.kind === "held_check_deposit",
-  );
   return (
     <Card padding="1.25rem 1.5rem">
       <InputGrid>
@@ -898,7 +891,6 @@ function DisbursementsPanel(props: PanelProps) {
           cashTotal={Number(props.report?.payroll_expense ?? 0)}
           checkTotal={Number(props.report?.payroll_check ?? 0)}
           tileTotal="cash"
-          checkTag="P&L only"
           cashNote="Cash payroll comes out of the drawer — it counts toward today's Out total."
           checkNote="Check payroll never touches the daily book's numbers — it flows straight into the monthly P&L's Check payroll line."
           items={props.lineItems.filter(
@@ -943,6 +935,16 @@ function DisbursementsPanel(props: PanelProps) {
           locked={props.locked}
           onChange={props.onLineItemChange}
         />
+        <CheckDepositsWidget
+          depositTotal={Number(props.report?.checks_deposit ?? 0)}
+          heldTotal={Number(props.report?.checks_held ?? 0)}
+          heldDepositTotal={Number(props.report?.held_checks_deposited ?? 0)}
+          lineItems={props.lineItems}
+          storeId={props.storeId}
+          date={props.date}
+          locked={props.locked}
+          onChange={props.onLineItemChange}
+        />
         {DISBURSEMENT_LINE_ITEMS.map((f) => (
           <LineItemWidget
             key={f.kind}
@@ -964,32 +966,6 @@ function DisbursementsPanel(props: PanelProps) {
           locked={props.locked}
           onChange={props.onLineItemChange}
         />
-        {/* Held checks not yet at the bank — any day's book shows them
-            and deposits them. */}
-        <SettlementsWidget
-          direction="checks_on_hand"
-          storeId={props.storeId}
-          date={props.date}
-          locked={props.locked}
-          onChange={props.onLineItemChange}
-        />
-        {/* Held checks that reached the bank today. Created only by
-            Deposit on Checks on hand, and in no total, so the tile
-            only appears on a day that has one. */}
-        {heldDeposits.length > 0 && (
-          <LineItemWidget
-            kind="held_check_deposit"
-            label="Held checks deposited"
-            tag="No cash effect"
-            canAdd={false}
-            readOnly={props.locked}
-            total={Number(props.report?.held_checks_deposited ?? 0)}
-            items={heldDeposits}
-            storeId={props.storeId}
-            date={props.date}
-            onChange={props.onLineItemChange}
-          />
-        )}
       </div>
     </Card>
   );
@@ -1607,16 +1583,10 @@ function NotesPanel({
 
 function LineItemWidget({
   kind, label, readOnly, total, items, storeId, date, onChange,
-  tag, canAdd = true,
 }: {
   kind: string;
   label: string;
   readOnly: boolean;
-  /** Small pill beside the label (e.g. "No cash effect"). */
-  tag?: string;
-  /** False for kinds that are only ever created elsewhere: the list
-   *  can still edit and remove, but has no add row. */
-  canAdd?: boolean;
   total: number;
   items: LineItemRow[];
   storeId: number;
@@ -1637,7 +1607,6 @@ function LineItemWidget({
           <span className={styles.widgetLabel}>
             {label}
             {readOnly && <Pill tone="info">Auto</Pill>}
-            {tag && <Pill tone="neutral">{tag}</Pill>}
           </span>
           <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
         </span>
@@ -1655,7 +1624,6 @@ function LineItemWidget({
         <LineItemEntriesEditor
           kind={kind}
           readOnly={readOnly}
-          canAdd={canAdd}
           items={items}
           storeId={storeId}
           date={date}
@@ -1680,7 +1648,7 @@ function LineItemWidget({
 //     daily book's numbers, it feeds the monthly P&L alone).
 function MethodSplitWidget({
   title, cashKind, checkKind, cashTotal, checkTotal,
-  tileTotal, cashNote, checkNote, checkTag,
+  tileTotal, cashNote, checkNote,
   items, storeId, date, locked, onChange,
 }: {
   title: string;
@@ -1691,8 +1659,6 @@ function MethodSplitWidget({
   tileTotal: "combined" | "cash";
   cashNote: string;
   checkNote: string;
-  /** Short suffix after the check total on the tile (e.g. "P&L only"). */
-  checkTag?: string;
   items: LineItemRow[];
   storeId: number;
   date: string;
@@ -1719,7 +1685,6 @@ function MethodSplitWidget({
         </span>
         <span className={styles.widgetCount}>
           Cash {fmtMoney2(cashTotal)} · Check {fmtMoney2(checkTotal)}
-          {checkTag ? ` (${checkTag})` : ""}
         </span>
       </button>
 
@@ -1765,6 +1730,152 @@ function MethodSplitWidget({
   );
 }
 
+// Check Deposits — one tile, one modal, three kinds behind two tabs:
+//   - Deposited: today's check deposits (check_deposit), plus held
+//     checks that reached the bank today (held_check_deposit, created
+//     only by Deposit on the On hold tab and in no total).
+//   - On hold: every check still on hand from any day up to this one
+//     (Deposit / Change date / Close), and the add row for a check
+//     cashed today and kept to deposit later (check_hold — the cash
+//     left the drawer today, so it counts in Out like a deposit).
+// The tile's big number is what checks took out of the drawer today
+// (deposits + holds); the pill says checks are waiting on the bank.
+// INVARIANTS.md "Held checks".
+function CheckDepositsWidget({
+  depositTotal, heldTotal, heldDepositTotal, lineItems,
+  storeId, date, locked, onChange,
+}: {
+  depositTotal: number;
+  heldTotal: number;
+  heldDepositTotal: number;
+  lineItems: LineItemRow[];
+  storeId: number;
+  date: string;
+  locked: boolean;
+  onChange: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"deposited" | "on_hold">("deposited");
+  const onHand = useOpenOfKind("check_hold", date);
+  const of = (kind: string) => lineItems.filter((li) => li.kind === kind);
+  const heldDeposits = of("held_check_deposit");
+  const title = "Check Deposits";
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={styles.widgetCard}
+      >
+        <span className={styles.widgetCardTop}>
+          <span className={styles.widgetLabel}>
+            {title}
+            {onHand.items.length > 0 && (
+              <Pill tone={onHand.overdue > 0 ? "negative" : "warning"}>
+                {onHand.items.length} on hold · {fmtMoney2(onHand.total)}
+                {onHand.overdue > 0 && ` · ${onHand.overdue} overdue`}
+              </Pill>
+            )}
+          </span>
+          <span className={styles.widgetTotal}>
+            {fmtMoney2(depositTotal + heldTotal)}
+          </span>
+        </span>
+        <span className={styles.widgetCount}>
+          Deposited {fmtMoney2(depositTotal)} · Held {fmtMoney2(heldTotal)}
+        </span>
+      </button>
+
+      <Modal
+        open={open}
+        title={title}
+        size="lg"
+        onClose={() => setOpen(false)}
+      >
+        <div className={styles.lineModalBody}>
+          <div className={styles.tabsTipRow}>
+            <TabsBar>
+              <TabsButton
+                active={tab === "deposited"}
+                onClick={() => setTab("deposited")}
+              >
+                Deposited · {fmtMoney2(depositTotal)}
+              </TabsButton>
+              <TabsButton
+                active={tab === "on_hold"}
+                onClick={() => setTab("on_hold")}
+              >
+                On hold · {fmtMoney2(onHand.total)}
+              </TabsButton>
+            </TabsBar>
+            <InfoTip
+              text={tab === "deposited"
+                ? "Checks cashed and deposited today. They count toward today's Out and the over/short."
+                : "Checks cashed and kept to deposit on a later day. The cash counts in Out on the day you hold the check; depositing it later has no effect on cash."}
+              label={`About ${tab === "deposited" ? "deposited checks" : "checks on hold"}`}
+            />
+          </div>
+          {tab === "deposited" ? (
+            <>
+              <LineItemEntriesEditor
+                key="check_deposit"
+                kind="check_deposit"
+                readOnly={locked}
+                items={of("check_deposit")}
+                storeId={storeId}
+                date={date}
+                onChange={onChange}
+              />
+              {heldDeposits.length > 0 && (
+                <>
+                  <h3 className={styles.panelTitle}>
+                    From checks on hold · {fmtMoney2(heldDepositTotal)}{" "}
+                    <Pill tone="neutral">No cash effect</Pill>
+                  </h3>
+                  <LineItemEntriesEditor
+                    key="held_check_deposit"
+                    kind="held_check_deposit"
+                    readOnly={locked}
+                    canAdd={false}
+                    items={heldDeposits}
+                    storeId={storeId}
+                    date={date}
+                    onChange={onChange}
+                  />
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <h3 className={styles.panelTitle}>Checks on hand</h3>
+              <SettlementsList
+                direction="checks_on_hand"
+                storeId={storeId}
+                date={date}
+                locked={locked}
+                onChange={onChange}
+              />
+              <h3 className={styles.panelTitle}>
+                Held today · {fmtMoney2(heldTotal)}
+              </h3>
+              <LineItemEntriesEditor
+                key="check_hold"
+                kind="check_hold"
+                readOnly={locked}
+                items={of("check_hold")}
+                storeId={storeId}
+                date={date}
+                onChange={onChange}
+              />
+            </>
+          )}
+        </div>
+      </Modal>
+    </>
+  );
+}
+
 // The add-row + entries table shared by every line-item modal
 // (single-kind widgets AND the two-kind Payroll modal). Owns the
 // add / inline-edit / delete state so callers stay presentational.
@@ -1782,7 +1893,7 @@ function LineItemEntriesEditor({
   const [time, setTime] = useState("");
   const [amount, setAmount] = useState(0);
   const [note, setNote] = useState("");
-  // "Comes back" mark — Other cash out / Other cash in. Checks held
+  // "Comes back" mark — Cash Out / Other cash in. Checks on hold
   // are always open: no tick box, only the deposit-by date.
   const settleable = canSettle(kind);
   const alwaysOpen = isAlwaysOpen(kind);
