@@ -92,6 +92,8 @@ def _to_row(s: DailyReportSummary) -> DailyReportRow:
         outside_cash_drops=s.outside_cash_drops,
         checks_deposit=s.checks_deposit,
         other_cash_out=s.other_cash_out,
+        checks_held=s.checks_held,
+        held_checks_deposited=s.held_checks_deposited,
         over_short=s.over_short,
         locked=s.locked, notes=s.notes, locked_at=s.locked_at,
         total_receipts=s.total_receipts,
@@ -608,7 +610,7 @@ def line_items_create_route(
         summary=(
             f"kind={body.kind} amount=${float(amt):,.2f} "
             f"at={at.isoformat() if at else ''}"
-            + (" expects_settlement" if body.expects_settlement else "")
+            + (" expects_settlement" if row.expects_settlement else "")
             + (
                 f" settles=#{body.settles_item_id}"
                 if body.settles_item_id is not None else ""
@@ -799,9 +801,10 @@ def open_settlements_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> OpenSettlementListResponse:
-    """Every Other cash out lent out and Other cash in borrowed that
-    still has money outstanding, across all days — the daily book's
-    "Owed to us" / "We owe" tiles. See Services/settlements.py."""
+    """Every Other cash out lent out, Other cash in borrowed and
+    Checks held entry that still has money outstanding, across all
+    days — the daily book's "Owed to us" / "We owe" / "Checks on
+    hand" tiles. See Services/settlements.py."""
     require_permission(claims, "daily_book", "read")
     _require_store_match(claims, store_id)
     return OpenSettlementListResponse(items=[

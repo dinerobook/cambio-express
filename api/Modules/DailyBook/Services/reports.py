@@ -87,6 +87,10 @@ class DailyReportSummary:
     outside_cash_drops: float
     checks_deposit: float
     other_cash_out: float
+    # Held checks: `checks_held` is in the Out total;
+    # `held_checks_deposited` is in no total (INVARIANTS "Held checks").
+    checks_held: float
+    held_checks_deposited: float
     # Other
     over_short: float
     locked: bool
@@ -181,6 +185,8 @@ def _summarize(
         outside_cash_drops=float(r.outside_cash_drops or 0),
         checks_deposit=float(r.checks_deposit or 0),
         other_cash_out=float(r.other_cash_out or 0),
+        checks_held=float(r.checks_held or 0),
+        held_checks_deposited=float(r.held_checks_deposited or 0),
         # Over/Short is derived (see DailyReport.computed_over_short),
         # recomputed here from the carry-adjusted totals so the displayed
         # reconciliation tracks a prior-day edit before this day is
@@ -226,7 +232,8 @@ def _carry_only_summary(
         payroll_check=0.0,
         cash_purchases=0.0, cash_expense=0.0, check_purchases=0.0,
         check_expense=0.0, outside_cash_drops=0.0, checks_deposit=0.0,
-        other_cash_out=0.0, over_short=0.0,
+        other_cash_out=0.0, checks_held=0.0, held_checks_deposited=0.0,
+        over_short=0.0,
         locked=False, notes="", locked_at="",
         total_receipts=forward, total_disbursements=0.0, net=forward,
     )

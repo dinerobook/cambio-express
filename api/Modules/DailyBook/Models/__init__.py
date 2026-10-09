@@ -73,6 +73,15 @@ class DailyReport(Base):
     # monthly P&L's check-payroll line only.
     payroll_check_cents   = Column(BigInteger, default=0)
     other_cash_out_cents  = Column(BigInteger, default=0)
+    # Held checks (kinds `check_hold` / `held_check_deposit`). NULL
+    # on every row written before the feature, read as 0.
+    # `checks_held` is cash paid out for checks the store keeps to
+    # deposit later — an Out line like `checks_deposit`.
+    # `held_checks_deposited` records those checks reaching the bank
+    # on a later day and is deliberately in NO total: the cash left
+    # on the day of the hold.
+    checks_held_cents     = Column(BigInteger, nullable=True, default=0)
+    held_checks_deposited_cents = Column(BigInteger, nullable=True, default=0)
     over_short_cents      = Column(BigInteger, default=0)
     notes                 = Column(Text, default="")
     updated_at            = Column(DateTime, default=datetime.utcnow)
@@ -116,6 +125,8 @@ class DailyReport(Base):
     payroll_expense = DollarView("payroll_expense_cents")
     payroll_check = DollarView("payroll_check_cents")
     other_cash_out = DollarView("other_cash_out_cents")
+    checks_held = DollarView("checks_held_cents")
+    held_checks_deposited = DollarView("held_checks_deposited_cents")
     over_short = DollarView("over_short_cents")
 
     @property
@@ -143,7 +154,7 @@ class DailyReport(Base):
             self.check_purchases_cents, self.check_expense_cents,
             self.outside_cash_drops_cents, self.cash_deposit_cents,
             self.checks_deposit_cents, self.payroll_expense_cents,
-            self.other_cash_out_cents,
+            self.other_cash_out_cents, self.checks_held_cents,
         ]))
 
     @property

@@ -77,10 +77,19 @@ def add_line_item(
     return of an open one. See ``Services/settlements.py``.
     """
     from api.Modules.DailyBook.Services.settlements import (
+        ALWAYS_OPEN_KINDS, SETTLES_ONLY_KINDS,
         check_expectation, check_settlement,
     )
     if allowed_kinds is not None and kind not in allowed_kinds:
         raise LineItemValidationError(f"Unknown line-item kind: {kind!r}")
+    # Checks held are open by definition; a held-check deposit only
+    # exists as the deposit OF a hold (INVARIANTS.md "Held checks").
+    if kind in ALWAYS_OPEN_KINDS:
+        expects_settlement = True
+    if kind in SETTLES_ONLY_KINDS and settles_item_id is None:
+        raise LineItemValidationError(
+            "Record a held-check deposit with Deposit on Checks on hand.",
+        )
     if expects_settlement and settles_item_id is not None:
         raise LineItemValidationError(
             "An entry can't both settle another one and expect a return.",

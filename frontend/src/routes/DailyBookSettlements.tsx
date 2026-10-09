@@ -4,6 +4,11 @@
 // an ordinary entry of the opposite kind on the day the cash moved,
 // linked to the original. See DailyBook/INVARIANTS.md "Settlements".
 //
+// Held checks ride the same machinery: a Checks held entry is always
+// open, and Deposit on the "Checks on hand" tile books a linked Held
+// checks deposited entry on the day the checks reach the bank — an
+// entry that moves no cash (INVARIANTS.md "Held checks").
+//
 //   - <SettleFields>      the tick box + optional date on an entry
 //   - <SettlementPill>    an entry's state in the entries table
 //   - <SettlementsWidget> the "Owed to us" / "We owe" tile, its list
@@ -18,6 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   SETTLEMENT_PAIRS,
   createLineItem,
+  isAlwaysOpen,
   updateLineItem,
   useOpenSettlements,
   type LineItemRow,
@@ -38,7 +44,8 @@ function settleLabel(kind: string): string {
 }
 
 /** Tick box + optional "back by" date, for the add row and the
- *  inline edit of an Other cash out / Other cash in entry. */
+ *  inline edit of an Other cash out / Other cash in entry. A Checks
+ *  held entry is always open, so it gets the date alone. */
 export function SettleFields({
   kind, checked, onCheckedChange, settleBy, onSettleByChange, disabled,
 }: {
@@ -49,6 +56,21 @@ export function SettleFields({
   onSettleByChange: (next: string) => void;
   disabled?: boolean;
 }) {
+  if (isAlwaysOpen(kind)) {
+    if (!checked) return null;
+    return (
+      <div className={styles.settleFields}>
+        <Field label="Deposit by (optional)">
+          <DateInput
+            value={settleBy}
+            onChange={(e) => onSettleByChange(e.target.value)}
+            disabled={disabled}
+            aria-label="Deposit by"
+          />
+        </Field>
+      </div>
+    );
+  }
   return (
     <div className={styles.settleFields}>
       <Checkbox
@@ -77,17 +99,21 @@ export function SettlementPill({ item }: { item: LineItemRow }) {
   if (item.settles_item_id != null) {
     return (
       <Pill tone="info">
-        {item.kind === "other_cash_in" ? "Return" : "Payback"}
+        {item.kind === "other_cash_in" ? "Return"
+          : item.kind === "held_check_deposit" ? "Deposited" : "Payback"}
       </Pill>
     );
   }
   const left = item.amount - (item.settled ?? 0);
+  const hold = item.kind === "check_hold";
   if (item.expects_settlement) {
-    if (left <= 0) return <Pill tone="accent">Settled</Pill>;
+    if (left <= 0) {
+      return <Pill tone="accent">{hold ? "Deposited" : "Settled"}</Pill>;
+    }
     return (
       <Pill tone="warning">
-        {item.kind === "other_cash_in" ? "We owe" : "Expected back"}
-        {" · "}{fmtMoney2(left)} left
+        {hold ? "On hand" : item.kind === "other_cash_in" ? "We owe" : "Expected back"}
+        {" · "}{fmtMoney2(left)} {hold ? "to deposit" : "left"}
       </Pill>
     );
   }
@@ -95,20 +121,34 @@ export function SettlementPill({ item }: { item: LineItemRow }) {
   return null;
 }
 
-type Direction = "owed_to_us" | "we_owe";
+type Direction = "owed_to_us" | "we_owe" | "checks_on_hand";
 
 const DIRECTION: Record<Direction, {
   title: string; kind: string; record: string; settleKind: string;
+  empty: string; lockedHint: string; cashNote?: string;
 }> = {
   // Lent out of the drawer → comes back as an Other cash in.
   owed_to_us: {
     title: "Owed to us", kind: "other_cash_out",
     record: "Record return", settleKind: "Other cash in",
+    empty: "Nothing is owed to the store. Tick \"Expected back\" on an Other cash out to track one.",
+    lockedHint: "This day is locked. Open an unlocked day to record a return.",
   },
   // Borrowed into the drawer → paid back as an Other cash out.
   we_owe: {
     title: "We owe", kind: "other_cash_in",
     record: "Record payback", settleKind: "Other cash out",
+    empty: "The store owes nothing. Tick \"We pay this back\" on an Other cash in to track one.",
+    lockedHint: "This day is locked. Open an unlocked day to record a payback.",
+  },
+  // Checks cashed and kept → deposited on a later day. The deposit
+  // moves no cash: it left the drawer on the day of the hold.
+  checks_on_hand: {
+    title: "Checks on hand", kind: "check_hold",
+    record: "Deposit", settleKind: "Held checks deposited",
+    empty: "No checks on hand. Add an entry under Checks held when you cash checks to deposit later.",
+    lockedHint: "This day is locked. Open the day you go to the bank to record a deposit.",
+    cashNote: "No effect on cash or over/short: the cash left the drawer on the day the checks were held.",
   },
 };
 
@@ -199,9 +239,7 @@ export function SettlementsWidget({
             </Alert>
           ) : items.length === 0 ? (
             <p className={styles.emptyEntries}>
-              {direction === "owed_to_us"
-                ? "Nothing is owed to the store. Tick \"Expected back\" on an Other cash out to track one."
-                : "The store owes nothing. Tick \"We pay this back\" on an Other cash in to track one."}
+              {d.empty}
             </p>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -276,9 +314,7 @@ export function SettlementsWidget({
             </div>
           )}
           {locked && items.length > 0 && (
-            <p className={styles.emptyEntries}>
-              This day is locked. Open an unlocked day to record a return.
-            </p>
+            <p className={styles.emptyEntries}>{d.lockedHint}</p>
           )}
         </div>
       </Modal>
@@ -288,6 +324,7 @@ export function SettlementsWidget({
           item={recording}
           title={d.record}
           settleKind={d.settleKind}
+          cashNote={d.cashNote}
           storeId={storeId}
           date={date}
           onClose={() => setRecording(null)}
@@ -324,11 +361,12 @@ export function SettlementsWidget({
 }
 
 function RecordSettlementModal({
-  item, title, settleKind, storeId, date, onClose, onDone,
+  item, title, settleKind, cashNote, storeId, date, onClose, onDone,
 }: {
   item: OpenSettlement;
   title: string;
   settleKind: string;
+  cashNote?: string;
   storeId: number;
   date: string;
   onClose: () => void;
@@ -403,6 +441,7 @@ function RecordSettlementModal({
         </Field>
         <p className={styles.widgetTdSmall} style={{ margin: 0 }}>
           Adds {fmtMoney2(amount || 0)} to {settleKind} on {formatDate(date)}.
+          {cashNote && <>{" "}{cashNote}</>}
         </p>
         {err && <Alert tone="error">{err}</Alert>}
       </div>

@@ -35,9 +35,9 @@ validator takes is the unstripped `bank_charge_0210` beside the
 
 | Family | Slugs | Effect of tagging |
 |---|---|---|
-| **Daily book** | every `LINE_ITEM_KINDS` key (`check_deposit`, `cash_expense`, `drop`, …) | Books a `msb_daily_line_item` on a day's book **through the same service path a cashier's entry takes** (`recompute_line_items_total` → `ensure_daily_report`), so the day's rolled-up column moves at once and the report row is created if the day had none. |
+| **Daily book** | every `LINE_ITEM_KINDS` key (`check_deposit`, `cash_expense`, `drop`, …) except `BOOK_ONLY_KINDS` (the held-check kinds, which only the daily book's hold / deposit flow writes) | Books a `msb_daily_line_item` on a day's book **through the same service path a cashier's entry takes** (`recompute_line_items_total` → `ensure_daily_report`), so the day's rolled-up column moves at once and the report row is created if the day had none. |
 | **Monthly P&L** | `BANK_PL_CATEGORIES` (`pl_credit_card_fees`, `pl_money_order_rent`, …, `pl_other_income_3`) | Touches nothing on tag. The monthly P&L sums these rows straight into the mapped `MonthlyFinancial` column (`bank_pl_sums_for_month`). |
-| **Other** | `BANK_CATEGORIES_NON_POSTING` + one `bank_charge_<last4>` per connected account | A tag only. The `bank_charge*` family additionally feeds `MonthlyFinancial.bank_charges_total` via prefix match — it predates `pl_*`. |
+| **Other** | `BANK_CATEGORIES_NON_POSTING` + one `bank_charge_<last4>` per connected account | A tag only. `held_checks_deposited` is the bank deposit of checks the store held: the cash left on the day of the hold, so nothing is booked — the cashier closes the hold with Deposit in the daily book. The `bank_charge*` family additionally feeds `MonthlyFinancial.bank_charges_total` via prefix match — it predates `pl_*`. |
 
 ### The P&L options are the store's, not ours
 

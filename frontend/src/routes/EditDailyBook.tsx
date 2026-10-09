@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   canSettle,
   createLineItem,
+  isAlwaysOpen,
   deleteLineItem,
   lockDailyReport,
   replaceMTBreakdown,
@@ -163,6 +164,11 @@ const DISBURSEMENT_INPUTS: InputFieldDef[] = [
 const DISBURSEMENT_LINE_ITEMS: LineItemFieldDef[] = [
   { key: "outside_cash_drops", label: "Outside cash & drops", kind: "drop" },
   { key: "checks_deposit",     label: "Check deposits",       kind: "check_deposit" },
+  // Checks cashed today, deposited on a later day — the cash left
+  // the drawer today, so it counts in Out like a check deposit. The
+  // Checks on hand tile closes it with a Deposit (INVARIANTS.md
+  // "Held checks").
+  { key: "checks_held",        label: "Checks held",          kind: "check_hold" },
   { key: "other_cash_out",     label: "Other cash out",       kind: "other_cash_out" },
 ];
 
@@ -861,6 +867,9 @@ function ReceiptsPanel(
 }
 
 function DisbursementsPanel(props: PanelProps) {
+  const heldDeposits = props.lineItems.filter(
+    (li) => li.kind === "held_check_deposit",
+  );
   return (
     <Card padding="1.25rem 1.5rem">
       <InputGrid>
@@ -955,6 +964,32 @@ function DisbursementsPanel(props: PanelProps) {
           locked={props.locked}
           onChange={props.onLineItemChange}
         />
+        {/* Held checks not yet at the bank — any day's book shows them
+            and deposits them. */}
+        <SettlementsWidget
+          direction="checks_on_hand"
+          storeId={props.storeId}
+          date={props.date}
+          locked={props.locked}
+          onChange={props.onLineItemChange}
+        />
+        {/* Held checks that reached the bank today. Created only by
+            Deposit on Checks on hand, and in no total, so the tile
+            only appears on a day that has one. */}
+        {heldDeposits.length > 0 && (
+          <LineItemWidget
+            kind="held_check_deposit"
+            label="Held checks deposited"
+            tag="No cash effect"
+            canAdd={false}
+            readOnly={props.locked}
+            total={Number(props.report?.held_checks_deposited ?? 0)}
+            items={heldDeposits}
+            storeId={props.storeId}
+            date={props.date}
+            onChange={props.onLineItemChange}
+          />
+        )}
       </div>
     </Card>
   );
@@ -1572,10 +1607,16 @@ function NotesPanel({
 
 function LineItemWidget({
   kind, label, readOnly, total, items, storeId, date, onChange,
+  tag, canAdd = true,
 }: {
   kind: string;
   label: string;
   readOnly: boolean;
+  /** Small pill beside the label (e.g. "No cash effect"). */
+  tag?: string;
+  /** False for kinds that are only ever created elsewhere: the list
+   *  can still edit and remove, but has no add row. */
+  canAdd?: boolean;
   total: number;
   items: LineItemRow[];
   storeId: number;
@@ -1596,6 +1637,7 @@ function LineItemWidget({
           <span className={styles.widgetLabel}>
             {label}
             {readOnly && <Pill tone="info">Auto</Pill>}
+            {tag && <Pill tone="neutral">{tag}</Pill>}
           </span>
           <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
         </span>
@@ -1613,6 +1655,7 @@ function LineItemWidget({
         <LineItemEntriesEditor
           kind={kind}
           readOnly={readOnly}
+          canAdd={canAdd}
           items={items}
           storeId={storeId}
           date={date}
@@ -1726,10 +1769,11 @@ function MethodSplitWidget({
 // (single-kind widgets AND the two-kind Payroll modal). Owns the
 // add / inline-edit / delete state so callers stay presentational.
 function LineItemEntriesEditor({
-  kind, readOnly, items, storeId, date, onChange,
+  kind, readOnly, items, storeId, date, onChange, canAdd = true,
 }: {
   kind: string;
   readOnly: boolean;
+  canAdd?: boolean;
   items: LineItemRow[];
   storeId: number;
   date: string;
@@ -1738,9 +1782,11 @@ function LineItemEntriesEditor({
   const [time, setTime] = useState("");
   const [amount, setAmount] = useState(0);
   const [note, setNote] = useState("");
-  // "Comes back" mark — Other cash out / Other cash in only.
+  // "Comes back" mark — Other cash out / Other cash in. Checks held
+  // are always open: no tick box, only the deposit-by date.
   const settleable = canSettle(kind);
-  const [expects, setExpects] = useState(false);
+  const alwaysOpen = isAlwaysOpen(kind);
+  const [expects, setExpects] = useState(alwaysOpen);
   const [settleBy, setSettleBy] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -1818,7 +1864,7 @@ function LineItemEntriesEditor({
       setTime("");
       setAmount(0);
       setNote("");
-      setExpects(false);
+      setExpects(alwaysOpen);
       setSettleBy("");
       onChange();
     } catch (e) {
@@ -1844,7 +1890,7 @@ function LineItemEntriesEditor({
 
   return (
   <div className={styles.lineModalBody}>
-    {!readOnly && (
+    {!readOnly && canAdd && (
       <div className={styles.widgetAddRow}>
         <div className={styles.addRowTime}>
           <Field label="Time">
@@ -1907,7 +1953,7 @@ function LineItemEntriesEditor({
 
     {items.length === 0 ? (
       <p className={styles.emptyEntries}>
-        {readOnly
+        {readOnly || !canAdd
           ? "No entries logged for this day yet."
           : "No entries yet — add one above."}
       </p>

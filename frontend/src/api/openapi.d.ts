@@ -2713,9 +2713,10 @@ export interface paths {
         };
         /**
          * Open Settlements Route
-         * @description Every Other cash out lent out and Other cash in borrowed that
-         *     still has money outstanding, across all days — the daily book's
-         *     "Owed to us" / "We owe" tiles. See Services/settlements.py.
+         * @description Every Other cash out lent out, Other cash in borrowed and
+         *     Checks held entry that still has money outstanding, across all
+         *     days — the daily book's "Owed to us" / "We owe" / "Checks on
+         *     hand" tiles. See Services/settlements.py.
          */
         get: operations["open_settlements_route_daily__store_id__settlements_open_get"];
         put?: never;
@@ -2815,6 +2816,10 @@ export interface paths {
          *     locked → locked). Already-locked re-lock attempts are no-ops
          *     and don't append a second audit row, matching the legacy
          *     contract.
+         *
+         *     Needs Edit on the daily book AND the ``day_lock`` switch, so a
+         *     store admin can let employees edit a day without letting them
+         *     lock or unlock it.
          */
         post: operations["lock_daily_route_daily__store_id___report_date__lock_post"];
         delete?: never;
@@ -2910,7 +2915,8 @@ export interface paths {
          *
          *     Writes an OperatorAuditLog row (`action='unlock'`) on a state
          *     transition (was-locked → not-locked). Already-unlocked report
-         *     is a no-op + no second audit row.
+         *     is a no-op + no second audit row. Same two permissions as
+         *     lock.
          */
         post: operations["unlock_daily_route_daily__store_id___report_date__unlock_post"];
         delete?: never;
@@ -4703,7 +4709,9 @@ export interface paths {
         put?: never;
         /**
          * Storebook Lock Route
-         * @description Lock or unlock the day.
+         * @description Lock or unlock the day. Needs Edit on the store daily book
+         *     AND the ``day_lock`` switch (same switch as the MSB daily
+         *     book's lock).
          */
         post: operations["storebook_lock_route_storebook__day__lock_post"];
         delete?: never;
@@ -8115,6 +8123,11 @@ export interface components {
              */
             checks_deposit: number;
             /**
+             * Checks Held
+             * @default 0
+             */
+            checks_held: number;
+            /**
              * Forward Balance
              * @default 0
              */
@@ -8136,6 +8149,11 @@ export interface components {
              * @default 0
              */
             from_bank: number;
+            /**
+             * Held Checks Deposited
+             * @default 0
+             */
+            held_checks_deposited: number;
             /** Id */
             id: number;
             /**
@@ -10255,8 +10273,9 @@ export interface components {
         };
         /**
          * OpenSettlementRow
-         * @description A lent-out (`other_cash_out`) or borrowed (`other_cash_in`)
-         *     entry with money still outstanding.
+         * @description A lent-out (`other_cash_out`), borrowed (`other_cash_in`) or
+         *     held-check (`check_hold`) entry with money still outstanding —
+         *     for a hold, "outstanding" is the checks not yet deposited.
          */
         OpenSettlementRow: {
             /** Amount */

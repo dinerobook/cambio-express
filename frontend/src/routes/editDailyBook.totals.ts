@@ -71,7 +71,11 @@ export function computeTotals(
     (report?.cash_purchases ?? 0) + (report?.cash_expense ?? 0) +
     (report?.check_purchases ?? 0) + (report?.check_expense ?? 0) +
     (report?.outside_cash_drops ?? 0) + (report?.checks_deposit ?? 0) +
-    (report?.other_cash_out ?? 0);
+    (report?.other_cash_out ?? 0) +
+    // Checks held count like a same-day check deposit: the cash left
+    // the drawer today. `held_checks_deposited` is deliberately NOT
+    // here — that cash already left on the day of the hold.
+    (report?.checks_held ?? 0);
   const disbursements = disbursementsEditable + disbursementsDerived;
 
   // Net = the day's cash position, matching the server
