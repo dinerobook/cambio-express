@@ -22,6 +22,7 @@
 //   <Button>                                     <EmptyState>
 //   <ButtonLink>                                 <ErrorState>
 //   <Pill>                                       <Loading>
+//   <BreakdownPills>
 //   <Alert>
 //
 // Motion: classNames in ui.css. Honors prefers-reduced-motion via
@@ -69,6 +70,7 @@ export { ErrorState } from "./ErrorState";
 export { Loading } from "./Loading";
 export { Pager } from "./Pager";
 export { Pill, type PillTone } from "./Pill";
+export { BreakdownPills, type BreakdownPart } from "./BreakdownPills";
 export { Alert, type AlertTone } from "./Alert";
 export { AppLink } from "./AppLink";
 export { Button, ButtonLink, type ButtonTone } from "./Button";

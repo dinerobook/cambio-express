@@ -765,9 +765,9 @@ def test_put_store_info_saves_company_roster(client, test_store_id):
     assert resp.status_code == 200
     roster = resp.get_json()["store"]["mt_companies"]
     assert roster == [
-        {"name": "Intermex", "enabled": True},
-        {"name": "Maxi",     "enabled": False},
-        {"name": "Sigue",    "enabled": True},
+        {"name": "Intermex", "enabled": True,  "money_orders": True},
+        {"name": "Maxi",     "enabled": False, "money_orders": True},
+        {"name": "Sigue",    "enabled": True,  "money_orders": True},
     ]
     # The active list (what the daily book + transfer form see)
     # excludes the toggled-off company.
@@ -776,6 +776,59 @@ def test_put_store_info_saves_company_roster(client, test_store_id):
     from api.Modules.Transfers.Services import store_mt_companies
     store = db.session.get(Store, test_store_id)
     assert store_mt_companies(store) == ["Intermex", "Sigue"]
+
+
+def test_put_store_info_saves_money_order_switch(client, test_store_id):
+    """Settings → Money transfer companies → "Money orders": a company
+    switched off reads back off and drops out of the daily book's
+    Money orders tab; switching it back on restores it."""
+    from api.Modules.Tenancy.Models import Store
+    from api.Modules.Transfers.Services import store_money_order_companies
+    token = _login(client, test_store_id)
+    h = {"Authorization": f"Bearer {token}"}
+    resp = client.put("/api/v2/admin/store-info", headers=h, json={
+        "mt_companies": [
+            {"name": "Intermex", "enabled": True, "money_orders": True},
+            {"name": "Maxi", "enabled": True, "money_orders": False},
+        ],
+    })
+    assert resp.status_code == 200
+    assert resp.get_json()["store"]["mt_companies"][1] == {
+        "name": "Maxi", "enabled": True, "money_orders": False,
+    }
+    with db_session():
+        store = db.session.get(Store, test_store_id)
+        assert store_money_order_companies(store) == ["Intermex"]
+
+    resp = client.put("/api/v2/admin/store-info", headers=h, json={
+        "mt_companies": [{"name": "Intermex"}, {"name": "Maxi"}],
+    })
+    assert resp.status_code == 200
+    assert all(r["money_orders"] for r in resp.get_json()["store"]["mt_companies"])
+
+
+def test_employee_cannot_change_money_order_switch(client, test_store_id):
+    from api.Modules.Tenancy.Models import Store, User
+    with db_session():
+        emp = User(store_id=test_store_id, username="mo_emp@test.com",
+                   full_name="MO Emp", role="employee")
+        emp.set_password("p123pass!")
+        db.session.add(emp); db.session.commit()
+    token = client.post("/api/v2/auth/login", json={
+        "username": "mo_emp@test.com", "password": "p123pass!",
+        "store_id": test_store_id,
+    }).get_json()["access_token"]
+    resp = client.put(
+        "/api/v2/admin/store-info",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"mt_companies": [
+            {"name": "Intermex", "enabled": True, "money_orders": False},
+        ]},
+    )
+    assert resp.status_code == 403
+    with db_session():
+        store = db.session.get(Store, test_store_id)
+        assert not (store.companies_money_orders_off or "")
 
 
 def test_put_store_info_rejects_duplicate_companies(client, test_store_id):

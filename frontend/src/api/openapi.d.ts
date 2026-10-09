@@ -9537,6 +9537,11 @@ export interface components {
         MTBreakdownResponse: {
             /** Auto Total */
             auto_total: number;
+            /**
+             * Money Order Companies
+             * @default []
+             */
+            money_order_companies: string[];
             /** Rows */
             rows: components["schemas"]["MTBreakdownRowResponse"][];
             /** Saved Total */
@@ -9637,6 +9642,11 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /**
+             * Money Orders
+             * @default true
+             */
+            money_orders: boolean;
             /** Name */
             name: string;
         };
@@ -9663,7 +9673,7 @@ export interface components {
              * Service
              * @enum {string}
              */
-            service: "bill_payment" | "top_up" | "recharge";
+            service: "bill_payment" | "top_up" | "recharge" | "money_order";
         };
         /** MappingListResponse */
         MappingListResponse: {

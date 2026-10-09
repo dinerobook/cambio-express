@@ -33,6 +33,9 @@ class MTCompanyEntry(BaseModel):
 
     name:    str  = Field(..., max_length=80)
     enabled: bool = True
+    # Sells money orders: the company appears on the daily book's
+    # Money orders tab. Missing = True (the default for every store).
+    money_orders: bool = True
 
 
 class StoreInfoRow(BaseModel):

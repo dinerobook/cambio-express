@@ -38,14 +38,15 @@ import {
   Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
   Input, Loading, Modal, MoneyInput, PageHeader, PageShell, Pill,
   RowActions, TabsBar, TabsButton, Textarea,
-  Alert,
+  Alert, type BreakdownPart,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { computeTotals, type FormState } from "./editDailyBook.totals";
 import styles from "./EditDailyBook.module.css";
 import {
-  SettleFields, SettlementPill, SettlementsList, SettlementsWidget,
+  CashFlowWidget, SettleFields, SettlementPill, SettlementsList,
 } from "./DailyBookSettlements";
+import { BoxTabs, DailyBookTile, OpenStatusPill } from "./DailyBookTile";
 import { useOpenOfKind } from "./dailyBookOpen";
 
 // /app/daily/edit?date=YYYY-MM-DD — the per-day editor.
@@ -160,11 +161,13 @@ const RETIRED_RECEIPT_INPUTS: InputFieldDef[] = [
   { key: "boost_mobile",           label: "Boost Mobile" },
 ];
 
-const RECEIPT_LINE_ITEMS: LineItemFieldDef[] = [
-  { key: "from_bank",              label: "Cash from Bank",        kind: "from_bank" },
-  { key: "other_cash_in",          label: "Cash In",               kind: "other_cash_in" },
-  { key: "return_check_paid_back", label: "Return check payback", kind: "return_payback", readOnly: true },
-];
+// Cash In (other_cash_in) and Cash Out (other_cash_out) are a
+// <CashFlowWidget> each: their entries plus the money still owed on
+// them, behind tabs.
+const FROM_BANK: LineItemFieldDef =
+  { key: "from_bank",              label: "Cash from Bank",        kind: "from_bank" };
+const RETURN_PAYBACK: LineItemFieldDef =
+  { key: "return_check_paid_back", label: "Return check payback", kind: "return_payback", readOnly: true };
 
 const DISBURSEMENT_INPUTS: InputFieldDef[] = [
   { key: "cash_deposit",     label: "Cash deposit" },
@@ -175,10 +178,8 @@ const DISBURSEMENT_INPUTS: InputFieldDef[] = [
 // Cash|Check tile each, like Payroll) — only the single-kind rows
 // stay in this list.
 // Check deposits and checks on hold share one <CheckDepositsWidget>.
-const DISBURSEMENT_LINE_ITEMS: LineItemFieldDef[] = [
-  { key: "outside_cash_drops", label: "Cash Drops", kind: "drop" },
-  { key: "other_cash_out",     label: "Cash Out",   kind: "other_cash_out" },
-];
+const CASH_DROPS: LineItemFieldDef =
+  { key: "outside_cash_drops", label: "Cash Drops", kind: "drop" };
 
 // Layout strategy:
 //   - Desktop (≥60rem): the three columns render side-by-side in a
@@ -785,6 +786,10 @@ function ReceiptsPanel(
 
       <div className={styles.panelDivider} />
 
+      {/* One grid, one tile per box (DailyBookTile). The Intermex
+          report import (ImportReportModal) is switched off for now;
+          the owner will bring it back with its own integration. The
+          modal and its API are untouched. */}
       <div className={styles.widgetGrid}>
         <SalesWidget
           form={props.form}
@@ -811,41 +816,47 @@ function ReceiptsPanel(
           locked={props.locked}
           onChange={props.onLineItemChange}
         />
-      </div>
-      {/* The Intermex report import (ImportReportModal) is switched
-          off for now; the owner will bring it back with its own
-          integration. The modal and its API are untouched. */}
-
-      <div className={styles.panelDivider} />
-
-      <PanelTitle>
-        Auto-summed entries
-        <InfoTip text="Totals update as you add or delete entries — no manual entry needed." />
-      </PanelTitle>
-      <div className={styles.widgetGrid}>
-        {RECEIPT_LINE_ITEMS.map((f) => (
-          <LineItemWidget
-            key={f.kind}
-            kind={f.kind}
-            label={f.label}
-            readOnly={f.readOnly === true || props.locked}
-            total={Number(props.report?.[f.key] ?? 0)}
-            items={props.lineItems.filter((li) => li.kind === f.kind)}
-            storeId={props.storeId}
-            date={props.date}
-            onChange={props.onLineItemChange}
-          />
-        ))}
-        {/* Cash lent out that comes back — any day's book shows it. */}
-        <SettlementsWidget
-          direction="owed_to_us"
+        {lineItemWidget(props, FROM_BANK)}
+        <CashFlowWidget
+          direction="in"
+          total={Number(props.report?.other_cash_in ?? 0)}
+          entries={
+            <LineItemEntriesEditor
+              kind="other_cash_in"
+              readOnly={props.locked}
+              items={props.lineItems.filter((li) => li.kind === "other_cash_in")}
+              storeId={props.storeId}
+              date={props.date}
+              onChange={props.onLineItemChange}
+            />
+          }
           storeId={props.storeId}
           date={props.date}
           locked={props.locked}
           onChange={props.onLineItemChange}
         />
+        {lineItemWidget(props, RETURN_PAYBACK)}
       </div>
     </Card>
+  );
+}
+
+/** A single-kind box (Cash from Bank, Return check payback, Cash
+ *  Drops) from its field definition. */
+function lineItemWidget(props: PanelProps, f: LineItemFieldDef) {
+  return (
+    <LineItemWidget
+      key={f.kind}
+      kind={f.kind}
+      label={f.label}
+      auto={f.readOnly === true}
+      readOnly={f.readOnly === true || props.locked}
+      total={Number(props.report?.[f.key] ?? 0)}
+      items={props.lineItems.filter((li) => li.kind === f.kind)}
+      storeId={props.storeId}
+      date={props.date}
+      onChange={props.onLineItemChange}
+    />
   );
 }
 
@@ -866,10 +877,6 @@ function DisbursementsPanel(props: PanelProps) {
 
       <div className={styles.panelDivider} />
 
-      <PanelTitle>
-        Logged entries
-        <InfoTip text="Tap a row to add a timestamped entry — totals roll up automatically." />
-      </PanelTitle>
       <div className={styles.widgetGrid}>
         <MethodSplitWidget
           title="Payroll"
@@ -932,22 +939,20 @@ function DisbursementsPanel(props: PanelProps) {
           locked={props.locked}
           onChange={props.onLineItemChange}
         />
-        {DISBURSEMENT_LINE_ITEMS.map((f) => (
-          <LineItemWidget
-            key={f.kind}
-            kind={f.kind}
-            label={f.label}
-            readOnly={props.locked}
-            total={Number(props.report?.[f.key] ?? 0)}
-            items={props.lineItems.filter((li) => li.kind === f.kind)}
-            storeId={props.storeId}
-            date={props.date}
-            onChange={props.onLineItemChange}
-          />
-        ))}
-        {/* Cash borrowed that has to be paid back. */}
-        <SettlementsWidget
-          direction="we_owe"
+        {lineItemWidget(props, CASH_DROPS)}
+        <CashFlowWidget
+          direction="out"
+          total={Number(props.report?.other_cash_out ?? 0)}
+          entries={
+            <LineItemEntriesEditor
+              kind="other_cash_out"
+              readOnly={props.locked}
+              items={props.lineItems.filter((li) => li.kind === "other_cash_out")}
+              storeId={props.storeId}
+              date={props.date}
+              onChange={props.onLineItemChange}
+            />
+          }
           storeId={props.storeId}
           date={props.date}
           locked={props.locked}
@@ -1058,19 +1063,16 @@ function SalesWidget({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => { setOpen(true); setErr(null); }}
-        className={styles.widgetCard}
-      >
-        <span className={styles.widgetCardTop}>
-          <span className={styles.widgetLabel}>Sales</span>
-          <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
-        </span>
-        <span className={styles.widgetCount}>
-          Taxable · Non-taxable · Sales tax
-        </span>
-      </button>
+      <DailyBookTile
+        title="Sales"
+        total={total}
+        parts={[
+          { label: "Taxable", amount: form.taxable_sales || 0 },
+          { label: "Non-taxable", amount: form.non_taxable || 0 },
+          { label: "Sales tax", amount: form.sales_tax || 0 },
+        ]}
+        onOpen={() => { setOpen(true); setErr(null); }}
+      />
 
       <Modal
         open={open}
@@ -1180,19 +1182,18 @@ function FeesWidget({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => { setOpen(true); setErr(null); }}
-        className={styles.widgetCard}
-      >
-        <span className={styles.widgetCardTop}>
-          <span className={styles.widgetLabel}>Fees</span>
-          <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
-        </span>
-        <span className={styles.widgetCount}>
-          {checkCashing ? "Check cashing · Return check · Rebates" : "Rebates"}
-        </span>
-      </button>
+      <DailyBookTile
+        title="Fees"
+        total={total}
+        parts={[
+          ...(checkCashing ? [
+            { label: "Check cashing", amount: form.check_cashing_fees || 0 },
+            { label: "Return check hold", amount: form.return_check_hold_fees || 0 },
+          ] : []),
+          { label: "Rebates", amount: form.rebates_commissions || 0 },
+        ]}
+        onOpen={() => { setOpen(true); setErr(null); }}
+      />
 
       <Modal
         open={open}
@@ -1263,17 +1264,20 @@ function FeesWidget({
 //     hand. The transfer-log auto-fill is intentionally omitted until
 //     that integration is finished (the backend still returns
 //     `auto_*`, so re-enabling it is UI-only).
-//   • Bill payments / Top-ups / Recharges — amount and fee only.
-//   • Money orders — the day's money order entries (kind
-//     `money_order`, saved as they are added, like any line item)
-//     and the day's money order fee (`money_order_fees`, a report
-//     field saved with the rest of the form through `persist`).
-// Under the tabs, each company's total across all its services is
-// the number its cash drop is checked against. Money orders are not
-// per company, so they sit outside that table. The tile total adds
-// the three report fields that make up the box: money_transfer,
-// money_order and money_order_fees — all already in Money In.
-type ServicesTab = "transfer" | ServiceKind | "money_order";
+//   • Bill payments / Top-ups / Recharges / Money orders — amount
+//     and fee per company. Money orders list only the companies that
+//     sell them (Settings switch → `money_order_companies`) plus any
+//     company that already has money orders saved that day.
+// A day from before money orders were per company still has its
+// money order entries (kind `money_order`) and typed fee
+// (`money_order_fees`, saved with the day's form through `persist`):
+// they show under "Earlier entries" on the Money orders tab and keep
+// counting. Under the tabs, each company's total across all its
+// services is the number its cash drop is checked against. The tile
+// total adds the three report fields that make up the box:
+// money_transfer, money_order and money_order_fees — all already in
+// Money In. INVARIANTS.md "Services".
+type ServicesTab = "transfer" | ServiceKind;
 
 interface ServiceDraft { amount: number; fees: number }
 
@@ -1325,6 +1329,16 @@ function ServicesWidget({
 
   const rows = breakdown.data?.rows ?? [];
   const companies = rows.map((r) => r.company);
+  // Money orders: the companies that sell them, then any other
+  // company that already has money orders saved for the day.
+  const savedMoCompanies = (breakdown.data?.services ?? [])
+    .filter((s) => s.service === "money_order").map((s) => s.company);
+  const moCompanies = [
+    ...(breakdown.data?.money_order_companies ?? []),
+    ...savedMoCompanies,
+  ].filter((co, i, all) => all.indexOf(co) === i);
+  const companiesFor = (service: ServiceKind) =>
+    service === "money_order" ? moCompanies : companies;
 
   function setCell(company: string, cell: MTCell, value: number) {
     setDrafts((prev) => {
@@ -1358,7 +1372,7 @@ function ServicesWidget({
 
   function serviceTotal(service: ServiceKind): number {
     let s = 0;
-    for (const co of companies) {
+    for (const co of companiesFor(service)) {
       const d = svcDraft(service, co);
       s += (Number(d.amount) || 0) + (Number(d.fees) || 0);
     }
@@ -1374,31 +1388,31 @@ function ServicesWidget({
     return s;
   }
 
-  const moneyOrderFees = form.money_order_fees || 0;
-  const moneyOrdersTab = moneyOrderTotal + moneyOrderFees;
-  const total = transfersTotal + moneyOrdersTab;
+  // Money orders from before they were per company (entries + the
+  // typed fee). Zero on every day saved since.
+  const earlierMoneyOrders = moneyOrderTotal + (form.money_order_fees || 0);
+  const tabTotal = (service: ServiceKind) =>
+    serviceTotal(service) + (service === "money_order" ? earlierMoneyOrders : 0);
+  const total = transfersTotal + earlierMoneyOrders;
   const draftTotal =
-    transferTotal + SERVICE_KINDS.reduce((s, k) => s + serviceTotal(k.key), 0)
-    + moneyOrdersTab;
+    transferTotal + SERVICE_KINDS.reduce((s, k) => s + tabTotal(k.key), 0);
 
-  // Tile sub-line, from what is SAVED (the tile total is the saved
-  // money_transfer): which services make up the day's number.
+  // Tile breakdown, from what is SAVED (the tile total is the saved
+  // money_transfer): one pill per tab, in tab order.
   const savedServices = breakdown.data?.services ?? [];
-  const savedTransfers = rows.reduce((s, r) => s + r.saved_total, 0);
-  const savedParts: string[] = [];
-  if (savedServices.length > 0 || moneyOrdersTab > 0) {
-    if (savedTransfers > 0) savedParts.push(`Transfers ${fmtMoney2(savedTransfers)}`);
-    for (const k of SERVICE_KINDS) {
-      const sum = savedServices
+  const parts: BreakdownPart[] = [
+    {
+      label: "Money transfer",
+      amount: rows.reduce((s, r) => s + r.saved_total, 0),
+    },
+    ...SERVICE_KINDS.map((k) => ({
+      label: k.label,
+      amount: savedServices
         .filter((s) => s.service === k.key)
-        .reduce((acc, s) => acc + s.amount + s.fees, 0);
-      if (sum > 0) savedParts.push(`${k.label} ${fmtMoney2(sum)}`);
-    }
-    if (moneyOrdersTab > 0) savedParts.push(`Money orders ${fmtMoney2(moneyOrdersTab)}`);
-  }
-  const enteredCount = rows.filter(
-    (r) => r.saved_total > 0 || savedServices.some((s) => s.company === r.company),
-  ).length;
+        .reduce((acc, s) => acc + s.amount + s.fees, 0)
+        + (k.key === "money_order" ? earlierMoneyOrders : 0),
+    })),
+  ];
 
   async function onSave() {
     if (busy || locked) return;
@@ -1417,7 +1431,7 @@ function ServicesWidget({
       });
       const writeServices: MTServiceRow[] = [];
       for (const k of SERVICE_KINDS) {
-        for (const co of companies) {
+        for (const co of companiesFor(k.key)) {
           const d = svcDraft(k.key, co);
           const amount = Number(d.amount) || 0;
           const fees = Number(d.fees) || 0;
@@ -1427,8 +1441,9 @@ function ServicesWidget({
         }
       }
       await replaceMTBreakdown(storeId, date, writeRows, writeServices);
-      // The money order fee is a report field: it saves with the
-      // day's form, the same way the Fees box saves its fields.
+      // An earlier day's money order fee is a report field: it saves
+      // with the day's form, the same way the Fees box saves its
+      // fields.
       await persist();
       // money_transfer was mirrored server-side; refresh the report
       // (drives the tile total + Money In) and the breakdown query
@@ -1449,27 +1464,16 @@ function ServicesWidget({
   }
 
   const isLoading = breakdown.isLoading || breakdown.data == null;
-  const activeService = tab === "transfer" || tab === "money_order" ? null : tab;
+  const activeService = tab === "transfer" ? null : tab;
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => { setOpen(true); setErr(null); }}
-        className={styles.widgetCard}
-      >
-        <span className={styles.widgetCardTop}>
-          <span className={styles.widgetLabel}>Services</span>
-          <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
-        </span>
-        <span className={styles.widgetCount}>
-          {savedParts.length > 0
-            ? savedParts.join(" · ")
-            : enteredCount > 0
-              ? `${enteredCount} ${enteredCount === 1 ? "company" : "companies"}`
-              : "Tap to enter transfers and services"}
-        </span>
-      </button>
+      <DailyBookTile
+        title="Services"
+        total={total}
+        parts={parts}
+        onOpen={() => { setOpen(true); setErr(null); }}
+      />
 
       <Modal
         open={open}
@@ -1487,53 +1491,23 @@ function ServicesWidget({
             <Loading />
           ) : (
             <>
-              <TabsBar>
-                <TabsButton
-                  active={tab === "transfer"}
-                  onClick={() => setTab("transfer")}
-                >
-                  Money transfer · {fmtMoney2(transferTotal)}
-                </TabsButton>
-                {SERVICE_KINDS.map((k) => (
-                  <TabsButton
-                    key={k.key}
-                    active={tab === k.key}
-                    onClick={() => setTab(k.key)}
-                  >
-                    {k.label} · {fmtMoney2(serviceTotal(k.key))}
-                  </TabsButton>
-                ))}
-                <TabsButton
-                  active={tab === "money_order"}
-                  onClick={() => setTab("money_order")}
-                >
-                  Money orders · {fmtMoney2(moneyOrdersTab)}
-                </TabsButton>
-              </TabsBar>
+              <BoxTabs
+                tabs={[
+                  { key: "transfer", label: "Money transfer", amount: transferTotal },
+                  ...SERVICE_KINDS.map((k) => ({
+                    key: k.key, label: k.label, amount: tabTotal(k.key),
+                  })),
+                ]}
+                active={tab}
+                onChange={setTab}
+              />
 
-              {tab === "money_order" ? (
-                <>
-                  <div className={styles.widgetAddRow}>
-                    <div className={styles.addRowAmount}>
-                      <MoneyInput
-                        label="Money order fees"
-                        value={form.money_order_fees}
-                        onChange={(v) => set("money_order_fees", v)}
-                        disabled={locked}
-                      />
-                    </div>
-                  </div>
-                  {/* One aggregate entry for the day or one per money
-                      order, whichever the operator prefers. */}
-                  <LineItemEntriesEditor
-                    kind="money_order"
-                    readOnly={locked}
-                    items={moneyOrderItems}
-                    storeId={storeId}
-                    date={date}
-                    onChange={onChange}
-                  />
-                </>
+              {tab === "money_order" && moCompanies.length === 0
+                && earlierMoneyOrders === 0 ? (
+                <p className={styles.emptyEntries}>
+                  No company sells money orders. Switch Money orders on for a
+                  company in Settings → Money transfer companies.
+                </p>
               ) : rows.length === 0 ? (
                 <p className={styles.emptyEntries}>
                   No companies configured for this store.
@@ -1596,7 +1570,7 @@ function ServicesWidget({
                           </tr>
                         </thead>
                         <tbody>
-                          {companies.map((co) => {
+                          {companiesFor(activeService).map((co) => {
                             const d = svcDraft(activeService, co);
                             return (
                               <tr key={co}>
@@ -1625,11 +1599,11 @@ function ServicesWidget({
                           <tr>
                             <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
                             <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                              {fmtMoney2(companies.reduce(
+                              {fmtMoney2(companiesFor(activeService).reduce(
                                 (s, co) => s + (Number(svcDraft(activeService, co).amount) || 0), 0))}
                             </td>
                             <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
-                              {fmtMoney2(companies.reduce(
+                              {fmtMoney2(companiesFor(activeService).reduce(
                                 (s, co) => s + (Number(svcDraft(activeService, co).fees) || 0), 0))}
                             </td>
                             <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
@@ -1640,6 +1614,34 @@ function ServicesWidget({
                       </table>
                     )}
                   </div>
+
+                  {tab === "money_order" && earlierMoneyOrders !== 0 && (
+                    <>
+                      <PanelTitle>
+                        Earlier entries · {fmtMoney2(earlierMoneyOrders)}
+                        <InfoTip text="Money orders entered before they were split by company. They still count in today's total; edit or delete them here." />
+                      </PanelTitle>
+                      <div className={styles.widgetAddRow}>
+                        <div className={styles.addRowAmount}>
+                          <MoneyInput
+                            label="Money order fees"
+                            value={form.money_order_fees}
+                            onChange={(v) => set("money_order_fees", v)}
+                            disabled={locked}
+                          />
+                        </div>
+                      </div>
+                      <LineItemEntriesEditor
+                        kind="money_order"
+                        readOnly={locked}
+                        canAdd={false}
+                        items={moneyOrderItems}
+                        storeId={storeId}
+                        date={date}
+                        onChange={onChange}
+                      />
+                    </>
+                  )}
 
                   <PanelTitle>
                     By company
@@ -1797,10 +1799,13 @@ function NotesPanel({
 // ── Line item widget ─────────────────────────────────────────
 
 function LineItemWidget({
-  kind, label, readOnly, total, items, storeId, date, onChange,
+  kind, label, auto, readOnly, total, items, storeId, date, onChange,
 }: {
   kind: string;
   label: string;
+  /** Filled in by another page (Return checks) — the "Auto" pill.
+   *  Not the same as read-only: a locked day is read-only too. */
+  auto: boolean;
   readOnly: boolean;
   total: number;
   items: LineItemRow[];
@@ -1809,26 +1814,16 @@ function LineItemWidget({
   onChange: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const count = items.length;
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={styles.widgetCard}
-      >
-        <span className={styles.widgetCardTop}>
-          <span className={styles.widgetLabel}>
-            {label}
-            {readOnly && <Pill tone="info">Auto</Pill>}
-          </span>
-          <span className={styles.widgetTotal}>{fmtMoney2(total)}</span>
-        </span>
-        <span className={styles.widgetCount}>
-          {count} {count === 1 ? "entry" : "entries"}
-        </span>
-      </button>
+      <DailyBookTile
+        title={label}
+        total={total}
+        parts={[entriesPart(items.length, total)]}
+        status={auto ? <Pill tone="info">Auto</Pill> : undefined}
+        onOpen={() => setOpen(true)}
+      />
 
       <Modal
         open={open}
@@ -1889,19 +1884,15 @@ function MethodSplitWidget({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={styles.widgetCard}
-      >
-        <span className={styles.widgetCardTop}>
-          <span className={styles.widgetLabel}>{title}</span>
-          <span className={styles.widgetTotal}>{fmtMoney2(bigTotal)}</span>
-        </span>
-        <span className={styles.widgetCount}>
-          Cash {fmtMoney2(cashTotal)} · Check {fmtMoney2(checkTotal)}
-        </span>
-      </button>
+      <DailyBookTile
+        title={title}
+        total={bigTotal}
+        parts={[
+          { label: "Cash", amount: cashTotal },
+          { label: "Check", amount: checkTotal },
+        ]}
+        onOpen={() => setOpen(true)}
+      />
 
       <Modal
         open={open}
@@ -1910,26 +1901,16 @@ function MethodSplitWidget({
         onClose={() => setOpen(false)}
       >
         <div className={styles.lineModalBody}>
-          <div className={styles.tabsTipRow}>
-            <TabsBar>
-              <TabsButton
-                active={method === "cash"}
-                onClick={() => setMethod("cash")}
-              >
-                Cash · {fmtMoney2(cashTotal)}
-              </TabsButton>
-              <TabsButton
-                active={method === "check"}
-                onClick={() => setMethod("check")}
-              >
-                Check · {fmtMoney2(checkTotal)}
-              </TabsButton>
-            </TabsBar>
-            <InfoTip
-              text={method === "cash" ? cashNote : checkNote}
-              label={`About ${method} ${title.toLowerCase()}`}
-            />
-          </div>
+          <BoxTabs
+            tabs={[
+              { key: "cash", label: "Cash", amount: cashTotal },
+              { key: "check", label: "Check", amount: checkTotal },
+            ]}
+            active={method}
+            onChange={setMethod}
+            tip={method === "cash" ? cashNote : checkNote}
+            tipLabel={`About ${method} ${title.toLowerCase()}`}
+          />
           <LineItemEntriesEditor
             key={method}
             kind={method === "cash" ? cashKind : checkKind}
@@ -1943,6 +1924,11 @@ function MethodSplitWidget({
       </Modal>
     </>
   );
+}
+
+/** "N entries" — the one part of a box that is a list of entries. */
+function entriesPart(count: number, amount: number): BreakdownPart {
+  return { label: `${count} ${count === 1 ? "entry" : "entries"}`, amount };
 }
 
 // Check Deposits — one tile, one modal, three kinds behind two tabs:
@@ -1978,29 +1964,23 @@ function CheckDepositsWidget({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={styles.widgetCard}
-      >
-        <span className={styles.widgetCardTop}>
-          <span className={styles.widgetLabel}>
-            {title}
-            {onHand.items.length > 0 && (
-              <Pill tone={onHand.overdue > 0 ? "negative" : "warning"}>
-                {onHand.items.length} on hold · {fmtMoney2(onHand.total)}
-                {onHand.overdue > 0 && ` · ${onHand.overdue} overdue`}
-              </Pill>
-            )}
-          </span>
-          <span className={styles.widgetTotal}>
-            {fmtMoney2(depositTotal + heldTotal)}
-          </span>
-        </span>
-        <span className={styles.widgetCount}>
-          Deposited {fmtMoney2(depositTotal)} · Held {fmtMoney2(heldTotal)}
-        </span>
-      </button>
+      <DailyBookTile
+        title={title}
+        total={depositTotal + heldTotal}
+        parts={[
+          { label: "Deposited", amount: depositTotal },
+          { label: "Held today", amount: heldTotal },
+          { label: "On hold", amount: onHand.total, open: true },
+        ]}
+        status={
+          <OpenStatusPill
+            open={onHand.items.length}
+            overdue={onHand.overdue}
+            openLabel="on hold"
+          />
+        }
+        onOpen={() => setOpen(true)}
+      />
 
       <Modal
         open={open}
@@ -2009,28 +1989,21 @@ function CheckDepositsWidget({
         onClose={() => setOpen(false)}
       >
         <div className={styles.lineModalBody}>
-          <div className={styles.tabsTipRow}>
-            <TabsBar>
-              <TabsButton
-                active={tab === "deposited"}
-                onClick={() => setTab("deposited")}
-              >
-                Deposited · {fmtMoney2(depositTotal)}
-              </TabsButton>
-              <TabsButton
-                active={tab === "on_hold"}
-                onClick={() => setTab("on_hold")}
-              >
-                On hold · {fmtMoney2(onHand.total)}
-              </TabsButton>
-            </TabsBar>
-            <InfoTip
-              text={tab === "deposited"
-                ? "Checks cashed and deposited today. They count toward today's Out and the over/short."
-                : "Checks cashed and kept to deposit on a later day. The cash counts in Out on the day you hold the check; depositing it later has no effect on cash."}
-              label={`About ${tab === "deposited" ? "deposited checks" : "checks on hold"}`}
-            />
-          </div>
+          <BoxTabs
+            tabs={[
+              { key: "deposited", label: "Deposited", amount: depositTotal },
+              {
+                key: "on_hold", label: "On hold", amount: onHand.total,
+                status: <OpenStatusPill open={0} overdue={onHand.overdue} />,
+              },
+            ]}
+            active={tab}
+            onChange={setTab}
+            tip={tab === "deposited"
+              ? "Checks cashed and deposited today. They count toward today's Out and the over/short."
+              : "Checks cashed and kept to deposit on a later day. The cash counts in Out on the day you hold the check; depositing it later has no effect on cash."}
+            tipLabel={`About ${tab === "deposited" ? "deposited checks" : "checks on hold"}`}
+          />
           {tab === "deposited" ? (
             <>
               <LineItemEntriesEditor
@@ -2521,6 +2494,7 @@ function ForwardBalanceInput({
         label={(
           <>
             Forward balance
+            {auto && !overridden && <Pill tone="info">Auto</Pill>}
             <InfoTip
               label="About forward balance"
               text={

@@ -10,15 +10,19 @@ import { TEST_ADMIN } from "../test/setup";
 import type { MTBreakdownRow, MTServiceRow } from "../api/dailybook";
 
 // The In column's Services box (was "Money transfer"):
-//   - Closed, it shows the day's total and, when services are saved,
-//     how it splits ("Transfers $X · Bill payments $Y").
+//   - Closed, it shows the day's total and one breakdown pill per
+//     tab (Money transfer, Bill payments, Top-ups, Recharges, Money
+//     orders), zero ones faded.
 //   - Open, it has a tab per service: Money transfer (amount / fees /
-//     federal tax / commission), Bill payments, Top-ups, Recharges
-//     (amount / fee), Money orders (the day's money order entries +
-//     the money order fee), and a By company table adding each
-//     company's transfers and services.
+//     federal tax / commission), Bill payments, Top-ups, Recharges and
+//     Money orders (amount / fee per company — money orders only for
+//     the companies that sell them), and a By company table adding
+//     each company's transfers and services.
+//   - A day with money orders from before they were per company shows
+//     them under "Earlier entries" on the Money orders tab, still
+//     counted and editable.
 //   - Save sends transfers and every non-zero service line, then
-//     saves the day's form so the money order fee is kept.
+//     saves the day's form so an earlier money order fee is kept.
 //   - A locked day can be read but not changed.
 
 const DAY = "2026-10-06";
@@ -84,12 +88,21 @@ const mtRow = (company: string, saved: Partial<MTBreakdownRow> = {}): MTBreakdow
   };
 };
 
-function breakdown(rows: MTBreakdownRow[], services: MTServiceRow[] = []) {
+function breakdown(
+  rows: MTBreakdownRow[], services: MTServiceRow[] = [],
+  moneyOrderCompanies: string[] = rows.map((r) => r.company),
+) {
   return {
-    data: { rows, services, saved_total: 0, auto_total: 0 },
+    data: {
+      rows, services, saved_total: 0, auto_total: 0,
+      money_order_companies: moneyOrderCompanies,
+    },
     isLoading: false, isFetching: false,
   };
 }
+
+/** The tile's breakdown pill for one part. */
+const part = (label: string) => within(box()).getByText(label);
 
 const MAXI_TRANSFERS = { saved_amount: 800, saved_fees: 40, saved_federal_tax: 8 };
 const MAXI_BILL: MTServiceRow = {
@@ -143,7 +156,10 @@ describe("EditDailyBook — Services box", () => {
   it("replaces the Money transfer box", () => {
     renderPage();
     expect(box()).toHaveTextContent("$848.00");
-    expect(box()).toHaveTextContent("1 company");
+    expect(part("Money transfer")).toHaveTextContent("$848.00");
+    for (const label of ["Bill payments", "Top-ups", "Recharges", "Money orders"]) {
+      expect(part(label)).toHaveAttribute("data-zero");
+    }
     expect(screen.queryByRole("button", { name: /^Money transfer/ }))
       .not.toBeInTheDocument();
   });
@@ -153,7 +169,9 @@ describe("EditDailyBook — Services box", () => {
     useMTBreakdown.mockReturnValue(WITH_BILL);
     renderPage();
     expect(box()).toHaveTextContent("$971.00");
-    expect(box()).toHaveTextContent("Transfers $848.00 · Bill payments $123.00");
+    expect(part("Money transfer")).toHaveTextContent("$848.00");
+    expect(part("Bill payments")).toHaveTextContent("$123.00");
+    expect(part("Bill payments")).not.toHaveAttribute("data-zero");
   });
 
   it("has a tab for each service", async () => {
@@ -241,22 +259,82 @@ describe("EditDailyBook — Services box", () => {
     expect(replaceMTBreakdown).not.toHaveBeenCalled();
   });
 
-  it("holds the money orders and their fee", async () => {
+  it("enters money orders per company and saves them as a service", async () => {
+    const dialog = await openBox();
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    // Same table as the other services; no free-form entry list.
+    expect(within(dialog).queryByRole("button", { name: /\+ Add/ })).not.toBeInTheDocument();
+    const [amount, fee] = within(rowOf(dialog, "Intermex")).getAllByRole("textbox");
+    await typeInto(amount, "400");
+    await typeInto(fee, "6");
+    expect(within(dialog).getByRole("tab", { name: /^Money orders/ }))
+      .toHaveTextContent("$406.00");
+    // Counts in Intermex's own total, like any service.
+    expect(rowOf(dialog, "Intermex", 1)).toHaveTextContent("$406.00");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: /Save services/ }));
+    await waitFor(() => expect(replaceMTBreakdown).toHaveBeenCalled());
+    expect(replaceMTBreakdown.mock.calls[0][3]).toEqual([
+      { company: "Intermex", service: "money_order", amount: 400, fees: 6 },
+    ]);
+  });
+
+  it("lists only the companies that sell money orders", async () => {
+    useMTBreakdown.mockReturnValue(breakdown(
+      [mtRow("Intermex"), mtRow("Maxi", MAXI_TRANSFERS)], [], ["Intermex"],
+    ));
+    const dialog = await openBox();
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    const table = within(dialog).getAllByRole("table")[0];
+    expect(within(table).getByText("Intermex")).toBeInTheDocument();
+    expect(within(table).queryByText("Maxi")).not.toBeInTheDocument();
+    // Other services still list every company.
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Bill payments/ }));
+    expect(within(within(dialog).getAllByRole("table")[0]).getByText("Maxi"))
+      .toBeInTheDocument();
+  });
+
+  it("keeps a switched-off company's saved money orders on the tab", async () => {
+    const maxiMo: MTServiceRow = {
+      company: "Maxi", service: "money_order", amount: 170, fees: 4,
+    };
+    useMTBreakdown.mockReturnValue(breakdown(
+      [mtRow("Intermex"), mtRow("Maxi")], [maxiMo], ["Intermex"],
+    ));
+    renderPage();
+    expect(part("Money orders")).toHaveTextContent("$174.00");
+    await userEvent.click(box());
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    expect(within(rowOf(dialog, "Maxi")).getAllByRole("textbox")[0]).toHaveValue("170");
+  });
+
+  it("says where to switch money orders on when no company sells them", async () => {
+    useMTBreakdown.mockReturnValue(breakdown([mtRow("Intermex")], [], []));
+    const dialog = await openBox();
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    expect(dialog).toHaveTextContent("No company sells money orders");
+    expect(within(dialog).queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("keeps an earlier day's money order entries and fee", async () => {
     useDailyReport.mockReturnValue(savedDay({
       money_transfer: 848, money_order: 300, money_order_fees: 4,
     }));
     useLineItems.mockReturnValue(MONEY_ORDER_LINES);
     renderPage();
-    // The tile adds money orders and their fee to the transfers.
+    // The tile still adds them to the transfers.
     expect(box()).toHaveTextContent("$1,152.00");
-    expect(box()).toHaveTextContent("Transfers $848.00 · Money orders $304.00");
-    // No separate Money order box any more.
+    expect(part("Money orders")).toHaveTextContent("$304.00");
     expect(screen.queryByRole("button", { name: /^Money order/ })).not.toBeInTheDocument();
 
     await userEvent.click(box());
     const dialog = screen.getByRole("dialog");
     await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    expect(within(dialog).getByText(/Earlier entries/)).toBeInTheDocument();
     expect(within(dialog).getByText("MO #1")).toBeInTheDocument();
+    // Editable, but nothing new is added there.
+    expect(within(dialog).queryByRole("button", { name: /\+ Add/ })).not.toBeInTheDocument();
     const fee = within(dialog).getByLabelText(/^Money order fees/);
     expect(fee).toHaveValue("4");
     await typeInto(fee, "6");
@@ -269,22 +347,10 @@ describe("EditDailyBook — Services box", () => {
     expect(updateDailyReport.mock.calls[0].at(-1)).toMatchObject({ money_order_fees: 6 });
   });
 
-  it("adds a money order entry from the Money orders tab", async () => {
+  it("shows no Earlier entries on a day without them", async () => {
     const dialog = await openBox();
     await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
-    await typeInto(within(dialog).getByLabelText(/^Amount/), "250");
-    await userEvent.click(within(dialog).getByRole("button", { name: /\+ Add/ }));
-    await waitFor(() => expect(createLineItem).toHaveBeenCalled());
-    expect(createLineItem.mock.calls[0]).toEqual(
-      expect.arrayContaining([expect.objectContaining({ kind: "money_order", amount: 250 })]),
-    );
-  });
-
-  it("offers money orders even when no companies are set up", async () => {
-    useMTBreakdown.mockReturnValue(breakdown([]));
-    const dialog = await openBox();
-    expect(within(dialog).getByText(/No companies configured/)).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
-    expect(within(dialog).getByLabelText(/^Money order fees/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Earlier entries/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText(/^Money order fees/)).not.toBeInTheDocument();
   });
 });

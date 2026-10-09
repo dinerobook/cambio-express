@@ -185,10 +185,14 @@ export interface StoreInfoRow {
 
 /** One money-transfer company on the store roster. `enabled: false`
  *  hides it from the daily book + transfer form without deleting
- *  the name (historical data keeps referencing it). */
+ *  the name (historical data keeps referencing it). `money_orders:
+ *  false` leaves it off the daily book's Money orders tab only. */
 export interface MTCompanyEntry {
   name:    string;
   enabled: boolean;
+  /** Sells money orders: listed on the daily book's Money orders
+   *  tab. Every company starts with it on. */
+  money_orders: boolean;
 }
 
 export interface StoreHourEntry {

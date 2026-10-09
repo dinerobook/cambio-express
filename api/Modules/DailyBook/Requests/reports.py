@@ -233,7 +233,7 @@ class MTBreakdownRowResponse(BaseModel):
 
 
 # Keys of `mt_breakdown.SERVICE_KINDS`; a test pins the two together.
-ServiceKind = Literal["bill_payment", "top_up", "recharge"]
+ServiceKind = Literal["bill_payment", "top_up", "recharge", "money_order"]
 
 
 class MTServiceRow(BaseModel):
@@ -262,6 +262,9 @@ class MTBreakdownResponse(BaseModel):
     services: list[MTServiceRow]
     saved_total: float
     auto_total: float
+    # Active companies that sell money orders (Settings switch), in
+    # roster order — the rows of the Services box's Money orders tab.
+    money_order_companies: list[str] = []
 
 
 class MTBreakdownWriteRow(BaseModel):

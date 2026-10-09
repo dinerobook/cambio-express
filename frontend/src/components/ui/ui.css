@@ -317,3 +317,52 @@ textarea:not(.ds-input):focus-visible {
   outline: 2px solid var(--db-accent, #3fff00);
   outline-offset: 2px;
 }
+
+/* ── Breakdown pills (<BreakdownPills>) ─────────────────────
+   Stacked, status-pill-sized parts of a figure. The colour is the
+   part's position (--db-series-N), set once per pill as --ds-series. */
+
+.ds-breakdown {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.ds-breakdown__pill {
+  --ds-series: var(--db-series-1, #5ea9ff);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: max-content;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+  font-family: var(--db-font-body, "Inter", system-ui, sans-serif);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  color: var(--ds-series);
+  background: color-mix(in srgb, var(--ds-series) 15%, transparent);
+  transition: opacity var(--ds-dur-base, 160ms) var(--ds-ease, ease);
+}
+
+.ds-breakdown__pill[data-series="2"] { --ds-series: var(--db-series-2, #b48cff); }
+.ds-breakdown__pill[data-series="3"] { --ds-series: var(--db-series-3, #4dd8e6); }
+.ds-breakdown__pill[data-series="4"] { --ds-series: var(--db-series-4, #ffb020); }
+.ds-breakdown__pill[data-series="5"] { --ds-series: var(--db-series-5, #8a8f9c); }
+
+.ds-breakdown__pill[data-zero] { opacity: 0.45; }
+
+.ds-breakdown__pill[data-open] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-series) 50%, transparent);
+}
+
+.ds-breakdown__amount {
+  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-size: 0.69rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}

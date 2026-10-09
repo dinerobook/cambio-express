@@ -116,6 +116,12 @@ class Store(Base):
     # hidden from the daily book + transfer form. Always resolve via
     # store_mt_companies / store_mt_company_roster — never read raw.
     companies_disabled = Column(String(500), default="")
+    # CSV subset of the roster that does NOT sell money orders (Settings
+    # → Money transfer companies → "Money orders" switch). NULL / empty
+    # = every company sells them, so stores that never touched the
+    # switch keep the Money orders tab exactly as before. Resolve via
+    # store_money_order_companies — never read raw.
+    companies_money_orders_off = Column(String(500), nullable=True)
     # Federal tax rate (decimal — 0.01 = 1%) applied to every transfer at
     # save time. The transfer form treats Federal Tax as read-only and the
     # server always recomputes from send_amount × this rate, so employees

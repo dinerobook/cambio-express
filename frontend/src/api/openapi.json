@@ -6588,6 +6588,14 @@
             "title": "Auto Total",
             "type": "number"
           },
+          "money_order_companies": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Money Order Companies",
+            "type": "array"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/MTBreakdownRowResponse"
@@ -6762,6 +6770,11 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "money_orders": {
+            "default": true,
+            "title": "Money Orders",
+            "type": "boolean"
+          },
           "name": {
             "maxLength": 80,
             "title": "Name",
@@ -6796,7 +6809,8 @@
             "enum": [
               "bill_payment",
               "top_up",
-              "recharge"
+              "recharge",
+              "money_order"
             ],
             "title": "Service",
             "type": "string"

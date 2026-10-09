@@ -131,7 +131,8 @@ describe("EditDailyBook — Out column boxes", () => {
   it("shows payroll's cash and check without a P&L note", () => {
     renderPage();
     const payroll = screen.getByRole("button", { name: /^Payroll/ });
-    expect(payroll).toHaveTextContent("Cash $400.00 · Check $900.00");
+    expect(within(payroll).getByText("Cash")).toHaveTextContent("$400.00");
+    expect(within(payroll).getByText("Check")).toHaveTextContent("$900.00");
     expect(payroll).not.toHaveTextContent("P&L");
   });
 });
@@ -150,7 +151,10 @@ describe("EditDailyBook — Check Deposits box", () => {
     useDailyReport.mockReturnValue(SAVED);
     renderPage();
     expect(box()).toHaveTextContent("$1,500.00");
-    expect(box()).toHaveTextContent("Deposited $1,200.00 · Held $300.00");
+    expect(within(box()).getByText("Deposited")).toHaveTextContent("$1,200.00");
+    expect(within(box()).getByText("Held today")).toHaveTextContent("$300.00");
+    // Nothing on hold: the outlined pill stays, faded.
+    expect(within(box()).getByText("On hold")).toHaveAttribute("data-zero");
   });
 
   it("shows no pill when no check is on hold", () => {
@@ -167,7 +171,10 @@ describe("EditDailyBook — Check Deposits box", () => {
       LENT,
     ], isError: false });
     renderPage();
-    expect(box()).toHaveTextContent("2 on hold · $2,200.00");
+    expect(box()).toHaveTextContent("2 on hold");
+    const onHold = within(box()).getByText("On hold");
+    expect(onHold).toHaveTextContent("$2,200.00");
+    expect(onHold).toHaveAttribute("data-open");
     expect(box()).not.toHaveTextContent("overdue");
   });
 
@@ -177,7 +184,9 @@ describe("EditDailyBook — Check Deposits box", () => {
       hold({ id: 32, settle_by: addDaysIso(DAY, 3) }),
     ], isError: false });
     renderPage();
-    expect(box()).toHaveTextContent("2 on hold · $8,000.00 · 1 overdue");
+    // Overdue wins the one status pill; the amount stays on the part.
+    expect(box()).toHaveTextContent("1 overdue");
+    expect(within(box()).getByText("On hold")).toHaveTextContent("$8,000.00");
   });
 
   it("opens on Deposited and adds a plain check deposit", async () => {
