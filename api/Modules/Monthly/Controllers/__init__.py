@@ -131,12 +131,24 @@ def update_monthly_route(
     require_permission(claims, "monthly", "update")
     sid = resolve_store_scope(claims)
     payload = body.model_dump(exclude_unset=True)
+    notes_sent = "notes" in payload
     notes = payload.pop("notes", "")
     fields = {k: v for k, v in payload.items() if v is not None}
     update_monthly(
         db,
         store_id=sid, year=int(year), month=int(month),
         fields=fields, notes=notes,
+    )
+    # Names the lines the operator sent, never the amounts (the P&L
+    # numbers are sensitive) — INVARIANTS.md "Audit invariants".
+    touched = sorted(fields) + (["notes"] if notes_sent else [])
+    audit_operator(
+        db, claims,
+        action="update_monthly",
+        target_type="monthly",
+        target_id=f"{int(year)}-{int(month):02d}",
+        target_label=f"{int(year)}-{int(month):02d}",
+        summary=("saved " + ", ".join(touched))[:500] if touched else "saved",
     )
     db.commit()
     summary = summarize_monthly(db, sid, int(year), int(month))

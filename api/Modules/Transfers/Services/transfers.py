@@ -18,6 +18,8 @@ from typing import Iterable
 
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import utc_now
+
 from api.Modules.Customers.Services import upsert as upsert_customer
 from api.Modules.Tenancy.Models import Store, User
 from api.Modules.Transfers.Models import Transfer
@@ -216,7 +218,6 @@ def update_transfer(
     `transfer_snapshot` + `summarize_changes` so the audit log
     only mentions the fields that actually changed.
     """
-    from datetime import datetime as _dt
 
     transfer = get_by_id_in_stores(db, transfer_id, [store_id])
     if transfer is None:
@@ -274,7 +275,7 @@ def update_transfer(
         transfer.send_amount, transfer.service_type, store,
         country=transfer.country,
     )
-    transfer.updated_at             = _dt.utcnow()
+    transfer.updated_at             = utc_now()
 
     after = transfer_snapshot(transfer)
     summary = summarize_transfer_changes(before, after) or "No field changes."

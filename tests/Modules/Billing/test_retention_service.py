@@ -248,3 +248,82 @@ def test_legacy_purge_expired_stores_delegates():
         assert legacy() == 0
 
 
+
+
+# ── foreign keys enforced, the way Postgres does it ──────────
+
+
+def test_purge_succeeds_with_foreign_keys_enforced():
+    """SQLite ignores foreign keys unless asked, which is how a store
+    with a named access role (and one that redeemed an owner connect
+    code) passed every purge test while failing on Postgres. Turn
+    enforcement on, build those rows, and purge for real."""
+    from sqlalchemy import text
+    from tests._app import db
+    from api.Modules.Billing.Services import purge_expired_stores
+    from api.Modules.Tenancy.Models import (
+        OwnerConnectCode, StoreRole, StoreRolePermission,
+    )
+
+    with db_session():
+        s = Store(
+            name="Roles-Co", slug="roles-co", plan="inactive",
+            email="roles-co@test.com",
+            data_retention_until=datetime.utcnow() - timedelta(days=1),
+        )
+        db.session.add(s); db.session.flush()
+        role = StoreRole(store_id=s.id, name="Shift lead")
+        db.session.add(role); db.session.flush()
+        db.session.add(StoreRolePermission(
+            store_id=s.id, role_id=role.id,
+            resource="transfers", action="read",
+        ))
+        admin = User(
+            username="roles-admin@test.com", password_hash="x",
+            role="admin", full_name="x", email="roles-admin@test.com",
+            store_id=s.id, store_role_id=role.id,
+        )
+        owner = User(
+            username="roles-owner@test.com", password_hash="x",
+            role="owner", full_name="x", email="roles-owner@test.com",
+        )
+        db.session.add_all([admin, owner]); db.session.flush()
+        code = OwnerConnectCode(
+            owner_id=owner.id, code="RLS12345",
+            expires_at=datetime.utcnow() + timedelta(days=7),
+            used_at=datetime.utcnow(),
+            used_by_user_id=admin.id, used_by_store_id=s.id,
+        )
+        db.session.add(code)
+        db.session.commit()
+        sid, code_id, owner_id = s.id, code.id, owner.id
+
+        db.session.execute(text("PRAGMA foreign_keys=ON"))
+        try:
+            assert db.session.execute(
+                text("PRAGMA foreign_keys")).scalar() == 1
+            assert purge_expired_stores(db.session) == 1
+        finally:
+            db.session.rollback()
+            db.session.execute(text("PRAGMA foreign_keys=OFF"))
+
+        assert db.session.get(Store, sid) is None
+        assert db.session.query(StoreRole).filter_by(store_id=sid).count() == 0
+        assert db.session.query(StoreRolePermission).filter_by(
+            store_id=sid).count() == 0
+        # The owner keeps their code history; only the pointers go.
+        kept = db.session.get(OwnerConnectCode, code_id)
+        assert kept is not None and kept.owner_id == owner_id
+        assert kept.used_by_store_id is None
+        assert kept.used_by_user_id is None
+
+
+def test_every_store_model_name_resolves_to_a_purged_class():
+    """``STORE_OWNED_MODELS`` (the names) and the list the purge walks
+    (the classes) must agree; the two had drifted, leaving named
+    roles out of the purge."""
+    from api.Modules.Billing.Services.retention import (
+        STORE_OWNED_MODELS, _store_owned_models,
+    )
+    walked = [model.__name__ for model, _ in _store_owned_models()]
+    assert sorted(walked) == sorted(STORE_OWNED_MODELS)

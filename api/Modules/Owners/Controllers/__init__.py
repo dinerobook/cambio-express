@@ -12,7 +12,6 @@ for support/debug). Subsequent PRs add /owner/dashboard,
 /owner/pl-rollup, /owner/store/{id} drill-down, and the
 connect/unlink invitation flow.
 """
-from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
@@ -60,7 +59,7 @@ from api.Modules.Owners.Services import (
     owner_store_ids,
 )
 from typing import Any
-from api.Core.Clock import utc_now
+from api.Core.Clock import local_today, utc_now
 
 
 router = APIRouter()
@@ -177,7 +176,7 @@ def owner_pl_rollup_route(
     """
     require_permission(claims, "reports", "read")
     user = _require_owner_principal(db, claims)
-    today = date.today()
+    today = local_today(user.timezone)
     y = year or today.year
     m = month or today.month
 
@@ -249,14 +248,13 @@ def owner_pl_rollup_route(
 
 
 def _adapt_code(c, *, store_name: str = "") -> "OwnerConnectCodeRow":
-    from datetime import datetime as _dt
     is_redeemed = c.used_at is not None
     is_revoked  = c.revoked_at is not None
     is_expired  = (
         not is_redeemed
         and not is_revoked
         and c.expires_at is not None
-        and c.expires_at < _dt.utcnow()
+        and c.expires_at < utc_now()
     )
     return OwnerConnectCodeRow(
         id=c.id,
@@ -634,7 +632,7 @@ def owner_store_detail_route(
     Read-only. Returns period KPIs, the company breakdown, the
     30-day over/short + receipts series, and recent activity."""
     require_permission(claims, "reports", "read")
-    from datetime import date as ddate, timedelta
+    from datetime import timedelta
     from api.Modules.DailyBook.Models import DailyReport
     from api.Modules.Tenancy.Models import Store
     from api.Modules.Transfers.Models import Transfer
@@ -651,13 +649,15 @@ def owner_store_detail_route(
         )
     if period not in ("today", "month", "year"):
         period = "month"
-    today = ddate.today()
-    start, end, prev_start, prev_end, prev_label = _owner_period_window(
-        period, today,
-    )
     store = db.get(Store, store_id)
     if store is None:
         raise HTTPException(status_code=404, detail="Store not found.")
+    # The store's own day: the server's UTC day is already tomorrow
+    # for a US store in the evening.
+    today = local_today(store.timezone)
+    start, end, prev_start, prev_end, prev_label = _owner_period_window(
+        period, today,
+    )
 
     from sqlalchemy import func
     co_rows = db.query(

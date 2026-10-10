@@ -295,3 +295,28 @@ def test_locations_payload_companies_sorted_by_volume():
 
 
 
+
+
+def test_dashboard_today_is_the_owners_own_day(monkeypatch):
+    """The portfolio spans stores, so "today" is the owner's own day
+    (their timezone), not the server's UTC day."""
+    from tests._app import db
+    import api.Modules.Owners.Services.dashboard_context as ctx_mod
+    from api.Modules.Owners.Services import owner_dashboard_context
+    owner_day = date.today() - timedelta(days=40)
+    seen = []
+
+    def fake_local_today(tz):
+        seen.append(tz)
+        return owner_day
+
+    monkeypatch.setattr(ctx_mod, "local_today", fake_local_today)
+    with db_session():
+        owner, _ = _make_owner_with_stores(
+            db.session, slug="owner-tz", num_stores=1,
+        )
+        owner.timezone = "America/New_York"
+        db.session.commit()
+        ctx = owner_dashboard_context(db.session, owner, "today")
+    assert seen == ["America/New_York"]
+    assert ctx["period_start"] == owner_day

@@ -17,14 +17,16 @@ Mounts at `/api/v2/tv-display/*`. Endpoints:
            pair code shown on a Fire TV
     POST   /tv-display/pairings/{pairing_id}/revoke   → unpair a Fire TV
     POST   /tv-display/countries                      → add a new
-           country section (header only; banks + rates land in the
-           legacy editor for now)
+           country section (header only)
+    PUT    /tv-display/countries/{country_id}         → save the
+           country editor: header, company columns, banks, rates
     DELETE /tv-display/countries/{country_id}         → remove a country
            and cascade its banks + rates
 
 Auth + gating: requires JWT principal scoped to a store; admin
-or employee role; the store must have the ``tv_display`` add-on
-active.
+or employee role holding ``settings.read`` (reads) or
+``settings.update`` (writes) — the same right the SPA gates the
+page on; the store must have the ``tv_display`` add-on active.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Response
@@ -33,11 +35,13 @@ from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
+from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.TVDisplay.Requests import (
     TVDisplayBankRow,
     TVDisplayClaimRequest,
     TVDisplayCountryCreateRequest,
     TVDisplayCountryCreateResponse,
+    TVDisplayCountryUpdateRequest,
     TVDisplayCountryDetailResponse,
     TVDisplayCountryStat,
     TVDisplayOverviewResponse,
@@ -52,14 +56,19 @@ from api.Core.Clock import utc_now
 router = APIRouter()
 
 
-def _require_tv_store(claims: dict[str, Any], db: Session):
-    """Mirrors legacy `_tv_required()`: store-scoped JWT, admin or
-    employee role, store has the tv_display add-on active."""
+def _require_tv_store(
+    claims: dict[str, Any], db: Session, action: str = "read",
+):
+    """Store-scoped JWT, admin or employee role, the store's
+    ``settings.<action>`` right (the page and its buttons are gated on
+    the same right, so the API refuses what the UI hides), and the
+    tv_display add-on active."""
     sid = claims.get("store_id")
     if sid is None:
         raise HTTPException(status_code=404, detail="Not found")
     if claims.get("role") not in ("admin", "employee"):
         raise HTTPException(status_code=404, detail="Not found")
+    require_permission(claims, "settings", action)
     from api.Modules.Billing.Services import store_has_addon
     from api.Modules.Tenancy.Models import Store
     store = db.get(Store, int(sid))
@@ -252,7 +261,7 @@ def _audit_tv_action(
     """Per-store operator-audit row for a TV-display mutation.
     CLAUDE.md invariant #7 — every mutating endpoint records an
     audit row. All TV-display write routes are gated by
-    ``_require_tv_store`` (store-scoped admin/employee JWT), so the
+    ``_require_tv_store`` (store-scoped JWT with settings.update), so the
     ``store_id`` always resolves from the claim. Mirrors BankSync's
     ``_audit_bank_action``. Appends to the session; the caller owns
     the commit so the row rides the mutation's transaction."""
@@ -286,7 +295,7 @@ def save_settings_route(
     to `auto`/`light` rather than 4xx, matching the legacy form's
     forgiving behaviour. Stamps `last_updated_at` so the public
     board can decide when to refresh."""
-    store = _require_tv_store(claims, db)
+    store = _require_tv_store(claims, db, "update")
     display = _ensure_display(db, store)
     display.title = (payload.title or "").strip()[:120] or "Cheapest Money Transfer"
     display.subtitle = (payload.subtitle or "").strip()[:120]
@@ -321,7 +330,7 @@ def regenerate_token_route(
     a leak / lost device. Returns the new token + URL so the SPA can
     update its copy-to-clipboard target without a full refetch."""
     import secrets
-    store = _require_tv_store(claims, db)
+    store = _require_tv_store(claims, db, "update")
     display = _ensure_display(db, store)
     display.public_token = secrets.token_urlsafe(24)
     # Security-relevant: the old public board URL stops working. Log
@@ -357,7 +366,7 @@ def claim_pair_code_route(
       - expired code
       - already-claimed code
     """
-    store = _require_tv_store(claims, db)
+    store = _require_tv_store(claims, db, "update")
     display = _ensure_display(db, store)
     # Reuse the legacy code alphabet + lifetime — these are owned by
     # the Flask /api/tv-pair/init endpoint that mints the pending row,
@@ -427,7 +436,7 @@ def revoke_pairing_route(
     URL 404s on its next 30-second refresh and routes back to the
     pairing screen. Tenant-scoped — pairings on other stores' displays
     return 404 (opaque)."""
-    store = _require_tv_store(claims, db)
+    store = _require_tv_store(claims, db, "update")
     display = _ensure_display(db, store)
     from api.Modules.TVDisplay.Models import TVPairing
     pairing = (
@@ -466,7 +475,7 @@ def create_country_route(
     4 chars; sort_order defaults to (max + 10) so manual reordering
     has room. Banks + rates aren't created here — the operator goes
     to the country editor next to fill those in."""
-    store = _require_tv_store(claims, db)
+    store = _require_tv_store(claims, db, "update")
     display = _ensure_display(db, store)
     from api.Modules.TVDisplay.Models import TVDisplayCountry
 
@@ -507,6 +516,51 @@ def create_country_route(
     )
 
 
+@router.put(
+    "/countries/{country_id}",
+    response_model=TVDisplayCountryDetailResponse,
+)
+def update_country_route(
+    payload: TVDisplayCountryUpdateRequest,
+    country_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> TVDisplayCountryDetailResponse:
+    """Save the country editor in one transaction: header, company
+    columns, bank renames / order / deletes, new banks and the rate
+    grid. Countries or banks of another store's display return 404.
+    Returns the saved country so the editor re-renders from it."""
+    store = _require_tv_store(claims, db, "update")
+    display = _ensure_display(db, store)
+    from api.Modules.TVDisplay.Models import TVDisplayCountry
+    from api.Modules.TVDisplay.Services.countries import save_country
+    country = (
+        db.query(TVDisplayCountry)
+          .filter(TVDisplayCountry.id == country_id,
+                  TVDisplayCountry.display_id == display.id)
+          .one_or_none()
+    )
+    if country is None:
+        raise HTTPException(status_code=404, detail="Country not found")
+    try:
+        counts = save_country(db, country, payload)
+    except ValueError:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="Bank not found")
+    display.last_updated_at = utc_now()
+    _audit_tv_action(
+        db, claims=claims, action="update_tv_country",
+        target_type="tv_country", target_id=str(country.id),
+        target_label=(country.country_name or "")[:160],
+        summary=(
+            f"{counts['rates_set']} rate(s), "
+            f"+{counts['banks_added']} / -{counts['banks_deleted']} bank(s)"
+        ),
+    )
+    db.commit()
+    return country_detail_route(country_id, db=db, claims=claims)
+
+
 @router.delete("/countries/{country_id}", status_code=204)
 def delete_country_route(
     country_id: int = Path(..., ge=1),
@@ -516,7 +570,7 @@ def delete_country_route(
     """Remove a country section. Manual cascade across banks → rates
     (mirrors the retention purge pattern). Tenant-scoped — countries
     on other stores' displays return 404."""
-    store = _require_tv_store(claims, db)
+    store = _require_tv_store(claims, db, "update")
     display = _ensure_display(db, store)
     from api.Modules.TVDisplay.Models import TVDisplayCountry, TVDisplayPayoutBank, TVDisplayRate
     country = (

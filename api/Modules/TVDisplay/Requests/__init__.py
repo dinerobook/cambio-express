@@ -3,8 +3,10 @@
 Covers the SPA admin landing: read overview + per-country
 drill-down, plus the write actions the landing page exposes
 (settings save, token rotation, Fire TV claim/revoke, country
-create/delete)."""
-from pydantic import BaseModel, ConfigDict, Field
+create/delete, the country editor save)."""
+import math
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TVDisplayCountryStat(BaseModel):
@@ -122,6 +124,42 @@ class TVDisplayCountryCreateRequest(BaseModel):
     mt_companies: str = Field(default="", max_length=500)
 
 
+class TVDisplayBankEdit(BaseModel):
+    """One existing bank row in the country editor. ``rates`` maps a
+    company column header to its rate; a missing or null entry clears
+    that cell. ``delete`` drops the bank and its rates."""
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    bank_name: str = Field(default="", max_length=120)
+    sort_order: int = 0
+    delete: bool = False
+    rates: dict[str, float | None] = Field(default_factory=dict)
+
+    @field_validator("rates")
+    @classmethod
+    def _rates_are_real_numbers(
+        cls, v: dict[str, float | None],
+    ) -> dict[str, float | None]:
+        for value in v.values():
+            if value is not None and (not math.isfinite(value) or value < 0):
+                raise ValueError("A rate must be a number of 0 or more.")
+        return v
+
+
+class TVDisplayCountryUpdateRequest(BaseModel):
+    """Everything the country editor saves in one go: the header,
+    the company columns (order kept), edits to existing banks and
+    names of new banks to add."""
+    model_config = ConfigDict(extra="forbid")
+
+    country_name: str = Field(min_length=1, max_length=80)
+    country_code: str = Field(default="", max_length=4)
+    mt_companies: list[str] = Field(default_factory=list, max_length=20)
+    banks: list[TVDisplayBankEdit] = Field(default_factory=list)
+    new_banks: list[str] = Field(default_factory=list, max_length=50)
+
+
 class TVDisplayCountryCreateResponse(BaseModel):
     """The new country row — caller redirects into the editor for
     that country_id to fill in banks + rates."""
@@ -133,6 +171,8 @@ class TVDisplayCountryCreateResponse(BaseModel):
 
 
 __all__ = [
+    "TVDisplayBankEdit",
+    "TVDisplayCountryUpdateRequest",
     "TVDisplayBankRow",
     "TVDisplayClaimRequest",
     "TVDisplayCountryCreateRequest",

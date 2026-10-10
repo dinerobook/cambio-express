@@ -24,10 +24,12 @@ import gzip
 import hashlib
 import secrets
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+from api.Core.Clock import utc_now
 
 from api.Modules.DayClose.Models import RegisterClose
 from api.Modules.PosImport.Models import (
@@ -87,7 +89,7 @@ def revoke_agent_key(
     if cred is None or cred.store_id != store_id:
         raise PosImportError("Agent key not found")
     if cred.revoked_at is None:
-        cred.revoked_at = datetime.utcnow()
+        cred.revoked_at = utc_now()
         db.flush()
     return cred
 
@@ -107,7 +109,7 @@ def authenticate_agent(
     )
     if cred is None or cred.revoked_at is not None:
         return None
-    cred.last_used_at = datetime.utcnow()
+    cred.last_used_at = utc_now()
     db.flush()
     return cred
 

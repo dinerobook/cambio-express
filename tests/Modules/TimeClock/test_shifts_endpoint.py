@@ -299,3 +299,50 @@ def test_shift_cross_store_404(client):
         headers={"Authorization": f"Bearer {token2}"},
     )
     assert resp.status_code == 404
+
+
+# ── Audit ──────────────────────────────────────────────────
+
+
+def test_shift_changes_are_audited(client):
+    """Create, edit and delete of a planned shift each leave one
+    operator audit row naming the employee and the slot; a refused
+    change leaves none."""
+    from api.Modules.Audit.Models import OperatorAuditLog
+    with db_session():
+        store_id = _trial_store_id()
+        emp_id = _seed_employee(store_id, name="Maria")
+    token = login_admin(client, store_id)
+    headers = {"Authorization": f"Bearer {token}"}
+    shift_id = client.post(
+        "/api/v2/admin/timeclock/shifts",
+        json={"store_employee_id": emp_id, "shift_date": "2026-05-18",
+              "start_time": "09:00", "end_time": "17:00"},
+        headers=headers,
+    ).get_json()["id"]
+    assert client.patch(
+        f"/api/v2/admin/timeclock/shifts/{shift_id}",
+        json={"end_time": "18:30"}, headers=headers,
+    ).status_code == 200
+    # Backwards times are refused — no audit row for that attempt.
+    assert client.patch(
+        f"/api/v2/admin/timeclock/shifts/{shift_id}",
+        json={"start_time": "20:00"}, headers=headers,
+    ).status_code == 422
+    assert client.delete(
+        f"/api/v2/admin/timeclock/shifts/{shift_id}", headers=headers,
+    ).status_code == 204
+    with db_session():
+        rows = (
+            db.session.query(OperatorAuditLog)
+              .filter_by(store_id=store_id, target_type="time_clock_shift",
+                         target_id=str(shift_id))
+              .order_by(OperatorAuditLog.id)
+              .all()
+        )
+        assert [r.action for r in rows] == [
+            "shift_create", "shift_update", "shift_delete",
+        ]
+        assert all(r.target_label == "Maria" for r in rows)
+        assert rows[0].summary == "2026-05-18 09:00–17:00"
+        assert rows[1].summary == "2026-05-18 09:00–18:30"

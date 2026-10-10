@@ -1075,7 +1075,6 @@ def export_my_data_route(
     user just happened to view.
     """
     import json
-    from datetime import datetime
     user = db.get(User, int(claims["sub"]))
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1169,7 +1168,7 @@ def export_my_data_route(
         pass
 
     payload = {
-        "exported_at": datetime.utcnow().isoformat(),
+        "exported_at": utc_now().isoformat(),
         "export_version": 1,
         "profile": profile,
         "notification_preferences": notifications,
@@ -1178,7 +1177,7 @@ def export_my_data_route(
         "audit_log_entries": audit_entries,
     }
 
-    filename = f"dinerobook-data-{user.username}-{datetime.utcnow().strftime('%Y%m%d')}.json"
+    filename = f"dinerobook-data-{user.username}-{utc_now().strftime('%Y%m%d')}.json"
     return Response(
         content=json.dumps(payload, indent=2, default=str),
         media_type="application/json",

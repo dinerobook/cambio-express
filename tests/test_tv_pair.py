@@ -401,15 +401,24 @@ def test_legacy_public_url_still_works_for_tablets(client, test_store_id):
 
 # ── Employee access ────────────────────────────────────────────
 
-def test_employee_can_claim_a_code(client, test_store_id):
-    """v1 grants employees TV-display access — pairing is daily-
-    operations work, not back-office. Employee mints their own JWT
-    via /api/v2/auth/login."""
+def test_employee_needs_settings_update_to_claim_a_code(
+    client, test_store_id,
+):
+    """Pairing a TV lives on the TV Display page, which the SPA only
+    shows to people holding settings rights; the API now agrees. An
+    employee with the default rights is refused; once a store admin
+    grants settings.update the same employee can pair."""
+    from api.Core.Permissions import set_store_permissions
     _activate_addon(client, test_store_id)
     from tests.conftest import make_employee_client
     _emp_client, emp_jwt = make_employee_client(test_store_id)
-    _ensure_display(client, test_store_id, emp_jwt)
     body = _init(client)
+    assert _claim(client, body["code"], emp_jwt).status_code == 403
+    set_store_permissions(
+        test_store_id, "employee",
+        {"settings": {"read": True, "update": True}},
+    )
+    _ensure_display(client, test_store_id, emp_jwt)
     resp = _claim(client, body["code"], emp_jwt)
     assert resp.status_code == 204
     with db_session():

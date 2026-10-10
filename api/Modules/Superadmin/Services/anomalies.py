@@ -22,6 +22,8 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import utc_now
+
 from api.Modules.Billing.Models import Store
 
 
@@ -283,7 +285,7 @@ def compute_platform_anomalies(db: Session) -> list[dict]:
     itself.
     """
     today = date.today()
-    now = datetime.utcnow()
+    now = utc_now()
     anomalies: list[dict] = []
     anomalies.extend(cancellation_spike_anomalies(db, now))
     anomalies.extend(big_over_short_anomalies(db, today))

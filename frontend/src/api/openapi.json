@@ -14334,6 +14334,51 @@
         "title": "SwitchableStoreRow",
         "type": "object"
       },
+      "TVDisplayBankEdit": {
+        "additionalProperties": false,
+        "description": "One existing bank row in the country editor. ``rates`` maps a\ncompany column header to its rate; a missing or null entry clears\nthat cell. ``delete`` drops the bank and its rates.",
+        "properties": {
+          "bank_name": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Bank Name",
+            "type": "string"
+          },
+          "delete": {
+            "default": false,
+            "title": "Delete",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "rates": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Rates",
+            "type": "object"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "TVDisplayBankEdit",
+        "type": "object"
+      },
       "TVDisplayBankRow": {
         "additionalProperties": false,
         "description": "One bank within a country, with its filled-in rate cells.\n`rates` is a sparse map keyed by mt_company; absent entries are\nrendered as \"\u2014\" on the public board.",
@@ -14527,6 +14572,52 @@
           "rate_count"
         ],
         "title": "TVDisplayCountryStat",
+        "type": "object"
+      },
+      "TVDisplayCountryUpdateRequest": {
+        "additionalProperties": false,
+        "description": "Everything the country editor saves in one go: the header,\nthe company columns (order kept), edits to existing banks and\nnames of new banks to add.",
+        "properties": {
+          "banks": {
+            "items": {
+              "$ref": "#/components/schemas/TVDisplayBankEdit"
+            },
+            "title": "Banks",
+            "type": "array"
+          },
+          "country_code": {
+            "default": "",
+            "maxLength": 4,
+            "title": "Country Code",
+            "type": "string"
+          },
+          "country_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Country Name",
+            "type": "string"
+          },
+          "mt_companies": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Mt Companies",
+            "type": "array"
+          },
+          "new_banks": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "New Banks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "country_name"
+        ],
+        "title": "TVDisplayCountryUpdateRequest",
         "type": "object"
       },
       "TVDisplayOverviewResponse": {
@@ -42871,6 +42962,90 @@
           }
         },
         "summary": "Country Detail Route",
+        "tags": [
+          "tv-display"
+        ]
+      },
+      "put": {
+        "description": "Save the country editor in one transaction: header, company\ncolumns, bank renames / order / deletes, new banks and the rate\ngrid. Countries or banks of another store's display return 404.\nReturns the saved country so the editor re-renders from it.",
+        "operationId": "update_country_route_tv_display_countries__country_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "country_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Country Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TVDisplayCountryUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TVDisplayCountryDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Country Route",
         "tags": [
           "tv-display"
         ]

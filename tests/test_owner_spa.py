@@ -186,3 +186,37 @@ def test_store_detail_requires_owner_role(client, test_store_id):
         headers={"Authorization": f"Bearer {jwt}"},
     )
     assert resp.status_code == 403
+
+
+def test_store_detail_today_is_the_stores_day(client, monkeypatch):
+    """"Today" on the owner's store drill-down is the store's own day
+    (Settings → General timezone), not the server's UTC day, which is
+    already tomorrow for a US store in the evening."""
+    from datetime import timedelta
+    from api.Modules.Tenancy.Models import Store
+    from api.Modules.Transfers.Models import Transfer
+    import api.Modules.Owners.Controllers as owners
+
+    jwt, sid, _ = _seed_owner_with_store(client)
+    store_day = date.today() - timedelta(days=40)
+    with db_session():
+        db.session.get(Store, sid).timezone = "America/Chicago"
+        db.session.add(Transfer(
+            store_id=sid, send_date=store_day, company="Maxi",
+            sender_name="C", send_amount=75.0, fee=1.0, status="Sent",
+        ))
+        db.session.commit()
+    seen = []
+
+    def fake_local_today(tz):
+        seen.append(tz)
+        return store_day
+
+    monkeypatch.setattr(owners, "local_today", fake_local_today)
+    body = client.get(
+        f"/api/v2/owner/store/{sid}?period=today",
+        headers={"Authorization": f"Bearer {jwt}"},
+    ).get_json()
+    assert seen == ["America/Chicago"]
+    companies = {r["company"]: r["volume"] for r in body["company_rows"]}
+    assert companies == {"Maxi": 75.0}

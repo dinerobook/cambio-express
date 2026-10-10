@@ -219,3 +219,44 @@ def test_put_rejects_superadmin(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 403
+
+
+def test_put_writes_an_audit_row_naming_fields_not_amounts(
+    client, test_store_id,
+):
+    """A P&L save leaves an operator audit row that names the lines
+    sent, never the dollar amounts."""
+    from api.Modules.Audit.Models import OperatorAuditLog
+    token = _login(client, test_store_id)
+    resp = client.put(
+        "/api/v2/monthly/2026/9",
+        json={"taxable_sales": 1234.5, "rebates_commissions": 77.0,
+              "notes": "sept"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    with db_session():
+        rows = db.session.query(OperatorAuditLog).filter_by(
+            store_id=test_store_id, action="update_monthly",
+        ).all()
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.target_id == "2026-09"
+        assert row.summary == "saved rebates_commissions, taxable_sales, notes"
+        assert "1234" not in row.summary and "77" not in row.summary
+
+
+def test_refused_put_writes_no_audit_row(client, test_store_id):
+    from api.Modules.Audit.Models import OperatorAuditLog
+    token = _login(client, test_store_id)
+    resp = client.put(
+        "/api/v2/monthly/2026/10",
+        json={"cash_purchases": 5.0},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+    with db_session():
+        assert db.session.query(OperatorAuditLog).filter_by(
+            store_id=test_store_id, action="update_monthly",
+            target_id="2026-10",
+        ).count() == 0

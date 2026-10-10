@@ -2,13 +2,16 @@
 //
 // Read: overview (settings + countries + active pairing).
 // Write: settings save, public-token rotate, Fire TV claim/revoke,
-//        country create/delete. The country *editor* (bank+rate
-//        matrix) still POSTs to legacy Flask at
-//        /tv-display/countries/<id> until the next migration slice.
+//        country create/delete, country editor save (header, banks,
+//        rate matrix in one PUT).
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { components } from "./openapi";
+
+export type TVDisplayCountryUpdateRequest =
+  components["schemas"]["TVDisplayCountryUpdateRequest"];
 
 export interface TVDisplayCountryStat {
   id: number;
@@ -164,5 +167,17 @@ export function useTVDisplayCountryDetail(countryId: number) {
         `/api/v2/tv-display/countries/${countryId}`,
       ),
     enabled: countryId > 0,
+  });
+}
+
+export function useUpdateTVDisplayCountry(countryId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: TVDisplayCountryUpdateRequest) =>
+      api<TVDisplayCountryDetailResponse>(
+        `/api/v2/tv-display/countries/${countryId}`,
+        { method: "PUT", json: payload },
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tv-display"] }),
   });
 }

@@ -19,10 +19,12 @@ Both compose the smaller dashboard helpers (`owner_period_window`,
 `owner_store_ids`, `owner_kpis`) plus the return-check rollup
 Service from PR 62. Pure DB reads — no commits, no side-effects.
 """
-from datetime import date, timedelta
+from datetime import timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+from api.Core.Clock import local_today
 
 from api.Modules.Owners.Services.dashboard import (
     OWNER_TRANSFER_EXCLUDED,
@@ -53,7 +55,8 @@ def dashboard_context(db: Session, user, period: str) -> dict[str, Any]:
     from api.Modules.Tenancy.Models import Store
     from api.Modules.Transfers.Models import Transfer
 
-    today = date.today()
+    # The owner's own day (their timezone; blank reads UTC).
+    today = local_today(user.timezone)
     start, end, prev_start, prev_end, prev_label = owner_period_window(
         period, today,
     )
@@ -240,7 +243,8 @@ def locations_payload(
     from api.Modules.Tenancy.Models import Store
     from api.Modules.Transfers.Models import Transfer
 
-    today = date.today()
+    # The owner's own day (their timezone; blank reads UTC).
+    today = local_today(user.timezone)
     start, end, *_ = owner_period_window(period, today)
     store_ids = owner_store_ids(db, user)
     if not store_ids:

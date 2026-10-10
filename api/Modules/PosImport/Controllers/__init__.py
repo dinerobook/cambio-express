@@ -31,6 +31,7 @@ from fastapi import (
 from fastapi.responses import Response as PlainResponse
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import utc_now
 from api.Core.Database import get_db
 from api.Core.RateLimit import limiter as _rate_limiter
 from api.Modules.Auth.Controllers import get_principal
@@ -653,7 +654,7 @@ def pricebook_export_route(
                 if since else "The price book has no active items."
             ),
         )
-    stamp = datetime.utcnow().strftime("%Y%m%d")
+    stamp = utc_now().strftime("%Y%m%d")
     return PlainResponse(
         content=xml,
         media_type="application/xml",

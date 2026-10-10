@@ -305,11 +305,12 @@ doesn't have its operator values clobbered by leftover model state.
 
 ## Audit invariants
 
-No audit log on the monthly write today. Mutations don't go through
-`_audit_daily_action` (that's the DailyBook helper). If you add
-audit coverage in the future, mirror the DailyBook pattern: log the
-operator + the comma-separated list of fields they actually
-touched, NOT the dollar amounts (the P&L numbers are sensitive).
+Every monthly save (`PUT /monthly/{year}/{month}`) writes one
+operator audit row (`update_monthly`, target `YYYY-MM`) through
+`audit_operator`, in the same transaction as the write. It logs
+the operator + the comma-separated list of fields they sent, NOT
+the dollar amounts (the P&L numbers are sensitive). Renaming lines
+(`PUT /monthly/labels`) audits the same way.
 
 
 ## Cross-module dependencies
