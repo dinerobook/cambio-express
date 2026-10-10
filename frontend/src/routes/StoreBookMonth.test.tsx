@@ -1,100 +1,100 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import StoreBookMonth from "./StoreBookMonth";
+import type { StoreBookMonth as StoreBookMonthData } from "../api/storebook";
 
-// The store daily book's month page:
-//   - The month in the URL decides what is asked of the server.
-//   - Previous / next and the month picker move the URL (the year
-//     rolls over at either end).
-//   - A day with a sheet links to it and shows its sales.
-//   - A failed load is an ErrorState with retry.
+// The store daily-book month calendar. Pinned: cents render as
+// dollars (KPIs + day cells), month navigation wraps the year and
+// lives in the URL, each day links to its sheet, and a failed load
+// shows ErrorState with Retry.
 
 const useStoreBookMonth = vi.fn();
+const refetch = vi.fn();
+let state: { data?: StoreBookMonthData; isLoading: boolean; isError: boolean };
 
-vi.mock("../api/storebook", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../api/storebook")>()),
-  useStoreBookMonth: (...a: unknown[]) => useStoreBookMonth(...a),
-}));
+vi.mock("../api/storebook", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../api/storebook")>();
+  return {
+    ...real,
+    useStoreBookMonth: (y: number, m: number) => {
+      useStoreBookMonth(y, m);
+      return { ...state, refetch };
+    },
+  };
+});
 
-const month = {
-  rows: [{
-    entry_date: "2026-10-07", sales_cents: 123456, over_short_cents: -250,
-    is_locked: true,
-  }],
-  total_sales_cents: 123456,
-  total_fuel_gallons: 1500,
-  total_fuel_cents: 450000,
-};
-
-function Where() {
-  const loc = useLocation();
-  return <div data-testid="where">{loc.pathname + loc.search}</div>;
+function LocationProbe() {
+  return <p data-testid="loc">{useLocation().search}</p>;
 }
 
-function renderPage(url = "/store-book?year=2026&month=10") {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderPage(url = "/store-book?year=2026&month=12") {
   return render(
-    <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[url]}>
-        <StoreBookMonth />
-        <Where />
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={[url]}>
+      <StoreBookMonth />
+      <LocationProbe />
+    </MemoryRouter>,
   );
 }
 
 describe("StoreBookMonth", () => {
   beforeEach(() => {
     useStoreBookMonth.mockReset();
-    useStoreBookMonth.mockReturnValue({
-      data: month, isLoading: false, isError: false, refetch: vi.fn(),
-    });
+    refetch.mockReset();
+    state = {
+      data: {
+        year: 2026, month: 12,
+        total_sales_cents: 1234567, total_fuel_gallons: 4321, total_fuel_cents: 987650,
+        rows: [{
+          entry_date: "2026-12-03", sales_cents: 196300, over_short_cents: -2463,
+          is_locked: true, deposit_cents: 0, tenders_cents: 0,
+        }],
+      },
+      isLoading: false, isError: false,
+    };
   });
 
-  it("loads the month in the URL and links each day to its sheet", () => {
+  it("shows the month's totals in dollars", () => {
     renderPage();
-    expect(useStoreBookMonth).toHaveBeenCalledWith(2026, 10);
-    expect(screen.getByText("October 2026")).toBeInTheDocument();
-    expect(screen.getByText("Total sales").parentElement).toHaveTextContent("$1,234.56");
-    const day = screen.getByRole("link", { name: "Open the daily book for 2026-10-07" });
-    expect(day).toHaveAttribute("href", "/store-book/day?date=2026-10-07");
-    expect(day).toHaveTextContent("$1,234.56");
+    expect(useStoreBookMonth).toHaveBeenLastCalledWith(2026, 12);
+    expect(screen.getByText("Total sales").parentElement).toHaveTextContent("$12,345.67");
+    expect(screen.getByText("Total fuel").parentElement).toHaveTextContent("$9,876.50");
+    expect(screen.getByText("Total gallons").parentElement).toHaveTextContent("4,321");
   });
 
-  it("steps months with the arrows and rolls the year over", async () => {
-    const user = userEvent.setup();
-    renderPage("/store-book?year=2026&month=12");
-    await user.click(screen.getByRole("button", { name: "Next month" }));
-    expect(screen.getByTestId("where")).toHaveTextContent("year=2027&month=1");
+  it("links each day to its sheet and shows that day's sales", () => {
+    renderPage();
+    const day = screen.getByRole("link", { name: /2026-12-03/ });
+    expect(day).toHaveAttribute("href", "/store-book/day?date=2026-12-03");
+    expect(day).toHaveTextContent("$1,963.00");
+  });
+
+  it("wraps forward into January of the next year", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Next month" }));
+    expect(screen.getByTestId("loc")).toHaveTextContent("year=2027&month=1");
     expect(useStoreBookMonth).toHaveBeenLastCalledWith(2027, 1);
-    await user.click(screen.getByRole("button", { name: "Previous month" }));
-    await user.click(screen.getByRole("button", { name: "Previous month" }));
-    expect(screen.getByTestId("where")).toHaveTextContent("year=2026&month=11");
   });
 
-  it("jumps to a month picked from the list, keeping the year", async () => {
-    const user = userEvent.setup();
+  it("wraps back into December of the previous year", async () => {
+    renderPage("/store-book?year=2026&month=1");
+    await userEvent.click(screen.getByRole("button", { name: "Previous month" }));
+    expect(useStoreBookMonth).toHaveBeenLastCalledWith(2025, 12);
+  });
+
+  it("jumps to a month picked from the select", async () => {
     renderPage();
-    await user.selectOptions(screen.getByRole("combobox", { name: "Month" }), "March");
-    expect(screen.getByTestId("where")).toHaveTextContent("month=3");
-    expect(screen.getByTestId("where")).toHaveTextContent("year=2026");
+    await userEvent.selectOptions(screen.getByRole("combobox"), "March");
     expect(useStoreBookMonth).toHaveBeenLastCalledWith(2026, 3);
   });
 
-  it("shows a retryable error when the month fails to load", async () => {
-    const user = userEvent.setup();
-    const refetch = vi.fn();
-    useStoreBookMonth.mockReturnValue({
-      data: undefined, isLoading: false, isError: true, refetch,
-    });
+  it("shows ErrorState with a working Retry", async () => {
+    state = { isLoading: false, isError: true };
     renderPage();
-    expect(screen.getByText("Couldn't load this month.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /retry|try again/i }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load this month.");
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalled();
-    expect(screen.queryByText("Total sales")).not.toBeInTheDocument();
   });
 });

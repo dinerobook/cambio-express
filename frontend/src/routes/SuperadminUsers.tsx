@@ -60,6 +60,8 @@ export default function SuperadminUsers() {
   const stores = useSuperadminStores();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A refused role change keeps its dialog open, so its error shows there.
+  const [roleError, setRoleError] = useState<string | null>(null);
   const [tempPw, setTempPw] = useState<{ userId: number; password: string } | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
     userId: number; username: string; action: UserAction;
@@ -301,7 +303,7 @@ export default function SuperadminUsers() {
         onConfirm={() => {
           if (!roleChange || !newRole) return;
           setBusyId(roleChange.userId);
-          setError(null);
+          setRoleError(null);
           changeUserRole(roleChange.userId, newRole)
             .then(() => {
               toast({ message: `Role changed to ${newRole}.`, tone: "success" });
@@ -310,11 +312,12 @@ export default function SuperadminUsers() {
               setNewRole("");
             })
             .catch((err) => {
-              setError(apiErrorMessage(err, "Failed to change role."));
+              setRoleError(apiErrorMessage(err, "Failed to change role."));
             })
             .finally(() => setBusyId(null));
         }}
-        onCancel={() => { setRoleChange(null); setNewRole(""); }}
+        error={roleError}
+        onCancel={() => { setRoleChange(null); setNewRole(""); setRoleError(null); }}
       />
     </PageShell>
   );
