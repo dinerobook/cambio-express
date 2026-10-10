@@ -2,12 +2,10 @@
 // - Cache-first for the /static/ shell (CSS, icons)
 // - Network-first for navigations with /offline as fallback
 // - Push notifications (show + handle click)
-const CACHE = 'dinerobook-v9';
+const CACHE = 'dinerobook-v10';
 const SHELL = [
   '/offline',
-  '/static/app.css',
   '/static/design-tokens.css',
-  '/static/content.css',
   '/static/shell.css',
   '/static/favicon.svg',
   '/static/favicon-32.png',
@@ -19,12 +17,13 @@ const SHELL = [
 // Stylesheets that should go network-first so deploys roll out
 // without waiting for a cache bust.
 const NETWORK_FIRST_CSS = new Set([
-  '/static/app.css',
   '/static/design-tokens.css',
-  '/static/content.css',
   '/static/shell.css',
 ]);
 
+// Every SHELL entry must exist: addAll() rejects on a single 404 and
+// the catch below swallows it, leaving NOTHING cached — not even the
+// /offline page. tests/test_service_worker_shell.py pins this.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {})

@@ -1,6 +1,7 @@
 """Settlements — cash lent out / borrowed that comes back.
 
-An Other cash out (lent) or Other cash in (borrowed) can be ticked
+A Cash Out entry (``other_cash_out``, lent) or Cash In entry
+(``other_cash_in``, borrowed) can be ticked
 ``expects_settlement``; entries of the opposite kind with
 ``settles_item_id`` pay it back. Invariants under test (see
 DailyBook/INVARIANTS.md "Settlements"):
