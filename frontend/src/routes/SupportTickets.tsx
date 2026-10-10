@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { createTicket, TICKET_STATUS_TONES, useMyTickets, type TicketRow } from "../api/support";
 import { TicketThread } from "../components/TicketThread";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, Breadcrumbs, Button, Card, EmptyState, ErrorState, Field,
@@ -59,7 +59,7 @@ function SupportTicketsInner() {
       });
       void qc.invalidateQueries({ queryKey: ["tickets"] });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not submit ticket.");
+      setError(apiErrorMessage(err, "Could not submit ticket."));
     } finally {
       setBusy(false);
     }

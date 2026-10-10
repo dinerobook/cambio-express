@@ -7,7 +7,7 @@ import {
   useVendors,
   type InvoiceDetail, type InvoiceWrite,
 } from "../api/catalog";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Alert, Breadcrumbs, Button, Card, Checkbox, DateInput, ErrorState,
@@ -212,7 +212,7 @@ function InvoiceForm({
       });
       navigate("/purchase-invoices");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }

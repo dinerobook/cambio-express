@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError, apiErrorMessage } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { toggleMatrixCell } from "../lib/permissions";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -451,7 +451,7 @@ export default function SuperadminStoreDrill() {
               setCompReason("");
               void refetch();
             } catch (err) {
-              setCompError(err instanceof ApiError ? err.message : "Could not comp this store.");
+              setCompError(apiErrorMessage(err, "Could not comp this store."));
             } finally {
               setCompBusy(false);
             }
@@ -514,7 +514,7 @@ export default function SuperadminStoreDrill() {
               setEmailSubject("");
               setEmailBody("");
             } catch (err) {
-              setEmailError(err instanceof ApiError ? err.message : "Could not send.");
+              setEmailError(apiErrorMessage(err, "Could not send."));
             } finally {
               setEmailBusy(false);
             }
@@ -571,7 +571,7 @@ export default function SuperadminStoreDrill() {
               setFreezeReason("");
               void refetch();
             } catch (err) {
-              setFreezeError(err instanceof ApiError ? err.message : "Could not freeze.");
+              setFreezeError(apiErrorMessage(err, "Could not freeze."));
             } finally {
               setFreezeBusy(false);
             }
@@ -639,7 +639,7 @@ export default function SuperadminStoreDrill() {
               setCreditAmount(0);
               setCreditReason("");
             } catch (err) {
-              setCreditError(err instanceof ApiError ? err.message : "Could not issue credit.");
+              setCreditError(apiErrorMessage(err, "Could not issue credit."));
             } finally {
               setCreditBusy(false);
             }
@@ -954,7 +954,7 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
       refresh();
       toast({ message: "Owner connected.", tone: "success" });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not connect the owner.");
+      setError(apiErrorMessage(err, "Could not connect the owner."));
     } finally {
       setBusy(false);
     }
@@ -968,7 +968,7 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
       refresh();
       toast({ message: `${name} disconnected.`, tone: "success" });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not disconnect the owner.");
+      setError(apiErrorMessage(err, "Could not disconnect the owner."));
     } finally {
       setBusy(false);
     }

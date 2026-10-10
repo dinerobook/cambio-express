@@ -9,7 +9,7 @@ import {
   type ShiftRow,
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import {
   Breadcrumbs,
   Button, Card, ConfirmDialog, EmptyState, ErrorState, Field, Input,
@@ -208,9 +208,7 @@ function ShiftCard({
       onSaved(`Deleted ${shift.employee_name}'s shift.`);
       setConfirmingDelete(false);
     } catch (err) {
-      onError(err instanceof ApiError
-        ? err.message
-        : "Could not delete the shift.");
+      onError(apiErrorMessage(err, "Could not delete the shift."));
     } finally {
       setBusy(false);
     }
@@ -318,9 +316,7 @@ function ShiftForm({
         onSaved(`Scheduled ${created.employee_name}.`);
       }
     } catch (err) {
-      onError(err instanceof ApiError
-        ? err.message
-        : "Could not save the shift.");
+      onError(apiErrorMessage(err, "Could not save the shift."));
     } finally {
       setBusy(false);
     }

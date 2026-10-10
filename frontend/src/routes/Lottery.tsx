@@ -7,7 +7,7 @@ import {
   updateLotteryGame, useLotteryDay, useLotteryGames, useLotteryPacks,
   type LotteryDayRow, type LotteryGame, type LotteryPack,
 } from "../api/lottery";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -323,7 +323,7 @@ function ReceivePackModal({
       setPackNumber("");
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -395,7 +395,7 @@ function ActivatePackModal({
       setOpening("0");
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -568,7 +568,7 @@ function AddGameModal({
       setGameNumber(""); setName(""); setPrice(0); setPerPack("");
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }

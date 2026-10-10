@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError, apiErrorMessage } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { roleTone } from "../api/roles";
 import { toggleMatrixCell } from "../lib/permissions";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
@@ -86,7 +86,7 @@ export default function OwnerStorePermissions() {
       qc.setQueryData(["owner-store-permissions", sid], result);
       toast({ message: "Permissions updated.", tone: "success" });
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : "Could not save.");
+      setSaveError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -104,7 +104,7 @@ export default function OwnerStorePermissions() {
       qc.setQueryData(["owner-store-permissions", sid], result);
       toast({ message: `${ROLE_LABELS[role] ?? role} permissions reset to defaults.`, tone: "success" });
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : "Could not reset.");
+      setSaveError(apiErrorMessage(err, "Could not reset."));
     } finally {
       setBusy(false);
     }

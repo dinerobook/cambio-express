@@ -13,7 +13,7 @@ import {
   type SuperadminUserRow,
 } from "../api/superadmin";
 import { roleTone } from "../api/roles";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { startImpersonation } from "../lib/impersonation";
 import { formatDate } from "../lib/datetime";
 import {
@@ -117,7 +117,7 @@ export default function SuperadminUsers() {
         refresh();
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Action failed.");
+      setError(apiErrorMessage(err, "Action failed."));
     } finally {
       setBusyId(null);
       setConfirmAction(null);
@@ -310,7 +310,7 @@ export default function SuperadminUsers() {
               setNewRole("");
             })
             .catch((err) => {
-              setError(err instanceof ApiError ? err.message : "Failed to change role.");
+              setError(apiErrorMessage(err, "Failed to change role."));
             })
             .finally(() => setBusyId(null));
         }}
@@ -452,7 +452,7 @@ function AddSupportLoginCard({ onCreated }: { onCreated: () => void }) {
       onCreated();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not create the login.",
+        apiErrorMessage(err, "Could not create the login."),
       );
     } finally {
       setBusy(false);

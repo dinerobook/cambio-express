@@ -25,7 +25,7 @@ import {
   Modal, monoStyle, PageHeader, PageShell, Pager, Select, Table, TableStates,
   tdStyle, thStyle, useToast,
 } from "../components/ui";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { describeAppliedRule } from "../lib/bankRules";
 import { suggestRuleFor } from "../lib/bankRuleSuggest";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
@@ -416,7 +416,7 @@ function CategoryCell({
         setLocked({ slug, date: lockedDay.report_date });
         setChoosingDay(false);
       } else {
-        setErr(e instanceof ApiError ? e.message : "Could not update category.");
+        setErr(apiErrorMessage(e, "Could not update category."));
       }
     } finally {
       setBusy(false);

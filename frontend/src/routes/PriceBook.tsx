@@ -11,7 +11,7 @@ import {
   type PriceBookHarvest,
 } from "../api/posimport";
 import { useDepartments, type Department } from "../api/dayclose";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { hasPermission } from "../lib/permissions";
@@ -359,7 +359,7 @@ function SeedPreview({
       onDone();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not seed.",
+        apiErrorMessage(err, "Could not seed."),
       );
     } finally {
       setBusy(false);
@@ -582,7 +582,7 @@ function ItemForm({
       }
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -973,7 +973,7 @@ function VendorForm({
       }
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }

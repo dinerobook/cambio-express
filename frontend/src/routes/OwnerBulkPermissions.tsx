@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { api, ApiError } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { useOwnerLocations } from "../api/owner";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
@@ -66,7 +66,7 @@ export default function OwnerBulkPermissions() {
       const applied = resp.results?.filter((r) => r.status === "applied").length ?? 0;
       toast({ message: `Pushed permissions to ${applied} store(s).`, tone: "success" });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to push permissions.");
+      setError(apiErrorMessage(err, "Failed to push permissions."));
     } finally {
       setBusy(false);
     }

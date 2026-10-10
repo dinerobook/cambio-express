@@ -18,7 +18,7 @@ import {
   Loading,
 } from "../components/ui";
 import { useSuperadminStores } from "../api/superadmin";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   formatDate, formatDateTime, formatShortDate, parseTimestamp, zonedInputToUtcIso,
@@ -132,7 +132,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       setTargetMode("all"); setTargetIds(new Set());
       onCreated();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not post.");
+      setErr(apiErrorMessage(e, "Could not post."));
     } finally {
       setBusy(false);
     }
@@ -339,7 +339,7 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
       await toggleAnnouncement(row.id, !row.is_active);
       onChanged();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not toggle.");
+      setErr(apiErrorMessage(e, "Could not toggle."));
     } finally {
       setBusy(false);
     }
@@ -352,7 +352,7 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
       onChanged();
       setConfirmingDelete(false);
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not delete.");
+      setErr(apiErrorMessage(e, "Could not delete."));
     } finally {
       setBusy(false);
     }

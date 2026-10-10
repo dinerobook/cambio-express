@@ -4,7 +4,7 @@ import {
   fetchSubscriptionSummary, openBillingPortal, startCheckout,
   type SubscriptionSummary,
 } from "../api/billing";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { AppLink,
   Breadcrumbs,
@@ -130,9 +130,9 @@ export default function Subscribe() {
       }
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message
-        : hasPaid ? "Could not open the billing portal."
-        : "Could not start checkout.",
+        apiErrorMessage(err, hasPaid
+          ? "Could not open the billing portal."
+          : "Could not start checkout."),
       );
       setBusy(null);
     }

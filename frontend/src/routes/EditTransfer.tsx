@@ -20,7 +20,7 @@ import {
   useTransfer,
 } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
-import { ApiError, apiErrorMessage } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./EditTransfer.module.css";
@@ -192,9 +192,7 @@ export default function EditTransfer() {
       navigate(`/transfers/${result.transfer.id}`, { replace: true });
     } catch (err) {
       setError("root", {
-        message: err instanceof ApiError
-          ? err.message
-          : "Could not save the changes. Please try again.",
+        message: apiErrorMessage(err, "Could not save the changes. Please try again."),
       });
     }
   }

@@ -7,7 +7,7 @@ import {
   type SubscriptionAddon,
   type SubscriptionSummary,
 } from "../api/billing";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { AppLink,
   Breadcrumbs,
   Alert, Button, ButtonLink, Card, ConfirmDialog, ErrorState, Loading,
@@ -31,7 +31,7 @@ export default function AdminSubscription() {
     try {
       setData(await fetchSubscriptionSummary());
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to load.");
+      setError(apiErrorMessage(e, "Failed to load."));
     }
   }
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function AdminSubscription() {
       const { url } = await openBillingPortal();
       window.location.assign(url);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Stripe error.");
+      setError(apiErrorMessage(e, "Stripe error."));
       setBusy(null);
     }
   }
@@ -58,7 +58,7 @@ export default function AdminSubscription() {
       await toggleAddon(addon.key);
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Toggle failed.");
+      setError(apiErrorMessage(e, "Toggle failed."));
     } finally {
       setBusy(null);
     }

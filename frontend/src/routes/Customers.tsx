@@ -7,7 +7,7 @@ import {
   useCustomerSearch,
   type CustomerRow,
 } from "../api/customers";
-import { ApiError, downloadCsv, apiErrorMessage } from "../lib/api";
+import { apiErrorMessage, downloadCsv } from "../lib/api";
 import { hasPermission } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import { maskPhone } from "../lib/format";
@@ -121,7 +121,7 @@ export default function Customers() {
       await refetch();
     } catch (e) {
       setMergeError(
-        e instanceof ApiError ? e.message : "Merge failed.",
+        apiErrorMessage(e, "Merge failed."),
       );
     } finally {
       setMerging(false);

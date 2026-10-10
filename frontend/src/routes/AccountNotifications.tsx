@@ -9,7 +9,7 @@ import {
   usePushStatus,
   type NotificationsUpdateBody,
 } from "../api/account";
-import { ApiError, apiErrorMessage } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import {
   getPushPermission,
   hasLocalSubscription,
@@ -82,7 +82,7 @@ export default function AccountNotifications() {
       queryClient.invalidateQueries({ queryKey: ["account", "notifications"] });
     } catch (err) {
       setServerError(
-        err instanceof ApiError ? err.message : "Network error. Try again.",
+        apiErrorMessage(err, "Network error. Try again."),
       );
     } finally {
       setBusy(false);

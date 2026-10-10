@@ -5,7 +5,7 @@ import {
   updateMonthlyLabels, useMonthlyLabels,
   type MonthlyLineLabel,
 } from "../api/monthly";
-import { ApiError, apiErrorMessage } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, AppLink, Breadcrumbs, Button, Card, ErrorState, Field, FormActions,
@@ -90,7 +90,7 @@ export default function MonthlyCategories() {
       void qc.invalidateQueries({ queryKey: ["monthly"] });
       void qc.invalidateQueries({ queryKey: ["bank"] });
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not save names.");
+      setErr(apiErrorMessage(e, "Could not save names."));
     } finally {
       setBusy(false);
     }

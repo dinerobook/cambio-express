@@ -14,7 +14,7 @@ import {
 } from "../components/ui";
 import RegisterCloses from "../components/RegisterCloses";
 import { canDo } from "../lib/access";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { addDaysIso, formatDate, todayIso } from "../lib/datetime";
@@ -105,7 +105,7 @@ export default function StoreBookDay() {
       void qc.invalidateQueries({ queryKey: ["storebook", "month"] });
     } catch (err) {
       setServerError(
-        err instanceof ApiError ? err.message : "Could not save.",
+        apiErrorMessage(err, "Could not save."),
       );
     } finally {
       setBusy(false);

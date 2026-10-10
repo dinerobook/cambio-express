@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError, apiErrorMessage } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { roleTone } from "../api/roles";
 import { actionsFor, toggleMatrixCell } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
@@ -123,7 +123,7 @@ export default function SuperadminPermissions() {
       qc.setQueryData(["superadmin", "permissions"], result);
       toast({ message: `${changed} permission${changed === 1 ? "" : "s"} updated.`, tone: "success" });
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : "Could not save permissions.");
+      setSaveError(apiErrorMessage(err, "Could not save permissions."));
     } finally {
       setBusy(false);
     }

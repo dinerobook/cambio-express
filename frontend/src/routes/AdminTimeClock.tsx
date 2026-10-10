@@ -8,7 +8,7 @@ import {
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
 import { updateStoreInfo, useStoreInfo } from "../api/account";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtHours } from "../lib/formatters";
 import {
@@ -300,7 +300,7 @@ export default function AdminTimeClock() {
             refresh();
           } catch (e) {
             toast({
-              message: e instanceof ApiError ? e.message : "Couldn't delete.",
+              message: apiErrorMessage(e, "Couldn't delete."),
               tone: "error",
               duration: 5000,
             });
@@ -572,7 +572,7 @@ function EntryModal({
       onSaved();
     } catch (e2) {
       setErr(
-        e2 instanceof ApiError ? e2.message : "Couldn't save the entry.",
+        apiErrorMessage(e2, "Couldn't save the entry."),
       );
     } finally {
       setBusy(false);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, Breadcrumbs, Button, Card, Field, Input,
@@ -56,7 +56,7 @@ export default function SuperadminMaintenance() {
         tone: enabled ? "warning" : "success",
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }

@@ -8,7 +8,7 @@ import {
   saveBuiltinRole, updateAccessRole, useAccessRoles, useBuiltinRoles,
   type PermMatrix,
 } from "../api/roles";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { refreshToken } from "../lib/auth";
 import { hasPermission, toggleMatrixCell } from "../lib/permissions";
 import {
@@ -209,7 +209,7 @@ export default function RoleEdit() {
       setBaseline(JSON.stringify(draft));
       backToList();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
       setPending(null);
@@ -231,8 +231,7 @@ export default function RoleEdit() {
       setPending(res.members.map((m) => m.name));
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message : "Could not check who this affects.",
+        apiErrorMessage(err, "Could not check who this affects."),
       );
     } finally {
       setBusy(false);
@@ -256,7 +255,7 @@ export default function RoleEdit() {
         tone: "success",
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not reset.");
+      setError(apiErrorMessage(err, "Could not reset."));
     } finally {
       setBusy(false);
     }

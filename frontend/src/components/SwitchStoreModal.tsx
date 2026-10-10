@@ -6,7 +6,7 @@ import {
   addOwnerStore, favoriteStoreIds, returnToOwnerView, switchStore,
   toggleFavoriteStore, useMyStores,
 } from "../api/switchStore";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, Button, EmptyState, ErrorState, Field, Input, Loading, Modal, Pill,
@@ -72,7 +72,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
       navigate("/dashboard");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not switch store.",
+        apiErrorMessage(err, "Could not switch store."),
       );
     } finally {
       setBusy(false);
@@ -91,7 +91,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
       await enter(row.store_id);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not create the store.",
+        apiErrorMessage(err, "Could not create the store."),
       );
       setBusy(false);
     }

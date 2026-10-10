@@ -6,7 +6,7 @@ import {
   retentionDryRun,
   type RetentionDryRunResponse,
 } from "../api/superadmin";
-import { api, ApiError, apiErrorMessage } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
@@ -67,7 +67,7 @@ export default function SuperadminBilling() {
       setDryRun(res);
     } catch (err) {
       setDryRunError(
-        err instanceof ApiError ? err.message : "Dry-run failed.",
+        apiErrorMessage(err, "Dry-run failed."),
       );
     } finally {
       setDryRunBusy(false);

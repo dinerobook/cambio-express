@@ -7,7 +7,7 @@ import {
   type SuperadminStoreRow,
 } from "../api/superadmin";
 import { planTone } from "../api/billing";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import {
@@ -63,7 +63,7 @@ export default function SuperadminStores() {
       setBulkAction("");
       qc.invalidateQueries({ queryKey: ["superadmin", "stores"] });
     } catch (err) {
-      setBulkError(err instanceof ApiError ? err.message : "Bulk action failed.");
+      setBulkError(apiErrorMessage(err, "Bulk action failed."));
     } finally {
       setBulkBusy(false);
     }

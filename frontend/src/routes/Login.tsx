@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { AuthChrome } from "../components/AuthChrome";
 import { Alert, Button, Field, Input, Pill } from "../components/ui";
-import { api, ApiError } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { persistLoginResponse } from "../lib/auth";
 import { autoEnterOwnerStore } from "../api/switchStore";
 import styles from "./Login.module.css";
@@ -104,7 +104,7 @@ export default function Login() {
       if (choices) {
         setStoreChoices(choices);
       } else {
-        setError(err instanceof ApiError ? err.message : "Network error. Please try again.");
+        setError(apiErrorMessage(err, "Network error. Please try again."));
       }
     } finally {
       setBusy(false);
@@ -124,7 +124,7 @@ export default function Login() {
       });
       await handleResult(result);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Network error. Please try again.");
+      setError(apiErrorMessage(err, "Network error. Please try again."));
       setStoreChoices(null);
     } finally {
       setBusy(false);
@@ -334,7 +334,7 @@ function SecondFactor({
         setError("Server returned an unexpected response.");
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Network error. Please try again.");
+      setError(apiErrorMessage(err, "Network error. Please try again."));
     } finally {
       setBusy(false);
     }

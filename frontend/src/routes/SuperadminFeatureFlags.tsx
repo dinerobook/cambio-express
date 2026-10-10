@@ -12,7 +12,7 @@ import {
   type FeatureFlagRow,
   type StoreOverrideRow,
 } from "../api/featureFlags";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import {
   Alert,
@@ -344,7 +344,7 @@ function CreateFlagForm({
       toast({ message: `Flag "${key}" created`, tone: "success" });
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not create flag.");
+      setError(apiErrorMessage(err, "Could not create flag."));
     } finally {
       setBusy(false);
     }

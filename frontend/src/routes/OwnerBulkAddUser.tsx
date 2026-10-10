@@ -4,7 +4,7 @@ import {
   bulkAddUser, useOwnerLocations,
   type OwnerBulkAddUserResultRow,
 } from "../api/owner";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
@@ -74,9 +74,7 @@ export default function OwnerBulkAddUser() {
       setPassword("");
     } catch (e2) {
       setErr(
-        e2 instanceof ApiError
-          ? e2.message
-          : "Could not create users.",
+        apiErrorMessage(e2, "Could not create users."),
       );
     } finally {
       setBusy(false);

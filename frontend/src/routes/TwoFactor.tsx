@@ -5,7 +5,7 @@ import { AuthChrome } from "../components/AuthChrome";
 import {
   Alert, Button, Checkbox, Field, Input, Loading,
 } from "../components/ui";
-import { api, ApiError } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { setAccessToken } from "../lib/auth";
 import {
   totpEnrollConfirm, totpEnrollFinish, totpEnrollStart,
@@ -132,9 +132,7 @@ export function TwoFactorEnroll() {
       .catch((err) => {
         if (cancelled) return;
         setError(
-          err instanceof ApiError
-            ? err.message
-            : "Couldn't start enrollment. Sign in again.",
+          apiErrorMessage(err, "Couldn't start enrollment. Sign in again."),
         );
       })
       .finally(() => { if (!cancelled) setBusy(false); });
@@ -153,9 +151,7 @@ export function TwoFactorEnroll() {
       setStep("saved");
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "That code didn't match. Try the next one your app shows.",
+        apiErrorMessage(err, "That code didn't match. Try the next one your app shows."),
       );
     } finally { setBusy(false); }
   }
@@ -174,9 +170,7 @@ export function TwoFactorEnroll() {
       }
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Couldn't finalize sign-in. Try again.",
+        apiErrorMessage(err, "Couldn't finalize sign-in. Try again."),
       );
     } finally { setBusy(false); }
   }
@@ -315,7 +309,7 @@ function VerifyForm({
         setError("Server returned an unexpected response.");
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Network error. Try again.");
+      setError(apiErrorMessage(err, "Network error. Try again."));
     } finally { setBusy(false); }
   }
 

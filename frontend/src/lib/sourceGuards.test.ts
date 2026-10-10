@@ -96,14 +96,20 @@ describe("source guards", () => {
       offenders(/instanceof Error\)\s*return\s+\w+\.message/,
         ["/lib/api.ts"]),
     ).toEqual([]);
+    // Same for an ApiError: `err instanceof ApiError ? err.message : "…"`.
+    expect(
+      offenders(/instanceof ApiError\s*\?\s*[\w.]+\.message/,
+        ["/lib/api.ts", "/useApiErrorToast.ts"]),
+    ).toEqual([]);
   });
 
   it("toasts API errors through useApiErrorToast", () => {
-    // toast({ message: err instanceof ApiError ? err.message : "…",
-    // tone: "error" }) is what useApiErrorToast(err, "…") does.
+    // toast({ message: apiErrorMessage(err, "…"), tone: "error" }) is
+    // what useApiErrorToast()(err, "…") does.
     expect(
       offenders(
-        /toast\(\{\s*message:\s*(\w+) instanceof ApiError\s*\?\s*\1\.message\s*:\s*"[^"]*",\s*tone:\s*"error",?\s*\}\)/,
+        /toast\(\{\s*message:\s*apiErrorMessage\(\w+,\s*"[^"]*"\),\s*tone:\s*"error",?\s*\}\)/,
+        ["/useApiErrorToast.ts"],
       ),
     ).toEqual([]);
   });
