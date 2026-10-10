@@ -94,6 +94,13 @@ box of its own. The one status pill for open money is
 `<OpenStatusPill>`: red "N overdue" if any is overdue, else amber
 "N open" / "N on hold". New daily book work starts from these.
 
+A figure never leaves its box, at any window width. The tile header is
+a two-column grid: the total keeps its own `auto` column on the right
+and the name takes `minmax(0, 1fr)`, so a long name wraps and the
+status pills drop under it. Any card that puts a name beside an amount
+follows the same rule: the amount `white-space: nowrap`, the name
+column allowed to shrink (`min-width: 0`) and wrap.
+
 ## 4. Formatting
 
 | Value | Formatter (`lib/formatters.ts`, `lib/datetime.ts`) | Never |
