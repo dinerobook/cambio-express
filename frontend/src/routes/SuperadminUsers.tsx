@@ -12,6 +12,7 @@ import {
   useSuperadminUsers,
   type SuperadminUserRow,
 } from "../api/superadmin";
+import { roleTone } from "../api/roles";
 import { ApiError } from "../lib/api";
 import { startImpersonation } from "../lib/impersonation";
 import { formatDate } from "../lib/datetime";
@@ -417,12 +418,7 @@ function UserRow({
 
 
 function RolePill({ role }: { role: string }) {
-  const tone = role === "superadmin" ? "negative"
-    : role === "support" ? "warning"
-    : role === "admin" ? "accent"
-    : role === "owner" ? "info"
-    : "neutral";
-  return <Pill tone={tone}>{role}</Pill>;
+  return <Pill tone={roleTone(role)}>{role}</Pill>;
 }
 
 /** Inline create form for a store-less "support" platform login —

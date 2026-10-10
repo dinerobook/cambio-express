@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, apiErrorMessage } from "../lib/api";
+import { roleTone } from "../api/roles";
 import { actionsFor, toggleMatrixCell } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
@@ -42,12 +43,6 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
   employee: "Employee",
   owner: "Owner",
-};
-
-const ROLE_TONES: Record<string, "accent" | "info" | "neutral"> = {
-  admin: "accent",
-  employee: "neutral",
-  owner: "info",
 };
 
 export default function SuperadminPermissions() {
@@ -146,7 +141,7 @@ export default function SuperadminPermissions() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load permissions"}
+          message={apiErrorMessage(error, "Could not load permissions")}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -156,7 +151,7 @@ export default function SuperadminPermissions() {
       {draft && draft.roles.map((role) => (
         <Card key={role}>
           <SectionTitle>
-            <Pill tone={ROLE_TONES[role] ?? "neutral"}>{ROLE_LABELS[role] ?? role}</Pill>
+            <Pill tone={roleTone(role)}>{ROLE_LABELS[role] ?? role}</Pill>
           </SectionTitle>
           <PermissionMatrixTable
             resources={draft.resources}

@@ -65,10 +65,6 @@
   font-family: var(--db-font-mono, "JetBrains Mono", monospace);
 }
 
-.statusPending  { color: var(--db-warning, #ffb020); }
-.statusApproved { color: var(--db-accent, #3fff00); }
-.statusRejected { color: var(--db-negative, #ff4d6d); }
-
 .footer {
   margin-top: 1.25rem;
   padding-top: 0.75rem;
@@ -112,10 +108,7 @@
     background: white !important;
     border-color: #ccc !important;
   }
-  .summary :global(.ds-kpi-card) *,
-  .statusApproved,
-  .statusPending,
-  .statusRejected {
+  .summary :global(.ds-kpi-card) * {
     color: black !important;
   }
   .shifts th,

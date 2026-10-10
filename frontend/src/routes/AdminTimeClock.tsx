@@ -3,13 +3,14 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   adminCreateEntry, adminDeleteEntry, adminUpdateEntry,
-  useAdminTimeClock, useTimeClockHistory,
+  TIMECLOCK_STATUS_TONES, useAdminTimeClock, useTimeClockHistory,
   type TimeClockEntryRow, type TimeClockStatus,
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
 import { updateStoreInfo, useStoreInfo } from "../api/account";
 import { ApiError } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
+import { fmtHours } from "../lib/formatters";
 import {
   daysAgoIso, formatDate, formatTimestamp, utcToZonedInput, zonedInputToUtcIso,
 } from "../lib/datetime";
@@ -210,9 +211,7 @@ export default function AdminTimeClock() {
                     </td>
                     <td style={tdStyle}>
                       <span className={styles.totalCell}>
-                        {r.hours_worked == null
-                          ? "—"
-                          : r.hours_worked.toFixed(2)}
+                        {fmtHours(r.hours_worked)}
                       </span>
                     </td>
                     <td style={tdStyle}>
@@ -327,11 +326,11 @@ function KpiRow({
   const total    = data?.total_hours ?? 0;
   return (
     <KpiGrid minWidth="11rem">
-      <KpiCard label="Approved hours" value={approved.toFixed(2)}
+      <KpiCard label="Approved hours" value={fmtHours(approved)}
         tone="positive" colorValue />
-      <KpiCard label="Pending hours" value={pending.toFixed(2)}
+      <KpiCard label="Pending hours" value={fmtHours(pending)}
         tone="warning" colorValue />
-      <KpiCard label="Total hours (window)" value={total.toFixed(2)}
+      <KpiCard label="Total hours (window)" value={fmtHours(total)}
         tone="primary" colorValue />
     </KpiGrid>
   );
@@ -385,9 +384,7 @@ function EmployeeGroupHeader({
 
 
 function StatusPill({ status }: { status: TimeClockStatus }) {
-  if (status === "approved") return <Pill tone="success">approved</Pill>;
-  if (status === "rejected") return <Pill tone="negative">rejected</Pill>;
-  return <Pill tone="warning">pending</Pill>;
+  return <Pill tone={TIMECLOCK_STATUS_TONES[status]}>{status}</Pill>;
 }
 
 

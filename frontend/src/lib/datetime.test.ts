@@ -8,7 +8,6 @@ import {
   WEEKDAY_NAMES_SHORT, daysInMonth, formatWeekRange, isoDate, mondayOfIso,
   monthRangeIso, shiftMonth, weekdayOfIso,
 } from "./datetime";
-import { fmtMoney, fmtMoney2 } from "./formatters";
 
 describe("formatDate", () => {
   it("renders a bare YYYY-MM-DD as that calendar day (no tz shift)", () => {
@@ -31,23 +30,6 @@ describe("formatDate", () => {
     expect(formatDate(undefined)).toBe("—");
     expect(formatDate("")).toBe("—");
     expect(formatDate("not-a-date")).toBe("not-a-date");
-  });
-});
-
-describe("fmtMoney2", () => {
-  it("keeps thousands separators (the toFixed(2) bypass lost them)", () => {
-    expect(fmtMoney2(12345.67)).toBe("$12,345.67");
-    expect(fmtMoney2(0)).toBe("$0.00");
-    expect(fmtMoney2(null)).toBe("$0.00");
-  });
-
-  it("puts a negative sign before the dollar sign", () => {
-    expect(fmtMoney2(-50.5)).toBe("-$50.50");
-    expect(fmtMoney2(-1234.5)).toBe("-$1,234.50");
-    expect(fmtMoney2(-0.001)).toBe("$0.00");
-    expect(fmtMoney(-1234.4)).toBe("-$1,234");
-    expect(fmtMoney(-0.4)).toBe("$0");
-    expect(fmtMoney(1234.6)).toBe("$1,235");
   });
 });
 

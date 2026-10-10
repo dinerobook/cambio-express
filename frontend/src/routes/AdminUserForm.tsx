@@ -8,7 +8,7 @@ import {
   type AdminUserCreateBody, type AdminUserUpdateBody, type PermMatrix,
 } from "../api/admin";
 import { useSessionStatus } from "../api/account";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { toggleMatrixCell } from "../lib/permissions";
 import { modulesOffForGrants } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
@@ -269,7 +269,7 @@ export default function AdminUserForm() {
       <PageShell maxWidth="36rem">
         <PageHeader title="Edit User" />
         <ErrorState
-          message={`Couldn't load this user.${detail.error instanceof Error ? ` ${detail.error.message}` : ""}`}
+          message={`Couldn't load this user. ${apiErrorMessage(detail.error, "")}`.trimEnd()}
           onRetry={() => { void detail.refetch(); }}
         />
       </PageShell>

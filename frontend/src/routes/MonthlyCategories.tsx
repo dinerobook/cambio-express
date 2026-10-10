@@ -5,7 +5,7 @@ import {
   updateMonthlyLabels, useMonthlyLabels,
   type MonthlyLineLabel,
 } from "../api/monthly";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, AppLink, Breadcrumbs, Button, Card, ErrorState, Field, FormActions,
@@ -134,9 +134,7 @@ export default function MonthlyCategories() {
       {lines.isError && (
         <ErrorState
           message={
-            lines.error instanceof Error
-              ? lines.error.message
-              : "Could not load P&L categories"
+            apiErrorMessage(lines.error, "Could not load P&L categories")
           }
           onRetry={() => { void lines.refetch(); }}
         />

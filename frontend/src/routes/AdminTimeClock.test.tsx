@@ -35,6 +35,7 @@ const LIST = {
 };
 
 vi.mock("../api/timeclock", () => ({
+  TIMECLOCK_STATUS_TONES: { pending: "warning", approved: "success", rejected: "negative" },
   useAdminTimeClock: () => LIST,
   useTimeClockHistory: () => ({ data: undefined, isLoading: true }),
   adminCreateEntry: (...a: unknown[]) => adminCreateEntry(...a),

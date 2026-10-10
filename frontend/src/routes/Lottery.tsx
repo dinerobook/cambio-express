@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  activateLotteryPack, createLotteryGame, receiveLotteryPack,
+  PACK_STATUS_TONES, activateLotteryPack, createLotteryGame, receiveLotteryPack,
   recordLotteryCount, returnLotteryPack, settleLotteryPack,
   updateLotteryGame, useLotteryDay, useLotteryGames, useLotteryPacks,
   type LotteryDayRow, type LotteryGame, type LotteryPack,
@@ -14,17 +14,10 @@ import {
   Alert, Breadcrumbs, Button, Card, DateInput, EmptyState, ErrorState,
   Field, InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, PageHeader,
   PageShell, Pill, RowActions, Section, Select, TabsBar, TabsButton,
-  Table, tdStyle, thStyle, useToast, type PillTone,
+  Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
 import styles from "./Lottery.module.css";
 import { todayIso } from "../lib/datetime";
-
-const PACK_TONES: Record<string, PillTone> = {
-  received: "neutral",
-  active:   "accent",
-  settled:  "success",
-  returned: "warning",
-};
 
 export default function Lottery() {
   const [tab, setTab] = useState<"day" | "packs" | "games">("day");
@@ -249,7 +242,7 @@ function PacksTab() {
                     <td style={tdStyle}>#{p.game_number} {p.game_name}</td>
                     <td style={tdStyle}>{p.pack_number}</td>
                     <td style={tdStyle}>
-                      <Pill tone={PACK_TONES[p.status] ?? "neutral"}>
+                      <Pill tone={PACK_STATUS_TONES[p.status] ?? "neutral"}>
                         {p.status}
                       </Pill>
                     </td>

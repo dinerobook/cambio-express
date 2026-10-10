@@ -16,7 +16,7 @@ import {
   type StoreHourEntry,
 } from "../api/account";
 import { redeemConnectCode } from "../api/owner";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { formatDate, formatTimestamp } from "../lib/datetime";
 import { timezoneFromAddress } from "../lib/timezoneFromAddress";
 import { getCurrentIdentity } from "../lib/auth";
@@ -223,7 +223,7 @@ function ProfileCard() {
       <Card>
         <SectionTitle>Personal info</SectionTitle>
         <ErrorState
-          message={`Couldn't load your profile.${error instanceof Error ? ` ${error.message}` : ""}`}
+          message={`Couldn't load your profile. ${apiErrorMessage(error, "")}`.trimEnd()}
           onRetry={() => { void refetch(); }}
         />
       </Card>
@@ -400,9 +400,7 @@ function PasskeysCard() {
       // navigator.credentials.create() rejects on cancel / wrong
       // device / etc. with browser-specific messages — surface
       // them as-is so users see the actual reason.
-      const msg = e instanceof ApiError
-        ? e.message
-        : (e instanceof Error ? e.message : "Could not create passkey.");
+      const msg = apiErrorMessage(e, "Could not create passkey.", { anyError: true });
       setErr(msg);
     } finally {
       setAddBusy(false);

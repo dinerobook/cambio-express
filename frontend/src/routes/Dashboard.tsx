@@ -44,6 +44,7 @@ import { AppLink,
 } from "../components/ui";
 import { BATCH_STATUS_TONES } from "../api/batches";
 import { TRANSFER_STATUS_TONES } from "../api/transfers";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   formatDateTime, formatShortDate, formatTime, getOpenStatus, MONTH_NAMES_SHORT,
@@ -133,7 +134,7 @@ export default function Dashboard() {
           message={
             <>
               Couldn't load dashboard —{" "}
-              {error instanceof Error ? error.message : "unknown error"}
+              {apiErrorMessage(error, "unknown error")}
             </>
           }
           onRetry={() => refetch()}

@@ -6,13 +6,14 @@ import {
   useSuperadminStores,
   type SuperadminStoreRow,
 } from "../api/superadmin";
+import { planTone } from "../api/billing";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Checkbox,
   Card, Empty, Input, PageHeader, PageShell, Pill,
-  Select, Table, TableStates, tdStyle, thStyle, useToast, type PillTone,
+  Select, Table, TableStates, tdStyle, thStyle, useToast,
 } from "../components/ui";
 import styles from "./SuperadminStores.module.css";
 
@@ -238,19 +239,9 @@ function StoresTable({ rows, selected, onToggle, onToggleAll }: {
 }
 
 function PlanPill({ plan, cycle }: { plan: string; cycle: string }) {
-  // Maps plan slug → shared Pill tone so the badge palette tracks
-  // the same `--db-tone-*` tokens every other tone surface in the
-  // SPA uses (Alert / ErrorState / audit-log badges / etc.).
-  const toneByPlan: Record<string, PillTone> = {
-    trial:    "warning",
-    basic:    "success",
-    pro:      "accent",
-    inactive: "negative",
-  };
-  const tone: PillTone = toneByPlan[plan] ?? "neutral";
   const label = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
-    <Pill tone={tone}>
+    <Pill tone={planTone(plan)}>
       {label}{cycle ? ` · ${cycle}` : ""}
     </Pill>
   );

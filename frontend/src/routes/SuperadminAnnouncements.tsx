@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  ANNOUNCEMENT_LEVEL_TONES,
   createAnnouncement,
   deleteAnnouncement,
   toggleAnnouncement,
@@ -13,7 +14,7 @@ import {
   Breadcrumbs,
   Alert, Button, Card, Checkbox, ConfirmDialog, Empty, ErrorState, Field,
   Input, PageHeader, PageShell, Pill, SectionTitle, Select, Table,
-  TableStates, Textarea, tdStyle, thStyle, type PillTone,
+  TableStates, Textarea, tdStyle, thStyle,
   Loading,
 } from "../components/ui";
 import { useSuperadminStores } from "../api/superadmin";
@@ -30,13 +31,6 @@ import styles from "./SuperadminAnnouncements.module.css";
 const LEVELS: Array<CreateAnnouncementBody["level"]> = [
   "info", "warning", "error", "success",
 ];
-
-const LEVEL_TONE: Record<string, PillTone> = {
-  info:    "info",
-  warning: "warning",
-  error:   "negative",
-  success: "success",
-};
 
 export default function SuperadminAnnouncements() {
   const identity = getCurrentIdentity();
@@ -370,7 +364,7 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
         {row.message}
       </td>
       <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        <Pill tone={LEVEL_TONE[row.level] ?? "neutral"}>{row.level}</Pill>
+        <Pill tone={ANNOUNCEMENT_LEVEL_TONES[row.level] ?? "neutral"}>{row.level}</Pill>
       </td>
       <td style={{ ...tdStyle, verticalAlign: "top" }}>
         {row.is_visible ? (

@@ -10,7 +10,7 @@ import {
   useBankAccounts,
   type BankAccountRow,
 } from "../api/bankSync";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Breadcrumbs,
@@ -84,9 +84,7 @@ export default function Bank() {
         tone: "success",
       });
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message
-        : e instanceof Error ? e.message
-        : "Connect failed.";
+      const msg = apiErrorMessage(e, "Connect failed.", { anyError: true });
       setConnectError(msg);
     } finally {
       setBusy(null);
@@ -107,9 +105,7 @@ export default function Bank() {
       });
     } catch (e) {
       setConnectError(
-        e instanceof ApiError ? e.message
-          : e instanceof Error ? e.message
-          : "Refresh failed.",
+        apiErrorMessage(e, "Refresh failed."),
       );
     } finally {
       setBusy(null);
@@ -132,9 +128,7 @@ export default function Bank() {
       });
     } catch (e) {
       setConnectError(
-        e instanceof ApiError ? e.message
-          : e instanceof Error ? e.message
-          : "Couldn't save nickname.",
+        apiErrorMessage(e, "Couldn't save nickname."),
       );
     } finally {
       setBusy(null);
@@ -159,9 +153,7 @@ export default function Bank() {
       toast({ message: `Disconnected ${label}.`, tone: "success" });
     } catch (e) {
       setConnectError(
-        e instanceof ApiError ? e.message
-          : e instanceof Error ? e.message
-          : "Disconnect failed.",
+        apiErrorMessage(e, "Disconnect failed."),
       );
     } finally {
       setBusy(null);

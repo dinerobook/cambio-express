@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, apiErrorMessage } from "../lib/api";
 import { toggleMatrixCell } from "../lib/permissions";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -11,6 +11,8 @@ import {
   useStoreAuditLog, useStoreFeatures, useStoreOwnerLinks,
   type ImpersonationMode, type StoreFeatureRow,
 } from "../api/superadmin";
+import { planTone } from "../api/billing";
+import { roleTone } from "../api/roles";
 import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
@@ -160,7 +162,7 @@ export default function SuperadminStoreDrill() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load store"}
+          message={apiErrorMessage(error, "Could not load store")}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -281,11 +283,10 @@ export default function SuperadminStoreDrill() {
           )}
 
           <KpiGrid>
-            <KpiCard label="Plan" value={data.store.comped ? `${data.store.plan} (comp)` : data.store.plan} tone={
-              data.store.plan === "pro" ? "neon"
-              : data.store.plan === "basic" ? "positive"
-              : data.store.plan === "trial" ? "warning"
-              : "negative"
+            <KpiCard label="Plan" value={
+              <Pill tone={planTone(data.store.plan)}>
+                {data.store.comped ? `${data.store.plan} (comp)` : data.store.plan}
+              </Pill>
             } />
             <KpiCard label="Status" value={data.store.is_active ? "Active" : "Inactive"} tone={data.store.is_active ? "positive" : "muted"} />
             <KpiCard label="Transfers (30d)" value={data.stats_30d.transfer_count.toLocaleString()} />
@@ -329,11 +330,7 @@ export default function SuperadminStoreDrill() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
-                        <Pill tone={
-                          u.role === "admin" ? "accent"
-                          : u.role === "owner" ? "info"
-                          : "neutral"
-                        }>{u.role}</Pill>
+                        <Pill tone={roleTone(u.role)}>{u.role}</Pill>
                         {!u.is_active && <Pill tone="neutral">Inactive</Pill>}
                         {u.is_active && (
                           <>
@@ -781,7 +778,7 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
         <div key={role} style={{ marginBottom: "1.25rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
             <SectionTitle>
-              <Pill tone={role === "admin" ? "accent" : "neutral"}>{role}</Pill>
+              <Pill tone={roleTone(role)}>{role}</Pill>
               {draft.has_overrides.includes(role) && (
                 <span style={{ fontSize: "0.75rem", color: "var(--db-text-muted)", marginLeft: "0.5rem" }}>customized</span>
               )}

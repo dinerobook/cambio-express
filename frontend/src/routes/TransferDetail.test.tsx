@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import TransferDetail from "./TransferDetail";
+import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 
@@ -92,7 +93,7 @@ describe("TransferDetail", () => {
     const refetch = vi.fn();
     useTransfer.mockReturnValue({
       data: undefined, isLoading: false, isError: true,
-      error: new Error("Transfer not found"), refetch,
+      error: new ApiError(404, "Transfer not found", null), refetch,
     });
     renderPage();
     expect(screen.getByText("Transfer not found")).toBeInTheDocument();

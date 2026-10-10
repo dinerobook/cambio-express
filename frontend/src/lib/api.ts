@@ -31,10 +31,23 @@ export class ApiError extends Error {
 
 /** The server's message for a failed API call, or `fallback` for
  *  anything else (a network failure, a bug) — the one way to turn a
- *  caught error into text for an inline `<Alert>`. Toasts go through
- *  `useApiErrorToast`, which uses this. */
-export function apiErrorMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError && err.message ? err.message : fallback;
+ *  caught error into text for an inline `<Alert>` or `<ErrorState>`.
+ *  Toasts go through `useApiErrorToast`, which uses this.
+ *
+ *  `anyError: true` also surfaces a plain `Error`'s message — for a
+ *  flow whose own code or browser API throws a sentence written for
+ *  the person (WebAuthn cancel, push permission denied, Stripe.js
+ *  connect, geolocation). Leave it off for a plain fetch: there a
+ *  non-ApiError is "Failed to fetch" / a JSON parse error, and the
+ *  fallback reads better. */
+export function apiErrorMessage(
+  err: unknown,
+  fallback: string,
+  { anyError = false }: { anyError?: boolean } = {},
+): string {
+  if (err instanceof ApiError) return err.message || fallback;
+  if (anyError && err instanceof Error && err.message) return err.message;
+  return fallback;
 }
 
 interface ApiOptions extends Omit<RequestInit, "body"> {

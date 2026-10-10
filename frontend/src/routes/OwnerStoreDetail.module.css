@@ -19,11 +19,3 @@
   height: 220px;
   margin-bottom: 1rem;
 }
-
-.deltaPos {
-  color: var(--db-accent, #3fff00);
-}
-
-.deltaNeg {
-  color: var(--db-negative, #ff3b30);
-}

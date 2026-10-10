@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, apiErrorMessage } from "../lib/api";
+import { roleTone } from "../api/roles";
 import { toggleMatrixCell } from "../lib/permissions";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
 import {
@@ -124,7 +125,7 @@ export default function OwnerStorePermissions() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load"}
+          message={apiErrorMessage(error, "Could not load")}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -137,7 +138,7 @@ export default function OwnerStorePermissions() {
           <Card key={role}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
               <SectionTitle>
-                <Pill tone={role === "admin" ? "accent" : "neutral"}>
+                <Pill tone={roleTone(role)}>
                   {ROLE_LABELS[role] ?? role}
                 </Pill>
                 {hasOverride && <span className={styles.overrideBadge}>customized</span>}

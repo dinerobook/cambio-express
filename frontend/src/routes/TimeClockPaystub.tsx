@@ -1,13 +1,14 @@
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { usePaystub } from "../api/timeclock";
+import { TIMECLOCK_STATUS_TONES, usePaystub } from "../api/timeclock";
 import { useStoreInfo } from "../api/account";
 import { formatTimestamp } from "../lib/datetime";
 import {
-  Breadcrumbs, Button, ErrorState, KpiCard, KpiGrid, Loading, PageShell,
+  Breadcrumbs, Button, ErrorState, KpiCard, KpiGrid, Loading, PageShell, Pill,
 } from "../components/ui";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtHours, fmtMoney2 } from "../lib/formatters";
 import styles from "./TimeClockPaystub.module.css";
 
 // /app/admin/timeclock/paystub/:id?from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -64,9 +65,7 @@ export default function TimeClockPaystub() {
     return (
       <PageShell>
         <ErrorState
-          message={error instanceof Error
-            ? error.message
-            : "Couldn't load paystub."}
+          message={apiErrorMessage(error, "Couldn't load paystub.")}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
@@ -110,7 +109,7 @@ export default function TimeClockPaystub() {
           <KpiGrid minWidth="12rem">
             <KpiCard
               label="Approved hours"
-              value={data.approved_hours.toFixed(2)}
+              value={fmtHours(data.approved_hours)}
             />
             <KpiCard
               label="Hourly rate"
@@ -158,12 +157,10 @@ export default function TimeClockPaystub() {
                     : "—"}
                 </td>
                 <td className={styles.mono}>
-                  {s.hours_worked == null
-                    ? "—"
-                    : s.hours_worked.toFixed(2)}
+                  {fmtHours(s.hours_worked)}
                 </td>
-                <td className={`${styles.mono} ${_statusClass(s.status)}`}>
-                  {s.status}
+                <td>
+                  <Pill tone={TIMECLOCK_STATUS_TONES[s.status]}>{s.status}</Pill>
                 </td>
                 <td>{s.notes || "—"}</td>
               </tr>
@@ -183,9 +180,3 @@ export default function TimeClockPaystub() {
   );
 }
 
-
-function _statusClass(s: string): string {
-  if (s === "approved") return styles.statusApproved;
-  if (s === "rejected") return styles.statusRejected;
-  return styles.statusPending;
-}

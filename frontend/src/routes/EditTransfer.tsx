@@ -20,7 +20,7 @@ import {
   useTransfer,
 } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./EditTransfer.module.css";
@@ -229,9 +229,7 @@ export default function EditTransfer() {
       <PageShell maxWidth="62rem">
         <ErrorState
           message={
-            detail.error instanceof Error
-              ? detail.error.message
-              : "Could not load this transfer."
+            apiErrorMessage(detail.error, "Could not load this transfer.")
           }
           onRetry={() => { void detail.refetch(); }}
         />

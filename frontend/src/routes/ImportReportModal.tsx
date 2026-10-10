@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Alert, Button, Loading, Modal, Pill } from "../components/ui";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   commitIntermexReport,
@@ -18,12 +18,6 @@ import styles from "./ImportReportModal.module.css";
 // (the Intermex company row) and reports how it reconciles against the
 // transfers already logged.  The PDF is re-parsed server-side on
 // commit — the client never sends money numbers.
-
-function humanize(e: unknown): string {
-  if (e instanceof ApiError) return e.message;
-  if (e instanceof Error) return e.message;
-  return "Could not read the report.";
-}
 
 export function ImportReportModal({
   open, onClose, storeId, reportDate, onCommitted,
@@ -58,7 +52,7 @@ export function ImportReportModal({
     try {
       setResult(await parseIntermexReport(f));
     } catch (e) {
-      setErr(humanize(e));
+      setErr(apiErrorMessage(e, "Could not read the report.", { anyError: true }));
     } finally {
       setBusy(false);
     }
@@ -72,7 +66,7 @@ export function ImportReportModal({
       setCommitted(res);
       onCommitted?.();
     } catch (e) {
-      setErr(humanize(e));
+      setErr(apiErrorMessage(e, "Could not read the report.", { anyError: true }));
     } finally {
       setCommitting(false);
     }

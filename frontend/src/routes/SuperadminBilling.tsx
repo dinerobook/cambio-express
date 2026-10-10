@@ -6,7 +6,7 @@ import {
   retentionDryRun,
   type RetentionDryRunResponse,
 } from "../api/superadmin";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
@@ -106,7 +106,7 @@ export default function SuperadminBilling() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load billing data"}
+          message={apiErrorMessage(error, "Could not load billing data")}
           onRetry={() => { void refetch(); }}
         />
       )}

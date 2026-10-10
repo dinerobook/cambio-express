@@ -2,7 +2,7 @@ import { useOwnerReportList } from "../api/reports";
 import ReportCenter from "../components/ReportCenter";
 import {
   Breadcrumbs, ErrorState, Loading, PageHeader, PageShell } from "../components/ui";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 
 // /app/owner/reports — owner-scoped report center index.
 //
@@ -35,7 +35,7 @@ export default function OwnerReports() {
           message={
             status === 403
               ? "Owner scope required."
-              : `Couldn't load the report list. ${error instanceof Error ? error.message : ""}`
+              : `Couldn't load the report list. ${apiErrorMessage(error, "")}`
           }
           onRetry={status === 403 ? undefined : () => { void refetch(); }}
         />

@@ -10,7 +10,7 @@ import {
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
 import { getCurrentCoordinates } from "../lib/geolocation";
 import { passkeysSupported, performPasskeyAssert } from "../lib/webauthn";
@@ -117,11 +117,7 @@ export default function TimeClock() {
       refresh();
     } catch (err) {
       toast({
-        message: err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Couldn't record the punch.",
+        message: apiErrorMessage(err, "Couldn't record the punch.", { anyError: true }),
         tone: "error",
       });
     }
@@ -233,11 +229,7 @@ export default function TimeClock() {
                       refresh();
                     } catch (err) {
                       toast({
-                        message: err instanceof ApiError
-                          ? err.message
-                          : err instanceof Error
-                            ? err.message
-                            : "Couldn't update break.",
+                        message: apiErrorMessage(err, "Couldn't update break."),
                         tone: "error",
                       });
                     }

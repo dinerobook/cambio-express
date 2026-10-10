@@ -82,6 +82,28 @@ describe("source guards", () => {
     expect(offenders(/type="date"/, ["/DateInput.tsx"])).toEqual([]);
   });
 
+  it("turns caught errors into text through apiErrorMessage", () => {
+    // `err instanceof Error ? err.message : "…"` (and the
+    // `if (e instanceof Error) return e.message` helper spelling) is
+    // what apiErrorMessage(err, "…") does — pass `{ anyError: true }`
+    // when a browser API or our own code throws a sentence meant for
+    // the person. PENDING lists files another change owns right now;
+    // shrink it, never grow it.
+    const PENDING = [
+      "/OwnerCrossStoreDefaults.tsx", "/TVDisplayAdmin.tsx", "/Monthly.tsx",
+      "/SuperadminDashboard.tsx", "/OwnerConnect.tsx", "/AdminReferrals.tsx",
+      "/DailyBook.tsx",
+    ];
+    expect(
+      offenders(/instanceof Error\s*\?\s*(`[^`]*)?[\w.]+\.message/,
+        ["/lib/api.ts", ...PENDING]),
+    ).toEqual([]);
+    expect(
+      offenders(/instanceof Error\)\s*return\s+\w+\.message/,
+        ["/lib/api.ts", ...PENDING]),
+    ).toEqual([]);
+  });
+
   it("toasts API errors through useApiErrorToast", () => {
     // toast({ message: err instanceof ApiError ? err.message : "…",
     // tone: "error" }) is what useApiErrorToast(err, "…") does.

@@ -9,7 +9,7 @@ import {
   usePushStatus,
   type NotificationsUpdateBody,
 } from "../api/account";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import {
   getPushPermission,
   hasLocalSubscription,
@@ -102,7 +102,7 @@ export default function AccountNotifications() {
       <PageShell>
         <PageHeader title="Notifications" />
         <ErrorState
-          message={`Couldn't load preferences.${error instanceof Error ? ` ${error.message}` : ""}`}
+          message={`Couldn't load preferences. ${apiErrorMessage(error, "")}`.trimEnd()}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
@@ -472,9 +472,7 @@ function BrowserPushCard() {
       queryClient.invalidateQueries({ queryKey: ["account", "push-status"] });
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message
-        : err instanceof Error  ? err.message
-        : "Couldn't enable browser notifications.",
+        apiErrorMessage(err, "Couldn't enable browser notifications.", { anyError: true }),
       );
     } finally {
       setBusy(false);
@@ -496,9 +494,7 @@ function BrowserPushCard() {
       queryClient.invalidateQueries({ queryKey: ["account", "push-status"] });
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message
-        : err instanceof Error  ? err.message
-        : "Couldn't disable browser notifications.",
+        apiErrorMessage(err, "Couldn't disable browser notifications.", { anyError: true }),
       );
     } finally {
       setBusy(false);

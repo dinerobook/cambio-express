@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
+import { EMAIL_EVENT_TONES } from "../api/superadmin";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   formatDate, formatTimestamp,
@@ -9,7 +10,7 @@ import {
 import {
   Breadcrumbs, Card, EmptyState, ErrorState, Input,
   Loading, Pager, PageHeader, PageShell, Pill, Section,
-  Select, Table, tdStyle, thStyle, type PillTone,
+  Select, Table, tdStyle, thStyle,
 } from "../components/ui";
 import styles from "./SuperadminEmailLog.module.css";
 
@@ -46,16 +47,6 @@ const EVENT_TYPES = [
   { value: "email.opened", label: "Opened" },
   { value: "email.clicked", label: "Clicked" },
 ];
-
-const EVENT_TONES: Record<string, PillTone> = {
-  "email.sent": "neutral",
-  "email.delivered": "success",
-  "email.bounced": "negative",
-  "email.complained": "negative",
-  "email.opened": "accent",
-  "email.clicked": "accent",
-  "email.delivery_delayed": "warning",
-};
 
 function useEmailLog(opts: { q?: string; event_type?: string; page?: number }) {
   const identity = getCurrentIdentity();
@@ -108,7 +99,7 @@ export default function SuperadminEmailLog() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load email log"}
+          message={apiErrorMessage(error, "Could not load email log")}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -134,7 +125,7 @@ export default function SuperadminEmailLog() {
                     <tr key={e.id}>
                       <td style={tdStyle}>{e.to_addr}</td>
                       <td style={tdStyle}>
-                        <Pill tone={EVENT_TONES[e.event_type] ?? "neutral"}>
+                        <Pill tone={EMAIL_EVENT_TONES[e.event_type] ?? "neutral"}>
                           {e.event_type.replace("email.", "")}
                         </Pill>
                       </td>

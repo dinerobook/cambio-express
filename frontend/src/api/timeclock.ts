@@ -4,8 +4,17 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { PillTone } from "../components/ui";
 
 export type TimeClockStatus = "pending" | "approved" | "rejected";
+
+/** Shift status → Pill tone, shared by the admin history and the
+ *  paystub (UI-STANDARDS §3): approved is a completed outcome. */
+export const TIMECLOCK_STATUS_TONES: Record<TimeClockStatus, PillTone> = {
+  pending:  "warning",
+  approved: "success",
+  rejected: "negative",
+};
 
 export interface TimeClockEntryRow {
   id:                number;

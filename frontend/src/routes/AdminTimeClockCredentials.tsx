@@ -9,7 +9,7 @@ import {
   type TimeClockCredentialRow,
 } from "../api/timeclock";
 import { useStoreInfo } from "../api/account";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { passkeysSupported, performPasskeyRegister } from "../lib/webauthn";
 import {
   Breadcrumbs,
@@ -60,9 +60,7 @@ export default function AdminTimeClockCredentials() {
       refresh();
     } catch (e) {
       setErr(
-        e instanceof ApiError ? e.message
-        : e instanceof Error ? e.message
-        : "Couldn't register the passkey.",
+        apiErrorMessage(e, "Couldn't register the passkey.", { anyError: true }),
       );
     } finally {
       setBusyEmpId(null);

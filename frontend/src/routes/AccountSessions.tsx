@@ -7,7 +7,7 @@ import {
   useActiveSessions,
   type ActiveSessionRow,
 } from "../api/account";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import {
   Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, ErrorState, InfoTip, Loading,
@@ -90,9 +90,7 @@ export default function AccountSessions() {
         <PageHeader title="Active sessions" />
         <ErrorState
           message={
-            error instanceof Error
-              ? `Couldn't load sessions: ${error.message}`
-              : "Couldn't load sessions."
+            `Couldn't load sessions. ${apiErrorMessage(error, "")}`.trimEnd()
           }
           onRetry={() => { void refetch(); }}
         />

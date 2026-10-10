@@ -60,7 +60,13 @@ same tone on every screen:
 - Boolean table cells: `Active` / `Inactive` (lifecycle) — never
   `Yes`/`No`, `Disabled`, `✓`, or `—` — except dense matrices, where
   `✓` / `—` is the standard pair.
-- Role pills: `admin → accent`, `employee → neutral`, `owner → info`.
+- Role pills: `admin → accent`, `employee → neutral`, `owner → info`;
+  the platform roles `superadmin → warning`, `support → info` (never
+  red — no role is a failure). One map: `ROLE_TONES` / `roleTone()`
+  in `api/roles.ts`.
+- Plan pills: `basic`/`pro → accent` (paying = live), `trial →
+  warning`, `inactive → neutral`. One map: `PLAN_TONES` /
+  `planTone()` in `api/billing.ts`.
 - Tone maps shared by 2+ routes live in the API layer next to the
   type (see `TICKET_STATUS_TONES` in `api/support.ts`), not copied
   per route.

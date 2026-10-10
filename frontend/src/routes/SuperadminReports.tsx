@@ -2,7 +2,7 @@ import { useSuperadminReports } from "../api/superadmin";
 import ReportCenter from "../components/ReportCenter";
 import {
   Breadcrumbs, ErrorState, Loading, PageHeader, PageShell } from "../components/ui";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 
 // /app/superadmin/reports — platform-wide report center index.
 //
@@ -34,7 +34,7 @@ export default function SuperadminReports() {
           message={
             status === 403
               ? "Superadmin scope required."
-              : `Couldn't load the report list. ${error instanceof Error ? error.message : ""}`
+              : `Couldn't load the report list. ${apiErrorMessage(error, "")}`
           }
           onRetry={status === 403 ? undefined : () => { void refetch(); }}
         />

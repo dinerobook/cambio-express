@@ -143,7 +143,7 @@ describe("MonthlyCategories", () => {
     const refetch = vi.fn();
     useMonthlyLabels.mockReturnValue({
       data: undefined, isLoading: false, isFetching: false, isError: true,
-      error: new Error("Names unavailable"), refetch,
+      error: new ApiError(503, "Names unavailable", null), refetch,
     });
     renderPage();
     expect(screen.getByText("Names unavailable")).toBeInTheDocument();
