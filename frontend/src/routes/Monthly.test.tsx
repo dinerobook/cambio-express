@@ -4,6 +4,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Monthly from "./Monthly";
+import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 
@@ -113,7 +114,7 @@ describe("Monthly P&L", () => {
     const refetch = vi.fn();
     useMonthly.mockReturnValue({
       data: undefined, isLoading: false, isError: true,
-      error: new Error("P&L unavailable"), refetch,
+      error: new ApiError(500, "P&L unavailable", null), refetch,
     });
     renderPage();
     expect(screen.getByText("P&L unavailable")).toBeInTheDocument();

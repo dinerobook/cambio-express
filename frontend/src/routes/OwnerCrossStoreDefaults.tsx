@@ -4,7 +4,7 @@ import {
   applyCrossStoreDefaults, useOwnerLocations,
   type OwnerCrossStoreDefaultsBody, type OwnerCrossStoreResultRow,
 } from "../api/owner";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
@@ -112,11 +112,9 @@ export default function OwnerCrossStoreDefaults() {
       const out = await applyCrossStoreDefaults(body);
       setResults(out.results);
     } catch (e2) {
-      setErr(
-        e2 instanceof ApiError ? e2.message
-        : e2 instanceof Error ? e2.message
-        : "Couldn't apply the cross-store defaults.",
-      );
+      setErr(apiErrorMessage(
+        e2, "Couldn't apply the cross-store defaults.", { anyError: true },
+      ));
     } finally {
       setBusy(false);
     }

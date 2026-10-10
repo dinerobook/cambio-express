@@ -87,20 +87,14 @@ describe("source guards", () => {
     // `if (e instanceof Error) return e.message` helper spelling) is
     // what apiErrorMessage(err, "…") does — pass `{ anyError: true }`
     // when a browser API or our own code throws a sentence meant for
-    // the person. PENDING lists files another change owns right now;
-    // shrink it, never grow it.
-    const PENDING = [
-      "/OwnerCrossStoreDefaults.tsx", "/TVDisplayAdmin.tsx", "/Monthly.tsx",
-      "/SuperadminDashboard.tsx", "/OwnerConnect.tsx", "/AdminReferrals.tsx",
-      "/DailyBook.tsx",
-    ];
+    // the person.
     expect(
       offenders(/instanceof Error\s*\?\s*(`[^`]*)?[\w.]+\.message/,
-        ["/lib/api.ts", ...PENDING]),
+        ["/lib/api.ts"]),
     ).toEqual([]);
     expect(
       offenders(/instanceof Error\)\s*return\s+\w+\.message/,
-        ["/lib/api.ts", ...PENDING]),
+        ["/lib/api.ts"]),
     ).toEqual([]);
   });
 

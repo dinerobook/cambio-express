@@ -3,7 +3,7 @@ import {
   useReferralCode,
   type ReferralRedemptionRow,
 } from "../api/admin";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney, fmtMoney2 } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
@@ -55,7 +55,7 @@ export default function AdminReferrals() {
       {isLoading && <Loading />}
       {isError && !(error instanceof ApiError && error.status === 409) && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load"}
+          message={apiErrorMessage(error, "Could not load")}
           onRetry={() => { void refetch(); }}
         />
       )}

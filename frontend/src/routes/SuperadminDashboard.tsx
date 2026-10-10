@@ -13,6 +13,7 @@ import {
 } from "chart.js";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 
+import { apiErrorMessage } from "../lib/api";
 import { fmtMoney } from "../lib/formatters";
 import {
   useSuperadminDashboard,
@@ -58,7 +59,7 @@ export default function SuperadminDashboard() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load dashboard"}
+          message={apiErrorMessage(error, "Could not load dashboard")}
           onRetry={() => { void refetch(); }}
         />
       )}

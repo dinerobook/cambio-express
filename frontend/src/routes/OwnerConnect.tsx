@@ -5,7 +5,7 @@ import {
   generateOwnerConnectCode, revokeOwnerConnectCode, useOwnerConnectCodes,
   type OwnerConnectCodeRow,
 } from "../api/owner";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { AppLink,
@@ -81,7 +81,7 @@ export default function OwnerConnect() {
       queryClient.invalidateQueries({ queryKey: ["owner", "connect-codes"] });
     } catch (err) {
       setServerError(
-        err instanceof ApiError ? err.message : "Could not generate code.",
+        apiErrorMessage(err, "Could not generate code."),
       );
     } finally { setBusy(false); }
   }
@@ -95,7 +95,7 @@ export default function OwnerConnect() {
       queryClient.invalidateQueries({ queryKey: ["owner", "connect-codes"] });
     } catch (err) {
       setServerError(
-        err instanceof ApiError ? err.message : "Could not revoke code.",
+        apiErrorMessage(err, "Could not revoke code."),
       );
     } finally { setBusy(false); }
   }
@@ -114,7 +114,7 @@ export default function OwnerConnect() {
           {isLoading && <Loading />}
           {isError && (
             <ErrorState
-              message={`Couldn't load codes.${error instanceof Error ? ` ${error.message}` : ""}`}
+              message={`Couldn't load codes. ${apiErrorMessage(error, "")}`.trimEnd()}
               onRetry={() => { void refetch(); }}
             />
           )}

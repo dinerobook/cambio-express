@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useLoggedMonths, useMonthly, type MonthlyRow } from "../api/monthly";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -184,11 +185,7 @@ export default function Monthly() {
       {detail.isLoading && <Loading />}
       {detail.isError && (
         <ErrorState
-          message={
-            detail.error instanceof Error
-              ? detail.error.message
-              : "Could not load monthly report"
-          }
+          message={apiErrorMessage(detail.error, "Could not load monthly report")}
           onRetry={() => { void detail.refetch(); }}
         />
       )}

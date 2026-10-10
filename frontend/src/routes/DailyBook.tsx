@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDailyPeriod, type DailyReportRow } from "../api/dailybook";
+import { apiErrorMessage } from "../lib/api";
 import { fmtMoney, fmtMoney2 } from "../lib/formatters";
 import {
   ButtonLink, Card, ErrorState, KpiCard, KpiGrid, Loading,
@@ -82,7 +83,7 @@ export default function DailyBook() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load month."}
+          message={apiErrorMessage(error, "Could not load month.")}
           onRetry={() => { void refetch(); }}
         />
       )}

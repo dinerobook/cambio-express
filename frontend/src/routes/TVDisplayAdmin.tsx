@@ -10,7 +10,7 @@ import {
   useSaveTVDisplaySettings,
   useTVDisplayOverview,
 } from "../api/tvDisplay";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
 import { AppLink,
   Button, ButtonLink, Card, ConfirmDialog, CopyField, ErrorState, Field,
@@ -106,7 +106,7 @@ export default function TVDisplayAdmin() {
       <PageShell gap="1.25rem">
         <h1 className={styles.title}>TV Display</h1>
         <ErrorState
-          message={`Couldn't load the TV display.${error instanceof Error ? ` ${error.message}` : ""}`}
+          message={`Couldn't load the TV display. ${apiErrorMessage(error, "")}`.trimEnd()}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
@@ -177,7 +177,7 @@ export function TVDisplayDevice() {
         activePairing={data.active_pairing}
         onClaim={(code) => claimPair.mutateAsync(code)}
         onRevoke={(id) => revokePair.mutateAsync(id)}
-        claimError={extractClaimError(claimPair.error)}
+        claimError={claimPair.error ? apiErrorMessage(claimPair.error, "Could not pair the TV.", { anyError: true }) : null}
         claimPending={claimPair.isPending}
         revokePending={revokePair.isPending}
       />
@@ -599,12 +599,11 @@ function CountrySections({
         country_name: match[1],
         country_code: match[0],
       });
-      // Legacy flow redirects to the country editor (still on Flask)
-      // so the operator can add banks + rates immediately. Mirror it.
+      // Straight on to the country editor so the operator can add
+      // banks + rates immediately.
       window.location.assign(`/tv-display/countries/${created.id}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to create country.";
-      setCreateError(msg);
+      setCreateError(apiErrorMessage(err, "Failed to create country."));
     }
   }
 
@@ -724,16 +723,3 @@ function CountrySections({
     </>
   );
 }
-
-
-// ── Helpers ──────────────────────────────────────────────────
-
-function extractClaimError(err: unknown): string | null {
-  if (err instanceof ApiError) {
-    const detail = (err.body as { detail?: string } | null)?.detail;
-    return detail ?? err.message;
-  }
-  if (err instanceof Error) return err.message;
-  return null;
-}
-
