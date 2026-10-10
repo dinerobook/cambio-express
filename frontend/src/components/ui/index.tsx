@@ -16,7 +16,7 @@
 //   <PageHeader>            <Input>             <TableSkeleton>
 //   <Card>                  <Select>            <KpiCard> / <KpiGrid>
 //   <Section>               <Textarea>          <Pager>
-//   <SectionTitle>          <FormActions>
+//   <SectionTitle>          <FormActions>       <PeriodStepper>
 //                                              Feedback
 // Inline + states                                <Empty>
 //   <Button>                                     <EmptyState>
@@ -69,6 +69,9 @@ export { Empty, EmptyState } from "./Empty";
 export { ErrorState } from "./ErrorState";
 export { Loading } from "./Loading";
 export { Pager } from "./Pager";
+export {
+  PeriodStepper, type PeriodStepperVariant, type PeriodUnit,
+} from "./PeriodStepper";
 export { Pill, type PillTone } from "./Pill";
 export { BreakdownPills, type BreakdownPart } from "./BreakdownPills";
 export { Alert, type AlertTone } from "./Alert";

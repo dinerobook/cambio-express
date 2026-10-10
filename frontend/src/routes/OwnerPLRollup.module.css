@@ -1,11 +1,5 @@
 /* Page-specific styles for OwnerPLRollup.tsx. */
 
-.nav {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
 .storeName {
   font-weight: 500;
 }

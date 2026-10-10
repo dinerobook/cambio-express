@@ -26,6 +26,7 @@ import {
   tdStyle, thStyle, useToast,
 } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { describeAppliedRule } from "../lib/bankRules";
 import { suggestRuleFor } from "../lib/bankRuleSuggest";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { hasPermission } from "../lib/permissions";
@@ -282,14 +283,10 @@ export default function BankTransactions() {
               onCancel={() => setRuleFor(null)}
               onSaved={(resp) => {
                 setRuleFor(null);
-                const a = resp.applied;
-                const extra = a
-                  ? ` ${a.tagged} existing transaction${a.tagged === 1 ? "" : "s"} tagged`
-                    + (a.booked ? `, ${a.booked} booked` : "")
-                    + (a.locked_skipped ? `, ${a.locked_skipped} skipped (day locked)` : "")
-                    + "."
-                  : "";
-                toast({ message: `Rule created.${extra}`, tone: "success" });
+                toast({
+                  message: `Rule created.${describeAppliedRule(resp.applied)}`,
+                  tone: "success",
+                });
                 void qc.invalidateQueries({ queryKey: ["bank"] });
               }}
             />

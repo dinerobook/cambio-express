@@ -9,9 +9,10 @@ import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
   Alert, Button, Card, Checkbox, Empty, ErrorState, Field, InfoTip,
-  Input, Loading, PageHeader, PageShell, Pill, Section, Table, tdStyle,
-  thStyle,
+  Input, Loading, PageHeader, PageShell, Section,
 } from "../components/ui";
+import { BulkResultsCard } from "../components/BulkResultsCard";
+import { useStoreSelection } from "../lib/useStoreSelection";
 import styles from "./OwnerBulkAddUser.module.css";
 
 // /app/owner/bulk-add-user — owner-side helper to create one
@@ -31,7 +32,6 @@ export default function OwnerBulkAddUser() {
   const [password, setPassword]   = useState("");
   const [fullName, setFullName]   = useState("");
   const [role]                    = useState<"employee">("employee");
-  const [storeIds, setStoreIds]   = useState<number[]>([]);
   const [busy, setBusy]           = useState(false);
   const [err, setErr]             = useState<string | null>(null);
   const [results, setResults]     =
@@ -41,8 +41,9 @@ export default function OwnerBulkAddUser() {
     () => locations?.rows.map((r) => r.store_id) ?? [],
     [locations],
   );
-  const allSelected = storeIds.length === allStoreIds.length
-    && allStoreIds.length > 0;
+  const {
+    selected: storeIds, isSelected, toggle: toggleStore, toggleAll, allSelected,
+  } = useStoreSelection(allStoreIds);
 
   if (!identity || (identity.role !== "owner"
                     && identity.role !== "superadmin")) {
@@ -52,18 +53,6 @@ export default function OwnerBulkAddUser() {
         <Empty>This page is owner-only.</Empty>
       </PageShell>
     );
-  }
-
-  function toggleStore(id: number) {
-    setStoreIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((s) => s !== id)
-        : [...prev, id],
-    );
-  }
-
-  function toggleAll() {
-    setStoreIds(allSelected ? [] : [...allStoreIds]);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -189,7 +178,7 @@ export default function OwnerBulkAddUser() {
               </div>
               <ul className={styles.storeList}>
                 {locations.rows.map((s) => {
-                  const checked = storeIds.includes(s.store_id);
+                  const checked = isSelected(s.store_id);
                   return (
                     <li key={s.store_id}>
                       <Checkbox
@@ -228,42 +217,8 @@ export default function OwnerBulkAddUser() {
         </form>
       )}
 
-      {results && <ResultsCard rows={results} />}
+      {results && <BulkResultsCard rows={results} />}
     </PageShell>
   );
 }
 
-
-function ResultsCard({ rows }: { rows: OwnerBulkAddUserResultRow[] }) {
-  return (
-    <Card>
-      <Section title="Results">
-        <Table>
-          <thead>
-            <tr>
-              {["Store", "Status", "Notes"].map((h) => (
-                <th key={h} style={thStyle}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={`${r.store_id}-${i}`}>
-                <td style={tdStyle}>{r.store_name || `Store #${r.store_id}`}</td>
-                <td style={tdStyle}><StatusPill status={r.status} /></td>
-                <td style={tdStyle}>{r.detail || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Section>
-    </Card>
-  );
-}
-
-
-function StatusPill({ status }: { status: OwnerBulkAddUserResultRow["status"] }) {
-  if (status === "created") return <Pill tone="success">Created</Pill>;
-  if (status === "skipped") return <Pill tone="warning">Skipped</Pill>;
-  return <Pill tone="negative">Rejected</Pill>;
-}

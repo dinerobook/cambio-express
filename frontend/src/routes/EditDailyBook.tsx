@@ -36,7 +36,8 @@ import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
-  Input, Loading, Modal, MoneyInput, PageHeader, PageShell, Pill,
+  Input, Loading, Modal, MoneyInput, PageHeader, PageShell, PeriodStepper,
+  Pill,
   RowActions, TabsBar, TabsButton, Textarea,
   Alert, type BreakdownPart,
 } from "../components/ui";
@@ -279,29 +280,6 @@ export default function EditDailyBook() {
     );
   }
 
-  // Arrow keys step days — but only when the user isn't typing in a
-  // field, so ←/→ still move the text caret inside inputs. Modifier
-  // combos (⌘←, etc.) are left to the browser.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const el = document.activeElement as HTMLElement | null;
-      const tag = el?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
-          el?.isContentEditable) {
-        return;
-      }
-      if (!date) return;
-      const delta = e.key === "ArrowLeft" ? -1 : 1;
-      guard.confirmLeave(
-        () => navigate(`/daily/edit?date=${addDaysIso(date, delta)}`),
-      );
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [date, guard, navigate]);
-
   const set = useCallback(<K extends keyof FormState>(
     key: K, value: FormState[K],
   ) => {
@@ -431,12 +409,19 @@ export default function EditDailyBook() {
           ]} />
         </div>
 
-        <DayStepper
-          date={date}
+        {/* Prev / next day + calendar shortcut. ← / → step too, but
+            only when the user isn't typing in a field (PeriodStepper
+            owns that rule), so the caret still moves inside inputs. */}
+        <PeriodStepper
+          unit="day"
+          variant="chevrons"
+          arrowKeys
           onPrev={() => goToDay(-1)}
           onNext={() => goToDay(1)}
           onCalendar={onBackToCalendar}
-        />
+        >
+          <span className={styles.stepDate}>{formatDayLabel(date)}</span>
+        </PeriodStepper>
 
         <div className={styles.toolbarTrail}>
           <OverShortReadout value={totals.overShort} negative={overShortNeg} />
@@ -531,51 +516,6 @@ export default function EditDailyBook() {
 
 // ── Toolbar · day stepper · lock · sticky column headers ─────
 
-/** Prev / next day arrows + a calendar shortcut, centered in the
- *  toolbar. Lets the operator walk day-to-day without bouncing back
- *  to the month view. The date label mirrors the breadcrumb crumb. */
-function DayStepper({
-  date, onPrev, onNext, onCalendar,
-}: {
-  date: string;
-  onPrev: () => void;
-  onNext: () => void;
-  onCalendar: () => void;
-}) {
-  return (
-    <div className={styles.dayStepper}>
-      <button
-        type="button"
-        className={styles.stepBtn}
-        onClick={onPrev}
-        aria-label="Previous day"
-        title="Previous day (←)"
-      >
-        <ChevronLeftIcon />
-      </button>
-      <span className={styles.stepDate}>{formatDayLabel(date)}</span>
-      <button
-        type="button"
-        className={styles.stepBtn}
-        onClick={onNext}
-        aria-label="Next day"
-        title="Next day (→)"
-      >
-        <ChevronRightIcon />
-      </button>
-      <button
-        type="button"
-        className={styles.stepCalBtn}
-        onClick={onCalendar}
-        aria-label="Back to calendar"
-        title="Back to calendar"
-      >
-        <CalendarIcon />
-      </button>
-    </div>
-  );
-}
-
 /** Top-right lock control. Red padlock "Lock" while editable; flips to
  *  a green open-padlock "Unlock" once the day is locked. Locking saves
  *  first (handled by the parent's `onLockToggle`) so no stale snapshot
@@ -669,37 +609,6 @@ function OverShortReadout({
 
 // Inline stroke SVGs (design system: no emoji in controls;
 // stroke-width 2, round caps, currentColor, fill none).
-function ChevronLeftIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-      strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-      strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-      strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  );
-}
-
 function LockIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"

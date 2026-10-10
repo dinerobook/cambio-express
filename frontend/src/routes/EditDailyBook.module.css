@@ -41,44 +41,9 @@
   justify-content: flex-end;
 }
 
-/* Day stepper — ‹ date › + calendar shortcut, centered. */
-.dayStepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.stepBtn,
-.stepCalBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--db-border, #262626);
-  background: var(--db-surface, #0a0a0a);
-  color: var(--db-text, #f5f5f5);
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.stepCalBtn {
-  color: var(--db-text-muted, #a3a3a3);
-  margin-left: 0.15rem;
-}
-
-.stepBtn:hover,
-.stepCalBtn:hover {
-  border-color: var(--db-accent, #3fff00);
-  color: var(--db-accent, #3fff00);
-}
-
-.stepBtn:active,
-.stepCalBtn:active {
-  transform: scale(0.94);
-}
-
+/* The day label between the toolbar stepper's chevrons. The
+   stepper itself (buttons, calendar shortcut, ← / → keys) is the
+   kit's PeriodStepper. */
 .stepDate {
   min-width: 9.5rem;
   text-align: center;

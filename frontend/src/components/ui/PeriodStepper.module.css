@@ -1,0 +1,58 @@
+/* PeriodStepper — prev / [middle] / next.
+
+   Wraps on a narrow header rather than overflowing it; the dense
+   (chevrons) variant sits in a sticky toolbar where it must stay on
+   one line. */
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.fill {
+  display: flex;
+  width: 100%;
+}
+
+.dense {
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+}
+
+/* Square icon button for the chevrons variant + the calendar
+   shortcut. Hover lights the accent, press scales — the kit's
+   motion vocabulary for a control. */
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface, #0a0a0a);
+  color: var(--db-text, #f5f5f5);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.calendarBtn {
+  color: var(--db-text-muted, #a3a3a3);
+  margin-left: 0.15rem;
+}
+
+.iconBtn:hover:not(:disabled) {
+  border-color: var(--db-accent, #3fff00);
+  color: var(--db-accent, #3fff00);
+}
+
+.iconBtn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.iconBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

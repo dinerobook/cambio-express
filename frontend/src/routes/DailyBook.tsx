@@ -4,13 +4,12 @@ import { useSearchParams } from "react-router-dom";
 import { useDailyPeriod, type DailyReportRow } from "../api/dailybook";
 import { fmtMoney, fmtMoney2 } from "../lib/formatters";
 import {
-  Button, ButtonLink, Card, ErrorState, KpiCard, KpiGrid, Loading,
-  MonthCalendar, MonthCalendarLegend, PageHeader, PageShell,
+  ButtonLink, Card, ErrorState, KpiCard, KpiGrid, Loading,
+  MonthCalendar, MonthCalendarLegend, PageHeader, PageShell, PeriodStepper,
 } from "../components/ui";
 import { canAccess } from "../lib/access";
-import styles from "./DailyBook.module.css";
 import {
-  MONTH_NAMES, storeNow, todayIso,
+  MONTH_NAMES, daysInMonth, monthRangeIso, shiftMonth, storeNow, todayIso,
 } from "../lib/datetime";
 
 // /app/daily — the Daily Book landing page. A calendar of the
@@ -18,21 +17,6 @@ import {
 // to /app/daily/edit?date=YYYY-MM-DD where the per-day editor
 // lives. Mirrors the legacy Jinja `/daily` UX: pick the day from
 // the calendar, then enter that day's book.
-
-function pad2(n: number): string {
-  return n.toString().padStart(2, "0");
-}
-
-function firstOfMonthIso(year: number, monthZeroIdx: number): string {
-  return `${year}-${pad2(monthZeroIdx + 1)}-01`;
-}
-
-function lastOfMonthIso(year: number, monthZeroIdx: number): string {
-  const lastDay = new Date(year, monthZeroIdx + 1, 0).getDate();
-  return `${year}-${pad2(monthZeroIdx + 1)}-${pad2(lastDay)}`;
-}
-
-
 
 export default function DailyBook() {
   const [params, setParams] = useSearchParams();
@@ -45,12 +29,12 @@ export default function DailyBook() {
   const year = Number.isFinite(yearParam) && yearParam > 1970
     ? yearParam
     : now.getFullYear();
+  // 1-12, as the URL and every lib/datetime month helper take it.
   const month = Number.isFinite(monthParam) && monthParam >= 1 && monthParam <= 12
-    ? monthParam - 1
-    : now.getMonth();
+    ? monthParam
+    : now.getMonth() + 1;
 
-  const from = firstOfMonthIso(year, month);
-  const to = lastOfMonthIso(year, month);
+  const { from, to } = monthRangeIso(year, month);
 
   const { data, isLoading, isError, error, refetch } = useDailyPeriod(
     from, to,
@@ -63,12 +47,10 @@ export default function DailyBook() {
   }, [data]);
 
   function navMonth(delta: number) {
-    const next = new Date(year, month + delta, 1);
-    const ny = next.getFullYear();
-    const nm = next.getMonth() + 1;
+    const next = shiftMonth(year, month, delta);
     const p = new URLSearchParams(params);
-    p.set("year", String(ny));
-    p.set("month", String(nm));
+    p.set("year", String(next.year));
+    p.set("month", String(next.month));
     setParams(p, { replace: true });
   }
 
@@ -79,16 +61,13 @@ export default function DailyBook() {
 
       <PageHeader
         title="MSB Daily book"
-        subtitle={`${MONTH_NAMES[month]} ${year}`}
+        subtitle={`${MONTH_NAMES[month - 1]} ${year}`}
         actions={(
-          <div className={styles.navRow}>
-            <Button
-              tone="secondary" size="sm"
-              onClick={() => navMonth(-1)}
-              aria-label="Previous month"
-            >
-              ←
-            </Button>
+          <PeriodStepper
+            unit="month"
+            onPrev={() => navMonth(-1)}
+            onNext={() => navMonth(1)}
+          >
             <ButtonLink
               to={`/daily/edit?date=${today}`}
               tone="secondary" size="sm"
@@ -96,14 +75,7 @@ export default function DailyBook() {
             >
               Today
             </ButtonLink>
-            <Button
-              tone="secondary" size="sm"
-              onClick={() => navMonth(1)}
-              aria-label="Next month"
-            >
-              →
-            </Button>
-          </div>
+          </PeriodStepper>
         )}
       />
 
@@ -154,11 +126,6 @@ export default function DailyBook() {
 }
 
 
-function daysInMonth(year: number, monthZeroIdx: number): number {
-  return new Date(year, monthZeroIdx + 1, 0).getDate();
-}
-
-
 // The month grid itself is the shared kit component — the store
 // daily book renders the same one. This page only says what a day
 // CONTAINS; how a day looks lives in MonthCalendar.
@@ -167,7 +134,7 @@ function Calendar({
   year, month, today, reportByDate,
 }: {
   year: number;
-  /** 0-11, as JS Date gives it. */
+  /** 1-12. */
   month: number;
   today: string;
   reportByDate: Map<string, DailyReportRow>;
@@ -175,7 +142,7 @@ function Calendar({
   return (
     <MonthCalendar
       year={year}
-      month={month + 1}
+      month={month}
       today={today}
       hrefFor={(iso) => (canAccess("/daily/edit") ? `/daily/edit?date=${iso}` : null)}
       ariaLabelFor={(iso) => `Open daily book for ${iso}`}

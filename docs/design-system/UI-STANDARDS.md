@@ -184,6 +184,9 @@ Known shared components, and what they own:
 | Use this | Instead of |
 |---|---|
 | `MonthCalendar` + `MonthCalendarLegend` | a month grid, cell states, money/variance containment |
+| `PeriodStepper` (+ `shiftMonth` / `addDaysIso` / `mondayOfIso` / `monthRangeIso` / `formatWeekRange` in `lib/datetime`) | a ← / label / → day, week or month bar, its "Previous month" labels, "Today" button, ← / → key handling, or your own month/week arithmetic |
+| `BulkResultsCard` + `useStoreSelection` (owner bulk actions) | a per-store Store / Status / Notes results table with its own status → pill map, or a hand-rolled "Select all / N of M selected" store picker |
+| `describeAppliedRule` (`lib/bankRules`) | your own "N tagged, N booked, N skipped (day locked)" toast text |
 | `MoneyInput` | `<input type="number">` + your own cents parsing |
 | `Table`, `TableStates` | a `<table>` plus hand-rolled loading/empty/error |
 | `PermissionMatrixTable` | a per-route permission grid |

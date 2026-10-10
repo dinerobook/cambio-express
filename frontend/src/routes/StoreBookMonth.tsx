@@ -2,13 +2,12 @@ import { useSearchParams } from "react-router-dom";
 
 import { useStoreBookMonth } from "../api/storebook";
 import {
-  Breadcrumbs, Button, Card, ErrorState, KpiCard, KpiGrid, Loading,
-  MonthCalendar, PageHeader, PageShell, Select,
+  Breadcrumbs, Card, ErrorState, KpiCard, KpiGrid, Loading,
+  MonthCalendar, PageHeader, PageShell, PeriodStepper, Select,
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
-import styles from "./StoreBookMonth.module.css";
 import {
-  MONTH_NAMES, storeNow, todayIso,
+  MONTH_NAMES, shiftMonth, storeNow, todayIso,
 } from "../lib/datetime";
 
 // /app/store-book — the month calendar. One cell per day with its
@@ -23,15 +22,16 @@ export default function StoreBookMonth() {
   const { data, isLoading, isError, refetch } =
     useStoreBookMonth(year, month);
 
-  function shift(delta: number) {
-    let y = year;
-    let m = month + delta;
-    while (m > 12) { y += 1; m -= 12; }
-    while (m < 1) { y -= 1; m += 12; }
+  function goToMonth(y: number, m: number) {
     const next = new URLSearchParams(sp);
     next.set("year", String(y));
     next.set("month", String(m));
     setSP(next, { replace: true });
+  }
+
+  function shift(delta: number) {
+    const next = shiftMonth(year, month, delta);
+    goToMonth(next.year, next.month);
   }
 
   const byDate = new Map(
@@ -45,34 +45,22 @@ export default function StoreBookMonth() {
         title="Daily book"
         subtitle={`${MONTH_NAMES[month - 1]} ${year}`}
         actions={
-          <div className={styles.nav}>
-            <Button
-              tone="secondary" size="sm"
-              onClick={() => shift(-1)} aria-label="Previous month"
-            >
-              ←
-            </Button>
+          <PeriodStepper
+            unit="month"
+            onPrev={() => shift(-1)}
+            onNext={() => shift(1)}
+          >
             <Select
+              aria-label="Month"
               value={month}
-              onChange={(e) => {
-                const next = new URLSearchParams(sp);
-                next.set("month", e.target.value);
-                next.set("year", String(year));
-                setSP(next, { replace: true });
-              }}
+              onChange={(e) => goToMonth(year, Number(e.target.value))}
               style={{ width: "auto" }}
             >
               {MONTH_NAMES.map((label, i) => (
                 <option key={i + 1} value={i + 1}>{label}</option>
               ))}
             </Select>
-            <Button
-              tone="secondary" size="sm"
-              onClick={() => shift(1)} aria-label="Next month"
-            >
-              →
-            </Button>
-          </div>
+          </PeriodStepper>
         }
       />
 

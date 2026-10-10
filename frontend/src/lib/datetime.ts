@@ -320,6 +320,79 @@ export function addDaysIso(iso: string, delta: number): string {
 }
 
 
+// ── Calendar periods ───────────────────────────────────────────
+// The month / week maths behind the period steppers (PeriodStepper)
+// and the month grid (MonthCalendar). One copy, here — every page
+// that walks months or weeks used to carry its own.
+
+/** Three-letter weekday names, Sunday first — index with
+ *  ``getDay()`` / ``weekdayOfIso``. */
+export const WEEKDAY_NAMES_SHORT = [
+  "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
+] as const;
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** ``YYYY-MM-DD`` from calendar fields; ``month`` is 1-12. */
+export function isoDate(year: number, month: number, day: number): string {
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+/** Number of days in a month; ``month`` is 1-12. */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+/** First and last day of a month as ``YYYY-MM-DD``; ``month`` is
+ *  1-12. The range a month page asks the server for. */
+export function monthRangeIso(
+  year: number, month: number,
+): { from: string; to: string } {
+  return {
+    from: isoDate(year, month, 1),
+    to: isoDate(year, month, daysInMonth(year, month)),
+  };
+}
+
+/** Step a 1-12 month by ``delta`` months, rolling the year over
+ *  at either end (January − 1 → December of the year before). */
+export function shiftMonth(
+  year: number, month: number, delta: number,
+): { year: number; month: number } {
+  const idx = year * 12 + (month - 1) + delta;
+  return { year: Math.floor(idx / 12), month: (idx % 12 + 12) % 12 + 1 };
+}
+
+/** Day of the week of a ``YYYY-MM-DD`` (0 = Sunday … 6 = Saturday),
+ *  read in UTC so no local offset can move it. ``NaN`` for input
+ *  that isn't an ISO date. */
+export function weekdayOfIso(iso: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return NaN;
+  return new Date(
+    Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])),
+  ).getUTCDay();
+}
+
+/** The Monday on or before a ``YYYY-MM-DD``. Weeks run Monday to
+ *  Sunday, so a Sunday belongs to the week that started six days
+ *  earlier. Returns the input unchanged when it isn't an ISO date. */
+export function mondayOfIso(iso: string): string {
+  const dow = weekdayOfIso(iso);
+  if (Number.isNaN(dow)) return iso;
+  return addDaysIso(iso, dow === 0 ? -6 : 1 - dow);
+}
+
+/** A seven-day week starting at ``startIso``: ``Oct 5 – Oct 11, 2026``
+ *  (the year is the start day's). */
+export function formatWeekRange(startIso: string): string {
+  const end = addDaysIso(startIso, 6);
+  return `${formatShortDate(startIso)} – ${formatShortDate(end)}, ${startIso.slice(0, 4)}`;
+}
+
+
 /** One entry of the ``Store.store_hours`` array (mirrors the
  *  backend ``StoreHourEntry`` Pydantic shape). */
 export interface StoreHourLike {

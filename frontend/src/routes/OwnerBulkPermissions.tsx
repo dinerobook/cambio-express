@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
@@ -6,8 +6,10 @@ import { useOwnerLocations } from "../api/owner";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
   Alert, Breadcrumbs, Button, Card, Checkbox, InfoTip, Loading,
-  PageHeader, PageShell, Pill, SectionTitle, Table, useToast,
+  PageHeader, PageShell, SectionTitle, useToast,
 } from "../components/ui";
+import { BulkResultsCard } from "../components/BulkResultsCard";
+import { useStoreSelection } from "../lib/useStoreSelection";
 
 interface PermissionMatrix {
   store_id: number;
@@ -23,7 +25,11 @@ export default function OwnerBulkPermissions() {
   const { data: locations, isLoading: locsLoading } = useOwnerLocations("month");
   const toast = useToast();
 
-  const [selectedStores, setSelectedStores] = useState<Set<number>>(new Set());
+  const allStoreIds = useMemo(
+    () => locations?.rows.map((s) => s.store_id) ?? [],
+    [locations],
+  );
+  const stores = useStoreSelection(allStoreIds);
   const [templateStoreId, setTemplateStoreId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,25 +41,8 @@ export default function OwnerBulkPermissions() {
     queryFn: () => api<PermissionMatrix>(`/api/v2/owner/store/${templateStoreId}/permissions`),
   });
 
-  function toggleStore(sid: number) {
-    setSelectedStores((prev) => {
-      const next = new Set(prev);
-      if (next.has(sid)) next.delete(sid);
-      else next.add(sid);
-      return next;
-    });
-  }
-
-  function selectAll() {
-    if (!locations) return;
-    const allIds = locations.rows.map((s) => s.store_id);
-    setSelectedStores(
-      selectedStores.size === allIds.length ? new Set() : new Set(allIds),
-    );
-  }
-
   async function handlePush() {
-    if (!templatePerms || selectedStores.size === 0) return;
+    if (!templatePerms || stores.selected.length === 0) return;
     setBusy(true);
     setError(null);
     setResults(null);
@@ -69,7 +58,7 @@ export default function OwnerBulkPermissions() {
       const resp = await api<{ results: typeof results }>("/api/v2/owner/bulk-permissions", {
         method: "POST",
         json: {
-          store_ids: [...selectedStores],
+          store_ids: stores.selected,
           matrix,
         },
       });
@@ -146,16 +135,16 @@ export default function OwnerBulkPermissions() {
           <InfoTip text="These stores will receive the source store's employee permissions." />
         </SectionTitle>
         <div style={{ marginBottom: "0.5rem" }}>
-          <Button size="sm" tone="secondary" onClick={selectAll} type="button">
-            {selectedStores.size === (locations?.rows.length ?? 0) ? "Clear all" : "Select all"}
+          <Button size="sm" tone="secondary" onClick={stores.toggleAll} type="button">
+            {stores.allSelected ? "Clear all" : "Select all"}
           </Button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
           {locations?.rows.map((s) => (
             <Checkbox
               key={s.store_id}
-              checked={selectedStores.has(s.store_id)}
-              onChange={() => toggleStore(s.store_id)}
+              checked={stores.isSelected(s.store_id)}
+              onChange={() => stores.toggle(s.store_id)}
             >
               {s.store_name}
             </Checkbox>
@@ -167,38 +156,22 @@ export default function OwnerBulkPermissions() {
         <Button
           onClick={() => { void handlePush(); }}
           busy={busy}
-          disabled={!templatePerms || selectedStores.size === 0}
+          disabled={!templatePerms || stores.selected.length === 0}
         >
-          Push to {selectedStores.size} store{selectedStores.size === 1 ? "" : "s"}
+          Push to {stores.selected.length} store{stores.selected.length === 1 ? "" : "s"}
         </Button>
       </div>
 
       {results && (
-        <Card>
-          <SectionTitle>Results</SectionTitle>
-          <Table>
-            <thead>
-              <tr>
-                <th>Store</th>
-                <th>Status</th>
-                <th>Changes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r) => (
-                <tr key={r.store_id}>
-                  <td>{locations?.rows.find((s) => s.store_id === r.store_id)?.store_name ?? `#${r.store_id}`}</td>
-                  <td>
-                    <Pill tone={r.status === "applied" ? "accent" : "neutral"}>
-                      {r.status}
-                    </Pill>
-                  </td>
-                  <td>{r.changes ?? r.reason ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card>
+        <BulkResultsCard
+          detailLabel="Changes"
+          rows={results.map((r) => ({
+            store_id: r.store_id,
+            store_name: locations?.rows.find((s) => s.store_id === r.store_id)?.store_name,
+            status: r.status,
+            detail: r.changes ?? r.reason,
+          }))}
+        />
       )}
     </PageShell>
   );
