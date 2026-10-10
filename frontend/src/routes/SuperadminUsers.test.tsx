@@ -180,13 +180,8 @@ describe("SuperadminUsers", () => {
     expect(await screen.findByText("Role changed to owner.")).toBeInTheDocument();
   });
 
-  // BUG: SuperadminUsers.tsx — a refused role change keeps the
-  // "Change role" dialog open but writes the error to the page-level
-  // <Alert>, which sits behind the modal (aria-hidden, covered).
-  // ConfirmDialog has an `error` prop for exactly this case
-  // (components/ui/Modal.tsx: "an error rendered there is one the
-  // person never sees"); the page does not pass it.
-  it.fails("shows a refused role change inside the still-open dialog", async () => {
+  // A refused role change keeps the dialog open, so the refusal must show inside it.
+  it("shows a refused role change inside the still-open dialog", async () => {
     fns.changeUserRole.mockRejectedValue(new ApiError(403, "Cannot demote the last admin.", null));
     renderPage();
     const dialog = await pick("ANA", "Change role");

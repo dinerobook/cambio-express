@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -10,7 +11,7 @@ import { fmtMoney2 } from "../lib/formatters";
 import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Breadcrumbs, ButtonLink, Card, EmptyState, ErrorState, Field,
+  Breadcrumbs, ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState, Field,
   InfoTip, Input, Loading, PageHeader, PageShell, Pager, Pill,
   RowActions, Section, Select, Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
@@ -38,6 +39,10 @@ export default function PurchaseInvoices() {
   const toast = useToast();
   const toastApiError = useApiErrorToast();
   const navigate = useNavigate();
+  // Deleting drops the invoice and its lines, so it goes through a
+  // confirm (UI-STANDARDS §2) rather than straight from the row.
+  const [pendingRemove, setPendingRemove] = useState<InvoiceRow | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   function refresh() {
     void qc.invalidateQueries({ queryKey: ["catalog", "invoices"] });
@@ -57,9 +62,13 @@ export default function PurchaseInvoices() {
     }
   }
 
-  async function remove(inv: InvoiceRow) {
+  async function remove() {
+    const inv = pendingRemove;
+    if (!inv) return;
+    setRemoving(true);
     try {
       await deleteInvoice(inv.id);
+      setPendingRemove(null);
       refresh();
       toast({
         message: `Invoice ${inv.invoice_number} deleted.`,
@@ -67,6 +76,8 @@ export default function PurchaseInvoices() {
       });
     } catch (err) {
       toastApiError(err, "Could not delete the invoice.");
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -203,7 +214,7 @@ export default function PurchaseInvoices() {
                                 {
                                   label: "Delete",
                                   tone: "warning",
-                                  onClick: () => remove(inv),
+                                  onClick: () => setPendingRemove(inv),
                                 },
                               ]}
                             />
@@ -225,6 +236,17 @@ export default function PurchaseInvoices() {
           </>
         )}
       </Section>
+
+      <ConfirmDialog
+        open={pendingRemove != null}
+        title="Delete invoice"
+        message={`Delete invoice ${pendingRemove?.invoice_number ?? ""} and its lines? This cannot be undone.`}
+        confirmLabel="Delete"
+        confirmTone="danger"
+        busy={removing}
+        onConfirm={() => { void remove(); }}
+        onCancel={() => setPendingRemove(null)}
+      />
     </PageShell>
   );
 }

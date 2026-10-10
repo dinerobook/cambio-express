@@ -133,14 +133,13 @@ describe("PurchaseInvoices", () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  // BUG (UI-STANDARDS §2: destructive action = ConfirmDialog):
-  // PurchaseInvoices.tsx wires the row's "Delete" straight to
-  // deleteInvoice — one click (or one mis-tap in the mobile sheet)
-  // deletes the invoice and its lines with no confirmation.
-  it.fails("asks for confirmation before deleting an invoice", async () => {
+  // Deleting drops the invoice and its lines, so it goes through a confirm.
+  it("asks for confirmation before deleting an invoice", async () => {
     renderPage();
     await userEvent.click(within(rowOf("INV-100")).getByRole("button", { name: "Delete" }));
     expect(deleteInvoice).not.toHaveBeenCalled();
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(deleteInvoice).toHaveBeenCalledWith(1));
   });
 });

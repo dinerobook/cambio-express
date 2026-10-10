@@ -135,17 +135,25 @@ describe("SuperadminStores", () => {
     expect(screen.getByText("3 selected")).toBeInTheDocument();
   });
 
-  // BUG: SuperadminStores.tsx keeps the selection when the search
-  // narrows the list, and StoresTable decides "all selected" by
-  // comparing selected.size with the VISIBLE row count. Select
-  // Alpha, search "charlie": the header box reads checked while the
-  // only visible row is unchecked, clicking it CLEARS instead of
-  // selecting Charlie, and a bulk Apply still acts on hidden Alpha.
-  it.fails("does not show 'select all' as checked when only a hidden store is selected", async () => {
+  // Selection follows the search: a hidden store is never counted or acted on.
+  it("does not show 'select all' as checked when only a hidden store is selected", async () => {
     renderPage();
     await userEvent.click(screen.getByLabelText("Select Alpha"));
     await userEvent.type(screen.getByPlaceholderText(/Search name/), "charlie");
     expect(screen.getByLabelText("Select Charlie")).not.toBeChecked();
     expect(screen.getByLabelText("Select all stores")).not.toBeChecked();
+  });
+
+  it("applies a bulk action only to the stores the search shows", async () => {
+    renderPage();
+    await userEvent.click(screen.getByLabelText("Select Alpha"));
+    await userEvent.type(screen.getByPlaceholderText(/Search name/), "charlie");
+    expect(screen.queryByText(/selected$/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText("Select all stores"));
+    expect(screen.getByLabelText("Select Charlie")).toBeChecked();
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByDisplayValue("— Choose action —"), "enable");
+    await userEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(bulkStoreAction).toHaveBeenCalledWith([3], "enable"));
   });
 });

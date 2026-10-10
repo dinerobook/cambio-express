@@ -23,11 +23,14 @@ export function useStoreSelection(allIds: readonly number[]) {
     setSelected(allSelected ? [] : [...allIds]);
   }
 
+  const clear = useCallback(() => setSelected([]), []);
+
   return {
     selected,
     isSelected: (id: number) => selected.includes(id),
     toggle,
     toggleAll,
+    clear,
     allSelected,
   };
 }

@@ -10,7 +10,7 @@ import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { AppLink,
   Breadcrumbs,
-  Button, Card, ConfirmDialog, CopyField, ErrorState, Loading, PageHeader, PageShell,
+  Alert, Button, Card, ConfirmDialog, CopyField, ErrorState, Loading, PageHeader, PageShell,
   Section, Table, tdStyle, thStyle,
   Empty,
 } from "../components/ui";
@@ -107,7 +107,7 @@ export default function OwnerConnect() {
 
       <PageHeader title="Connect a Store" />
 
-      {serverError && <ErrorState message={serverError} />}
+      {serverError && <Alert tone="error">{serverError}</Alert>}
 
       <Section title="Active invite code">
         <Card>
@@ -118,7 +118,7 @@ export default function OwnerConnect() {
               onRetry={() => { void refetch(); }}
             />
           )}
-          {!isLoading && !active && (
+          {!isLoading && !isError && !active && (
             <>
               <p className={styles.lead}>
                 No active code. Generate one to give to a store admin —

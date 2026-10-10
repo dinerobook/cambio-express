@@ -83,14 +83,8 @@ describe("SuperadminMaintenance", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Superadmin only.");
   });
 
-  // BUG: SuperadminMaintenance.tsx ignores the query's error state.
-  // When GET /superadmin/maintenance fails, the page still renders
-  // the form with its defaults ("Platform is operational", switch
-  // Off, empty message) and an enabled Save — so a superadmin who
-  // clicks Save while maintenance is actually ON silently turns it
-  // OFF and wipes the message. Expected: an <ErrorState> with Retry
-  // and no form.
-  it.fails("shows an ErrorState instead of a default form when loading fails", async () => {
+  // Saving defaults over an unknown state would turn a live maintenance window off.
+  it("shows an ErrorState instead of a default form when loading fails", async () => {
     serve(async () => { throw new ApiError(500, "Server error", null); });
     renderPage();
     expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();

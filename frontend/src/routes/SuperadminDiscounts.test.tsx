@@ -113,10 +113,7 @@ describe("SuperadminDiscounts", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Could not load discount codes.");
   });
 
-  // BUG (UI-STANDARDS: fetch errors are <ErrorState> with retry):
-  // SuperadminDiscounts.tsx renders a plain <Alert> on load failure,
-  // so there is no way to retry without reloading the page.
-  it.fails("offers Retry when the list fails to load", async () => {
+  it("offers Retry when the list fails to load", async () => {
     state = { isLoading: false, isError: true, error: new ApiError(500, "x", null) };
     renderPage();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));

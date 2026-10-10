@@ -183,12 +183,8 @@ describe("SuperadminAnnouncements", () => {
     await waitFor(() => expect(deleteAnnouncement).toHaveBeenCalledWith(1));
   });
 
-  // BUG: SuperadminAnnouncements.tsx Row.doDelete — on a refused
-  // delete the ConfirmDialog stays open but the error is written to
-  // the row's <span> behind the modal (covered + aria-hidden). The
-  // dialog's `error` prop (components/ui/Modal.tsx) is not passed,
-  // so the superadmin sees a dialog that just stops being busy.
-  it.fails("shows a refused delete inside the still-open dialog", async () => {
+  // A refused delete keeps the dialog open, so the refusal must show inside it.
+  it("shows a refused delete inside the still-open dialog", async () => {
     deleteAnnouncement.mockRejectedValue(new ApiError(409, "Broadcast in progress.", null));
     renderPage();
     await userEvent.click(within(rowOf("Maintenance Friday")).getByRole("button", { name: "Delete" }));

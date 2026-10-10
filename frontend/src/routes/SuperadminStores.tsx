@@ -10,6 +10,7 @@ import { planTone } from "../api/billing";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
+import { useStoreSelection } from "../lib/useStoreSelection";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Checkbox,
   Card, Empty, Input, PageHeader, PageShell, Pill,
@@ -30,36 +31,37 @@ export default function SuperadminStores() {
   const qc = useQueryClient();
   const toast = useToast();
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkAction, setBulkAction] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
-  function toggleSelect(id: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll(rows: SuperadminStoreRow[]) {
-    if (selected.size === rows.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(rows.map((r) => r.store_id)));
-    }
-  }
+  const filtered =
+    data && q
+      ? data.rows.filter((r) => {
+          const needle = q.toLowerCase();
+          return (
+            r.name.toLowerCase().includes(needle) ||
+            r.slug.toLowerCase().includes(needle) ||
+            r.email.toLowerCase().includes(needle)
+          );
+        })
+      : data?.rows;
+  // Selection is over the stores on screen: "Select all" means the
+  // visible rows, and a bulk action never reaches a store the search
+  // has hidden.
+  const visibleIds = (filtered ?? []).map((r) => r.store_id);
+  const selection = useStoreSelection(visibleIds);
+  const selected = selection.selected.filter((id) => visibleIds.includes(id));
 
   async function runBulk() {
-    if (selected.size === 0 || !bulkAction) return;
+    if (selected.length === 0 || !bulkAction) return;
     setBulkBusy(true);
     setBulkError(null);
     try {
       const action = bulkAction as "extend_trial" | "enable" | "disable";
-      const res = await bulkStoreAction(Array.from(selected), action);
+      const res = await bulkStoreAction(selected, action);
       toast({ message: `${res.count} store${res.count === 1 ? "" : "s"} updated.`, tone: "success" });
-      setSelected(new Set());
+      selection.clear();
       setBulkAction("");
       qc.invalidateQueries({ queryKey: ["superadmin", "stores"] });
     } catch (err) {
@@ -78,17 +80,6 @@ export default function SuperadminStores() {
     );
   }
 
-  const filtered =
-    data && q
-      ? data.rows.filter((r) => {
-          const needle = q.toLowerCase();
-          return (
-            r.name.toLowerCase().includes(needle) ||
-            r.slug.toLowerCase().includes(needle) ||
-            r.email.toLowerCase().includes(needle)
-          );
-        })
-      : data?.rows;
 
   return (
     <PageShell>
@@ -111,9 +102,9 @@ export default function SuperadminStores() {
         )}
       />
 
-      {selected.size > 0 && (
+      {selected.length > 0 && (
         <div className={styles.bulkBar}>
-          <span className={styles.bulkCount}>{selected.size} selected</span>
+          <span className={styles.bulkCount}>{selected.length} selected</span>
           <Select value={bulkAction} onChange={(e) => setBulkAction(e.target.value)}>
             <option value="">— Choose action —</option>
             <option value="extend_trial">Extend trial (+14d)</option>
@@ -128,7 +119,7 @@ export default function SuperadminStores() {
           >
             Apply
           </Button>
-          <Button tone="secondary" size="sm" onClick={() => setSelected(new Set())}>
+          <Button tone="secondary" size="sm" onClick={selection.clear}>
             Clear
           </Button>
         </div>
@@ -146,9 +137,10 @@ export default function SuperadminStores() {
         {filtered && filtered.length > 0 && (
           <StoresTable
             rows={filtered}
-            selected={selected}
-            onToggle={toggleSelect}
-            onToggleAll={() => toggleAll(filtered)}
+            isSelected={selection.isSelected}
+            allSelected={selection.allSelected}
+            onToggle={selection.toggle}
+            onToggleAll={selection.toggleAll}
           />
         )}
       </Card>
@@ -156,13 +148,13 @@ export default function SuperadminStores() {
   );
 }
 
-function StoresTable({ rows, selected, onToggle, onToggleAll }: {
+function StoresTable({ rows, isSelected, allSelected, onToggle, onToggleAll }: {
   rows: SuperadminStoreRow[];
-  selected: Set<number>;
+  isSelected: (id: number) => boolean;
+  allSelected: boolean;
   onToggle: (id: number) => void;
   onToggleAll: () => void;
 }) {
-  const allSelected = rows.length > 0 && selected.size === rows.length;
   return (
     <Table>
       <thead>
@@ -191,7 +183,7 @@ function StoresTable({ rows, selected, onToggle, onToggleAll }: {
           <tr key={r.store_id}>
             <td style={tdStyle}>
               <Checkbox
-                checked={selected.has(r.store_id)}
+                checked={isSelected(r.store_id)}
                 onChange={() => onToggle(r.store_id)}
                 aria-label={`Select ${r.name}`}
               />

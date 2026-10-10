@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OwnerConnect from "./OwnerConnect";
+import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
@@ -45,9 +46,11 @@ function renderPage() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
-        <OwnerConnect />
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter>
+          <OwnerConnect />
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -136,13 +139,8 @@ describe("OwnerConnect", () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  // BUG: OwnerConnect.tsx renders the "No active code … Generate
-  // Invite Code" block whenever `!isLoading && !active` — which is
-  // also true when the list FAILED to load. Generating then skips
-  // the client-side revoke of the (unknown) current active code, so
-  // the owner ends up with two live codes, breaking the
-  // one-active-code contract the page documents.
-  it.fails("does not offer Generate while the codes failed to load", () => {
+  // Generating while the list is unknown would skip revoking the live code.
+  it("does not offer Generate while the codes failed to load", () => {
     state = { isLoading: false, isError: true, error: new ApiError(500, "DB down", null) };
     renderPage();
     expect(screen.queryByRole("button", { name: "Generate Invite Code" })).not.toBeInTheDocument();

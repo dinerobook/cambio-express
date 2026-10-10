@@ -331,6 +331,8 @@ function AnnouncementsTable({
 function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // A refused delete keeps its dialog open, so its error shows there.
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   async function onToggle() {
@@ -346,13 +348,13 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
   }
 
   async function doDelete() {
-    setErr(null); setBusy(true);
+    setDeleteErr(null); setBusy(true);
     try {
       await deleteAnnouncement(row.id);
       onChanged();
       setConfirmingDelete(false);
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not delete."));
+      setDeleteErr(apiErrorMessage(e, "Could not delete."));
     } finally {
       setBusy(false);
     }
@@ -417,8 +419,9 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
           confirmLabel="Delete"
           confirmTone="danger"
           busy={busy}
+          error={deleteErr}
           onConfirm={() => { void doDelete(); }}
-          onCancel={() => setConfirmingDelete(false)}
+          onCancel={() => { setConfirmingDelete(false); setDeleteErr(null); }}
         />
       </td>
     </tr>

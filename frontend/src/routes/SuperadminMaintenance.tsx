@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Breadcrumbs, Button, Card, Field, Input,
+  Alert, Breadcrumbs, Button, Card, ErrorState, Field, Input,
   Loading, PageHeader, PageShell, SectionTitle, Switch, useToast,
 } from "../components/ui";
 import styles from "./SuperadminMaintenance.module.css";
@@ -24,7 +24,7 @@ function useMaintenanceState() {
 }
 
 export default function SuperadminMaintenance() {
-  const { data, isLoading } = useMaintenanceState();
+  const { data, isLoading, isError, error: loadError, refetch } = useMaintenanceState();
   const qc = useQueryClient();
   const toast = useToast();
   const [enabled, setEnabled] = useState(false);
@@ -76,7 +76,16 @@ export default function SuperadminMaintenance() {
 
       {isLoading && <Loading />}
 
-      {!isLoading && (
+      {isError && (
+        // No form without the real state: saving defaults would
+        // switch a live maintenance window off and wipe its message.
+        <ErrorState
+          message={apiErrorMessage(loadError, "Could not load maintenance mode.")}
+          onRetry={() => { void refetch(); }}
+        />
+      )}
+
+      {data && (
         <Card>
           <div className={styles.toggleCard}>
             <SectionTitle>Platform status</SectionTitle>
