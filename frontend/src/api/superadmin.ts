@@ -9,6 +9,20 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { AdminAuditRow } from "./admin";
+import type { PillTone } from "../components/ui";
+
+/** Resend email event → Pill tone for the superadmin email log.
+ *  Delivered / opened / clicked are completed outcomes (success),
+ *  not live state. */
+export const EMAIL_EVENT_TONES: Record<string, PillTone> = {
+  "email.sent":             "neutral",
+  "email.delivered":        "success",
+  "email.opened":           "success",
+  "email.clicked":          "success",
+  "email.delivery_delayed": "warning",
+  "email.bounced":          "negative",
+  "email.complained":       "negative",
+};
 
 // Detail row used by the create/edit form. Superset of the list-
 // view row: includes address + federal_tax_rate which the table

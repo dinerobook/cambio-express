@@ -5,6 +5,7 @@
 
 import {
   MATCH_TYPE_OPTIONS,
+  type BankRuleApplyReport,
   type BankRuleRow,
   type BankRuleWriteBody,
 } from "../api/bankSync";
@@ -134,4 +135,19 @@ export function ruleSentence(r: BankRuleRow, labels: Map<string, string>): strin
   const conds = conditionChips(r).map((c) => c.join(" ")).join(" and ");
   const target = labels.get(r.target_kind) ?? r.target_kind;
   return `${r.description ? r.description + ": " : ""}if ${conds} → ${target}`;
+}
+
+
+/** What running a rule over existing rows did, as the tail of a
+ *  toast: `" 5 tagged, 3 booked on the daily book, 1 skipped (day
+ *  locked)."` — leading space included, so callers append it to
+ *  "Rule applied." / "Rule created.". Empty when nothing ran (a rule
+ *  saved without apply-to-existing). Zero booked / skipped parts are
+ *  left out; the tagged count always shows, even when it is 0. */
+export function describeAppliedRule(a: BankRuleApplyReport | null | undefined): string {
+  if (!a) return "";
+  const parts = [`${a.tagged} tagged`];
+  if (a.booked) parts.push(`${a.booked} booked on the daily book`);
+  if (a.locked_skipped) parts.push(`${a.locked_skipped} skipped (day locked)`);
+  return ` ${parts.join(", ")}.`;
 }

@@ -9,7 +9,7 @@ import {
   type SuperadminStoreCreateBody,
   type SuperadminStoreUpdateBody,
 } from "../api/superadmin";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
@@ -159,7 +159,7 @@ export default function SuperadminStoreForm() {
       <PageShell maxWidth="44rem">
         <PageHeader title="Edit store" />
         <ErrorState
-          message={`Couldn't load the store.${err instanceof Error ? ` ${err.message}` : ""}`}
+          message={`Couldn't load the store. ${apiErrorMessage(err, "")}`.trimEnd()}
           onRetry={() => { void detailQuery.refetch(); }}
         />
       </PageShell>

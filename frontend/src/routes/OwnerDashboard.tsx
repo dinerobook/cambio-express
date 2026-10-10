@@ -14,8 +14,10 @@ import { AppLink,
   thStyleRight,
   tdStyleRight,
 } from "../components/ui";
+import { apiErrorMessage } from "../lib/api";
 import { chartSeries, moneyChartOptions, seriesFill } from "../lib/chartOptions";
 import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
+import { Delta } from "../components/Delta";
 import styles from "./OwnerDashboard.module.css";
 
 ChartJS.register(
@@ -60,7 +62,7 @@ export default function OwnerDashboard() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={`Couldn't load dashboard — ${error instanceof Error ? error.message : "unknown"}`}
+          message={`Couldn't load dashboard — ${apiErrorMessage(error, "unknown")}`}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -71,17 +73,17 @@ export default function OwnerDashboard() {
             <KpiCard
               label="Total Transfers"
               value={data.agg_transfers.toLocaleString()}
-              sub={fmtDelta(data.agg_transfers_delta, "", "")}
+              sub={<Delta value={data.agg_transfers_delta} />}
             />
             <KpiCard
               label="Total Volume"
               value={fmtMoney(data.agg_volume)}
-              sub={fmtDelta(data.agg_volume_delta, "$", "")}
+              sub={<Delta value={data.agg_volume_delta} money />}
             />
             <KpiCard
               label="Net Over/Short"
               value={`${data.agg_over_short >= 0 ? "+" : "-"}${fmtMoney(Math.abs(data.agg_over_short))}`}
-              sub={fmtDelta(data.agg_over_short_delta, "$", "")}
+              sub={<Delta value={data.agg_over_short_delta} money />}
               tone={data.agg_over_short < 0 ? "negative" : "neutral"}
             />
             <KpiCard
@@ -149,7 +151,7 @@ export default function OwnerDashboard() {
                     <tr key={c.company}>
                       <td style={tdStyle}>{c.company}</td>
                       <td style={tdStyleRight}>{c.count.toLocaleString()}</td>
-                      <td style={tdStyleRight}>${Math.round(c.volume).toLocaleString()}</td>
+                      <td style={tdStyleRight}>{fmtMoney(c.volume)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -159,19 +161,5 @@ export default function OwnerDashboard() {
         </>
       )}
     </PageShell>
-  );
-}
-
-function fmtDelta(
-  delta: number | undefined,
-  prefix: string,
-  suffix: string,
-): React.ReactNode {
-  if (typeof delta !== "number") return undefined;
-  const sign = delta >= 0 ? "▲" : "▼";
-  return (
-    <span className={delta >= 0 ? styles.deltaPos : styles.deltaNeg}>
-      {sign} {prefix}{Math.abs(Math.round(delta)).toLocaleString()}{suffix}
-    </span>
   );
 }

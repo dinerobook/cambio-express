@@ -35,7 +35,7 @@ import {
   useEmployees,
 } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 
@@ -174,9 +174,7 @@ export default function NewTransfer() {
       navigate(`/transfers/${result.transfer.id}`, { replace: true });
     } catch (err) {
       setError("root", {
-        message: err instanceof ApiError
-          ? err.message
-          : "Could not save the transfer. Please try again.",
+        message: apiErrorMessage(err, "Could not save the transfer. Please try again."),
       });
     }
   }

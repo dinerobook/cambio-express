@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 
+import { WEEKDAY_NAMES_SHORT, daysInMonth, isoDate } from "../../lib/datetime";
 import styles from "./MonthCalendar.module.css";
 
 /** A month grid of days, each linking to that day's page.
@@ -36,8 +37,6 @@ export interface MonthCalendarDay {
   varianceTitle?: string;
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 
 /** Key to the calendar's cell states. Lives here rather than on a
  *  page because it describes MonthCalendar's own visual language —
@@ -64,14 +63,6 @@ export function MonthCalendarLegend() {
       </span>
     </div>
   );
-}
-
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-function daysInMonth(year: number, month1: number): number {
-  return new Date(year, month1, 0).getDate();
 }
 
 export function MonthCalendar({
@@ -103,7 +94,7 @@ export function MonthCalendar({
   return (
     <div>
       <div className={styles.weekHeader}>
-        {WEEKDAYS.map((d) => (
+        {WEEKDAY_NAMES_SHORT.map((d) => (
           <div key={d} className={styles.weekHeaderCell}>{d}</div>
         ))}
       </div>
@@ -112,7 +103,7 @@ export function MonthCalendar({
           if (day == null) {
             return <div key={`b${i}`} className={styles.emptyCell} />;
           }
-          const iso = `${year}-${pad2(month)}-${pad2(day)}`;
+          const iso = isoDate(year, month, day);
           const info = dayFor(iso);
           const variance = info?.variance ?? 0;
           const hasVariance = Math.abs(variance) >= 0.005;

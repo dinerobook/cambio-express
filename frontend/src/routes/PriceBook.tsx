@@ -11,7 +11,7 @@ import {
   type PriceBookHarvest,
 } from "../api/posimport";
 import { useDepartments, type Department } from "../api/dayclose";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { hasPermission } from "../lib/permissions";
@@ -19,7 +19,7 @@ import { useUrlFilterState } from "../lib/useUrlFilterState";
 import DepartmentsManager from "../components/DepartmentsManager";
 import {
   Alert, Breadcrumbs, Button, Card, Checkbox, EmptyState, ErrorState,
-  Field, InfoTip, Input, Loading, Modal, PageHeader, PageShell, Pager,
+  Field, InfoTip, Input, Loading, Modal, MoneyInput, PageHeader, PageShell, Pager,
   Pill, RowActions, Section, Select, TabsBar, TabsButton, Table,
   tdStyle, thStyle, useToast,
 } from "../components/ui";
@@ -359,7 +359,7 @@ function SeedPreview({
       onDone();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not seed.",
+        apiErrorMessage(err, "Could not seed."),
       );
     } finally {
       setBusy(false);
@@ -497,12 +497,10 @@ function ItemForm({
   const [vendorId, setVendorId] = useState(
     existing?.vendor_id != null ? String(existing.vendor_id) : "",
   );
-  const [price, setPrice] = useState(
-    existing ? String(existing.price) : "",
-  );
-  const [cost, setCost] = useState(
-    existing && existing.cost > 0 ? String(existing.cost) : "",
-  );
+  // Money fields hold numbers: <MoneyInput> shows 0 as an empty box
+  // and hands back 0 for one, so "" and 0 are the same value here.
+  const [price, setPrice] = useState(existing?.price ?? 0);
+  const [cost, setCost] = useState(existing?.cost ?? 0);
   const [taxable, setTaxable] = useState(existing?.is_taxable ?? true);
   // Item-editor parity (P2-5): vendor item #, size label, case
   // pack, EBT, margin helper.
@@ -511,9 +509,7 @@ function ItemForm({
   const [caseSize, setCaseSize] = useState(
     existing?.case_size != null ? String(existing.case_size) : "",
   );
-  const [caseCost, setCaseCost] = useState(
-    existing?.case_cost != null ? String(existing.case_cost) : "",
-  );
+  const [caseCost, setCaseCost] = useState(existing?.case_cost ?? 0);
   const [ebt, setEbt] = useState(existing?.is_ebt ?? false);
   const [marginGoal, setMarginGoal] = useState("");
   const [busy, setBusy] = useState(false);
@@ -537,14 +533,11 @@ function ItemForm({
   );
 
   // Derived numbers for the pricing helpers.
-  const priceNum = Number.parseFloat(price) || 0;
-  const costNum = Number.parseFloat(cost) || 0;
   const caseSizeNum = Number.parseInt(caseSize, 10) || 0;
-  const caseCostNum = Number.parseFloat(caseCost) || 0;
   const unitFromCase =
-    caseSizeNum > 0 && caseCostNum > 0 ? caseCostNum / caseSizeNum : null;
+    caseSizeNum > 0 && caseCost > 0 ? caseCost / caseSizeNum : null;
   const margin =
-    priceNum > 0 ? ((priceNum - costNum) / priceNum) * 100 : null;
+    price > 0 ? ((price - cost) / price) * 100 : null;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -560,14 +553,14 @@ function ItemForm({
           // server-side, so "" must map to the explicit clear).
           department_id: departmentId === "" ? 0 : Number(departmentId),
           vendor_id: vendorId === "" ? 0 : Number(vendorId),
-          price: Number.parseFloat(price) || 0,
-          cost: Number.parseFloat(cost) || 0,
+          price,
+          cost,
           is_taxable: taxable,
           item_number: itemNumber.trim(),
           size: size.trim(),
           // 0 clears the nullable case fields server-side.
           case_size: caseSizeNum > 0 ? caseSizeNum : 0,
-          case_cost: caseCostNum > 0 ? caseCostNum : 0,
+          case_cost: caseCost > 0 ? caseCost : 0,
           is_ebt: ebt,
         });
       } else {
@@ -577,19 +570,19 @@ function ItemForm({
           name: name.trim(),
           department_id: departmentId === "" ? null : Number(departmentId),
           vendor_id: vendorId === "" ? null : Number(vendorId),
-          price: Number.parseFloat(price) || 0,
-          cost: Number.parseFloat(cost) || 0,
+          price,
+          cost,
           is_taxable: taxable,
           item_number: itemNumber.trim(),
           size: size.trim(),
           case_size: caseSizeNum > 0 ? caseSizeNum : null,
-          case_cost: caseCostNum > 0 ? caseCostNum : null,
+          case_cost: caseCost > 0 ? caseCost : null,
           is_ebt: ebt,
         });
       }
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -693,55 +686,46 @@ function ItemForm({
             onChange={(e) => setCaseSize(e.target.value)}
           />
         </Field>
-        <Field
+        {/* Money fields carry their own label + hint: <MoneyInput> is
+            a <label> itself, so it never sits inside a <Field>. */}
+        <MoneyInput
           label="Case cost"
           hint={
             unitFromCase != null
               ? `Unit cost from case: $${unitFromCase.toFixed(4)}`
               : undefined
           }
-        >
-          <Input
-            type="number" min={0} step="0.01" value={caseCost}
-            onChange={(e) => setCaseCost(e.target.value)}
+          value={caseCost} onChange={setCaseCost} fullWidth
+        />
+        <div className={styles.moneyWithAction}>
+          <MoneyInput
+            label="Unit cost (optional)"
+            hint={
+              unitFromCase != null && cost === 0
+                ? "Empty — saves as $0; use the case-derived value?"
+                : undefined
+            }
+            value={cost} onChange={setCost} fullWidth
+            style={{ flex: 1, minWidth: 0 }}
           />
-        </Field>
-        <Field
-          label="Unit cost (optional)"
-          hint={
-            unitFromCase != null && cost === ""
-              ? "Empty — saves as $0; use the case-derived value?"
-              : undefined
-          }
-        >
-          <div style={{ display: "flex", gap: "0.4rem" }}>
-            <Input
-              type="number" min={0} step="0.01" value={cost}
-              onChange={(e) => setCost(e.target.value)}
-            />
-            {unitFromCase != null && (
-              <Button
-                type="button" tone="secondary" size="sm"
-                onClick={() => setCost(unitFromCase.toFixed(2))}
-              >
-                Use case
-              </Button>
-            )}
-          </div>
-        </Field>
-        <Field
+          {unitFromCase != null && (
+            <Button
+              type="button" tone="secondary" size="sm"
+              onClick={() => setCost(Number(unitFromCase.toFixed(2)))}
+            >
+              Use case
+            </Button>
+          )}
+        </div>
+        <MoneyInput
           label="Retail price"
           hint={
             margin != null
               ? `Margin: ${margin.toFixed(2)}%`
               : undefined
           }
-        >
-          <Input
-            type="number" min={0} step="0.01" value={price} required
-            onChange={(e) => setPrice(e.target.value)}
-          />
-        </Field>
+          value={price} onChange={setPrice} required fullWidth
+        />
         <Field
           label="Margin goal %"
           hint="Sets the retail price from the unit cost."
@@ -756,13 +740,13 @@ function ItemForm({
             <Button
               type="button" tone="secondary" size="sm"
               disabled={
-                costNum <= 0
+                cost <= 0
                 || !(Number.parseFloat(marginGoal) > 0)
                 || Number.parseFloat(marginGoal) >= 100
               }
               onClick={() => {
                 const g = Number.parseFloat(marginGoal);
-                setPrice((costNum / (1 - g / 100)).toFixed(2));
+                setPrice(Number((cost / (1 - g / 100)).toFixed(2)));
               }}
             >
               Apply
@@ -989,7 +973,7 @@ function VendorForm({
       }
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }

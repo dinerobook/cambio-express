@@ -10,8 +10,9 @@ import {
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentCoordinates } from "../lib/geolocation";
 import { passkeysSupported, performPasskeyAssert } from "../lib/webauthn";
 import {
@@ -40,6 +41,7 @@ export default function TimeClock() {
   const [pickedEmpId, setPickedEmpId] = useState<number | "">("");
   const [notes, setNotes]             = useState("");
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
 
   const openByEmp = useMemo(() => {
     const map = new Map<number, TimeClockEntryRow>();
@@ -117,11 +119,7 @@ export default function TimeClock() {
       refresh();
     } catch (err) {
       toast({
-        message: err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Couldn't record the punch.",
+        message: apiErrorMessage(err, "Couldn't record the punch.", { anyError: true }),
         tone: "error",
       });
     }
@@ -232,14 +230,7 @@ export default function TimeClock() {
                       }
                       refresh();
                     } catch (err) {
-                      toast({
-                        message: err instanceof ApiError
-                          ? err.message
-                          : err instanceof Error
-                            ? err.message
-                            : "Couldn't update break.",
-                        tone: "error",
-                      });
+                      toastApiError(err, "Couldn't update break.");
                     }
                   }}
                 >

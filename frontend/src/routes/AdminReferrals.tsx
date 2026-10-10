@@ -1,15 +1,14 @@
-import { useState } from "react";
 
 import {
   useReferralCode,
   type ReferralRedemptionRow,
 } from "../api/admin";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney, fmtMoney2 } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
 import {
-  Button, ButtonLink, Card, Empty, ErrorState, KpiCard, KpiGrid, Loading,
+  ButtonLink, Card, CopyButton, CopyField, Empty, ErrorState, KpiCard, KpiGrid, Loading,
   Pill, space, Table, tdStyle, thStyle,
 } from "../components/ui";
 import styles from "./AdminReferrals.module.css";
@@ -56,7 +55,7 @@ export default function AdminReferrals() {
       {isLoading && <Loading />}
       {isError && !(error instanceof ApiError && error.status === 409) && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load"}
+          message={apiErrorMessage(error, "Could not load")}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -129,20 +128,6 @@ function Hero({
   rewardSelfCents: number;
   rewardRefereeCents: number;
 }) {
-  const [codeFlash, setCodeFlash] = useState(false);
-  const [linkFlash, setLinkFlash] = useState(false);
-
-  function copy(text: string, after: () => void) {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(after);
-    } else {
-      const ta = document.createElement("textarea");
-      ta.value = text; document.body.appendChild(ta); ta.select();
-      try { document.execCommand("copy"); } finally { ta.remove(); }
-      after();
-    }
-  }
-
   return (
     <section className={styles.hero}>
       <div className={styles.heroLabel}>Your referral code</div>
@@ -155,32 +140,20 @@ function Hero({
         <strong>you get {fmtMoney(rewardSelfCents / 100)} off</strong>{" "}
         yours — applied automatically to your next invoice as a credit.
       </p>
-      <div className={styles.shareRow}>
-        <input
-          readOnly
-          value={shareUrl}
-          className={styles.shareInput}
-          onFocus={(e) => e.currentTarget.select()}
-        />
-        <Button
-          className={styles.btnGold}
-          onClick={() => copy(code, () => {
-            setCodeFlash(true);
-            setTimeout(() => setCodeFlash(false), 1400);
-          })}
-        >
-          {codeFlash ? "Copied!" : "Copy code"}
-        </Button>
-        <Button
-          className={styles.btnGold}
-          onClick={() => copy(shareUrl, () => {
-            setLinkFlash(true);
-            setTimeout(() => setLinkFlash(false), 1400);
-          })}
-        >
-          {linkFlash ? "Copied!" : "Copy link"}
-        </Button>
-      </div>
+      <CopyField
+        className={styles.shareRow}
+        aria-label="Referral share link"
+        value={shareUrl}
+        copyLabel="Copy link"
+        buttonClassName={styles.btnGold}
+        actions={(
+          <CopyButton
+            text={code}
+            label="Copy code"
+            className={styles.btnGold}
+          />
+        )}
+      />
     </section>
   );
 }

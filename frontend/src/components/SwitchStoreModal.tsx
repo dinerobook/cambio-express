@@ -6,10 +6,11 @@ import {
   addOwnerStore, favoriteStoreIds, returnToOwnerView, switchStore,
   toggleFavoriteStore, useMyStores,
 } from "../api/switchStore";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Button, EmptyState, Field, Input, Loading, Modal, Pill, Select,
+  Alert, Button, EmptyState, ErrorState, Field, Input, Loading, Modal, Pill,
+  Select,
   useToast,
 } from "./ui";
 import styles from "./SwitchStoreModal.module.css";
@@ -71,7 +72,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
       navigate("/dashboard");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not switch store.",
+        apiErrorMessage(err, "Could not switch store."),
       );
     } finally {
       setBusy(false);
@@ -90,7 +91,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
       await enter(row.store_id);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not create the store.",
+        apiErrorMessage(err, "Could not create the store."),
       );
       setBusy(false);
     }
@@ -192,7 +193,10 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
       </div>
       {stores.isLoading && <Loading />}
       {stores.isError && (
-        <Alert tone="error">Could not load your stores.</Alert>
+        <ErrorState
+          message="Could not load your stores."
+          onRetry={() => { void stores.refetch(); }}
+        />
       )}
       {stores.data && rows.length === 0 && (
         <EmptyState

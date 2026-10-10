@@ -9,7 +9,7 @@ import { useSuperadminStores } from "../api/superadmin";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { TicketThread } from "../components/TicketThread";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import {
   Alert, AppLink, Breadcrumbs, Button, Card, EmptyState, ErrorState,
   Field, Input, Loading, PageHeader, PageShell, Pager, Pill, Select,
@@ -163,7 +163,7 @@ function TicketCard({ ticket: t }: { ticket: TicketRow }) {
       }
       void qc.invalidateQueries({ queryKey: ["tickets"] });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not update the claim.");
+      setError(apiErrorMessage(err, "Could not update the claim."));
     } finally {
       setBusy(false);
     }
@@ -183,7 +183,7 @@ function TicketCard({ ticket: t }: { ticket: TicketRow }) {
         toast({ message: "Ticket updated.", tone: "success" });
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not update ticket.");
+      setError(apiErrorMessage(err, "Could not update ticket."));
     } finally {
       setBusy(false);
     }

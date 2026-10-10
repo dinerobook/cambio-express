@@ -7,6 +7,7 @@ import {
 import { Bar, Line } from "react-chartjs-2";
 
 import { unlinkStore, useOwnerStoreDetail } from "../api/owner";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { AppLink,
   Breadcrumbs, Button,
@@ -18,6 +19,7 @@ import { AppLink,
 } from "../components/ui";
 import { chartSeries, chartTokens, moneyChartOptions, seriesFill } from "../lib/chartOptions";
 import { fmtMoney, fmtMoney2 } from "../lib/formatters";
+import { Delta } from "../components/Delta";
 import styles from "./OwnerStoreDetail.module.css";
 import { formatShortDate } from "../lib/datetime";
 
@@ -115,7 +117,7 @@ export default function OwnerStoreDetail() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={`Couldn't load store — ${error instanceof Error ? error.message : "unknown"}`}
+          message={`Couldn't load store — ${apiErrorMessage(error, "unknown")}`}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -126,12 +128,12 @@ export default function OwnerStoreDetail() {
             <KpiCard
               label="Transfers"
               value={data.period_count.toLocaleString()}
-              sub={fmtDelta(data.period_count - data.prev_count, "", " vs prior")}
+              sub={<Delta value={data.period_count - data.prev_count} suffix=" vs prior" />}
             />
             <KpiCard
               label="Volume"
               value={fmtMoney(data.period_volume)}
-              sub={fmtDelta(data.period_volume - data.prev_volume, "$", " vs prior")}
+              sub={<Delta value={data.period_volume - data.prev_volume} money suffix=" vs prior" />}
             />
             <KpiCard label="Fees" value={fmtMoney2(data.period_fees)} />
             <KpiCard label="Federal Tax" value={fmtMoney2(data.period_tax)} />
@@ -311,18 +313,5 @@ export default function OwnerStoreDetail() {
         </>
       )}
     </PageShell>
-  );
-}
-
-function fmtDelta(
-  delta: number,
-  prefix: string,
-  suffix: string,
-): React.ReactNode {
-  const sign = delta >= 0 ? "▲" : "▼";
-  return (
-    <span className={delta >= 0 ? styles.deltaPos : styles.deltaNeg}>
-      {sign} {prefix}{Math.abs(Math.round(delta)).toLocaleString()}{suffix}
-    </span>
   );
 }

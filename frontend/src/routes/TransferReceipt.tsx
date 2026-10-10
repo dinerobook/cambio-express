@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 
 import { useTransferReceipt } from "../api/transfers";
+import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import { AppLink, Button, ErrorState, Loading } from "../components/ui";
 import styles from "./TransferReceipt.module.css";
@@ -83,9 +84,7 @@ export default function TransferReceipt() {
         </div>
         <ErrorState
           message={
-            error instanceof Error
-              ? `Couldn't load receipt: ${error.message}`
-              : "Couldn't load receipt."
+            `Couldn't load receipt. ${apiErrorMessage(error, "")}`.trimEnd()
           }
           onRetry={() => { void refetch(); }}
         />

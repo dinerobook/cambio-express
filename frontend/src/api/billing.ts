@@ -7,6 +7,22 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { PillTone } from "../components/ui";
+
+/** Store.plan → Pill tone (UI-STANDARDS §3). A paying plan is live
+ *  state (accent); a trial is expiring by definition (warning); an
+ *  inactive store is off, which is neutral — red is for failures.
+ *  Unknown → neutral. */
+export const PLAN_TONES: Record<string, PillTone> = {
+  trial:    "warning",
+  basic:    "accent",
+  pro:      "accent",
+  inactive: "neutral",
+};
+
+export function planTone(plan: string): PillTone {
+  return PLAN_TONES[plan] ?? "neutral";
+}
 
 export interface CheckoutResponse {
   url: string;

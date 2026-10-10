@@ -1,6 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { PillTone } from "../components/ui";
+
+/** UI-STANDARDS §3 role pills — one tone per built-in role on every
+ *  screen. admin is the store's live operator (accent), employee is
+ *  the plain default (neutral), owner is a secondary identity (info).
+ *  The platform roles are not failures, so neither is red:
+ *  superadmin is the login to handle with care (warning) and support
+ *  is a secondary, tickets-only identity (info). Unknown → neutral. */
+export const ROLE_TONES: Record<string, PillTone> = {
+  admin:      "accent",
+  employee:   "neutral",
+  owner:      "info",
+  superadmin: "warning",
+  support:    "info",
+};
+
+export function roleTone(role: string): PillTone {
+  return ROLE_TONES[role] ?? "neutral";
+}
 
 // Named access roles (R-3). Hand-written types: the roles routes
 // return plain dicts rather than Pydantic response models, so

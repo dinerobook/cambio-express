@@ -16,7 +16,7 @@ import {
   type ReturnCheckPaymentRow,
   type ReturnCheckWriteBody,
 } from "../api/returnChecks";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { fmtMoney2 } from "../lib/formatters";
@@ -166,9 +166,7 @@ export default function ReturnCheckForm() {
       setPendingTransition(null);
     } catch (err) {
       setTransitionError(
-        err instanceof ApiError
-          ? err.message
-          : `Could not ${label.toLowerCase()}.`,
+        apiErrorMessage(err, `Could not ${label.toLowerCase()}.`),
       );
     } finally {
       setBusy(false);
@@ -432,9 +430,7 @@ function RecordPaymentForm({
       setAmount(0); setNote("");
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Could not record payment.",
+        apiErrorMessage(err, "Could not record payment."),
       );
     } finally {
       setBusy(false);
@@ -524,9 +520,7 @@ function PaymentsTable({
       setPendingRemove(null);
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Could not remove payment.",
+        apiErrorMessage(err, "Could not remove payment."),
       );
     } finally {
       setBusyId(null);

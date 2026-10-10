@@ -5,7 +5,7 @@ import {
   defaultStoreIds, useReportDrilldown,
   type AggregatedRow, type AggregatedTotals,
 } from "../api/reportDrilldown";
-import { downloadCsv } from "../lib/api";
+import { downloadCsv, apiErrorMessage } from "../lib/api";
 import {
   Breadcrumbs, Button, DateInput, EmptyState, ErrorState, KpiCard,
   KpiGrid, PageHeader, PageShell, TableSkeleton, tdStyle, thStyle,
@@ -170,7 +170,7 @@ export function ReportDrilldown({
       {isLoading && <TableSkeleton rows={5} cols={columns.length || 4} />}
       {isError && (
         <ErrorState
-          message={`Couldn't load report — ${error instanceof Error ? error.message : "unknown error"}`}
+          message={`Couldn't load report — ${apiErrorMessage(error, "unknown error")}`}
           onRetry={() => { void refetch(); }}
         />
       )}

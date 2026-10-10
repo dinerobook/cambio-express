@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { roleTone } from "../api/roles";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -95,7 +96,7 @@ export default function OwnerUsers() {
                     {u.username}
                   </td>
                   <td>
-                    <Pill tone={u.role === "admin" ? "accent" : "neutral"}>
+                    <Pill tone={roleTone(u.role)}>
                       {u.role}
                     </Pill>
                   </td>

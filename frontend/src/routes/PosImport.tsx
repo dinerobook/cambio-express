@@ -8,7 +8,7 @@ import {
   useStagedDays,
   type ImportRegisterRow, type NaxmlPreview,
 } from "../api/posimport";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -58,7 +58,7 @@ export default function PosImport() {
       setDraftMap({});
     } catch (err) {
       setPreview(null);
-      setError(err instanceof ApiError ? err.message : "Could not parse the upload.");
+      setError(apiErrorMessage(err, "Could not parse the upload."));
     } finally {
       setBusy("");
     }
@@ -87,7 +87,7 @@ export default function PosImport() {
       toast({ message: "Mappings saved.", tone: "success" });
       await runPreview(payload);   // refresh mapped/unmapped state
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save mappings.");
+      setError(apiErrorMessage(err, "Could not save mappings."));
     } finally {
       setBusy("");
     }
@@ -109,7 +109,7 @@ export default function PosImport() {
         tone: "success",
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not import the day.");
+      setError(apiErrorMessage(err, "Could not import the day."));
     } finally {
       setBusy("");
     }

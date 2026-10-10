@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
@@ -106,7 +106,7 @@ export default function SuperadminHealth() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load health data"}
+          message={apiErrorMessage(error, "Could not load health data")}
           onRetry={() => { void refetch(); }}
         />
       )}

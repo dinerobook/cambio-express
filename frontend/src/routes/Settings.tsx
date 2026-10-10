@@ -16,7 +16,7 @@ import {
   type StoreHourEntry,
 } from "../api/account";
 import { redeemConnectCode } from "../api/owner";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { formatDate, formatTimestamp } from "../lib/datetime";
 import { timezoneFromAddress } from "../lib/timezoneFromAddress";
 import { getCurrentIdentity } from "../lib/auth";
@@ -223,7 +223,7 @@ function ProfileCard() {
       <Card>
         <SectionTitle>Personal info</SectionTitle>
         <ErrorState
-          message={`Couldn't load your profile.${error instanceof Error ? ` ${error.message}` : ""}`}
+          message={`Couldn't load your profile. ${apiErrorMessage(error, "")}`.trimEnd()}
           onRetry={() => { void refetch(); }}
         />
       </Card>
@@ -383,7 +383,7 @@ function PasskeysCard() {
       refresh();
       setPendingRemove(null);
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not remove device.");
+      setErr(apiErrorMessage(e, "Could not remove device."));
     } finally {
       setBusyId(null);
     }
@@ -400,9 +400,7 @@ function PasskeysCard() {
       // navigator.credentials.create() rejects on cancel / wrong
       // device / etc. with browser-specific messages — surface
       // them as-is so users see the actual reason.
-      const msg = e instanceof ApiError
-        ? e.message
-        : (e instanceof Error ? e.message : "Could not create passkey.");
+      const msg = apiErrorMessage(e, "Could not create passkey.", { anyError: true });
       setErr(msg);
     } finally {
       setAddBusy(false);
@@ -539,7 +537,7 @@ function SubscriptionCard() {
         window.location.assign("/app/subscribe");
         return;
       }
-      setErr(e instanceof ApiError ? e.message : "Could not open billing portal.");
+      setErr(apiErrorMessage(e, "Could not open billing portal."));
       setBusy(false);
     }
   }
@@ -715,7 +713,7 @@ function StoreInfoCard() {
       setBaseline(snapshot(hours, enforceHours, mtCompanies));
       toast({ message: "Store info saved.", tone: "success" });
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not save.");
+      setErr(apiErrorMessage(e, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -1077,9 +1075,7 @@ function ChangePasswordCard() {
       setCurrent(""); setNext(""); setConfirm("");
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Could not update password.",
+        apiErrorMessage(err, "Could not update password."),
       );
     } finally {
       setBusy(false);
@@ -1221,7 +1217,7 @@ function OwnerAccessCard() {
       setCode("");
       toast({ message: `Store linked to owner "${result.owner_name}"`, tone: "success" });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not redeem code.");
+      setError(apiErrorMessage(err, "Could not redeem code."));
     } finally {
       setBusy(false);
     }

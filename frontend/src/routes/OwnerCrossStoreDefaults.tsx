@@ -4,14 +4,15 @@ import {
   applyCrossStoreDefaults, useOwnerLocations,
   type OwnerCrossStoreDefaultsBody, type OwnerCrossStoreResultRow,
 } from "../api/owner";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
   Alert, Button, Card, Checkbox, Empty, ErrorState, Field, Input,
-  Loading, PageHeader, PageShell, Pill, Section, Select, Switch,
-  Table, tdStyle, thStyle,
+  Loading, PageHeader, PageShell, Section, Select, Switch,
 } from "../components/ui";
+import { BulkResultsCard } from "../components/BulkResultsCard";
+import { useStoreSelection } from "../lib/useStoreSelection";
 import styles from "./OwnerCrossStoreDefaults.module.css";
 
 // /app/owner/cross-store-defaults — owner pushes the same
@@ -51,7 +52,6 @@ export default function OwnerCrossStoreDefaults() {
   const { data: locations, isLoading, isError, refetch } =
     useOwnerLocations("month", "");
 
-  const [storeIds, setStoreIds] = useState<number[]>([]);
   const [results, setResults] =
     useState<OwnerCrossStoreResultRow[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -75,8 +75,9 @@ export default function OwnerCrossStoreDefaults() {
     () => locations?.rows.map((r) => r.store_id) ?? [],
     [locations],
   );
-  const allSelected = storeIds.length === allStoreIds.length
-                      && allStoreIds.length > 0;
+  const {
+    selected: storeIds, isSelected, toggle: toggleStore, toggleAll, allSelected,
+  } = useStoreSelection(allStoreIds);
 
   if (!identity || (identity.role !== "owner"
                     && identity.role !== "superadmin")) {
@@ -86,15 +87,6 @@ export default function OwnerCrossStoreDefaults() {
         <Empty>This page is owner-only.</Empty>
       </PageShell>
     );
-  }
-
-  function toggleStore(id: number) {
-    setStoreIds((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-    );
-  }
-  function toggleAll() {
-    setStoreIds(allSelected ? [] : [...allStoreIds]);
   }
 
   const anyFieldChecked = applyTz || applyFedTax || applyEnforceHours
@@ -120,11 +112,9 @@ export default function OwnerCrossStoreDefaults() {
       const out = await applyCrossStoreDefaults(body);
       setResults(out.results);
     } catch (e2) {
-      setErr(
-        e2 instanceof ApiError ? e2.message
-        : e2 instanceof Error ? e2.message
-        : "Couldn't apply the cross-store defaults.",
-      );
+      setErr(apiErrorMessage(
+        e2, "Couldn't apply the cross-store defaults.", { anyError: true },
+      ));
     } finally {
       setBusy(false);
     }
@@ -271,7 +261,7 @@ export default function OwnerCrossStoreDefaults() {
                 {locations.rows.map((s) => (
                   <li key={s.store_id}>
                     <Checkbox
-                      checked={storeIds.includes(s.store_id)}
+                      checked={isSelected(s.store_id)}
                       onChange={() => toggleStore(s.store_id)}
                     >
                       <span className={styles.storeName}>{s.store_name}</span>
@@ -303,40 +293,8 @@ export default function OwnerCrossStoreDefaults() {
         </form>
       )}
 
-      {results && <ResultsCard rows={results} />}
+      {results && <BulkResultsCard rows={results} />}
     </PageShell>
   );
 }
 
-
-function ResultsCard({ rows }: { rows: OwnerCrossStoreResultRow[] }) {
-  return (
-    <Card>
-      <Section title="Results">
-        <Table>
-          <thead>
-            <tr>
-              {["Store", "Status", "Notes"].map((h) => (
-                <th key={h} style={thStyle}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.store_id}>
-                <td style={tdStyle}>{r.store_name || `Store #${r.store_id}`}</td>
-                <td style={tdStyle}><StatusPill status={r.status} /></td>
-                <td style={tdStyle}>{r.detail || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Section>
-    </Card>
-  );
-}
-
-function StatusPill({ status }: { status: OwnerCrossStoreResultRow["status"] }) {
-  if (status === "updated")  return <Pill tone="success">Updated</Pill>;
-  return <Pill tone="negative">Rejected</Pill>;
-}

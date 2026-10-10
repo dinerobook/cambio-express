@@ -3,20 +3,21 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   adminCreateEntry, adminDeleteEntry, adminUpdateEntry,
-  useAdminTimeClock, useTimeClockHistory,
+  TIMECLOCK_STATUS_TONES, useAdminTimeClock, useTimeClockHistory,
   type TimeClockEntryRow, type TimeClockStatus,
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
 import { updateStoreInfo, useStoreInfo } from "../api/account";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
+import { fmtHours } from "../lib/formatters";
 import {
   daysAgoIso, formatDate, formatTimestamp, utcToZonedInput, zonedInputToUtcIso,
 } from "../lib/datetime";
 import {
   Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, ErrorState,
-  Field, InfoTip, Input,
+  Field, InfoTip, Input, KpiCard, KpiGrid,
   Loading, Modal, PageHeader, PageShell, Pill, RowActions, Select, space, Table,
   TableSkeleton, Textarea, tdStyle, thStyle, useToast,
   Empty,
@@ -210,9 +211,7 @@ export default function AdminTimeClock() {
                     </td>
                     <td style={tdStyle}>
                       <span className={styles.totalCell}>
-                        {r.hours_worked == null
-                          ? "—"
-                          : r.hours_worked.toFixed(2)}
+                        {fmtHours(r.hours_worked)}
                       </span>
                     </td>
                     <td style={tdStyle}>
@@ -301,7 +300,7 @@ export default function AdminTimeClock() {
             refresh();
           } catch (e) {
             toast({
-              message: e instanceof ApiError ? e.message : "Couldn't delete.",
+              message: apiErrorMessage(e, "Couldn't delete."),
               tone: "error",
               duration: 5000,
             });
@@ -326,26 +325,14 @@ function KpiRow({
   const pending  = data?.pending_hours ?? 0;
   const total    = data?.total_hours ?? 0;
   return (
-    <div className={styles.kpiRow}>
-      <KpiTile label="Approved hours" value={approved}
-        accent="accent" />
-      <KpiTile label="Pending hours" value={pending}
-        accent="warning" />
-      <KpiTile label="Total hours (window)" value={total}
-        accent="info" />
-    </div>
-  );
-}
-
-
-function KpiTile({
-  label, value, accent,
-}: { label: string; value: number; accent: "accent" | "warning" | "info" }) {
-  return (
-    <div className={`${styles.kpiTile} ${styles[`kpi_${accent}`]}`}>
-      <div className={styles.kpiLabel}>{label}</div>
-      <div className={styles.kpiValue}>{value.toFixed(2)}</div>
-    </div>
+    <KpiGrid minWidth="11rem">
+      <KpiCard label="Approved hours" value={fmtHours(approved)}
+        tone="positive" colorValue />
+      <KpiCard label="Pending hours" value={fmtHours(pending)}
+        tone="warning" colorValue />
+      <KpiCard label="Total hours (window)" value={fmtHours(total)}
+        tone="primary" colorValue />
+    </KpiGrid>
   );
 }
 
@@ -397,9 +384,7 @@ function EmployeeGroupHeader({
 
 
 function StatusPill({ status }: { status: TimeClockStatus }) {
-  if (status === "approved") return <Pill tone="success">approved</Pill>;
-  if (status === "rejected") return <Pill tone="negative">rejected</Pill>;
-  return <Pill tone="warning">pending</Pill>;
+  return <Pill tone={TIMECLOCK_STATUS_TONES[status]}>{status}</Pill>;
 }
 
 
@@ -587,7 +572,7 @@ function EntryModal({
       onSaved();
     } catch (e2) {
       setErr(
-        e2 instanceof ApiError ? e2.message : "Couldn't save the entry.",
+        apiErrorMessage(e2, "Couldn't save the entry."),
       );
     } finally {
       setBusy(false);

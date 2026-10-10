@@ -5,7 +5,7 @@ import {
   postTicketMessage, reopenTicket, useTicketMessages,
   type TicketRow,
 } from "../api/support";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { Alert, Button, Loading, Textarea } from "./ui";
 import styles from "./TicketThread.module.css";
 import { formatDateTime } from "../lib/datetime";
@@ -63,7 +63,7 @@ export function TicketThread({
       await refresh();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not send the reply.",
+        apiErrorMessage(err, "Could not send the reply."),
       );
     } finally {
       setBusy(false);
@@ -79,7 +79,7 @@ export function TicketThread({
       await refresh();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not reopen the ticket.",
+        apiErrorMessage(err, "Could not reopen the ticket."),
       );
     } finally {
       setBusy(false);

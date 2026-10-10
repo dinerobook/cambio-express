@@ -60,7 +60,13 @@ same tone on every screen:
 - Boolean table cells: `Active` / `Inactive` (lifecycle) — never
   `Yes`/`No`, `Disabled`, `✓`, or `—` — except dense matrices, where
   `✓` / `—` is the standard pair.
-- Role pills: `admin → accent`, `employee → neutral`, `owner → info`.
+- Role pills: `admin → accent`, `employee → neutral`, `owner → info`;
+  the platform roles `superadmin → warning`, `support → info` (never
+  red — no role is a failure). One map: `ROLE_TONES` / `roleTone()`
+  in `api/roles.ts`.
+- Plan pills: `basic`/`pro → accent` (paying = live), `trial →
+  warning`, `inactive → neutral`. One map: `PLAN_TONES` /
+  `planTone()` in `api/billing.ts`.
 - Tone maps shared by 2+ routes live in the API layer next to the
   type (see `TICKET_STATUS_TONES` in `api/support.ts`), not copied
   per route.
@@ -184,6 +190,9 @@ Known shared components, and what they own:
 | Use this | Instead of |
 |---|---|
 | `MonthCalendar` + `MonthCalendarLegend` | a month grid, cell states, money/variance containment |
+| `PeriodStepper` (+ `shiftMonth` / `addDaysIso` / `mondayOfIso` / `monthRangeIso` / `formatWeekRange` in `lib/datetime`) | a ← / label / → day, week or month bar, its "Previous month" labels, "Today" button, ← / → key handling, or your own month/week arithmetic |
+| `BulkResultsCard` + `useStoreSelection` (owner bulk actions) | a per-store Store / Status / Notes results table with its own status → pill map, or a hand-rolled "Select all / N of M selected" store picker |
+| `describeAppliedRule` (`lib/bankRules`) | your own "N tagged, N booked, N skipped (day locked)" toast text |
 | `MoneyInput` | `<input type="number">` + your own cents parsing |
 | `Table`, `TableStates` | a `<table>` plus hand-rolled loading/empty/error |
 | `PermissionMatrixTable` | a per-route permission grid |
@@ -193,7 +202,10 @@ Known shared components, and what they own:
 | `useApiErrorToast` | `toast({ message: err instanceof ApiError ? … , tone: "error" })` |
 | `*_STATUS_TONES` in `api/` (`BATCH_`, `TRANSFER_`, `RETURN_CHECK_`, `TICKET_`) | a per-route status → tone map |
 | `fmtMoney2` / `formatDate` / `formatTimestamp` | `toFixed(2)`, `.slice(0, 10)`, `toLocaleDateString()` |
-| `Modal`, `Tooltip`, `Switch`, `Checkbox`, `Pill`, `KpiCard` | hand-rolled equivalents |
+| `Modal`, `Tooltip`, `Switch`, `Checkbox`, `Pill` | hand-rolled equivalents |
+| `KpiCard` / `KpiGrid` (`colorValue` to paint a signal figure in its tone) | a page-local stat tile, `StatRow`, or `.kpi*` / `.summaryTile` CSS |
+| `CopyField` / `CopyButton` | a read-only `<input>` + Copy button with its own `navigator.clipboard.writeText` (it owns the execCommand fallback, the "Copied" flash and the failure toast) |
+| `AuditTable` (`who="store"` for one person's cross-store feed) | a per-page audit `<table>` of When / Actor / Action / Target / Details |
 | `BreakdownPills` | a "Cash $X · Check $Y" line, or per-card part chips |
 | `DailyBookTile` / `BoxTabs` (daily book) | a hand-built box button or a tab strip with its own "Label · $X" + tip row |
 

@@ -30,35 +30,8 @@
   color: var(--db-text-muted, #a3a3a3);
 }
 
-.summaryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 1rem;
+.summary {
   margin: 1rem 0 1.25rem;
-}
-
-.summaryTile {
-  border: 1px solid var(--db-border, #262626);
-  border-radius: 0.5rem;
-  padding: 0.65rem 0.85rem;
-}
-
-.summaryLabel {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--db-text-muted, #a3a3a3);
-  margin-bottom: 0.25rem;
-}
-
-.summaryValue {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.grossPay {
-  color: var(--db-accent, #3fff00);
 }
 
 .shiftsWrap {
@@ -91,10 +64,6 @@
 .mono {
   font-family: var(--db-font-mono, "JetBrains Mono", monospace);
 }
-
-.statusPending  { color: var(--db-warning, #ffb020); }
-.statusApproved { color: var(--db-accent, #3fff00); }
-.statusRejected { color: var(--db-negative, #ff4d6d); }
 
 .footer {
   margin-top: 1.25rem;
@@ -133,14 +102,13 @@
     box-shadow: none !important;
     padding: 0 !important;
   }
-  .summaryTile {
+  /* The tiles are the kit <KpiCard>, styled inline — only an
+     !important rule reaches them for paper. */
+  .summary :global(.ds-kpi-card) {
+    background: white !important;
     border-color: #ccc !important;
   }
-  .summaryValue,
-  .grossPay,
-  .statusApproved,
-  .statusPending,
-  .statusRejected {
+  .summary :global(.ds-kpi-card) * {
     color: black !important;
   }
   .shifts th,

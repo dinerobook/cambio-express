@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
+import { roleTone } from "../api/roles";
 import { toggleMatrixCell } from "../lib/permissions";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
 import {
-  Alert, Breadcrumbs, Button, Card, Loading,
+  Alert, Breadcrumbs, Button, Card, ErrorState, Loading,
   PageHeader, PageShell, Pill, SectionTitle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
@@ -33,7 +34,7 @@ export default function OwnerStorePermissions() {
   const qc = useQueryClient();
   const toast = useToast();
 
-  const { data, isLoading, isError, error } = useQuery<PermissionMatrix>({
+  const { data, isLoading, isError, error, refetch } = useQuery<PermissionMatrix>({
     queryKey: ["owner-store-permissions", sid],
     queryFn: () => api<PermissionMatrix>(`/api/v2/owner/store/${sid}/permissions`),
   });
@@ -85,7 +86,7 @@ export default function OwnerStorePermissions() {
       qc.setQueryData(["owner-store-permissions", sid], result);
       toast({ message: "Permissions updated.", tone: "success" });
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : "Could not save.");
+      setSaveError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -103,7 +104,7 @@ export default function OwnerStorePermissions() {
       qc.setQueryData(["owner-store-permissions", sid], result);
       toast({ message: `${ROLE_LABELS[role] ?? role} permissions reset to defaults.`, tone: "success" });
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : "Could not reset.");
+      setSaveError(apiErrorMessage(err, "Could not reset."));
     } finally {
       setBusy(false);
     }
@@ -122,7 +123,12 @@ export default function OwnerStorePermissions() {
       />
 
       {isLoading && <Loading />}
-      {isError && <Alert tone="error">{error instanceof Error ? error.message : "Could not load"}</Alert>}
+      {isError && (
+        <ErrorState
+          message={apiErrorMessage(error, "Could not load")}
+          onRetry={() => { void refetch(); }}
+        />
+      )}
       {saveError && <Alert tone="error">{saveError}</Alert>}
 
       {draft && draft.roles.map((role) => {
@@ -132,7 +138,7 @@ export default function OwnerStorePermissions() {
           <Card key={role}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
               <SectionTitle>
-                <Pill tone={role === "admin" ? "accent" : "neutral"}>
+                <Pill tone={roleTone(role)}>
                   {ROLE_LABELS[role] ?? role}
                 </Pill>
                 {hasOverride && <span className={styles.overrideBadge}>customized</span>}

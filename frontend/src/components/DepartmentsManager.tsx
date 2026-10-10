@@ -5,7 +5,7 @@ import {
   createDepartment, updateDepartment, useDepartments,
   type Department,
 } from "../api/dayclose";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import {
   Alert, Button, Card, EmptyState, ErrorState, Field, InfoTip, Input,
@@ -249,7 +249,7 @@ function DepartmentForm({
       }
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }

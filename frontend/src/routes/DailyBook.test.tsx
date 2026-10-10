@@ -5,6 +5,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DailyBook from "./DailyBook";
+import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 
@@ -119,7 +120,7 @@ describe("DailyBook landing", () => {
     const refetch = vi.fn();
     useDailyPeriod.mockReturnValue({
       data: undefined, isLoading: false, isError: true,
-      error: new Error("Month unavailable"), refetch,
+      error: new ApiError(500, "Month unavailable", null), refetch,
     });
     renderPage();
     expect(screen.getByText("Month unavailable")).toBeInTheDocument();

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { apiErrorMessage } from "../../lib/api";
 import { EmptyState } from "./Empty";
 import { ErrorState } from "./ErrorState";
 import { TableSkeleton } from "./Table";
@@ -56,7 +57,7 @@ export function TableStates({
       <ErrorState
         message={
           errorMessage ??
-          (error instanceof Error ? error.message : "Could not load data")
+          (apiErrorMessage(error, "Could not load data"))
         }
         onRetry={onRetry}
       />

@@ -13,6 +13,7 @@ import {
 } from "chart.js";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 
+import { apiErrorMessage } from "../lib/api";
 import { fmtMoney } from "../lib/formatters";
 import {
   useSuperadminDashboard,
@@ -58,7 +59,7 @@ export default function SuperadminDashboard() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load dashboard"}
+          message={apiErrorMessage(error, "Could not load dashboard")}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -166,16 +167,17 @@ export default function SuperadminDashboard() {
 
             <Section title="MRR breakdown">
               <Card>
-                <div className={styles.mrrGrid}>
+                <KpiGrid minWidth="10rem">
                   <MrrRow label="Basic monthly" count={data.basic_monthly} mrr={data.basic_monthly_mrr} />
                   <MrrRow label="Basic yearly" count={data.basic_yearly} mrr={data.basic_yearly_mrr} />
                   <MrrRow label="Pro monthly" count={data.pro_monthly} mrr={data.pro_monthly_mrr} />
                   <MrrRow label="Pro yearly" count={data.pro_yearly} mrr={data.pro_yearly_mrr} />
-                  <div className={styles.mrrTotal}>
-                    <span>Total MRR</span>
-                    <span className={styles.mrrTotalValue}>{fmtMoney(data.estimated_mrr)}</span>
-                  </div>
-                </div>
+                  <KpiCard
+                    label="Total MRR"
+                    value={fmtMoney(data.estimated_mrr)}
+                    tone="positive" colorValue
+                  />
+                </KpiGrid>
               </Card>
             </Section>
           </div>
@@ -355,11 +357,11 @@ function VolumeBar({ rows }: { rows: VolumeByCompany[] }) {
 
 function MrrRow({ label, count, mrr }: { label: string; count: number; mrr: number }) {
   return (
-    <div className={styles.mrrRow}>
-      <span className={styles.mrrLabel}>{label}</span>
-      <span className={styles.mrrCount}>{count} stores</span>
-      <span className={styles.mrrValue}>{fmtMoney(mrr)}/mo</span>
-    </div>
+    <KpiCard
+      label={label}
+      value={`${fmtMoney(mrr)}/mo`}
+      sub={`${count} stores`}
+    />
   );
 }
 

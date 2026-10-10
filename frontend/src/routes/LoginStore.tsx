@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { lookupStoreBySlug, type StoreLookup } from "../api/account";
 import { AuthChrome, StatusPill } from "../components/AuthChrome";
 import { Alert, Button, Field, Input, Loading } from "../components/ui";
-import { api, ApiError } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { setAccessToken } from "../lib/auth";
 import { BRAND_NAME } from "../lib/brand";
 import styles from "./auth.module.css";
@@ -73,9 +73,7 @@ export default function LoginStore() {
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Network error. Please try again.",
+        apiErrorMessage(err, "Network error. Please try again."),
       );
     } finally {
       setBusy(false);

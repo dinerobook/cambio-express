@@ -2,29 +2,22 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  activateLotteryPack, createLotteryGame, receiveLotteryPack,
+  PACK_STATUS_TONES, activateLotteryPack, createLotteryGame, receiveLotteryPack,
   recordLotteryCount, returnLotteryPack, settleLotteryPack,
   updateLotteryGame, useLotteryDay, useLotteryGames, useLotteryPacks,
   type LotteryDayRow, type LotteryGame, type LotteryPack,
 } from "../api/lottery";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Alert, Breadcrumbs, Button, Card, DateInput, EmptyState, ErrorState,
   Field, InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, PageHeader,
   PageShell, Pill, RowActions, Section, Select, TabsBar, TabsButton,
-  Table, tdStyle, thStyle, useToast, type PillTone,
+  Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
 import styles from "./Lottery.module.css";
 import { todayIso } from "../lib/datetime";
-
-const PACK_TONES: Record<string, PillTone> = {
-  received: "neutral",
-  active:   "accent",
-  settled:  "success",
-  returned: "warning",
-};
 
 export default function Lottery() {
   const [tab, setTab] = useState<"day" | "packs" | "games">("day");
@@ -249,7 +242,7 @@ function PacksTab() {
                     <td style={tdStyle}>#{p.game_number} {p.game_name}</td>
                     <td style={tdStyle}>{p.pack_number}</td>
                     <td style={tdStyle}>
-                      <Pill tone={PACK_TONES[p.status] ?? "neutral"}>
+                      <Pill tone={PACK_STATUS_TONES[p.status] ?? "neutral"}>
                         {p.status}
                       </Pill>
                     </td>
@@ -330,7 +323,7 @@ function ReceivePackModal({
       setPackNumber("");
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -402,7 +395,7 @@ function ActivatePackModal({
       setOpening("0");
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -575,7 +568,7 @@ function AddGameModal({
       setGameNumber(""); setName(""); setPrice(0); setPerPack("");
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }

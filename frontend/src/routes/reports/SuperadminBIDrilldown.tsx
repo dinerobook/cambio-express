@@ -12,7 +12,7 @@ import {
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
 
-import { api, downloadCsv } from "../../lib/api";
+import { api, downloadCsv, apiErrorMessage } from "../../lib/api";
 import { chartSeries, countChartOptions, moneyChartOptions, seriesFill } from "../../lib/chartOptions";
 import { AppLink,
   Button, Card, DateInput, EmptyState, ErrorState, KpiCard, KpiGrid,
@@ -135,7 +135,7 @@ export default function SuperadminBIDrilldown() {
       `/api/v2/superadmin/reports/${slug}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
     )
       .then(setData)
-      .catch(e => setError(e instanceof Error ? e.message : "load failed"))
+      .catch(e => setError(apiErrorMessage(e, "load failed")))
       .finally(() => setLoading(false));
   }, [slug, from, to]);
 

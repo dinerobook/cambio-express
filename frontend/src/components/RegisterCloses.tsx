@@ -5,7 +5,7 @@ import {
   deleteRegisterClose, upsertRegisterClose, useDayClose, useDepartments,
   type Department, type RegisterClose,
 } from "../api/dayclose";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -306,7 +306,7 @@ function CloseForm({
       });
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }

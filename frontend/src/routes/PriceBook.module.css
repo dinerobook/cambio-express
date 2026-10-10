@@ -54,3 +54,11 @@
   font-size: 0.85rem;
 }
 
+
+/* Unit cost + its "Use case" button on one row. Bottom-aligned so the
+ * button sits beside the input, or beside the hint when one shows. */
+.moneyWithAction {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-end;
+}

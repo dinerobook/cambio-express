@@ -6,13 +6,8 @@
  * a phone can still scan a week.
  */
 
-.weekBar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
+/* The middle of the week PeriodStepper (`fill`): grows so the
+   next / this-week buttons sit at the far edge. */
 .weekLabel {
   flex: 1;
   font-weight: 600;

@@ -7,7 +7,7 @@ import {
   useVendors,
   type InvoiceDetail, type InvoiceWrite,
 } from "../api/catalog";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Alert, Breadcrumbs, Button, Card, Checkbox, DateInput, ErrorState,
@@ -38,6 +38,14 @@ const EMPTY_LINE: LineDraft = {
   itemId: null, itemName: "", code: "", codeStatus: "",
   description: "", quantity: "1", unitCost: "", lineTotal: "",
 };
+
+/** A typed amount back into the line's draft string. An empty box
+ *  (0) is "" so a blank line total keeps meaning "derive it" —
+ *  `line_total: null` on the wire — exactly as before the field was
+ *  a <MoneyInput>. */
+function moneyDraft(n: number): string {
+  return n === 0 ? "" : String(n);
+}
 
 function lineFromDetail(line: InvoiceDetail["lines"][number]): LineDraft {
   return {
@@ -204,7 +212,7 @@ function InvoiceForm({
       });
       navigate("/purchase-invoices");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save.");
+      setError(apiErrorMessage(err, "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -348,23 +356,21 @@ function InvoiceForm({
                     }
                   />
                 </Field>
-                <Field label={i === 0 ? "Unit cost" : ""}>
-                  <Input
-                    type="number" min={0} step="0.01" value={line.unitCost}
-                    onChange={(e) =>
-                      patchLine(i, { unitCost: e.target.value })
-                    }
-                  />
-                </Field>
-                <Field label={i === 0 ? "Line total" : ""}>
-                  <Input
-                    type="number" min={0} step="0.01" value={line.lineTotal}
-                    placeholder="auto"
-                    onChange={(e) =>
-                      patchLine(i, { lineTotal: e.target.value })
-                    }
-                  />
-                </Field>
+                <MoneyInput
+                  label={i === 0 ? "Unit cost" : undefined}
+                  aria-label={`Line ${i + 1} unit cost`}
+                  value={Number.parseFloat(line.unitCost) || 0}
+                  onChange={(n) => patchLine(i, { unitCost: moneyDraft(n) })}
+                  fullWidth
+                />
+                <MoneyInput
+                  label={i === 0 ? "Line total" : undefined}
+                  aria-label={`Line ${i + 1} total`}
+                  value={Number.parseFloat(line.lineTotal) || 0}
+                  placeholder="auto"
+                  onChange={(n) => patchLine(i, { lineTotal: moneyDraft(n) })}
+                  fullWidth
+                />
                 <Field label={i === 0 ? " " : ""}>
                   <Button
                     size="sm" tone="danger" type="button"

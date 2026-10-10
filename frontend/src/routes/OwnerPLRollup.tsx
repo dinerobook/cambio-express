@@ -6,14 +6,14 @@ import {
 } from "../api/owner";
 import {
   Breadcrumbs,
-  Button, Card, Empty, monoStyle, PageHeader,
-  PageShell, Select, Table, TableStates, tdStyle, thStyle,
+  Card, Empty, monoStyle, PageHeader,
+  PageShell, PeriodStepper, Select, Table, TableStates, tdStyle, thStyle,
 } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./OwnerPLRollup.module.css";
 import {
-  MONTH_NAMES, storeNow,
+  MONTH_NAMES, shiftMonth, storeNow,
 } from "../lib/datetime";
 
 // /app/owner/pl-rollup — side-by-side monthly P&L for every store
@@ -36,13 +36,11 @@ export default function OwnerPLRollup() {
     setSP(next, { replace: true });
   }
 
-  function shiftMonth(delta: number) {
-    let y = year; let m = month + delta;
-    while (m > 12) { y += 1; m -= 12; }
-    while (m < 1)  { y -= 1; m += 12; }
+  function shift(delta: number) {
+    const to = shiftMonth(year, month, delta);
     const next = new URLSearchParams(sp);
-    next.set("year", String(y));
-    next.set("month", String(m));
+    next.set("year", String(to.year));
+    next.set("month", String(to.month));
     setSP(next, { replace: true });
   }
 
@@ -71,16 +69,13 @@ export default function OwnerPLRollup() {
             : "—"
         }
         actions={
-          <div className={styles.nav}>
-            <Button
-              tone="secondary"
-              size="sm"
-              onClick={() => shiftMonth(-1)}
-              aria-label="Previous month"
-            >
-              ←
-            </Button>
+          <PeriodStepper
+            unit="month"
+            onPrev={() => shift(-1)}
+            onNext={() => shift(1)}
+          >
             <Select
+              aria-label="Month"
               value={month}
               onChange={(e) => setParam("month", e.target.value)}
               style={{ width: "auto" }}
@@ -90,6 +85,7 @@ export default function OwnerPLRollup() {
               ))}
             </Select>
             <Select
+              aria-label="Year"
               value={year}
               onChange={(e) => setParam("year", e.target.value)}
               style={{ width: "auto" }}
@@ -98,15 +94,7 @@ export default function OwnerPLRollup() {
                 <option key={y} value={y}>{y}</option>
               ))}
             </Select>
-            <Button
-              tone="secondary"
-              size="sm"
-              onClick={() => shiftMonth(1)}
-              aria-label="Next month"
-            >
-              →
-            </Button>
-          </div>
+          </PeriodStepper>
         }
       />
 

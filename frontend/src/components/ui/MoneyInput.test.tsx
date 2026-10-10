@@ -144,4 +144,21 @@ describe("<MoneyInput>", () => {
     // Commas + dashes get stripped; final value is 1000.
     expect(onSettled).toHaveBeenLastCalledWith(1000);
   });
+
+  it("required blocks submit while the box is empty (empty means 0)", () => {
+    const { rerender } = render(
+      <form><MoneyInput value={0} onChange={() => {}} label="Price" required /></form>,
+    );
+    expect(input()).toBeRequired();
+    expect(input().validity.valueMissing).toBe(true);
+    rerender(
+      <form><MoneyInput value={2.5} onChange={() => {}} label="Price" required /></form>,
+    );
+    expect(input().validity.valueMissing).toBe(false);
+  });
+
+  it("is not required unless asked", () => {
+    render(<MoneyInput value={0} onChange={() => {}} label="Cash" />);
+    expect(input()).not.toBeRequired();
+  });
 });

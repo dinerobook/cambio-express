@@ -5,8 +5,9 @@ import {
   formatDateTime, formatDayLabel, formatShortDate, formatTime, formatTimestamp,
   getDisplayTimezone, monthStartIso, parseTimestamp, setDisplayTimezone,
   storeNow, toIsoDate, todayIso, utcToZonedInput, zonedInputToUtcIso,
+  WEEKDAY_NAMES_SHORT, daysInMonth, formatWeekRange, isoDate, mondayOfIso,
+  monthRangeIso, shiftMonth, weekdayOfIso,
 } from "./datetime";
-import { fmtMoney, fmtMoney2 } from "./formatters";
 
 describe("formatDate", () => {
   it("renders a bare YYYY-MM-DD as that calendar day (no tz shift)", () => {
@@ -29,23 +30,6 @@ describe("formatDate", () => {
     expect(formatDate(undefined)).toBe("—");
     expect(formatDate("")).toBe("—");
     expect(formatDate("not-a-date")).toBe("not-a-date");
-  });
-});
-
-describe("fmtMoney2", () => {
-  it("keeps thousands separators (the toFixed(2) bypass lost them)", () => {
-    expect(fmtMoney2(12345.67)).toBe("$12,345.67");
-    expect(fmtMoney2(0)).toBe("$0.00");
-    expect(fmtMoney2(null)).toBe("$0.00");
-  });
-
-  it("puts a negative sign before the dollar sign", () => {
-    expect(fmtMoney2(-50.5)).toBe("-$50.50");
-    expect(fmtMoney2(-1234.5)).toBe("-$1,234.50");
-    expect(fmtMoney2(-0.001)).toBe("$0.00");
-    expect(fmtMoney(-1234.4)).toBe("-$1,234");
-    expect(fmtMoney(-0.4)).toBe("$0");
-    expect(fmtMoney(1234.6)).toBe("$1,235");
   });
 });
 
@@ -239,5 +223,49 @@ describe("datetime-local inputs on the store clock", () => {
     expect(zonedInputToUtcIso("10:00")).toBe("");
     expect(utcToZonedInput("")).toBe("");
     expect(utcToZonedInput("garbage")).toBe("");
+  });
+});
+
+describe("calendar periods", () => {
+  it("shiftMonth steps a 1-12 month and rolls the year over", () => {
+    expect(shiftMonth(2026, 10, 1)).toEqual({ year: 2026, month: 11 });
+    expect(shiftMonth(2026, 12, 1)).toEqual({ year: 2027, month: 1 });
+    expect(shiftMonth(2026, 1, -1)).toEqual({ year: 2025, month: 12 });
+    expect(shiftMonth(2026, 3, -14)).toEqual({ year: 2025, month: 1 });
+    expect(shiftMonth(2026, 3, 0)).toEqual({ year: 2026, month: 3 });
+  });
+
+  it("daysInMonth knows short months and leap years", () => {
+    expect(daysInMonth(2026, 10)).toBe(31);
+    expect(daysInMonth(2026, 11)).toBe(30);
+    expect(daysInMonth(2026, 2)).toBe(28);
+    expect(daysInMonth(2028, 2)).toBe(29);
+  });
+
+  it("isoDate zero-pads and monthRangeIso spans the whole month", () => {
+    expect(isoDate(2026, 1, 5)).toBe("2026-01-05");
+    expect(monthRangeIso(2026, 10)).toEqual({ from: "2026-10-01", to: "2026-10-31" });
+    expect(monthRangeIso(2028, 2)).toEqual({ from: "2028-02-01", to: "2028-02-29" });
+  });
+
+  it("weekdayOfIso reads the day of the week, Sunday = 0", () => {
+    expect(weekdayOfIso("2026-10-11")).toBe(0); // Sunday
+    expect(weekdayOfIso("2026-10-12")).toBe(1); // Monday
+    expect(Number.isNaN(weekdayOfIso("nope"))).toBe(true);
+    expect(WEEKDAY_NAMES_SHORT[weekdayOfIso("2026-10-10")]).toBe("Sat");
+  });
+
+  it("mondayOfIso walks back to Monday; a Sunday ends the prior week", () => {
+    expect(mondayOfIso("2026-10-12")).toBe("2026-10-12");
+    expect(mondayOfIso("2026-10-14")).toBe("2026-10-12");
+    expect(mondayOfIso("2026-10-11")).toBe("2026-10-05");
+    // Across a month and a year boundary.
+    expect(mondayOfIso("2026-01-01")).toBe("2025-12-29");
+    expect(mondayOfIso("bad")).toBe("bad");
+  });
+
+  it("formatWeekRange names the seven days and the start's year", () => {
+    expect(formatWeekRange("2026-10-05")).toBe("Oct 5 – Oct 11, 2026");
+    expect(formatWeekRange("2025-12-29")).toBe("Dec 29 – Jan 4, 2025");
   });
 });

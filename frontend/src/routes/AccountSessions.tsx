@@ -7,7 +7,7 @@ import {
   useActiveSessions,
   type ActiveSessionRow,
 } from "../api/account";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import {
   Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, ErrorState, InfoTip, Loading,
@@ -40,7 +40,7 @@ export default function AccountSessions() {
       queryClient.invalidateQueries({ queryKey: ["account", "sessions"] });
     } catch (e) {
       setRevokeError(
-        e instanceof ApiError ? e.message : "Couldn't sign out that session.",
+        apiErrorMessage(e, "Couldn't sign out that session."),
       );
     } finally {
       setBusy(null);
@@ -69,7 +69,7 @@ export default function AccountSessions() {
       queryClient.invalidateQueries({ queryKey: ["account", "sessions"] });
     } catch (e) {
       setRevokeError(
-        e instanceof ApiError ? e.message : "Couldn't sign out other sessions.",
+        apiErrorMessage(e, "Couldn't sign out other sessions."),
       );
     } finally {
       setBusy(null);
@@ -90,9 +90,7 @@ export default function AccountSessions() {
         <PageHeader title="Active sessions" />
         <ErrorState
           message={
-            error instanceof Error
-              ? `Couldn't load sessions: ${error.message}`
-              : "Couldn't load sessions."
+            `Couldn't load sessions. ${apiErrorMessage(error, "")}`.trimEnd()
           }
           onRetry={() => { void refetch(); }}
         />

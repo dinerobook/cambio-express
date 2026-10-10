@@ -9,12 +9,12 @@ import {
 } from "../api/storebook";
 import {
   Alert, Breadcrumbs, Button, Card, ConfirmDialog, DateInput, ErrorState, Field,
-  IconButton, Input, Loading, MoneyInput, PageHeader, PageShell,
+  IconButton, Input, Loading, MoneyInput, PageHeader, PageShell, PeriodStepper,
   Textarea, useToast,
 } from "../components/ui";
 import RegisterCloses from "../components/RegisterCloses";
 import { canDo } from "../lib/access";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { addDaysIso, formatDate, todayIso } from "../lib/datetime";
@@ -105,7 +105,7 @@ export default function StoreBookDay() {
       void qc.invalidateQueries({ queryKey: ["storebook", "month"] });
     } catch (err) {
       setServerError(
-        err instanceof ApiError ? err.message : "Could not save.",
+        apiErrorMessage(err, "Could not save."),
       );
     } finally {
       setBusy(false);
@@ -143,8 +143,7 @@ export default function StoreBookDay() {
     }
   }
 
-  function shiftDay(delta: number) {
-    const next = addDaysIso(day, delta);
+  function goToDay(next: string) {
     const params = new URLSearchParams(sp);
     params.set("date", next);
     setSP(params, { replace: true });
@@ -182,26 +181,16 @@ export default function StoreBookDay() {
         subtitle={formatDate(day)}
         actions={
           <div className={styles.dayNav}>
-            <Button
-              tone="secondary" size="sm"
-              onClick={() => shiftDay(-1)} aria-label="Previous day"
+            <PeriodStepper
+              unit="day"
+              onPrev={() => goToDay(addDaysIso(day, -1))}
+              onNext={() => goToDay(addDaysIso(day, 1))}
             >
-              ←
-            </Button>
-            <DateInput
-              aria-label="Day" value={day}
-              onChange={(e) => {
-                const params = new URLSearchParams(sp);
-                params.set("date", e.target.value);
-                setSP(params, { replace: true });
-              }}
-            />
-            <Button
-              tone="secondary" size="sm"
-              onClick={() => shiftDay(1)} aria-label="Next day"
-            >
-              →
-            </Button>
+              <DateInput
+                aria-label="Day" value={day}
+                onChange={(e) => goToDay(e.target.value)}
+              />
+            </PeriodStepper>
             {/* Locking needs Edit on this book AND the "Lock / unlock
                 days" switch, like the server's lock route. */}
             {canDo("day_lock.update") && (

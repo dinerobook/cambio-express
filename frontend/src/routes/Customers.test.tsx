@@ -134,7 +134,7 @@ describe("Customers search", () => {
   it("shows a retryable error when the search fails", async () => {
     useCustomerSearch.mockReturnValue({
       data: undefined, isFetching: false, isError: true,
-      error: new Error("Search backend down"), refetch,
+      error: new ApiError(503, "Search backend down", null), refetch,
     });
     renderPage("/customers?q=ana");
     expect(screen.getByText("Search backend down")).toBeInTheDocument();

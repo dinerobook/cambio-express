@@ -1,7 +1,7 @@
 import { useReportList } from "../api/reports";
 import ReportCenter from "../components/ReportCenter";
 import { Breadcrumbs, ErrorState, Loading, PageShell } from "../components/ui";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 
 // Two report centers, kept fully separate (owner directive — MSB
 // and back-office must not blur): /reports renders the MSB
@@ -35,7 +35,7 @@ export default function Reports({
           message={
             status === 403
               ? "Sign in as a store user to view reports."
-              : `Couldn't load the report list. ${error instanceof Error ? error.message : ""}`
+              : `Couldn't load the report list. ${apiErrorMessage(error, "")}`
           }
           onRetry={status === 403 ? undefined : () => { void refetch(); }}
         />

@@ -1,14 +1,12 @@
 import { useSearchParams } from "react-router-dom";
 
 import { useMyActivity } from "../api/account";
-import type { MyActivityRow } from "../api/account";
-import { formatTimestamp } from "../lib/datetime";
 import {
   Breadcrumbs,
   Button, Card, Field, InfoTip, PageHeader, PageShell,
-  Pager, Select, space, Table, TableStates, tdStyle, thStyle,
+  Pager, Select, space, TableStates,
 } from "../components/ui";
-import { AuditActionBadge } from "../components/AuditActionBadge";
+import { AuditTable } from "../components/AuditTable";
 import styles from "./AccountActivity.module.css";
 
 // /app/account/activity — cross-store per-user audit feed.
@@ -114,7 +112,7 @@ export default function AccountActivity() {
         />
         {data && data.rows.length > 0 && (
           <>
-            <ActivityTable rows={data.rows} />
+            <AuditTable rows={data.rows} who="store" />
             <Pager
               page={data.page}
               totalPages={data.total_pages}
@@ -127,52 +125,3 @@ export default function AccountActivity() {
     </PageShell>
   );
 }
-
-
-function ActivityTable({
-  rows,
-}: {
-  rows: MyActivityRow[];
-}) {
-  return (
-    <Table>
-      <thead>
-        <tr>
-          {["When", "Store", "Action", "Target", "Details"].map((h) => (
-            <th key={h} style={thStyle}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr key={`${r.source}-${r.ts}-${r.target_id}-${i}`}>
-            <td style={tdStyle}>
-              <span className={styles.monoMuted}>
-                {formatTimestamp(r.ts)}
-              </span>
-            </td>
-            <td style={tdStyle}>
-              {r.store_name || "—"}
-            </td>
-            <td style={tdStyle}>
-              <AuditActionBadge action={r.action} />
-            </td>
-            <td style={tdStyle}>
-              <span className={styles.targetType}>
-                {r.target_type || "—"}
-              </span>
-              {r.target_label && <div>{r.target_label}</div>}
-            </td>
-            <td style={{ ...tdStyle }} className={styles.detailCell}>
-              {r.summary || "—"}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
-}
-
-
-
-

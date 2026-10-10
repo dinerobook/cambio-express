@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useTaxExportYears } from "../api/account";
-import { downloadCsv } from "../lib/api";
+import { downloadCsv, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
@@ -86,7 +86,7 @@ export default function AdminDataExport() {
         `tax-pack-${resolvedTaxYear}.zip`,
       );
     } catch (e) {
-      setTaxErr(e instanceof Error ? e.message : "Download failed.");
+      setTaxErr(apiErrorMessage(e, "Download failed."));
     } finally {
       setTaxBusy(false);
     }
@@ -100,7 +100,7 @@ export default function AdminDataExport() {
         `customers-${today}.csv`,
       );
     } catch (e) {
-      setCustomersErr(e instanceof Error ? e.message : "Download failed.");
+      setCustomersErr(apiErrorMessage(e, "Download failed."));
     } finally {
       setCustomersBusy(false);
     }
@@ -118,7 +118,7 @@ export default function AdminDataExport() {
         + `&store_ids=`;
       await downloadCsv(url, `transfers-${transFrom}-to-${transTo}.csv`);
     } catch (e) {
-      setTransErr(e instanceof Error ? e.message : "Download failed.");
+      setTransErr(apiErrorMessage(e, "Download failed."));
     } finally {
       setTransBusy(false);
     }
@@ -133,7 +133,7 @@ export default function AdminDataExport() {
         + `&store_ids=`;
       await downloadCsv(url, `journal-entries-${journalFrom}-to-${journalTo}.csv`);
     } catch (e) {
-      setJournalErr(e instanceof Error ? e.message : "Download failed.");
+      setJournalErr(apiErrorMessage(e, "Download failed."));
     } finally {
       setJournalBusy(false);
     }
@@ -147,7 +147,7 @@ export default function AdminDataExport() {
         + `&to=${encodeURIComponent(tcTo)}`;
       await downloadCsv(url, `timeclock-${tcFrom}-to-${tcTo}.csv`);
     } catch (e) {
-      setTcErr(e instanceof Error ? e.message : "Download failed.");
+      setTcErr(apiErrorMessage(e, "Download failed."));
     } finally {
       setTcBusy(false);
     }
@@ -161,7 +161,7 @@ export default function AdminDataExport() {
         `audit-log-${today}.csv`,
       );
     } catch (e) {
-      setAuditErr(e instanceof Error ? e.message : "Download failed.");
+      setAuditErr(apiErrorMessage(e, "Download failed."));
     } finally {
       setAuditBusy(false);
     }

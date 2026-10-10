@@ -210,7 +210,7 @@ describe("EditTransfer", () => {
     const refetch = vi.fn();
     useTransfer.mockReturnValue({
       data: undefined, isLoading: false, isError: true,
-      error: new Error("boom"), refetch,
+      error: new ApiError(500, "boom", null), refetch,
     });
     const user = userEvent.setup();
     renderPage();

@@ -7,7 +7,7 @@ import {
   updateEmployee, useEmployees,
   type EmployeeCreateBody, type EmployeeUpdateBody,
 } from "../api/employees";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { accountTypeLabel } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
@@ -187,8 +187,7 @@ export default function EmployeeForm() {
       navigate("/employees");
     } catch (err) {
       setServerError(
-        err instanceof ApiError
-          ? err.message : "Could not save the employee.",
+        apiErrorMessage(err, "Could not save the employee."),
       );
     } finally {
       setBusy(false);

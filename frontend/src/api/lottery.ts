@@ -1,11 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { PillTone } from "../components/ui";
 import type { components } from "./openapi";
 
 // Typed straight off the FastAPI OpenAPI spec (CLAUDE.md standard).
 export type LotteryGame = components["schemas"]["GameRow"];
 export type LotteryPack = components["schemas"]["PackRow"];
+
+/** Pack status → Pill tone. A pack on sale is live (accent). */
+export const PACK_STATUS_TONES: Record<string, PillTone> = {
+  received: "neutral",
+  active:   "accent",
+  settled:  "success",
+  returned: "warning",
+};
 export type LotteryDayRow = components["schemas"]["DayCountRow"];
 export type LotteryDaySummary = components["schemas"]["DaySummaryResponse"];
 

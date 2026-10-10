@@ -68,22 +68,6 @@
 
 .shareRow {
   margin-top: 1rem;
-  display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.shareInput {
-  flex: 1;
-  min-width: 16rem;
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  padding: 0.65rem 0.85rem;
-  border-radius: 0.5rem;
-  font-size: 0.85rem;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
 }
 
 .btnGold {

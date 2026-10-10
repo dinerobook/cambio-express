@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError } from "../lib/api";
+import { api, apiErrorMessage } from "../lib/api";
 import { toggleMatrixCell } from "../lib/permissions";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -11,12 +11,14 @@ import {
   useStoreAuditLog, useStoreFeatures, useStoreOwnerLinks,
   type ImpersonationMode, type StoreFeatureRow,
 } from "../api/superadmin";
+import { planTone } from "../api/billing";
+import { roleTone } from "../api/roles";
 import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Card, EmptyState,
-  ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal,
+  ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
   PageHeader, PageShell, Pager, Pill, Section, SectionTitle, Select,
   Switch, Table, TableStates, tdStyle, Textarea, thStyle, useToast,
 } from "../components/ui";
@@ -84,7 +86,7 @@ export default function SuperadminStoreDrill() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [showCredit, setShowCredit] = useState(false);
-  const [creditAmount, setCreditAmount] = useState("");
+  const [creditAmount, setCreditAmount] = useState(0);
   const [creditReason, setCreditReason] = useState("");
   const [creditBusy, setCreditBusy] = useState(false);
   const [creditError, setCreditError] = useState<string | null>(null);
@@ -160,7 +162,7 @@ export default function SuperadminStoreDrill() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load store"}
+          message={apiErrorMessage(error, "Could not load store")}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -281,11 +283,10 @@ export default function SuperadminStoreDrill() {
           )}
 
           <KpiGrid>
-            <KpiCard label="Plan" value={data.store.comped ? `${data.store.plan} (comp)` : data.store.plan} tone={
-              data.store.plan === "pro" ? "neon"
-              : data.store.plan === "basic" ? "positive"
-              : data.store.plan === "trial" ? "warning"
-              : "negative"
+            <KpiCard label="Plan" value={
+              <Pill tone={planTone(data.store.plan)}>
+                {data.store.comped ? `${data.store.plan} (comp)` : data.store.plan}
+              </Pill>
             } />
             <KpiCard label="Status" value={data.store.is_active ? "Active" : "Inactive"} tone={data.store.is_active ? "positive" : "muted"} />
             <KpiCard label="Transfers (30d)" value={data.stats_30d.transfer_count.toLocaleString()} />
@@ -329,11 +330,7 @@ export default function SuperadminStoreDrill() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
-                        <Pill tone={
-                          u.role === "admin" ? "accent"
-                          : u.role === "owner" ? "info"
-                          : "neutral"
-                        }>{u.role}</Pill>
+                        <Pill tone={roleTone(u.role)}>{u.role}</Pill>
                         {!u.is_active && <Pill tone="neutral">Inactive</Pill>}
                         {u.is_active && (
                           <>
@@ -454,7 +451,7 @@ export default function SuperadminStoreDrill() {
               setCompReason("");
               void refetch();
             } catch (err) {
-              setCompError(err instanceof ApiError ? err.message : "Could not comp this store.");
+              setCompError(apiErrorMessage(err, "Could not comp this store."));
             } finally {
               setCompBusy(false);
             }
@@ -517,7 +514,7 @@ export default function SuperadminStoreDrill() {
               setEmailSubject("");
               setEmailBody("");
             } catch (err) {
-              setEmailError(err instanceof ApiError ? err.message : "Could not send.");
+              setEmailError(apiErrorMessage(err, "Could not send."));
             } finally {
               setEmailBusy(false);
             }
@@ -574,7 +571,7 @@ export default function SuperadminStoreDrill() {
               setFreezeReason("");
               void refetch();
             } catch (err) {
-              setFreezeError(err instanceof ApiError ? err.message : "Could not freeze.");
+              setFreezeError(apiErrorMessage(err, "Could not freeze."));
             } finally {
               setFreezeBusy(false);
             }
@@ -620,9 +617,14 @@ export default function SuperadminStoreDrill() {
             if (!storeId) return;
             // Dollars → cents. Round to the nearest cent so a
             // "12.5" input becomes 1250, not 1249.9999.
-            const cents = Math.round(Number(creditAmount) * 100);
+            const cents = Math.round(creditAmount * 100);
             if (!Number.isFinite(cents) || cents <= 0) {
               setCreditError("Enter an amount greater than $0.");
+              return;
+            }
+            // The cap the old number input enforced with max="5000".
+            if (cents > 500_000) {
+              setCreditError("A single credit is capped at $5,000.");
               return;
             }
             setCreditBusy(true);
@@ -634,10 +636,10 @@ export default function SuperadminStoreDrill() {
                 tone: "success",
               });
               setShowCredit(false);
-              setCreditAmount("");
+              setCreditAmount(0);
               setCreditReason("");
             } catch (err) {
-              setCreditError(err instanceof ApiError ? err.message : "Could not issue credit.");
+              setCreditError(apiErrorMessage(err, "Could not issue credit."));
             } finally {
               setCreditBusy(false);
             }
@@ -649,16 +651,14 @@ export default function SuperadminStoreDrill() {
             it to their next invoice automatically. The store must be on
             a paid plan (have a Stripe customer).
           </p>
-          <Field label="Amount (USD)">
-            <Input
-              type="number" inputMode="decimal"
-              min="0.01" max="5000" step="0.01"
-              value={creditAmount}
-              onChange={(e) => setCreditAmount(e.target.value)}
-              placeholder="50.00"
-              required
-            />
-          </Field>
+          <MoneyInput
+            label="Amount (USD)"
+            value={creditAmount}
+            onChange={setCreditAmount}
+            placeholder="50.00"
+            required
+            fullWidth
+          />
           <Field label="Reason (optional)">
             <Input
               type="text" value={creditReason}
@@ -778,7 +778,7 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
         <div key={role} style={{ marginBottom: "1.25rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
             <SectionTitle>
-              <Pill tone={role === "admin" ? "accent" : "neutral"}>{role}</Pill>
+              <Pill tone={roleTone(role)}>{role}</Pill>
               {draft.has_overrides.includes(role) && (
                 <span style={{ fontSize: "0.75rem", color: "var(--db-text-muted)", marginLeft: "0.5rem" }}>customized</span>
               )}
@@ -954,7 +954,7 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
       refresh();
       toast({ message: "Owner connected.", tone: "success" });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not connect the owner.");
+      setError(apiErrorMessage(err, "Could not connect the owner."));
     } finally {
       setBusy(false);
     }
@@ -968,7 +968,7 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
       refresh();
       toast({ message: `${name} disconnected.`, tone: "success" });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not disconnect the owner.");
+      setError(apiErrorMessage(err, "Could not disconnect the owner."));
     } finally {
       setBusy(false);
     }

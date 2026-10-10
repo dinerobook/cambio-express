@@ -9,15 +9,16 @@ import {
   type ShiftRow,
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import {
   Breadcrumbs,
   Button, Card, ConfirmDialog, EmptyState, ErrorState, Field, Input,
-  Loading, PageHeader, PageShell, Select, useToast,
+  Loading, PageHeader, PageShell, PeriodStepper, Select, useToast,
 } from "../components/ui";
 import styles from "./AdminTimeClockSchedule.module.css";
 import {
-  formatShortDate, storeNow, toIsoDate,
+  WEEKDAY_NAMES_SHORT, addDaysIso, formatWeekRange, mondayOfIso, todayIso,
+  weekdayOfIso,
 } from "../lib/datetime";
 
 // /app/admin/timeclock/schedule — admin shift planner.
@@ -33,9 +34,11 @@ import {
 export default function AdminTimeClockSchedule() {
   const queryClient = useQueryClient();
   const roster      = useEmployees();
-  const [weekStart, setWeekStart] = useState(() => mondayOf(storeNow()));
-  const weekEnd     = useMemo(() => addDays(weekStart, 7), [weekStart]);
-  const shifts      = useShifts(toIsoDate(weekStart), toIsoDate(weekEnd));
+  // The week's Monday as YYYY-MM-DD; weekEnd is the exclusive end
+  // (the next Monday), as the shifts API takes it.
+  const [weekStart, setWeekStart] = useState(() => mondayOfIso(todayIso()));
+  const weekEnd     = addDaysIso(weekStart, 7);
+  const shifts      = useShifts(weekStart, weekEnd);
   const toast = useToast();
 
   function refresh() {
@@ -84,29 +87,19 @@ export default function AdminTimeClockSchedule() {
       />
 
       <Card>
-        <div className={styles.weekBar}>
-          <Button
-            type="button" tone="secondary"
-            onClick={() => setWeekStart(addDays(weekStart, -7))}
-          >
-            ← Previous week
-          </Button>
+        <PeriodStepper
+          unit="week"
+          variant="labeled"
+          fill
+          onPrev={() => setWeekStart(addDaysIso(weekStart, -7))}
+          onNext={() => setWeekStart(addDaysIso(weekStart, 7))}
+          onToday={() => setWeekStart(mondayOfIso(todayIso()))}
+          todayLabel="This week"
+        >
           <div className={styles.weekLabel}>
-            {formatWeekRange(weekStart, weekEnd)}
+            {formatWeekRange(weekStart)}
           </div>
-          <Button
-            type="button" tone="secondary"
-            onClick={() => setWeekStart(addDays(weekStart, 7))}
-          >
-            Next week →
-          </Button>
-          <Button
-            type="button" tone="secondary"
-            onClick={() => setWeekStart(mondayOf(storeNow()))}
-          >
-            This week
-          </Button>
-        </div>
+        </PeriodStepper>
       </Card>
 
       {activeRoster.length === 0 ? (
@@ -121,12 +114,11 @@ export default function AdminTimeClockSchedule() {
       ) : (
         <div className={styles.weekGrid}>
           {Array.from({ length: 7 }, (_, i) => {
-            const day = addDays(weekStart, i);
-            const iso = toIsoDate(day);
+            const iso = addDaysIso(weekStart, i);
             return (
               <DayColumn
                 key={iso}
-                date={day}
+                date={iso}
                 shifts={shiftsByDay.get(iso) ?? []}
                 roster={activeRoster}
                 onSaved={(msg) => {
@@ -148,19 +140,22 @@ export default function AdminTimeClockSchedule() {
 function DayColumn({
   date, shifts, roster, onSaved, onError,
 }: {
-  date: Date;
+  /** YYYY-MM-DD. */
+  date: string;
   shifts: ShiftRow[];
   roster: { id: number; name: string }[];
   onSaved: (msg: string) => void;
   onError: (msg: string) => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const isToday = toIsoDate(date) === toIsoDate(storeNow());
+  const isToday = date === todayIso();
   return (
     <div className={`${styles.dayCol}${isToday ? " " + styles.dayColToday : ""}`}>
       <div className={styles.dayHeader}>
-        <span className={styles.dayName}>{DAY_NAMES[date.getDay()]}</span>
-        <span className={styles.dayDate}>{date.getDate()}</span>
+        <span className={styles.dayName}>
+          {WEEKDAY_NAMES_SHORT[weekdayOfIso(date)]}
+        </span>
+        <span className={styles.dayDate}>{Number(date.slice(8, 10))}</span>
       </div>
       <div className={styles.dayBody}>
         {shifts.length === 0 && !adding && (
@@ -174,7 +169,7 @@ function DayColumn({
         ))}
         {adding ? (
           <ShiftForm
-            defaultDate={toIsoDate(date)}
+            defaultDate={date}
             roster={roster}
             onCancel={() => setAdding(false)}
             onSaved={(msg) => { setAdding(false); onSaved(msg); }}
@@ -213,9 +208,7 @@ function ShiftCard({
       onSaved(`Deleted ${shift.employee_name}'s shift.`);
       setConfirmingDelete(false);
     } catch (err) {
-      onError(err instanceof ApiError
-        ? err.message
-        : "Could not delete the shift.");
+      onError(apiErrorMessage(err, "Could not delete the shift."));
     } finally {
       setBusy(false);
     }
@@ -323,9 +316,7 @@ function ShiftForm({
         onSaved(`Scheduled ${created.employee_name}.`);
       }
     } catch (err) {
-      onError(err instanceof ApiError
-        ? err.message
-        : "Could not save the shift.");
+      onError(apiErrorMessage(err, "Could not save the shift."));
     } finally {
       setBusy(false);
     }
@@ -387,32 +378,8 @@ function ShiftForm({
 }
 
 
-// ── date helpers ────────────────────────────────────────────
-
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function mondayOf(d: Date): Date {
-  const out = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  // getDay(): 0 = Sunday, 1 = Monday, ..., 6 = Saturday.
-  // Walk back to the most recent Monday — treat Sunday as the
-  // tail of the prior week.
-  const dow = out.getDay();
-  const back = dow === 0 ? 6 : dow - 1;
-  out.setDate(out.getDate() - back);
-  return out;
-}
-
-function addDays(d: Date, n: number): Date {
-  const out = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  out.setDate(out.getDate() + n);
-  return out;
-}
-
-function formatWeekRange(start: Date, end: Date): string {
-  const e = addDays(end, -1);
-  const fmt = (d: Date) => formatShortDate(toIsoDate(d));
-  return `${fmt(start)} – ${fmt(e)}, ${start.getFullYear()}`;
-}
+// The week maths (mondayOfIso / addDaysIso / formatWeekRange) lives
+// in lib/datetime, shared with every other period page.
 
 function trimSeconds(t: string): string {
   // "09:00:00" → "09:00".  Backend returns HH:MM:SS from Python

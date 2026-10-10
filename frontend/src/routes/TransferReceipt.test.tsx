@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import TransferReceipt from "./TransferReceipt";
+import { ApiError } from "../lib/api";
 
 // The printed receipt is what the customer takes home: the money must
 // read once with a single "$" and add up (send + fee + federal tax =
@@ -81,10 +82,10 @@ describe("TransferReceipt", () => {
   it("offers a retry when the receipt cannot load", () => {
     useTransferReceipt.mockReturnValue({
       data: undefined, isLoading: false, isError: true,
-      error: new Error("nope"), refetch: vi.fn(),
+      error: new ApiError(500, "nope", null), refetch: vi.fn(),
     });
     renderPage();
-    expect(screen.getByText("Couldn't load receipt: nope")).toBeInTheDocument();
+    expect(screen.getByText("Couldn't load receipt. nope")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
 });

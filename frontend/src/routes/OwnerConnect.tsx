@@ -5,12 +5,12 @@ import {
   generateOwnerConnectCode, revokeOwnerConnectCode, useOwnerConnectCodes,
   type OwnerConnectCodeRow,
 } from "../api/owner";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { AppLink,
   Breadcrumbs,
-  Button, Card, ConfirmDialog, ErrorState, Loading, PageHeader, PageShell,
+  Button, Card, ConfirmDialog, CopyField, ErrorState, Loading, PageHeader, PageShell,
   Section, Table, tdStyle, thStyle,
   Empty,
 } from "../components/ui";
@@ -35,7 +35,6 @@ export default function OwnerConnect() {
 
   const [busy, setBusy] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   // Two destructive actions live on this page; each gets its own
   // ConfirmDialog open-state so the right copy lands in the right
   // prompt.  Lifted above the role-check early-return so hooks
@@ -82,7 +81,7 @@ export default function OwnerConnect() {
       queryClient.invalidateQueries({ queryKey: ["owner", "connect-codes"] });
     } catch (err) {
       setServerError(
-        err instanceof ApiError ? err.message : "Could not generate code.",
+        apiErrorMessage(err, "Could not generate code."),
       );
     } finally { setBusy(false); }
   }
@@ -96,22 +95,9 @@ export default function OwnerConnect() {
       queryClient.invalidateQueries({ queryKey: ["owner", "connect-codes"] });
     } catch (err) {
       setServerError(
-        err instanceof ApiError ? err.message : "Could not revoke code.",
+        apiErrorMessage(err, "Could not revoke code."),
       );
     } finally { setBusy(false); }
-  }
-
-  function handleCopy() {
-    if (!active) return;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(active.code);
-    } else {
-      const ta = document.createElement("textarea");
-      ta.value = active.code; document.body.appendChild(ta); ta.select();
-      try { document.execCommand("copy"); } finally { ta.remove(); }
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1200);
   }
 
   return (
@@ -128,7 +114,7 @@ export default function OwnerConnect() {
           {isLoading && <Loading />}
           {isError && (
             <ErrorState
-              message={`Couldn't load codes.${error instanceof Error ? ` ${error.message}` : ""}`}
+              message={`Couldn't load codes. ${apiErrorMessage(error, "")}`.trimEnd()}
               onRetry={() => { void refetch(); }}
             />
           )}
@@ -153,16 +139,12 @@ export default function OwnerConnect() {
                 page. Code expires on{" "}
                 <strong>{formatDate(active.expires_at)}</strong>.
               </p>
-              <div className={styles.codeRow}>
-                <input
-                  type="text" readOnly value={active.code}
-                  className={styles.codeInput}
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-                <Button tone="secondary" onClick={handleCopy} aria-label={copied ? "Code copied to clipboard" : "Copy code to clipboard"}>
-                  {copied ? "Copied" : "Copy"}
-                </Button>
-              </div>
+              <CopyField
+                className={styles.codeRow}
+                variant="code"
+                aria-label="Invite code"
+                value={active.code}
+              />
               <div className={styles.actionsRow}>
                 <Button tone="secondary" onClick={() => setConfirmingRevoke(true)} disabled={busy}>
                   Revoke

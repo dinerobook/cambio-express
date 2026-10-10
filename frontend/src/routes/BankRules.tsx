@@ -8,14 +8,14 @@ import {
   toggleRule,
   useBankCategories,
   useBankRules,
-  type BankRuleApplyReport,
   type BankRuleRow,
 } from "../api/bankSync";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { canDo } from "../lib/access";
 import { BankRuleForm } from "../components/BankRuleForm";
 import {
-  conditionChips, formValuesFromRule, postOffsetLabel, ruleSentence,
+  conditionChips, describeAppliedRule, formValuesFromRule, postOffsetLabel,
+  ruleSentence,
 } from "../lib/bankRules";
 import {
   Breadcrumbs, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
@@ -51,14 +51,6 @@ export default function BankRules() {
     : rows;
   const canReorder = canDo("bank_sync.update") && !q.trim();
 
-  function describeApplied(a: BankRuleApplyReport | null): string {
-    if (!a) return "";
-    const parts = [`${a.tagged} tagged`];
-    if (a.booked) parts.push(`${a.booked} booked on the daily book`);
-    if (a.locked_skipped) parts.push(`${a.locked_skipped} skipped (day locked)`);
-    return ` ${parts.join(", ")}.`;
-  }
-
   async function handleToggle(r: BankRuleRow) {
     setBusyId(r.id);
     try {
@@ -77,7 +69,7 @@ export default function BankRules() {
     try {
       const resp = await applyRule(r.id);
       await rules.refetch();
-      toast({ message: `Rule applied.${describeApplied(resp.applied)}`, tone: "success" });
+      toast({ message: `Rule applied.${describeAppliedRule(resp.applied)}`, tone: "success" });
     } catch (e) {
       toastApiError(e, "Could not apply rule.");
     } finally {
@@ -287,7 +279,7 @@ export default function BankRules() {
               toast({
                 message: mode === "edit"
                   ? "Rule updated."
-                  : `Rule created.${describeApplied(resp.applied)}`,
+                  : `Rule created.${describeAppliedRule(resp.applied)}`,
                 tone: "success",
               });
             }}

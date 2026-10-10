@@ -4,24 +4,39 @@ import { Table, tdStyle, thStyle } from "./ui";
 import { AuditActionBadge } from "./AuditActionBadge";
 import styles from "./AuditTable.module.css";
 
-/** One store's merged operator + transfer audit feed as a table.
- *  Shared by the store admin's Audit log page and the superadmin
- *  store page's Activity section — both read the same row shape
- *  (`Admin.Services.audit_log.list_audit_rows`), so the columns,
- *  the timestamp rendering and the action badge live here once.
+/** One audit row as the table reads it. The store feeds
+ *  (`Admin.Services.audit_log.list_audit_rows`) fill `user_*`; the
+ *  per-person feed ("My activity") fills `store_name` instead. */
+export type AuditTableRow =
+  Omit<AdminAuditRow, "user_name" | "user_role"> & {
+    user_name?: string;
+    user_role?: string;
+    store_name?: string;
+  };
+
+/** An audit feed as a table: When · Actor/Store · Action · Target ·
+ *  Details. Shared by the store admin's Audit log, the superadmin
+ *  store page's Activity section, the platform audit log and the
+ *  per-person "My activity" page, so the columns, the timestamp
+ *  rendering and the action badge live here once.
+ *
+ *  `who` picks the second column: `"actor"` (default) — who did it,
+ *  for a feed about one store; `"store"` — where it happened, for a
+ *  feed about one person across stores.
  *
  *  Rows written while a superadmin was signed in as someone carry
  *  "(via superadmin …)" inside `user_name`; nothing to do here. */
 export function AuditTable({
-  rows,
+  rows, who = "actor",
 }: {
-  rows: AdminAuditRow[];
+  rows: AuditTableRow[];
+  who?: "actor" | "store";
 }) {
   return (
     <Table>
       <thead>
         <tr>
-          {["When", "Actor", "Action", "Target", "Details"].map((h) => (
+          {["When", who === "store" ? "Store" : "Actor", "Action", "Target", "Details"].map((h) => (
             <th key={h} style={thStyle}>{h}</th>
           ))}
         </tr>
@@ -37,14 +52,18 @@ export function AuditTable({
                 {formatTimestamp(r.ts)}
               </span>
             </td>
-            <td style={tdStyle}>
-              <strong>{r.user_name || "—"}</strong>
-              {r.user_role && (
-                <span className={styles.userRole}>
-                  ({r.user_role})
-                </span>
-              )}
-            </td>
+            {who === "store" ? (
+              <td style={tdStyle}>{r.store_name || "—"}</td>
+            ) : (
+              <td style={tdStyle}>
+                <strong>{r.user_name || "—"}</strong>
+                {r.user_role && (
+                  <span className={styles.userRole}>
+                    ({r.user_role})
+                  </span>
+                )}
+              </td>
+            )}
             <td style={tdStyle}>
               <AuditActionBadge action={r.action} />
             </td>

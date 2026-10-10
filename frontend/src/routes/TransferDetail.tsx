@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 
 import { useTransfer } from "../api/transfers";
 import { fmtMoney2 } from "../lib/formatters";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
@@ -49,7 +50,7 @@ export default function TransferDetail() {
     return (
       <PageShell maxWidth="52rem" gap="1rem">
         <ErrorState
-          message={error instanceof Error ? error.message : "Could not load transfer"}
+          message={apiErrorMessage(error, "Could not load transfer")}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>

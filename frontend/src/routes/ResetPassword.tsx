@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthChrome, StatusPill } from "../components/AuthChrome";
 import { Alert, Button, ButtonLink, Field, Input } from "../components/ui";
 import { resetPassword } from "../api/account";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import styles from "./auth.module.css";
 
 // /app/reset-password?token=… — consume a one-time token to set
@@ -46,9 +46,7 @@ export default function ResetPassword() {
       setDone(true);
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Could not reset password. The link may be expired.",
+        apiErrorMessage(err, "Could not reset password. The link may be expired."),
       );
     } finally {
       setBusy(false);

@@ -12,8 +12,17 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { components } from "./openapi";
+import type { PillTone } from "../components/ui";
 
 export type AnnouncementRow = components["schemas"]["AnnouncementRow"];
+
+/** Banner level → Pill tone. */
+export const ANNOUNCEMENT_LEVEL_TONES: Record<string, PillTone> = {
+  info:    "info",
+  warning: "warning",
+  error:   "negative",
+  success: "success",
+};
 export type AnnouncementListResponse =
   components["schemas"]["AnnouncementListResponse"];
 export type CreateAnnouncementBody =

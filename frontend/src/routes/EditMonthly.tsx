@@ -6,7 +6,7 @@ import {
   useMonthly,
   type MonthlyUpdateBody,
 } from "../api/monthly";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   AppLink, Breadcrumbs,
@@ -149,7 +149,7 @@ export default function EditMonthly() {
       toast({ message: "Monthly P&L saved.", tone: "success" });
       navigate(`/monthly?year=${year}&month=${month}`, { replace: true });
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not save P&L.");
+      setErr(apiErrorMessage(e, "Could not save P&L."));
     } finally {
       setBusy(false);
     }

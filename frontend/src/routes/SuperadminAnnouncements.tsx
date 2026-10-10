@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  ANNOUNCEMENT_LEVEL_TONES,
   createAnnouncement,
   deleteAnnouncement,
   toggleAnnouncement,
@@ -11,13 +12,13 @@ import {
 } from "../api/announcements";
 import {
   Breadcrumbs,
-  Alert, Button, Card, Checkbox, ConfirmDialog, Empty, Field,
+  Alert, Button, Card, Checkbox, ConfirmDialog, Empty, ErrorState, Field,
   Input, PageHeader, PageShell, Pill, SectionTitle, Select, Table,
-  TableStates, Textarea, tdStyle, thStyle, type PillTone,
+  TableStates, Textarea, tdStyle, thStyle,
   Loading,
 } from "../components/ui";
 import { useSuperadminStores } from "../api/superadmin";
-import { ApiError } from "../lib/api";
+import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   formatDate, formatDateTime, formatShortDate, parseTimestamp, zonedInputToUtcIso,
@@ -30,13 +31,6 @@ import styles from "./SuperadminAnnouncements.module.css";
 const LEVELS: Array<CreateAnnouncementBody["level"]> = [
   "info", "warning", "error", "success",
 ];
-
-const LEVEL_TONE: Record<string, PillTone> = {
-  info:    "info",
-  warning: "warning",
-  error:   "negative",
-  success: "success",
-};
 
 export default function SuperadminAnnouncements() {
   const identity = getCurrentIdentity();
@@ -138,7 +132,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       setTargetMode("all"); setTargetIds(new Set());
       onCreated();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not post.");
+      setErr(apiErrorMessage(e, "Could not post."));
     } finally {
       setBusy(false);
     }
@@ -237,7 +231,7 @@ function StorePicker({
   selected: Set<number>;
   onChange: (next: Set<number>) => void;
 }) {
-  const { data, isLoading, isError } = useSuperadminStores();
+  const { data, isLoading, isError, refetch } = useSuperadminStores();
   const [filter, setFilter] = useState("");
 
   const stores = data?.rows ?? [];
@@ -258,7 +252,14 @@ function StorePicker({
   }
 
   if (isLoading) return <Loading />;
-  if (isError) return <Alert tone="error">Could not load stores.</Alert>;
+  if (isError) {
+    return (
+      <ErrorState
+        message="Could not load stores."
+        onRetry={() => { void refetch(); }}
+      />
+    );
+  }
 
   return (
     <div className={styles.storePicker}>
@@ -338,7 +339,7 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
       await toggleAnnouncement(row.id, !row.is_active);
       onChanged();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not toggle.");
+      setErr(apiErrorMessage(e, "Could not toggle."));
     } finally {
       setBusy(false);
     }
@@ -351,7 +352,7 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
       onChanged();
       setConfirmingDelete(false);
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Could not delete.");
+      setErr(apiErrorMessage(e, "Could not delete."));
     } finally {
       setBusy(false);
     }
@@ -363,7 +364,7 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
         {row.message}
       </td>
       <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        <Pill tone={LEVEL_TONE[row.level] ?? "neutral"}>{row.level}</Pill>
+        <Pill tone={ANNOUNCEMENT_LEVEL_TONES[row.level] ?? "neutral"}>{row.level}</Pill>
       </td>
       <td style={{ ...tdStyle, verticalAlign: "top" }}>
         {row.is_visible ? (
