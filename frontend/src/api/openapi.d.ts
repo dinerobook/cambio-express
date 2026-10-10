@@ -6324,7 +6324,14 @@ export interface paths {
          *     — the country must belong to the principal's TVDisplay row.
          */
         get: operations["country_detail_route_tv_display_countries__country_id__get"];
-        put?: never;
+        /**
+         * Update Country Route
+         * @description Save the country editor in one transaction: header, company
+         *     columns, bank renames / order / deletes, new banks and the rate
+         *     grid. Countries or banks of another store's display return 404.
+         *     Returns the saved country so the editor re-renders from it.
+         */
+        put: operations["update_country_route_tv_display_countries__country_id__put"];
         post?: never;
         /**
          * Delete Country Route
@@ -13144,6 +13151,35 @@ export interface components {
             store_id: number;
         };
         /**
+         * TVDisplayBankEdit
+         * @description One existing bank row in the country editor. ``rates`` maps a
+         *     company column header to its rate; a missing or null entry clears
+         *     that cell. ``delete`` drops the bank and its rates.
+         */
+        TVDisplayBankEdit: {
+            /**
+             * Bank Name
+             * @default
+             */
+            bank_name: string;
+            /**
+             * Delete
+             * @default false
+             */
+            delete: boolean;
+            /** Id */
+            id: number;
+            /** Rates */
+            rates?: {
+                [key: string]: number | null;
+            };
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
          * TVDisplayBankRow
          * @description One bank within a country, with its filled-in rate cells.
          *     `rates` is a sparse map keyed by mt_company; absent entries are
@@ -13246,6 +13282,27 @@ export interface components {
             rate_count: number;
             /** Sort Order */
             sort_order: number;
+        };
+        /**
+         * TVDisplayCountryUpdateRequest
+         * @description Everything the country editor saves in one go: the header,
+         *     the company columns (order kept), edits to existing banks and
+         *     names of new banks to add.
+         */
+        TVDisplayCountryUpdateRequest: {
+            /** Banks */
+            banks?: components["schemas"]["TVDisplayBankEdit"][];
+            /**
+             * Country Code
+             * @default
+             */
+            country_code: string;
+            /** Country Name */
+            country_name: string;
+            /** Mt Companies */
+            mt_companies?: string[];
+            /** New Banks */
+            new_banks?: string[];
         };
         /**
          * TVDisplayOverviewResponse
@@ -26213,6 +26270,45 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TVDisplayCountryDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_country_route_tv_display_countries__country_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                country_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TVDisplayCountryUpdateRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

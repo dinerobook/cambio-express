@@ -275,18 +275,193 @@ def test_country_detail_returns_banks_with_sparse_rate_matrix(
     assert by_name["Banorte"]["rates"] == {"Maxi": 18.40}
 
 
-def test_country_detail_employee_role_allowed(client, test_store_id):
-    """Employees can edit rates on the legacy page, so the read
-    endpoint must let them in too."""
-    from tests.conftest import make_employee_client
+def _employee_with(client, store_id, username, matrix):
+    """A fresh employee holding exactly ``matrix``; returns auth headers."""
+    from api.Core.Permissions import set_user_permissions
+    from api.Modules.Tenancy.Models import User
+    from tests.conftest import login_employee
+    with db_session():
+        u = User(store_id=store_id, username=username, role="employee",
+                 is_active=True)
+        u.set_password("emppass1234")
+        db.session.add(u)
+        db.session.commit()
+        uid = u.id
+    set_user_permissions(store_id, uid, matrix)
+    token = login_employee(client, store_id, username, "emppass1234")
+    return {"Authorization": f"Bearer {token}"}, uid
+
+
+def test_employee_without_settings_read_is_refused(client, test_store_id):
+    """The SPA hides TV display from anyone without settings.read; the
+    API used to let every employee in regardless."""
     _enable_tv_addon(test_store_id)
     _, country_id = _seed_country(test_store_id)
-    _emp_client, token = make_employee_client(test_store_id)
-    resp = client.get(
-        f"/api/v2/tv-display/countries/{country_id}",
+    headers, _ = _employee_with(client, test_store_id, "tv_none@test.com",
+                                {"transfers": {"read": True}})
+    for path in ("/api/v2/tv-display/overview",
+                 f"/api/v2/tv-display/countries/{country_id}"):
+        assert client.get(path, headers=headers).status_code == 403
+
+
+def test_employee_with_settings_read_can_view_but_not_write(
+    client, test_store_id,
+):
+    _enable_tv_addon(test_store_id)
+    _, country_id = _seed_country(test_store_id)
+    headers, _ = _employee_with(client, test_store_id, "tv_reader@test.com",
+                                {"settings": {"read": True}})
+    assert client.get(
+        f"/api/v2/tv-display/countries/{country_id}", headers=headers,
+    ).status_code == 200
+    writes = [
+        ("post", "/api/v2/tv-display/settings",
+         {"title": "x", "subtitle": "", "orientation": "auto", "theme": "light"}),
+        ("post", "/api/v2/tv-display/regenerate-token", {}),
+        ("post", "/api/v2/tv-display/claim", {"code": "ABCDEF"}),
+        ("post", "/api/v2/tv-display/pairings/1/revoke", None),
+        ("post", "/api/v2/tv-display/countries", {"country_name": "Peru"}),
+        ("put", f"/api/v2/tv-display/countries/{country_id}",
+         {"country_name": "Mexico"}),
+        ("delete", f"/api/v2/tv-display/countries/{country_id}", None),
+    ]
+    for verb, path, body in writes:
+        kwargs = {"headers": headers}
+        if body is not None:
+            kwargs["json"] = body
+        resp = getattr(client, verb)(path, **kwargs)
+        assert resp.status_code == 403, (verb, path, resp.status_code)
+
+
+def test_employee_settings_update_grant_and_revoke(client, test_store_id):
+    """Granting settings.update lets an employee save; taking it away
+    refuses the very next call (live permission check)."""
+    from api.Core.Permissions import set_user_permissions
+    _enable_tv_addon(test_store_id)
+    headers, uid = _employee_with(
+        client, test_store_id, "tv_editor@test.com",
+        {"settings": {"read": True, "update": True}},
+    )
+    payload = {"title": "Rates", "subtitle": "", "orientation": "auto",
+               "theme": "dark"}
+    assert client.post("/api/v2/tv-display/settings", json=payload,
+                       headers=headers).status_code == 204
+    set_user_permissions(test_store_id, uid, {"settings": {"read": True}})
+    assert client.post("/api/v2/tv-display/settings", json=payload,
+                       headers=headers).status_code == 403
+
+
+# ── write-side: country editor ───────────────────────────────
+
+
+def _put_country(client, token, country_id, **body):
+    body.setdefault("country_name", "Mexico")
+    return client.put(
+        f"/api/v2/tv-display/countries/{country_id}", json=body,
         headers={"Authorization": f"Bearer {token}"},
     )
+
+
+def test_country_editor_saves_header_banks_and_rates(client, test_store_id):
+    """The editor used to POST a form to a Flask route that no longer
+    exists; the save was silently lost. One PUT now saves it all."""
+    from api.Modules.TVDisplay.Models import (
+        TVDisplayCountry, TVDisplayPayoutBank, TVDisplayRate,
+    )
+    _enable_tv_addon(test_store_id)
+    _, country_id = _seed_country(test_store_id, mt_companies="Maxi,Vigo")
+    keep = _seed_bank_with_rates(country_id, "Bancomer",
+                                 {"Maxi": 18.5, "Vigo": 18.2})
+    # Banorte has a Vigo rate too: dropping the bank and the column
+    # in one save must not delete that rate twice.
+    drop = _seed_bank_with_rates(country_id, "Banorte",
+                                 {"Maxi": 18.4, "Vigo": 18.0})
+    token = _login_admin(client, test_store_id)
+    resp = _put_country(
+        client, token, country_id,
+        country_name="México", country_code="mx",
+        mt_companies=["Maxi", "Intermex"],
+        banks=[
+            {"id": keep, "bank_name": "BBVA", "sort_order": 5,
+             "rates": {"Maxi": 18.75, "Intermex": 18.6}},
+            {"id": drop, "delete": True},
+        ],
+        new_banks=["Elektra", "  "],
+    )
+    assert resp.status_code == 200, resp.get_json()
+    body = resp.get_json()
+    assert body["country_name"] == "México"
+    assert body["country_code"] == "MX"
+    assert body["mt_companies"] == ["Maxi", "Intermex"]
+    names = [b["bank_name"] for b in body["banks"]]
+    assert names == ["BBVA", "Elektra"]
+    assert body["banks"][0]["rates"] == {"Maxi": 18.75, "Intermex": 18.6}
+    with db_session():
+        assert db.session.get(TVDisplayPayoutBank, drop) is None
+        # Vigo is no longer a column: its rate is gone too.
+        assert db.session.query(TVDisplayRate).filter_by(
+            bank_id=keep, mt_company="Vigo").count() == 0
+        assert db.session.query(TVDisplayRate).filter_by(
+            bank_id=drop).count() == 0
+        assert db.session.get(TVDisplayCountry, country_id).mt_companies \
+            == "Maxi,Intermex"
+
+
+def test_country_editor_clears_a_rate_left_blank(client, test_store_id):
+    _enable_tv_addon(test_store_id)
+    _, country_id = _seed_country(test_store_id, mt_companies="Maxi,Vigo")
+    bank = _seed_bank_with_rates(country_id, "Bancomer",
+                                 {"Maxi": 18.5, "Vigo": 18.2})
+    token = _login_admin(client, test_store_id)
+    resp = _put_country(
+        client, token, country_id, mt_companies=["Maxi", "Vigo"],
+        banks=[{"id": bank, "bank_name": "Bancomer",
+                "rates": {"Maxi": None, "Vigo": 18.3}}],
+    )
     assert resp.status_code == 200
+    assert resp.get_json()["banks"][0]["rates"] == {"Vigo": 18.3}
+
+
+def test_country_editor_refuses_bad_rate_and_blank_name(client, test_store_id):
+    _enable_tv_addon(test_store_id)
+    _, country_id = _seed_country(test_store_id, mt_companies="Maxi")
+    bank = _seed_bank_with_rates(country_id, "Bancomer", {"Maxi": 18.5})
+    token = _login_admin(client, test_store_id)
+    assert _put_country(
+        client, token, country_id, mt_companies=["Maxi"],
+        banks=[{"id": bank, "bank_name": "B", "rates": {"Maxi": -1}}],
+    ).status_code == 422
+    assert _put_country(
+        client, token, country_id, country_name="",
+    ).status_code == 422
+
+
+def test_country_editor_404_for_other_stores_country_or_bank(
+    client, test_store_id,
+):
+    """A country, or a bank inside the payload, from another store's
+    display is refused as not found and nothing is written."""
+    from api.Modules.Tenancy.Models import Store
+    from api.Modules.TVDisplay.Models import TVDisplayPayoutBank
+    _enable_tv_addon(test_store_id)
+    with db_session():
+        other = Store(name="Other TV", slug="other-tv", plan="basic",
+                      addons="tv_display", email="o@tv.test")
+        db.session.add(other); db.session.commit()
+        other_id = other.id
+    _, foreign_country = _seed_country(other_id)
+    foreign_bank = _seed_bank_with_rates(foreign_country, "Theirs", {})
+    _, mine = _seed_country(test_store_id)
+    token = _login_admin(client, test_store_id)
+    assert _put_country(client, token, foreign_country).status_code == 404
+    resp = _put_country(
+        client, token, mine,
+        banks=[{"id": foreign_bank, "bank_name": "Stolen"}],
+    )
+    assert resp.status_code == 404
+    with db_session():
+        assert db.session.get(
+            TVDisplayPayoutBank, foreign_bank).bank_name == "Theirs"
 
 
 # ── write-side: settings ─────────────────────────────────────

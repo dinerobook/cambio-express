@@ -4,8 +4,9 @@ The DineroBook TV Fire TV app gates pairing on the ``tv_display``
 add-on. Amazon's reviewers don't have a paid subscription, so
 without a comped account they'd hit the addon gate and fail
 review with "couldn't pair." This script provisions (or refreshes)
-a single sandbox store + employee user with the addon comped and
-a few sample rates pre-seeded, so the reviewer:
+a single sandbox store + employee user with the addon comped, the
+settings rights the TV Display page needs, and a few sample rates
+pre-seeded, so the reviewer:
 
   1. Logs in at ``/login/amazon-reviewer`` with the printed creds.
   2. Lands on /dashboard, navigates to TV Display in the sidebar.
@@ -173,6 +174,18 @@ def run(
         raise ValueError("--password must be at least 12 chars.")
     user.set_password(password)
 
+    session.commit()
+
+    # 3b. The TV Display page (and its API) needs settings.read +
+    #     settings.update, which employees do not hold by default.
+    #     Grant exactly that on top of the employee defaults, for
+    #     this one sandbox user only.
+    from api.Core.Permissions import RBAC_DEFAULTS, set_user_permissions
+    matrix: dict[str, dict[str, bool]] = {}
+    for perm in [*RBAC_DEFAULTS["employee"], "settings.read", "settings.update"]:
+        resource, action = perm.split(".")
+        matrix.setdefault(resource, {})[action] = True
+    set_user_permissions(store.id, user.id, matrix, session=session)
     session.commit()
 
     # 4. Ensure the TVDisplay row exists.

@@ -811,6 +811,8 @@ def admin_shift_create_route(
         raise HTTPException(status_code=422, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    db.flush()
+    _audit_shift(db, claims, store_id, shift, "shift_create")
     db.commit()
     db.refresh(shift)
     names = _shift_names_for(db, [shift])
@@ -845,6 +847,7 @@ def admin_shift_update_route(
         raise HTTPException(status_code=422, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    _audit_shift(db, claims, store_id, shift, "shift_update")
     db.commit()
     db.refresh(shift)
     names = _shift_names_for(db, [shift])
@@ -861,11 +864,36 @@ def admin_shift_delete_route(
 ) -> None:
     _require_admin_role(claims)
     store_id = resolve_store_scope(claims)
+    shift = db.get(TimeClockShift, shift_id)
     try:
         delete_shift(db, store_id=store_id, shift_id=shift_id)
     except ShiftNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+    if shift is not None:
+        _audit_shift(db, claims, store_id, shift, "shift_delete")
     db.commit()
+
+
+def _audit_shift(
+    db: Session, claims: dict[str, Any], store_id: int,
+    shift: TimeClockShift, action: str,
+) -> None:
+    """One operator audit row per planned-shift change, on the
+    mutation's transaction (the caller commits)."""
+    from api.Core.Audit import audit_operator
+    name = _shift_names_for(db, [shift]).get(shift.store_employee_id, "")
+    when = (
+        f"{shift.shift_date} {shift.start_time:%H:%M}–{shift.end_time:%H:%M}"
+    )
+    audit_operator(
+        db, claims,
+        action=action,
+        target_type="time_clock_shift",
+        target_id=str(shift.id),
+        target_label=(name or f"#{shift.store_employee_id}")[:160],
+        summary=when,
+        store_id=store_id,
+    )
 
 
 # ── Internal helpers ────────────────────────────────────────

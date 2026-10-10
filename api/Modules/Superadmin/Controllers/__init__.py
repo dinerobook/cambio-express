@@ -2090,9 +2090,8 @@ def list_anomalies_route(
 
 
 def _adapt_discount(d) -> DiscountCodeRow:
-    from datetime import datetime as _dt
     expired = (
-        d.expires_at is not None and d.expires_at < _dt.utcnow()
+        d.expires_at is not None and d.expires_at < utc_now()
     )
     capped = (
         d.max_redemptions is not None

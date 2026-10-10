@@ -18,7 +18,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from api.Core.Clock import local_today
+from api.Core.Clock import local_today, utc_now
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
 from typing import Any
@@ -736,7 +736,6 @@ def _superadmin_summary(db: Session) -> dict[str, Any]:
          "—" because the SPA reads keys that don't exist in the
          response.
     """
-    from datetime import datetime as _dt
     from api.Modules.Superadmin.Services.dashboard import (
         superadmin_dashboard_context,
     )
@@ -784,7 +783,7 @@ def _superadmin_summary(db: Session) -> dict[str, Any]:
     # 180-day data-retention window. Counted live so the KPI tile
     # always reflects current state (no separate flag to keep in
     # sync).
-    now = _dt.utcnow()
+    now = utc_now()
     out.setdefault(
         "retention_queue",
         db.query(Store)

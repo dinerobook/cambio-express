@@ -121,7 +121,8 @@ def _store_owned_models() -> list[tuple[type, str]]:
     )
     from api.Modules.ReturnChecks.Models import ReturnCheck
     from api.Modules.Tenancy.Models import (
-        StoreEmployee, StoreOwnerLink, User,
+        StoreEmployee, StoreOwnerLink, StoreRole, StoreRolePermission,
+        User,
     )
     from api.Modules.TimeClock.Models import (
         StoreEmployeePasskey, TimeClockEntry, TimeClockShift,
@@ -222,6 +223,10 @@ def _store_owned_models() -> list[tuple[type, str]]:
         # store-owned, so they survive).
         (AnnouncementStore, "store_id"),
         (User, "store_id"),
+        # Named access roles — AFTER User (user.store_role_id FKs
+        # store_role); permission rows FK the role, so they go first.
+        (StoreRolePermission, "store_id"),
+        (StoreRole, "store_id"),
     ]
 
 
@@ -257,20 +262,33 @@ def _purge_user_scoped_rows(db: Session, store_id: int) -> None:
         gone and their FKs are NOT NULL, so nulling isn't an option;
       * null the nullable EmailEvent.user_id so the delivery history
         survives for post-purge forensics without blocking the
-        delete.
+        delete; likewise OwnerConnectCode.used_by_store_id /
+        used_by_user_id, so the owner's code history survives.
     """
     from api.Modules.Announcements.Models import PushSubscription
     from api.Modules.Auth.Models import (
         LoginEvent, Passkey, PasswordResetToken, RecoveryCode, RefreshToken,
     )
-    from api.Modules.Tenancy.Models import User
+    from api.Modules.Tenancy.Models import OwnerConnectCode, User
     from api.Modules.Webhooks.Models import EmailEvent
+    # An owner connect code this store redeemed keeps its owner's
+    # history; only the pointers at the doomed store / admin go.
+    (
+        db.query(OwnerConnectCode)
+          .filter(OwnerConnectCode.used_by_store_id == store_id)
+          .update({"used_by_store_id": None}, synchronize_session=False)
+    )
     user_ids = [
         uid for (uid,) in
         db.query(User.id).filter_by(store_id=store_id).all()
     ]
     if not user_ids:
         return
+    (
+        db.query(OwnerConnectCode)
+          .filter(OwnerConnectCode.used_by_user_id.in_(user_ids))
+          .update({"used_by_user_id": None}, synchronize_session=False)
+    )
     # NOT-NULL FK children — delete outright. RefreshToken carries a
     # self-FK (rotated_to_id → refresh_token.id) but every link in a
     # rotation chain belongs to the same user, so a single bulk

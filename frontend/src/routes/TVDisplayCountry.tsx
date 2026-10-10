@@ -1,30 +1,36 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import {
   useTVDisplayCountryDetail,
+  useUpdateTVDisplayCountry,
   type TVDisplayBankRow,
 } from "../api/tvDisplay";
 import { AppLink,
   Breadcrumbs,
   Button, ButtonLink, Card, Checkbox, ErrorState, Field, Input,
-  Loading, PageHeader, PageShell, Table, tdStyle, thStyle,
+  Loading, PageHeader, PageShell, Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
+import { apiErrorMessage } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import styles from "./TVDisplayCountry.module.css";
 
 // /app/tv-display/countries/:id — country editor for the rate
-// board. The mutation surface (banks add/remove, rate matrix
-// upsert) still POSTs to legacy Flask at
-// /tv-display/countries/<id> (form-encoded). The SPA renders
-// the editor and submits the form natively — Flask returns
-// 302 → /tv-display → 301 → /app/tv-display, so the operator
-// lands back on the picker after save.
+// board. Save sends the whole editor (header, company columns,
+// bank renames / order / deletes, new banks, rate grid) in one
+// PUT, then returns to the TV display page.
 export default function TVDisplayCountry() {
   const { countryId } = useParams<{ countryId: string }>();
   const cid = Number(countryId);
   const { data, isLoading, isError, error, refetch } =
     useTVDisplayCountryDetail(cid);
+  const save = useUpdateTVDisplayCountry(cid);
+  const navigate = useNavigate();
+  const toast = useToast();
+  const toastError = useApiErrorToast();
 
+  const [countryName, setCountryName] = useState("");
+  const [countryCode, setCountryCode] = useState("");
   const [companiesText, setCompaniesText] = useState("");
   const [bankNames, setBankNames] = useState<Record<number, string>>({});
   const [bankSorts, setBankSorts] = useState<Record<number, number>>({});
@@ -35,6 +41,8 @@ export default function TVDisplayCountry() {
   useEffect(() => {
     if (!data) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable country/bank/rate grid from server-fetched config; resets pending deletes/new-bank rows on each refresh
+    setCountryName(data.country_name);
+    setCountryCode(data.country_code);
     setCompaniesText(data.mt_companies.join(","));
     setBankNames(Object.fromEntries(data.banks.map((b) => [b.id, b.bank_name])));
     setBankSorts(Object.fromEntries(data.banks.map((b) => [b.id, b.sort_order])));
@@ -68,11 +76,53 @@ export default function TVDisplayCountry() {
     return (
       <PageShell>
         <ErrorState
-          message={`Couldn't load country — ${error instanceof Error ? error.message : "unknown error"}`}
+          message={`Couldn't load country — ${apiErrorMessage(error, "unknown error")}`}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
     );
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!data) return;
+    const banks = [];
+    for (const b of data.banks) {
+      const rates: Record<string, number | null> = {};
+      for (const [idx, co] of companies.entries()) {
+        const raw = (rateGrid[`rate-${b.id}-${idx}`] ?? "").trim();
+        const value = raw === "" ? null : Number(raw);
+        if (value !== null && (!Number.isFinite(value) || value < 0)) {
+          toast({
+            message: `${bankNames[b.id] ?? b.bank_name}: "${raw}" isn't a rate.`,
+            tone: "error",
+          });
+          return;
+        }
+        rates[co] = value;
+      }
+      banks.push({
+        id: b.id,
+        bank_name: bankNames[b.id] ?? b.bank_name,
+        sort_order: bankSorts[b.id] ?? b.sort_order,
+        delete: bankDeletes.has(b.id),
+        rates,
+      });
+    }
+    try {
+      await save.mutateAsync({
+        country_name: countryName,
+        country_code: countryCode,
+        mt_companies: companies,
+        banks,
+        new_banks: newBankNames.filter((n) => n.trim().length > 0),
+      });
+    } catch (err) {
+      toastError(err, "Couldn't save the country.");
+      return;
+    }
+    toast({ message: "Country saved.", tone: "success" });
+    navigate("/tv-display");
   }
 
   function setRate(bankId: number, idx: number, value: string) {
@@ -108,24 +158,23 @@ export default function TVDisplayCountry() {
         />
       </div>
 
-      <form
-        method="POST"
-        action={`/tv-display/countries/${cid}`}
-        className={styles.form}
-      >
+      <form onSubmit={submit} className={styles.form}>
         <Card>
           <h2 className={styles.cardH2}>Country header</h2>
           <Field label="Country name">
             <Input
               name="country_name"
-              defaultValue={data.country_name}
+              value={countryName}
+              onChange={(e) => setCountryName(e.target.value)}
+              required
               maxLength={80}
             />
           </Field>
           <Field label="ISO country code">
             <Input
               name="country_code"
-              defaultValue={data.country_code}
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
               maxLength={4}
             />
           </Field>
@@ -202,7 +251,14 @@ export default function TVDisplayCountry() {
         </Card>
 
         <div className={styles.actions}>
-          <Button type="submit">Save changes</Button>
+          <Button
+            type="submit"
+            perm="settings.update"
+            busy={save.isPending}
+            disabled={save.isPending}
+          >
+            {save.isPending ? "Saving…" : "Save changes"}
+          </Button>
           <ButtonLink href="/tv-display" tone="secondary">Cancel</ButtonLink>
         </div>
       </form>

@@ -3,6 +3,8 @@ of logo files. Both run from init_db() on every boot; tests pin
 the safety + idempotency invariants both rely on."""
 import os
 
+import pytest
+
 from api.Modules.TVDisplay.Models import TVBankCatalog, TVCatalogLogo, TVCompanyCatalog, TVDisplay, TVDisplayCountry
 from api.Modules.TVDisplay.Services.seed import (
     backfill_country_codes,
@@ -12,12 +14,20 @@ from api.Modules.Tenancy.Models import Store, User
 from tests._app import db, db_session
 
 
-# Repo root — tests live in ``<repo>/tests/``, so two levels up
-# from this file is the directory the seed helpers expect when
-# they look for ``static/seed-logos/``.
-_REPO_ROOT = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), ".."),
-)
+# The seed helpers look for ``<root>/static/seed-logos/``. Each test
+# gets its own temporary root so planted files never touch the real
+# ``static/`` folder and parallel test workers never see each other's
+# files (the shared folder made ``test_seed_disk_is_idempotent``
+# count another worker's logo under ``pytest -n``).
+_REPO_ROOT = ""
+
+
+@pytest.fixture(autouse=True)
+def _isolated_seed_root(tmp_path):
+    global _REPO_ROOT
+    _REPO_ROOT = str(tmp_path)
+    yield
+    _REPO_ROOT = ""
 
 
 def _backfill_tv_country_codes():
@@ -252,17 +262,6 @@ def test_seed_disk_is_idempotent(client):
 def test_seed_disk_handles_missing_directory(client):
     """If static/seed-logos/companies/ doesn't exist (fresh repo
     clone), the loader returns 0 without crashing."""
-    # Temporarily move the directory out of the way.
-    sub = os.path.join(_seed_dir(), "companies")
-    backup = sub + ".test-backup"
-    moved = False
-    if os.path.isdir(sub):
-        os.rename(sub, backup)
-        moved = True
-    try:
-        # Should be a no-op, not an exception.
-        n = _seed_tv_logos_from_disk()
-        assert isinstance(n, int)
-    finally:
-        if moved:
-            os.rename(backup, sub)
+    assert not os.path.isdir(os.path.join(_seed_dir(), "companies"))
+    n = _seed_tv_logos_from_disk()
+    assert n == 0
