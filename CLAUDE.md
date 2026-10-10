@@ -23,15 +23,13 @@ one **Superadmin**.
   serves from `api/spa.py`.
 - SQLAlchemy 3.1, SQLite in dev, Postgres in prod.
 - Alembic is the sole source of schema truth (see "Migrations").
-- Jinja2 templates + a 3-layer stylesheet split:
-  - `static/design-tokens.css` — dark+neon tokens (`--db-*`) + legacy aliases.
-  - `static/content.css` — overrides for every legacy content class
-    (cards, stats, tables, forms, badges, banners, buttons).
-  - `static/shell.css` — sidebar + topbar overrides.
-  - `static/app.css` — legacy stylesheet, still loaded for layout
-    utilities and dark-mode semantic tokens (`--surface`, `--text`,
-    `--border`). The navy/gold/cream palette it originally shipped
-    is retired but its dark-mode block is still in use.
+- React 19 SPA (Vite) under `frontend/` is the whole UI. Styling:
+  - `static/design-tokens.css` — dark+neon tokens (`--db-*`) + legacy
+    aliases, linked by `frontend/index.html` and the public TV board.
+  - `frontend/src/components/ui/ui.css` + co-located `*.module.css`
+    — the kit's styles and per-route layouts.
+  - Jinja2 survives only for `templates/offline.html`,
+    `templates/tv_display_public.html` and `templates/emails/`.
 - Stripe for billing (Checkout Sessions + Billing Portal + webhooks).
 - Casbin (`pycasbin` + `casbin-sqlalchemy-adapter`) for RBAC.
   Replaced custom `RolePermission` / `StoreRoleOverride` tables in
@@ -169,26 +167,14 @@ Non-negotiables:
   feels responsive, not laggy.
 
   **When you build a new dropdown / modal / tab / popover:**
-  - Reuse the existing patterns rather than inventing your own.
-  - Dropdown / popover: server-render with `hidden`, JS toggles a
-    `.is-open` class with a delayed `hidden` re-set after the
-    transition. CSS animates `.is-open` (see `.user-dropdown` in
-    `static/shell.css` for the canonical example).
-  - Modal: `.modal-backdrop` + `.modal-card` + `.open` class. CSS
-    keyframes in `static/content.css` (`db-modal-backdrop-in` /
-    `db-modal-card-in`) handle the fade-scale. Just give the markup
-    the right classes.
-  - Tab bar (server-rendered, full reload per tab): use `.tab-bar` +
-    `.tab-link` (in `static/content.css`). No per-template style
-    duplication. The page-entrance animation handles the swap.
-  - Tab bar (in-page JS swap): use the daily-book pattern — JS
-    toggles a `.is-active` class on the visible panel, CSS animates
-    via a `db-tab-swap` keyframe. Trigger `void el.offsetHeight`
-    between class clear + add to re-fire the animation.
-  - Honor `prefers-reduced-motion: reduce` — there's a global rule
-    at the bottom of `static/content.css` that strips animations +
-    transitions. Don't write inline `style="transition: …"` that
-    bypasses it.
+  - Reuse the kit rather than inventing your own: `Modal` /
+    `ConfirmDialog` (fade-scale keyframes in `Modal.module.css`),
+    `TabsBar` + `TabsLink` / `TabsButton`, `DateInput`'s popover,
+    `RowActions`' bottom sheet, `Toast`. `UserMenu.tsx` is the
+    dropdown example.
+  - Honor `prefers-reduced-motion: reduce` — the kit's `ui.css`
+    carries the global rule that strips animations + transitions.
+    Don't write inline `style={{ transition: … }}` that bypasses it.
 
   **Don't:**
   - Use `display: none` ↔ `display: block` toggles without a
@@ -311,57 +297,29 @@ a monthly P&L edit needs the monthly ones.
 
 1. **Design system is the source of truth.** See
    [`docs/design-system/`](docs/design-system/) and the "Design
-   system" section above. Dark-only, neon `#3fff00` as sole accent,
-   Space Grotesk + Inter + JetBrains Mono. The rest of this invariant
-   #1 is historical context — follow the design system first; the
-   legacy tokens below are still loaded but mostly supplanted.
+   system" section above. Dark by default, neon `#3fff00` as sole accent,
+   Space Grotesk + Inter + JetBrains Mono.
 
-   Every template `<link>`s `static/design-tokens.css` +
-   `static/content.css` + `static/shell.css` (via `base.html`); the
-   legacy `static/app.css` still loads for layout utilities (`.banner-*`,
-   `.info-box`, `.info-row`, `.empty-state`, `.coming-pill`, `.modal-*`,
-   `.section-box`, `.sb-row`, `.sb-label`, `.sb-input`, `.sb-total`,
-   `.info-row`, `.empty-state`, `.coming-pill`, `.modal-*`,
-   `.section-box`, `.sb-row`, `.sb-label`, `.sb-input`, `.sb-total`,
-   `.sb-auto-badge`, `.sb-summary-box`, `.mt-table`, `.sticky-save-bar`,
-   `.quick-links-grid` + `.quick-link-card`) rather than rolling your own.
+   The Flask-era stylesheets (`static/app.css`, `static/content.css`)
+   and every `base.html` template are gone; the SPA kit in
+   `frontend/src/components/ui/` replaces their classes. Reach for a
+   kit primitive (UI-STANDARDS §6) rather than rolling your own.
 
-   **`.quick-link-card` is the standard for any "pick where to go"
-   landing grid** — icon tile + title + one-line description, hovers
-   into the brand blue with a subtle lift. Use it whenever you'd
-   otherwise be tempted to write a `<ul>` of plain links: superadmin
-   tab landings, store admin settings hubs, "what next?" prompts on
-   wizard finish pages, etc. See the Quick Links section on
-   `superadmin_controls?tab=overview` for the canonical example.
+   **For ANY surface, text, or border that should respect the
+   light/dark toggle, use the semantic tokens** (`--db-surface`,
+   `--db-text`, `--db-border` and friends in `static/design-tokens.css`)
+   — they flip with `data-theme`. The legacy aliases (`--navy`,
+   `--white`, `--gold`, …) still resolve but never use them for a
+   surface or text that should adapt; no hardcoded hex for
+   backgrounds/text either.
 
-   **For ANY surface, text, or border that should respect the light/dark
-   toggle, use the semantic tokens** — they are the only tokens that
-   flip in `[data-theme="dark"]`:
-    - `--surface`        (card / box background)
-    - `--surface-2`      (subtle inset: totals rows, read-only fields)
-    - `--surface-sticky` (sticky save bars)
-    - `--text`           (primary body text)
-    - `--text-muted`     (secondary labels)
-    - `--border`         (component borders)
-    - `--border-strong`  (button outlines, focus rings)
-
-   The fixed tokens (`--navy`, `--blue`, `--gold`, `--white`, `--gray1`,
-   `--gray2`, `--gray4`, `--dark`, `--cream`, `--paper`) are brand /
-   mode-agnostic colors — only reach for them when you specifically want
-   a color that does NOT flip (e.g. a navy hero, a gold accent band).
-   **Never use `--white` / `--gray1` / `--dark` for a surface or text
-   that should adapt to dark mode** — that's the bug we keep regressing
-   on. Likewise: no hardcoded hex for backgrounds/text; pick a
-   semantic token or a brand token.
-
-   For section-box header accent colors, set the `--sb-accent` custom
-   property inline (`style="--sb-accent: var(--blue);"`) — don't
-   override `background:` directly. New report-like pages should reuse
-   `.section-box` + `.sb-*` rather than define their own family.
-2. **Sidebar groupings** (admin) — **Workspace · Books · Finance ·
-   Account**. Superadmin gets a **Platform** section with **Controls**.
-   New pages belong to exactly one section; add the nav link in
-   `templates/base.html`.
+2. **Sidebar groupings** — the nav is ONE table, `NAV` in
+   `frontend/src/components/navConfig.tsx` (store: Dashboard · Daily ·
+   Money services · Team · Reports · Finance · Displays · Owner ·
+   Account; superadmin adds **Platform**). New pages belong to exactly
+   one group; add the link there and the route's access row in
+   `frontend/src/lib/access.ts`. `filterNavForRole` hides items the
+   person cannot open and groups left empty.
 3. **Trial state machine** — `Store.plan ∈ {trial, basic, pro, inactive}`.
    `get_trial_status(store)` returns `active | expiring_soon | grace |
    expired | exempt`. Routes allowed during `expired` are enumerated in
@@ -459,22 +417,15 @@ a monthly P&L edit needs the monthly ones.
     - To extend 2FA to other roles, change the single `_needs_totp()`
       predicate; do NOT scatter role checks through the login routes.
 14. **Table search UX — live-search is the standard.** Every paginated
-    table (transfers is the reference implementation; customers,
-    batches, monthly list, etc. should follow) uses the debounced AJAX
-    pattern — **never** a plain "type then click Search" form. Pattern:
-    - Split the table + pager into a `_<name>_table.html` partial.
-    - The route accepts `?partial=1`, returns JSON `{html, total, page,
-      total_pages, page_amount?, page_fees?}`.
-    - Page-level template wraps the partial in a stable swap container
-      (e.g. `<div id="transfersResult">`) and includes a small `<script>`
-      that: debounces at **300ms**, enforces a **2-char minimum** on the
-      global `q` box, cancels in-flight fetches via **AbortController**,
-      and updates the URL with `history.replaceState` so filters are
-      shareable. Selects + date pickers fire immediately on `change`.
-    - Focus must stay in the search input — the swap region lives below
-      the input, not around it.
-    - Reference: `templates/transfers.html` + `templates/_transfers_table.html`
-      + `/transfers` route's `partial=1` branch.
+    table (transfers is the reference implementation) searches as you
+    type — **never** a plain "type then click Search" form. Use
+    `useUrlFilterState` (`frontend/src/lib/useUrlFilterState.ts`):
+    filters live in the URL (shareable, back/forward restore them),
+    the free-text box debounces at **300ms** with a **2-char
+    minimum**, any filter change resets to page 1, selects + date
+    pickers apply immediately. The list endpoint takes the filters as
+    query params and returns the `api.Core.Pagination` envelope.
+    Reference: `frontend/src/routes/Transfers.tsx`.
 15. **Rate limiting** — every auth route, password-reset route, and
     webhook ingest endpoint is bucketed by slowapi on the FastAPI
     side. The Flask-Limiter twin is gone — Flask has no remaining
@@ -749,27 +700,17 @@ Top-level files:
 | `api/SpaCutover.py` | Pure `redirect_target(path, qs)` for legacy URLs |
 | `tests/_app.py` | Test-only re-export shim (`db`, `flask_app` stub, helpers) |
 
-## Templates
-- `base.html` — admin/employee chrome (sidebar + topbar + banner zone).
-  Loads app.css → design-tokens.css → content.css → shell.css in that
-  order. Don't reorder — shell must win the cascade.
-- `base_owner.html` — multi-store owner chrome (same design system).
+## Templates and static files
+Every page, logged-in or not (landing, login, signup, 2FA, privacy),
+is an SPA route. What is left server-side:
+- `templates/offline.html` — the service worker's offline page.
+- `templates/tv_display_public.html` — the public TV rate board.
+- `templates/emails/` — transactional email bodies.
 - `static/design-tokens.css` — dark+neon tokens + legacy aliases.
   **New tokens go here.**
-- `static/content.css` — overrides for every legacy content class
-  (`.card`, `.stat-card`, `.badge`, `.btn-*`, tables, forms, banners).
-  Templates that extend `base.html` inherit this for free.
-- `static/shell.css` — sidebar + topbar overrides. Loaded last.
-- `static/app.css` — retained for layout utilities and the semantic
-  dark-mode tokens (`--surface`, `--text`, `--border`). Don't add
-  new brand colors here.
-- Logged-out auth pages (`landing.html`, `login.html`, `signup.html`,
-  `signup_owner.html`, `login_store.html`, `forgot_password.html`,
-  `reset_password.html`, `offline.html`, `privacy.html`) are standalone
-  and link `design-tokens.css` directly — they don't extend a base.
-- 2FA pages use the shared `_login_chrome.html` + `_login_chrome_end.html`
-  partials (login_totp, login_totp_enroll, login_totp_recover,
-  login_totp_recovery_codes).
+- `static/sw.js` — the service worker. Every file in its `SHELL`
+  precache list must exist (`tests/test_service_worker_shell.py`):
+  one 404 and nothing is cached, not even the offline page.
 
 ## OpenAPI → TypeScript types
 The SPA reads request/response shapes from
@@ -799,12 +740,13 @@ type AnnouncementRow = components["schemas"]["AnnouncementRow"];
 ```
 
 New code should use this pattern instead of hand-writing
-interfaces. The 17 existing files in `frontend/src/api/*.ts`
-migrate on-touch; `announcements.ts` is the canonical example.
+interfaces. The `frontend/src/api/*.ts` files that still hand-write
+their types migrate on-touch; `announcements.ts` is the canonical
+example.
 
 ## Tests
 ```bash
-pytest tests/          # ~290 tests currently, plus ~20 skipped
+pytest tests/          # ~3,400 tests currently
 pytest tests/ -x -q    # stop on first failure, quiet
 ```
 Fixtures live in `tests/conftest.py` and set up an in-memory SQLite with
@@ -859,7 +801,7 @@ Known traps:
 - ❌ Extract a shared component for a NEW page while leaving the
   existing copy in place — move every caller onto it in the same PR
   or you have added a maintenance burden, not removed one.
-- ❌ Inline-style hex colors that duplicate `app.css`.
+- ❌ Inline-style hex colors — use a `--db-*` token.
 - ❌ Drop columns or tables from a running DB without a backfill
   step (rename in one revision, copy data, drop in a follow-up).
 - ❌ Skip audit logging on a superadmin / admin mutation — use

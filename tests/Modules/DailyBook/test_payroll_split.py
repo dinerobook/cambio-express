@@ -1,87 +1,16 @@
-"""Payroll cash/check split — backfill migration + monthly P&L feed.
+"""Payroll cash/check split — monthly P&L feed.
 
-The daily book's typed ``payroll_expense`` becomes two line-item
+The daily book's typed ``payroll_expense`` became two line-item
 kinds: ``payroll_cash`` (still a daily disbursement) and
 ``payroll_check`` (invisible to daily totals, feeds the monthly
-``check_payroll`` P&L line). Backfill mirrors the from_bank /
-money_order conversions.
+``check_payroll`` P&L line). The one-shot backfill migration that
+did the split is exercised by conftest's ``alembic upgrade head``.
 """
 from __future__ import annotations
 
-import importlib.util
 from datetime import date
 
-import pytest
-from pathlib import Path
-
 from tests._app import db, db_session
-
-
-def _load_migration():
-    path = (
-        Path(__file__).resolve().parents[3]
-        / "alembic" / "versions"
-        / "b3e7c1f9d5a2_payroll_check_split.py"
-    )
-    spec = importlib.util.spec_from_file_location("_payroll_split_mig", path)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-def _payroll_cash_items(store_id: int, day: date):
-    from api.Modules.DailyBook.Models import DailyLineItem
-    return (
-        db.session.query(DailyLineItem)
-        .filter_by(store_id=store_id, report_date=day, kind="payroll_cash")
-        .all()
-    )
-
-
-@pytest.mark.skip(
-    reason="Historical one-shot backfill predates the cents schema "
-           "(P0-3): its raw SQL reads the old Float columns, which "
-           "exist at its point in the migration chain but not in the "
-           "live schema. The chain itself is exercised by conftest's "
-           "alembic upgrade head on every run."
-)
-def test_backfill_seeds_positive_reports_only_and_is_idempotent(test_store_id):
-    from api.Modules.DailyBook.Models import DailyLineItem, DailyReport
-    mig = _load_migration()
-    d_pos = date(2026, 3, 10)
-    d_zero = date(2026, 3, 11)
-    d_existing = date(2026, 3, 12)
-
-    with db_session():
-        db.session.add(DailyReport(
-            store_id=test_store_id, report_date=d_pos, payroll_expense=800.0,
-        ))
-        db.session.add(DailyReport(
-            store_id=test_store_id, report_date=d_zero, payroll_expense=0.0,
-        ))
-        db.session.add(DailyReport(
-            store_id=test_store_id, report_date=d_existing,
-            payroll_expense=250.0,
-        ))
-        db.session.add(DailyLineItem(
-            store_id=test_store_id, report_date=d_existing,
-            kind="payroll_cash", amount=250.0,
-        ))
-        db.session.flush()
-
-        seeded = mig.backfill_payroll_cash_line_items(db.session.connection())
-        assert seeded == 1
-
-        pos_items = _payroll_cash_items(test_store_id, d_pos)
-        assert len(pos_items) == 1
-        assert pos_items[0].amount == 800.0
-
-        assert _payroll_cash_items(test_store_id, d_zero) == []
-        assert len(_payroll_cash_items(test_store_id, d_existing)) == 1
-
-        again = mig.backfill_payroll_cash_line_items(db.session.connection())
-        assert again == 0
 
 
 def test_monthly_check_payroll_derives_from_daily(test_store_id):

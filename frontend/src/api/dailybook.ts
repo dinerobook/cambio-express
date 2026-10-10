@@ -146,8 +146,8 @@ export async function unlockDailyReport(
 
 // ── Line items ──────────────────────────────────────────────
 
-// `expects_settlement` marks an Other cash out lent to someone (or an
-// Other cash in borrowed from someone) that comes back; `settled` is
+// `expects_settlement` marks a Cash Out entry lent to someone (or a
+// Cash In entry borrowed from someone) that comes back; `settled` is
 // how much has come back so far. `settles_item_id` is set on the
 // entry that returned (part of) another one. See the API's
 // DailyBook/Services/settlements.py.
@@ -182,7 +182,7 @@ export interface LineItemCreateBody {
   at_time: string;  // HH:MM
   amount: number;
   note?: string;
-  /** Mark an Other cash out / Other cash in as coming back. */
+  /** Mark a Cash Out / Cash In entry as coming back. */
   expects_settlement?: boolean;
   settle_by?: string | null;  // YYYY-MM-DD
   /** Book this entry as (part of) the return of an open one. */

@@ -13,8 +13,8 @@ import { TEST_ADMIN } from "../test/setup";
 import type { LineItemRow, OpenSettlement } from "../api/dailybook";
 
 // Money that comes back, in the daily book:
-//   - "Owed to us" lists open Other cash outs, "We owe" open Other
-//     cash ins, each only up to the day being viewed.
+//   - "Owed to us" lists open Cash Out entries, "We owe" open Cash In
+//     entries, each only up to the day being viewed.
 //   - They live on a tab of the box the money comes back through:
 //     Owed to us on Cash In, We owe on Cash Out. The tile shows what
 //     is still out as an outlined pill (not in today's total) and how
@@ -225,7 +225,7 @@ describe("CashFlowWidget", () => {
     await waitFor(() => expect(onChange).toHaveBeenCalled());
   });
 
-  it("pays borrowed money back as an Other cash out", async () => {
+  it("pays borrowed money back as a Cash Out entry", async () => {
     createLineItem.mockResolvedValue({});
     renderWidget("we_owe");
     const dialog = await openList("We owe");

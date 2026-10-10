@@ -2081,7 +2081,7 @@ function LineItemEntriesEditor({
   const [time, setTime] = useState("");
   const [amount, setAmount] = useState(0);
   const [note, setNote] = useState("");
-  // "Comes back" mark — Cash Out / Other cash in. Checks on hold
+  // "Comes back" mark — Cash Out / Cash In entries. Checks on hold
   // are always open: no tick box, only the deposit-by date.
   const settleable = canSettle(kind);
   const alwaysOpen = isAlwaysOpen(kind);
@@ -2460,7 +2460,7 @@ function NumberInput({
 }
 
 /** Forward balance (opening cash carried from the previous day).
- *  Auto-carried = previous logged day's (Outside cash drops + Safe
+ *  Auto-carried = previous logged day's (Cash Drops + Safe
  *  balance); the server forces that value on save, so the field is
  *  read-only whenever `auto` is true (every day but the store's very
  *  first). On the first day there's no prior report — the operator

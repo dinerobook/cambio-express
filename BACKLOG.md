@@ -75,8 +75,7 @@ the kind of thing that makes the product feel premium vs. functional.
       `frontend/src/components/ui/index.tsx`. Inline `pageStyle` /
       `cardStyle` blocks were swept (PR #439).
 - [x] **A3. Typography consistency.** Landed alongside A2 — type
-      ramp lives in `static/design-tokens.css` (`--db-text-*`) and
-      `frontend/src/lib/typography.ts`.
+      ramp lives in `static/design-tokens.css` (`--db-text-*`).
 - [x] **A4. Empty states.** `<EmptyState>` ships in
       `frontend/src/components/ui/` (PR #431).
 - [x] **A5. Loading skeletons.** `<TableSkeleton>` + `<Loading>`
