@@ -4,7 +4,7 @@ import { usePaystub } from "../api/timeclock";
 import { useStoreInfo } from "../api/account";
 import { formatTimestamp } from "../lib/datetime";
 import {
-  Breadcrumbs, Button, ErrorState, Loading, PageShell,
+  Breadcrumbs, Button, ErrorState, KpiCard, KpiGrid, Loading, PageShell,
 } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
@@ -106,31 +106,26 @@ export default function TimeClockPaystub() {
           </div>
         </div>
 
-        <div className={styles.summaryGrid}>
-          <div className={styles.summaryTile}>
-            <div className={styles.summaryLabel}>Approved hours</div>
-            <div className={styles.summaryValue}>
-              {data.approved_hours.toFixed(2)}
-            </div>
-          </div>
-          <div className={styles.summaryTile}>
-            <div className={styles.summaryLabel}>Hourly rate</div>
-            <div className={styles.summaryValue}>
-              {data.hourly_rate > 0
+        <div className={styles.summary}>
+          <KpiGrid minWidth="12rem">
+            <KpiCard
+              label="Approved hours"
+              value={data.approved_hours.toFixed(2)}
+            />
+            <KpiCard
+              label="Hourly rate"
+              value={data.hourly_rate > 0
                 ? fmtMoney2(data.hourly_rate)
                 : "—"}
-            </div>
-          </div>
-          <div className={styles.summaryTile}>
-            <div className={styles.summaryLabel}>Gross pay</div>
-            <div
-              className={`${styles.summaryValue} ${styles.grossPay}`}
-            >
-              {data.hourly_rate > 0
+            />
+            <KpiCard
+              label="Gross pay"
+              tone="positive" colorValue
+              value={data.hourly_rate > 0
                 ? fmtMoney2(data.gross_pay)
                 : "—"}
-            </div>
-          </div>
+            />
+          </KpiGrid>
         </div>
 
         <div className={styles.shiftsWrap}>

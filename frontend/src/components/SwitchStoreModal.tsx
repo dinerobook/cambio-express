@@ -9,7 +9,8 @@ import {
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Button, EmptyState, Field, Input, Loading, Modal, Pill, Select,
+  Alert, Button, EmptyState, ErrorState, Field, Input, Loading, Modal, Pill,
+  Select,
   useToast,
 } from "./ui";
 import styles from "./SwitchStoreModal.module.css";
@@ -192,7 +193,10 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
       </div>
       {stores.isLoading && <Loading />}
       {stores.isError && (
-        <Alert tone="error">Could not load your stores.</Alert>
+        <ErrorState
+          message="Could not load your stores."
+          onRetry={() => { void stores.refetch(); }}
+        />
       )}
       {stores.data && rows.length === 0 && (
         <EmptyState

@@ -8,11 +8,9 @@ import {
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
-  Card, Empty, Input, PageHeader, PageShell, Pager,
-  Pill, Table, TableStates, tdStyle, thStyle,
+  Card, Empty, Input, PageHeader, PageShell, Pager, TableStates,
 } from "../components/ui";
-import styles from "./SuperadminAuditLog.module.css";
-import { formatTimestamp } from "../lib/datetime";
+import { AuditTable, type AuditTableRow } from "../components/AuditTable";
 
 // Platform-wide superadmin audit log at /app/superadmin/audit-log.
 // Mirrors the legacy /superadmin/reports/audit-log report —
@@ -89,7 +87,7 @@ export default function SuperadminAuditLog() {
         />
         {data && data.rows.length > 0 && (
           <>
-            <AuditTable rows={data.rows} />
+            <AuditTable rows={data.rows.map(toAuditTableRow)} />
             <Pager
               page={data.page}
               totalPages={data.total_pages}
@@ -102,43 +100,17 @@ export default function SuperadminAuditLog() {
   );
 }
 
-function AuditTable({ rows }: { rows: SuperadminAuditRow[] }) {
-  return (
-    <Table>
-      <thead>
-        <tr>
-          {["When", "Actor", "Action", "Target", "Details"].map((h, i) => (
-            <th key={i} style={thStyle}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.id}>
-            <td style={tdStyle}>
-              <span className={styles.monoMuted}>
-                {formatTimestamp(r.created_at)}
-              </span>
-            </td>
-            <td style={tdStyle}>{r.admin_name || "—"}</td>
-            <td style={tdStyle}>
-              <Pill tone="accent" mono>{r.action}</Pill>
-            </td>
-            <td style={tdStyle}>
-              {r.target_type ? (
-                <span className={styles.targetId}>
-                  {r.target_type}#{r.target_id || "—"}
-                </span>
-              ) : (
-                <span className={styles.dash}>—</span>
-              )}
-            </td>
-            <td style={tdStyle} className={styles.detailsCell}>
-              {r.details || "—"}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
+/** The platform log's rows in the shared audit table's shape: the
+ *  acting superadmin is the actor, `type#id` the target. */
+function toAuditTableRow(r: SuperadminAuditRow): AuditTableRow {
+  return {
+    ts: r.created_at,
+    user_name: r.admin_name,
+    action: r.action,
+    target_type: r.target_type,
+    target_id: r.target_id,
+    target_label: r.target_type && r.target_id ? `#${r.target_id}` : "",
+    summary: r.details,
+    source: "superadmin",
+  };
 }

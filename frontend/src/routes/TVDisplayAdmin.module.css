@@ -94,41 +94,7 @@
  * caller now uses the kit `<Button>` / `<ButtonLink>` primitives
  * which carry hover / focus-visible / busy semantics for free. */
 
-.urlBar {
-  display: flex;
-  align-items: stretch;
-  background: var(--db-surface-2, #141414);
-  border: 1px solid var(--db-border, #262626);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.urlBarLabel {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 14px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--db-text-muted, #a3a3a3);
-  border-right: 1px solid var(--db-border, #262626);
-  flex-shrink: 0;
-}
-
-.urlBarInput {
-  flex: 1;
-  min-width: 0;
-  padding: 12px 14px;
-  font-family: "JetBrains Mono", Consolas, monospace;
-  font-size: 13px;
-  background: transparent;
-  border: 0;
-  color: var(--db-text, #f5f5f5);
-}
-
-/* `.urlBarButton` retired — Copy + Open buttons now use the
- * kit `<Button>` / `<ButtonLink>` primitives. */
+/* The public-URL bar is the kit `<CopyField>` now. */
 
 .detailsSummary {
   cursor: pointer;
@@ -318,28 +284,6 @@
   color: var(--db-text, #f5f5f5);
   font-size: 13px;
   font-family: "Inter", sans-serif;
-}
-
-.statRows {
-  display: flex;
-  flex-direction: column;
-}
-
-.statRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--db-border, #262626);
-  font-size: 13px;
-  color: var(--db-text-muted, #a3a3a3);
-}
-
-.statValue {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--db-text, #f5f5f5);
 }
 
 .sectionTitle {

@@ -1,7 +1,5 @@
-/* Page-specific styles for AccountActivity.tsx. Mirrors
-   AdminAuditLog.module.css; could be deduped if the kit ever
-   grows a shared `<AuditTable>` primitive — for now a near-clone
-   is the lightest path. */
+/* Page-specific styles for AccountActivity.tsx. The table itself
+   is the shared components/AuditTable.tsx (who="store"). */
 
 .cardHeader {
   display: flex;
@@ -29,23 +27,6 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: flex-end;
-}
-
-.targetType {
-  color: var(--db-text-muted, #a3a3a3);
-  font-size: 0.85rem;
-}
-
-.detailCell {
-  font-size: 0.9rem;
-  max-width: 30rem;
-}
-
-.monoMuted {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
-  font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
-  white-space: nowrap;
 }
 
 .fine {

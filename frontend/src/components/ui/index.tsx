@@ -17,6 +17,7 @@
 //   <Card>                  <Select>            <KpiCard> / <KpiGrid>
 //   <Section>               <Textarea>          <Pager>
 //   <SectionTitle>          <FormActions>       <PeriodStepper>
+//                           <CopyField> / <CopyButton>
 //                                              Feedback
 // Inline + states                                <Empty>
 //   <Button>                                     <EmptyState>
@@ -57,6 +58,7 @@ export { Card } from "./Card";
 export { Section, SectionTitle } from "./Section";
 export { Field } from "./Field";
 export { Input } from "./Input";
+export { CopyButton, CopyField } from "./CopyField";
 export { DateInput } from "./DateInput";
 export { MoneyInput } from "./MoneyInput";
 export { PhoneField, type PhoneFieldProps } from "./PhoneField";

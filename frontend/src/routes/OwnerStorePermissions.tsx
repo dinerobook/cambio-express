@@ -6,7 +6,7 @@ import { api, ApiError } from "../lib/api";
 import { toggleMatrixCell } from "../lib/permissions";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
 import {
-  Alert, Breadcrumbs, Button, Card, Loading,
+  Alert, Breadcrumbs, Button, Card, ErrorState, Loading,
   PageHeader, PageShell, Pill, SectionTitle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
@@ -33,7 +33,7 @@ export default function OwnerStorePermissions() {
   const qc = useQueryClient();
   const toast = useToast();
 
-  const { data, isLoading, isError, error } = useQuery<PermissionMatrix>({
+  const { data, isLoading, isError, error, refetch } = useQuery<PermissionMatrix>({
     queryKey: ["owner-store-permissions", sid],
     queryFn: () => api<PermissionMatrix>(`/api/v2/owner/store/${sid}/permissions`),
   });
@@ -122,7 +122,12 @@ export default function OwnerStorePermissions() {
       />
 
       {isLoading && <Loading />}
-      {isError && <Alert tone="error">{error instanceof Error ? error.message : "Could not load"}</Alert>}
+      {isError && (
+        <ErrorState
+          message={error instanceof Error ? error.message : "Could not load"}
+          onRetry={() => { void refetch(); }}
+        />
+      )}
       {saveError && <Alert tone="error">{saveError}</Alert>}
 
       {draft && draft.roles.map((role) => {

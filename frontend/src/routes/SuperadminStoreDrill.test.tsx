@@ -16,6 +16,7 @@ const startImpersonation = vi.fn();
 const compStore = vi.fn();
 const endComp = vi.fn();
 const useStoreAuditLog = vi.fn();
+const creditStore = vi.fn();
 
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
@@ -30,7 +31,8 @@ vi.mock("../api/superadmin", () => ({
   useStoreAuditLog: (...args: unknown[]) => useStoreAuditLog(...args),
   useStoreFeatures: () => ({ data: { rows: [] }, isLoading: false, isError: false, refetch: vi.fn() }),
   useStoreOwnerLinks: () => ({ data: { rows: [] }, isLoading: false, isError: false, refetch: vi.fn() }),
-  creditStore: vi.fn(), emailStore: vi.fn(), extendTrial: vi.fn(),
+  creditStore: (...args: unknown[]) => creditStore(...args),
+  emailStore: vi.fn(), extendTrial: vi.fn(),
   freezeStore: vi.fn(), linkOwnerToStore: vi.fn(), toggleStoreActive: vi.fn(),
   unfreezeStore: vi.fn(), unlinkOwnerFromStore: vi.fn(),
 }));
@@ -99,6 +101,7 @@ beforeEach(() => {
   compStore.mockReset();
   endComp.mockReset();
   useStoreAuditLog.mockReset();
+  creditStore.mockReset();
   useStoreAuditLog.mockReturnValue({
     data: { rows: [], total: 0, page: 1, per_page: 50, total_pages: 1 },
     isLoading: false, isError: false, refetch: vi.fn(),
@@ -191,5 +194,32 @@ describe("<SuperadminStoreDrill> activity", () => {
     expect(useStoreAuditLog).toHaveBeenLastCalledWith(7, { page: 1, target: "", action: "" });
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Activity action" }), "lock");
     await waitFor(() => expect(useStoreAuditLog).toHaveBeenLastCalledWith(7, { page: 1, target: "", action: "lock" }));
+  });
+});
+
+describe("<SuperadminStoreDrill> credit", () => {
+  // The amount is a <MoneyInput>; the API still gets whole cents.
+  async function openCredit() {
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    await userEvent.click(screen.getByRole("button", { name: "Credit account" }));
+    return screen.findByRole("dialog");
+  }
+
+  it("sends the typed dollars as cents", async () => {
+    creditStore.mockResolvedValue({ amount_cents: 1250 });
+    const dialog = await openCredit();
+    await userEvent.type(within(dialog).getByRole("textbox", { name: /Amount/ }), "12.5");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Issue credit" }));
+    await waitFor(() => expect(creditStore).toHaveBeenCalledWith(7, 1250, ""));
+    expect(await screen.findByText("Credited $12.50 to Cambio Express.")).toBeInTheDocument();
+  });
+
+  it("refuses a credit over the $5,000 cap without calling the API", async () => {
+    const dialog = await openCredit();
+    await userEvent.type(within(dialog).getByRole("textbox", { name: /Amount/ }), "5000.01");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Issue credit" }));
+    expect(await within(dialog).findByText("A single credit is capped at $5,000.")).toBeInTheDocument();
+    expect(creditStore).not.toHaveBeenCalled();
   });
 });

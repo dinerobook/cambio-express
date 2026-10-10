@@ -16,7 +16,7 @@ import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Card, EmptyState,
-  ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal,
+  ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
   PageHeader, PageShell, Pager, Pill, Section, SectionTitle, Select,
   Switch, Table, TableStates, tdStyle, Textarea, thStyle, useToast,
 } from "../components/ui";
@@ -84,7 +84,7 @@ export default function SuperadminStoreDrill() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [showCredit, setShowCredit] = useState(false);
-  const [creditAmount, setCreditAmount] = useState("");
+  const [creditAmount, setCreditAmount] = useState(0);
   const [creditReason, setCreditReason] = useState("");
   const [creditBusy, setCreditBusy] = useState(false);
   const [creditError, setCreditError] = useState<string | null>(null);
@@ -620,9 +620,14 @@ export default function SuperadminStoreDrill() {
             if (!storeId) return;
             // Dollars → cents. Round to the nearest cent so a
             // "12.5" input becomes 1250, not 1249.9999.
-            const cents = Math.round(Number(creditAmount) * 100);
+            const cents = Math.round(creditAmount * 100);
             if (!Number.isFinite(cents) || cents <= 0) {
               setCreditError("Enter an amount greater than $0.");
+              return;
+            }
+            // The cap the old number input enforced with max="5000".
+            if (cents > 500_000) {
+              setCreditError("A single credit is capped at $5,000.");
               return;
             }
             setCreditBusy(true);
@@ -634,7 +639,7 @@ export default function SuperadminStoreDrill() {
                 tone: "success",
               });
               setShowCredit(false);
-              setCreditAmount("");
+              setCreditAmount(0);
               setCreditReason("");
             } catch (err) {
               setCreditError(err instanceof ApiError ? err.message : "Could not issue credit.");
@@ -649,16 +654,14 @@ export default function SuperadminStoreDrill() {
             it to their next invoice automatically. The store must be on
             a paid plan (have a Stripe customer).
           </p>
-          <Field label="Amount (USD)">
-            <Input
-              type="number" inputMode="decimal"
-              min="0.01" max="5000" step="0.01"
-              value={creditAmount}
-              onChange={(e) => setCreditAmount(e.target.value)}
-              placeholder="50.00"
-              required
-            />
-          </Field>
+          <MoneyInput
+            label="Amount (USD)"
+            value={creditAmount}
+            onChange={setCreditAmount}
+            placeholder="50.00"
+            required
+            fullWidth
+          />
           <Field label="Reason (optional)">
             <Input
               type="text" value={creditReason}

@@ -16,7 +16,7 @@ import {
 import {
   Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, ErrorState,
-  Field, InfoTip, Input,
+  Field, InfoTip, Input, KpiCard, KpiGrid,
   Loading, Modal, PageHeader, PageShell, Pill, RowActions, Select, space, Table,
   TableSkeleton, Textarea, tdStyle, thStyle, useToast,
   Empty,
@@ -326,26 +326,14 @@ function KpiRow({
   const pending  = data?.pending_hours ?? 0;
   const total    = data?.total_hours ?? 0;
   return (
-    <div className={styles.kpiRow}>
-      <KpiTile label="Approved hours" value={approved}
-        accent="accent" />
-      <KpiTile label="Pending hours" value={pending}
-        accent="warning" />
-      <KpiTile label="Total hours (window)" value={total}
-        accent="info" />
-    </div>
-  );
-}
-
-
-function KpiTile({
-  label, value, accent,
-}: { label: string; value: number; accent: "accent" | "warning" | "info" }) {
-  return (
-    <div className={`${styles.kpiTile} ${styles[`kpi_${accent}`]}`}>
-      <div className={styles.kpiLabel}>{label}</div>
-      <div className={styles.kpiValue}>{value.toFixed(2)}</div>
-    </div>
+    <KpiGrid minWidth="11rem">
+      <KpiCard label="Approved hours" value={approved.toFixed(2)}
+        tone="positive" colorValue />
+      <KpiCard label="Pending hours" value={pending.toFixed(2)}
+        tone="warning" colorValue />
+      <KpiCard label="Total hours (window)" value={total.toFixed(2)}
+        tone="primary" colorValue />
+    </KpiGrid>
   );
 }
 

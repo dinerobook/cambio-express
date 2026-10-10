@@ -11,7 +11,7 @@ import {
 } from "../api/announcements";
 import {
   Breadcrumbs,
-  Alert, Button, Card, Checkbox, ConfirmDialog, Empty, Field,
+  Alert, Button, Card, Checkbox, ConfirmDialog, Empty, ErrorState, Field,
   Input, PageHeader, PageShell, Pill, SectionTitle, Select, Table,
   TableStates, Textarea, tdStyle, thStyle, type PillTone,
   Loading,
@@ -237,7 +237,7 @@ function StorePicker({
   selected: Set<number>;
   onChange: (next: Set<number>) => void;
 }) {
-  const { data, isLoading, isError } = useSuperadminStores();
+  const { data, isLoading, isError, refetch } = useSuperadminStores();
   const [filter, setFilter] = useState("");
 
   const stores = data?.rows ?? [];
@@ -258,7 +258,14 @@ function StorePicker({
   }
 
   if (isLoading) return <Loading />;
-  if (isError) return <Alert tone="error">Could not load stores.</Alert>;
+  if (isError) {
+    return (
+      <ErrorState
+        message="Could not load stores."
+        onRetry={() => { void refetch(); }}
+      />
+    );
+  }
 
   return (
     <div className={styles.storePicker}>

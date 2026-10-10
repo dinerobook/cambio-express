@@ -196,7 +196,10 @@ Known shared components, and what they own:
 | `useApiErrorToast` | `toast({ message: err instanceof ApiError ? … , tone: "error" })` |
 | `*_STATUS_TONES` in `api/` (`BATCH_`, `TRANSFER_`, `RETURN_CHECK_`, `TICKET_`) | a per-route status → tone map |
 | `fmtMoney2` / `formatDate` / `formatTimestamp` | `toFixed(2)`, `.slice(0, 10)`, `toLocaleDateString()` |
-| `Modal`, `Tooltip`, `Switch`, `Checkbox`, `Pill`, `KpiCard` | hand-rolled equivalents |
+| `Modal`, `Tooltip`, `Switch`, `Checkbox`, `Pill` | hand-rolled equivalents |
+| `KpiCard` / `KpiGrid` (`colorValue` to paint a signal figure in its tone) | a page-local stat tile, `StatRow`, or `.kpi*` / `.summaryTile` CSS |
+| `CopyField` / `CopyButton` | a read-only `<input>` + Copy button with its own `navigator.clipboard.writeText` (it owns the execCommand fallback, the "Copied" flash and the failure toast) |
+| `AuditTable` (`who="store"` for one person's cross-store feed) | a per-page audit `<table>` of When / Actor / Action / Target / Details |
 | `BreakdownPills` | a "Cash $X · Check $Y" line, or per-card part chips |
 | `DailyBookTile` / `BoxTabs` (daily book) | a hand-built box button or a tab strip with its own "Label · $X" + tip row |
 

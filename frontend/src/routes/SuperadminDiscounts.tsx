@@ -8,10 +8,10 @@ import {
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
 import {
-  Alert,
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Loading,
   PageHeader,
   PageShell,
@@ -21,7 +21,7 @@ import {
 } from "../components/ui";
 
 export default function SuperadminDiscounts() {
-  const { data, isLoading, isError } = useDiscounts();
+  const { data, isLoading, isError, refetch } = useDiscounts();
   const qc = useQueryClient();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
@@ -47,7 +47,12 @@ export default function SuperadminDiscounts() {
       />
 
       {isLoading && <Loading />}
-      {isError && <Alert tone="error">Could not load discount codes.</Alert>}
+      {isError && (
+        <ErrorState
+          message="Could not load discount codes."
+          onRetry={() => { void refetch(); }}
+        />
+      )}
 
       {data && data.rows.length === 0 && (
         <EmptyState

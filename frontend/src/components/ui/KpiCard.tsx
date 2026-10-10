@@ -15,18 +15,39 @@ const kpiAccent: Record<KpiTone, string> = {
   muted:    tokens.border,
 };
 
+/** The value's colour when `colorValue` is set. Neutral tones keep
+ *  the body text colour — a grey figure would read as disabled. */
+const kpiValueColor: Record<KpiTone, string> = {
+  neutral:  tokens.text,
+  primary:  tokens.info,
+  neon:     tokens.accent,
+  positive: tokens.accent,
+  warning:  tokens.warning,
+  negative: tokens.negative,
+  muted:    tokens.text,
+};
+
 /** Single stat tile: label / value / sub. Top border accents by
- *  tone. Use mono on the value via the `.ds-kpi-value` class. */
+ *  tone. Use mono on the value via the `.ds-kpi-value` class.
+ *
+ *  `colorValue` also paints the figure in the tone's colour — for a
+ *  tile whose number IS the signal (net profit below zero, pending
+ *  hours waiting on approval), not for every tile in a row.
+ *
+ *  The root carries `.ds-kpi-card` so a page with a print sheet can
+ *  reset the tile for paper (inline styles otherwise win). */
 export function KpiCard({
-  label, value, sub, tone = "neutral",
+  label, value, sub, tone = "neutral", colorValue = false,
 }: {
   label: ReactNode;
   value: ReactNode;
   sub?: ReactNode;
   tone?: KpiTone;
+  colorValue?: boolean;
 }) {
   return (
     <div
+      className="ds-kpi-card"
       style={{
         background: tokens.surface2,
         border: `1px solid ${tokens.border}`,
@@ -52,6 +73,7 @@ export function KpiCard({
           fontSize: fontSize.xl,
           fontWeight: 700,
           marginTop: space.sm,
+          color: colorValue ? kpiValueColor[tone] : undefined,
         }}
       >
         {value}

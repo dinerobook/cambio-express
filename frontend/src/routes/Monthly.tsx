@@ -7,7 +7,7 @@ import { fmtMoney2 } from "../lib/formatters";
 import {
   Breadcrumbs,
   ButtonLink, Card, Empty, EmptyState, ErrorState, Loading, PageHeader,
-  PageShell, Section, Select, tokens,
+  KpiCard, KpiGrid, PageShell, Section, Select, tokens,
 } from "../components/ui";
 import styles from "./Monthly.module.css";
 import {
@@ -219,13 +219,14 @@ function ReportContent({
       <Section title="Totals">
         <Card>
           <Grid>
-            <Stat label="Total income"     value={r.total_income}   positive />
+            <Stat
+              label="Total income" value={r.total_income} tone="positive"
+            />
             <Stat label="Total expenses"   value={r.total_expenses} />
             <Stat
               label="Net profit"
               value={r.net_profit}
-              positive={r.net_profit >= 0}
-              negative={r.net_profit < 0}
+              tone={r.net_profit >= 0 ? "positive" : "negative"}
             />
             <Stat label="Cash carry forward" value={r.cash_carry_forward} />
           </Grid>
@@ -272,26 +273,23 @@ function ReportContent({
 }
 
 function Grid({ children }: { children: React.ReactNode }) {
-  return <div className={styles.grid}>{children}</div>;
+  return <KpiGrid minWidth="11rem">{children}</KpiGrid>;
 }
 
+/** One P&L figure. A toned figure (income, net profit) carries its
+ *  colour on the number; a plain line stays in body text. */
 function Stat({
-  label, value, positive, negative,
+  label, value, tone,
 }: {
   label: string; value: number;
-  positive?: boolean; negative?: boolean;
+  tone?: "positive" | "negative";
 }) {
-  const color = positive
-    ? tokens.accent
-    : negative
-      ? tokens.negative
-      : tokens.text;
   return (
-    <div className={styles.stat}>
-      <p className={styles.statLabel}>{label}</p>
-      <p className={styles.statValue} style={{ color }}>
-        {fmtMoney2(value || 0)}
-      </p>
-    </div>
+    <KpiCard
+      label={label}
+      value={fmtMoney2(value || 0)}
+      tone={tone ?? "neutral"}
+      colorValue={tone != null}
+    />
   );
 }

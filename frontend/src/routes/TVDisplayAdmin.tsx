@@ -13,8 +13,8 @@ import {
 import { ApiError } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
 import { AppLink,
-  Button, ButtonLink, Card, ConfirmDialog, ErrorState, Field,
-  IconButton, Input, Loading, PageShell, Section, Select,
+  Button, ButtonLink, Card, ConfirmDialog, CopyField, ErrorState, Field,
+  IconButton, Input, KpiCard, KpiGrid, Loading, PageShell, Section, Select,
   Switch, TabsBar, TabsLink, useToast, EmptyState,
 } from "../components/ui";
 import styles from "./TVDisplayAdmin.module.css";
@@ -243,20 +243,8 @@ function PublicUrlBar({
   onRegenerate: () => void;
   regenerating: boolean;
 }) {
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "fail">("idle");
   const [showRegenForm, setShowRegenForm] = useState(false);
   const [confirmingRegen, setConfirmingRegen] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(publicUrl);
-      setCopyState("copied");
-      setTimeout(() => setCopyState("idle"), 1200);
-    } catch {
-      setCopyState("fail");
-      setTimeout(() => setCopyState("idle"), 1500);
-    }
-  }
 
   function doRegenerate() {
     setConfirmingRegen(false);
@@ -265,32 +253,20 @@ function PublicUrlBar({
 
   return (
     <section style={{ marginTop: 18 }}>
-      <div className={styles.urlBar} aria-label="Public display URL">
-        <span className={styles.urlBarLabel}>Public display URL</span>
-        <input
-          type="text"
-          value={publicUrl}
-          readOnly
-          aria-label="Public TV display URL"
-          className={styles.urlBarInput}
-        />
-        <Button
-          tone="secondary" size="sm"
-          onClick={copy}
-        >
-          {copyState === "copied" ? "Copied"
-            : copyState === "fail" ? "Select + copy"
-            : "Copy"}
-        </Button>
-        <ButtonLink
-          href={publicUrl}
-          tone="secondary" size="sm"
-          target="_blank"
-          rel="noopener"
-        >
-          Open ↗
-        </ButtonLink>
-      </div>
+      <CopyField
+        label="Public display URL"
+        value={publicUrl}
+        actions={(
+          <ButtonLink
+            href={publicUrl}
+            tone="secondary"
+            target="_blank"
+            rel="noopener"
+          >
+            Open ↗
+          </ButtonLink>
+        )}
+      />
       <details
         style={{ marginTop: 8 }}
         open={showRegenForm}
@@ -580,23 +556,14 @@ function SettingsAndStatsGrid({
       </Card>
       <Card>
         <Section title="At a glance">
-          <div className={styles.statRows}>
-            <StatRow label="Country sections" value={data.countries.length} />
-            <StatRow label="Payout banks"     value={stats.totalBanks} />
-            <StatRow label="Rate cells filled" value={stats.totalRates} />
-            <StatRow label="Subscription"     value="$5/mo" valueStyle={{ color: "var(--db-neon)" }} />
-          </div>
+          <KpiGrid minWidth="9rem">
+            <KpiCard label="Country sections" value={data.countries.length} />
+            <KpiCard label="Payout banks" value={stats.totalBanks} />
+            <KpiCard label="Rate cells filled" value={stats.totalRates} />
+            <KpiCard label="Subscription" value="$5/mo" tone="neon" colorValue />
+          </KpiGrid>
         </Section>
       </Card>
-    </div>
-  );
-}
-
-function StatRow({ label, value, valueStyle }: { label: string; value: number | string; valueStyle?: React.CSSProperties }) {
-  return (
-    <div className={styles.statRow}>
-      <span>{label}</span>
-      <span className={styles.statValue} style={valueStyle}>{value}</span>
     </div>
   );
 }

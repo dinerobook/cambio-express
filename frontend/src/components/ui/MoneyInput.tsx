@@ -35,7 +35,7 @@ import { tokens } from "./tokens";
  */
 export function MoneyInput({
   value, onChange, label, hint, error,
-  disabled, readOnly, prefix = "$", placeholder,
+  disabled, readOnly, required, prefix = "$", placeholder,
   align = "right", style, fullWidth = false,
   "aria-label": ariaLabel,
 }: {
@@ -47,6 +47,9 @@ export function MoneyInput({
   error?: ReactNode;
   disabled?: boolean;
   readOnly?: boolean;
+  /** Blocks form submit while the box is empty. Empty means 0, so a
+   *  required money field is one that must be greater than zero. */
+  required?: boolean;
   /** Prefix character.  Default `"$"`.  Pass `""` to drop the
    *  affix (e.g. for percentages, or for fields that already
    *  have a label that includes the currency). */
@@ -156,6 +159,7 @@ export function MoneyInput({
           placeholder={placeholder ?? (prefix ? "" : "0")}
           disabled={disabled}
           readOnly={readOnly}
+          required={required}
           onChange={(e) => {
             const cleaned = sanitizeDecimal(e.target.value);
             setDraft(cleaned);

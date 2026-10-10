@@ -21,6 +21,7 @@ import {
   Checkbox,
   ConfirmDialog,
   EmptyState,
+  ErrorState,
   Field,
   Input,
   Loading,
@@ -35,7 +36,7 @@ import {
 import { formatDate } from "../lib/datetime";
 
 export default function SuperadminFeatureFlags() {
-  const { data, isLoading, isError } = useFeatureFlags();
+  const { data, isLoading, isError, refetch } = useFeatureFlags();
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
@@ -63,7 +64,12 @@ export default function SuperadminFeatureFlags() {
       )}
 
       {isLoading && <Loading />}
-      {isError && <Alert tone="error">Could not load feature flags.</Alert>}
+      {isError && (
+        <ErrorState
+          message="Could not load feature flags."
+          onRetry={() => { void refetch(); }}
+        />
+      )}
 
       {data && data.rows.length === 0 && !creating && (
         <EmptyState
