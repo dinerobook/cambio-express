@@ -146,6 +146,14 @@ export async function updateTransfer(
   });
 }
 
+// DELETE /api/v2/transfers/{id} — permanent, for clearing a
+// mistaken entry. Needs `transfers.delete` (store admins by
+// default); the server writes an activity-log entry naming what
+// was removed. Cross-store ids 404.
+export async function deleteTransfer(transferId: number): Promise<void> {
+  await api<void>(`/api/v2/transfers/${transferId}`, { method: "DELETE" });
+}
+
 export interface EmployeeRow {
   id: number;
   name: string;

@@ -88,6 +88,98 @@ def test_delete_requires_auth_and_permission(client, test_store_id):
         assert db.session.get(Transfer, tid) is not None
 
 
+def _employee_with(client, store_id, username, matrix):
+    from api.Core.Permissions import set_user_permissions
+    from api.Modules.Tenancy.Models import User
+    from tests.conftest import login_employee
+    with db_session():
+        u = User(store_id=store_id, username=username, role="employee",
+                 is_active=True)
+        u.set_password("emppass1234")
+        db.session.add(u)
+        db.session.commit()
+        uid = u.id
+    set_user_permissions(store_id, uid, matrix)
+    return uid, _h(login_employee(client, store_id, username, "emppass1234"))
+
+
+def test_employee_granted_delete_can_delete_and_is_named_in_the_log(
+    client, test_store_id,
+):
+    """A custom access role can hand transfers.delete to an employee;
+    the activity log names that employee, not an admin."""
+    with db_session():
+        tid = _seed_transfer(test_store_id, sender_name="Typo Sender")
+    _, h = _employee_with(
+        client, test_store_id, "del_granted",
+        {"transfers": {"read": True, "delete": True}},
+    )
+    assert client.delete(f"/api/v2/transfers/{tid}", headers=h).status_code == 204
+    with db_session():
+        assert db.session.get(Transfer, tid) is None
+        log = db.session.query(OperatorAuditLog).filter_by(
+            action="delete", target_type="transfer").one()
+        assert log.user_role == "employee"
+        assert "Typo Sender" in log.target_label
+
+
+def test_revoking_delete_stops_the_next_delete(client, test_store_id):
+    """Permissions are enforced live: revoke, and the same signed-in
+    employee is refused on the very next call."""
+    from api.Core.Permissions import set_user_permissions
+    with db_session():
+        first = _seed_transfer(test_store_id)
+        second = _seed_transfer(test_store_id)
+    uid, h = _employee_with(
+        client, test_store_id, "del_revoked",
+        {"transfers": {"read": True, "delete": True}},
+    )
+    assert client.delete(f"/api/v2/transfers/{first}", headers=h).status_code == 204
+    set_user_permissions(test_store_id, uid, {"transfers": {"read": True}})
+    assert client.delete(f"/api/v2/transfers/{second}", headers=h).status_code == 403
+    with db_session():
+        assert db.session.get(Transfer, second) is not None
+
+
+def test_employee_with_create_and_update_still_cannot_delete(
+    client, test_store_id,
+):
+    """Write implies read, never delete: the default cashier rights
+    do not let an employee remove a transfer."""
+    with db_session():
+        tid = _seed_transfer(test_store_id)
+    _, h = _employee_with(
+        client, test_store_id, "del_writer",
+        {"transfers": {"read": True, "create": True, "update": True}},
+    )
+    assert client.delete(f"/api/v2/transfers/{tid}", headers=h).status_code == 403
+    with db_session():
+        assert db.session.get(Transfer, tid) is not None
+
+
+def test_deleting_a_saved_form_lets_the_same_key_save_again(
+    client, test_store_id,
+):
+    """A transfer saved with an Idempotency-Key and then deleted as a
+    mistake frees the key, so it never resurrects as a replay."""
+    with db_session():
+        emp = _seed_employee(test_store_id)
+    h = _h(login_admin(client, test_store_id))
+    body = _put_body(emp)
+    first = client.post("/api/v2/transfers", json=body,
+                        headers={**h, "Idempotency-Key": "del-key"})
+    tid = first.get_json()["transfer"]["id"]
+    assert client.delete(f"/api/v2/transfers/{tid}", headers=h).status_code == 204
+    again = client.post("/api/v2/transfers", json=body,
+                        headers={**h, "Idempotency-Key": "del-key"})
+    assert again.status_code == 201
+    with db_session():
+        # A fresh row was written (SQLite may reuse the freed id).
+        assert db.session.get(Transfer, again.get_json()["transfer"]["id"]) is not None
+        assert db.session.query(Transfer).filter_by(
+            client_request_id="del-key").count() == 1
+
+
 # ── PUT validation ──────────────────────────────────────────────
 
 def test_update_rejects_bad_send_date_and_keeps_row(client, test_store_id):
