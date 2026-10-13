@@ -89,7 +89,14 @@ from api.Modules.Auth.Services.jwt_issuer import (
 from api.Modules.Auth.Services.login import (
     AmbiguousLoginError,
     AuthenticationError,
+    StoreDisabledError,
     TotpEnrollmentRequired,
+)
+from api.Modules.Auth.Services.store_access import (
+    STORE_DISABLED_MESSAGE,
+    claims_locked_out_by_store,
+    store_is_active,
+    user_locked_out_by_store,
 )
 from api.Modules.Auth.Services.signup import SignupConflictError
 from typing import Any
@@ -273,6 +280,9 @@ def _require_live_principal(db: Session, claims: dict[str, Any]) -> None:
     * the token's ``role`` is the row's role (an owner's
       switch-store token carries ``role=admin`` plus ``owner_id``
       and is the one sanctioned mismatch);
+    * the token's store has not been disabled (owner base tokens,
+      the superadmin and impersonation tokens are exempt — see
+      ``store_access.claims_locked_out_by_store``);
     * when the token names a session (``sid``), at least one
       refresh row of that session is still alive. A session with
       no rows at all (tokens minted outside the login flow) is
@@ -300,6 +310,14 @@ def _require_live_principal(db: Session, claims: dict[str, Any]) -> None:
         raise HTTPException(
             status_code=401,
             detail="Your account type changed; sign in again",
+            headers={"WWW-Authenticate": 'Bearer error="invalid"'},
+        )
+    if claims_locked_out_by_store(db, claims):
+        # The superadmin disabled this store: its sessions end on
+        # the next call (401 → the SPA's refresh is refused too →
+        # sign-in page, which then says why).
+        raise HTTPException(
+            status_code=401, detail=STORE_DISABLED_MESSAGE,
             headers={"WWW-Authenticate": 'Bearer error="invalid"'},
         )
     sid = claims.get("sid")
@@ -473,6 +491,14 @@ def _record_login_event(db: Session, user_id: int, *, method: str = "") -> None:
     ))
 
 
+def _store_disabled_http() -> HTTPException:
+    """The answer to a login whose credentials checked out but whose
+    store the superadmin disabled. 403, not 401: the SPA reads a 401
+    as "try a silent refresh, then bounce to sign-in", and the
+    person is already on the sign-in page — they need the reason."""
+    return HTTPException(status_code=403, detail=STORE_DISABLED_MESSAGE)
+
+
 @router.post("/login", response_model=LoginResponse)
 @_rate_limiter.limit("10/minute;50/hour")
 def login_route(
@@ -488,6 +514,8 @@ def login_route(
             username=body.username,
             password=body.password,
         )
+    except StoreDisabledError:
+        raise _store_disabled_http()
     except AuthenticationError:
         raise HTTPException(
             status_code=401,
@@ -564,6 +592,8 @@ def login_cross_store_route(
         result = authenticate_password_cross_store(
             db, username=body.username, password=body.password,
         )
+    except StoreDisabledError:
+        raise _store_disabled_http()
     except AuthenticationError as exc:
         raise HTTPException(
             status_code=401, detail=str(exc) or "Invalid username or password",
@@ -606,6 +636,8 @@ def login_totp_route(
         result = finalize_2fa_with_totp(
             db, pending_token=body.pending_token, code=body.code,
         )
+    except StoreDisabledError:
+        raise _store_disabled_http()
     except AuthenticationError as exc:
         raise HTTPException(
             status_code=401, detail=str(exc) or "Invalid verification code",
@@ -628,6 +660,8 @@ def login_recovery_route(
         result = finalize_2fa_with_recovery_code(
             db, pending_token=body.pending_token, code=body.code,
         )
+    except StoreDisabledError:
+        raise _store_disabled_http()
     except AuthenticationError as exc:
         raise HTTPException(
             status_code=401, detail=str(exc) or "Invalid recovery code",
@@ -691,6 +725,8 @@ def login_totp_enroll_confirm_route(
         result = confirm_recovery_codes_saved(
             db, pending_token=body.pending_token,
         )
+    except StoreDisabledError:
+        raise _store_disabled_http()
     except AuthenticationError as exc:
         raise HTTPException(status_code=401, detail=str(exc) or "Invalid pending token")
     db.commit()
@@ -804,6 +840,16 @@ def refresh_route(
         _clear_access_token_cookie(response)
         _clear_refresh_token_cookie(response)
         raise HTTPException(status_code=401, detail="User unavailable")
+    if user_locked_out_by_store(db, user):
+        # Refuse without revoking the chain: re-enabling the store
+        # is the only step needed to get back in.
+        _refresh_log.info(
+            "auth.refresh_store_disabled user_id=%s store_id=%s ua=%r",
+            user.id, user.store_id, ua,
+        )
+        _clear_access_token_cookie(response)
+        _clear_refresh_token_cookie(response)
+        raise HTTPException(status_code=401, detail=STORE_DISABLED_MESSAGE)
     perms = permissions_for(
         user.role, db, store_id=user.store_id, user_id=user.id,
     )
@@ -2084,7 +2130,7 @@ def my_stores_route(
     current = claims.get("store_id")
     stores = (
         db.query(Store)
-          .filter(Store.id.in_(ids), Store.is_active.is_(True))
+          .filter(Store.id.in_(ids), Store.is_active.isnot(False))
           .order_by(Store.name)
           .all()
     ) if ids else []
@@ -2175,8 +2221,10 @@ def switch_store_route(
     if body.store_id not in _owner_switchable_store_ids(db, owner):
         raise HTTPException(status_code=404, detail="Store not found")
     store = db.get(Store, body.store_id)
-    if store is None or not store.is_active:
+    if store is None:
         raise HTTPException(status_code=404, detail="Store not found")
+    if not store_is_active(store):
+        raise HTTPException(status_code=403, detail=STORE_DISABLED_MESSAGE)
 
     issuer = JWTIssuer(
         sub=owner.id,

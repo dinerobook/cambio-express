@@ -87,6 +87,31 @@ class AuthenticationError(Exception):
     "user exists but is disabled" via the response shape."""
 
 
+class StoreDisabledError(AuthenticationError):
+    """Raised AFTER the password (or second factor) checked out, when
+    the person's store has been disabled by the superadmin. Unlike
+    the opaque failure above it carries a clear message — the caller
+    already proved they hold the credentials, so there is nothing to
+    enumerate. Controllers answer it with 403 (not 401, which the
+    SPA treats as "try a silent refresh")."""
+
+    def __init__(self) -> None:
+        from api.Modules.Auth.Services.store_access import (
+            STORE_DISABLED_MESSAGE,
+        )
+        super().__init__(STORE_DISABLED_MESSAGE)
+
+
+def _require_store_open(db: Session, user: User) -> None:
+    """Refuse a store-scoped login whose store is disabled. Owners
+    and the superadmin pass (see ``store_access``)."""
+    from api.Modules.Auth.Services.store_access import (
+        user_locked_out_by_store,
+    )
+    if user_locked_out_by_store(db, user):
+        raise StoreDisabledError()
+
+
 class TotpEnrollmentRequired(Exception):
     """Raised when password auth succeeds but the user must enroll
     a TOTP factor before logging in (e.g. fresh superadmin). The
@@ -115,7 +140,8 @@ class AmbiguousLoginError(Exception):
         self.choices = choices
 
 
-def _issue_full_login(user: User, db: "Session | None" = None) -> LoginResult:
+def _issue_full_login(user: User, db: Session) -> LoginResult:
+    _require_store_open(db, user)
     perms = permissions_for(
         user.role, db, store_id=user.store_id, user_id=user.id,
     )
@@ -152,6 +178,7 @@ def _maybe_pending_2fa(db: Session, user: User) -> LoginPendingResult | None:
     """
     if not needs_totp(user):
         return None
+    _require_store_open(db, user)
     from api.Modules.Auth.Models import RecoveryCode
     if not is_enrolled(user):
         return LoginPendingResult(
@@ -197,7 +224,7 @@ def authenticate_password(
     pending = _maybe_pending_2fa(db, user)
     if pending is not None:
         return pending
-    return _issue_full_login(user)
+    return _issue_full_login(user, db)
 
 
 def _store_name(db: Session, store_id: int | None) -> str:
@@ -265,9 +292,19 @@ def authenticate_password_cross_store(
     who get short names, would have hit it constantly. So we check
     the password against every candidate and let it pick the row.
     """
-    candidates = _authenticating_users(db, username, password)
-    if not candidates:
+    from api.Modules.Auth.Services.store_access import (
+        user_locked_out_by_store,
+    )
+    authenticated = _authenticating_users(db, username, password)
+    if not authenticated:
         raise AuthenticationError("Invalid username or password")
+    # A disabled store's account drops out of the choice; only when
+    # every matching account is locked out does the person hear why.
+    candidates = [
+        u for u in authenticated if not user_locked_out_by_store(db, u)
+    ]
+    if not candidates:
+        raise StoreDisabledError()
     if len(candidates) > 1:
         raise AmbiguousLoginError([
             {
@@ -282,7 +319,7 @@ def authenticate_password_cross_store(
     pending = _maybe_pending_2fa(db, user)
     if pending is not None:
         return pending
-    return _issue_full_login(user)
+    return _issue_full_login(user, db)
 
 
 def finalize_2fa_with_totp(
@@ -311,7 +348,7 @@ def finalize_2fa_with_totp(
         raise AuthenticationError("Invalid or expired pending session")
     if not verify_totp_token(user, code):
         raise AuthenticationError("Invalid verification code")
-    return _issue_full_login(user)
+    return _issue_full_login(user, db)
 
 
 def _user_for_pending(db: Session, pending_token: str) -> User:
@@ -416,7 +453,7 @@ def confirm_recovery_codes_saved(
         raise AuthenticationError(
             "Enrollment is not complete — verify a code first.",
         )
-    return _issue_full_login(user)
+    return _issue_full_login(user, db)
 
 
 def finalize_2fa_with_recovery_code(
@@ -443,7 +480,7 @@ def finalize_2fa_with_recovery_code(
         raise AuthenticationError("Invalid or expired pending session")
     if not consume_recovery_code(db, user, code):
         raise AuthenticationError("Invalid recovery code")
-    return _issue_full_login(user)
+    return _issue_full_login(user, db)
 
 
 def verify_password_cross_store(
