@@ -114,6 +114,7 @@ def owner_kpis(
               Transfer.send_date >= start,
               Transfer.send_date <= end,
               Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+              Transfer.is_send,  # a payout is cash out, not volume
           )
           .count()
     )
@@ -124,6 +125,7 @@ def owner_kpis(
               Transfer.send_date >= start,
               Transfer.send_date <= end,
               Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+              Transfer.is_send,  # a payout is cash out, not volume
           )
           .scalar() or 0.0
     )

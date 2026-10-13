@@ -39,6 +39,7 @@ class ReceiptTransfer(BaseModel):
     created_at:           str
     company:              str
     service_type:         str
+    payment_method:       str = "cash"
     sender_name:          str
     sender_phone:         str
     sender_phone_country: str

@@ -52,3 +52,13 @@
   font-size: 0.85rem;
   color: var(--db-text-muted, #a3a3a3);
 }
+
+/* Total cell: the Payout / Debit card pill sits beside the amount
+   and wraps under it when the column is narrow. */
+.kindAmount {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+}

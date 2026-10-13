@@ -177,6 +177,46 @@ days keep working. The box's tile total is
 The old `bill_payment_charge` / `phone_recargas` / `boost_mobile`
 columns are separate and retired from the editor (see Category 1).
 
+### Debit card and payouts
+
+Each company row on the Money transfer tab (`msb_mt_summary`) has two
+more figures, both typed by the operator and both coming **OFF** the
+company's total:
+
+- `debit_card_cents` — the part of the company's sends paid on its
+  card terminal. No cash came in (the company credits it on the
+  statement invoice).
+- `payouts_cents` — cash paid out to recipients for that company. It
+  left the drawer.
+
+```
+MoneyTransferSummary.individual_total =
+    amount + fees + commission + federal_tax − debit_card − payouts
+```
+
+So `DailyReport.money_transfer`, the Services tile and the By company
+figure are the company's **cash**, the number its cash drop is checked
+against, and over/short tallies: a payout lowers receipts by exactly
+the cash that left the drawer. Rules, in `Services/mt_breakdown.py`
+and pinned by `tests/Modules/DailyBook/test_mt_debit_card_payouts.py`:
+
+- Both columns are nullable; NULL (every row saved before 2026-10-13)
+  reads as 0, so no saved day's total moved. A write stores NULL, not
+  0, when the figure is 0.
+- Neither may be negative (schema 422), and debit card may not exceed
+  amount + fees + federal tax (`MTRowError` → 422).
+- A row is kept when ANY figure is non-zero (a day of only card sends
+  nets to 0 cash and is still stored).
+- A company can net negative (payouts beat its sends); so can the
+  Services total.
+- `total_receipts` / `total_disbursements` formulas are unchanged —
+  `money_transfer` simply carries the net.
+- The Intermex import keeps the saved debit card / payouts of every
+  company, its own included (`ReportImport/Services/commit.py`).
+- The transfer log's auto values split the same way
+  (`summarize_transfers_for_day`: `debit_card`, `payouts`,
+  `payout_count`); the editor stays manual entry like the other cells.
+
 
 ## The 422 trap — explicit DO-NOT-WRITE list
 
@@ -270,7 +310,10 @@ net = total_receipts - total_disbursements
 `MoneyTransferSummary.individual_total`:
 ```
 individual_total = amount + fees + commission + federal_tax
+                 − debit_card − payouts
 ```
+(`debit_card` / `payouts` added 2026-10-13, NULL = 0 on every earlier
+row — see "Debit card and payouts".)
 
 **Do not change these formulas** without coordinating with the
 monthly P&L module (`api/Modules/Monthly/`), which sums these into

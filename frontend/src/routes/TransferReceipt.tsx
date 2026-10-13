@@ -6,6 +6,7 @@ import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import { AppLink, Button, ErrorState, Loading } from "../components/ui";
 import styles from "./TransferReceipt.module.css";
+import { isDebitCard, isPayout, transferWording } from "../lib/transferKinds";
 
 // /app/transfers/{id}/receipt — printable transfer receipt.
 //
@@ -94,6 +95,8 @@ export default function TransferReceipt() {
 
   const { store, transfer } = data;
   const total = fmtMoney2(transfer.total_collected);
+  const payout = isPayout(transfer.service_type);
+  const words = transferWording(transfer.service_type);
 
   return (
     <div className={styles.page}>
@@ -153,7 +156,7 @@ export default function TransferReceipt() {
 
         <section className={styles.parties}>
           <div>
-            <h2 className={styles.partyHeading}>Sender</h2>
+            <h2 className={styles.partyHeading}>{words.customer}</h2>
             <div className={styles.partyName}>{transfer.sender_name || "—"}</div>
             {transfer.sender_phone && (
               <div className={styles.partyLine}>
@@ -167,7 +170,7 @@ export default function TransferReceipt() {
             )}
           </div>
           <div>
-            <h2 className={styles.partyHeading}>Recipient</h2>
+            <h2 className={styles.partyHeading}>{words.other}</h2>
             <div className={styles.partyName}>{transfer.recipient_name || "—"}</div>
             {transfer.recipient_phone && (
               <div className={styles.partyLine}>{transfer.recipient_phone}</div>
@@ -182,7 +185,7 @@ export default function TransferReceipt() {
             <tr>
               <th>Service</th>
               <th>Company</th>
-              <th className={styles.numCol}>Send amount</th>
+              <th className={styles.numCol}>{words.amount}</th>
               <th className={styles.numCol}>Fee</th>
               <th className={styles.numCol}>Federal tax</th>
               <th className={styles.numCol}>Total</th>
@@ -210,7 +213,13 @@ export default function TransferReceipt() {
         </div>
 
         <div className={styles.totalBlock}>
-          <span className={styles.totalLabel}>Customer paid</span>
+          <span className={styles.totalLabel}>
+            {payout
+              ? "Paid to customer in cash"
+              : isDebitCard(transfer.payment_method)
+                ? "Customer paid by debit card"
+                : "Customer paid"}
+          </span>
           <span className={styles.totalAmount}>{total}</span>
         </div>
 
@@ -230,13 +239,18 @@ export default function TransferReceipt() {
         </section>
 
         <footer className={styles.footer}>
-          {store.receipt_footer || (
+          {store.receipt_footer || (payout ? (
+            <>
+              The customer received the amount above in cash. Keep this
+              receipt for your records.
+            </>
+          ) : (
             <>
               Funds will arrive at the destination country per the
               sending company's standard delivery window. Keep this
               receipt for your records.
             </>
-          )}
+          ))}
           <div className={styles.footerMeta}>
             Powered by DineroBook
           </div>

@@ -189,6 +189,7 @@ def _customers_csv(db: Session, store_id: int, year: int) -> str:
             Transfer.send_date >= date(year, 1, 1),
             Transfer.send_date <= date(year, 12, 31),
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .group_by(Transfer.customer_id, Transfer.sender_name)
         .order_by(func.sum(Transfer.send_amount_cents).desc())

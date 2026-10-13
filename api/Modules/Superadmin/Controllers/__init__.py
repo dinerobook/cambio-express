@@ -950,6 +950,7 @@ def store_drill_route(
             Transfer.store_id == store_id,
             Transfer.created_at >= now - timedelta(days=30),
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .first()
     )

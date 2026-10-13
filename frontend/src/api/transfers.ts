@@ -10,6 +10,7 @@ import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
 import type { components } from "./openapi";
+import { PAYOUT_SERVICE, type PaymentMethod } from "../lib/transferKinds";
 
 /** Transfer status → Pill tone (UI-STANDARDS §3). "Sent" is the
  *  completed happy path, so it reads as success, not live accent. */
@@ -25,6 +26,8 @@ export interface TransferRow {
   send_date: string;
   company: string;
   service_type: string;
+  /** "cash" or "debit_card" (paid on the company's card terminal). */
+  payment_method: string;
   sender_name: string;
   recipient_name: string;
   country: string;
@@ -96,6 +99,7 @@ export interface CreateTransferBody {
   send_date: string;
   company: string;
   service_type: string;
+  payment_method?: PaymentMethod;
   sender_name: string;
   send_amount: number;
   fee?: number;
@@ -199,9 +203,10 @@ export function useTransfer(transferId: number | undefined) {
 // Service types exempt from the federal-tax remittance — must
 // stay 1:1 with `api/Modules/Transfers/Services/tax.py`. Bill
 // Payment / Top Up / Recharge are exempt because no ACH crosses
-// a border for them; only Money Transfer carries the levy.
+// a border for them, and a Payout brings money in rather than
+// sending it; only Money Transfer carries the levy.
 const TAX_EXEMPT_SERVICES: ReadonlySet<string> = new Set([
-  "Bill Payment", "Top Up", "Recharge",
+  "Bill Payment", "Top Up", "Recharge", PAYOUT_SERVICE,
 ]);
 
 // Domestic countries that also skip the tax even for Money
@@ -231,6 +236,10 @@ export interface TransferFilters {
   date_from?: string;
   date_to?: string;
   status?: string;
+  /** Exact service type, e.g. "Payout". */
+  service?: string;
+  /** "cash" or "debit_card". */
+  paid_by?: string;
 }
 
 interface TransfersPageOptions extends TransferFilters {
@@ -250,7 +259,7 @@ interface TransfersPageOptions extends TransferFilters {
 // `useRecentTransfers` — different query key + filters so
 // TanStack Query caches them independently.
 export function useTransfers({
-  page, perPage, q, date_from, date_to, status, pollMs,
+  page, perPage, q, date_from, date_to, status, service, paid_by, pollMs,
 }: TransfersPageOptions) {
   const identity = getCurrentIdentity();
   const storeId = identity?.store_id;
@@ -262,6 +271,7 @@ export function useTransfers({
     queryKey: [
       "transfers", "list", storeId, page, perPage,
       q ?? "", date_from ?? "", date_to ?? "", status ?? "",
+      service ?? "", paid_by ?? "",
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -275,6 +285,8 @@ export function useTransfers({
       if (date_from) params.set("date_from", date_from);
       if (date_to) params.set("date_to", date_to);
       if (status) params.set("status", status);
+      if (service) params.set("service", service);
+      if (paid_by) params.set("paid_by", paid_by);
       return api<TransferListResponse>(
         `/api/v2/transfers?${params.toString()}`,
       );
@@ -310,6 +322,7 @@ export interface ReceiptTransfer {
   created_at:           string;
   company:              string;
   service_type:         string;
+  payment_method:       string;
   sender_name:          string;
   sender_phone:         string;
   sender_phone_country: string;

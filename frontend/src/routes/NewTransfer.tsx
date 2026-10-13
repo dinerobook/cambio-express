@@ -1,9 +1,10 @@
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import DebitCardCheckbox from "../components/DebitCardCheckbox";
 import SenderAutocomplete from "../components/SenderAutocomplete";
 import RecipientSuggestions from "../components/RecipientSuggestions";
 import {
@@ -39,6 +40,9 @@ import { useStoreInfo } from "../api/account";
 import { apiErrorMessage, newIdempotencyKey } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
+import {
+  COMPANIES, COUNTRIES, SERVICES, STATUSES, isPayout, transferWording,
+} from "../lib/transferKinds";
 
 // New transfer form at /app/transfers/new.
 //
@@ -59,18 +63,8 @@ import { fmtMoney2 } from "../lib/formatters";
 // Other forms (BatchForm, EditTransfer, EditMonthly, Settings, …)
 // migrate on-touch following this pattern.
 
-const COMPANIES = [
-  "Intermex", "Maxi", "Barri", "Sigue", "Vigo", "Western Union",
-  "MoneyGram", "Cibao", "RIA", "Other",
-] as const;
-const SERVICES = [
-  "Money Transfer", "Bill Payment", "Top Up", "Recharge",
-] as const;
-const COUNTRIES = [
-  "United States", "Mexico", "Guatemala", "El Salvador", "Honduras",
-  "Dominican Republic", "Colombia", "Ecuador", "Peru", "Other",
-] as const;
-const STATUSES = ["Sent", "Pending", "Cancelled", "Returned"] as const;
+// Companies, services, countries and statuses live in
+// lib/transferKinds.ts, shared with EditTransfer.
 
 // ── Validation schema ──────────────────────────────────────────
 //
@@ -84,9 +78,10 @@ const transferSchema = z.object({
   send_date: z.string().min(1, "Date is required"),
   company: z.enum(COMPANIES),
   service_type: z.enum(SERVICES),
+  payment_method: z.enum(["cash", "debit_card"]),
   status: z.enum(STATUSES),
 
-  sender_name: z.string().min(1, "Sender name is required"),
+  sender_name: z.string().min(1, "Name is required"),
   sender_phone_country: z.string(),
   sender_phone: z.string(),
   sender_address: z.string(),
@@ -98,7 +93,7 @@ const transferSchema = z.object({
   recipient_phone: z.string(),
 
   // MoneyInput hands the form numbers, so no coercion is needed.
-  send_amount: z.number().positive("Send amount must be > 0"),
+  send_amount: z.number().positive("Amount must be > 0"),
   fee: z.number().min(0, "Fee must be ≥ 0"),
   confirm_number: z.string(),
 
@@ -119,6 +114,7 @@ const defaultValues = {
   send_date: todayIso(),
   company: "Intermex" as const,
   service_type: "Money Transfer" as const,
+  payment_method: "cash" as const,
   status: "Sent" as const,
   sender_name: "",
   sender_phone_country: "+1",
@@ -166,6 +162,16 @@ export default function NewTransfer() {
   const serviceType = useWatch({ control, name: "service_type" });
   const country = useWatch({ control, name: "country" });
   const customerId = useWatch({ control, name: "customer_id" });
+  const payout = isPayout(serviceType);
+  const words = transferWording(serviceType);
+
+  // A payout is cash handed to the recipient: never by card, never a
+  // fee (the server refuses both). Clear them when Payout is picked.
+  useEffect(() => {
+    if (!payout) return;
+    setValue("payment_method", "cash");
+    setValue("fee", 0);
+  }, [payout, setValue]);
 
   // One key for this form, sent on every save attempt. If a save
   // landed but its response did not (dropped connection, an error
@@ -259,11 +265,23 @@ export default function NewTransfer() {
                 </Select>
               </Field>
             </Grid>
+            {!payout && (
+              <Controller
+                control={control}
+                name="payment_method"
+                render={({ field }) => (
+                  <DebitCardCheckbox
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            )}
           </Section>
         </Card>
 
         <Card>
-          <Section title="Sender">
+          <Section title={words.customer}>
             <Grid>
               <Field label="Full name" highlight={!!errors.sender_name}>
                 <Controller
@@ -316,7 +334,7 @@ export default function NewTransfer() {
         </Card>
 
         <Card>
-          <Section title="Recipient">
+          <Section title={words.other}>
             {/* Chip row of recent recipients for the picked sender.
                 Hidden when no sender is picked or the sender has no
                 history; otherwise one tap fills name / country /
@@ -342,17 +360,17 @@ export default function NewTransfer() {
               }}
             />
             <Grid>
-              <Field label="Country">
+              <Field label={words.country}>
                 <Select {...register("country")}>
                   {COUNTRIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </Select>
               </Field>
-              <Field label="Recipient name">
+              <Field label={words.otherName}>
                 <Input type="text" {...register("recipient_name")} />
               </Field>
-              <Field label="Recipient phone">
+              <Field label={words.otherPhone}>
                 <Input type="tel" {...register("recipient_phone")} />
               </Field>
             </Grid>
@@ -367,25 +385,27 @@ export default function NewTransfer() {
                 name="send_amount"
                 render={({ field }) => (
                   <MoneyInput
-                    label="Send amount (USD)"
+                    label={`${words.amount} (USD)`}
                     value={field.value ?? 0}
                     onChange={field.onChange}
                     error={errors.send_amount?.message}
                   />
                 )}
               />
-              <Controller
-                control={control}
-                name="fee"
-                render={({ field }) => (
-                  <MoneyInput
-                    label="Fee (USD)"
-                    value={field.value ?? 0}
-                    onChange={field.onChange}
-                    error={errors.fee?.message}
-                  />
-                )}
-              />
+              {!payout && (
+                <Controller
+                  control={control}
+                  name="fee"
+                  render={({ field }) => (
+                    <MoneyInput
+                      label="Fee (USD)"
+                      value={field.value ?? 0}
+                      onChange={field.onChange}
+                      error={errors.fee?.message}
+                    />
+                  )}
+                />
+              )}
               <FederalTaxPreview
                 sendAmount={sendAmount}
                 serviceType={serviceType}

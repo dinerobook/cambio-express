@@ -48,8 +48,39 @@ def test_period_filters_returns_three_clauses(test_store_id):
     clauses = period_filters([test_store_id], today, today)
     # SQLAlchemy filter clauses don't equality-compare easily so we
     # assert on the shape — three clauses, all non-None.
-    assert len(clauses) == 4  # store_in + date>= + date<= + status_notin
+    # store_in + date>= + date<= + status_notin + is_send (no payouts)
+    assert len(clauses) == 5
     assert all(c is not None for c in clauses)
+
+
+def test_aggregate_leaves_payouts_out_of_volume(test_store_id):
+    """A payout is cash paid OUT — it must never count as money sent
+    in a report total, while a debit card send still counts in full
+    (the money was sent; only the way it was paid differs)."""
+    from api.Modules.Transfers.Models import Transfer
+    from api.Modules.Reports.Repositories.transfers import aggregate
+    from tests._app import db
+    today = date.today()
+    with db_session():
+        db.session.add_all([
+            Transfer(store_id=test_store_id, send_date=today,
+                     company="Intermex", service_type="Money Transfer",
+                     sender_name="Cash", send_amount=100.0, fee=5.0),
+            Transfer(store_id=test_store_id, send_date=today,
+                     company="Intermex", service_type="Money Transfer",
+                     payment_method="debit_card",
+                     sender_name="Card", send_amount=50.0, fee=3.0),
+            Transfer(store_id=test_store_id, send_date=today,
+                     company="Intermex", service_type="Payout",
+                     sender_name="Paid", send_amount=400.0),
+        ])
+        db.session.commit()
+        rows, totals = aggregate(
+            db.session, [test_store_id], today, today, Transfer.company,
+        )
+    assert totals["sent"] == 150.0
+    assert totals["fees"] == 8.0
+    assert totals["count"] == 2
 
 
 def test_aggregate_returns_rows_and_totals(test_store_id):

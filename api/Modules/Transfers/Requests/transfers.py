@@ -5,6 +5,8 @@ JS in `_transfers_table.html`) consumes — not every column on the
 `Transfer` model. The single-transfer responses use `TransferDetail`,
 which adds the fields the edit form has to round-trip.
 """
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -19,6 +21,9 @@ class TransferRow(BaseModel):
     send_date: str  # YYYY-MM-DD
     company: str
     service_type: str = "Money Transfer"
+    # "cash" or "debit_card"; rows saved before the column existed
+    # read as "cash". A "Payout" service row is always "cash".
+    payment_method: str = "cash"
     sender_name: str
     recipient_name: str = ""
     country: str = ""
@@ -111,6 +116,11 @@ class CreateTransferRequest(BaseModel):
     send_date: str  # YYYY-MM-DD
     company: str = Field(..., min_length=1, max_length=30)
     service_type: str = Field("Money Transfer", max_length=30)
+    # How the customer paid for a send. Debit card = paid on the
+    # company's card terminal: no cash reached the drawer. A payout
+    # (service_type "Payout") must stay "cash" — the service refuses
+    # anything else with a 422.
+    payment_method: Literal["cash", "debit_card"] = "cash"
     sender_name: str = Field(..., min_length=1, max_length=120)
     send_amount: float = Field(..., ge=0)
     fee: float = Field(0.0, ge=0)

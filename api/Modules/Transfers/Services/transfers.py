@@ -22,7 +22,13 @@ from api.Core.Clock import utc_now
 
 from api.Modules.Customers.Services import upsert as upsert_customer
 from api.Modules.Tenancy.Models import Store, User
-from api.Modules.Transfers.Models import Transfer
+from api.Modules.Transfers.Models import (
+    PAYMENT_CASH,
+    PAYMENT_DEBIT_CARD,
+    PAYMENT_METHODS,
+    PAYOUT_SERVICE,
+    Transfer,
+)
 from api.Modules.Transfers.Repositories import (
     TransferFilters,
     get_by_client_request_id,
@@ -53,7 +59,7 @@ class TransferListPage:
     page: int
     per_page: int
     total_pages: int
-    page_amount: float  # Σ (send_amount + fee + federal_tax) for the visible rows
+    page_amount: float  # Σ (send_amount + fee + federal_tax) for the visible sends (payouts left out)
 
 
 class TransferNotFoundError(LookupError):
@@ -74,9 +80,11 @@ def list_transfers(
     total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
     page = max(1, min(page, total_pages))
 
+    # A payout is cash going out, not money collected — it has no
+    # place in a "collected" total.
     page_amount = float(sum(
         (r.send_amount or 0) + (r.fee or 0) + (r.federal_tax or 0)
-        for r in rows
+        for r in rows if r.is_send
     ))
     return TransferListPage(
         rows=rows,
@@ -123,6 +131,7 @@ class CreateTransferInput:
     internal_notes: str = ""
     employee_id: int | None = None
     customer_id: int | None = None
+    payment_method: str = PAYMENT_CASH
     # Idempotency key from the form (``Idempotency-Key`` header).
     # Create only; ``update_transfer`` ignores it.
     client_request_id: str | None = None
@@ -138,6 +147,37 @@ def find_replayed_transfer(
     return get_by_client_request_id(db, store_id, client_request_id)
 
 
+class TransferRuleError(ValueError):
+    """The payload breaks a payout / payment-method rule. A
+    ``ValueError`` so the controllers' existing 422 mapping covers it."""
+
+
+def check_payment_rules(payload: CreateTransferInput) -> None:
+    """Payment-method + payout rules, shared by create and update so
+    they can't drift (INVARIANTS.md "Debit card sends" / "Payouts").
+
+    * ``payment_method`` is one of ``PAYMENT_METHODS``.
+    * A payout is cash handed to the recipient: never by debit card,
+      and no fee (the recipient is paid the full amount; a fee would
+      be cash coming IN on a row whose cash goes OUT).
+    """
+    if payload.payment_method not in PAYMENT_METHODS:
+        raise TransferRuleError(
+            f"Unknown payment method {payload.payment_method!r}."
+        )
+    if payload.service_type == PAYOUT_SERVICE:
+        if payload.payment_method == PAYMENT_DEBIT_CARD:
+            raise TransferRuleError(
+                "A payout is paid to the recipient in cash, so it "
+                "can't be paid by debit card."
+            )
+        if (payload.fee or 0) > 0:
+            raise TransferRuleError(
+                "A payout has no fee: the recipient is paid the full "
+                "amount."
+            )
+
+
 def create_transfer(
     db: Session, payload: CreateTransferInput,
 ) -> Transfer:
@@ -151,8 +191,10 @@ def create_transfer(
       • record_transfer_audit       — "created" log line
 
     Raises ValueError if the employee can't be resolved within the
-    store. Caller is responsible for committing the outer transaction
-    so the row is visible to subsequent reads.
+    store, or ``TransferRuleError`` (a ValueError) when the payload
+    breaks a payout / payment-method rule. Caller is responsible for
+    committing the outer transaction so the row is visible to
+    subsequent reads.
 
     Idempotent per ``client_request_id``: when the store already has
     a transfer saved under that key, that row comes back unchanged and
@@ -166,6 +208,7 @@ def create_transfer(
     )
     if replayed is not None:
         return replayed
+    check_payment_rules(payload)
 
     user = db.query(User).filter_by(id=payload.created_by_user_id).first()
     if user is None:
@@ -199,6 +242,7 @@ def create_transfer(
         send_date=payload.send_date,
         company=payload.company,
         service_type=payload.service_type,
+        payment_method=payload.payment_method,
         sender_name=payload.sender_name,
         send_amount=payload.send_amount,
         fee=payload.fee,
@@ -250,6 +294,7 @@ def update_transfer(
     transfer = get_by_id_in_stores(db, transfer_id, [store_id])
     if transfer is None:
         raise TransferNotFoundError(f"Transfer id={transfer_id}")
+    check_payment_rules(payload)
 
     user = db.query(User).filter_by(id=payload.created_by_user_id).first()
     if user is None:
@@ -279,6 +324,7 @@ def update_transfer(
     transfer.send_date              = payload.send_date
     transfer.company                = payload.company
     transfer.service_type           = payload.service_type
+    transfer.payment_method         = payload.payment_method
     transfer.sender_name            = payload.sender_name
     transfer.send_amount            = payload.send_amount
     transfer.fee                    = payload.fee

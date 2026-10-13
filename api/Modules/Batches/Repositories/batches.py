@@ -74,6 +74,7 @@ def sum_transfer_totals_for_batch_refs(
             Transfer.store_id == store_id,
             Transfer.batch_id.in_(batch_refs),
             Transfer.status != "Cancelled",
+            Transfer.is_send,
         )
         .group_by(Transfer.batch_id)
         .all()
@@ -94,6 +95,7 @@ def transfer_count_by_batch_ref(
             Transfer.store_id == store_id,
             Transfer.batch_id.in_(batch_refs),
             Transfer.status != "Cancelled",
+            Transfer.is_send,
         )
         .group_by(Transfer.batch_id)
         .all()

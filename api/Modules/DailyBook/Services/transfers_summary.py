@@ -11,6 +11,12 @@ the `money_transfer` field on the receipts tab and that value wins.
 
 Cancelled transfers are excluded so a void at 4pm doesn't poison the
 day's roll-up.
+
+Debit card sends still count in amount / fees / tax (the company's
+report lists them) and ALSO in ``debit_card`` (their total collected),
+which comes off the company's cash. Payouts never count in amount /
+fees / tax: they go to ``payouts`` (cash paid out), which comes off the
+company's cash as well. See INVARIANTS.md "Debit card and payouts".
 """
 from __future__ import annotations
 
@@ -36,14 +42,21 @@ class CompanyTotals:
     fees: float
     federal_tax: float
     commission: float
+    # Σ total collected (send + fee + tax) of the debit card sends.
+    debit_card: float = 0.0
+    # Σ send amount of the payouts, and how many there were.
+    payouts: float = 0.0
+    payout_count: int = 0
 
     @property
     def total(self) -> float:
-        """Combined revenue the daily-book's `money_transfer`
-        line tallies: send + fees + tax + commission."""
+        """The company's cash for the day, what the daily-book's
+        `money_transfer` line tallies: send + fees + tax + commission,
+        less what was paid by debit card, less what was paid out."""
         return (
             float(self.amount or 0) + float(self.fees or 0)
             + float(self.federal_tax or 0) + float(self.commission or 0)
+            - float(self.debit_card or 0) - float(self.payouts or 0)
         )
 
 
@@ -104,11 +117,17 @@ def summarize_transfers_for_day(
                 fees=0.0, federal_tax=0.0, commission=0.0,
             )
             buckets[co] = bucket
+        bucket.commission  += float(t.commission or 0)
+        if t.is_payout:
+            bucket.payout_count += 1
+            bucket.payouts += float(t.send_amount or 0)
+            continue
         bucket.count += 1
         bucket.amount      += float(t.send_amount or 0)
         bucket.fees        += float(t.fee or 0)
         bucket.federal_tax += float(t.federal_tax or 0)
-        bucket.commission  += float(t.commission or 0)
+        if t.is_debit_card:
+            bucket.debit_card += float(t.total_collected or 0)
 
     # Preserve the configured company order; trailing unknown
     # companies (carried-over historical entries) appear alphabetically.

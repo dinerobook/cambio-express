@@ -68,6 +68,7 @@ def list_recent_recipients(
             Transfer.customer_id == customer_id,
             Transfer.store_id.in_(siblings),
             Transfer.status.notin_(_OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
             Transfer.recipient_name != "",
         )
         .group_by(

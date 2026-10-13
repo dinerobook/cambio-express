@@ -23,7 +23,8 @@
 
 One row in `msb_transfer` per money-movement event a cashier logs:
 remittance (send money to family abroad), bill payment, top up,
-or recharge. The Transfer carries:
+recharge, or payout (the store pays cash to a recipient — see
+"Payouts"). The Transfer carries:
 
 - the customer who sent it (linked to `Customer` for autofill on
   return visits; mirrored into `sender_*` columns on this row so
@@ -91,6 +92,57 @@ commission_cents` (BigInteger); the dollar-named attributes are
   comparison or reconciliation; the dollar twins are display
   views. The same pattern applies to `ACHBatch.ach_amount_cents`.
 
+## Debit card sends
+
+`payment_method` says how the customer paid: `"cash"` or
+`"debit_card"` (on the company's card terminal: no cash reached the
+drawer; the company credits it on the statement invoice). NULL on
+every row saved before the column existed, and **NULL reads as cash**
+everywhere (`Transfer.is_debit_card`, the `paid_by` list filter, the
+API's `payment_method` field, the `paid_by` audit label).
+
+- The money math is unchanged: a debit card send has the same
+  `send_amount + fee + federal_tax`, the same tax, and counts in every
+  volume report like a cash send. Only the cash it brings in differs.
+- The daily book is where it matters: its Services box takes the
+  company's debit card total OFF the company's cash (DailyBook
+  INVARIANTS "Debit card and payouts"). The transfer log's auto
+  figure for it is Σ `total_collected` of the day's debit card sends.
+- ACH batch totals are unchanged by the payment method.
+
+## Payouts
+
+A payout is `service_type = "Payout"` (`PAYOUT_SERVICE` in
+`Models/__init__.py`): the store hands cash to a recipient for the
+company. Rules, enforced in `Services/transfers.py::
+check_payment_rules` on create AND update (422):
+
+- Always cash: `payment_method = "debit_card"` is refused.
+- No fee: `fee > 0` is refused (the recipient is paid the full
+  amount). Commission is allowed.
+- No federal tax: `"Payout"` is in `TAX_EXEMPT_SERVICES` (money comes
+  in from abroad; nothing is sent).
+- Parties: the `sender_*` fields hold the customer **paid at the
+  counter** (the person the store identifies and pays, so the
+  customer directory upsert runs on them as usual) and the
+  `recipient_*` fields hold who sent the money. The SPA relabels both
+  blocks (`lib/transferKinds.ts::transferWording`); the receipt does
+  too.
+- **A payout is never volume.** Every sum of "money sent" filters on
+  `Transfer.is_send` (a hybrid: `service_type != "Payout"`): the
+  report `period_filters`, the dashboards, the owner and superadmin
+  rollups, the daily summary email, the tax pack's per-customer
+  totals, recent recipients, ACH batch totals / counts and the list's
+  `page_amount`. The employee dashboard gives them their own
+  `totals.paid_out`. When you add a new volume query, add
+  `Transfer.is_send` next to the status filter.
+- `total_collected` keeps its formula; on a payout it equals the
+  amount paid out (fee and tax are 0). The SPA shows it as cash out.
+- The daily book takes the company's payouts OFF its cash (DailyBook
+  INVARIANTS "Debit card and payouts"); the transfer log's auto figure
+  is Σ `send_amount` of the day's payouts, and a payout never counts
+  in that company's amount / fees / tax.
+
 ## Federal tax — server-computed, never client-supplied
 
 `federal_tax` is the single most-corrupted field in this system
@@ -108,7 +160,8 @@ makes sending it a 422.
 `federal_tax_for()` returns 0.0 in three cases:
 
 1. `service_type` is in `TAX_EXEMPT_SERVICES` (Bill Payment,
-   Top Up, Recharge — no ACH withdrawal crosses a border).
+   Top Up, Recharge — no ACH withdrawal crosses a border; Payout —
+   money comes in, nothing is sent).
 2. Recipient `country` is in `DOMESTIC_COUNTRIES` (today: just
    "United States" — the federal tax is the IRS levy on money
    sent abroad).
@@ -141,9 +194,11 @@ The complete set of valid `service_type` values lives in
 - `"Bill Payment"` — tax-exempt
 - `"Top Up"` — tax-exempt
 - `"Recharge"` — tax-exempt
+- `"Payout"` — tax-exempt, cash OUT (see "Payouts")
 
 The transfer form's dropdown options MUST match this tuple
-exactly. `normalize_service_type()` coerces unknown values to
+exactly (they live in `frontend/src/lib/transferKinds.ts`, shared by
+the new and edit forms and the list filter). `normalize_service_type()` coerces unknown values to
 `"Money Transfer"` (the historical default) rather than failing
 loudly — this is intentional so a malformed payload can't
 accidentally disable tax. Adding a new service type means:
@@ -151,8 +206,8 @@ accidentally disable tax. Adding a new service type means:
 1. Append to `SERVICE_TYPES`
 2. Decide whether it's tax-exempt; if so add to
    `TAX_EXEMPT_SERVICES`
-3. Update the dropdown options in `NewTransfer.tsx` +
-   `EditTransfer.tsx`
+3. Update `SERVICES` in `frontend/src/lib/transferKinds.ts` (both
+   forms read it)
 4. Add a test variant in `tests/Modules/Transfers/test_tax_service.py`
 
 
@@ -407,6 +462,12 @@ What needs a design discussion FIRST:
 ## Test surface
 
 `tests/Modules/Transfers/` covers:
+
+- `test_debit_card_and_payouts.py` — payment method + payout rules
+  on create / update (grant, deny, 422s, audit), the list filters,
+  `page_amount`, the receipt, batch totals and the employee
+  dashboard totals.
+- `test_payment_method_migration.py` — the additive migration.
 
 - `test_tax_service.py` — `federal_tax_for` across every
   (service_type, country, store) combination.

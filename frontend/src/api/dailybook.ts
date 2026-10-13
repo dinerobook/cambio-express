@@ -376,6 +376,15 @@ export interface MTBreakdownRow {
   auto_commission: number;
   auto_count: number;
   auto_total: number;
+  /** Off the company's total (its cash): the part of its sends paid
+   *  on the company's debit card terminal, and cash paid out to
+   *  recipients. `saved_total` / `auto_total` already net them off.
+   *  Optional so a page served before the API carried them reads 0. */
+  saved_debit_card?: number;
+  saved_payouts?: number;
+  auto_debit_card?: number;
+  auto_payouts?: number;
+  auto_payout_count?: number;
 }
 
 // One company's bill payments, top-ups or recharges for the day.
@@ -409,6 +418,8 @@ export interface MTBreakdownWriteRow {
   fees: number;
   federal_tax: number;
   commission: number;
+  debit_card?: number;
+  payouts?: number;
 }
 
 // Hook: per-company saved + auto values for the editor's Money

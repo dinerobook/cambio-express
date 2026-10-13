@@ -225,6 +225,7 @@ def superadmin_dashboard_context(db: Session) -> dict[str, Any]:
         .filter(
             Transfer.created_at >= d30_ago,
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .group_by(Transfer.company)
         .order_by(

@@ -143,11 +143,32 @@ def test_no_country_taxed_when_money_transfer():
 # ── constants ─────────────────────────────────────────────
 
 
-def test_service_types_includes_canonical_four():
+def test_service_types_includes_canonical_five():
     from api.Modules.Transfers.Services import SERVICE_TYPES
     assert SERVICE_TYPES == (
-        "Money Transfer", "Bill Payment", "Top Up", "Recharge",
+        "Money Transfer", "Bill Payment", "Top Up", "Recharge", "Payout",
     )
+
+
+def test_payout_is_tax_exempt_even_to_a_foreign_country():
+    """A payout brings money IN from abroad — no levy on money sent."""
+    from api.Modules.Transfers.Services import (
+        TAX_EXEMPT_SERVICES, federal_tax_for,
+    )
+
+    class _Store:
+        federal_tax_rate = 0.01
+
+    assert "Payout" in TAX_EXEMPT_SERVICES
+    assert federal_tax_for(500.0, "Payout", _Store(), country="Mexico") == 0.0
+    # Same amount as a send still carries the 1%.
+    assert federal_tax_for(500.0, "Money Transfer", _Store(), country="Mexico") == 5.0
+
+
+def test_normalize_keeps_payout():
+    from api.Modules.Transfers.Services import normalize_service_type
+    assert normalize_service_type("Payout") == "Payout"
+    assert normalize_service_type(" Payout ") == "Payout"
 
 
 def test_tax_exempt_excludes_money_transfer():

@@ -872,19 +872,28 @@ function DisbursementsPanel(props: PanelProps) {
   );
 }
 
-type MTCell = "amount" | "fees" | "federal_tax" | "commission";
+type MTCell =
+  | "amount" | "fees" | "federal_tax" | "commission"
+  | "debit_card" | "payouts";
 
 // Editable per-company row state. Keys mirror MoneyTransferSummary
-// columns 1:1.
+// columns 1:1. `debit_card` and `payouts` come OFF the company's
+// total: a send paid on the card terminal brought no cash in, a
+// payout took cash out (DailyBook INVARIANTS "Debit card and payouts").
 interface MTRowDraft {
   amount: number;
   fees: number;
   federal_tax: number;
   commission: number;
+  debit_card: number;
+  payouts: number;
 }
 
 function emptyDraft(): MTRowDraft {
-  return { amount: 0, fees: 0, federal_tax: 0, commission: 0 };
+  return {
+    amount: 0, fees: 0, federal_tax: 0, commission: 0,
+    debit_card: 0, payouts: 0,
+  };
 }
 
 function draftFromRow(row: MTBreakdownRow): MTRowDraft {
@@ -899,11 +908,16 @@ function draftFromRow(row: MTBreakdownRow): MTRowDraft {
     fees: row.saved_fees,
     federal_tax: row.saved_federal_tax,
     commission: row.saved_commission,
+    debit_card: row.saved_debit_card ?? 0,
+    payouts: row.saved_payouts ?? 0,
   };
 }
 
+/** The company's cash for the day: what came in, less what was paid
+ *  by debit card, less what was paid out. Mirrors `saved_total`. */
 function rowDraftTotal(d: MTRowDraft): number {
-  return (d.amount || 0) + (d.fees || 0) + (d.federal_tax || 0) + (d.commission || 0);
+  return (d.amount || 0) + (d.fees || 0) + (d.federal_tax || 0) + (d.commission || 0)
+    - (d.debit_card || 0) - (d.payouts || 0);
 }
 
 function round2(n: number): number {
@@ -1336,6 +1350,8 @@ function ServicesWidget({
           fees: Number(d.fees) || 0,
           federal_tax: Number(d.federal_tax) || 0,
           commission: Number(d.commission) || 0,
+          debit_card: Number(d.debit_card) || 0,
+          payouts: Number(d.payouts) || 0,
         };
       });
       const writeServices: MTServiceRow[] = [];
@@ -1433,6 +1449,14 @@ function ServicesWidget({
                             <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fees</th>
                             <th className={`${styles.mtTh} ${styles.mtThNum}`}>Federal tax</th>
                             <th className={`${styles.mtTh} ${styles.mtThNum}`}>Commission</th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>
+                              − Debit card
+                              <InfoTip text="The part of these sends the customers paid on the company's card terminal. No cash came in, so it comes off this company's total and its cash drop." />
+                            </th>
+                            <th className={`${styles.mtTh} ${styles.mtThNum}`}>
+                              − Payouts
+                              <InfoTip text="Cash paid out to recipients for this company. It left the drawer, so it comes off this company's total." />
+                            </th>
                             <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
                           </tr>
                         </thead>
@@ -1461,6 +1485,12 @@ function ServicesWidget({
                             </td>
                             <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
                               {fmtMoney2(sumDraftField(drafts, "commission"))}
+                            </td>
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                              {fmtMoney2(-sumDraftField(drafts, "debit_card"))}
+                            </td>
+                            <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                              {fmtMoney2(-sumDraftField(drafts, "payouts"))}
                             </td>
                             <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>
                               {fmtMoney2(transferTotal)}
@@ -1554,7 +1584,7 @@ function ServicesWidget({
 
                   <PanelTitle>
                     By company
-                    <InfoTip text="Each company's transfers and services together — the number to check against that company's cash drop." />
+                    <InfoTip text="Each company's transfers and services together, less what was paid by debit card or paid out — the cash to check against that company's cash drop." />
                   </PanelTitle>
                   <table className={styles.mtTable} aria-label="Total by company">
                     <tbody>
@@ -1610,7 +1640,7 @@ function MTEditableRow({
   const draftTotal = rowDraftTotal(draft);
   return (
     <tr>
-      <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>
+      <td className={`${styles.mtTd} ${styles.mtTdStrong} ${styles.mtCompany}`}>
         <span style={{ color: companyAccent(row.company) }}>•</span>{" "}
         {row.company}
       </td>
@@ -1634,17 +1664,32 @@ function MTEditableRow({
         onChange={(v) => onCellChange("commission", v)}
         locked={locked}
       />
+      <MTCellInput
+        value={draft.debit_card}
+        onChange={(v) => onCellChange("debit_card", v)}
+        locked={locked}
+        label={`${row.company} debit card`}
+      />
+      <MTCellInput
+        value={draft.payouts}
+        onChange={(v) => onCellChange("payouts", v)}
+        locked={locked}
+        label={`${row.company} payouts`}
+      />
       <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumStrong}`}>{fmtMoney2(draftTotal)}</td>
     </tr>
   );
 }
 
 function MTCellInput({
-  value, onChange, locked,
+  value, onChange, locked, label,
 }: {
   value: number;
   onChange: (next: number) => void;
   locked: boolean;
+  /** Accessible name — the column header alone doesn't say which
+   *  company a cell belongs to. */
+  label?: string;
 }) {
   // MoneyInput with prefix="" drops the $ chrome so the cell stays
   // table-tight; the kit's empty-means-zero + wheel-blur + decimal-
@@ -1657,6 +1702,7 @@ function MTCellInput({
         disabled={locked}
         prefix=""
         fullWidth
+        aria-label={label}
       />
     </td>
   );
