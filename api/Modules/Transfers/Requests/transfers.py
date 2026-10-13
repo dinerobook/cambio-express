@@ -104,6 +104,18 @@ class RosterResponse(BaseModel):
     employees: list[EmployeeRow]
 
 
+class TransferChoicesResponse(BaseModel):
+    """The store's pick-lists for the transfer and ACH batch forms,
+    both managed under Settings → General: ``companies`` is the
+    ACTIVE money transfer company roster (the same list the MSB daily
+    book uses), ``countries`` the store's transfer countries."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    companies: list[str]
+    countries: list[str]
+
+
 class CreateTransferRequest(BaseModel):
     """POST body for /transfers. Mirrors the legacy `new_transfer`
     Flask form fields. `federal_tax` is intentionally absent — the

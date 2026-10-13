@@ -113,7 +113,7 @@ describe("Settings → money orders per company", () => {
     ]));
     renderTab();
     await userEvent.type(screen.getByPlaceholderText(/Add a company/), "Ria");
-    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add company" }));
     expect(moSwitch("Ria")).toBeChecked();
   });
 

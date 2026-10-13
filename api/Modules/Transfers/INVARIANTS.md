@@ -446,6 +446,34 @@ are load-bearing on hot-path queries:
 matching report at scale first (`pytest tests/test_transfer_
 indexes.py` covers the EXPLAIN plans).
 
+## Company + country pick-lists come from Settings
+
+The transfer form's **Company** and **Country** pickers are the
+store's own lists, both managed under Settings → General, read by
+`GET /transfers/choices` (`form_choices`):
+
+- **Companies** = `store_mt_companies(store)`, the ACTIVE money
+  transfer company roster. The MSB daily book breaks down by the
+  very same list, so a company added or switched off in Settings
+  reaches both at once. Never hard-code companies in the SPA again
+  (that was the 2026-10-13 bug: the form had its own list of ten).
+  The ACH batch form picks from the same list.
+- **Countries** = `store_transfer_countries(store)` over the
+  nullable `tenancy_store.transfer_countries` CSV. NULL = the
+  built-in `TRANSFER_COUNTRIES` the form always showed, so no store
+  sees a change until its admin edits the list.
+- The lists only drive the pickers. The server does not refuse a
+  company or country that is off the list, because a saved transfer
+  keeps what it was saved with: an edit offers the saved value after
+  the store's list (`choicesWith`) and sends it back unchanged.
+  Removing one in Settings never rewrites history. The federal-tax
+  rule still keys on the country NAME (`DOMESTIC_COUNTRIES`).
+- `Transfer.company` is `String(30)`, so a NEW roster name is capped
+  at 30 characters (`MAX_TRANSFER_COMPANY_NAME_LEN`); a longer name
+  a store already had stays savable.
+- `GET /transfers/choices` opens with `transfers.read` OR
+  `batches.read` (both forms need it) and needs a store scope.
+
 ## What's safe to change
 
 - Adding a new optional column to `Transfer` (with a migration,
@@ -479,6 +507,10 @@ What needs a design discussion FIRST:
 
 `tests/Modules/Transfers/` covers:
 
+- `test_transfer_choices.py` — the company + country lists: the
+  endpoint (grant, deny, revoke, store scope), the Settings write
+  for countries, the company-name cap, and that a saved transfer
+  keeps a company / country that left the lists.
 - `test_debit_card_and_payouts.py` — payment method + payout rules
   on create / update (grant, deny, 422s, audit), the list filters,
   `page_amount`, the receipt, batch totals and the employee

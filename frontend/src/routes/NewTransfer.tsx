@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import DebitCardCheckbox from "../components/DebitCardCheckbox";
 import SenderAutocomplete from "../components/SenderAutocomplete";
+import StoreListField from "../components/StoreListField";
 import RecipientSuggestions from "../components/RecipientSuggestions";
 import {
   Alert,
@@ -28,6 +29,7 @@ import {
   tokens,
   useToast,
   Empty,
+  ErrorState,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { getOpenStatus, todayIso } from "../lib/datetime";
@@ -35,13 +37,14 @@ import {
   createTransfer,
   previewFederalTax,
   useEmployees,
+  useTransferChoices,
 } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
 import { apiErrorMessage, newIdempotencyKey } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  COMPANIES, COUNTRIES, SERVICES, STATUSES, isPayout, transferWording,
+  SERVICES, STATUSES, defaultCountry, isPayout, transferWording,
 } from "../lib/transferKinds";
 
 // New transfer form at /app/transfers/new.
@@ -63,8 +66,10 @@ import {
 // Other forms (BatchForm, EditTransfer, EditMonthly, Settings, …)
 // migrate on-touch following this pattern.
 
-// Companies, services, countries and statuses live in
-// lib/transferKinds.ts, shared with EditTransfer.
+// Services and statuses live in lib/transferKinds.ts, shared with
+// EditTransfer. Companies and countries are the store's own lists
+// from Settings → General (`useTransferChoices`): the company picker
+// offers exactly the companies the MSB daily book breaks down by.
 
 // ── Validation schema ──────────────────────────────────────────
 //
@@ -76,7 +81,7 @@ import {
 
 const transferSchema = z.object({
   send_date: z.string().min(1, "Date is required"),
-  company: z.enum(COMPANIES),
+  company: z.string().min(1, "Pick a company"),
   service_type: z.enum(SERVICES),
   payment_method: z.enum(["cash", "debit_card"]),
   status: z.enum(STATUSES),
@@ -88,7 +93,7 @@ const transferSchema = z.object({
   sender_dob: z.string(),
   customer_id: z.number().int().positive().nullable(),
 
-  country: z.enum(COUNTRIES),
+  country: z.string(),
   recipient_name: z.string(),
   recipient_phone: z.string(),
 
@@ -112,7 +117,8 @@ type TransferFormValues = z.infer<typeof transferSchema>;
 // validates whatever lands in ``handleSubmit``.
 const defaultValues = {
   send_date: todayIso(),
-  company: "Intermex" as const,
+  // Company + country start on the store's lists once they load.
+  company: "",
   service_type: "Money Transfer" as const,
   payment_method: "cash" as const,
   status: "Sent" as const,
@@ -122,7 +128,7 @@ const defaultValues = {
   sender_address: "",
   sender_dob: "",
   customer_id: null as number | null,
-  country: "Mexico" as const,
+  country: "",
   recipient_name: "",
   recipient_phone: "",
   send_amount: 0,
@@ -138,9 +144,11 @@ export default function NewTransfer() {
   const identity = getCurrentIdentity();
   const roster = useEmployees();
   const storeInfo = useStoreInfo();
+  const choices = useTransferChoices();
 
   const {
     register, handleSubmit, control, setValue, setError, clearErrors,
+    reset,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<TransferFormValues>({
     resolver: zodResolver(transferSchema),
@@ -164,6 +172,26 @@ export default function NewTransfer() {
   const customerId = useWatch({ control, name: "customer_id" });
   const payout = isPayout(serviceType);
   const words = transferWording(serviceType);
+
+  // Start on the store's first company and its default country once
+  // the lists arrive. They become the form's defaults (so loading them
+  // is not an unsaved edit), and anything already typed is kept.
+  const companies = choices.data?.companies;
+  const countries = choices.data?.countries;
+  const [listsApplied, setListsApplied] = useState(false);
+  useEffect(() => {
+    if (listsApplied || !companies || !countries) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot: adopt the server-fetched store lists as form defaults
+    setListsApplied(true);
+    reset(
+      {
+        ...defaultValues,
+        company: companies[0] ?? "",
+        country: defaultCountry(countries),
+      },
+      { keepDirtyValues: true },
+    );
+  }, [listsApplied, companies, countries, reset]);
 
   // A payout is cash handed to the recipient: never by card, never a
   // fee (the server refuses both). Clear them when Payout is picked.
@@ -222,6 +250,13 @@ export default function NewTransfer() {
         storeTimezone={storeInfo.data?.store?.timezone}
       />
 
+      {choices.isError && (
+        <ErrorState
+          message="Could not load the store's companies and countries."
+          onRetry={() => { void choices.refetch(); }}
+        />
+      )}
+
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="ds-form"
@@ -243,13 +278,21 @@ export default function NewTransfer() {
                   )}
                 />
               </Field>
-              <Field label="Company">
-                <Select {...register("company")}>
-                  {COMPANIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </Select>
-              </Field>
+              <Controller
+                control={control}
+                name="company"
+                render={({ field }) => (
+                  <StoreListField
+                    label="Company"
+                    options={companies}
+                    value={field.value}
+                    onChange={field.onChange}
+                    loading={choices.isLoading || choices.isError}
+                    error={errors.company?.message}
+                    emptyText="No money transfer companies are switched on. Add or turn one on in"
+                  />
+                )}
+              />
               <Field label="Service">
                 <Select {...register("service_type")}>
                   {SERVICES.map((c) => (
@@ -344,29 +387,30 @@ export default function NewTransfer() {
               storeId={identity.store_id}
               onPick={(row) => {
                 setValue("recipient_name", row.name);
-                // Only apply the country if it's in the dropdown's
-                // canonical list — past transfers may have free-text
-                // values that no longer match the curated options.
-                if (
-                  row.country
-                  && (COUNTRIES as readonly string[]).includes(row.country)
-                ) {
-                  setValue(
-                    "country",
-                    row.country as (typeof COUNTRIES)[number],
-                  );
+                // Only apply the country if it's on the store's list —
+                // past transfers may hold a country Settings has since
+                // dropped.
+                if (row.country && countries?.includes(row.country)) {
+                  setValue("country", row.country);
                 }
                 setValue("recipient_phone", row.phone);
               }}
             />
             <Grid>
-              <Field label={words.country}>
-                <Select {...register("country")}>
-                  {COUNTRIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </Select>
-              </Field>
+              <Controller
+                control={control}
+                name="country"
+                render={({ field }) => (
+                  <StoreListField
+                    label={words.country}
+                    options={countries}
+                    value={field.value}
+                    onChange={field.onChange}
+                    loading={choices.isLoading || choices.isError}
+                    emptyText="No countries on the store's list. Add them in"
+                  />
+                )}
+              />
               <Field label={words.otherName}>
                 <Input type="text" {...register("recipient_name")} />
               </Field>

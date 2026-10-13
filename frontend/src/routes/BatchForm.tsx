@@ -12,12 +12,14 @@ import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
-  Alert, Button, Card, Checkbox, ConfirmDialog, DateInput, Field, FormActions,
+  Alert, Button, Card, Checkbox, ConfirmDialog, DateInput, ErrorState, Field,
+  FormActions,
   Input, KpiCard, KpiGrid, Loading, MoneyInput, PageHeader, PageShell,
   Section, Select, Textarea, useToast,
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
-import { COMPANIES } from "../lib/transferKinds";
+import { useTransferChoices } from "../api/transfers";
+import StoreListField from "../components/StoreListField";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./BatchForm.module.css";
 import { todayIso } from "../lib/datetime";
@@ -35,7 +37,8 @@ const STATUSES = ["Pending", "Cleared", "Returned", "Held"];
 function makeBlankBatch(): BatchWriteBody {
   return {
     ach_date:       todayIso(),
-    company:        COMPANIES[0],
+    // The store's first company once Settings' list loads.
+    company:        "",
     batch_ref:      "",
     ach_amount:     0,
     transfer_dates: "",
@@ -54,6 +57,10 @@ export default function BatchForm() {
   const identity = getCurrentIdentity();
 
   const detail = useBatch(isEdit ? batchId : undefined);
+  // Companies come from Settings → General, the same list as the
+  // transfer form and the MSB daily book.
+  const choices = useTransferChoices();
+  const companies = choices.data?.companies;
 
   const [form, setForm] = useState<BatchWriteBody>(makeBlankBatch);
   // Baseline = last server-synced (or blank) form; drives the guard.
@@ -80,6 +87,16 @@ export default function BatchForm() {
     setForm(hydrated);
     setBaseline(hydrated);
   }, [isEdit, detail.data]);
+
+  // A new batch starts on the store's first company; set on both the
+  // form and the baseline so loading the list is not an edit.
+  useEffect(() => {
+    if (isEdit || !companies?.length) return;
+    const first = companies[0];
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- default the new batch's company from the server-fetched store list
+    setForm((f) => (f.company ? f : { ...f, company: first }));
+    setBaseline((b) => (b.company ? b : { ...b, company: first }));
+  }, [isEdit, companies]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(baseline);
   const guard = useUnsavedGuard(isDirty && !busy, {
@@ -154,6 +171,13 @@ export default function BatchForm() {
         subtitle="Track an ACH withdrawal from a money-transfer company."
       />
 
+      {choices.isError && (
+        <ErrorState
+          message="Could not load the store's money transfer companies."
+          onRetry={() => { void choices.refetch(); }}
+        />
+      )}
+
       <form
         onSubmit={onSubmit}
         className="ds-form"
@@ -165,12 +189,14 @@ export default function BatchForm() {
                 value={form.ach_date}
                 onChange={(e) => set("ach_date", e.target.value)} />
             </Field>
-            <Field label="Company">
-              <Select value={form.company}
-                onChange={(e) => set("company", e.target.value)}>
-                {COMPANIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </Select>
-            </Field>
+            <StoreListField
+              label="Company"
+              options={companies}
+              value={form.company}
+              onChange={(v) => set("company", v)}
+              loading={choices.isLoading || choices.isError}
+              emptyText="No money transfer companies are switched on. Add or turn one on in"
+            />
             <Field label="Batch reference" highlight={field === "batch_ref"}>
               <Input type="text" required
                 value={form.batch_ref}

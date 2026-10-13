@@ -26,6 +26,7 @@ the kit first, then use it — never hand-roll one in a route.
 | Money | `<MoneyInput>` | raw number inputs |
 | Date | `<DateInput>` | raw `type="date"` |
 | Phone | `<PhoneField>` | — |
+| One of the store's own lists from Settings (money transfer companies, transfer countries) | `<StoreListField>` over `useTransferChoices()` | hard-coded options in the SPA |
 
 Radio-for-a-boolean is banned: a two-option radio group whose value is
 a single `true/false` is a `<Checkbox>` (form) or `<Switch>` (setting).
@@ -146,7 +147,13 @@ keyboard navigation ourselves (that's where a11y bugs breed):
 | Tooltip | `@radix-ui/react-tooltip` | `<Tooltip>` / `<InfoTip>` |
 | Command palette | `cmdk` | `CommandPalette` |
 | Date picker | `react-day-picker` | `<DateInput>` |
+| Type-ahead list under a field | `@radix-ui/react-popover` (portal) | `SenderAutocomplete` (pattern) |
 | Form boolean controls | **native `<input>`** (deliberate — best form-library + a11y compat; do NOT swap for Radix Switch/Checkbox) | `<Checkbox>` / `<Switch>` |
+
+Anything that opens OVER the page (a calendar, a type-ahead list) renders
+in a portal, never as an absolutely positioned child: a later card on
+the form paints over a child, and a Modal body clips it (the date field
+in #935, the sender's customer list on 2026-10-13).
 
 Routes never import `@radix-ui/*` directly — they use the kit
 component. Need a new overlay kind? Add the Radix-based primitive
