@@ -126,6 +126,16 @@ def test_get_transfer_finds_in_umbrella_via_multi_store_ids(test_store_id, authe
         db.session.add(s2); db.session.commit()
         sid2 = s2.id
         tid = _seed_transfer(sid2, send_amount=99.0)
+    from tests.conftest import owner_token_for
+    # The umbrella read is the owner's view; a store admin asking
+    # for a second store is refused (api.Core.StoreScope).
+    assert authed_client.get(
+        f"/transfers/{tid}",
+        params={"store_ids": f"{test_store_id},{sid2}"},
+    ).status_code == 403
+    authed_client.headers["Authorization"] = (
+        f"Bearer {owner_token_for([test_store_id, sid2])}"
+    )
     resp = authed_client.get(
         f"/transfers/{tid}",
         params={"store_ids": f"{test_store_id},{sid2}"},

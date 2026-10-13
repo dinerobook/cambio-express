@@ -31,6 +31,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.Reports.Requests import (
@@ -110,10 +111,14 @@ def parse_store_ids(
             "every store under their umbrella."
         ),
     ),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
 ) -> list[int]:
     """Parse `?store_ids=1,2,3` into `[1, 2, 3]`. Rejects empty
     strings and non-numeric values via FastAPI's 422 validation
-    when the cast fails."""
+    when the cast fails, then keeps the caller inside their own
+    stores (``api.Core.StoreScope``): a store outside the caller's
+    scope is a 403, never another tenant's numbers."""
     try:
         ids = [int(s.strip()) for s in store_ids.split(",") if s.strip()]
     except ValueError as e:
@@ -125,7 +130,7 @@ def parse_store_ids(
         raise HTTPException(
             status_code=422, detail="store_ids must include at least one ID",
         )
-    return ids
+    return authorize_store_ids(db, claims, ids)
 
 
 # ── Routes ──────────────────────────────────────────────────

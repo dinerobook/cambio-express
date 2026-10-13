@@ -205,6 +205,16 @@ def test_list_multi_store_aggregation(test_store_id, authed_client):
         sid2 = s2.id
         _seed_transfer(test_store_id, confirm_number="X-Mine")
         _seed_transfer(sid2, confirm_number="X-Theirs")
+    from tests.conftest import owner_token_for
+    # Multi-store aggregation is the owner's view; a store admin
+    # asking for a second store is refused (api.Core.StoreScope).
+    assert authed_client.get(
+        "/transfers",
+        params={"store_ids": f"{test_store_id},{sid2}"},
+    ).status_code == 403
+    authed_client.headers["Authorization"] = (
+        f"Bearer {owner_token_for([test_store_id, sid2])}"
+    )
     resp = authed_client.get(
         "/transfers",
         params={"store_ids": f"{test_store_id},{sid2}"},
