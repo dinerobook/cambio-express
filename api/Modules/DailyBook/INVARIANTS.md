@@ -211,8 +211,10 @@ and pinned by `tests/Modules/DailyBook/test_mt_debit_card_payouts.py`:
   Services total.
 - `total_receipts` / `total_disbursements` formulas are unchanged —
   `money_transfer` simply carries the net.
-- The Intermex import keeps the saved debit card / payouts of every
-  company, its own included (`ReportImport/Services/commit.py`).
+- The Intermex import keeps the saved commission / debit card /
+  payouts of every company, its own included
+  (`ReportImport/Services/commit.py`) — the report carries none of
+  them.
 - The transfer log's auto values split the same way
   (`summarize_transfers_for_day`: `debit_card`, `payouts`,
   `payout_count`); the editor stays manual entry like the other cells.

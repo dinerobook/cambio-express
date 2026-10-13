@@ -181,33 +181,28 @@ def owner_pl_rollup_route(
     m = month or today.month
 
     from api.Modules.Monthly.Models import MonthlyFinancial
-    from api.Modules.Tenancy.Models import Store
+    from api.Modules.Monthly.Services import summarize_monthly
     sids = owner_store_ids(db, user)
 
     from api.Modules.Owners.Repositories import list_stores_by_ids
     stores = list_stores_by_ids(db, sids)
-    pl_rows = (
-        db.query(MonthlyFinancial)
-          .filter(
-              MonthlyFinancial.store_id.in_(sids),
-              MonthlyFinancial.year == y,
-              MonthlyFinancial.month == m,
-          ).all()
-        if sids else []
-    )
-    pl_by_store = {r.store_id: r for r in pl_rows}
 
     rows: list[OwnerPLRollupRow] = []
     totals = {"revenue": 0.0, "purchases": 0.0, "expenses": 0.0,
               "over_short": 0.0, "net": 0.0}
     for s in stores:
-        pl = pl_by_store.get(s.id)
+        # The store's own Monthly P&L (same buckets, same live bank
+        # feed), so each row's net is the net its admin sees on
+        # /monthly. Purchases and over/short are broken out of the
+        # expense bucket for display: net = revenue - purchases -
+        # expenses - over_short.
+        pl = summarize_monthly(db, int(s.id), y, m)
         if pl is not None:
-            rev = float(pl.total_revenue or 0.0)
-            pur = float(pl.total_purchases or 0.0)
-            exp = float(pl.total_expenses or 0.0)
-            os_ = float(pl.over_short or 0.0)
-            net = float(pl.net_income or 0.0)
+            rev = pl.total_income
+            pur = pl.total_purchases
+            os_ = pl.value("over_short")
+            exp = round(pl.total_expenses - pur - os_, 2)
+            net = pl.net_profit
             has_pl = True
         else:
             rev = pur = exp = os_ = net = 0.0

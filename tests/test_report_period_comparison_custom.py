@@ -63,3 +63,37 @@ def test_custom_compare_csv_export_includes_period_columns(client,
     body = resp.get_data(as_text=True)
     # Custom compare window appears as a CSV column header.
     assert "May 01" in body and "May 31, 2025" in body
+
+
+def _period_comparison_json(client, store_id, extra):
+    from tests.conftest import login_admin
+    jwt = login_admin(client, store_id)
+    return client.get(
+        f"/api/v2/reports/period-comparison?store_ids={store_id}"
+        f"&from=2026-05-01&to=2026-05-31{extra}",
+        headers={"Authorization": f"Bearer {jwt}"},
+    )
+
+
+def test_custom_compare_json_uses_the_picked_window(client, test_store_id):
+    resp = _period_comparison_json(
+        client, test_store_id,
+        "&compare_from=2025-05-01&compare_to=2025-05-31",
+    )
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    assert resp.get_json()["totals"]["prior_label"] == "May 01 – May 31, 2025"
+
+
+def test_malformed_compare_date_falls_back_instead_of_500(
+    client, test_store_id,
+):
+    """A bad compare date used to escape as an uncaught ValueError
+    (500). Like the CSV export of this report, it is ignored and the
+    report compares against the auto prior window."""
+    for extra in ("&compare_from=not-a-date&compare_to=2025-05-31",
+                  "&compare_from=2025-05-01&compare_to=2025-13-45"):
+        resp = _period_comparison_json(client, test_store_id, extra)
+        assert resp.status_code == 200, (extra, resp.get_data(as_text=True))
+        assert resp.get_json()["totals"]["prior_label"] == (
+            "Mar 31 – Apr 30, 2026"  # the 31 days before May
+        )

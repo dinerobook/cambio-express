@@ -460,7 +460,6 @@ def _admin_summary(
         enabled_module_flags,
     )
     from api.Modules.DailyBook.Models import DailyReport
-    from api.Modules.Monthly.Models import MonthlyFinancial
     from api.Modules.Tenancy.Models import Store
     from api.Modules.Owners.Services import OWNER_TRANSFER_EXCLUDED
     from api.Modules.Transfers.Models import Transfer
@@ -587,10 +586,11 @@ def _admin_summary(
         .filter_by(store_id=store_id, report_date=today).first()
         if _can("daily_book") else None
     )
-    month_report = (
-        db.query(MonthlyFinancial).filter_by(
-            store_id=store_id, year=today.year, month=today.month,
-        ).first()
+    # The store's Monthly P&L net (live bank feed included), so the
+    # KPI matches /monthly rather than the legacy model property.
+    from api.Modules.Monthly.Services import summarize_monthly
+    month_summary = (
+        summarize_monthly(db, store_id, today.year, today.month)
         if _can("monthly") else None
     )
     stripe_accounts = (
@@ -617,7 +617,7 @@ def _admin_summary(
             "pending_ach": pending_ach,
             "today_report_entered": today_report is not None,
             "net_income_month": (
-                float(month_report.net_income) if month_report else None
+                month_summary.net_profit if month_summary else None
             ),
         },
         "company_stats": company_stats,

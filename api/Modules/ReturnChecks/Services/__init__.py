@@ -73,7 +73,12 @@ def update_return_check(
 ) -> ReturnCheck:
     """Edit the core fields. Status / status_changed_on stay
     out of this path — those flow through the dedicated transition
-    helpers below. Cross-tenant lookups raise NotFound."""
+    helpers below — EXCEPT the payment-driven pending ↔ recovered
+    flip: the amount owed is edited here, so the payments already
+    recorded are re-checked against it (lowering it under what was
+    paid recovers the check; raising a recovered one past what was
+    paid reopens it). Loss / fraud are never touched.
+    Cross-tenant lookups raise NotFound."""
     row = find_return_check(db, store_id, rc_id)
     if row is None:
         raise ReturnCheckNotFoundError(f"id={rc_id}")
@@ -85,6 +90,8 @@ def update_return_check(
     row.amount = float(payload.amount or 0)
     row.return_check_fee = float(payload.return_check_fee or 0)
     row.notes = payload.notes
+    db.flush()
+    _maybe_auto_recover(db, row)
     db.flush()
     return row
 

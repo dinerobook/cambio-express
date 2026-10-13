@@ -35,6 +35,10 @@ EXPENSE_FIELDS: tuple[str, ...] = (
     "over_short", "borrowed_money_return", "profit_distributed",
 )
 
+# The purchase lines inside EXPENSE_FIELDS, for roll-ups that show
+# purchases as their own column (owner P&L roll-up).
+PURCHASE_FIELDS: tuple[str, ...] = ("cash_purchases", "check_purchases")
+
 
 @dataclass
 class MonthlySummary:
@@ -55,6 +59,12 @@ class MonthlySummary:
     @property
     def net_profit(self) -> float:
         return round(self.total_income - self.total_expenses, 2)
+
+    @property
+    def total_purchases(self) -> float:
+        """The purchase lines of the EXPENSE bucket (already inside
+        ``total_expenses``) — for views that show them on their own."""
+        return _sum_fields(self, PURCHASE_FIELDS)
 
     def value(self, name: str) -> float:
         """The live value of a column: the bank's sum when it feeds
