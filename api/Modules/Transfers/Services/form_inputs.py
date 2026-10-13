@@ -15,6 +15,9 @@ before the route stores them on a `Transfer` row:
   - `pick_employee(db, store_id, raw_id)` — resolve a form
     `employee_id` value against the store's roster. Rejects
     cross-store picks. Returns `(employee_or_none, display_name)`.
+
+  - `form_choices(db, store_id)` — the store's company + country
+    pick-lists, both managed in Settings → General.
 """
 from datetime import date, datetime
 
@@ -76,3 +79,17 @@ def pick_employee(
           .first()
     )
     return (emp, str(emp.name)) if emp else (None, "")
+
+
+def form_choices(db: Session, store_id: int) -> tuple[list[str], list[str]]:
+    """``(companies, countries)`` for the store's transfer and ACH
+    batch forms: the ACTIVE money transfer company roster (the very
+    list the MSB daily book breaks down by) and the store's transfer
+    countries. A missing store gets the defaults of both."""
+    from api.Modules.Tenancy.Models import Store
+    from api.Modules.Transfers.Services.companies import store_mt_companies
+    from api.Modules.Transfers.Services.countries import (
+        store_transfer_countries,
+    )
+    store = db.get(Store, store_id)
+    return store_mt_companies(store), store_transfer_countries(store)

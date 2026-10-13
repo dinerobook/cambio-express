@@ -1,12 +1,14 @@
-"""Debit card credits on ACH batches.
+"""Debit card and payout credits on ACH batches.
 
 A debit card send is invoiced like any send on the batch it is linked
 to (send + federal tax), and the company credits what the customer
 paid on the card (send + fee + tax) on its NEXT invoice: that
 company's next batch by ACH date. So a batch expects
 ``transfers_total - card_credit`` and its variance is measured
-against that. See api/Modules/Batches/Services/batches.py and
-Transfers INVARIANTS "Debit card sends".
+against that. A payout (cash the store paid out for the company) is
+never invoiced and is credited the same way, at the amount paid out.
+See api/Modules/Batches/Services/batches.py and Transfers INVARIANTS
+"Debit card sends" / "Payouts".
 """
 from datetime import date
 
@@ -110,19 +112,57 @@ def test_next_batch_is_by_ach_date_and_company(client, test_store_id, admin):
     assert rows["EARLY"]["card_credit_from"] == ""
 
 
-def test_cancelled_card_sends_and_cash_sends_carry_no_credit(
+def test_cancelled_transfers_and_cash_sends_carry_no_credit(
     client, test_store_id, admin,
 ):
     _batch(test_store_id, "C1", date(2026, 3, 3))
     _batch(test_store_id, "C2", date(2026, 3, 4))
     _send(test_store_id, "C1", amount=100, fee=5, card=True,
           status="Cancelled")
+    _send(test_store_id, "C1", amount=70, service="Payout",
+          status="Cancelled")
     _send(test_store_id, "C1", amount=80, fee=4)
-    _send(test_store_id, "C1", amount=60, service="Payout")
     rows = _rows(client, admin)
     assert rows["C1"]["card_credit_next"] == 0.0
+    assert rows["C1"]["payout_credit_next"] == 0.0
     assert rows["C2"]["card_credit"] == 0.0
+    assert rows["C2"]["payout_credit"] == 0.0
     assert rows["C1"]["transfers_total"] == 80.0
+
+
+def test_payout_is_credited_on_the_next_batch(client, test_store_id, admin):
+    """A payout is never invoiced; the company credits the amount paid
+    out on its next ACH, alongside any debit card credit."""
+    _batch(test_store_id, "Y1", date(2026, 3, 3), ach_amount=80.0)
+    _batch(test_store_id, "Y2", date(2026, 3, 4), ach_amount=34.0)
+    _send(test_store_id, "Y1", amount=80, fee=4)
+    _send(test_store_id, "Y1", amount=60, service="Payout")
+    _send(test_store_id, "Y1", amount=100, fee=5, tax=1, card=True)
+    _send(test_store_id, "Y2", amount=200)
+
+    rows = _rows(client, admin)
+    y1, y2 = rows["Y1"], rows["Y2"]
+    # The payout adds nothing owed on its own batch.
+    assert y1["transfers_total"] == 181.0
+    assert y1["payout_credit_next"] == 60.0
+    assert y1["card_credit_next"] == 106.0
+    assert y1["card_credit_next_to"] == "Y2"
+    # Y2: 200 owed, less 106 card + 60 payout from Y1.
+    assert y2["card_credit"] == 106.0
+    assert y2["payout_credit"] == 60.0
+    assert y2["expected_ach"] == 34.0
+    assert y2["variance"] == 0.0
+
+
+def test_payout_credit_is_pending_without_a_next_batch(
+    client, test_store_id, admin,
+):
+    _batch(test_store_id, "Z1", date(2026, 3, 3))
+    _send(test_store_id, "Z1", amount=45, service="Payout")
+    row = _rows(client, admin)["Z1"]
+    assert row["payout_credit_next"] == 45.0
+    assert row["card_credit_next_to"] == ""
+    assert row["expected_ach"] == 0.0
 
 
 def test_detail_and_edit_responses_carry_the_credit(
@@ -152,10 +192,14 @@ def test_model_variance_counts_the_credit(test_store_id):
     _batch(test_store_id, "M1", date(2026, 3, 3))
     b2 = _batch(test_store_id, "M2", date(2026, 3, 4), ach_amount=94.0)
     _send(test_store_id, "M1", amount=100, fee=5, tax=1, card=True)
+    _send(test_store_id, "M1", amount=40, service="Payout")
     _send(test_store_id, "M2", amount=200)
+    b2_amount = 200 - 106 - 40
     with db_session():
         b = db.session.get(ACHBatch, b2)
-        assert b.card_credit_cents == 10600
+        b.ach_amount = b2_amount
+        db.session.commit()
+        assert b.credit_cents == 10600 + 4000
         assert b.variance == 0.0
 
 
