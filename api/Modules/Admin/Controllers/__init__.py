@@ -103,6 +103,7 @@ def _to_row(s) -> StoreInfoRow:
     from api.Modules.Admin.Requests import MTCompanyEntry
     from api.Modules.Transfers.Services import (
         store_mt_company_money_orders, store_mt_company_roster,
+        store_transfer_countries,
     )
     money_orders = store_mt_company_money_orders(s)
     return StoreInfoRow(
@@ -149,6 +150,7 @@ def _to_row(s) -> StoreInfoRow:
                            money_orders=money_orders.get(name, True))
             for name, enabled in store_mt_company_roster(s)
         ],
+        transfer_countries=store_transfer_countries(s),
     )
 
 

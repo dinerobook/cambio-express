@@ -25,9 +25,20 @@ import { ApiError } from "../lib/api";
 //   - Paid by debit card hydrates and saves (a row with no payment
 //     method is cash); a stored payout opens clean, with no fee or
 //     card box; turning a send into a payout sends cash and no fee.
+//   - Company and country pick from the store's Settings lists, and a
+//     transfer saved with one Settings has since dropped keeps it on
+//     an edit (it used to be swapped for "Other" / "Mexico" on save).
 
 const updateTransfer = vi.fn();
 const useTransfer = vi.fn();
+const choices = vi.fn();
+const refetchChoices = vi.fn();
+function storeLists(companies: string[], countries: string[]) {
+  choices.mockReturnValue({
+    data: { companies, countries },
+    isLoading: false, isError: false, refetch: refetchChoices,
+  });
+}
 
 const stored = {
   id: 9, send_date: "2026-10-01", company: "Maxi",
@@ -48,6 +59,7 @@ vi.mock("../api/transfers", async (importOriginal) => {
     ...real,
     updateTransfer: (...a: unknown[]) => updateTransfer(...a),
     useTransfer: (...a: unknown[]) => useTransfer(...a),
+    useTransferChoices: () => choices(),
     useEmployees: () => ({
       data: { employees: [{ id: 7, name: "Rosa Diaz" }] },
       isLoading: false, isError: false,
@@ -91,6 +103,8 @@ describe("EditTransfer", () => {
   beforeEach(() => {
     updateTransfer.mockReset();
     useTransfer.mockReset();
+    refetchChoices.mockReset();
+    storeLists(["Intermex", "Maxi"], ["Mexico", "Guatemala", "United States"]);
     useTransfer.mockReturnValue({
       data: { transfer: stored }, isLoading: false, isError: false,
       refetch: vi.fn(),
@@ -286,5 +300,61 @@ describe("EditTransfer", () => {
     expect(updateTransfer.mock.calls[0][1]).toMatchObject({
       service_type: "Payout", payment_method: "cash", fee: 0,
     });
+  });
+
+  it("picks from the store's companies and countries", async () => {
+    updateTransfer.mockResolvedValue({ transfer: stored });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByDisplayValue("2026-10-01");
+    const company = screen.getByLabelText("Company") as HTMLSelectElement;
+    expect([...company.options].map((o) => o.value)).toEqual(["Intermex", "Maxi"]);
+    const country = screen.getByLabelText("Country") as HTMLSelectElement;
+    expect([...country.options].map((o) => o.value))
+      .toEqual(["Mexico", "Guatemala", "United States"]);
+    await user.selectOptions(company, "Intermex");
+    await user.selectOptions(country, "Mexico");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(updateTransfer).toHaveBeenCalledTimes(1));
+    expect(updateTransfer.mock.calls[0][1]).toMatchObject({
+      company: "Intermex", country: "Mexico",
+    });
+  });
+
+  it("keeps a company and country Settings has since dropped", async () => {
+    storeLists(["Intermex"], ["Mexico"]);
+    useTransfer.mockReturnValue({
+      data: { transfer: { ...stored, company: "Vigo", country: "Honduras" } },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    updateTransfer.mockResolvedValue({ transfer: stored });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByDisplayValue("2026-10-01");
+    expect(screen.getByLabelText("Company")).toHaveValue("Vigo");
+    expect(screen.getByLabelText("Country")).toHaveValue("Honduras");
+    // Still offered after the store's own list, so it can be kept.
+    expect([...(screen.getByLabelText("Company") as HTMLSelectElement).options]
+      .map((o) => o.value)).toEqual(["Intermex", "Vigo"]);
+    expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(updateTransfer).toHaveBeenCalledTimes(1));
+    expect(updateTransfer.mock.calls[0][1]).toMatchObject({
+      company: "Vigo", country: "Honduras",
+    });
+  });
+
+  it("offers a retry when the store's lists cannot load, keeping the saved values", async () => {
+    choices.mockReturnValue({
+      data: undefined, isLoading: false, isError: true, refetch: refetchChoices,
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByDisplayValue("2026-10-01");
+    expect(screen.getByText("Could not load the store's companies and countries."))
+      .toBeInTheDocument();
+    expect(screen.getByLabelText("Company")).toHaveValue("Maxi");
+    await user.click(screen.getByRole("button", { name: /Retry/ }));
+    expect(refetchChoices).toHaveBeenCalled();
   });
 });

@@ -52,8 +52,8 @@
   margin-left: 0.5rem;
 }
 
-/* Debit card credit from the company's previous batch, under the
-   transfers total it comes off. */
+/* Debit card / payout credits from the company's previous batch,
+   under the transfers total they come off. */
 .cardCredit {
   display: block;
   font-family: var(--db-font-mono, "JetBrains Mono", monospace);

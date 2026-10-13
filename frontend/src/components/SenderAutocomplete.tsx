@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import * as Popover from "@radix-ui/react-popover";
 
 import { useCustomerSearch, type CustomerRow } from "../api/customers";
-import { fontSize } from "./ui";
+import { Input } from "./ui";
+import styles from "./SenderAutocomplete.module.css";
 
 // Type-and-pick autocomplete for the sender name on the transfer
 // form. Wraps `useCustomerSearch` and a small popover.
@@ -17,9 +19,13 @@ import { fontSize } from "./ui";
 //    `sender_name`, the customer_id stays null, and the upsert
 //    will fall back to phone-based lookup or create a new row.
 //
-// Same behavior as the legacy transfer_form.html autocomplete —
-// keeps the SPA's UX identical so cashiers don't relearn anything
-// during the cutover.
+// The list renders in a Radix Popover portal, the same way the shared
+// date field's calendar does (#935). It used to be an absolutely
+// positioned child of the field, so the next card on the form painted
+// over it and the matches could not be clicked (owner report
+// 2026-10-13). In the portal it sits above every card and any Modal,
+// flips above the field when there is no room below, and is never
+// clipped by a scrolling parent.
 
 interface Props {
   value: string;
@@ -37,7 +43,7 @@ export default function SenderAutocomplete({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
   const { data, isFetching } = useCustomerSearch(value);
 
   // Cap the dropdown so a noisy fuzzy result doesn't dominate
@@ -45,19 +51,6 @@ export default function SenderAutocomplete({
   const matches     = (data?.matches ?? []).slice(0, 8);
   const suggestions = (data?.suggestions ?? []).slice(0, 8 - matches.length);
   const all = [...matches, ...suggestions];
-
-  // Close on click-outside.
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (!containerRef.current) return;
-      if (!containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setActiveIdx(-1);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
 
   function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!open || all.length === 0) return;
@@ -82,85 +75,95 @@ export default function SenderAutocomplete({
     setActiveIdx(-1);
   }
 
+  const showList = open && value.length >= 2;
+
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          if (onClearPickedId) onClearPickedId();
-          setOpen(true);
-          setActiveIdx(-1);
-        }}
-        onFocus={() => setOpen(value.length >= 2)}
-        onKeyDown={handleKey}
-        autoComplete="off"
-        required={required}
-        style={inputStyle}
-      />
-      {open && value.length >= 2 && (
-        <div className="ds-popover" style={popoverStyle}>
-          {isFetching && (
-            <p style={{ ...rowMutedStyle, padding: "0.6rem 0.85rem" }}>
-              Searching…
-            </p>
-          )}
-          {!isFetching && all.length === 0 && (
-            <p style={{ ...rowMutedStyle, padding: "0.6rem 0.85rem" }}>
-              No matches.
-            </p>
-          )}
-          {matches.length > 0 && (
-            <SectionHeader>Matches</SectionHeader>
-          )}
-          {matches.map((row, i) => (
-            <Row
-              key={`m-${row.id}`}
-              row={row}
-              active={activeIdx === i}
-              onMouseEnter={() => setActiveIdx(i)}
-              onClick={() => pick(row)}
-            />
-          ))}
-          {suggestions.length > 0 && (
-            <SectionHeader>Suggestions</SectionHeader>
-          )}
-          {suggestions.map((row, j) => {
-            const i = matches.length + j;
-            return (
+    <Popover.Root
+      open={showList}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setActiveIdx(-1);
+      }}
+    >
+      <Popover.Anchor asChild>
+        <div ref={anchorRef}>
+          <Input
+            type="text"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              if (onClearPickedId) onClearPickedId();
+              setOpen(true);
+              setActiveIdx(-1);
+            }}
+            onFocus={() => setOpen(value.length >= 2)}
+            onKeyDown={handleKey}
+            autoComplete="off"
+            required={required}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={showList}
+          />
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content
+          className={`${styles.popover} ds-popover`}
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          // The caret stays in the name field so typing keeps working.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          // A click back in the name field is not "outside".
+          onInteractOutside={(e) => {
+            if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
+          }}
+        >
+          <div role="listbox" aria-label="Existing customers">
+            {isFetching && (
+              <p className={styles.status}>Searching…</p>
+            )}
+            {!isFetching && all.length === 0 && (
+              <p className={styles.status}>No matches.</p>
+            )}
+            {matches.length > 0 && (
+              <SectionHeader>Matches</SectionHeader>
+            )}
+            {matches.map((row, i) => (
               <Row
-                key={`s-${row.id}`}
+                key={`m-${row.id}`}
                 row={row}
                 active={activeIdx === i}
                 onMouseEnter={() => setActiveIdx(i)}
                 onClick={() => pick(row)}
               />
-            );
-          })}
-        </div>
-      )}
-    </div>
+            ))}
+            {suggestions.length > 0 && (
+              <SectionHeader>Suggestions</SectionHeader>
+            )}
+            {suggestions.map((row, j) => {
+              const i = matches.length + j;
+              return (
+                <Row
+                  key={`s-${row.id}`}
+                  row={row}
+                  active={activeIdx === i}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  onClick={() => pick(row)}
+                />
+              );
+            })}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      style={{
-        margin: 0,
-        padding: "0.4rem 0.85rem",
-        fontSize: fontSize.xs,
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-        color: "var(--db-text-muted, #a3a3a3)",
-        background: "var(--db-surface, #0a0a0a)",
-        borderBottom: "1px solid var(--db-border-subtle, #1f1f1f)",
-      }}
-    >
-      {children}
-    </p>
-  );
+  return <p className={styles.header}>{children}</p>;
 }
 
 function Row({
@@ -174,70 +177,22 @@ function Row({
   return (
     <button
       type="button"
+      role="option"
+      aria-selected={active}
+      className={styles.row}
+      data-active={active || undefined}
       onMouseEnter={onMouseEnter}
       onClick={onClick}
-      style={{
-        display: "block",
-        width: "100%",
-        textAlign: "left",
-        padding: "0.55rem 0.85rem",
-        background: active
-          ? "var(--db-surface, #0a0a0a)"
-          : "transparent",
-        color: "var(--db-text, #f5f5f5)",
-        border: "none",
-        borderBottom: "1px solid var(--db-border-subtle, #1f1f1f)",
-        cursor: "pointer",
-      }}
     >
-      <div style={{ fontWeight: 500 }}>{row.full_name}</div>
-      <div style={rowMutedStyle}>
-        <span
-          style={{
-            fontFamily: "var(--db-font-mono, 'JetBrains Mono', monospace)",
-          }}
-        >
+      <span className={styles.name}>{row.full_name}</span>
+      <span className={styles.meta}>
+        <span className={styles.phone}>
           {row.phone_country} {row.phone_number || "—"}
         </span>
         {row.home_store_name && (
-          <span style={{ marginLeft: "0.5rem" }}>
-            · from {row.home_store_name}
-          </span>
+          <span> · from {row.home_store_name}</span>
         )}
-      </div>
+      </span>
     </button>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  background: "var(--db-surface, #0a0a0a)",
-  border: "1px solid var(--db-border, #262626)",
-  borderRadius: "0.5rem",
-  padding: "0.55rem 0.75rem",
-  color: "var(--db-text, #f5f5f5)",
-  fontFamily: "var(--db-font-body, 'Inter', system-ui, sans-serif)",
-  fontSize: fontSize.base,
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box",
-};
-
-const popoverStyle: React.CSSProperties = {
-  position: "absolute",
-  top: "calc(100% + 4px)",
-  left: 0,
-  right: 0,
-  background: "var(--db-surface-2, #141414)",
-  border: "1px solid var(--db-border, #262626)",
-  borderRadius: "0.5rem",
-  boxShadow: "0 6px 24px rgba(0, 0, 0, 0.5)",
-  zIndex: 10,
-  maxHeight: "20rem",
-  overflowY: "auto",
-};
-
-const rowMutedStyle: React.CSSProperties = {
-  fontSize: "0.85rem",
-  color: "var(--db-text-muted, #a3a3a3)",
-  margin: 0,
-};
