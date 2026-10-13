@@ -21,6 +21,9 @@ Invocation::
 
     python -m scripts.backfill_federal_tax              # dry-run
     python -m scripts.backfill_federal_tax --commit     # apply
+    python -m scripts.backfill_federal_tax --debit-card-only   # dry-run,
+        # card sends only (they carry no remittance tax; cash rows
+        # are left exactly as they are)
 
 Dry-run prints how many rows would change + the total dollar
 delta. Pass ``--commit`` to actually write.
@@ -42,21 +45,25 @@ from typing import Iterable
 
 from api.Core.Database import SessionLocal
 from api.Modules.Tenancy.Models import Store
-from api.Modules.Transfers.Models import Transfer
+from api.Modules.Transfers.Models import PAYMENT_DEBIT_CARD, Transfer
 from api.Modules.Transfers.Services.tax import federal_tax_for
 
 
 logger = logging.getLogger("backfill_federal_tax")
 
 
-def _iter_transfers(session, batch_size: int = 500) -> Iterable[Transfer]:
+def _iter_transfers(
+    session, batch_size: int = 500, *, debit_card_only: bool = False,
+) -> Iterable[Transfer]:
     """Stream transfers in id-order with yield_per so we don't
     pull every row into memory at once. A medium store has ~50k
     transfers; loading them all at once works but the streaming
     version is friendlier to constrained dev / staging envs.
     """
-    q = session.query(Transfer).order_by(Transfer.id.asc())
-    return q.yield_per(batch_size)
+    q = session.query(Transfer)
+    if debit_card_only:
+        q = q.filter(Transfer.payment_method == PAYMENT_DEBIT_CARD)
+    return q.order_by(Transfer.id.asc()).yield_per(batch_size)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -69,6 +76,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--commit", action="store_true",
         help="Actually write the recomputed values to the DB.",
+    )
+    parser.add_argument(
+        "--debit-card-only", action="store_true",
+        help=(
+            "Only touch sends paid by debit card (they carry no "
+            "remittance tax). Leaves every cash row as it is."
+        ),
     )
     parser.add_argument(
         "--quiet", action="store_true",
@@ -89,7 +103,9 @@ def main(argv: list[str] | None = None) -> int:
     store_cache: dict[int, Store | None] = {}
 
     with SessionLocal() as session:
-        for t in _iter_transfers(session):
+        for t in _iter_transfers(
+            session, debit_card_only=args.debit_card_only,
+        ):
             scanned += 1
             sid = t.store_id
             if sid is None:
@@ -102,6 +118,7 @@ def main(argv: list[str] | None = None) -> int:
             current = float(t.federal_tax or 0.0)
             expected = federal_tax_for(
                 t.send_amount, t.service_type or "", store, t.country,
+                payment_method=t.payment_method,
             )
             if abs(current - expected) < 0.005:
                 continue  # already correct; idempotent

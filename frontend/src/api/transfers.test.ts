@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createTransfer } from "./transfers";
+import { createTransfer, previewFederalTax } from "./transfers";
 import { newIdempotencyKey } from "../lib/api";
 
 // createTransfer carries the form's save key as the Idempotency-Key
@@ -58,5 +58,32 @@ describe("newIdempotencyKey", () => {
     const key = newIdempotencyKey();
     expect(key).toBe("ab".repeat(16));
     expect(key.length).toBeLessThanOrEqual(64);  // server's max_length
+  });
+});
+
+// Mirrors federal_tax_for(): since 2026-01-01 the 1% remittance tax is
+// on cash sends only, so a debit card send previews $0.00.
+describe("previewFederalTax", () => {
+  const base = {
+    sendAmount: 200, serviceType: "Money Transfer", country: "Mexico", rate: 0.01,
+  };
+
+  it("taxes a cash send", () => {
+    expect(previewFederalTax({ ...base, paymentMethod: "cash" })).toBe(2);
+  });
+
+  it("taxes a send with no payment method (reads as cash)", () => {
+    expect(previewFederalTax(base)).toBe(2);
+    expect(previewFederalTax({ ...base, paymentMethod: null })).toBe(2);
+  });
+
+  it("does not tax a debit card send", () => {
+    expect(previewFederalTax({ ...base, paymentMethod: "debit_card" })).toBe(0);
+  });
+
+  it("keeps the other exemptions", () => {
+    expect(previewFederalTax({ ...base, country: "United States" })).toBe(0);
+    expect(previewFederalTax({ ...base, serviceType: "Payout" })).toBe(0);
+    expect(previewFederalTax({ ...base, rate: 0 })).toBe(0);
   });
 });

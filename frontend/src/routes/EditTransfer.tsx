@@ -163,6 +163,7 @@ export default function EditTransfer() {
   const sendAmount = useWatch({ control, name: "send_amount" });
   const serviceType = useWatch({ control, name: "service_type" });
   const country = useWatch({ control, name: "country" });
+  const paymentMethod = useWatch({ control, name: "payment_method" });
   const customerId = useWatch({ control, name: "customer_id" });
   const payout = isPayout(serviceType);
   const words = transferWording(serviceType);
@@ -459,6 +460,7 @@ export default function EditTransfer() {
                     sendAmount,
                     serviceType,
                     country: country ?? "",
+                    paymentMethod,
                     rate: storeInfo.data?.store.federal_tax_rate ?? 0,
                   }))}
                   className={styles.taxPreview}

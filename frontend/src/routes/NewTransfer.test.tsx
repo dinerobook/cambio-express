@@ -21,7 +21,8 @@ import { ApiError } from "../lib/api";
 //     pressing Save again after an error can never log the transfer
 //     twice; a new form gets a new key.
 //   - "Paid by debit card" sends payment_method "debit_card" (cash by
-//     default); a Payout hides the fee and the card box, swaps the
+//     default) and previews no remittance tax (cash only since
+//     2026-01-01); a Payout hides the fee and the card box, swaps the
 //     party / amount names, and always sends cash with no fee.
 //   - Company and country are the store's own lists from Settings →
 //     General (owner report 2026-10-13: the form had its own list, so
@@ -237,15 +238,18 @@ describe("NewTransfer", () => {
     expect(createTransfer.mock.calls[0][0]).toMatchObject({ payment_method: "cash" });
   });
 
-  it("sends a debit card send with its fee and tax as usual", async () => {
+  it("sends a debit card send with its fee and no remittance tax", async () => {
     createTransfer.mockResolvedValue({ transfer: { id: 43 } });
     const user = userEvent.setup();
     renderPage();
     await fillValid(user);
-    await user.click(screen.getByRole("checkbox", { name: /Paid by debit card/ }));
-    // Still a send to Mexico: the tax preview stays on.
     expect((screen.getByLabelText(/^Federal tax preview/) as HTMLInputElement).value)
       .toBe("$1.00");
+    await user.click(screen.getByRole("checkbox", { name: /Paid by debit card/ }));
+    // Since 2026-01-01 the 1% remittance tax is on cash sends only.
+    expect((screen.getByLabelText(/^Federal tax preview/) as HTMLInputElement).value)
+      .toBe("$0.00");
+    expect(screen.getByText(/Exempt — paid by debit card/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save transfer" }));
     await waitFor(() => expect(createTransfer).toHaveBeenCalledTimes(1));
     expect(createTransfer.mock.calls[0][0]).toMatchObject({
