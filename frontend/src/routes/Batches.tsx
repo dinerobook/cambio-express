@@ -178,6 +178,11 @@ function BatchesTable({
               <td style={tdStyle}>
                 <span className={styles.mono}>{fmtMoney2(r.transfers_total)}</span>
                 <span className={styles.transferCount}>({r.transfer_count})</span>
+                {r.card_credit > 0 && (
+                  <span className={styles.cardCredit}>
+                    {fmtMoney2(-r.card_credit)} debit card credit
+                  </span>
+                )}
               </td>
               <td style={tdStyle}>
                 <span className={r.variance < 0 ? styles.varianceNeg : styles.variancePos}>

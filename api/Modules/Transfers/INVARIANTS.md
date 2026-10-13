@@ -108,7 +108,16 @@ API's `payment_method` field, the `paid_by` audit label).
   company's debit card total OFF the company's cash (DailyBook
   INVARIANTS "Debit card and payouts"). The transfer log's auto
   figure for it is Σ `total_collected` of the day's debit card sends.
-- ACH batch totals are unchanged by the payment method.
+- ACH batches: the company invoices a debit card send like any send
+  on the batch it is linked to (`transfers_total` is unchanged), and
+  credits what the customer paid on the card (`send_amount + fee +
+  federal_tax`) on its NEXT invoice: the same company's next batch by
+  `(ach_date, id)`. That batch expects `transfers_total -
+  card_credit`, and its variance is measured against that
+  (`Batches/Services/batches.py::card_credits_for_store`; the model's
+  `ACHBatch.variance_cents` agrees). Until the company has a later
+  batch the credit shows as pending on the batch it came from.
+  `tests/Modules/Batches/test_batch_card_credits.py` pins this.
 
 ## Payouts
 
@@ -381,7 +390,8 @@ in the same spot, so the form must be safe to resubmit.
   into ACH batches. `ACHBatch.transfers_total = Σ (send_amount
   + federal_tax)` (NOT plus fee — fee is store revenue and
   doesn't ride the ACH). Breaking the fee-vs-tax split here
-  silently corrupts batch totals.
+  silently corrupts batch totals. Debit card sends are credited back
+  on the company's next batch ("Debit card sends" above).
 - **Monthly P&L** (`api/Modules/Monthly/`): sums transfer
   `(send_amount + fee + federal_tax)` into the monthly receipt
   line. Reads from `msb_transfer` directly + the per-(store, date,

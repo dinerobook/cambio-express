@@ -5,6 +5,7 @@ import {
   createBatch,
   updateBatch,
   useBatch,
+  type BatchRow,
   type BatchWriteBody,
 } from "../api/batches";
 import { ApiError } from "../lib/api";
@@ -12,9 +13,11 @@ import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
   Alert, Button, Card, Checkbox, ConfirmDialog, DateInput, Field, FormActions,
-  Input, Loading, MoneyInput, PageHeader, PageShell, Select, Textarea,
-  useToast,
+  Input, KpiCard, KpiGrid, Loading, MoneyInput, PageHeader, PageShell,
+  Section, Select, Textarea, useToast,
 } from "../components/ui";
+import { fmtMoney2 } from "../lib/formatters";
+import { COMPANIES } from "../lib/transferKinds";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./BatchForm.module.css";
 import { todayIso } from "../lib/datetime";
@@ -24,10 +27,6 @@ import { todayIso } from "../lib/datetime";
 // Jinja form. Server handles unique-ref check + cross-tenant
 // 404 + admin-role gate.
 
-const COMPANIES = [
-  "Intermex", "Maxi", "Barri", "Sigue", "Vigo", "Western Union",
-  "MoneyGram", "Cibao", "RIA", "Other",
-];
 const STATUSES = ["Pending", "Cleared", "Returned", "Held"];
 
 // Blank new-batch form. A factory (not a const) so `form` and
@@ -213,6 +212,8 @@ export default function BatchForm() {
           </Field>
         </Card>
 
+        {isEdit && detail.data && <ExpectedAch batch={detail.data.batch} />}
+
         {error && <Alert tone="error">{error}</Alert>}
 
         <FormActions>
@@ -235,5 +236,43 @@ export default function BatchForm() {
 
       <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
+  );
+}
+
+/** What this ACH should withdraw, as last saved: the linked sends,
+ *  less the debit card credit the company gives on this invoice for
+ *  the card sends of its previous batch. Card sends linked HERE are
+ *  credited on the company's next batch. */
+function ExpectedAch({ batch: b }: { batch: BatchRow }) {
+  return (
+    <Section title="Expected ACH">
+      <KpiGrid minWidth="10rem">
+        <KpiCard
+          label="Linked sends"
+          value={fmtMoney2(b.transfers_total)}
+          sub={`${b.transfer_count} transfer${b.transfer_count === 1 ? "" : "s"}`}
+        />
+        <KpiCard
+          label="Debit card credit"
+          value={fmtMoney2(-b.card_credit)}
+          sub={b.card_credit_from ? `From batch ${b.card_credit_from}` : "None from a previous batch"}
+        />
+        <KpiCard label="Expected ACH" value={fmtMoney2(b.expected_ach)} tone="primary" />
+        <KpiCard
+          label="Variance"
+          value={fmtMoney2(b.variance)}
+          tone={b.variance < 0 ? "negative" : "neutral"}
+          sub="ACH amount less expected"
+        />
+      </KpiGrid>
+      {b.card_credit_next > 0 && (
+        <p className={styles.cardNote}>
+          {fmtMoney2(b.card_credit_next)} paid by debit card on this batch
+          {b.card_credit_next_to
+            ? ` is credited on batch ${b.card_credit_next_to}.`
+            : ` is credited on this company's next ACH, once it is entered.`}
+        </p>
+      )}
+    </Section>
   );
 }

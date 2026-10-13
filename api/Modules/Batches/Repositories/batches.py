@@ -9,7 +9,8 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from api.Modules.Batches.Models import ACHBatch, Transfer
+from api.Modules.Batches.Models import ACHBatch
+from api.Modules.Transfers.Models import PAYMENT_DEBIT_CARD, Transfer
 
 
 # Sortable columns the controller exposes. Slugs match the
@@ -101,3 +102,49 @@ def transfer_count_by_batch_ref(
         .all()
     )
     return {ref: int(c) for ref, c in rows}
+
+
+def card_send_totals_for_batch_refs(
+    db: Session, store_id: int, batch_refs: list[str],
+) -> dict[str, int]:
+    """For each batch_ref, Σ what customers paid by debit card
+    (``send_amount + fee + federal_tax``, in cents) on the sends
+    linked to it. The company credits that amount on its NEXT
+    invoice (Transfers INVARIANTS "Debit card sends"). Cancelled
+    transfers and payouts are excluded, as everywhere in batches."""
+    if not batch_refs:
+        return {}
+    rows = (
+        db.query(
+            Transfer.batch_id,
+            func.coalesce(func.sum(Transfer.send_amount_cents), 0)
+            + func.coalesce(func.sum(Transfer.fee_cents), 0)
+            + func.coalesce(func.sum(Transfer.federal_tax_cents), 0),
+        )
+        .filter(
+            Transfer.store_id == store_id,
+            Transfer.batch_id.in_(batch_refs),
+            Transfer.status != "Cancelled",
+            Transfer.is_send,
+            Transfer.payment_method == PAYMENT_DEBIT_CARD,
+        )
+        .group_by(Transfer.batch_id)
+        .all()
+    )
+    return {ref: int(c or 0) for ref, c in rows}
+
+
+def company_batch_sequence(
+    db: Session, store_id: int,
+) -> list[tuple[int, str, str]]:
+    """Every batch of the store as ``(id, company, batch_ref)``,
+    ordered by company, then ACH date, then id: the order in which
+    each company invoices the store. One batch's "next" batch is the
+    following row of the same company."""
+    rows = (
+        db.query(ACHBatch.id, ACHBatch.company, ACHBatch.batch_ref)
+        .filter(ACHBatch.store_id == store_id)
+        .order_by(ACHBatch.company, ACHBatch.ach_date, ACHBatch.id)
+        .all()
+    )
+    return [(int(i), c or "", r or "") for i, c, r in rows]

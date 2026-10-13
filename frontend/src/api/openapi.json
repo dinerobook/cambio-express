@@ -1956,9 +1956,34 @@
             "title": "Batch Ref",
             "type": "string"
           },
+          "card_credit": {
+            "default": 0.0,
+            "title": "Card Credit",
+            "type": "number"
+          },
+          "card_credit_from": {
+            "default": "",
+            "title": "Card Credit From",
+            "type": "string"
+          },
+          "card_credit_next": {
+            "default": 0.0,
+            "title": "Card Credit Next",
+            "type": "number"
+          },
+          "card_credit_next_to": {
+            "default": "",
+            "title": "Card Credit Next To",
+            "type": "string"
+          },
           "company": {
             "title": "Company",
             "type": "string"
+          },
+          "expected_ach": {
+            "default": 0.0,
+            "title": "Expected Ach",
+            "type": "number"
           },
           "id": {
             "title": "Id",

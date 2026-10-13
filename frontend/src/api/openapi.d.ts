@@ -7553,8 +7553,33 @@ export interface components {
             ach_date: string;
             /** Batch Ref */
             batch_ref: string;
+            /**
+             * Card Credit
+             * @default 0
+             */
+            card_credit: number;
+            /**
+             * Card Credit From
+             * @default
+             */
+            card_credit_from: string;
+            /**
+             * Card Credit Next
+             * @default 0
+             */
+            card_credit_next: number;
+            /**
+             * Card Credit Next To
+             * @default
+             */
+            card_credit_next_to: string;
             /** Company */
             company: string;
+            /**
+             * Expected Ach
+             * @default 0
+             */
+            expected_ach: number;
             /** Id */
             id: number;
             /**

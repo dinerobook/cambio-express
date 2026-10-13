@@ -14,10 +14,6 @@ from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.Batches.Models import Transfer
-from api.Modules.Batches.Repositories import (
-    sum_transfer_totals_for_batch_refs,
-    transfer_count_by_batch_ref,
-)
 from api.Modules.Batches.Requests import (
     BatchLinkedTransferRow,
     BatchListResponse,
@@ -33,9 +29,11 @@ from api.Modules.Batches.Services import (
     create_batch,
     find_batch,
     list_store_batches,
+    summarize_batch,
     update_batch,
 )
 from api.Modules.Batches.Services.batches import BatchSummary
+from api.Core.Money import to_dollars
 from typing import Any
 
 
@@ -57,6 +55,11 @@ def _row(s: BatchSummary) -> BatchRow:
         transfers_total=s.transfers_total,
         variance=s.variance,
         transfer_count=s.transfer_count,
+        expected_ach=s.expected_ach,
+        card_credit=s.card_credit,
+        card_credit_from=s.card.credit_from,
+        card_credit_next=to_dollars(s.card.next_cents),
+        card_credit_next_to=s.card.next_to,
     )
 
 
@@ -181,27 +184,8 @@ def _parse_payload(body: BatchWriteRequest) -> BatchWriteInput:
 def _row_with_totals(
     db: Session, store_id: int, batch,
 ) -> BatchRow:
-    """Build a BatchRow with the live transfer totals attached.
-    Done as one bulk query rather than the legacy per-row
-    ACHBatch.transfers_total property (which N+1's)."""
-    refs = [batch.batch_ref] if batch.batch_ref else []
-    totals = sum_transfer_totals_for_batch_refs(db, store_id, refs)
-    counts = transfer_count_by_batch_ref(db, store_id, refs)
-    transfers_total = totals.get(batch.batch_ref, 0.0)
-    return BatchRow(
-        id=batch.id,
-        ach_date=batch.ach_date.isoformat() if batch.ach_date else "",
-        company=batch.company or "",
-        batch_ref=batch.batch_ref or "",
-        ach_amount=float(batch.ach_amount or 0),
-        status=batch.status or "Pending",
-        reconciled=bool(batch.reconciled),
-        transfer_dates=batch.transfer_dates or "",
-        notes=batch.notes or "",
-        transfers_total=transfers_total,
-        variance=round(float(batch.ach_amount or 0) - transfers_total, 2),
-        transfer_count=counts.get(batch.batch_ref, 0),
-    )
+    """One batch with the same live totals as a list row."""
+    return _row(summarize_batch(db, store_id, batch))
 
 
 @router.get("/{batch_id}", response_model=BatchResponse)

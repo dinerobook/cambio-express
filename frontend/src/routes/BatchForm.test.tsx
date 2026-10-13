@@ -33,6 +33,8 @@ const existing = {
   ach_amount: 1234.5, status: "Cleared", reconciled: true,
   transfer_dates: "2026-09-25..29", notes: "from statement",
   transfers_total: 1200, variance: 34.5, transfer_count: 3,
+  expected_ach: 1200, card_credit: 0, card_credit_from: "",
+  card_credit_next: 0, card_credit_next_to: "",
 };
 
 function renderForm(path: string) {
@@ -143,6 +145,51 @@ describe("BatchForm", () => {
     });
     expect(createBatch).not.toHaveBeenCalled();
     expect(await screen.findByText("Batch updated.")).toBeInTheDocument();
+  });
+
+  it("shows the expected ACH with the debit card credit on an edit", () => {
+    useBatch.mockReturnValue({
+      data: { batch: {
+        ...existing, transfers_total: 303, card_credit: 106,
+        card_credit_from: "ACH-76", expected_ach: 197, ach_amount: 190,
+        variance: -7, transfer_count: 1,
+      } },
+      isLoading: false,
+    });
+    renderForm("/batches/7/edit");
+    expect(screen.getByText("Expected ACH", { selector: "h2" })).toBeInTheDocument();
+    expect(screen.getByText("$303.00")).toBeInTheDocument();
+    expect(screen.getByText("1 transfer")).toBeInTheDocument();
+    expect(screen.getByText("-$106.00")).toBeInTheDocument();
+    expect(screen.getByText("From batch ACH-76")).toBeInTheDocument();
+    expect(screen.getByText("$197.00")).toBeInTheDocument();
+    expect(screen.getByText("-$7.00")).toBeInTheDocument();
+  });
+
+  it("says where this batch's own card sends get credited", () => {
+    useBatch.mockReturnValue({
+      data: { batch: { ...existing, card_credit_next: 52.5, card_credit_next_to: "ACH-78" } },
+      isLoading: false,
+    });
+    renderForm("/batches/7/edit");
+    expect(screen.getByText(/\$52\.50 paid by debit card on this batch is credited on batch ACH-78\./))
+      .toBeInTheDocument();
+  });
+
+  it("calls a card credit pending while the company has no next batch", () => {
+    useBatch.mockReturnValue({
+      data: { batch: { ...existing, card_credit_next: 52.5 } },
+      isLoading: false,
+    });
+    renderForm("/batches/7/edit");
+    expect(screen.getByText(/credited on this company's next ACH, once it is entered/))
+      .toBeInTheDocument();
+    expect(screen.getByText("None from a previous batch")).toBeInTheDocument();
+  });
+
+  it("shows no expected ACH on a new batch", () => {
+    renderForm("/batches/new");
+    expect(screen.queryByText("Expected ACH", { selector: "h2" })).not.toBeInTheDocument();
   });
 
   it("leaves straight away on Cancel when nothing changed", async () => {
