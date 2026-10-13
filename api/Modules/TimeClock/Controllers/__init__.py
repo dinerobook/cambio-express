@@ -19,7 +19,7 @@ admin audit-log view.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy.orm import Session
@@ -202,7 +202,7 @@ def clock_out_route(
     nobody's clocked in for that name; 404 when the roster id
     doesn't belong to this store; 401 when the store requires
     a passkey and the assertion is missing / invalid."""
-    require_permission(claims, "time_clock", "update")
+    require_permission(claims, "time_clock", "create")
     store_id = resolve_store_scope(claims)
     user_id = _user_id_from(claims)
     _enforce_passkey_gate(
@@ -254,7 +254,7 @@ def break_start_route(
     """Pause the picked roster member's open shift. Sets
     ``break_started_at`` to now. 409 when nobody's clocked in
     or when the shift is already on break."""
-    require_permission(claims, "time_clock", "update")
+    require_permission(claims, "time_clock", "create")
     store_id = resolve_store_scope(claims)
     user_id = _user_id_from(claims)
     try:
@@ -293,7 +293,7 @@ def break_stop_route(
     """Resume the picked roster member's shift. Adds the
     elapsed break time to ``break_minutes`` and clears
     ``break_started_at``. 409 when no break is in progress."""
-    require_permission(claims, "time_clock", "update")
+    require_permission(claims, "time_clock", "create")
     store_id = resolve_store_scope(claims)
     user_id = _user_id_from(claims)
     try:
@@ -372,8 +372,7 @@ def admin_entries_route(
             status_code=422,
             detail="Date window cannot exceed 370 days.",
         )
-    start_dt = datetime.combine(from_, datetime.min.time())
-    end_dt   = datetime.combine(to,   datetime.min.time())
+    start_dt, end_dt = _store_day_window(db, store_id, from_, to)
     rows = entries_for_period(
         db,
         store_id=store_id,
@@ -461,8 +460,7 @@ def export_admin_entries_csv_route(
             status_code=422,
             detail="Date window cannot exceed 370 days.",
         )
-    start_dt = datetime.combine(from_, datetime.min.time())
-    end_dt   = datetime.combine(to,   datetime.min.time())
+    start_dt, end_dt = _store_day_window(db, store_id, from_, to)
     rows = entries_for_period(
         db,
         store_id=store_id,
@@ -533,6 +531,20 @@ def _require_admin_role(claims: dict[str, Any]) -> None:
     require_permission(claims, "time_clock", "update")
 
 
+def _store_day_window(
+    db: Session, store_id: int, from_: date, to: date,
+) -> tuple[datetime, datetime]:
+    """``[from, to)`` store-local days as the naive-UTC window
+    ``clock_in_at`` is stored in. A UTC-day window drops an
+    evening shift on the period's last day (20:00 in Chicago is
+    01:00 UTC the next day) into the next period."""
+    from api.Core.Clock import local_day_start_utc
+    from api.Modules.Tenancy.Models import Store
+    store = db.get(Store, store_id)
+    tz = str(store.timezone or "") if store is not None else ""
+    return local_day_start_utc(from_, tz), local_day_start_utc(to, tz)
+
+
 def _parse_iso(value: str, field: str) -> datetime:
     """Accept SPA-friendly ISO-8601 strings (``2026-05-18T14:30``
     or with trailing ``Z``). Raises 422 on parse failure with a
@@ -556,7 +568,7 @@ def _parse_iso(value: str, field: str) -> datetime:
     # matches the storage convention used by the normal punch
     # endpoints.
     if dt.tzinfo is not None:
-        dt = dt.astimezone(tz=None).replace(tzinfo=None)
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt
 
 
@@ -1327,6 +1339,15 @@ def admin_credentials_register_finish_route(
         registered_by_user_id=_user_id_from(claims),
     )
     db.add(pk)
+    db.flush()
+    _audit_passkey(
+        db, claims, store_id, store_employee_id, emp.name,
+        action="passkey_register",
+        summary=(
+            f"Passkey registered for {emp.name} ({name})"
+            + (" — replaced the previous one" if existing is not None else "")
+        ),
+    )
     db.commit()
     return TimeClockCredentialRow(
         store_employee_id=store_employee_id,
@@ -1357,9 +1378,39 @@ def admin_credentials_delete_route(
             status_code=404,
             detail="That roster member has no passkey to remove.",
         )
+    from api.Modules.Tenancy.Models import StoreEmployee
+    emp = db.get(StoreEmployee, store_employee_id)
+    emp_name = emp.name if emp is not None else f"#{store_employee_id}"
+    pk_name = pk.name or ""
     db.delete(pk)
+    db.flush()
+    _audit_passkey(
+        db, claims, store_id, store_employee_id, emp_name,
+        action="passkey_delete",
+        summary=f"Passkey removed for {emp_name} ({pk_name or 'unnamed'})",
+    )
     db.commit()
     return None
+
+
+def _audit_passkey(
+    db: Session, claims: dict[str, Any], store_id: int,
+    store_employee_id: int, emp_name: str, *, action: str, summary: str,
+) -> None:
+    """One operator audit row per roster-passkey enrollment change —
+    the credential is what lets a punch through the passkey gate,
+    so adding or removing one must leave a trail. Rides the
+    mutation's transaction (the caller commits)."""
+    from api.Core.Audit import audit_operator
+    audit_operator(
+        db, claims,
+        action=action,
+        target_type="time_clock_passkey",
+        target_id=str(store_employee_id),
+        target_label=(emp_name or f"#{store_employee_id}")[:160],
+        summary=summary,
+        store_id=store_id,
+    )
 
 
 # ── Paystub ─────────────────────────────────────────────────
@@ -1400,8 +1451,7 @@ def admin_paystub_route(
             detail="Date window cannot exceed 370 days.",
         )
     from api.Modules.TimeClock.Services.paystub import compute_paystub
-    start_dt = datetime.combine(from_, datetime.min.time())
-    end_dt   = datetime.combine(to,   datetime.min.time())
+    start_dt, end_dt = _store_day_window(db, store_id, from_, to)
     try:
         payload = compute_paystub(
             db,
@@ -1409,6 +1459,8 @@ def admin_paystub_route(
             store_employee_id=store_employee_id,
             start=start_dt,
             end=end_dt,
+            from_date=from_,
+            to_date=to,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

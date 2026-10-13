@@ -16,7 +16,7 @@ stored value in the DB are naive UTC.  Mixing aware + naive in
 comparisons would raise ``TypeError`` at runtime.  When the DB layer
 is ready for aware timestamps, flip the implementation here.
 """
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -91,6 +91,20 @@ def local_today(timezone: str | None) -> date:
     ``date.today()`` reads the server's UTC day, which is already
     tomorrow for a US store after about 7pm."""
     return local_now(timezone).date()
+
+
+def local_day_start_utc(day: date, timezone: str | None) -> datetime:
+    """Naive-UTC instant at which ``day`` begins in ``timezone``.
+
+    The storage twin of ``local_today``: timestamps are stored as
+    naive UTC, so a store-local day ``D`` is the half-open window
+    ``[local_day_start_utc(D, tz), local_day_start_utc(D + 1, tz))``.
+    ``datetime.combine(D, time.min)`` is the UTC day, which starts
+    five or six hours early for a US store and drops its evening.
+    Blank or unknown zones read UTC — the window a store that never
+    set a timezone always had."""
+    local_midnight = datetime.combine(day, time.min, tzinfo=_zone(timezone))
+    return local_midnight.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
 
 
 def display_timezone(store: Any, user: Any) -> str:

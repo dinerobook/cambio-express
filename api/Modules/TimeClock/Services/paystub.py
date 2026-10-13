@@ -14,7 +14,7 @@ the operator hand-writes the check from this summary today.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -30,9 +30,17 @@ def compute_paystub(
     store_employee_id: int,
     start: datetime,
     end: datetime,
+    from_date: date | None = None,
+    to_date: date | None = None,
 ) -> dict[str, Any]:
     """Return the paystub payload for the picked roster member
     over [start, end).
+
+    ``start`` / ``end`` are the naive-UTC bounds of the period;
+    ``from_date`` / ``to_date`` are the store-local days the
+    period was asked for (they label the stub). They default to
+    the UTC dates of ``start`` / ``end``, which differ from the
+    store's days for a store east of UTC.
 
     Raises ``ValueError`` when the roster member doesn't belong
     to the store (cross-tenant probe).
@@ -88,8 +96,8 @@ def compute_paystub(
         "hourly_rate":       round(rate, 4),
         "approved_hours":    approved_hours,
         "gross_pay":         gross_pay,
-        "from_date":         start.date().isoformat(),
-        "to_date":           end.date().isoformat(),
+        "from_date":         (from_date or start.date()).isoformat(),
+        "to_date":           (to_date or end.date()).isoformat(),
         "shifts": [
             {
                 "id":           r.id,

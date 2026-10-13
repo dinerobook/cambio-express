@@ -240,3 +240,67 @@ def test_eligible_recipients_excludes_opted_out_users(test_store_id):
         store = db.session.get(Store, test_store_id)
         result = eligible_recipients(db.session, store)
     assert result == []
+
+
+# ── Store timezone ─────────────────────────────────────────
+
+
+def _set_store_tz(store_id, tz):
+    from api.Modules.Tenancy.Models import Store
+    s = db.session.get(Store, store_id)
+    s.timezone = tz
+    db.session.commit()
+
+
+def test_find_missed_shifts_uses_store_local_day(test_store_id):
+    """A Chicago evening shift on May 18 clocked in at 19:05 local
+    (00:05 UTC on May 19) is NOT missed — and a clock-in at 21:00
+    local the evening BEFORE (02:00 UTC on May 18) does not cover it."""
+    from api.Modules.Notifications.Services.missed_shifts import (
+        find_missed_shifts,
+    )
+    with db_session():
+        _set_store_tz(test_store_id, "America/Chicago")
+        shown = _seed_employee(test_store_id, name="Evening")
+        early = _seed_employee(test_store_id, name="Day Before")
+        for emp in (shown, early):
+            _seed_shift(test_store_id, emp, date(2026, 5, 18),
+                        start=time(19, 0), end=time(23, 0))
+        _seed_entry(test_store_id, shown,
+                    clock_in_at=datetime(2026, 5, 19, 0, 5))
+        _seed_entry(test_store_id, early,
+                    clock_in_at=datetime(2026, 5, 18, 2, 0))
+        missed = find_missed_shifts(
+            db.session, store_id=test_store_id, on_date=date(2026, 5, 18),
+        )
+    assert [int(s.store_employee_id) for s in missed] == [early]
+
+
+def test_run_defaults_to_the_stores_own_yesterday(test_store_id):
+    """At 02:30 UTC on May 19 it is still May 18 in Chicago, so the
+    store's "yesterday" is May 17 — not the UTC yesterday (May 18,
+    whose evening shifts have not happened yet)."""
+    from api.Modules.Notifications.Services import missed_shifts as svc
+    from api.Modules.Tenancy.Models import Store
+    with db_session():
+        _set_store_tz(test_store_id, "America/Chicago")
+        emp = _seed_employee(test_store_id, name="Late Shift")
+        _seed_shift(test_store_id, emp, date(2026, 5, 18),
+                    start=time(22, 0), end=time(23, 30))
+        fixed_now = datetime(2026, 5, 19, 2, 30)
+        with patch.object(svc, "local_today",
+                          lambda tz: svc_local_today(tz, fixed_now),
+                          create=True), \
+             patch.object(svc, "utc_now", lambda: fixed_now, create=True), \
+             patch("api.Modules.Notifications.Services.smtp.send_email") as send:
+            svc.run(db.session)
+        assert send.call_count == 0
+        assert db.session.get(Store, test_store_id).missed_shifts_sent_for \
+            == date(2026, 5, 17)
+
+
+def svc_local_today(tz, utc_moment):
+    """``local_today`` pinned to ``utc_moment`` (naive UTC)."""
+    from zoneinfo import ZoneInfo
+    aware = utc_moment.replace(tzinfo=ZoneInfo("UTC"))
+    return aware.astimezone(ZoneInfo(tz or "UTC")).date()
