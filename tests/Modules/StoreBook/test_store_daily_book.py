@@ -270,3 +270,26 @@ def test_month_summary_isolates_stores():
         )
         db.session.commit()
         assert month_summary(db.session, mine, 2026, 8) == []
+
+
+# ── Lock read for other writers (register closes) ───────────
+
+
+def test_assert_day_writable_reads_without_creating_the_day():
+    from api.Modules.StoreBook.Services import (
+        assert_day_writable, is_day_locked,
+    )
+    with db_session():
+        sid = _store("lockread")
+        assert is_day_locked(db.session, sid, DAY) is False
+        assert_day_writable(db.session, sid, DAY)
+        assert db.session.query(StoreDailyEntry).filter_by(
+            store_id=sid,
+        ).count() == 0
+        entry = get_or_create_entry(db.session, sid, DAY)
+        set_lock(db.session, entry, locked=True, user_id=None)
+        assert is_day_locked(db.session, sid, DAY) is True
+        with pytest.raises(DayLockedError):
+            assert_day_writable(db.session, sid, DAY)
+        set_lock(db.session, entry, locked=False, user_id=None)
+        assert_day_writable(db.session, sid, DAY)

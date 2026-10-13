@@ -79,6 +79,27 @@ def is_locked(entry: StoreDailyEntry) -> bool:
     return entry.locked_at is not None
 
 
+def is_day_locked(db: Session, store_id: int, day: date) -> bool:
+    """True when the store's sheet for ``day`` exists and is locked.
+    A pure read — unlike ``get_or_create_entry`` it never creates
+    the row — for modules that write onto the same day (register
+    closes) and must refuse a locked one."""
+    entry = (
+        db.query(StoreDailyEntry)
+        .filter_by(store_id=store_id, entry_date=day)
+        .first()
+    )
+    return entry is not None and entry.locked_at is not None
+
+
+def assert_day_writable(db: Session, store_id: int, day: date) -> None:
+    """Raise ``DayLockedError`` when the store's day is locked."""
+    if is_day_locked(db, store_id, day):
+        raise DayLockedError(
+            "This day is locked. Unlock it before making changes.",
+        )
+
+
 def _assert_writable(entry: StoreDailyEntry) -> None:
     if is_locked(entry):
         raise DayLockedError(
@@ -250,7 +271,8 @@ def month_summary(
 __all__ = [
     "COUNT_FIELDS",
     "DayLockedError", "StoreBookError", "apply_import",
-    "column_totals", "get_or_create_entry", "is_locked",
+    "assert_day_writable", "column_totals", "get_or_create_entry",
+    "is_day_locked", "is_locked",
     "month_summary", "originals_for", "over_short_cents",
     "restore_original", "set_lock", "update_entry",
 ]

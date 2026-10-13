@@ -357,6 +357,10 @@ class OpenSettlementRow(BaseModel):
     settled: float
     outstanding: float
     returns: list[SettlementReturnRow]
+    # The entry's own day is locked: it is view only there, so the
+    # SPA hides Change date / Close. A return still books on the
+    # (unlocked) day the money moves.
+    day_locked: bool = False
 
 
 class OpenSettlementListResponse(BaseModel):

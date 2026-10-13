@@ -565,3 +565,70 @@ def test_status_change_is_dated_on_the_stores_day(
     )
     assert resp.status_code == 200
     assert resp.get_json()["return_check"]["status_changed_on"] == "2026-10-09"
+
+
+# ── Locked daily book ───────────────────────────────────────
+#
+# A payment mirrors a line on the daily book of the day it was paid.
+# A locked day is view only (DailyBook/INVARIANTS.md "Lock rules"), so
+# a payment can't land on it or leave it until it is unlocked.
+
+
+def _lock_day(store_id, d, locked=True):
+    from api.Modules.DailyBook.Services import lock_report, unlock_report
+    with db_session():
+        if locked:
+            lock_report(db.session, store_id, d)
+        else:
+            unlock_report(db.session, store_id, d)
+        db.session.commit()
+
+
+def _paybacks(rid):
+    from api.Modules.DailyBook.Models import DailyLineItem
+    with db_session():
+        return [
+            float(i.amount) for i in db.session.query(DailyLineItem)
+              .filter_by(return_check_id=rid, kind="return_payback").all()
+        ]
+
+
+def test_record_payment_on_a_locked_day_is_409(client, test_store_id):
+    with db_session():
+        rid = _seed_rc(test_store_id, amount=400.0)
+    _lock_day(test_store_id, date(2026, 4, 15))
+    headers = {"Authorization": f"Bearer {_login(client, test_store_id)}"}
+    resp = client.post(
+        f"/api/v2/return-checks/{rid}/payments",
+        json={"paid_on": "2026-04-15", "amount": 100.0}, headers=headers,
+    )
+    assert resp.status_code == 409
+    assert "locked" in resp.get_json()["detail"]
+    assert _paybacks(rid) == []
+    # Another (unlocked) day still takes it.
+    resp = client.post(
+        f"/api/v2/return-checks/{rid}/payments",
+        json={"paid_on": "2026-04-16", "amount": 100.0}, headers=headers,
+    )
+    assert resp.status_code == 201
+    assert _paybacks(rid) == [100.0]
+
+
+def test_delete_payment_on_a_locked_day_is_409_until_unlocked(
+    client, test_store_id,
+):
+    with db_session():
+        rid = _seed_rc(test_store_id, amount=400.0)
+    headers = {"Authorization": f"Bearer {_login(client, test_store_id)}"}
+    pid = client.post(
+        f"/api/v2/return-checks/{rid}/payments",
+        json={"paid_on": "2026-04-15", "amount": 100.0}, headers=headers,
+    ).get_json()["payment"]["id"]
+    _lock_day(test_store_id, date(2026, 4, 15))
+    url = f"/api/v2/return-checks/{rid}/payments/{pid}"
+    resp = client.delete(url, headers=headers)
+    assert resp.status_code == 409
+    assert _paybacks(rid) == [100.0]
+    _lock_day(test_store_id, date(2026, 4, 15), locked=False)
+    assert client.delete(url, headers=headers).status_code == 200
+    assert _paybacks(rid) == []

@@ -12,7 +12,8 @@ Mounts at `/api/v2/dayclose/*`:
   DELETE /closes/{id}              remove a close (admin)
 
 Cashiers (employees) hold day_close.create/read so they can submit
-their own shift close; department catalog + deletions need admin
+their own shift close; a day locked on the store daily book refuses
+both writes (409) until it is unlocked; department catalog + deletions need admin
 update rights. Every mutation records an operator-audit row
 (invariant #7).
 """
@@ -41,6 +42,10 @@ from api.Modules.DayClose.Requests import (
     DepartmentWriteRequest,
     RegisterCloseRow,
     RegisterCloseWriteRequest,
+)
+from api.Modules.StoreBook.Services import (
+    DayLockedError,
+    assert_day_writable,
 )
 from api.Modules.DayClose.Services import (
     DayCloseNotFoundError,
@@ -237,6 +242,17 @@ def _summary_response(
     )
 
 
+def _refuse_locked_day(db: Session, store_id: int, d: date) -> None:
+    """A locked store daily book is view only: a cashier can't add,
+    replace or remove a register close on it until the day is
+    unlocked. Same 409 as the store daily book's own edits. (POS
+    imports still land on a locked day — StoreBook ``apply_import``.)"""
+    try:
+        assert_day_writable(db, store_id, d)
+    except DayLockedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
 @router.get("/day/{day}", response_model=DayCloseSummaryResponse)
 def day_summary_route(
     day: str = Path(..., min_length=10, max_length=10),
@@ -258,6 +274,7 @@ def upsert_close_route(
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "create")
     d = _parse_date(day, "day")
+    _refuse_locked_day(db, sid, d)
     lines = {l.department_id: l.amount for l in body.department_sales}
     if len(lines) != len(body.department_sales):
         raise HTTPException(
@@ -302,6 +319,9 @@ def delete_close_route(
 ) -> DayCloseSummaryResponse:
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "update")
+    existing = db.get(RegisterClose, close_id)
+    if existing is not None and existing.store_id == sid:
+        _refuse_locked_day(db, sid, existing.report_date)
     try:
         row = delete_register_close(db, sid, close_id)
     except DayCloseNotFoundError:

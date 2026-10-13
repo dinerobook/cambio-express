@@ -193,7 +193,8 @@ export interface CategorizeBody {
   report_date?: string | null;
 }
 
-/** The 409 the categorize endpoint returns for a locked day. */
+/** The 409 categorize / uncategorize return for a locked day — the
+ *  day it would book on, or the day its existing line sits on. */
 export interface DailyBookLockedDetail {
   code: "daily_book_locked";
   report_date: string;

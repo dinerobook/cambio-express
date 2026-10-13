@@ -8202,6 +8202,11 @@
             "title": "Amount",
             "type": "number"
           },
+          "day_locked": {
+            "default": false,
+            "title": "Day Locked",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -24357,7 +24362,7 @@
     },
     "/bank/transactions/{txn_id}/uncategorize": {
       "post": {
-        "description": "Clear a transaction's category and remove any auto-created\nDailyLineItem. The row stays in the table \u2014 it just goes back\nto \"uncategorized\" so it can be re-tagged.",
+        "description": "Clear a transaction's category and remove any auto-created\nDailyLineItem. The row stays in the table \u2014 it just goes back\nto \"uncategorized\" so it can be re-tagged. A line booked on a\nlocked day \u2192 409, same shape as categorize.",
         "operationId": "uncategorize_route_bank_transactions__txn_id__uncategorize_post",
         "parameters": [
           {

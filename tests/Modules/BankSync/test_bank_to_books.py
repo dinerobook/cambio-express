@@ -8,7 +8,8 @@ tests pin the whole contract:
   * booking goes through the daily-book service path (day total
     moves, the report row is created if missing);
   * a locked day is refused (service raises, endpoint 409) and the
-    row is left untouched;
+    row is left untouched — booking onto it, and removing a line
+    already booked there (untag / re-tag) alike;
   * `report_date` moves the line to another day;
   * uncategorize rolls the total back;
   * the SPA only posts slugs the server lists (`GET /bank/categories`,
@@ -302,6 +303,79 @@ def test_categorize_locked_day_is_409_with_the_date(client, test_store_id):
     with db_session():
         from api.Modules.BankSync.Models import BankTransaction
         assert db.session.get(BankTransaction, tid).category_slug == ""
+
+
+def _booked_then_locked(client, store_id):
+    """A transaction booked as a cash expense on 2026-05-06, then the
+    day locked. Returns (txn id, admin headers)."""
+    from api.Modules.DailyBook.Services import lock_report
+    with db_session():
+        a = _seed_account(store_id)
+        tid = _seed_txn(store_id, a, amount_cents=-4_000)
+    headers = _login(client, store_id)
+    resp = client.post(
+        f"/api/v2/bank/transactions/{tid}/categorize",
+        json={"target_kind": "cash_expense"}, headers=headers,
+    )
+    assert resp.status_code == 200
+    with db_session():
+        lock_report(db.session, store_id, date(2026, 5, 6))
+        db.session.commit()
+    return tid, headers
+
+
+def _assert_still_booked(store_id, tid):
+    from api.Modules.BankSync.Models import BankTransaction
+    with db_session():
+        txn = db.session.get(BankTransaction, tid)
+        assert txn.category_slug == "cash_expense"
+        assert txn.daily_line_item_id is not None
+        assert abs(_report(store_id, date(2026, 5, 6)).cash_expense - 40.0) < 0.005
+
+
+def test_uncategorize_a_line_on_a_locked_day_is_409(client, test_store_id):
+    """A locked day is view only: untagging would delete the line the
+    bank feed booked there, so it waits for an unlock."""
+    tid, headers = _booked_then_locked(client, test_store_id)
+    resp = client.post(
+        f"/api/v2/bank/transactions/{tid}/uncategorize", headers=headers,
+    )
+    assert resp.status_code == 409
+    detail = resp.get_json()["detail"]
+    assert detail["code"] == "daily_book_locked"
+    assert detail["report_date"] == "2026-05-06"
+    _assert_still_booked(test_store_id, tid)
+
+
+def test_retag_off_a_locked_day_is_409(client, test_store_id):
+    """Re-tagging to a non-booking category, or booking on another
+    day, would also remove the locked day's line."""
+    tid, headers = _booked_then_locked(client, test_store_id)
+    for body in (
+        {"target_kind": "ignore"},
+        {"target_kind": "cash_expense", "report_date": "2026-05-07"},
+    ):
+        resp = client.post(
+            f"/api/v2/bank/transactions/{tid}/categorize",
+            json=body, headers=headers,
+        )
+        assert resp.status_code == 409, body
+        assert resp.get_json()["detail"]["report_date"] == "2026-05-06"
+    _assert_still_booked(test_store_id, tid)
+
+
+def test_untag_works_again_once_the_day_is_unlocked(client, test_store_id):
+    from api.Modules.DailyBook.Services import unlock_report
+    tid, headers = _booked_then_locked(client, test_store_id)
+    with db_session():
+        unlock_report(db.session, test_store_id, date(2026, 5, 6))
+        db.session.commit()
+    resp = client.post(
+        f"/api/v2/bank/transactions/{tid}/uncategorize", headers=headers,
+    )
+    assert resp.status_code == 200
+    with db_session():
+        assert _report(test_store_id, date(2026, 5, 6)).cash_expense == 0
 
 
 def test_categorize_and_uncategorize_write_audit_rows(client, test_store_id):

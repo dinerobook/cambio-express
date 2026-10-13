@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import EditDailyBook from "./EditDailyBook";
-import type { LineItemRow } from "../api/dailybook";
+import type { LineItemRow, OpenSettlement } from "../api/dailybook";
 
 // The daily book's entry boxes and money that comes back:
 //   - Cash Out offers "Expected back", Cash In offers
@@ -14,6 +14,9 @@ import type { LineItemRow } from "../api/dailybook";
 //   - A ticked add sends the mark and the optional date.
 //   - The entries table shows each entry's state.
 //   - The "Owed to us" and "We owe" tiles sit on the day.
+//   - A locked day is view only: no add row, no Edit / Remove, and
+//     no Record / Change date / Close on what is still open (the
+//     owner's report, 2026-10-13).
 
 const DAY = "2026-10-06";
 
@@ -80,6 +83,21 @@ async function openBox(name: RegExp) {
   await userEvent.click(screen.getByRole("button", { name }));
   return screen.getByRole("dialog");
 }
+
+// A saved, locked day; every money field not named is zero.
+const LOCKED = {
+  data: new Proxy(
+    { locked: true, locked_at: `${DAY}T20:00:00`, notes: "", report_date: DAY },
+    { get: (t, k) => (k in t ? t[k as keyof typeof t] : 0) },
+  ),
+  isLoading: false, isFetching: false,
+};
+
+const open = (over: Partial<OpenSettlement>): OpenSettlement => ({
+  id: 50, kind: "other_cash_out", report_date: "2026-10-03", amount: 600,
+  note: "Lent to Store #2", settle_by: null, settled: 0, outstanding: 600,
+  day_locked: true, returns: [], ...over,
+});
 
 describe("EditDailyBook — money that comes back", () => {
   beforeEach(() => {
@@ -168,5 +186,35 @@ describe("EditDailyBook — money that comes back", () => {
         expects_settlement: false, settle_by: null,
       }),
     ));
+  });
+  it("is view only on a locked day: entries and open items have no actions", async () => {
+    useDailyReport.mockReturnValue(LOCKED);
+    useOpenSettlements.mockReturnValue({
+      data: [
+        open({}),
+        open({ id: 51, kind: "other_cash_in", note: "Borrowed from Ana" }),
+      ],
+      isError: false,
+    });
+    renderPage();
+    for (const [box, openTab, item] of [
+      [/^Cash Out/, /^We owe/, "Borrowed from Ana"],
+      [/^Cash In/, /^Owed to us/, "Lent to Store #2"],
+    ] as const) {
+      const dialog = await openBox(box);
+      expect(within(dialog).queryByRole("button", { name: "+ Add" })).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+      await userEvent.click(within(dialog).getByRole("tab", { name: openTab }));
+      expect(within(dialog).getByText(item)).toBeInTheDocument();
+      for (const name of ["Record return", "Record payback", "Change date", "Close"]) {
+        expect(within(dialog).queryByRole("button", { name })).not.toBeInTheDocument();
+      }
+      expect(dialog).toHaveTextContent("This day is locked, so it is view only");
+      await userEvent.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    }
+    expect(updateLineItem).not.toHaveBeenCalled();
+    expect(createLineItem).not.toHaveBeenCalled();
   });
 });

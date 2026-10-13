@@ -70,6 +70,16 @@ def _report_field(sid, d, field):
         return float(getattr(r, field) or 0) if r else 0.0
 
 
+def _unlock(sid, d):
+    from api.Modules.DailyBook.Models import DailyReport
+    with db_session():
+        r = db.session.query(DailyReport).filter_by(
+            store_id=sid, report_date=d,
+        ).one()
+        r.locked_at = None
+        db.session.commit()
+
+
 def _lock(sid, d):
     from api.Modules.DailyBook.Models import DailyReport
     with db_session():
@@ -386,12 +396,34 @@ def test_return_onto_a_locked_day_is_refused(client, test_store_id, admin):
     assert _open(client, test_store_id, admin)[0]["outstanding"] == 2000.0
 
 
-def test_closing_works_on_a_locked_day(client, test_store_id, admin):
-    """Closing and re-dating only change the open list, so a locked
-    day takes them; its numbers and its report row don't move."""
+def test_closing_and_redating_are_refused_on_a_locked_day(
+    client, test_store_id, admin,
+):
+    """A locked day is view only (owner, 2026-10-13): closing a lent
+    entry or moving its date waits until the day is unlocked. Before,
+    both slipped past the lock because they move no money."""
+    lent = _lend(client, test_store_id, admin, settle_by=DAY2.isoformat())
+    _lock(test_store_id, DAY1)
+    url = f"/api/v2/daily/{test_store_id}/line-items/{lent['id']}"
+    moved = client.patch(url, json={"settle_by": DAY3.isoformat()}, headers=admin)
+    assert moved.status_code == 403
+    assert "unlock" in moved.get_data(as_text=True).lower()
+    closed = client.patch(url, json={"expects_settlement": False}, headers=admin)
+    assert closed.status_code == 403
+    [still] = _open(client, test_store_id, admin)
+    assert still["settle_by"] == DAY2.isoformat()
+    assert still["day_locked"] is True
+
+
+def test_closing_and_redating_work_once_the_day_is_unlocked(
+    client, test_store_id, admin,
+):
+    """The tracking-only edit still leaves the day's numbers alone."""
     from api.Modules.DailyBook.Models import DailyReport
     lent = _lend(client, test_store_id, admin, settle_by=DAY2.isoformat())
     _lock(test_store_id, DAY1)
+    _unlock(test_store_id, DAY1)
+    assert _open(client, test_store_id, admin)[0]["day_locked"] is False
     with db_session():
         before = db.session.query(DailyReport).filter_by(
             store_id=test_store_id, report_date=DAY1,
@@ -411,14 +443,29 @@ def test_closing_works_on_a_locked_day(client, test_store_id, admin):
     assert after == before
 
 
+def test_return_still_books_on_an_unlocked_day_for_a_locked_entry(
+    client, test_store_id, admin,
+):
+    """Locking the day the cash went out doesn't strand the return:
+    it books on the day the cash comes back."""
+    lent = _lend(client, test_store_id, admin)
+    _lock(test_store_id, DAY1)
+    resp = _add(client, test_store_id, admin, DAY2, kind="other_cash_in",
+                amount=2000.0, settles_item_id=lent["id"])
+    assert resp.status_code == 201
+    assert _open(client, test_store_id, admin) == []
+
+
 @pytest.mark.parametrize("body", [
     {"expects_settlement": True},
     {"amount": 10.0},
     {"note": "x"},
     {"settle_by": None, "note": "x"},
     {"expects_settlement": False, "amount": 2000.0},
+    {"expects_settlement": False},
+    {"settle_by": None},
 ])
-def test_a_locked_day_still_refuses_every_other_edit(
+def test_a_locked_day_refuses_every_edit(
     client, test_store_id, admin, body,
 ):
     plain = _add(client, test_store_id, admin, DAY1, kind="other_cash_out",

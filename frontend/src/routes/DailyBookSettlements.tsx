@@ -14,9 +14,11 @@
 //   - <CashFlowWidget>    the Cash In / Cash Out box: today's entries
 //                         and, on a second tab, the money still owed
 //   - <SettlementsList>   the open entries with the Record return /
-//                         Change date / Close actions (the last two
-//                         also work when the entry's own day is
-//                         locked — they move no money)
+//                         Change date / Close actions. A locked day is
+//                         view only: none of them on a locked day, and
+//                         no Change date / Close on an entry whose own
+//                         day is locked (its return still books on the
+//                         unlocked day the money moves)
 
 import { useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -134,14 +136,14 @@ const DIRECTION: Record<Direction, {
     kind: "other_cash_out",
     record: "Record return", settleKind: "Cash In",
     empty: "Nothing is owed to the store. Tick \"Expected back\" on a Cash Out entry to track one.",
-    lockedHint: "This day is locked. Open an unlocked day to record a return.",
+    lockedHint: "This day is locked, so it is view only. Open an unlocked day to record a return.",
   },
   // Borrowed into the drawer → paid back as a Cash Out entry.
   we_owe: {
     kind: "other_cash_in",
     record: "Record payback", settleKind: "Cash Out",
     empty: "The store owes nothing. Tick \"We pay this back\" on a Cash In entry to track one.",
-    lockedHint: "This day is locked. Open an unlocked day to record a payback.",
+    lockedHint: "This day is locked, so it is view only. Open an unlocked day to record a payback.",
   },
   // Checks cashed and kept → deposited on a later day. The deposit
   // moves no cash: it left the drawer on the day of the hold.
@@ -149,7 +151,7 @@ const DIRECTION: Record<Direction, {
     kind: "check_hold",
     record: "Deposit", settleKind: "Check Deposits (from hold)",
     empty: "No checks on hand. Add one below when you cash a check to deposit later.",
-    lockedHint: "This day is locked. Open the day you go to the bank to record a deposit.",
+    lockedHint: "This day is locked, so it is view only. Open the day you go to the bank to record a deposit.",
     cashNote: "No effect on cash or over/short: the cash left the drawer on the day the checks were held.",
   },
 };
@@ -365,15 +367,23 @@ export function SettlementsList({
                           {
                             label: "Change date",
                             perm: "daily_book.update",
+                            hidden: locked || o.day_locked,
                             onClick: () => setRedating(o),
                           },
                           {
                             label: "Close",
                             perm: "daily_book.update",
+                            hidden: locked || o.day_locked,
                             onClick: () => { setCloseErr(null); setClosing(o); },
                           },
                         ]}
                       />
+                      {!locked && o.day_locked && (
+                        <div className={styles.widgetTdSmall}>
+                          {formatDate(o.report_date)} is locked. Unlock it to
+                          change the date or close this entry.
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
