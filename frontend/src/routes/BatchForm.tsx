@@ -240,10 +240,19 @@ export default function BatchForm() {
 }
 
 /** What this ACH should withdraw, as last saved: the linked sends,
- *  less the debit card credit the company gives on this invoice for
- *  the card sends of its previous batch. Card sends linked HERE are
- *  credited on the company's next batch. */
+ *  less the credits the company gives on this invoice for the debit
+ *  card sends and payouts of its previous batch. Those linked HERE
+ *  are credited on the company's next batch. */
 function ExpectedAch({ batch: b }: { batch: BatchRow }) {
+  const from = b.card_credit_from
+    ? `From batch ${b.card_credit_from}`
+    : "None from a previous batch";
+  const nextParts = [
+    b.card_credit_next > 0 && `${fmtMoney2(b.card_credit_next)} paid by debit card`,
+    b.payout_credit_next > 0 && `${fmtMoney2(b.payout_credit_next)} paid out`,
+  ].filter(Boolean);
+  const next = nextParts.join(" and ");
+  const verb = nextParts.length > 1 ? "are" : "is";
   return (
     <Section title="Expected ACH">
       <KpiGrid minWidth="10rem">
@@ -255,7 +264,12 @@ function ExpectedAch({ batch: b }: { batch: BatchRow }) {
         <KpiCard
           label="Debit card credit"
           value={fmtMoney2(-b.card_credit)}
-          sub={b.card_credit_from ? `From batch ${b.card_credit_from}` : "None from a previous batch"}
+          sub={from}
+        />
+        <KpiCard
+          label="Payout credit"
+          value={fmtMoney2(-b.payout_credit)}
+          sub={from}
         />
         <KpiCard label="Expected ACH" value={fmtMoney2(b.expected_ach)} tone="primary" />
         <KpiCard
@@ -265,12 +279,12 @@ function ExpectedAch({ batch: b }: { batch: BatchRow }) {
           sub="ACH amount less expected"
         />
       </KpiGrid>
-      {b.card_credit_next > 0 && (
+      {next && (
         <p className={styles.cardNote}>
-          {fmtMoney2(b.card_credit_next)} paid by debit card on this batch
+          {next} on this batch
           {b.card_credit_next_to
-            ? ` is credited on batch ${b.card_credit_next_to}.`
-            : ` is credited on this company's next ACH, once it is entered.`}
+            ? ` ${verb} credited on batch ${b.card_credit_next_to}.`
+            : ` ${verb} credited on this company's next ACH, once it is entered.`}
         </p>
       )}
     </Section>

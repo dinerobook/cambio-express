@@ -1994,6 +1994,16 @@
             "title": "Notes",
             "type": "string"
           },
+          "payout_credit": {
+            "default": 0.0,
+            "title": "Payout Credit",
+            "type": "number"
+          },
+          "payout_credit_next": {
+            "default": 0.0,
+            "title": "Payout Credit Next",
+            "type": "number"
+          },
           "reconciled": {
             "default": false,
             "title": "Reconciled",

@@ -183,6 +183,11 @@ function BatchesTable({
                     {fmtMoney2(-r.card_credit)} debit card credit
                   </span>
                 )}
+                {r.payout_credit > 0 && (
+                  <span className={styles.cardCredit}>
+                    {fmtMoney2(-r.payout_credit)} payout credit
+                  </span>
+                )}
               </td>
               <td style={tdStyle}>
                 <span className={r.variance < 0 ? styles.varianceNeg : styles.variancePos}>
