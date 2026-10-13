@@ -390,3 +390,37 @@ def test_sub_department_one_level_rules(client, test_store_id):
     )
     assert resp.status_code == 200
     assert resp.json()["department"]["parent_id"] is None
+
+
+def test_department_name_check_treats_underscore_and_percent_literally(
+    client, test_store_id,
+):
+    """``_`` / ``%`` in a name are characters, not LIKE wildcards:
+    "A_B" is not a duplicate of "AXB" (it used to 409)."""
+    h = _admin(client, test_store_id)
+    _mk_department(client, h, "AXB")
+    _mk_department(client, h, "A_B")
+    _mk_department(client, h, "Cig 10")
+    _mk_department(client, h, "Cig %")
+    renamed = _mk_department(client, h, "Spare")
+    resp = client.put(
+        f"/api/v2/dayclose/departments/{renamed['id']}", headers=h,
+        json={"name": "A%B"},
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def test_department_real_duplicates_still_conflict_case_insensitively(
+    client, test_store_id,
+):
+    h = _admin(client, test_store_id)
+    _mk_department(client, h, "A_B")
+    other = _mk_department(client, h, "Other")
+    resp = client.post("/api/v2/dayclose/departments", headers=h,
+                       json={"name": "a_b"})
+    assert resp.status_code == 409
+    resp = client.put(
+        f"/api/v2/dayclose/departments/{other['id']}", headers=h,
+        json={"name": "A_b"},
+    )
+    assert resp.status_code == 409

@@ -272,3 +272,39 @@ def test_session_status_carries_lottery_flag(client, test_store_id):
         "/api/v2/auth/session-status", headers=_headers(token),
     ).json()
     assert "module_lottery" in body["features"]
+
+
+def test_count_before_activation_is_refused(client, test_store_id):
+    """A pack activated on Aug 10 was in the safe on Aug 5 — a count
+    dated then would book sales that never happened."""
+    h = _admin(client, test_store_id)
+    game = _mk_game(client, h, price=5.0, per_pack=60)
+    pack = _mk_active_pack(client, h, game["id"], day="2026-08-10")
+    resp = client.post(
+        "/api/v2/lottery/day/2026-08-05/counts", headers=h,
+        json={"pack_id": pack["id"], "closing_ticket": 20},
+    )
+    assert resp.status_code == 409
+    assert "activated on 2026-08-10" in resp.json()["detail"]
+    summary = client.get("/api/v2/lottery/day/2026-08-05",
+                         headers=h).json()
+    assert summary["total_value"] == 0
+    # The activation day itself and later days count normally.
+    for day, ticket in (("2026-08-10", 4), ("2026-08-11", 9)):
+        resp = client.post(
+            f"/api/v2/lottery/day/{day}/counts", headers=h,
+            json={"pack_id": pack["id"], "closing_ticket": ticket},
+        )
+        assert resp.status_code == 200, resp.text
+
+
+def test_day_summary_omits_packs_not_yet_activated(client, test_store_id):
+    h = _admin(client, test_store_id)
+    game = _mk_game(client, h)
+    _mk_active_pack(client, h, game["id"], "0001", day="2026-08-01")
+    _mk_active_pack(client, h, game["id"], "0002", day="2026-08-10")
+    early = client.get("/api/v2/lottery/day/2026-08-05", headers=h).json()
+    assert early["uncounted_active_packs"] == 1
+    assert [r["pack_number"] for r in early["rows"]] == ["0001"]
+    later = client.get("/api/v2/lottery/day/2026-08-10", headers=h).json()
+    assert later["uncounted_active_packs"] == 2

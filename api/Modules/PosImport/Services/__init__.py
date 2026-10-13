@@ -36,6 +36,7 @@ from api.Modules.PosImport.Services.ingest import (
     rebuild_transactions,
     register_label_for,
     set_mappings,
+    with_staged_events,
 )
 from api.Modules.PosImport.Services.naxml import (
     CARD_TENDER_CODES,
@@ -96,4 +97,5 @@ __all__ = [
     "parse_pjr",
     "register_label_for",
     "set_mappings",
+    "with_staged_events",
 ]

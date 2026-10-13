@@ -222,7 +222,9 @@ def record_day_count(
 ) -> LotteryDayCount:
     """Upsert the (store, date, pack) count with validation:
 
-    * pack must be active,
+    * pack must be active, and ``day`` not before its activation
+      (a settled / returned pack takes no counts at all, so no day
+      after ``settled_on`` can be counted either),
     * the count can't go backwards vs the previous reference,
     * the count can't exceed the pack size,
     * a LATER count for the pack must not become inconsistent
@@ -233,6 +235,14 @@ def record_day_count(
     if pack.status != "active":
         raise LotteryStateError(
             f"Counts can only be recorded for active packs (this one is {pack.status}).",
+        )
+    if pack.activated_on is not None and day < pack.activated_on:
+        # The opening ticket is the baseline from activation on — a
+        # count dated earlier would sell tickets from a pack that
+        # was still in the safe.
+        raise LotteryStateError(
+            f"This pack was activated on {pack.activated_on.isoformat()} "
+            f"— it can't be counted on {day.isoformat()}.",
         )
     if closing_ticket < 0:
         raise LotteryStateError("Ticket count cannot be negative.")
@@ -310,11 +320,14 @@ def day_summary(db: Session, store_id: int, day: date) -> DaySummary:
         .filter_by(store_id=store_id, report_date=day)
         .all()
     }
-    active = (
-        db.query(LotteryPack)
+    # A pack activated AFTER ``day`` was still in the safe that day —
+    # listing it would nag for a count the server refuses to take.
+    active = [
+        p for p in db.query(LotteryPack)
         .filter_by(store_id=store_id, status="active")
         .all()
-    )
+        if p.activated_on is None or p.activated_on <= day
+    ]
     pack_ids = {p.id for p in active} | set(counts.keys())
     packs = (
         db.query(LotteryPack)

@@ -482,3 +482,41 @@ def test_employee_cannot_update_or_delete_invoices(client, test_store_id):
     assert emp.put(url, headers=eh, json={"notes": "x"}).status_code == 403
     assert emp.delete(url, headers=eh).status_code == 403
     assert client.get(url, headers=h).status_code == 200
+
+
+def test_moving_invoice_to_vendor_that_has_its_number_is_409(
+    client, test_store_id,
+):
+    """Changing only the vendor must run the duplicate check on the
+    resulting (vendor, number) pair — it used to skip it and 500 on
+    the unique constraint."""
+    h = _admin(client, test_store_id)
+    v1 = _mk_vendor(client, h, "Vendor One")
+    v2 = _mk_vendor(client, h, "Vendor Two")
+    _mk_invoice(client, h, v1["id"], "100")
+    moved = _mk_invoice(client, h, v2["id"], "100")
+    url = f"/api/v2/catalog/invoices/{moved['id']}"
+    resp = client.put(url, headers=h, json={"vendor_id": v1["id"]})
+    assert resp.status_code == 409, resp.text
+    assert "already exists" in resp.json()["detail"]
+    # Nothing moved.
+    assert client.get(url, headers=h).json()["invoice"]["vendor_name"] \
+        == "Vendor Two"
+
+
+def test_invoice_vendor_change_without_clash_and_no_op_pair(
+    client, test_store_id,
+):
+    h = _admin(client, test_store_id)
+    v1 = _mk_vendor(client, h, "Vendor One")
+    v2 = _mk_vendor(client, h, "Vendor Two")
+    inv = _mk_invoice(client, h, v1["id"], "200")
+    url = f"/api/v2/catalog/invoices/{inv['id']}"
+    # Re-sending its own vendor + number is not a clash with itself.
+    assert client.put(url, headers=h, json={
+        "vendor_id": v1["id"], "invoice_number": "200",
+    }).status_code == 200
+    resp = client.put(url, headers=h, json={"vendor_id": v2["id"]})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["invoice"]["vendor_name"] == "Vendor Two"
+    assert resp.json()["invoice"]["invoice_number"] == "200"

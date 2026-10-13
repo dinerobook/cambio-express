@@ -443,22 +443,32 @@ def update_invoice(
     )
     if invoice is None:
         raise CatalogNotFoundError("Invoice not found.")
+    # (vendor, number) is unique per store, so the duplicate check
+    # runs on the pair the invoice ENDS UP with whenever either
+    # side changes — moving an invoice to a vendor that already has
+    # its number used to slip past and 500 on the constraint.
+    vendor_id = int(invoice.vendor_id)
+    number = str(invoice.invoice_number)
     if changes.get("vendor_id") is not None:
-        invoice.vendor_id = _resolve_vendor(
+        vendor_id = _resolve_vendor(
             db, store_id, int(changes["vendor_id"]),
         )
     if changes.get("invoice_number") is not None:
         number = str(changes["invoice_number"]).strip()
         if not number:
             raise CatalogConflictError("Invoice number is required.")
-        if _invoice_number_taken(
-            db, store_id, int(invoice.vendor_id), number,
-            exclude_id=invoice.id,
-        ):
-            raise CatalogConflictError(
-                f'Invoice "{number}" already exists for this vendor.'
-            )
-        invoice.invoice_number = number
+    if (
+        (vendor_id, number)
+        != (int(invoice.vendor_id), str(invoice.invoice_number))
+        and _invoice_number_taken(
+            db, store_id, vendor_id, number, exclude_id=invoice.id,
+        )
+    ):
+        raise CatalogConflictError(
+            f'Invoice "{number}" already exists for this vendor.'
+        )
+    invoice.vendor_id = vendor_id
+    invoice.invoice_number = number
     if changes.get("invoice_date") is not None:
         invoice.invoice_date = changes["invoice_date"]
     if "due_date" in changes:

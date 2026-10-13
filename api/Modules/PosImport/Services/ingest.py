@@ -21,14 +21,16 @@ safe and idempotent.
 """
 from __future__ import annotations
 
+import hashlib
 import io
+import re
 import zipfile
 from dataclasses import dataclass, field
 from datetime import date
 
 from sqlalchemy.orm import Session
 
-from api.Modules.DayClose.Models import Department
+from api.Modules.DayClose.Models import Department, RegisterClose
 from api.Modules.DayClose.Services import upsert_register_close
 from api.Modules.PosImport.Models import PosMerchandiseMap
 from api.Modules.PosImport.Services.naxml import (
@@ -59,12 +61,17 @@ class LoadedPayload:
     events: list[PjrEvent] = field(default_factory=list)
     parse_errors: list[str] = field(default_factory=list)  # "name: why"
     file_count: int = 0
+    # sha256 of every parsed file's bytes — lets a commit recognise a
+    # staged copy of a file the upload carries under another name.
+    content_hashes: set[str] = field(default_factory=set)
 
 
 def load_pjr_payload(data: bytes) -> LoadedPayload:
     """Decode an upload — a single PJR XML document or a ZIP of
     them — into parsed events. Individual bad files are reported,
-    not fatal; a payload with zero parseable events is."""
+    not fatal; a payload with zero parseable events is. Every event
+    carries a ``source_file`` (the persisted transaction's
+    idempotence key — without one ``rebuild_transactions`` skips it)."""
     if len(data) > MAX_PAYLOAD_BYTES:
         raise PosImportError("Upload too large.")
     loaded = LoadedPayload()
@@ -81,17 +88,34 @@ def load_pjr_payload(data: bytes) -> LoadedPayload:
             raise PosImportError("ZIP contains too many files.")
         for name in names:
             loaded.file_count += 1
+            # The member's basename — the same name the site agent
+            # stages the file under (``stage_journal_file``), so a
+            # manual upload and the agent agree on which file is
+            # which (``with_staged_events``).
+            base = name.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
             try:
                 with archive.open(name) as f:
-                    loaded.events.append(parse_pjr(f.read(4 * 1024 * 1024)))
+                    raw = f.read(4 * 1024 * 1024)
+                event = parse_pjr(raw)
             except PosJournalParseError as exc:
-                loaded.parse_errors.append(f"{name.rsplit('/', 1)[-1]}: {exc}")
+                loaded.parse_errors.append(f"{base}: {exc}")
+                continue
+            event.source_file = base
+            loaded.events.append(event)
+            loaded.content_hashes.add(hashlib.sha256(raw).hexdigest())
     else:
         loaded.file_count = 1
         try:
-            loaded.events.append(parse_pjr(data))
+            event = parse_pjr(data)
         except PosJournalParseError as exc:
             loaded.parse_errors.append(f"upload: {exc}")
+        else:
+            # No filename travels with a single-file upload; a
+            # content hash keys the persisted transaction instead.
+            digest = hashlib.sha256(data).hexdigest()
+            event.source_file = f"upload-{digest[:16]}.xml"
+            loaded.events.append(event)
+            loaded.content_hashes.add(digest)
     if not loaded.events:
         raise PosImportError(
             "No parseable POS journal files in the upload."
@@ -165,6 +189,68 @@ def mapping_status(
 
 
 # ── Commit ─────────────────────────────────────────────────
+
+
+def _event_identity(e: PjrEvent) -> tuple[str, str, str, str] | None:
+    """The POS event a journal file records, independent of its file
+    name — only when the file carries Passport's EventSequenceID
+    (the site's own monotonically increasing event counter); without
+    it two files are never assumed to be the same event."""
+    if not e.event_sequence_id:
+        return None
+    return (e.kind, e.register_id, e.event_sequence_id, e.transaction_id)
+
+
+def with_staged_events(
+    db: Session, store_id: int, day: date, loaded: LoadedPayload,
+) -> list[PjrEvent]:
+    """The upload's events plus the day's staged agent files the
+    upload does not already contain.
+
+    A commit rebuilds the day's hourly buckets, item movement and
+    transactions from the events it is given, replacing what was
+    stored. Committing an upload on its own therefore threw away
+    every staged file it did not repeat — a partial upload silently
+    truncated the day. A staged file is left out when the upload
+    holds the same file: same name, same bytes, or the same POS
+    event (sequence id), so nothing is counted twice. Unparseable
+    staged files are skipped, as ``staged_events_for_day`` does. A
+    store without the site agent has no staged files and gets the
+    upload unchanged."""
+    import gzip
+
+    from api.Modules.PosImport.Models import PosJournalFile
+
+    files = (
+        db.query(PosJournalFile)
+        .filter_by(store_id=store_id, business_date=day)
+        .order_by(PosJournalFile.id)
+        .all()
+    )
+    events = list(loaded.events)
+    if not files:
+        return events
+    names = {e.source_file for e in events if e.source_file}
+    identities = {
+        ident for ident in (_event_identity(e) for e in events)
+        if ident is not None
+    }
+    for f in files:
+        if f.filename in names:
+            continue
+        try:
+            raw = gzip.decompress(f.content_gz)
+            event = parse_pjr(raw)
+        except (PosJournalParseError, OSError):
+            continue
+        if hashlib.sha256(raw).hexdigest() in loaded.content_hashes:
+            continue
+        ident = _event_identity(event)
+        if ident is not None and ident in identities:
+            continue
+        event.source_file = f.filename
+        events.append(event)
+    return events
 
 
 def register_label_for(register_key: str) -> str:
@@ -381,6 +467,19 @@ def rebuild_transactions(
     return written
 
 
+_IMPORT_NOTE_PREFIX = "Imported from Gilbarco journal — "
+_IMPORT_NOTE_RE = re.compile(
+    re.escape(_IMPORT_NOTE_PREFIX) + r"\d+ sales(, \d+ refunds)?",
+)
+
+
+def _is_import_note(notes: str | None) -> bool:
+    """True when ``notes`` is blank or exactly what an import wrote
+    (safe to refresh); anything else was typed by a person."""
+    text = (notes or "").strip()
+    return not text or _IMPORT_NOTE_RE.fullmatch(text) is not None
+
+
 @dataclass
 class CommitDayResult:
     day: date
@@ -421,9 +520,27 @@ def commit_business_day(
         }
         label = register_label_for(agg.register_id)
         note = (
-            f"Imported from Gilbarco journal — {agg.sale_count} sales"
+            f"{_IMPORT_NOTE_PREFIX}{agg.sale_count} sales"
             + (f", {agg.refund_count} refunds" if agg.refund_count else "")
         )
+        # The journal knows the register's totals, not what the
+        # cashier counted or wrote: a re-commit keeps the drawer
+        # count and any note a person typed on the close.
+        existing = (
+            db.query(RegisterClose)
+            .filter_by(
+                store_id=store_id, report_date=day,
+                register_label=label, shift_label="",
+            )
+            .first()
+        )
+        cash_counted = (
+            float(existing.cash_counted)
+            if existing is not None and existing.cash_counted is not None
+            else None
+        )
+        if existing is not None and not _is_import_note(existing.notes):
+            note = str(existing.notes)
         upsert_register_close(
             db, store_id, day,
             register_label=label,
@@ -433,7 +550,7 @@ def commit_business_day(
             cash_total=agg.cash_cents / 100.0,
             card_total=agg.card_cents / 100.0,
             other_total=agg.other_tender_cents / 100.0,
-            cash_counted=None,
+            cash_counted=cash_counted,
             notes=note[:500],
             department_sales=dept_sales,
             created_by=created_by,
@@ -454,5 +571,5 @@ __all__ = [
     "list_mappings", "load_pjr_payload", "mapping_status",
     "rebuild_hourly_sales", "rebuild_item_day_sales",
     "rebuild_transactions",
-    "register_label_for", "set_mappings",
+    "register_label_for", "set_mappings", "with_staged_events",
 ]
