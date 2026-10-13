@@ -7588,6 +7588,16 @@ export interface components {
              */
             notes: string;
             /**
+             * Payout Credit
+             * @default 0
+             */
+            payout_credit: number;
+            /**
+             * Payout Credit Next
+             * @default 0
+             */
+            payout_credit_next: number;
+            /**
              * Reconciled
              * @default false
              */

@@ -35,6 +35,7 @@ const existing = {
   transfers_total: 1200, variance: 34.5, transfer_count: 3,
   expected_ach: 1200, card_credit: 0, card_credit_from: "",
   card_credit_next: 0, card_credit_next_to: "",
+  payout_credit: 0, payout_credit_next: 0,
 };
 
 function renderForm(path: string) {
@@ -151,7 +152,8 @@ describe("BatchForm", () => {
     useBatch.mockReturnValue({
       data: { batch: {
         ...existing, transfers_total: 303, card_credit: 106,
-        card_credit_from: "ACH-76", expected_ach: 197, ach_amount: 190,
+        payout_credit: 40,
+        card_credit_from: "ACH-76", expected_ach: 157, ach_amount: 150,
         variance: -7, transfer_count: 1,
       } },
       isLoading: false,
@@ -161,8 +163,9 @@ describe("BatchForm", () => {
     expect(screen.getByText("$303.00")).toBeInTheDocument();
     expect(screen.getByText("1 transfer")).toBeInTheDocument();
     expect(screen.getByText("-$106.00")).toBeInTheDocument();
-    expect(screen.getByText("From batch ACH-76")).toBeInTheDocument();
-    expect(screen.getByText("$197.00")).toBeInTheDocument();
+    expect(screen.getByText("-$40.00")).toBeInTheDocument();
+    expect(screen.getAllByText("From batch ACH-76")).toHaveLength(2);
+    expect(screen.getByText("$157.00")).toBeInTheDocument();
     expect(screen.getByText("-$7.00")).toBeInTheDocument();
   });
 
@@ -184,7 +187,21 @@ describe("BatchForm", () => {
     renderForm("/batches/7/edit");
     expect(screen.getByText(/credited on this company's next ACH, once it is entered/))
       .toBeInTheDocument();
-    expect(screen.getByText("None from a previous batch")).toBeInTheDocument();
+    expect(screen.getAllByText("None from a previous batch")).toHaveLength(2);
+  });
+
+  it("names both card sends and payouts credited on the next batch", () => {
+    useBatch.mockReturnValue({
+      data: { batch: {
+        ...existing, card_credit_next: 52.5, payout_credit_next: 60,
+        card_credit_next_to: "ACH-78",
+      } },
+      isLoading: false,
+    });
+    renderForm("/batches/7/edit");
+    expect(screen.getByText(
+      "$52.50 paid by debit card and $60.00 paid out on this batch are credited on batch ACH-78.",
+    )).toBeInTheDocument();
   });
 
   it("shows no expected ACH on a new batch", () => {

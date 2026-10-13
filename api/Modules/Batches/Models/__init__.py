@@ -71,22 +71,20 @@ class ACHBatch(Base):
         return to_dollars(self.transfers_total_cents)
 
     @property
-    def card_credit_cents(self) -> int:
-        """Debit card credit this ACH carries: what customers paid by
-        card on the company's previous batch (Services/batches.py)."""
-        from api.Modules.Batches.Services.batches import (
-            card_credits_for_store,
-        )
+    def credit_cents(self) -> int:
+        """Credits this ACH carries: the debit card sends and payouts
+        of the company's previous batch (Services/batches.py)."""
+        from api.Modules.Batches.Services.batches import credits_for_store
         s = Session.object_session(self)
         if s is None or self.id is None:
             return 0
-        credit = card_credits_for_store(s, int(self.store_id)).get(int(self.id))
+        credit = credits_for_store(s, int(self.store_id)).get(int(self.id))
         return credit.credit_cents if credit else 0
 
     @property
     def variance_cents(self) -> int:
         return (int(self.ach_amount_cents or 0) - self.transfers_total_cents
-                + self.card_credit_cents)
+                + self.credit_cents)
 
     @property
     def variance(self) -> float:
