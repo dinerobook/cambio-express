@@ -121,6 +121,7 @@ def issue_pending_2fa_token(
     user_id: int,
     *,
     ttl_seconds: int = DEFAULT_PENDING_2FA_TTL_SECONDS,
+    enroll: bool = False,
 ) -> str:
     """Mint a short-lived JWT representing "this user has passed
     password auth but still needs to clear the 2FA hop". The
@@ -130,14 +131,22 @@ def issue_pending_2fa_token(
     Carries `purpose: "totp-pending"` so it can't be smuggled into
     an Authorization header — `decode_access_token` rejects any
     token with a purpose claim.
+
+    ``enroll=True`` marks a token minted for a user who had NOT yet
+    enrolled when they passed the password check. Only such a token
+    may drive ``/auth/login/totp/enroll/*``: a pending token minted
+    for an already-enrolled user must clear a real second factor,
+    never "enroll" its way past it.
     """
     now = _now()
-    payload = {
+    payload: dict[str, Any] = {
         "sub": str(user_id),
         "purpose": "totp-pending",
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(seconds=ttl_seconds)).timestamp()),
     }
+    if enroll:
+        payload["enroll"] = True
     return jwt.encode(payload, _secret(), algorithm=JWT_ALGORITHM)
 
 

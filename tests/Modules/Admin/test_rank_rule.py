@@ -409,3 +409,198 @@ def test_rank_helpers():
         ("transfers", "update"), ("transfers", "read"),
     }
     assert grants_beyond_ceiling(admin, 1, {("transfers", "delete")}) == []
+
+
+# ── Bug hunt 2026-10-13: the Employees hub and saved roles ──
+#
+# The hub's HR record carries the login's identifier: linking a
+# record to the admin's login and then PATCHing the record's email
+# rewrote the admin's username, so an employee with the Team
+# permission could take the admin's sign-in over. Saved roles own
+# their members' overlays, so editing a role an admin wears
+# rewrote the admin's access.
+
+
+def _admin_username(admin_id):
+    from api.Modules.Tenancy.Models import User
+    with db_session():
+        u = db.session.get(User, admin_id)
+        return u.username, u.email
+
+
+def test_employee_cannot_link_or_reidentify_an_admin_login(
+    client, test_store_id, test_admin_id,
+):
+    admin_tok = login_admin(client, test_store_id)
+    # An admin's own HR record, linked to the admin login (legit).
+    r = client.post(
+        "/api/v2/admin/employees", headers=_h(admin_tok),
+        json={"name": "Store Admin", "user_id": test_admin_id},
+    )
+    assert r.status_code == 201, r.text
+    admin_rec = r.get_json()["id"]
+    before = _admin_username(test_admin_id)
+
+    restore = _give_employee_team_rights(test_store_id, create=True)
+    try:
+        buddy = _mk_user(test_store_id, "hub.buddy@test.com")
+        _mk_user(test_store_id, "hub.emp@test.com")
+        tok = login_employee(
+            client, test_store_id, "hub.emp@test.com", password="pw12345678",
+        )
+
+        # Deny: create a record pointing at the admin's login.
+        r = client.post(
+            "/api/v2/admin/employees", headers=_h(tok),
+            json={"name": "Boss record", "user_id": test_admin_id},
+        )
+        assert r.status_code == 403, r.text
+        # Deny: move the admin's sign-in through their HR record.
+        for body in ({"email": "attacker@evil.com"},
+                     {"phone": "+1 305 555 0100"}):
+            r = client.patch(
+                f"/api/v2/admin/employees/{admin_rec}", headers=_h(tok),
+                json=body,
+            )
+            assert r.status_code == 403, (body, r.text)
+        assert _admin_username(test_admin_id) == before
+        # Deny: unlink the admin, or relink their record elsewhere.
+        r = client.delete(
+            f"/api/v2/admin/employees/{admin_rec}/link", headers=_h(tok),
+        )
+        assert r.status_code == 403, r.text
+        r = client.post(
+            f"/api/v2/admin/employees/{admin_rec}/link", headers=_h(tok),
+            json={"user_id": buddy},
+        )
+        assert r.status_code == 403, r.text
+        # Deny: link a fresh record to the admin's login.
+        r = client.post(
+            "/api/v2/admin/employees", headers=_h(tok),
+            json={"name": "Plain record"},
+        )
+        assert r.status_code == 201, r.text
+        plain = r.get_json()["id"]
+        r = client.post(
+            f"/api/v2/admin/employees/{plain}/link", headers=_h(tok),
+            json={"user_id": test_admin_id},
+        )
+        assert r.status_code == 403, r.text
+
+        # Grant: the same moves on a colleague at their own rank.
+        r = client.post(
+            f"/api/v2/admin/employees/{plain}/link", headers=_h(tok),
+            json={"user_id": buddy},
+        )
+        assert r.status_code == 200, r.text
+        r = client.patch(
+            f"/api/v2/admin/employees/{plain}", headers=_h(tok),
+            json={"email": "hub.buddy2@test.com"},
+        )
+        assert r.status_code == 200, r.text
+        r = client.delete(
+            f"/api/v2/admin/employees/{plain}/link", headers=_h(tok),
+        )
+        assert r.status_code == 200, r.text
+        r = client.post(
+            "/api/v2/admin/employees", headers=_h(tok),
+            json={"name": "Buddy record", "user_id": buddy},
+        )
+        assert r.status_code == 201, r.text
+        # HR-only fields on the admin's record do not touch a login.
+        r = client.patch(
+            f"/api/v2/admin/employees/{admin_rec}", headers=_h(tok),
+            json={"address_line1": "1 Main St"},
+        )
+        assert r.status_code == 200, r.text
+    finally:
+        restore()
+
+    # The admin still re-identifies their own record's login.
+    r = client.patch(
+        f"/api/v2/admin/employees/{admin_rec}", headers=_h(admin_tok),
+        json={"email": "admin.moved@test.com"},
+    )
+    assert r.status_code == 200, r.text
+    assert _admin_username(test_admin_id)[0] == "admin.moved@test.com"
+
+
+def test_employee_cannot_edit_or_delete_a_role_an_admin_wears(
+    client, test_store_id,
+):
+    from api.Core.Permissions import permissions_for
+    admin_tok = login_admin(client, test_store_id)
+    admin2 = _mk_user(test_store_id, "role.admin2@test.com", role="admin")
+    r = client.post(
+        "/api/v2/admin/roles", headers=_h(admin_tok),
+        json={"name": "Mgr", "matrix": _all_on()},
+    )
+    assert r.status_code == 201, r.text
+    rid = r.get_json()["id"]
+    r = client.put(
+        f"/api/v2/admin/users/{admin2}/role", headers=_h(admin_tok),
+        json={"role_id": rid},
+    )
+    assert r.status_code == 200, r.text
+    # A role only employees wear, for the grant case.
+    r = client.post(
+        "/api/v2/admin/roles", headers=_h(admin_tok),
+        json={"name": "Floor", "matrix": {"time_clock": {"read": True}}},
+    )
+    floor = r.get_json()["id"]
+    emp = _mk_user(test_store_id, "role.floor@test.com")
+    r = client.put(
+        f"/api/v2/admin/users/{emp}/role", headers=_h(admin_tok),
+        json={"role_id": floor},
+    )
+    assert r.status_code == 200, r.text
+    perms_before = sorted(
+        permissions_for("admin", store_id=test_store_id, user_id=admin2)
+    )
+
+    restore = _give_employee_team_rights(test_store_id)
+    try:
+        _mk_user(test_store_id, "role.emp@test.com")
+        tok = login_employee(
+            client, test_store_id, "role.emp@test.com", password="pw12345678",
+        )
+        empty = {k: {a: False for a in v} for k, v in _all_on().items()}
+        r = client.put(
+            f"/api/v2/admin/roles/{rid}", headers=_h(tok),
+            json={"matrix": empty},
+        )
+        assert r.status_code == 403, r.text
+        r = client.put(
+            f"/api/v2/admin/roles/{rid}", headers=_h(tok),
+            json={"name": "Renamed"},
+        )
+        assert r.status_code == 403, r.text
+        r = client.delete(f"/api/v2/admin/roles/{rid}", headers=_h(tok))
+        assert r.status_code == 403, r.text
+        assert sorted(
+            permissions_for("admin", store_id=test_store_id, user_id=admin2)
+        ) == perms_before
+        # Unknown role is still a 404, not a 403.
+        r = client.put(
+            "/api/v2/admin/roles/999999", headers=_h(tok),
+            json={"name": "x"},
+        )
+        assert r.status_code == 404, r.text
+
+        # Grant: a role only employees wear stays editable.
+        r = client.put(
+            f"/api/v2/admin/roles/{floor}", headers=_h(tok),
+            json={"name": "Floor staff"},
+        )
+        assert r.status_code == 200, r.text
+    finally:
+        restore()
+
+    # The admin still edits and deletes the admin-worn role.
+    r = client.put(
+        f"/api/v2/admin/roles/{rid}", headers=_h(admin_tok),
+        json={"name": "Managers"},
+    )
+    assert r.status_code == 200, r.text
+    r = client.delete(f"/api/v2/admin/roles/{rid}", headers=_h(admin_tok))
+    assert r.status_code == 200, r.text

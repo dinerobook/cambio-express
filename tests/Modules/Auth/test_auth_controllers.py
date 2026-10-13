@@ -380,6 +380,162 @@ def test_logout_revokes_refresh_token(test_store_id, client):
     assert replay.status_code == 401
 
 
+# ── PWA body fallback (bug hunt 2026-10-13) ─────────────────
+#
+# The body fallback read the request body with asyncio inside the
+# threadpool, which always raised and was swallowed, so a PWA whose
+# window dropped the httpOnly cookie was signed out on every launch.
+
+
+def _admin_login_jti(api_client, test_store_id):
+    resp = api_client.post("/auth/login", json={
+        "username": "admin@test.com", "password": "testpass123!",
+        "store_id": test_store_id,
+    })
+    assert resp.status_code == 200, resp.text
+    jti = resp.json()["refresh_jti"]
+    assert jti
+    return jti
+
+
+def test_refresh_accepts_the_jti_in_the_body_without_a_cookie(
+    test_store_id, api_client,
+):
+    jti = _admin_login_jti(api_client, test_store_id)
+    from asgi import asgi_app
+    with TestClient(asgi_app) as fresh:  # no cookies at all
+        resp = fresh.post(
+            "/api/v2/auth/refresh", json={"refresh_token": jti},
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["username"] == "admin@test.com"
+
+
+def test_refresh_body_with_an_unknown_jti_is_401(api_client):
+    from asgi import asgi_app
+    with TestClient(asgi_app) as fresh:
+        resp = fresh.post(
+            "/api/v2/auth/refresh", json={"refresh_token": "not-a-jti"},
+        )
+        assert resp.status_code == 401
+        resp = fresh.post("/api/v2/auth/refresh", json={})
+        assert resp.status_code == 401
+
+
+def test_refresh_cookie_wins_over_the_body(test_store_id, client):
+    """A live cookie is used even when the body carries junk."""
+    client.post("/api/v2/auth/login", json={
+        "username": "admin@test.com", "password": "testpass123!",
+        "store_id": test_store_id,
+    })
+    resp = client.post(
+        "/api/v2/auth/refresh", json={"refresh_token": "junk"},
+    )
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+
+
+# ── Passwords end sessions (bug hunt 2026-10-13) ────────────
+
+
+def _two_admin_sessions(api_client, test_store_id):
+    tokens = []
+    for _ in range(2):
+        resp = api_client.post("/auth/login", json={
+            "username": "admin@test.com", "password": "testpass123!",
+            "store_id": test_store_id,
+        })
+        assert resp.status_code == 200, resp.text
+        tokens.append(resp.json()["access_token"])
+    return tokens
+
+
+def _me(api_client, token):
+    return api_client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {token}"},
+    ).status_code
+
+
+def test_change_password_signs_out_other_sessions_only(
+    test_store_id, api_client,
+):
+    other, current = _two_admin_sessions(api_client, test_store_id)
+    resp = api_client.post(
+        "/auth/change-password",
+        headers={"Authorization": f"Bearer {current}"},
+        json={"current_password": "testpass123!",
+              "new_password": "newpass-123456",
+              "confirm_password": "newpass-123456"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert _me(api_client, current) == 200   # this device stays in
+    assert _me(api_client, other) == 401     # the other one is out
+
+
+def test_failed_change_password_signs_nobody_out(
+    test_store_id, api_client,
+):
+    other, current = _two_admin_sessions(api_client, test_store_id)
+    resp = api_client.post(
+        "/auth/change-password",
+        headers={"Authorization": f"Bearer {current}"},
+        json={"current_password": "wrong-password",
+              "new_password": "newpass-123456",
+              "confirm_password": "newpass-123456"},
+    )
+    assert resp.status_code == 422
+    assert _me(api_client, other) == 200
+    assert _me(api_client, current) == 200
+
+
+def _reset_token_for(username):
+    from api.Modules.Auth.Services.password_reset import (
+        issue_password_reset_token,
+    )
+    with db_session():
+        issued = issue_password_reset_token(db.session, username)
+        assert issued is not None
+        db.session.commit()
+        return issued.raw_token
+
+
+def test_reset_password_signs_out_every_session(test_store_id, api_client):
+    a, b = _two_admin_sessions(api_client, test_store_id)
+    raw = _reset_token_for("admin@test.com")
+    resp = api_client.post("/auth/reset-password", json={
+        "token": raw, "new_password": "resetpass-123",
+        "confirm_password": "resetpass-123",
+    })
+    assert resp.status_code == 200, resp.text
+    assert _me(api_client, a) == 401
+    assert _me(api_client, b) == 401
+    # The new password signs in.
+    resp = api_client.post("/auth/login", json={
+        "username": "admin@test.com", "password": "resetpass-123",
+        "store_id": test_store_id,
+    })
+    assert resp.status_code == 200
+
+
+def test_bad_reset_token_signs_nobody_out(test_store_id, api_client):
+    a, _b = _two_admin_sessions(api_client, test_store_id)
+    resp = api_client.post("/auth/reset-password", json={
+        "token": "not-a-token", "new_password": "resetpass-123",
+        "confirm_password": "resetpass-123",
+    })
+    assert resp.status_code == 400
+    assert _me(api_client, a) == 200
+
+
+def test_password_and_signup_routes_are_rate_limited():
+    from api.Core.RateLimit import limiter as slow_limiter
+    mod = "api.Modules.Auth.Controllers"
+    for fn in (
+        "change_password_route", "reset_password_route",
+        "signup_route", "signup_owner_route",
+    ):
+        assert f"{mod}.{fn}" in slow_limiter._route_limits, fn
+
+
 
 def test_openapi_includes_auth_paths(api_client):
     resp = api_client.get("/openapi.json")
