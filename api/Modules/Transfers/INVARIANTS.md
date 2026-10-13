@@ -114,7 +114,7 @@ API's `payment_method` field, the `paid_by` audit label).
   federal_tax`) on its NEXT invoice: the same company's next batch by
   `(ach_date, id)`. That batch expects `transfers_total -
   card_credit`, and its variance is measured against that
-  (`Batches/Services/batches.py::card_credits_for_store`; the model's
+  (`Batches/Services/batches.py::credits_for_store`; the model's
   `ACHBatch.variance_cents` agrees). Until the company has a later
   batch the credit shows as pending on the batch it came from.
   `tests/Modules/Batches/test_batch_card_credits.py` pins this.
@@ -147,6 +147,11 @@ check_payment_rules` on create AND update (422):
   `Transfer.is_send` next to the status filter.
 - `total_collected` keeps its formula; on a payout it equals the
   amount paid out (fee and tax are 0). The SPA shows it as cash out.
+- ACH batches: a payout is never invoiced (it stays out of
+  `transfers_total`), and the company credits the amount paid out
+  (`send_amount`) on its NEXT invoice, exactly like a debit card
+  send's credit ("Debit card sends" above): the company's next batch
+  expects `transfers_total - card_credit - payout_credit`.
 - The daily book takes the company's payouts OFF its cash (DailyBook
   INVARIANTS "Debit card and payouts"); the transfer log's auto figure
   is Σ `send_amount` of the day's payouts, and a payout never counts
@@ -390,8 +395,9 @@ in the same spot, so the form must be safe to resubmit.
   into ACH batches. `ACHBatch.transfers_total = Σ (send_amount
   + federal_tax)` (NOT plus fee — fee is store revenue and
   doesn't ride the ACH). Breaking the fee-vs-tax split here
-  silently corrupts batch totals. Debit card sends are credited back
-  on the company's next batch ("Debit card sends" above).
+  silently corrupts batch totals. Debit card sends and payouts are
+  credited back on the company's next batch ("Debit card sends" /
+  "Payouts" above).
 - **Monthly P&L** (`api/Modules/Monthly/`): sums transfer
   `(send_amount + fee + federal_tax)` into the monthly receipt
   line. Reads from `msb_transfer` directly + the per-(store, date,
@@ -440,6 +446,34 @@ are load-bearing on hot-path queries:
 matching report at scale first (`pytest tests/test_transfer_
 indexes.py` covers the EXPLAIN plans).
 
+## Company + country pick-lists come from Settings
+
+The transfer form's **Company** and **Country** pickers are the
+store's own lists, both managed under Settings → General, read by
+`GET /transfers/choices` (`form_choices`):
+
+- **Companies** = `store_mt_companies(store)`, the ACTIVE money
+  transfer company roster. The MSB daily book breaks down by the
+  very same list, so a company added or switched off in Settings
+  reaches both at once. Never hard-code companies in the SPA again
+  (that was the 2026-10-13 bug: the form had its own list of ten).
+  The ACH batch form picks from the same list.
+- **Countries** = `store_transfer_countries(store)` over the
+  nullable `tenancy_store.transfer_countries` CSV. NULL = the
+  built-in `TRANSFER_COUNTRIES` the form always showed, so no store
+  sees a change until its admin edits the list.
+- The lists only drive the pickers. The server does not refuse a
+  company or country that is off the list, because a saved transfer
+  keeps what it was saved with: an edit offers the saved value after
+  the store's list (`choicesWith`) and sends it back unchanged.
+  Removing one in Settings never rewrites history. The federal-tax
+  rule still keys on the country NAME (`DOMESTIC_COUNTRIES`).
+- `Transfer.company` is `String(30)`, so a NEW roster name is capped
+  at 30 characters (`MAX_TRANSFER_COMPANY_NAME_LEN`); a longer name
+  a store already had stays savable.
+- `GET /transfers/choices` opens with `transfers.read` OR
+  `batches.read` (both forms need it) and needs a store scope.
+
 ## What's safe to change
 
 - Adding a new optional column to `Transfer` (with a migration,
@@ -473,6 +507,10 @@ What needs a design discussion FIRST:
 
 `tests/Modules/Transfers/` covers:
 
+- `test_transfer_choices.py` — the company + country lists: the
+  endpoint (grant, deny, revoke, store scope), the Settings write
+  for countries, the company-name cap, and that a saved transfer
+  keeps a company / country that left the lists.
 - `test_debit_card_and_payouts.py` — payment method + payout rules
   on create / update (grant, deny, 422s, audit), the list filters,
   `page_amount`, the receipt, batch totals and the employee

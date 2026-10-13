@@ -33,7 +33,9 @@ from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
-from api.Modules.Auth.Services.principal import require_permission
+from api.Modules.Auth.Services.principal import (
+    has_permission, require_permission,
+)
 from api.Modules.Transfers.Models import PAYMENT_CASH
 from api.Modules.Transfers.Repositories import (
     TransferFilters,
@@ -45,6 +47,7 @@ from api.Modules.Transfers.Requests import (
     ReceiptStore,
     ReceiptTransfer,
     RosterResponse,
+    TransferChoicesResponse,
     TransferDetail,
     TransferListResponse,
     TransferReceiptResponse,
@@ -56,9 +59,11 @@ from api.Modules.Transfers.Services import (
     TransferNotFoundError,
     active_roster,
     create_transfer,
+    form_choices,
     delete_transfer,
     find_replayed_transfer,
     list_transfers,
+
     normalize_service_type,
     parse_dob,
     update_transfer,
@@ -152,6 +157,32 @@ def employees_route(
     return RosterResponse(
         employees=[EmployeeRow(id=r.id, name=r.name or "") for r in rows],
     )
+
+
+@router.get("/choices", response_model=TransferChoicesResponse)
+def choices_route(
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> TransferChoicesResponse:
+    """The company + country pick-lists for the JWT principal's
+    store. The transfer form and the ACH batch form both read them,
+    so either right opens it: ``transfers.read`` or ``batches.read``.
+    403 for anyone with neither, and for a principal without a store
+    scope (superadmin) since the lists are per store."""
+    if not (has_permission(claims, "transfers", "read")
+            or has_permission(claims, "batches", "read")):
+        require_permission(claims, "transfers", "read")
+    store_id = claims.get("store_id")
+    if store_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "JWT does not carry a store scope. Sign in as a store "
+                "admin or owner to load the store's lists."
+            ),
+        )
+    companies, countries = form_choices(db, int(store_id))
+    return TransferChoicesResponse(companies=companies, countries=countries)
 
 
 @router.get("", response_model=TransferListResponse)
