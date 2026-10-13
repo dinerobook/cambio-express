@@ -31,6 +31,7 @@ TRANSFER_AUDIT_FIELDS: list[tuple[str, str]] = [
     ("send_date",       "Send date"),
     ("company",         "Company"),
     ("service_type",    "Service"),
+    ("paid_by",         "Paid by"),
     ("sender_name",     "Sender"),
     ("send_amount",     "Amount"),
     ("fee",             "Fee"),

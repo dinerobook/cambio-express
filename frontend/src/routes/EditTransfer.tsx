@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate, useParams } from "react-router-dom";
 
+import DebitCardCheckbox from "../components/DebitCardCheckbox";
 import SenderAutocomplete from "../components/SenderAutocomplete";
 import RecipientSuggestions from "../components/RecipientSuggestions";
 import {
@@ -23,20 +24,10 @@ import { useStoreInfo } from "../api/account";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
+import {
+  COMPANIES, COUNTRIES, SERVICES, STATUSES, isPayout, transferWording,
+} from "../lib/transferKinds";
 import styles from "./EditTransfer.module.css";
-
-const COMPANIES = [
-  "Intermex", "Maxi", "Barri", "Sigue", "Vigo", "Western Union",
-  "MoneyGram", "Cibao", "RIA", "Other",
-] as const;
-const SERVICES = [
-  "Money Transfer", "Bill Payment", "Top Up", "Recharge",
-] as const;
-const COUNTRIES = [
-  "United States", "Mexico", "Guatemala", "El Salvador", "Honduras",
-  "Dominican Republic", "Colombia", "Ecuador", "Peru", "Other",
-] as const;
-const STATUSES = ["Sent", "Pending", "Cancelled", "Returned"] as const;
 
 
 // ── Validation schema ──────────────────────────────────────────
@@ -49,9 +40,10 @@ const editSchema = z.object({
   send_date: z.string().min(1, "Date is required"),
   company: z.enum(COMPANIES),
   service_type: z.enum(SERVICES),
+  payment_method: z.enum(["cash", "debit_card"]),
   status: z.enum(STATUSES),
 
-  sender_name: z.string().min(1, "Sender name is required"),
+  sender_name: z.string().min(1, "Name is required"),
   sender_phone_country: z.string(),
   sender_phone: z.string(),
   sender_address: z.string(),
@@ -62,7 +54,7 @@ const editSchema = z.object({
   recipient_name: z.string(),
   recipient_phone: z.string(),
 
-  send_amount: z.number().positive("Send amount must be > 0"),
+  send_amount: z.number().positive("Amount must be > 0"),
   fee: z.number().min(0, "Fee must be ≥ 0"),
   confirm_number: z.string(),
 
@@ -80,6 +72,7 @@ const defaultValues: EditFormValues = {
   send_date: "",
   company: "Intermex",
   service_type: "Money Transfer",
+  payment_method: "cash",
   status: "Sent",
   sender_name: "",
   sender_phone_country: "+1",
@@ -109,8 +102,8 @@ export default function EditTransfer() {
   const storeInfo = useStoreInfo();
 
   const {
-    register, handleSubmit, control, setValue, setError, clearErrors,
-    reset, formState: { errors, isSubmitting, isDirty },
+    register, handleSubmit, control, setValue, getValues, setError,
+    clearErrors, reset, formState: { errors, isSubmitting, isDirty },
   } = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
     defaultValues,
@@ -131,6 +124,7 @@ export default function EditTransfer() {
       service_type: (SERVICES as readonly string[]).includes(t.service_type)
         ? (t.service_type as (typeof SERVICES)[number])
         : "Money Transfer",
+      payment_method: t.payment_method === "debit_card" ? "debit_card" : "cash",
       status: (STATUSES as readonly string[]).includes(t.status)
         ? (t.status as (typeof STATUSES)[number])
         : "Sent",
@@ -167,6 +161,19 @@ export default function EditTransfer() {
   const serviceType = useWatch({ control, name: "service_type" });
   const country = useWatch({ control, name: "country" });
   const customerId = useWatch({ control, name: "customer_id" });
+  const payout = isPayout(serviceType);
+  const words = transferWording(serviceType);
+
+  // A payout is cash handed to the recipient: never by card, never a
+  // fee (the server refuses both). Clear them when Payout is picked —
+  // only on a change, so hydrating a saved payout doesn't dirty the form.
+  useEffect(() => {
+    if (!payout) return;
+    if (getValues("payment_method") !== "cash") {
+      setValue("payment_method", "cash", { shouldDirty: true });
+    }
+    if (getValues("fee") !== 0) setValue("fee", 0, { shouldDirty: true });
+  }, [payout, getValues, setValue]);
 
   // Warn before losing unsaved edits: browser prompt on close/refresh +
   // an in-app discard confirm on Cancel, via the shared guard.
@@ -284,11 +291,23 @@ export default function EditTransfer() {
                 </Select>
               </Field>
             </div>
+            {!payout && (
+              <Controller
+                control={control}
+                name="payment_method"
+                render={({ field }) => (
+                  <DebitCardCheckbox
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            )}
           </Section>
         </Card>
 
         <Card>
-          <Section title="Sender">
+          <Section title={words.customer}>
             <div className={styles.grid}>
               <Field label="Full name" highlight={!!errors.sender_name}>
                 <Controller
@@ -339,7 +358,7 @@ export default function EditTransfer() {
         </Card>
 
         <Card>
-          <Section title="Recipient">
+          <Section title={words.other}>
             <RecipientSuggestions
               customerId={customerId ?? null}
               storeId={identity.store_id}
@@ -358,15 +377,15 @@ export default function EditTransfer() {
               }}
             />
             <div className={styles.grid}>
-              <Field label="Country">
+              <Field label={words.country}>
                 <Select {...register("country")}>
                   {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </Select>
               </Field>
-              <Field label="Recipient name">
+              <Field label={words.otherName}>
                 <Input type="text" {...register("recipient_name")} />
               </Field>
-              <Field label="Recipient phone">
+              <Field label={words.otherPhone}>
                 <Input type="tel" {...register("recipient_phone")} />
               </Field>
             </div>
@@ -381,25 +400,27 @@ export default function EditTransfer() {
                 name="send_amount"
                 render={({ field }) => (
                   <MoneyInput
-                    label="Send amount"
+                    label={words.amount}
                     value={field.value ?? 0}
                     onChange={field.onChange}
                     error={errors.send_amount?.message}
                   />
                 )}
               />
-              <Controller
-                control={control}
-                name="fee"
-                render={({ field }) => (
-                  <MoneyInput
-                    label="Fee"
-                    value={field.value ?? 0}
-                    onChange={field.onChange}
-                    error={errors.fee?.message}
-                  />
-                )}
-              />
+              {!payout && (
+                <Controller
+                  control={control}
+                  name="fee"
+                  render={({ field }) => (
+                    <MoneyInput
+                      label="Fee"
+                      value={field.value ?? 0}
+                      onChange={field.onChange}
+                      error={errors.fee?.message}
+                    />
+                  )}
+                />
+              )}
               <Field
                 label={
                   (storeInfo.data?.store.federal_tax_rate ?? 0) > 0

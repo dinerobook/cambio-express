@@ -105,6 +105,7 @@ def compute_daily_totals(
               Transfer.store_id == store_id,
               Transfer.send_date == on_date,
               Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+              Transfer.is_send,  # a payout is cash out, not volume
           )
           .all()
     )

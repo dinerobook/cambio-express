@@ -90,6 +90,7 @@ def dashboard_context(db: Session, user, period: str) -> dict[str, Any]:
             Transfer.send_date >= d30_ago,
             Transfer.send_date <= today,
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .group_by(Transfer.send_date)
         .all()
@@ -118,6 +119,7 @@ def dashboard_context(db: Session, user, period: str) -> dict[str, Any]:
             Transfer.store_id.in_(store_ids),
             Transfer.send_date >= start, Transfer.send_date <= end,
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .group_by(Transfer.company)
         .order_by(
@@ -143,6 +145,7 @@ def dashboard_context(db: Session, user, period: str) -> dict[str, Any]:
             Transfer.store_id.in_(store_ids),
             Transfer.send_date >= start, Transfer.send_date <= end,
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .group_by(Transfer.store_id)
         .all()
@@ -270,6 +273,7 @@ def locations_payload(
             Transfer.store_id.in_(visible_ids),
             Transfer.send_date >= start, Transfer.send_date <= end,
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .group_by(Transfer.store_id)
         .all()
@@ -309,6 +313,7 @@ def locations_payload(
             Transfer.store_id.in_(visible_ids),
             Transfer.send_date >= start, Transfer.send_date <= end,
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .group_by(Transfer.store_id, Transfer.company)
         .all()

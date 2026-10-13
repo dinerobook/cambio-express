@@ -168,6 +168,10 @@ export interface EmployeeTodayRow {
   created_at: string | null;
   sender_name: string;
   company: string;
+  /** "Payout" for cash paid out to a recipient. */
+  service_type: string;
+  /** "cash" or "debit_card". */
+  payment_method: string;
   send_amount: number;
   fee: number;
   recipient_name: string | null;
@@ -184,7 +188,8 @@ export interface EmployeeDashboard {
   lottery: LotterySnapshot | null;
   register: RegisterActivityBlock | null;
   today_transfers: EmployeeTodayRow[];
-  totals: { sent: number; fees: number; count: number };
+  /** `sent` leaves payouts out; they are in `paid_out`. */
+  totals: { sent: number; paid_out: number; fees: number; count: number };
 }
 
 // Shape of the superadmin payload is intentionally loose — the

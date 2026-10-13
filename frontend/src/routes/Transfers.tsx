@@ -14,6 +14,8 @@ import {
 } from "../components/ui";
 import styles from "./Transfers.module.css";
 import { formatTime } from "../lib/datetime";
+import TransferKindPill from "../components/TransferKindPill";
+import { SERVICES, isPayout } from "../lib/transferKinds";
 
 // Poll the transfers list this often so two cashiers sharing one
 // employee login on different machines see each other's edits
@@ -43,6 +45,17 @@ const STATUS_OPTIONS = [
   { value: "Returned", label: "Returned" },
 ];
 
+const SERVICE_OPTIONS = [
+  { value: "", label: "All services" },
+  ...SERVICES.map((s) => ({ value: s, label: s })),
+];
+
+const PAID_BY_OPTIONS = [
+  { value: "", label: "Cash or card" },
+  { value: "cash", label: "Cash" },
+  { value: "debit_card", label: "Debit card" },
+];
+
 export default function Transfers() {
   const identity = getCurrentIdentity();
   const filters = useUrlFilterState({
@@ -50,12 +63,16 @@ export default function Transfers() {
     date_from: "",
     date_to: "",
     status: "",
+    service: "",
+    paid_by: "",
   });
   const { params, page, setParam, setPage, draft } = filters;
   const q = params.q;
   const dateFrom = params.date_from;
   const dateTo = params.date_to;
   const status = params.status;
+  const service = params.service;
+  const paidBy = params.paid_by;
 
   // Pause polling while a debounced search is in flight so we don't
   // fire two queries back-to-back (one when the URL updates, one
@@ -67,6 +84,8 @@ export default function Transfers() {
     date_from: dateFrom || undefined,
     date_to:   dateTo || undefined,
     status:    status || undefined,
+    service:   service || undefined,
+    paid_by:   paidBy || undefined,
     pollMs: isTypingQuery ? 0 : POLL_INTERVAL_MS,
   });
 
@@ -117,6 +136,8 @@ export default function Transfers() {
         dateFrom={dateFrom}
         dateTo={dateTo}
         status={status}
+        service={service}
+        paidBy={paidBy}
         onSet={setFilter}
         busy={isFetching}
       />
@@ -148,12 +169,14 @@ interface FilterBarProps {
   dateFrom: string;
   dateTo: string;
   status: string;
+  service: string;
+  paidBy: string;
   onSet: (key: string, value: string) => void;
   busy: boolean;
 }
 
 function FilterBar({
-  q, onQChange, dateFrom, dateTo, status, onSet, busy,
+  q, onQChange, dateFrom, dateTo, status, service, paidBy, onSet, busy,
 }: FilterBarProps) {
   return (
     <Card className="ds-filter-bar">
@@ -183,6 +206,26 @@ function FilterBar({
           onChange={(e) => onSet("status", e.target.value)}
         >
           {STATUS_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </Select>
+      </Field>
+      <Field label="Service">
+        <Select
+          value={service}
+          onChange={(e) => onSet("service", e.target.value)}
+        >
+          {SERVICE_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </Select>
+      </Field>
+      <Field label="Paid by">
+        <Select
+          value={paidBy}
+          onChange={(e) => onSet("paid_by", e.target.value)}
+        >
+          {PAID_BY_OPTIONS.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </Select>
@@ -230,7 +273,16 @@ function TransfersTable({ rows }: { rows: TransferRow[] }) {
             </td>
             <td style={tdStyle}>{r.status}</td>
             <td style={{ ...tdStyle, textAlign: "right" }}>
-              <span className={styles.mono}>{fmtMoney2(r.total_collected)}</span>
+              <span className={styles.kindAmount}>
+                <TransferKindPill
+                  serviceType={r.service_type}
+                  paymentMethod={r.payment_method}
+                />
+                {/* A payout is cash going out: shown as a negative. */}
+                <span className={styles.mono}>
+                  {fmtMoney2(isPayout(r.service_type) ? -r.total_collected : r.total_collected)}
+                </span>
+              </span>
             </td>
           </tr>
         ))}

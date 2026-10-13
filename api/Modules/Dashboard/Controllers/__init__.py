@@ -313,6 +313,7 @@ def _transfers_rollup(
                 Transfer.send_date >= start,
                 Transfer.send_date <= today,
                 Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+                Transfer.is_send,  # a payout is cash out, not volume
             )
             .scalar()
         )
@@ -522,6 +523,7 @@ def _admin_summary(
             Transfer.store_id == store_id,
             Transfer.send_date >= month_start,
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         ).group_by(Transfer.company).all())
         co_by_name = {co: (int(c or 0), float(t or 0), float(f or 0))
                       for co, c, t, f in co_q}
@@ -707,6 +709,8 @@ def _employee_summary(
                 ),
                 "sender_name": t.sender_name,
                 "company": t.company,
+                "service_type": t.service_type or "Money Transfer",
+                "payment_method": t.payment_method or "cash",
                 "send_amount": float(t.send_amount or 0),
                 "fee": float(t.fee or 0),
                 "recipient_name": t.recipient_name,
@@ -716,8 +720,13 @@ def _employee_summary(
             }
             for t in rows
         ],
+        # A payout is cash paid out, so it is not "sent"; it gets its
+        # own total (INVARIANTS.md "Payouts").
         "totals": {
-            "sent": sum(float(t.send_amount or 0) for t in rows),
+            "sent": sum(float(t.send_amount or 0) for t in rows if t.is_send),
+            "paid_out": sum(
+                float(t.send_amount or 0) for t in rows if t.is_payout
+            ),
             "fees": sum(float(t.fee or 0) for t in rows),
             "count": len(rows),
         },

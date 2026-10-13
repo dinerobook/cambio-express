@@ -961,7 +961,8 @@ def test_update_blocked_when_outside_business_hours(
 # only the list row, so an edit saved blanks over the sender's phone,
 # address and DOB, the recipient's phone, the commission and the notes.
 _EDIT_FIELDS = (
-    "send_date", "company", "service_type", "status", "sender_name",
+    "send_date", "company", "service_type", "payment_method", "status",
+    "sender_name",
     "sender_phone", "sender_phone_country", "sender_address",
     "sender_dob", "recipient_name", "recipient_phone", "country",
     "send_amount", "fee", "commission", "confirm_number",
@@ -994,6 +995,7 @@ def test_get_detail_round_trips_every_edit_field(client, test_store_id):
             "send_date": "2026-03-04",
             "company": "Intermex",
             "service_type": "Money Transfer",
+            "payment_method": "debit_card",
             "sender_name": "Round Trip",
             "sender_phone": "5550001111",
             "sender_phone_country": "+52",
@@ -1029,6 +1031,7 @@ def test_get_detail_round_trips_every_edit_field(client, test_store_id):
     assert detail["internal_notes"] == "regular"
     assert detail["employee_id"] == emp_id
     assert detail["customer_id"] is not None
+    assert detail["payment_method"] == "debit_card"
 
     # Save the edit form unchanged: only what GET returned goes back.
     body = {k: detail[k] for k in _EDIT_FIELDS}
@@ -1044,6 +1047,7 @@ def test_get_detail_round_trips_every_edit_field(client, test_store_id):
         assert t.recipient_phone == "5559998888"
         assert t.commission == 1.5
         assert t.internal_notes == "regular"
+        assert t.payment_method == "debit_card"
 
 
 def test_get_detail_blank_optional_fields(test_store_id, client):

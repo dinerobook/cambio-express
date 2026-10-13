@@ -50,7 +50,9 @@ class ACHBatch(Base):
     def transfers_total_cents(self) -> int:
         """Sum of what the ACH actually debits, in exact cents:
         send amount + federal tax. The store fee stays with the
-        store, so it's excluded from this total."""
+        store, so it's excluded from this total, and so is a payout
+        linked to the batch (cash the store paid out, not money the
+        ACH settles for a send)."""
         # Lazy import to avoid Transfer ↔ ACHBatch module-import cycle.
         from api.Modules.Transfers.Models import Transfer
         s = Session.object_session(self)
@@ -60,7 +62,7 @@ class ACHBatch(Base):
                 func.coalesce(func.sum(Transfer.send_amount_cents), 0)
               + func.coalesce(func.sum(Transfer.federal_tax_cents), 0))
              .filter_by(store_id=self.store_id, batch_id=self.batch_ref)
-             .filter(Transfer.status != "Cancelled")
+             .filter(Transfer.status != "Cancelled", Transfer.is_send)
              .scalar())
         return int(v or 0)
 
@@ -84,7 +86,7 @@ class ACHBatch(Base):
             return 0
         return int(s.query(Transfer).filter_by(
             store_id=self.store_id, batch_id=self.batch_ref,
-        ).filter(Transfer.status != "Cancelled").count())
+        ).filter(Transfer.status != "Cancelled", Transfer.is_send).count())
 
 
 # Re-export Transfer so existing

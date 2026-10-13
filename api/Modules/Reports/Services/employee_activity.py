@@ -48,6 +48,7 @@ def employee_activity(
             Transfer.send_date >= d_from,
             Transfer.send_date <= d_to,
             Transfer.status.notin_(OWNER_TRANSFER_EXCLUDED),
+            Transfer.is_send,  # a payout is cash out, not volume
         )
         .group_by(Transfer.created_by)
         .all()

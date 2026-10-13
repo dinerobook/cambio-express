@@ -13,6 +13,8 @@ import {
   PageShell, Section, tokens, useToast,
 } from "../components/ui";
 import styles from "./TransferDetail.module.css";
+import TransferKindPill from "../components/TransferKindPill";
+import { isDebitCard, isPayout, transferWording } from "../lib/transferKinds";
 
 // Single-transfer detail page. Backed by /api/v2/transfers/{id}
 // — same shape as a row in the list, so the read-only detail
@@ -83,6 +85,7 @@ export default function TransferDetail() {
 
   if (!data) return null;
   const t = data.transfer;
+  const words = transferWording(t.service_type);
 
   return (
     <PageShell maxWidth="52rem" gap="1rem">
@@ -93,7 +96,11 @@ export default function TransferDetail() {
         title={`Transfer #${t.id}`}
         subtitle={(
           <span style={{ fontFamily: tokens.fontMono }}>
-            {t.send_date} · {t.company} · {t.service_type}
+            {t.send_date} · {t.company} · {t.service_type}{" "}
+            <TransferKindPill
+              serviceType={t.service_type}
+              paymentMethod={t.payment_method}
+            />
           </span>
         )}
         actions={(
@@ -111,26 +118,34 @@ export default function TransferDetail() {
         )}
       />
 
-      <Section title="Sender">
+      <Section title={words.customer}>
         <Card padding="1.25rem 1.5rem">
           <DetailRow label="Name" value={t.sender_name || "—"} />
         </Card>
       </Section>
 
-      <Section title="Recipient">
+      <Section title={words.other}>
         <Card padding="1.25rem 1.5rem">
           <DetailRow label="Name" value={t.recipient_name || "—"} />
-          <DetailRow label="Country" value={t.country || "—"} />
+          <DetailRow label={words.country} value={t.country || "—"} />
         </Card>
       </Section>
 
       <Section title="Amounts">
         <Card padding="1.25rem 1.5rem">
-          <DetailRow label="Send amount" value={fmtMoney2(t.send_amount)} mono />
-          <DetailRow label="Fee"         value={fmtMoney2(t.fee)} mono />
-          <DetailRow label="Federal tax" value={fmtMoney2(t.federal_tax)} mono />
+          <DetailRow label={words.amount} value={fmtMoney2(t.send_amount)} mono />
+          {!isPayout(t.service_type) && (
+            <>
+              <DetailRow label="Fee"         value={fmtMoney2(t.fee)} mono />
+              <DetailRow label="Federal tax" value={fmtMoney2(t.federal_tax)} mono />
+              <DetailRow
+                label="Paid by"
+                value={isDebitCard(t.payment_method) ? "Debit card" : "Cash"}
+              />
+            </>
+          )}
           <DetailRow
-            label="Total collected"
+            label={words.total}
             value={fmtMoney2(t.total_collected)}
             mono
             emphasis

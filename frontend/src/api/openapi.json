@@ -2593,6 +2593,15 @@
             "title": "Internal Notes",
             "type": "string"
           },
+          "payment_method": {
+            "default": "cash",
+            "enum": [
+              "cash",
+              "debit_card"
+            ],
+            "title": "Payment Method",
+            "type": "string"
+          },
           "recipient_name": {
             "default": "",
             "maxLength": 120,
@@ -6640,12 +6649,27 @@
             "title": "Auto Count",
             "type": "integer"
           },
+          "auto_debit_card": {
+            "default": 0.0,
+            "title": "Auto Debit Card",
+            "type": "number"
+          },
           "auto_federal_tax": {
             "title": "Auto Federal Tax",
             "type": "number"
           },
           "auto_fees": {
             "title": "Auto Fees",
+            "type": "number"
+          },
+          "auto_payout_count": {
+            "default": 0,
+            "title": "Auto Payout Count",
+            "type": "integer"
+          },
+          "auto_payouts": {
+            "default": 0.0,
+            "title": "Auto Payouts",
             "type": "number"
           },
           "auto_total": {
@@ -6664,12 +6688,22 @@
             "title": "Saved Commission",
             "type": "number"
           },
+          "saved_debit_card": {
+            "default": 0.0,
+            "title": "Saved Debit Card",
+            "type": "number"
+          },
           "saved_federal_tax": {
             "title": "Saved Federal Tax",
             "type": "number"
           },
           "saved_fees": {
             "title": "Saved Fees",
+            "type": "number"
+          },
+          "saved_payouts": {
+            "default": 0.0,
+            "title": "Saved Payouts",
             "type": "number"
           },
           "saved_total": {
@@ -6744,6 +6778,12 @@
             "title": "Company",
             "type": "string"
           },
+          "debit_card": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Debit Card",
+            "type": "number"
+          },
           "federal_tax": {
             "default": 0.0,
             "title": "Federal Tax",
@@ -6752,6 +6792,12 @@
           "fees": {
             "default": 0.0,
             "title": "Fees",
+            "type": "number"
+          },
+          "payouts": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Payouts",
             "type": "number"
           }
         },
@@ -10560,6 +10606,11 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "payment_method": {
+            "default": "cash",
+            "title": "Payment Method",
+            "type": "string"
           },
           "recipient_name": {
             "title": "Recipient Name",
@@ -15596,12 +15647,27 @@
             "title": "Count",
             "type": "integer"
           },
+          "debit_card": {
+            "default": 0.0,
+            "title": "Debit Card",
+            "type": "number"
+          },
           "federal_tax": {
             "title": "Federal Tax",
             "type": "number"
           },
           "fees": {
             "title": "Fees",
+            "type": "number"
+          },
+          "payout_count": {
+            "default": 0,
+            "title": "Payout Count",
+            "type": "integer"
+          },
+          "payouts": {
+            "default": 0.0,
+            "title": "Payouts",
             "type": "number"
           },
           "total": {
@@ -15693,6 +15759,11 @@
           "internal_notes": {
             "default": "",
             "title": "Internal Notes",
+            "type": "string"
+          },
+          "payment_method": {
+            "default": "cash",
+            "title": "Payment Method",
             "type": "string"
           },
           "recipient_name": {
@@ -15883,6 +15954,11 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "payment_method": {
+            "default": "cash",
+            "title": "Payment Method",
+            "type": "string"
           },
           "recipient_name": {
             "default": "",
@@ -42099,6 +42175,30 @@
             "schema": {
               "default": "",
               "title": "Batch",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact service type, e.g. `Payout`.",
+            "in": "query",
+            "name": "service",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Exact service type, e.g. `Payout`.",
+              "title": "Service",
+              "type": "string"
+            }
+          },
+          {
+            "description": "`cash` or `debit_card`; cash includes rows saved before the field existed.",
+            "in": "query",
+            "name": "paid_by",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "`cash` or `debit_card`; cash includes rows saved before the field existed.",
+              "title": "Paid By",
               "type": "string"
             }
           },

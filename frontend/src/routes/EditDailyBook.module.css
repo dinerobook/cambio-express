@@ -532,8 +532,23 @@
 }
 
 .mtCellTd {
-  padding: 0.35rem 0.5rem;
+  padding: 0.35rem 0.3rem;
   border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  min-width: 4.75rem;
+}
+
+/* The input's own intrinsic width (~20 characters) would otherwise
+   set each column's minimum and push the eight-column money transfer
+   table past the modal. Zero it so the column width decides, with the
+   cell's min-width as the floor; narrower than that the wrapper
+   scrolls. */
+.mtCellTd input {
+  width: 0;
+}
+
+/* Company names stay on one line next to their dot. */
+.mtCompany {
+  white-space: nowrap;
 }
 
 .mtResetBtn {

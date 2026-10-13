@@ -157,4 +157,38 @@ describe("Transfers list", () => {
     expect(screen.getByText("Maria Lopez")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /New transfer/ })).not.toBeInTheDocument();
   });
+
+  it("marks payouts (as cash out) and debit card sends", () => {
+    useTransfers.mockReturnValue(result({ data: {
+      rows: [
+        { ...rows[0], id: 5, sender_name: "Paid Here", service_type: "Payout",
+          payment_method: "cash", fee: 0, federal_tax: 0, total_collected: 400 },
+        { ...rows[1], id: 6, sender_name: "Card Payer", payment_method: "debit_card" },
+        { ...rows[1], id: 7, sender_name: "Cash Payer", payment_method: "cash" },
+      ],
+      total: 3, page: 1, per_page: 50, total_pages: 1, page_amount: 0,
+    } }));
+    renderPage();
+    const payout = screen.getByText("Paid Here").closest("tr")!;
+    expect(within(payout).getByText("Payout")).toBeInTheDocument();
+    expect(payout).toHaveTextContent("-$400.00");
+    const card = screen.getByText("Card Payer").closest("tr")!;
+    expect(within(card).getByText("Debit card")).toBeInTheDocument();
+    expect(card).toHaveTextContent("$53.50");
+    const cash = screen.getByText("Cash Payer").closest("tr")!;
+    expect(within(cash).queryByText("Debit card")).not.toBeInTheDocument();
+    expect(within(cash).queryByText("Payout")).not.toBeInTheDocument();
+  });
+
+  it("filters by service and by how it was paid, through the URL", async () => {
+    renderPage("/transfers?service=Payout&page=2");
+    expect(lastArgs()).toMatchObject({ service: "Payout", page: 2 });
+    expect(screen.getByLabelText("Service")).toHaveValue("Payout");
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText("Paid by"), "debit_card");
+    await waitFor(() =>
+      expect(screen.getByTestId("search").textContent).toContain("paid_by=debit_card"));
+    expect(screen.getByTestId("search").textContent).not.toContain("page=2");
+    expect(lastArgs()).toMatchObject({ service: "Payout", paid_by: "debit_card" });
+  });
 });

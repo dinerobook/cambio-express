@@ -191,6 +191,10 @@ class TransferCompanyTotalsResponse(BaseModel):
     fees: float
     federal_tax: float
     commission: float
+    # Off the total: debit card sends' total collected, and payouts.
+    debit_card: float = 0.0
+    payouts: float = 0.0
+    payout_count: int = 0
     total: float
 
 
@@ -230,6 +234,12 @@ class MTBreakdownRowResponse(BaseModel):
     auto_commission: float
     auto_count: int
     auto_total: float
+    # Off the company's total (cash): paid by debit card, paid out.
+    saved_debit_card: float = 0.0
+    saved_payouts: float = 0.0
+    auto_debit_card: float = 0.0
+    auto_payouts: float = 0.0
+    auto_payout_count: int = 0
 
 
 # Keys of `mt_breakdown.SERVICE_KINDS`; a test pins the two together.
@@ -278,6 +288,10 @@ class MTBreakdownWriteRow(BaseModel):
     fees: float = 0.0
     federal_tax: float = 0.0
     commission: float = 0.0
+    # Both come OFF the company's total. Optional, so a client that
+    # predates them (or the Intermex import) saves exactly as before.
+    debit_card: float = Field(0.0, ge=0)
+    payouts: float = Field(0.0, ge=0)
 
 
 class MTBreakdownWriteRequest(BaseModel):

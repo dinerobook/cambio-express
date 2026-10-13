@@ -7931,6 +7931,12 @@ export interface components {
              */
             internal_notes: string;
             /**
+             * Payment Method
+             * @default cash
+             * @enum {string}
+             */
+            payment_method: "cash" | "debit_card";
+            /**
              * Recipient Name
              * @default
              */
@@ -9578,10 +9584,25 @@ export interface components {
             auto_commission: number;
             /** Auto Count */
             auto_count: number;
+            /**
+             * Auto Debit Card
+             * @default 0
+             */
+            auto_debit_card: number;
             /** Auto Federal Tax */
             auto_federal_tax: number;
             /** Auto Fees */
             auto_fees: number;
+            /**
+             * Auto Payout Count
+             * @default 0
+             */
+            auto_payout_count: number;
+            /**
+             * Auto Payouts
+             * @default 0
+             */
+            auto_payouts: number;
             /** Auto Total */
             auto_total: number;
             /** Company */
@@ -9590,10 +9611,20 @@ export interface components {
             saved_amount: number;
             /** Saved Commission */
             saved_commission: number;
+            /**
+             * Saved Debit Card
+             * @default 0
+             */
+            saved_debit_card: number;
             /** Saved Federal Tax */
             saved_federal_tax: number;
             /** Saved Fees */
             saved_fees: number;
+            /**
+             * Saved Payouts
+             * @default 0
+             */
+            saved_payouts: number;
             /** Saved Total */
             saved_total: number;
         };
@@ -9630,6 +9661,11 @@ export interface components {
             /** Company */
             company: string;
             /**
+             * Debit Card
+             * @default 0
+             */
+            debit_card: number;
+            /**
              * Federal Tax
              * @default 0
              */
@@ -9639,6 +9675,11 @@ export interface components {
              * @default 0
              */
             fees: number;
+            /**
+             * Payouts
+             * @default 0
+             */
+            payouts: number;
         };
         /**
          * MTCompanyEntry
@@ -11385,6 +11426,11 @@ export interface components {
             fee: number;
             /** Id */
             id: number;
+            /**
+             * Payment Method
+             * @default cash
+             */
+            payment_method: string;
             /** Recipient Name */
             recipient_name: string;
             /** Recipient Phone */
@@ -13793,10 +13839,25 @@ export interface components {
             company: string;
             /** Count */
             count: number;
+            /**
+             * Debit Card
+             * @default 0
+             */
+            debit_card: number;
             /** Federal Tax */
             federal_tax: number;
             /** Fees */
             fees: number;
+            /**
+             * Payout Count
+             * @default 0
+             */
+            payout_count: number;
+            /**
+             * Payouts
+             * @default 0
+             */
+            payouts: number;
             /** Total */
             total: number;
         };
@@ -13859,6 +13920,11 @@ export interface components {
              * @default
              */
             internal_notes: string;
+            /**
+             * Payment Method
+             * @default cash
+             */
+            payment_method: string;
             /**
              * Recipient Name
              * @default
@@ -13991,6 +14057,11 @@ export interface components {
             fee: number;
             /** Id */
             id: number;
+            /**
+             * Payment Method
+             * @default cash
+             */
+            payment_method: string;
             /**
              * Recipient Name
              * @default
@@ -25938,6 +26009,10 @@ export interface operations {
                 country?: string;
                 confirm?: string;
                 batch?: string;
+                /** @description Exact service type, e.g. `Payout`. */
+                service?: string;
+                /** @description `cash` or `debit_card`; cash includes rows saved before the field existed. */
+                paid_by?: string;
                 /** @description Global search across sender/recipient/confirm/country/batch. */
                 q?: string;
                 /** @description Column slug to sort by; empty falls back to send_date desc. */

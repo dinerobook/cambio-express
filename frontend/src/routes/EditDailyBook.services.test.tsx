@@ -24,6 +24,9 @@ import type { MTBreakdownRow, MTServiceRow } from "../api/dailybook";
 //   - Save sends transfers and every non-zero service line, then
 //     saves the day's form so an earlier money order fee is kept.
 //   - A locked day can be read but not changed.
+//   - Each company's Money transfer row has Debit card and Payouts:
+//     both come OFF its total (no cash came in / cash went out), so
+//     the total is the cash its drop is checked against.
 
 const DAY = "2026-10-06";
 
@@ -84,7 +87,8 @@ const mtRow = (company: string, saved: Partial<MTBreakdownRow> = {}): MTBreakdow
   };
   return {
     ...r,
-    saved_total: r.saved_amount + r.saved_fees + r.saved_federal_tax + r.saved_commission,
+    saved_total: r.saved_amount + r.saved_fees + r.saved_federal_tax + r.saved_commission
+      - (r.saved_debit_card ?? 0) - (r.saved_payouts ?? 0),
   };
 };
 
@@ -203,8 +207,10 @@ describe("EditDailyBook — Services box", () => {
     const [storeId, date, rows, services] = replaceMTBreakdown.mock.calls[0];
     expect([storeId, date]).toEqual([TEST_ADMIN.store_id, DAY]);
     expect(rows).toEqual([
-      { company: "Intermex", amount: 0, fees: 0, federal_tax: 0, commission: 0 },
-      { company: "Maxi", amount: 800, fees: 40, federal_tax: 8, commission: 0 },
+      { company: "Intermex", amount: 0, fees: 0, federal_tax: 0, commission: 0,
+        debit_card: 0, payouts: 0 },
+      { company: "Maxi", amount: 800, fees: 40, federal_tax: 8, commission: 0,
+        debit_card: 0, payouts: 0 },
     ]);
     expect(services).toEqual([MAXI_BILL]);
     // The day's form is saved too (it carries the money order fee).
@@ -352,5 +358,61 @@ describe("EditDailyBook — Services box", () => {
     await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
     expect(within(dialog).queryByText(/Earlier entries/)).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText(/^Money order fees/)).not.toBeInTheDocument();
+  });
+
+  it("takes debit card and payouts off the company's cash and saves them", async () => {
+    const dialog = await openBox();
+    expect(within(dialog).getByText(/Debit card/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Payouts/)).toBeInTheDocument();
+    await typeInto(within(dialog).getByLabelText("Maxi debit card"), "100");
+    await typeInto(within(dialog).getByLabelText("Maxi payouts"), "250");
+
+    // 848 taken in − 100 by card − 250 paid out = 498 cash.
+    expect(rowOf(dialog, "Maxi")).toHaveTextContent("$498.00");
+    expect(rowOf(dialog, "Maxi", 1)).toHaveTextContent("$498.00");
+    expect(within(dialog).getByRole("tab", { name: /^Money transfer/ }))
+      .toHaveTextContent("$498.00");
+    expect(within(dialog).getByText(/Grand total/)).toHaveTextContent("$498.00");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: /Save services/ }));
+    await waitFor(() => expect(replaceMTBreakdown).toHaveBeenCalled());
+    expect(replaceMTBreakdown.mock.calls[0][2][1]).toEqual({
+      company: "Maxi", amount: 800, fees: 40, federal_tax: 8, commission: 0,
+      debit_card: 100, payouts: 250,
+    });
+  });
+
+  it("loads saved debit card and payouts, and the closed box shows the cash", async () => {
+    useDailyReport.mockReturnValue(savedDay({ money_transfer: 498 }));
+    useMTBreakdown.mockReturnValue(breakdown([
+      mtRow("Intermex"),
+      mtRow("Maxi", { ...MAXI_TRANSFERS, saved_debit_card: 100, saved_payouts: 250 }),
+    ]));
+    renderPage();
+    expect(box()).toHaveTextContent("$498.00");
+    expect(part("Money transfer")).toHaveTextContent("$498.00");
+    await userEvent.click(box());
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByLabelText("Maxi debit card")).toHaveValue("100");
+    expect(within(dialog).getByLabelText("Maxi payouts")).toHaveValue("250");
+  });
+
+  it("reads a company whose payouts beat its sends as a negative", async () => {
+    const dialog = await openBox();
+    await typeInto(within(dialog).getByLabelText("Intermex payouts"), "300");
+    expect(rowOf(dialog, "Intermex")).toHaveTextContent("-$300.00");
+  });
+
+  it("can't change debit card or payouts on a locked day", async () => {
+    useDailyReport.mockReturnValue(savedDay({
+      money_transfer: 498, locked: true, locked_at: `${DAY}T20:00:00`,
+    }));
+    useMTBreakdown.mockReturnValue(breakdown([
+      mtRow("Maxi", { ...MAXI_TRANSFERS, saved_debit_card: 100, saved_payouts: 250 }),
+    ]));
+    const dialog = await openBox();
+    expect(within(dialog).getByLabelText("Maxi debit card")).toBeDisabled();
+    expect(within(dialog).getByLabelText("Maxi payouts")).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: /Save services/ })).toBeDisabled();
   });
 });
