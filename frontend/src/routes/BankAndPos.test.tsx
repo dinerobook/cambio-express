@@ -6,7 +6,7 @@ import Bank from "./Bank";
 import ItemMovement from "./ItemMovement";
 import Transactions from "./Transactions";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
-import { renderRoute } from "../test/renderRoute";
+import { renderRoute, signInAs } from "../test/renderRoute";
 
 // Finance → Bank accounts (connect / refresh / rename / disconnect)
 // and the two register-journal read pages (Transactions, Item
@@ -135,6 +135,25 @@ describe("Bank accounts", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
     await userEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Disconnect" }));
     expect(await screen.findByText("Admins only.")).toBeInTheDocument();
+  });
+
+  it("shows a bank_sync.read-only viewer the balances but no controls", async () => {
+    signInAs({ without: ["bank_sync.update"] });
+    mockFetch(routes());
+    renderRoute(<Bank />);
+    expect(await screen.findByText("$12,345.67")).toBeInTheDocument();
+    for (const name of ["Refresh", "+ Connect another", "Save", "Disconnect"]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByPlaceholderText(/Set nickname/)).not.toBeInTheDocument();
+  });
+
+  it("offers a read-only viewer no connect button when nothing is linked", async () => {
+    signInAs({ without: ["bank_sync.update"] });
+    mockFetch(routes({ "GET /api/v2/bank/accounts": { body: { rows: [], total: 0 } } }));
+    renderRoute(<Bank />);
+    expect(await screen.findByText("Connect your bank")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Connect bank via Stripe/ })).not.toBeInTheDocument();
   });
 
   it("offers a retry when the accounts fail to load", async () => {

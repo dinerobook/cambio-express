@@ -33,7 +33,8 @@ function useOwnerUsers(storeId: number | null, q: string, page: number) {
   if (q) params.set("q", q);
   params.set("page", String(page));
   return useQuery<UsersResponse>({
-    enabled: identity?.role === "owner",
+    // The server admits the superadmin too, for support.
+    enabled: identity?.role === "owner" || identity?.role === "superadmin",
     queryKey: ["owner-users", storeId, q, page],
     queryFn: () => api<UsersResponse>(`/api/v2/owner/users?${params}`),
   });

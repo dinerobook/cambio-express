@@ -188,4 +188,33 @@ describe("RoleEdit — built-in roles", () => {
     expect(within(form).queryByRole("button", { name: "Save role" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Reset to DineroBook/ })).not.toBeInTheDocument();
   });
+
+  it("offers a retry when the built-in roles fail to load", async () => {
+    let fail = true;
+    mockFetch(routes({
+      "GET /api/v2/admin/store-permissions": () => (fail ? { status: 500, body: {} } : { body: BUILTIN }),
+    }));
+    renderRoute(<RoleEdit />, { path: PATH, at: "/team/roles/employee" });
+    expect(await screen.findByText("Could not load this role.")).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+    fail = false;
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByLabelText("Edit — Money transfers (Employee)")).toBeInTheDocument();
+  });
+
+  it("says so, without a retry or a request, when the person can't read settings", async () => {
+    signInAs({ without: ["settings.read", "settings.update"] });
+    const calls = mockFetch(routes());
+    renderRoute(<RoleEdit />, { path: PATH, at: "/team/roles/employee" });
+    expect(await screen.findByText(/don't have access to the built-in roles/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(callsTo(calls, "GET /api/v2/admin/store-permissions")).toHaveLength(0);
+  });
+
+  it("does the same for a new role copied from a built-in one", async () => {
+    signInAs({ without: ["settings.read", "settings.update"] });
+    mockFetch(routes());
+    renderRoute(<RoleEdit />, { path: PATH, at: "/team/roles/new?copy=employee" });
+    expect(await screen.findByText(/don't have access to the built-in roles/)).toBeInTheDocument();
+  });
 });

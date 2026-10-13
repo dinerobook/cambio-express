@@ -51,9 +51,3 @@
   color: var(--db-text-muted, #888);
   white-space: nowrap;
 }
-
-.emptyText {
-  color: var(--db-text-muted, #888);
-  padding: 1rem 0;
-  text-align: center;
-}

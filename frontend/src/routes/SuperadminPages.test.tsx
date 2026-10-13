@@ -58,6 +58,13 @@ describe("SuperadminDashboard", () => {
     expect(screen.getByText("Cambio Nuevo")).toBeInTheDocument();
   });
 
+  it("shows the kit empty state when there is no recent activity", async () => {
+    mockFetch({ "GET /api/v2/superadmin/dashboard": { body: { ...DASH, activity: [] } } });
+    renderRoute(<SuperadminDashboard />);
+    expect(await screen.findByText("No recent activity", { selector: "div" })).toBeInTheDocument();
+    expect(screen.getByText("New signups and cancellations show here.")).toBeInTheDocument();
+  });
+
   it("offers a retry on a failed load", async () => {
     const { state, handler } = failThenServe(DASH);
     mockFetch({ "GET /api/v2/superadmin/dashboard": handler });
@@ -84,15 +91,30 @@ describe("SuperadminAuditLog", () => {
     total: 1, page: 1, total_pages: 1,
   };
 
-  it("lists entries and filters by action on Enter", async () => {
+  it("lists entries and filters by action as you type", async () => {
     const calls = mockFetch({ "GET /api/v2/superadmin/audit-log": { body: LOG } });
     renderRoute(<SuperadminAuditLog />);
     expect(await screen.findByText("store.extend_trial")).toBeInTheDocument();
     expect(screen.getByText("+14 days")).toBeInTheDocument();
-    await userEvent.type(screen.getByPlaceholderText("Filter by action…"), "store{Enter}");
+    const box = screen.getByPlaceholderText("Filter by action…");
+    await userEvent.type(box, "s");
+    await new Promise((r) => setTimeout(r, 450));
+    // One character is under the 2-char minimum: no filtered request.
+    expect(calls.some((c) => c.url.searchParams.has("action"))).toBe(false);
+    await userEvent.type(box, "t");
+    // No Enter, no blur: the debounce applies it.
     await vi.waitFor(() => expect(
-      calls.some((c) => c.url.searchParams.get("action") === "store"),
-    ).toBe(true));
+      calls.some((c) => c.url.searchParams.get("action") === "st"),
+    ).toBe(true), { timeout: 2000 });
+    expect(box).toHaveFocus();
+  });
+
+  it("restores the action filter from the URL", async () => {
+    const calls = mockFetch({ "GET /api/v2/superadmin/audit-log": { body: LOG } });
+    renderRoute(<SuperadminAuditLog />, { at: "/?action=trial" });
+    expect(await screen.findByText("store.extend_trial")).toBeInTheDocument();
+    expect(calls[0].url.searchParams.get("action")).toBe("trial");
+    expect(screen.getByPlaceholderText("Filter by action…")).toHaveValue("trial");
   });
 
   it("shows the empty state", async () => {
@@ -230,6 +252,32 @@ describe("SuperadminEmailLog", () => {
     ).toBe(true));
   });
 
+  it("searches as you type, debounced, with a 2-char minimum", async () => {
+    const calls = mockFetch({ "GET /api/v2/superadmin/email-log": { body: LOG } });
+    renderRoute(<SuperadminEmailLog />);
+    await screen.findByText("bounced");
+    const box = screen.getByPlaceholderText("Search email address…");
+    await userEvent.type(box, "a");
+    await new Promise((r) => setTimeout(r, 450));
+    expect(calls.some((c) => c.url.searchParams.has("q"))).toBe(false);
+    await userEvent.type(box, "na");
+    await vi.waitFor(() => expect(
+      calls.some((c) => c.url.searchParams.get("q") === "ana"),
+    ).toBe(true), { timeout: 2000 });
+    // The keystroke in between never became its own request.
+    expect(calls.some((c) => c.url.searchParams.get("q") === "an")).toBe(false);
+  });
+
+  it("restores the search and event filter from the URL", async () => {
+    const calls = mockFetch({ "GET /api/v2/superadmin/email-log": { body: LOG } });
+    renderRoute(<SuperadminEmailLog />, { at: "/?q=ana&event_type=email.bounced" });
+    await screen.findByText("bounced");
+    expect(calls[0].url.searchParams.get("q")).toBe("ana");
+    expect(calls[0].url.searchParams.get("event_type")).toBe("email.bounced");
+    expect(screen.getByPlaceholderText("Search email address…")).toHaveValue("ana");
+    expect(screen.getByRole("combobox")).toHaveValue("email.bounced");
+  });
+
   it("shows the empty state", async () => {
     mockFetch({ "GET /api/v2/superadmin/email-log": { body: { ...LOG, rows: [], suppressed: [] } } });
     renderRoute(<SuperadminEmailLog />);
@@ -329,13 +377,14 @@ describe("SuperadminStoreForm", () => {
     expect(screen.queryByRole("button", { name: "Create store" })).not.toBeInTheDocument();
   });
 
-  it("creates a store with its first login and returns to the list", async () => {
+  it("creates a store with its first login, toasts and returns to the list", async () => {
     const calls = mockFetch({ "POST /api/v2/superadmin/stores": { body: STORE } });
     renderRoute(<SuperadminStoreForm />, { path: "/superadmin/stores/new" });
     expect(screen.getByRole("button", { name: "Create store" })).toBeDisabled();
     await fillCreate();
     await userEvent.click(screen.getByRole("button", { name: "Create store" }));
     expect(await screen.findByText("Navigated to /superadmin/stores")).toBeInTheDocument();
+    expect(screen.getByText("Store Cambio Tres created.")).toBeInTheDocument();
     expect(callsTo(calls, "POST /api/v2/superadmin/stores")[0].body).toMatchObject({
       name: "Cambio Tres", slug: "cambio-tres", plan: "trial",
       admin_username: "admin", admin_password: "s3cret-pass!", initial_role: "admin",

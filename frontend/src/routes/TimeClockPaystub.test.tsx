@@ -60,16 +60,21 @@ describe("Paystub", () => {
 
   it("refuses an employee without loading anyone's pay", async () => {
     signInAs({ role: "employee" });
-    mockFetch(routes());
+    const calls = mockFetch(routes());
     renderRoute(<TimeClockPaystub />, { path: PATH, at: AT });
     expect(screen.getByText("Admin or owner only.")).toBeInTheDocument();
     expect(screen.queryByText("Ana Pérez")).not.toBeInTheDocument();
+    // A refusal is not a failure: retrying cannot change it.
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(callsTo(calls, "GET /api/v2/admin/timeclock/paystub/3")).toHaveLength(0);
   });
 
   it("asks for the pay period when the link has none", () => {
     const calls = mockFetch(routes());
     renderRoute(<TimeClockPaystub />, { path: PATH, at: "/admin/timeclock/paystub/3" });
     expect(screen.getByText(/missing its pay period/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
     expect(callsTo(calls, "GET /api/v2/admin/timeclock/paystub/3")).toHaveLength(0);
   });
 

@@ -297,6 +297,7 @@ export interface PaystubResponse {
 
 export function usePaystub(
   storeEmployeeId: number | null, from: string, to: string,
+  enabled = true,
 ) {
   return useQuery<PaystubResponse>({
     queryKey: [
@@ -309,7 +310,8 @@ export function usePaystub(
         + `?from=${encodeURIComponent(from)}`
         + `&to=${encodeURIComponent(to)}`,
       ),
-    enabled: storeEmployeeId != null
+    enabled: enabled
+             && storeEmployeeId != null
              && storeEmployeeId > 0
              && Boolean(from && to),
   });

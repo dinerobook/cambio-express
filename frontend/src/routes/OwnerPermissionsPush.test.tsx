@@ -99,6 +99,32 @@ describe("Owner bulk permissions", () => {
     await userEvent.click(screen.getByRole("button", { name: "Push to 1 store" }));
     expect(await screen.findByText("Owner only.")).toBeInTheDocument();
   });
+
+  it("offers a retry when the stores fail to load", async () => {
+    let fail = true;
+    mockFetch(routes({
+      "GET /api/v2/owner/locations": () => (fail ? { status: 500, body: {} } : { body: LOCATIONS }),
+    }));
+    renderRoute(<OwnerBulkPermissions />);
+    expect(await screen.findByText("Couldn't load your stores.")).toBeInTheDocument();
+    fail = false;
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("button", { name: "Uno" })).toBeInTheDocument();
+  });
+
+  it("offers a retry when the source store's permissions fail to load", async () => {
+    let fail = true;
+    mockFetch(routes({
+      "GET /api/v2/owner/store/1/permissions": () => (
+        fail ? { status: 500, body: {} } : { body: STORE1_PERMS }),
+    }));
+    renderRoute(<OwnerBulkPermissions />);
+    await userEvent.click(await screen.findByRole("button", { name: "Uno" }));
+    expect(await screen.findByText("Couldn't load this store's permissions.")).toBeInTheDocument();
+    fail = false;
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByLabelText("View — Money transfers (employee)")).toBeChecked();
+  });
 });
 
 describe("Owner cross-store defaults", () => {

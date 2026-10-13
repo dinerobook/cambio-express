@@ -26,6 +26,7 @@ import {
 import {
   Breadcrumbs,
   Card,
+  EmptyState,
   ErrorState,
   KpiCard,
   KpiGrid,
@@ -185,7 +186,10 @@ export default function SuperadminDashboard() {
           <Section title="Recent activity">
             <Card>
               {data.activity.length === 0 ? (
-                <p className={styles.emptyText}>No recent activity.</p>
+                <EmptyState
+                  title="No recent activity"
+                  body="New signups and cancellations show here."
+                />
               ) : (
                 <div className={styles.activityList}>
                   {data.activity.map((a, i) => (

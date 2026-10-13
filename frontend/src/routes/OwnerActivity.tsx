@@ -35,7 +35,8 @@ function useOwnerActivity(q: string, page: number) {
   if (q) params.set("q", q);
   params.set("page", String(page));
   return useQuery<ActivityResponse>({
-    enabled: identity?.role === "owner",
+    // The server admits the superadmin too, for support.
+    enabled: identity?.role === "owner" || identity?.role === "superadmin",
     queryKey: ["owner-activity", q, page],
     queryFn: () => api<ActivityResponse>(`/api/v2/owner/activity?${params}`),
   });

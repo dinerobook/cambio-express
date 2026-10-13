@@ -225,6 +225,13 @@ describe("OwnerUsers", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("ana")).toBeInTheDocument();
   });
+
+  it("loads for the superadmin, whom the server admits for support", async () => {
+    signInAs({ role: "superadmin", store_id: null });
+    mockFetch({ "GET /api/v2/owner/users": { body: USERS } });
+    renderRoute(<OwnerUsers />);
+    expect(await screen.findByText("ana")).toBeInTheDocument();
+  });
 });
 
 describe("OwnerActivity", () => {
@@ -255,6 +262,13 @@ describe("OwnerActivity", () => {
     expect(await screen.findByText("Could not load activity.")).toBeInTheDocument();
     state.fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("Sent $400 to Luis")).toBeInTheDocument();
+  });
+
+  it("loads for the superadmin, whom the server admits for support", async () => {
+    signInAs({ role: "superadmin", store_id: null });
+    mockFetch({ "GET /api/v2/owner/activity": { body: ACT } });
+    renderRoute(<OwnerActivity />);
     expect(await screen.findByText("Sent $400 to Luis")).toBeInTheDocument();
   });
 

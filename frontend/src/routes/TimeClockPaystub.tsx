@@ -33,16 +33,13 @@ export default function TimeClockPaystub() {
                   || identity?.role === "superadmin";
 
   const { data, isLoading, isError, error, refetch } = usePaystub(
-    Number.isFinite(empId) ? empId : null, from, to,
+    Number.isFinite(empId) ? empId : null, from, to, canView,
   );
 
   if (!canView) {
     return (
       <PageShell>
-        <ErrorState
-          message="Admin or owner only."
-          onRetry={() => { void refetch(); }}
-        />
+        <ErrorState message="Admin or owner only." />
       </PageShell>
     );
   }
@@ -52,7 +49,6 @@ export default function TimeClockPaystub() {
       <PageShell>
         <ErrorState
           message="This paystub link is missing its pay period. Open it from the Payroll page."
-          onRetry={() => { void refetch(); }}
         />
       </PageShell>
     );

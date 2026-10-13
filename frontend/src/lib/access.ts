@@ -135,6 +135,9 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/account/*", open: true },
 
   // ── Owner umbrella ─────────────────────────────────────────
+  // The report index is the one owner endpoint the server refuses
+  // the superadmin (Owners/Controllers `owner_reports_route`).
+  { path: "/owner/reports", roles: ["owner"] },
   { path: "/owner/*", roles: ["owner", "superadmin"] },
 
   // ── Platform ───────────────────────────────────────────────
