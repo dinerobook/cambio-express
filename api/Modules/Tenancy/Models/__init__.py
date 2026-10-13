@@ -24,7 +24,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer,
-    String, UniqueConstraint,
+    String, Text, UniqueConstraint,
 )
 from api.Core.PasswordHash import check_password_hash, generate_password_hash
 
@@ -122,6 +122,12 @@ class Store(Base):
     # switch keep the Money orders tab exactly as before. Resolve via
     # store_money_order_companies — never read raw.
     companies_money_orders_off = Column(String(500), nullable=True)
+    # The store's countries for the transfer form's country picker
+    # (Settings → General → Transfer countries), CSV in display order.
+    # NULL / empty = the built-in list the form always showed, so a
+    # store that never edits it sees no change. Resolve via
+    # store_transfer_countries — never read raw.
+    transfer_countries = Column(Text, nullable=True)
     # Federal tax rate (decimal — 0.01 = 1%) applied to every transfer at
     # save time. The transfer form treats Federal Tax as read-only and the
     # server always recomputes from send_amount × this rate, so employees

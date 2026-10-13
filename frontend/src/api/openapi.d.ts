@@ -6170,6 +6170,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transfers/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Choices Route
+         * @description The company + country pick-lists for the JWT principal's
+         *     store. The transfer form and the ACH batch form both read them,
+         *     so either right opens it: ``transfers.read`` or ``batches.read``.
+         *     403 for anyone with neither, and for a principal without a store
+         *     scope (superadmin) since the lists are per store.
+         */
+        get: operations["choices_route_transfers_choices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transfers/employees": {
         parameters: {
             query?: never;
@@ -12499,6 +12523,11 @@ export interface components {
              * @default []
              */
             timezone_choices: string[];
+            /**
+             * Transfer Countries
+             * @default []
+             */
+            transfer_countries: string[];
         };
         /**
          * StoreInfoUpdateRequest
@@ -12550,6 +12579,8 @@ export interface components {
             timeclock_require_passkey?: boolean | null;
             /** Timezone */
             timezone?: string | null;
+            /** Transfer Countries */
+            transfer_countries?: string[] | null;
         };
         /**
          * StoreLookupResponse
@@ -13846,6 +13877,19 @@ export interface components {
             code: string;
             /** Pending Token */
             pending_token: string;
+        };
+        /**
+         * TransferChoicesResponse
+         * @description The store's pick-lists for the transfer and ACH batch forms,
+         *     both managed under Settings → General: ``companies`` is the
+         *     ACTIVE money transfer company roster (the same list the MSB daily
+         *     book uses), ``countries`` the store's transfer countries.
+         */
+        TransferChoicesResponse: {
+            /** Companies */
+            companies: string[];
+            /** Countries */
+            countries: string[];
         };
         /**
          * TransferCompanyTotalsResponse
@@ -26102,6 +26146,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransferResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    choices_route_transfers_choices_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferChoicesResponse"];
                 };
             };
             /** @description Validation Error */

@@ -43,6 +43,11 @@ DEFAULT_MT_COMPANIES: list[str] = ["Intermex", "Maxi", "Barri"]
 # (String(40)) so the per-name cap must not exceed that column.
 MAX_MT_COMPANIES = 20
 MAX_MT_COMPANY_NAME_LEN = 40
+# The transfer form picks its company from this roster, and
+# Transfer.company is String(30), so a NEW name is capped at 30.
+# A longer name already on a store's roster stays valid (saving
+# Settings must never fail on a name the store already had).
+MAX_TRANSFER_COMPANY_NAME_LEN = 30
 
 
 def _split_csv(raw: Any) -> list[str]:
@@ -124,7 +129,9 @@ def encode_mt_money_orders_off(entries: list[Any]) -> str:
     return ",".join(n for n in off if n)
 
 
-def encode_mt_companies(entries: list[Any]) -> tuple[str, str]:
+def encode_mt_companies(
+    entries: list[Any], existing: list[str] | None = None,
+) -> tuple[str, str]:
     """Validate + encode the Settings payload (a list of objects with
     ``name`` + ``enabled``) into the two CSV columns
     ``(companies, companies_disabled)``. Raises ValueError with an
@@ -132,7 +139,10 @@ def encode_mt_companies(entries: list[Any]) -> tuple[str, str]:
 
     Rules:
       - 1..MAX_MT_COMPANIES companies on the roster
-      - names trimmed, non-empty, ≤MAX_MT_COMPANY_NAME_LEN chars
+      - names trimmed, non-empty, ≤MAX_MT_COMPANY_NAME_LEN chars;
+        a name not in ``existing`` (the store's saved roster) is
+        new and must also fit MAX_TRANSFER_COMPANY_NAME_LEN, so the
+        transfer form can save it
       - no commas in a name (CSV encoding)
       - no case-insensitive duplicates
     An all-disabled roster is allowed — the daily book + transfer
@@ -141,6 +151,7 @@ def encode_mt_companies(entries: list[Any]) -> tuple[str, str]:
     names: list[str] = []
     disabled: list[str] = []
     seen: set[str] = set()
+    known = {n.lower() for n in (existing or [])}
     for e in entries:
         name = str(getattr(e, "name", None) or (
             e.get("name") if isinstance(e, dict) else ""
@@ -153,6 +164,12 @@ def encode_mt_companies(entries: list[Any]) -> tuple[str, str]:
             raise ValueError(
                 f"Company name {name!r} is too long "
                 f"(max {MAX_MT_COMPANY_NAME_LEN} characters)."
+            )
+        if (len(name) > MAX_TRANSFER_COMPANY_NAME_LEN
+                and name.lower() not in known):
+            raise ValueError(
+                f"Company name {name!r} is too long "
+                f"(max {MAX_TRANSFER_COMPANY_NAME_LEN} characters)."
             )
         if "," in name:
             raise ValueError("Company names cannot contain commas.")

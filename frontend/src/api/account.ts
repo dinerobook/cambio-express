@@ -181,6 +181,8 @@ export interface StoreInfoRow {
   ein:              string;
   business_address: string;
   mt_companies:     MTCompanyEntry[];
+  /** The transfer form's countries, in order (Settings → General). */
+  transfer_countries: string[];
 }
 
 /** One money-transfer company on the store roster. `enabled: false`
@@ -225,6 +227,7 @@ export interface StoreInfoUpdateBody {
   ein?:              string;
   business_address?: string;
   mt_companies?:     MTCompanyEntry[];
+  transfer_countries?: string[];
 }
 
 // Allowed values for the per-user theme toggle. Dark is the

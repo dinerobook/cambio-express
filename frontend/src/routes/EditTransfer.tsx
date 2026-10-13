@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import DebitCardCheckbox from "../components/DebitCardCheckbox";
 import SenderAutocomplete from "../components/SenderAutocomplete";
+import StoreListField from "../components/StoreListField";
 import RecipientSuggestions from "../components/RecipientSuggestions";
 import {
   Alert, Breadcrumbs, Button, Card, ConfirmDialog, DateInput, ErrorState,
@@ -19,13 +20,14 @@ import {
   updateTransfer,
   useEmployees,
   useTransfer,
+  useTransferChoices,
 } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  COMPANIES, COUNTRIES, SERVICES, STATUSES, isPayout, transferWording,
+  SERVICES, STATUSES, isPayout, transferWording,
 } from "../lib/transferKinds";
 import styles from "./EditTransfer.module.css";
 
@@ -38,7 +40,7 @@ import styles from "./EditTransfer.module.css";
 
 const editSchema = z.object({
   send_date: z.string().min(1, "Date is required"),
-  company: z.enum(COMPANIES),
+  company: z.string().min(1, "Pick a company"),
   service_type: z.enum(SERVICES),
   payment_method: z.enum(["cash", "debit_card"]),
   status: z.enum(STATUSES),
@@ -50,7 +52,7 @@ const editSchema = z.object({
   sender_dob: z.string(),
   customer_id: z.number().int().positive().nullable(),
 
-  country: z.enum(COUNTRIES),
+  country: z.string(),
   recipient_name: z.string(),
   recipient_phone: z.string(),
 
@@ -70,7 +72,7 @@ type EditFormValues = z.infer<typeof editSchema>;
 
 const defaultValues: EditFormValues = {
   send_date: "",
-  company: "Intermex",
+  company: "",
   service_type: "Money Transfer",
   payment_method: "cash",
   status: "Sent",
@@ -80,7 +82,7 @@ const defaultValues: EditFormValues = {
   sender_address: "",
   sender_dob: "",
   customer_id: null,
-  country: "Mexico",
+  country: "",
   recipient_name: "",
   recipient_phone: "",
   send_amount: 0,
@@ -100,6 +102,9 @@ export default function EditTransfer() {
   const detail = useTransfer(Number.isFinite(transferId) ? transferId : undefined);
   const roster = useEmployees();
   const storeInfo = useStoreInfo();
+  const choices = useTransferChoices();
+  const companies = choices.data?.companies;
+  const countries = choices.data?.countries;
 
   const {
     register, handleSubmit, control, setValue, getValues, setError,
@@ -118,9 +123,9 @@ export default function EditTransfer() {
     const t = detail.data.transfer;
     reset({
       send_date: t.send_date,
-      company: (COMPANIES as readonly string[]).includes(t.company)
-        ? (t.company as (typeof COMPANIES)[number])
-        : "Other",
+      // Company + country stay exactly as saved, even when Settings
+      // has since dropped them (StoreListField still offers them).
+      company: t.company,
       service_type: (SERVICES as readonly string[]).includes(t.service_type)
         ? (t.service_type as (typeof SERVICES)[number])
         : "Money Transfer",
@@ -136,9 +141,7 @@ export default function EditTransfer() {
       sender_address: t.sender_address || "",
       sender_dob: t.sender_dob || "",
       customer_id: t.customer_id ?? null,
-      country: (COUNTRIES as readonly string[]).includes(t.country)
-        ? (t.country as (typeof COUNTRIES)[number])
-        : "Mexico",
+      country: t.country || "",
       recipient_name: t.recipient_name || "",
       recipient_phone: t.recipient_phone || "",
       send_amount: t.send_amount,
@@ -254,6 +257,13 @@ export default function EditTransfer() {
         subtitle="Federal tax is recomputed server-side on save."
       />
 
+      {choices.isError && (
+        <ErrorState
+          message="Could not load the store's companies and countries."
+          onRetry={() => { void choices.refetch(); }}
+        />
+      )}
+
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="ds-form"
@@ -275,11 +285,21 @@ export default function EditTransfer() {
                   )}
                 />
               </Field>
-              <Field label="Company">
-                <Select {...register("company")}>
-                  {COMPANIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </Select>
-              </Field>
+              <Controller
+                control={control}
+                name="company"
+                render={({ field }) => (
+                  <StoreListField
+                    label="Company"
+                    options={companies}
+                    value={field.value}
+                    onChange={field.onChange}
+                    loading={choices.isLoading || choices.isError}
+                    error={errors.company?.message}
+                    emptyText="No money transfer companies are switched on. Add or turn one on in"
+                  />
+                )}
+              />
               <Field label="Service">
                 <Select {...register("service_type")}>
                   {SERVICES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -364,24 +384,27 @@ export default function EditTransfer() {
               storeId={identity.store_id}
               onPick={(row) => {
                 setValue("recipient_name", row.name);
-                if (
-                  row.country
-                  && (COUNTRIES as readonly string[]).includes(row.country)
-                ) {
-                  setValue(
-                    "country",
-                    row.country as (typeof COUNTRIES)[number],
-                  );
+                if (row.country && countries?.includes(row.country)) {
+                  setValue("country", row.country);
                 }
                 setValue("recipient_phone", row.phone);
               }}
             />
             <div className={styles.grid}>
-              <Field label={words.country}>
-                <Select {...register("country")}>
-                  {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </Select>
-              </Field>
+              <Controller
+                control={control}
+                name="country"
+                render={({ field }) => (
+                  <StoreListField
+                    label={words.country}
+                    options={countries}
+                    value={field.value}
+                    onChange={field.onChange}
+                    loading={choices.isLoading || choices.isError}
+                    emptyText="No countries on the store's list. Add them in"
+                  />
+                )}
+              />
               <Field label={words.otherName}>
                 <Input type="text" {...register("recipient_name")} />
               </Field>
