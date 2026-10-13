@@ -23,14 +23,30 @@ import { ApiError } from "../lib/api";
 //   - "Paid by debit card" sends payment_method "debit_card" (cash by
 //     default); a Payout hides the fee and the card box, swaps the
 //     party / amount names, and always sends cash with no fee.
+//   - Company and country are the store's own lists from Settings →
+//     General (owner report 2026-10-13: the form had its own list, so
+//     it did not match the MSB daily book's companies).
 
 const createTransfer = vi.fn();
+const DEFAULT_COUNTRIES = [
+  "United States", "Mexico", "Guatemala", "El Salvador", "Honduras",
+  "Dominican Republic", "Colombia", "Ecuador", "Peru", "Other",
+];
+const refetchChoices = vi.fn();
+const choices = vi.fn();
+function storeLists(companies: string[], countries = DEFAULT_COUNTRIES) {
+  choices.mockReturnValue({
+    data: { companies, countries },
+    isLoading: false, isError: false, refetch: refetchChoices,
+  });
+}
 
 vi.mock("../api/transfers", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/transfers")>();
   return {
     ...real,
     createTransfer: (...a: unknown[]) => createTransfer(...a),
+    useTransferChoices: () => choices(),
     useEmployees: () => ({
       data: { employees: [{ id: 7, name: "Rosa Diaz" }, { id: 8, name: "Tom" }] },
       isLoading: false, isError: false,
@@ -86,6 +102,8 @@ async function fillValid(user: ReturnType<typeof userEvent.setup>) {
 describe("NewTransfer", () => {
   beforeEach(() => {
     createTransfer.mockReset();
+    refetchChoices.mockReset();
+    storeLists(["Intermex", "Maxi", "Sigue"]);
   });
 
   it("blocks an empty save and names what is missing", async () => {
@@ -274,5 +292,85 @@ describe("NewTransfer", () => {
     await user.click(screen.getByRole("button", { name: "Save transfer" }));
     expect(await screen.findByText(/A payout has no fee/)).toBeInTheDocument();
     expect(screen.queryByText("detail page")).not.toBeInTheDocument();
+  });
+
+  it("offers exactly the store's companies from Settings", async () => {
+    createTransfer.mockResolvedValue({ transfer: { id: 45 } });
+    const user = userEvent.setup();
+    renderPage();
+    const company = screen.getByLabelText("Company") as HTMLSelectElement;
+    expect([...company.options].map((o) => o.value))
+      .toEqual(["Intermex", "Maxi", "Sigue"]);
+    // The first company on the store's list is the starting pick.
+    expect(company.value).toBe("Intermex");
+    await fillValid(user);
+    await user.selectOptions(company, "Sigue");
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    await waitFor(() => expect(createTransfer).toHaveBeenCalledTimes(1));
+    expect(createTransfer.mock.calls[0][0]).toMatchObject({ company: "Sigue" });
+  });
+
+  it("offers the store's countries and starts on its first without Mexico", async () => {
+    storeLists(["Barri"], ["Cuba", "Peru"]);
+    createTransfer.mockResolvedValue({ transfer: { id: 46 } });
+    const user = userEvent.setup();
+    renderPage();
+    const country = screen.getByLabelText("Country") as HTMLSelectElement;
+    expect([...country.options].map((o) => o.value)).toEqual(["Cuba", "Peru"]);
+    expect(country.value).toBe("Cuba");
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    await waitFor(() => expect(createTransfer).toHaveBeenCalledTimes(1));
+    expect(createTransfer.mock.calls[0][0]).toMatchObject({
+      company: "Barri", country: "Cuba",
+    });
+  });
+
+  it("starts on Mexico while the store's list has it", () => {
+    renderPage();
+    expect(screen.getByLabelText("Country")).toHaveValue("Mexico");
+  });
+
+  it("says where to add a company when none is switched on, and won't save", async () => {
+    storeLists([]);
+    const user = userEvent.setup();
+    renderPage();
+    // The hint is part of the field's label.
+    expect(screen.getByLabelText(/^Company/)).toBeDisabled();
+    expect(screen.getByText(/No money transfer companies are switched on/))
+      .toBeInTheDocument();
+    expect(screen.getByText("Settings → General")).toBeInTheDocument();
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    expect(await screen.findByText("Pick a company")).toBeInTheDocument();
+    expect(createTransfer).not.toHaveBeenCalled();
+  });
+
+  it("offers a retry when the store's lists cannot load", async () => {
+    choices.mockReturnValue({
+      data: undefined, isLoading: false, isError: true, refetch: refetchChoices,
+    });
+    const user = userEvent.setup();
+    renderPage();
+    expect(screen.getByText("Could not load the store's companies and countries."))
+      .toBeInTheDocument();
+    expect(screen.getByLabelText("Company")).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: /Retry/ }));
+    expect(refetchChoices).toHaveBeenCalled();
+  });
+
+  it("does not count loading the store's lists as an unsaved edit", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows only the store's countries, none of the old built-in ones", () => {
+    storeLists(["Intermex"], ["Mexico", "Peru"]);
+    renderPage();
+    // The country picker only ever shows the store's list.
+    expect([...(screen.getByLabelText("Country") as HTMLSelectElement).options]
+      .map((o) => o.value)).toEqual(["Mexico", "Peru"]);
   });
 });

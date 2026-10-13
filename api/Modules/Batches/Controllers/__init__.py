@@ -56,10 +56,12 @@ def _row(s: BatchSummary) -> BatchRow:
         variance=s.variance,
         transfer_count=s.transfer_count,
         expected_ach=s.expected_ach,
-        card_credit=s.card_credit,
-        card_credit_from=s.card.credit_from,
-        card_credit_next=to_dollars(s.card.next_cents),
-        card_credit_next_to=s.card.next_to,
+        card_credit=to_dollars(s.credit.card_cents),
+        payout_credit=to_dollars(s.credit.payout_cents),
+        card_credit_from=s.credit.credit_from,
+        card_credit_next=to_dollars(s.credit.card_next_cents),
+        payout_credit_next=to_dollars(s.credit.payout_next_cents),
+        card_credit_next_to=s.credit.next_to,
     )
 
 

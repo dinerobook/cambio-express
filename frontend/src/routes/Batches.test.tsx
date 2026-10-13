@@ -29,6 +29,7 @@ const base = {
   company: "Intermex", reconciled: false, transfer_dates: "", notes: "",
   expected_ach: 0, card_credit: 0, card_credit_from: "",
   card_credit_next: 0, card_credit_next_to: "",
+  payout_credit: 0, payout_credit_next: 0,
 };
 const rows = [
   {
@@ -108,12 +109,30 @@ describe("Batches list", () => {
     renderPage();
     const row = screen.getByLabelText("Open batch REF-9");
     expect(row).toHaveTextContent("-$106.00 debit card credit");
+    expect(row).not.toHaveTextContent("payout credit");
     expect(row).toHaveTextContent("+$0.00");
+  });
+
+  it("shows a payout credit line", () => {
+    useBatches.mockReturnValue({
+      data: { rows: [{
+        ...base, id: 10, ach_date: "2026-10-06", batch_ref: "REF-10",
+        ach_amount: 140, transfers_total: 200, transfer_count: 1,
+        payout_credit: 60, card_credit_from: "REF-9", expected_ach: 140,
+        variance: 0, status: "Pending",
+      }] },
+      isLoading: false, isError: false,
+    });
+    renderPage();
+    const row = screen.getByLabelText("Open batch REF-10");
+    expect(row).toHaveTextContent("-$60.00 payout credit");
+    expect(row).not.toHaveTextContent("debit card credit");
   });
 
   it("shows no credit line on a batch without one", () => {
     renderPage();
     expect(screen.queryByText(/debit card credit/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/payout credit/)).not.toBeInTheDocument();
   });
 
   it("renders status pills with the shared tone map", () => {

@@ -6,7 +6,7 @@ in two bulk queries so we don't N+1 across rows.
 """
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from api.Modules.Batches.Models import ACHBatch
@@ -104,34 +104,43 @@ def transfer_count_by_batch_ref(
     return {ref: int(c) for ref, c in rows}
 
 
-def card_send_totals_for_batch_refs(
+def credit_totals_for_batch_refs(
     db: Session, store_id: int, batch_refs: list[str],
-) -> dict[str, int]:
-    """For each batch_ref, Σ what customers paid by debit card
-    (``send_amount + fee + federal_tax``, in cents) on the sends
-    linked to it. The company credits that amount on its NEXT
-    invoice (Transfers INVARIANTS "Debit card sends"). Cancelled
-    transfers and payouts are excluded, as everywhere in batches."""
+) -> dict[str, tuple[int, int]]:
+    """For each batch_ref, the two amounts the company credits on its
+    NEXT invoice for the transfers linked to it, in cents, as
+    ``(debit_card, payouts)`` (Transfers INVARIANTS "Debit card
+    sends" / "Payouts"):
+
+    * debit card sends: what the customer paid on the card,
+      ``send_amount + fee + federal_tax``;
+    * payouts: the cash the store paid out, ``send_amount``.
+
+    Cancelled transfers are excluded, as everywhere in batches."""
     if not batch_refs:
         return {}
+    card = (Transfer.is_send
+            & (Transfer.payment_method == PAYMENT_DEBIT_CARD))
+    paid_by_card = (func.coalesce(Transfer.send_amount_cents, 0)
+                    + func.coalesce(Transfer.fee_cents, 0)
+                    + func.coalesce(Transfer.federal_tax_cents, 0))
     rows = (
         db.query(
             Transfer.batch_id,
-            func.coalesce(func.sum(Transfer.send_amount_cents), 0)
-            + func.coalesce(func.sum(Transfer.fee_cents), 0)
-            + func.coalesce(func.sum(Transfer.federal_tax_cents), 0),
+            func.sum(case((card, paid_by_card), else_=0)),
+            func.sum(case((~Transfer.is_send,
+                           func.coalesce(Transfer.send_amount_cents, 0)),
+                          else_=0)),
         )
         .filter(
             Transfer.store_id == store_id,
             Transfer.batch_id.in_(batch_refs),
             Transfer.status != "Cancelled",
-            Transfer.is_send,
-            Transfer.payment_method == PAYMENT_DEBIT_CARD,
         )
         .group_by(Transfer.batch_id)
         .all()
     )
-    return {ref: int(c or 0) for ref, c in rows}
+    return {ref: (int(c or 0), int(p or 0)) for ref, c, p in rows}
 
 
 def company_batch_sequence(
