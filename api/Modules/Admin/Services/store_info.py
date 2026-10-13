@@ -59,6 +59,10 @@ EDITABLE_STORE_FIELDS: tuple[str, ...] = (
     # columns via ``encode_mt_companies`` (Transfers Services) —
     # there is no ``mt_companies`` column on Store.
     "mt_companies",
+    # The transfer form's country picker, in order. A list of names
+    # encoded into the ``transfer_countries`` CSV column via
+    # ``encode_transfer_countries`` (Transfers Services).
+    "transfer_countries",
 )
 
 
@@ -106,14 +110,26 @@ def update_store_info(
             # controller's 422 like every other validation here.
             from api.Modules.Transfers.Services import (
                 encode_mt_companies, encode_mt_money_orders_off,
+                store_mt_company_roster,
             )
-            companies_csv, disabled_csv = encode_mt_companies(v)
+            # Names already on the roster are grandfathered past the
+            # new-name length cap (see encode_mt_companies).
+            companies_csv, disabled_csv = encode_mt_companies(
+                v, existing=[n for n, _ in store_mt_company_roster(store)],
+            )
             # setattr dodges the SQLAlchemy 1.x Column[str] typing
             # trap (same pattern as the loop's setattr below).
             setattr(store, "companies", companies_csv)
             setattr(store, "companies_disabled", disabled_csv)
             setattr(store, "companies_money_orders_off",
                     encode_mt_money_orders_off(v))
+            continue
+        if k == "transfer_countries":
+            from api.Modules.Transfers.Services import (
+                encode_transfer_countries,
+            )
+            setattr(store, "transfer_countries",
+                    encode_transfer_countries(v))
             continue
         if k == "enforce_business_hours":
             # Coerce truthy values so a CLI / curl POST with "1"

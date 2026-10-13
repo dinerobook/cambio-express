@@ -1,0 +1,72 @@
+/* SenderAutocomplete — the existing-customers list under the sender
+   name on the transfer forms. */
+
+/* Portalled to <body> by Radix and positioned by it, so no card or
+   Modal on the page can paint over it. Same layer as the shared date
+   field's calendar (DateInput.module.css), above the kit Modal
+   (z-index 100); as wide as the name field and capped to the room
+   Radix measures, so it can always be scrolled. */
+.popover {
+  z-index: 200;
+  width: var(--radix-popover-trigger-width);
+  max-width: calc(100vw - 1rem);
+  max-height: min(20rem, var(--radix-popover-content-available-height));
+  overflow-y: auto;
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.status {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--db-text-muted);
+}
+
+.header {
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--db-text-muted);
+  background: var(--db-surface);
+  border-bottom: 1px solid var(--db-border-subtle);
+}
+
+.row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.85rem;
+  background: transparent;
+  color: var(--db-text);
+  border: none;
+  border-bottom: 1px solid var(--db-border-subtle);
+  cursor: pointer;
+  font: inherit;
+  transition: background var(--ds-dur-fast, 120ms) ease;
+}
+
+.row[data-active] {
+  background: var(--db-surface);
+}
+
+.name {
+  display: block;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--db-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.phone {
+  font-family: var(--db-font-mono);
+}

@@ -1994,6 +1994,16 @@
             "title": "Notes",
             "type": "string"
           },
+          "payout_credit": {
+            "default": 0.0,
+            "title": "Payout Credit",
+            "type": "number"
+          },
+          "payout_credit_next": {
+            "default": 0.0,
+            "title": "Payout Credit Next",
+            "type": "number"
+          },
           "reconciled": {
             "default": false,
             "title": "Reconciled",
@@ -12767,6 +12777,14 @@
             },
             "title": "Timezone Choices",
             "type": "array"
+          },
+          "transfer_countries": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Transfer Countries",
+            "type": "array"
           }
         },
         "required": [
@@ -13051,6 +13069,21 @@
               }
             ],
             "title": "Timezone"
+          },
+          "transfer_countries": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transfer Countries"
           }
         },
         "title": "StoreInfoUpdateRequest",
@@ -15669,6 +15702,32 @@
           "code"
         ],
         "title": "TotpLoginRequest",
+        "type": "object"
+      },
+      "TransferChoicesResponse": {
+        "additionalProperties": false,
+        "description": "The store's pick-lists for the transfer and ACH batch forms,\nboth managed under Settings \u2192 General: ``companies`` is the\nACTIVE money transfer company roster (the same list the MSB daily\nbook uses), ``countries`` the store's transfer countries.",
+        "properties": {
+          "companies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Companies",
+            "type": "array"
+          },
+          "countries": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Countries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "companies",
+          "countries"
+        ],
+        "title": "TransferChoicesResponse",
         "type": "object"
       },
       "TransferCompanyTotalsResponse": {
@@ -42470,6 +42529,72 @@
           }
         },
         "summary": "Create Route",
+        "tags": [
+          "transfers"
+        ]
+      }
+    },
+    "/transfers/choices": {
+      "get": {
+        "description": "The company + country pick-lists for the JWT principal's\nstore. The transfer form and the ACH batch form both read them,\nso either right opens it: ``transfers.read`` or ``batches.read``.\n403 for anyone with neither, and for a principal without a store\nscope (superadmin) since the lists are per store.",
+        "operationId": "choices_route_transfers_choices_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferChoicesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Choices Route",
         "tags": [
           "transfers"
         ]

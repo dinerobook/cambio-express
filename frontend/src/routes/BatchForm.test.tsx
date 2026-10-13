@@ -12,11 +12,25 @@ import { todayIso } from "../lib/datetime";
 // New / edit ACH batch form: what reaches the API (amount as a
 // number, date as YYYY-MM-DD), server errors shown in place, an
 // edit hydrates from the server row, and leaving a dirty form asks
-// first. Create is blocked until a reference is typed.
+// first. Create is blocked until a reference is typed. The company
+// picker is the store's money transfer companies from Settings, the
+// same list as the transfer form and the MSB daily book.
 
 const createBatch = vi.fn();
 const updateBatch = vi.fn();
 const useBatch = vi.fn();
+const choices = vi.fn();
+function storeCompanies(companies: string[]) {
+  choices.mockReturnValue({
+    data: { companies, countries: ["Mexico"] },
+    isLoading: false, isError: false, refetch: vi.fn(),
+  });
+}
+
+vi.mock("../api/transfers", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../api/transfers")>();
+  return { ...real, useTransferChoices: () => choices() };
+});
 
 vi.mock("../api/batches", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/batches")>();
@@ -35,6 +49,7 @@ const existing = {
   transfers_total: 1200, variance: 34.5, transfer_count: 3,
   expected_ach: 1200, card_credit: 0, card_credit_from: "",
   card_credit_next: 0, card_credit_next_to: "",
+  payout_credit: 0, payout_credit_next: 0,
 };
 
 function renderForm(path: string) {
@@ -60,6 +75,7 @@ describe("BatchForm", () => {
     updateBatch.mockReset();
     useBatch.mockReset();
     useBatch.mockReturnValue({ data: undefined, isLoading: false });
+    storeCompanies(["Intermex", "Maxi", "Barri"]);
   });
 
   it("blocks Create until a batch reference is typed", async () => {
@@ -151,7 +167,8 @@ describe("BatchForm", () => {
     useBatch.mockReturnValue({
       data: { batch: {
         ...existing, transfers_total: 303, card_credit: 106,
-        card_credit_from: "ACH-76", expected_ach: 197, ach_amount: 190,
+        payout_credit: 40,
+        card_credit_from: "ACH-76", expected_ach: 157, ach_amount: 150,
         variance: -7, transfer_count: 1,
       } },
       isLoading: false,
@@ -161,8 +178,9 @@ describe("BatchForm", () => {
     expect(screen.getByText("$303.00")).toBeInTheDocument();
     expect(screen.getByText("1 transfer")).toBeInTheDocument();
     expect(screen.getByText("-$106.00")).toBeInTheDocument();
-    expect(screen.getByText("From batch ACH-76")).toBeInTheDocument();
-    expect(screen.getByText("$197.00")).toBeInTheDocument();
+    expect(screen.getByText("-$40.00")).toBeInTheDocument();
+    expect(screen.getAllByText("From batch ACH-76")).toHaveLength(2);
+    expect(screen.getByText("$157.00")).toBeInTheDocument();
     expect(screen.getByText("-$7.00")).toBeInTheDocument();
   });
 
@@ -184,7 +202,21 @@ describe("BatchForm", () => {
     renderForm("/batches/7/edit");
     expect(screen.getByText(/credited on this company's next ACH, once it is entered/))
       .toBeInTheDocument();
-    expect(screen.getByText("None from a previous batch")).toBeInTheDocument();
+    expect(screen.getAllByText("None from a previous batch")).toHaveLength(2);
+  });
+
+  it("names both card sends and payouts credited on the next batch", () => {
+    useBatch.mockReturnValue({
+      data: { batch: {
+        ...existing, card_credit_next: 52.5, payout_credit_next: 60,
+        card_credit_next_to: "ACH-78",
+      } },
+      isLoading: false,
+    });
+    renderForm("/batches/7/edit");
+    expect(screen.getByText(
+      "$52.50 paid by debit card and $60.00 paid out on this batch are credited on batch ACH-78.",
+    )).toBeInTheDocument();
   });
 
   it("shows no expected ACH on a new batch", () => {
@@ -206,5 +238,37 @@ describe("BatchForm", () => {
     expect(screen.getByText(/unsaved edits on this batch/)).toBeInTheDocument();
     expect(screen.queryByText("batches list")).not.toBeInTheDocument();
     expect(createBatch).not.toHaveBeenCalled();
+  });
+
+  it("offers the store's companies and starts a new batch on the first", async () => {
+    storeCompanies(["Sigue", "Intermex"]);
+    createBatch.mockResolvedValue({ batch: existing });
+    renderForm("/batches/new");
+    const company = screen.getByLabelText("Company") as HTMLSelectElement;
+    expect([...company.options].map((o) => o.value)).toEqual(["Sigue", "Intermex"]);
+    expect(company).toHaveValue("Sigue");
+    // Loading the list is not an unsaved edit.
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(await screen.findByText("batches list")).toBeInTheDocument();
+  });
+
+  it("keeps an edited batch's company even when Settings dropped it", async () => {
+    storeCompanies(["Intermex"]);
+    useBatch.mockReturnValue({ data: { batch: existing }, isLoading: false });
+    updateBatch.mockResolvedValue({ batch: existing });
+    renderForm("/batches/7/edit");
+    expect(await screen.findByDisplayValue("ACH-77")).toBeInTheDocument();
+    expect(screen.getByLabelText("Company")).toHaveValue("Maxi");
+    await userEvent.type(screen.getByLabelText("Batch reference"), "b");
+    await userEvent.click(screen.getByRole("button", { name: /Save/ }));
+    await waitFor(() => expect(updateBatch).toHaveBeenCalledTimes(1));
+    expect(updateBatch.mock.calls[0][1]).toMatchObject({ company: "Maxi" });
+  });
+
+  it("says where to add a company when none is switched on", () => {
+    storeCompanies([]);
+    renderForm("/batches/new");
+    expect(screen.getByText(/No money transfer companies are switched on/))
+      .toBeInTheDocument();
   });
 });
