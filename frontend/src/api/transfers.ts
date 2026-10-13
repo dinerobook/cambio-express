@@ -186,6 +186,25 @@ export function useEmployees() {
   });
 }
 
+export type TransferChoices = components["schemas"]["TransferChoicesResponse"];
+
+export const TRANSFER_CHOICES_KEY = ["transfers", "choices"] as const;
+
+// Hook: the store's company + country pick-lists for the transfer
+// and ACH batch forms. Both live in Settings → General: the active
+// money transfer companies (the same list the MSB daily book uses)
+// and the store's transfer countries. Settings invalidates this key
+// on save, so a company added there shows on the next form.
+export function useTransferChoices() {
+  const identity = getCurrentIdentity();
+  const storeId = identity?.store_id;
+  return useQuery<TransferChoices>({
+    enabled: storeId !== null && storeId !== undefined,
+    queryKey: [...TRANSFER_CHOICES_KEY, storeId],
+    queryFn: () => api<TransferChoices>("/api/v2/transfers/choices"),
+  });
+}
+
 // Hook: fetch a single transfer by id, scoped to the user's
 // store(s). Server returns 404 (never 403) for cross-tenant
 // lookups so tenancy boundaries stay opaque.

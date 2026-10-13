@@ -82,6 +82,9 @@ class StoreInfoRow(BaseModel):
     # section. The daily book / transfer form consume only the
     # enabled subset via store_mt_companies().
     mt_companies: list[MTCompanyEntry] = []
+    # The transfer form's country picker, in order (the built-in
+    # list until the store edits it).
+    transfer_countries: list[str] = []
 
 
 class StoreInfoResponse(BaseModel):
@@ -125,3 +128,6 @@ class StoreInfoUpdateRequest(BaseModel):
     # Replaces the whole roster in one save (same all-fields-at-once
     # posture as the rest of the Settings form). None = untouched.
     mt_companies: list[MTCompanyEntry] | None = None
+    # Replaces the whole country list. None = untouched. Deep
+    # validation in ``Transfers.Services.encode_transfer_countries``.
+    transfer_countries: list[str] | None = Field(None, max_length=100)

@@ -16,6 +16,7 @@ import {
   type StoreHourEntry,
 } from "../api/account";
 import { redeemConnectCode } from "../api/owner";
+import { TRANSFER_CHOICES_KEY } from "../api/transfers";
 import { ApiError, apiErrorMessage, downloadFile } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate, formatTimestamp } from "../lib/datetime";
@@ -585,7 +586,8 @@ function StoreInfoCard() {
   // with the rest of the tab; `newCompany` is the transient add-row
   // input and deliberately NOT part of the dirty snapshot.
   const [mtCompanies, setMtCompanies] = useState<MTCompanyEntry[]>([]);
-  const [newCompany, setNewCompany] = useState("");
+  // The transfer form's country picker, in order. Same save posture.
+  const [countries, setCountries] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   // Last-saved snapshot (JSON) — the form is dirty when it drifts.
@@ -596,10 +598,12 @@ function StoreInfoCard() {
   // key order here + at hydrate so the dirty compare is stable.
   const snapshot = (
     h: StoreHourEntry[], enforce: boolean, companies: MTCompanyEntry[],
+    countryList: string[],
   ) => JSON.stringify({
     name, email, phone, address, legalName, ein, businessAddress,
     taxRatePct, salesTaxPct, receiptLogoUrl, receiptFooter, receiptTaxId,
     timezone, hours: h, enforceHours: enforce, mtCompanies: companies,
+    countries: countryList,
   });
 
   // Hydrate the form from the read-side row when it arrives.
@@ -617,6 +621,7 @@ function StoreInfoCard() {
     const companies = (data.store.mt_companies ?? []).map((c) => ({
       ...c, money_orders: c.money_orders ?? true,
     }));
+    const countryList = [...(data.store.transfer_countries ?? [])];
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable store-settings fields + dirty baseline from server-fetched row (federal_tax_rate gets a decimal->percent conversion for display)
     setName(data.store.name);
     setEmail(data.store.email);
@@ -634,6 +639,7 @@ function StoreInfoCard() {
     setHours(hydratedHours);
     setEnforceHours(enforce);
     setMtCompanies(companies);
+    setCountries(countryList);
     // Baseline mirrors the snapshot() shape exactly (same key order).
     setBaseline(JSON.stringify({
       name: data.store.name, email: data.store.email,
@@ -647,6 +653,7 @@ function StoreInfoCard() {
       timezone: data.store.timezone,
       hours: hydratedHours, enforceHours: enforce,
       mtCompanies: companies,
+      countries: countryList,
     }));
   }, [data]);
 
@@ -655,25 +662,15 @@ function StoreInfoCard() {
   const canEdit = hasPermission("settings", "update");
 
   const isDirty =
-    baseline !== "" && snapshot(hours, enforceHours, mtCompanies) !== baseline;
+    baseline !== ""
+    && snapshot(hours, enforceHours, mtCompanies, countries) !== baseline;
   // Arm the browser "leave site?" prompt while there are unsaved edits.
   useUnsavedChangesGuard(isDirty && !busy && canEdit);
 
-  function addCompany() {
-    const trimmed = newCompany.trim();
-    if (!trimmed) return;
-    if (trimmed.includes(",")) {
-      toast({ message: "Company names can’t contain commas.", tone: "info" });
-      return;
-    }
-    if (mtCompanies.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
-      toast({ message: `${trimmed} is already on the roster.`, tone: "info" });
-      return;
-    }
+  function addCompany(name: string) {
     setMtCompanies((list) => [
-      ...list, { name: trimmed, enabled: true, money_orders: true },
+      ...list, { name, enabled: true, money_orders: true },
     ]);
-    setNewCompany("");
   }
 
   async function onSubmit(e: FormEvent) {
@@ -695,6 +692,7 @@ function StoreInfoCard() {
         store_hours: hours,
         enforce_business_hours:     enforceHours,
         mt_companies: mtCompanies,
+        transfer_countries: countries,
       });
       await queryClient.invalidateQueries({
         queryKey: ["admin", "store-info"],
@@ -703,8 +701,10 @@ function StoreInfoCard() {
       await queryClient.invalidateQueries({
         queryKey: ["account", "session-status"],
       });
+      // The transfer + batch forms pick from these lists.
+      await queryClient.invalidateQueries({ queryKey: TRANSFER_CHOICES_KEY });
       // Edits are now the saved state — clear the dirty flag.
-      setBaseline(snapshot(hours, enforceHours, mtCompanies));
+      setBaseline(snapshot(hours, enforceHours, mtCompanies, countries));
       toast({ message: "Store info saved.", tone: "success" });
     } catch (e) {
       setErr(apiErrorMessage(e, "Could not save."));
@@ -921,38 +921,50 @@ function StoreInfoCard() {
             </div>
           ))}
         </div>
-        <div
-          style={{
-            display: "flex", gap: space.sm, alignItems: "center",
-            marginTop: space.md, maxWidth: "26rem",
-          }}
-        >
-          <Input
-            type="text"
-            value={newCompany}
-            onChange={(e) => setNewCompany(e.target.value)}
-            placeholder="Add a company (e.g. Ria)"
-            maxLength={40}
-            disabled={!canEdit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                // Enter adds the company instead of submitting the
-                // whole settings form.
-                e.preventDefault();
-                addCompany();
-              }
-            }}
-          />
-          <Button
-            type="button"
-            tone="secondary"
-            size="sm"
-            disabled={!canEdit || !newCompany.trim()}
-            onClick={addCompany}
-          >
-            Add
-          </Button>
+        <AddNameRow
+          kind="company"
+          placeholder="Add a company (e.g. Ria)"
+          maxLength={30}
+          existing={mtCompanies.map((c) => c.name)}
+          disabled={!canEdit}
+          onAdd={addCompany}
+        />
+      </Card>
+
+      {/* The transfer form's country picker. Only the picker: saved
+          transfers keep their country when it leaves this list. */}
+      <Card>
+        <SectionTitle>
+          Transfer countries
+          <InfoTip text="The countries on the transfer form, in this order. Removing one only takes it off the form: transfers already saved keep their country. Transfers to “United States” carry no federal tax." />
+        </SectionTitle>
+        <div className={styles.countryList}>
+          {countries.map((c, i) => (
+            <span key={c} className={styles.countryChip}>
+              {c}
+              <Button
+                type="button"
+                tone="ghost"
+                size="sm"
+                aria-label={`Remove ${c}`}
+                disabled={!canEdit || countries.length <= 1}
+                onClick={() =>
+                  setCountries((list) => list.filter((_, j) => j !== i))
+                }
+              >
+                ×
+              </Button>
+            </span>
+          ))}
         </div>
+        <AddNameRow
+          kind="country"
+          placeholder="Add a country (e.g. Cuba)"
+          maxLength={60}
+          existing={countries}
+          disabled={!canEdit}
+          onAdd={(c) => setCountries((list) => [...list, c])}
+        />
       </Card>
 
       {/* Business / Legal is its own card — the compliance identity +
@@ -1044,6 +1056,72 @@ function StoreInfoCard() {
         </div>
       )}
     </form>
+  );
+}
+
+/** The "type a name, press Add" row under a Settings list (money
+ *  transfer companies, transfer countries). Refuses a blank name, a
+ *  comma (the lists are stored comma-separated) and a name already on
+ *  the list, case-insensitively, with a toast; the server re-checks. */
+function AddNameRow({
+  kind, placeholder, maxLength, existing, disabled, onAdd,
+}: {
+  kind: "company" | "country";
+  placeholder: string;
+  maxLength: number;
+  existing: readonly string[];
+  disabled: boolean;
+  onAdd: (name: string) => void;
+}) {
+  const toast = useToast();
+  const [value, setValue] = useState("");
+  const noun = kind === "company" ? "Company" : "Country";
+
+  function add() {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    if (trimmed.includes(",")) {
+      toast({ message: `${noun} names can’t contain commas.`, tone: "info" });
+      return;
+    }
+    if (existing.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
+      toast({ message: `${trimmed} is already on the list.`, tone: "info" });
+      return;
+    }
+    onAdd(trimmed);
+    setValue("");
+  }
+
+  return (
+    <div className={styles.addNameRow}>
+      <Input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        aria-label={kind === "company" ? "New company" : "New country"}
+        maxLength={maxLength}
+        disabled={disabled}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            // Enter adds the name instead of submitting the whole
+            // settings form.
+            e.preventDefault();
+            add();
+          }
+        }}
+      />
+      <Button
+        type="button"
+        tone="secondary"
+        size="sm"
+        disabled={disabled || !value.trim()}
+        onClick={add}
+        aria-label={`Add ${kind}`}
+      >
+        Add
+      </Button>
+    </div>
   );
 }
 

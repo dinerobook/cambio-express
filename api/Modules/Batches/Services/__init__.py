@@ -1,8 +1,8 @@
 """Batches — Services. Composes Repository helpers."""
 from api.Modules.Batches.Services.batches import (
     BatchSummary,
-    CardCredit,
-    card_credits_for_store,
+    BatchCredit,
+    credits_for_store,
     list_store_batches,
     summarize_batch,
 )
@@ -20,8 +20,8 @@ __all__ = [
     "BatchSummary",
     "BatchValidationError",
     "BatchWriteInput",
-    "CardCredit",
-    "card_credits_for_store",
+    "BatchCredit",
+    "credits_for_store",
     "create_batch",
     "find_batch",
     "list_store_batches",
