@@ -382,12 +382,24 @@ def uncategorize_route(
 ) -> CategorizeResponse:
     """Clear a transaction's category and remove any auto-created
     DailyLineItem. The row stays in the table — it just goes back
-    to "uncategorized" so it can be re-tagged."""
+    to "uncategorized" so it can be re-tagged. A line booked on a
+    locked day → 409, same shape as categorize."""
     require_permission(claims, "bank_sync", "update")
     sid = resolve_store_scope(claims)
     txn = _find_owned_txn(db, sid, txn_id)
     previous = txn.category_slug or ""
-    uncategorize_transaction(db, txn)
+    try:
+        uncategorize_transaction(db, txn)
+    except DailyBookLockedError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "daily_book_locked",
+                "report_date": exc.report_date.isoformat(),
+                "message": str(exc),
+            },
+        )
     _audit_bank_action(
         db, claims=claims, action="uncategorize",
         target_type="bank_transaction", target_id=str(txn.id),

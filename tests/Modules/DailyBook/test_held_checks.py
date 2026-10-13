@@ -88,6 +88,16 @@ def _lock(sid, d):
         db.session.commit()
 
 
+def _unlock(sid, d):
+    from api.Modules.DailyBook.Models import DailyReport
+    with db_session():
+        r = db.session.query(DailyReport).filter_by(
+            store_id=sid, report_date=d,
+        ).one()
+        r.locked_at = None
+        db.session.commit()
+
+
 # ── The hold ───────────────────────────────────────────────
 
 
@@ -300,15 +310,30 @@ def test_new_hold_on_a_locked_day_is_refused(client, test_store_id, admin):
     assert resp.status_code == 403
 
 
-def test_deposit_by_date_moves_on_a_locked_hold_day(client, test_store_id, admin):
-    hold = _hold(client, test_store_id, admin)
+def test_deposit_by_date_is_refused_on_a_locked_hold_day(
+    client, test_store_id, admin,
+):
+    """A locked day is view only (owner, 2026-10-13): the hold's
+    deposit-by date can't move until its day is unlocked."""
+    hold = _hold(client, test_store_id, admin, settle_by=WED.isoformat())
     _lock(test_store_id, FRI)
-    moved = client.patch(
-        f"/api/v2/daily/{test_store_id}/line-items/{hold['id']}",
-        json={"settle_by": THU.isoformat()}, headers=admin,
-    )
+    url = f"/api/v2/daily/{test_store_id}/line-items/{hold['id']}"
+    moved = client.patch(url, json={"settle_by": THU.isoformat()}, headers=admin)
+    assert moved.status_code == 403
+    assert _open(client, test_store_id, admin)[0]["settle_by"] == WED.isoformat()
+    _unlock(test_store_id, FRI)
+    moved = client.patch(url, json={"settle_by": THU.isoformat()}, headers=admin)
     assert moved.status_code == 200
     assert moved.get_json()["settle_by"] == THU.isoformat()
+
+
+def test_open_list_flags_a_hold_whose_day_is_locked(
+    client, test_store_id, admin,
+):
+    _hold(client, test_store_id, admin)
+    assert _open(client, test_store_id, admin)[0]["day_locked"] is False
+    _lock(test_store_id, FRI)
+    assert _open(client, test_store_id, admin)[0]["day_locked"] is True
 
 
 # ── Existing days ──────────────────────────────────────────

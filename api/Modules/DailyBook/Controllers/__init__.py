@@ -46,6 +46,7 @@ from api.Modules.DailyBook.Services import (
     delete_line_item,
     field_for_kind,
     is_daily_report_locked,
+    locked_report_dates,
     is_known_kind,
     list_open_settlements,
     lock_report,
@@ -658,21 +659,18 @@ def line_items_update_route(
         raise HTTPException(status_code=404, detail="Line item not found")
 
     fields = body.model_dump(exclude_unset=True)
-    # Closing a lent / borrowed entry and moving its settle-by date
-    # touch only the open list, never a number on the day, so they
-    # are the one edit a locked day takes (owner's call, 2026-10-08;
-    # INVARIANTS.md "Settlements"). Re-marking stays an edit.
+    # A locked day is view only (owner's rule, 2026-10-13): every
+    # edit is refused, closing a lent / borrowed entry or moving its
+    # settle-by date included. Match the update_daily_report path's
+    # 403 + "unlock first" UX. INVARIANTS.md "Lock rules".
+    _refuse_locked_day(db, int(store_id), item.report_date)
+    # Closing an entry or moving its date touches only the open list,
+    # never a number on the day, so it skips the roll-up below.
     tracking_only = (
         bool(fields)
         and set(fields) <= {"expects_settlement", "settle_by"}
         and fields.get("expects_settlement", False) is False
     )
-
-    # Lock check — the parent daily report's lock blanket-rejects
-    # every other mutation, including line-item edits.  Match the
-    # update_daily_report path's 403 + "unlock first" UX.
-    if not tracking_only:
-        _refuse_locked_day(db, int(store_id), item.report_date)
     parsed_time = None
     # Time is OPTIONAL. The SPA's inline-edit always sends `at_time`
     # (even when the row has no time), so a blank value must mean
@@ -711,8 +709,8 @@ def line_items_update_route(
         raise HTTPException(status_code=409, detail=str(exc))
 
     # Recompute parent roll-up so the DailyReport stays in sync.
-    # A tracking-only change moves no money and must not stamp a
-    # (possibly locked) report.
+    # A tracking-only change moves no money, so there is nothing to
+    # roll up.
     target_field = field_for_kind(item.kind)
     if target_field and not tracking_only:
         recompute_line_items_total(
@@ -810,6 +808,10 @@ def open_settlements_route(
     hand" tiles. See Services/settlements.py."""
     require_permission(claims, "daily_book", "read")
     _require_store_match(claims, store_id)
+    open_items = list_open_settlements(db, int(store_id))
+    locked = locked_report_dates(
+        db, int(store_id), [o.item.report_date for o in open_items],
+    )
     return OpenSettlementListResponse(items=[
         OpenSettlementRow(
             id=o.item.id,
@@ -827,8 +829,9 @@ def open_settlements_route(
                 )
                 for r in o.settlements
             ],
+            day_locked=o.item.report_date in locked,
         )
-        for o in list_open_settlements(db, int(store_id))
+        for o in open_items
     ])
 
 

@@ -419,8 +419,20 @@ If you change the carry formula, update `carry_forward_from`,
   `test_put_rejects_locked_report`); a locked report is an
   archived close-out.
 
-(One carve-out: closing a lent / borrowed entry or changing its
-settle-by date — see "Settlements".)
+**A locked day is view only — no carve-outs** (owner's rule,
+2026-10-13). Closing a lent / borrowed entry, moving its settle-by
+date, and closing or re-dating a held check were allowed on a locked
+day from 2026-10-08; they are refused now like every other edit. A
+return or a held-check deposit still books on the (unlocked) day the
+money moves, so locking the original day never strands it.
+`GET /settlements/open` carries `day_locked` on each entry so the SPA
+hides Change date / Close for an entry whose own day is locked.
+
+Writers outside this module that touch a day's book honour the same
+lock: a return-check payment can't be added to or removed from a
+locked `paid_on` day (409, `ReturnChecks.Services`), and the bank feed
+can't book onto a locked day or remove a line it booked there
+(untag / re-tag → 409, `BankSync/INVARIANTS.md` rule 3).
 
 The line-item routes enforce this on create, update AND delete
 (`_refuse_locked_day` in the controller). Create and delete used to
@@ -470,13 +482,12 @@ writer goes through them.
 - **`settle_by`** is optional, only on a marked entry, never before
   the entry's own day. It drives "overdue" in the SPA, nothing else.
 - **Lock**: a return is a create on its own day, so a locked day
-  refuses it. **Closing (`expects_settlement: false`) and changing
-  `settle_by` are the one exception to the lock rules** (owner's
-  call, 2026-10-08): they touch only the open list, never a number,
-  so a PATCH carrying nothing but those two keys goes through on a
-  locked day and does not recompute or stamp the report. Marking an
-  entry, or any PATCH that also carries amount / time / note, is
-  still refused on a locked day.
+  refuses it. Closing (`expects_settlement: false`) and changing
+  `settle_by` are edits of the entry and are refused while the
+  entry's own day is locked (see "Lock rules"; they were allowed
+  from 2026-10-08 to 2026-10-13). Once unlocked, a PATCH carrying
+  nothing but those two keys touches only the open list: it does not
+  recompute or stamp the report.
 - `settles_item_id` has no database foreign key on purpose (adding a
   constraint scans and locks the live table); the service is the
   only writer and checks it.
@@ -509,8 +520,10 @@ same job on Friday without a bank trip. (Owner's design,
   `SETTLEMENT_PAIRS["check_hold"] = "held_check_deposit"`: partial
   deposits, a deposit can't exceed what is on hand or predate the
   hold, a hold can't shrink below or be deleted while deposits point
-  at it, Close and the deposit-by date work on a locked day, a
-  deposit is a create on its own day so a locked day refuses it. A
+  at it, Close and the deposit-by date are refused while the hold's
+  day is locked, a deposit is a create on its own day so a locked
+  day refuses it (and an unlocked deposit day takes it even when the
+  hold's day is locked). A
   cash entry can't settle a hold and a held deposit can't settle
   lent cash.
 - **Bank feed**: both kinds are `BOOK_ONLY_KINDS` — never offered or

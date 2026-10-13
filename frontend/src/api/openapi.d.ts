@@ -2235,7 +2235,8 @@ export interface paths {
          * Uncategorize Route
          * @description Clear a transaction's category and remove any auto-created
          *     DailyLineItem. The row stays in the table — it just goes back
-         *     to "uncategorized" so it can be re-tagged.
+         *     to "uncategorized" so it can be re-tagged. A line booked on a
+         *     locked day → 409, same shape as categorize.
          */
         post: operations["uncategorize_route_bank_transactions__txn_id__uncategorize_post"];
         delete?: never;
@@ -10334,6 +10335,11 @@ export interface components {
         OpenSettlementRow: {
             /** Amount */
             amount: number;
+            /**
+             * Day Locked
+             * @default false
+             */
+            day_locked: boolean;
             /** Id */
             id: number;
             /** Kind */

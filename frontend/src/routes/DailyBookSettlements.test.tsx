@@ -23,7 +23,9 @@ import type { LineItemRow, OpenSettlement } from "../api/dailybook";
 //     linked to the original; a partial amount is fine, more than
 //     what's left is refused before the call.
 //   - Close unticks the original after a confirm.
-//   - A locked day, or someone without the right, gets no buttons.
+//   - A locked day is view only: no buttons on it, and no Change date
+//     / Close on an entry whose own day is locked. Someone without the
+//     right gets no buttons either.
 
 const useOpenSettlements = vi.fn();
 const createLineItem = vi.fn();
@@ -45,23 +47,23 @@ const VIEWED = TODAY;
 const lent: OpenSettlement = {
   id: 11, kind: "other_cash_out", report_date: addDaysIso(TODAY, -4),
   amount: 2000, note: "Store #2 (Raj)", settle_by: addDaysIso(TODAY, -2),
-  settled: 500, outstanding: 1500,
+  settled: 500, outstanding: 1500, day_locked: false,
   returns: [{ id: 15, report_date: addDaysIso(TODAY, -2), amount: 500 }],
 };
 const lentNoDate: OpenSettlement = {
   id: 12, kind: "other_cash_out", report_date: addDaysIso(TODAY, -1),
   amount: 850, note: "Maria", settle_by: null,
-  settled: 0, outstanding: 850, returns: [],
+  settled: 0, outstanding: 850, day_locked: false, returns: [],
 };
 const lentLater: OpenSettlement = {
   id: 13, kind: "other_cash_out", report_date: addDaysIso(TODAY, 2),
   amount: 99, note: "After the viewed day", settle_by: null,
-  settled: 0, outstanding: 99, returns: [],
+  settled: 0, outstanding: 99, day_locked: false, returns: [],
 };
 const borrowed: OpenSettlement = {
   id: 21, kind: "other_cash_in", report_date: addDaysIso(TODAY, -3),
   amount: 800, note: "From Ana", settle_by: addDaysIso(TODAY, 5),
-  settled: 0, outstanding: 800, returns: [],
+  settled: 0, outstanding: 800, day_locked: false, returns: [],
 };
 
 function renderWidget(
@@ -294,16 +296,34 @@ describe("CashFlowWidget", () => {
     expect(await within(confirm).findByText(/unlock it before editing/)).toBeInTheDocument();
   });
 
-  it("offers no Record on a locked day, but still Change date and Close", async () => {
+  it("offers no actions at all on a locked day", async () => {
     renderWidget("owed_to_us", { locked: true });
     const dialog = await openList("Owed to us");
-    expect(within(dialog).queryByRole("button", { name: "Record return" }))
+    expect(within(dialog).getByText("Store #2 (Raj)")).toBeInTheDocument();
+    for (const name of ["Record return", "Change date", "Close"]) {
+      expect(within(dialog).queryByRole("button", { name }))
+        .not.toBeInTheDocument();
+    }
+    expect(dialog).toHaveTextContent("This day is locked, so it is view only");
+  });
+
+  it("keeps Record but not Change date / Close when only the entry's day is locked", async () => {
+    useOpenSettlements.mockReturnValue({
+      data: [{ ...lent, day_locked: true }, lentNoDate], isError: false,
+    });
+    renderWidget("owed_to_us");
+    const dialog = await openList("Owed to us");
+    const lockedRow = within(dialog).getByText("Store #2 (Raj)").closest("tr")!;
+    expect(within(lockedRow).getByRole("button", { name: "Record return" }))
+      .toBeInTheDocument();
+    expect(within(lockedRow).queryByRole("button", { name: "Change date" }))
       .not.toBeInTheDocument();
-    expect(within(dialog).getAllByRole("button", { name: "Change date" }))
-      .toHaveLength(2);
-    expect(within(dialog).getAllByRole("button", { name: "Close" }))
-      .toHaveLength(2);
-    expect(dialog).toHaveTextContent("This day is locked");
+    expect(within(lockedRow).queryByRole("button", { name: "Close" }))
+      .not.toBeInTheDocument();
+    expect(lockedRow).toHaveTextContent("is locked. Unlock it to change the date or close this entry.");
+    const openRow = within(dialog).getByText("Maria").closest("tr")!;
+    expect(within(openRow).getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(openRow).not.toHaveTextContent("is locked");
   });
 
   it("changes the date, or clears it", async () => {
@@ -380,13 +400,13 @@ describe("SettlementsList — Checks on hand", () => {
   const hold: OpenSettlement = {
     id: 31, kind: "check_hold", report_date: addDaysIso(TODAY, -6),
     amount: 4000, note: "ABC Construction", settle_by: addDaysIso(TODAY, -1),
-    settled: 2500, outstanding: 1500,
+    settled: 2500, outstanding: 1500, day_locked: false,
     returns: [{ id: 35, report_date: addDaysIso(TODAY, -2), amount: 2500 }],
   };
   const holdNoDate: OpenSettlement = {
     id: 32, kind: "check_hold", report_date: addDaysIso(TODAY, -1),
     amount: 700, note: "Lopez Roofing", settle_by: null,
-    settled: 0, outstanding: 700, returns: [],
+    settled: 0, outstanding: 700, day_locked: false, returns: [],
   };
 
   beforeEach(() => {
@@ -449,12 +469,26 @@ describe("SettlementsList — Checks on hand", () => {
     expect(createLineItem).not.toHaveBeenCalled();
   });
 
-  it("offers no Deposit on a locked day but still Change date and Close", async () => {
+  it("offers no Deposit, Change date or Close on a locked day", async () => {
     const { container: dialog } = renderList({ locked: true });
-    expect(within(dialog).queryByRole("button", { name: "Deposit" }))
-      .not.toBeInTheDocument();
-    expect(within(dialog).getAllByRole("button", { name: "Close" })).toHaveLength(2);
+    for (const name of ["Deposit", "Change date", "Close"]) {
+      expect(within(dialog).queryByRole("button", { name }))
+        .not.toBeInTheDocument();
+    }
     expect(dialog).toHaveTextContent("record a deposit");
+  });
+
+  it("still deposits a hold whose own day is locked, but won't re-date or close it", async () => {
+    useOpenSettlements.mockReturnValue({
+      data: [{ ...hold, day_locked: true }, holdNoDate], isError: false,
+    });
+    const { container: dialog } = renderList();
+    const tr = within(dialog).getByText("ABC Construction").closest("tr")!;
+    expect(within(tr).getByRole("button", { name: "Deposit" })).toBeInTheDocument();
+    expect(within(tr).queryByRole("button", { name: "Change date" }))
+      .not.toBeInTheDocument();
+    expect(within(tr).queryByRole("button", { name: "Close" }))
+      .not.toBeInTheDocument();
   });
 
   it("hides Deposit from someone who may only read the book", async () => {

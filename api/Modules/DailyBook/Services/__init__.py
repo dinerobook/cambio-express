@@ -21,6 +21,7 @@ from api.Modules.DailyBook.Services.line_items import (
 )
 from api.Modules.DailyBook.Services.locks import (
     is_locked as is_daily_report_locked,
+    locked_dates as locked_report_dates,
 )
 from api.Modules.DailyBook.Services.mt_breakdown import (
     MTBreakdown,
@@ -82,6 +83,7 @@ __all__ = [
     "ensure_daily_report",
     "field_for_kind",
     "is_daily_report_locked",
+    "locked_report_dates",
     "is_known_kind",
     "kind_or_404",
     "list_open_settlements",

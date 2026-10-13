@@ -21,7 +21,8 @@ import type { LineItemRow, OpenSettlement } from "../api/dailybook";
 //     checks deposited today with no add row.
 //   - On hold tab: every check on hand with Deposit, and the add row
 //     for a check held today (no tick box, optional deposit-by date).
-//   - A locked day offers no add row and no Deposit.
+//   - A locked day is view only: no add row, Deposit, Change date or
+//     Close.
 
 const DAY = todayIso();
 
@@ -80,7 +81,7 @@ const row = (over: Partial<LineItemRow>): LineItemRow => ({
 const hold = (over: Partial<OpenSettlement>): OpenSettlement => ({
   id: 31, kind: "check_hold", report_date: addDaysIso(DAY, -6),
   amount: 4000, note: "ABC Construction", settle_by: null,
-  settled: 0, outstanding: 4000, returns: [], ...over,
+  settled: 0, outstanding: 4000, day_locked: false, returns: [], ...over,
 });
 const LENT: OpenSettlement = {
   ...hold({}), id: 40, kind: "other_cash_out", note: "Store #2",
@@ -287,7 +288,7 @@ describe("EditDailyBook — Check Deposits box", () => {
       .toHaveTextContent("Deposited");
   });
 
-  it("offers no add row or Deposit on a locked day", async () => {
+  it("offers no add row, Deposit, Change date or Close on a locked day", async () => {
     useDailyReport.mockReturnValue(LOCKED);
     useOpenSettlements.mockReturnValue({ data: [hold({})], isError: false });
     renderPage();
@@ -296,7 +297,9 @@ describe("EditDailyBook — Check Deposits box", () => {
     expect(within(dialog).queryByRole("button", { name: "+ Add" })).not.toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("tab", { name: /^On hold/ }));
     expect(within(dialog).queryByRole("button", { name: "+ Add" })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Deposit" })).not.toBeInTheDocument();
+    for (const name of ["Deposit", "Change date", "Close", "Edit", "Remove"]) {
+      expect(within(dialog).queryByRole("button", { name })).not.toBeInTheDocument();
+    }
     expect(within(dialog).getByText("ABC Construction")).toBeInTheDocument();
   });
 

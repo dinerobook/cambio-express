@@ -9,6 +9,7 @@ from api.Modules.DailyBook.Models import DailyLineItem
 from api.Modules.DailyBook.Services.line_items import (
     recompute_line_items_total,
 )
+from api.Modules.DailyBook.Services.locks import is_locked
 from api.Modules.ReturnChecks.Models import (
     ReturnCheck, ReturnCheckPayment,
 )
@@ -192,6 +193,18 @@ class RecordPaymentInput:
 _DEFAULT_PAYBACK_TIME = time(9, 0)
 
 
+def _refuse_locked_day(db: Session, rc: ReturnCheck, day: date) -> None:
+    """A payment mirrors a line on the daily book of the day it was
+    paid, and a locked day is view only — so a payment can't be
+    added to or removed from it until the day is unlocked
+    (DailyBook/INVARIANTS.md "Lock rules")."""
+    if is_locked(db, int(rc.store_id), day):
+        raise ReturnCheckStateError(
+            f"The daily book for {day.isoformat()} is locked — unlock "
+            "it before changing paybacks on that day.",
+        )
+
+
 def _resync_paybacks_for_day(
     db: Session, rc: ReturnCheck, report_date: date,
 ) -> None:
@@ -283,6 +296,7 @@ def record_payment(
     amount = float(payload.amount or 0.0)
     if amount <= 0:
         raise ReturnCheckStateError("Payment amount must be > 0.")
+    _refuse_locked_day(db, rc, payload.paid_on)
     # Direct query so the cap accounts for payments added in the
     # same session that haven't yet been reloaded into the
     # ``rc.payments`` relationship.
@@ -329,6 +343,7 @@ def delete_payment(
     if payment is None:
         raise ReturnCheckPaymentNotFoundError(f"id={payment_id}")
     paid_on = payment.paid_on
+    _refuse_locked_day(db, rc, paid_on)
     db.delete(payment)
     db.flush()
     _resync_paybacks_for_day(db, rc, paid_on)

@@ -45,14 +45,33 @@ from api.Core.Clock import utc_now
 
 
 class DailyBookLockedError(Exception):
-    """The day this transaction would be booked on is locked."""
+    """The day this transaction would be booked on — or the day its
+    existing line sits on — is locked."""
 
-    def __init__(self, report_date: date) -> None:
+    def __init__(self, report_date: date, *, unbook: bool = False) -> None:
         self.report_date = report_date
         super().__init__(
             f"The daily book for {report_date.isoformat()} is locked — "
-            "unlock it to book this transaction."
+            + (
+                "unlock it to change what this transaction booked there."
+                if unbook else "unlock it to book this transaction."
+            )
         )
+
+
+def _refuse_locked_line(db: Session, line_id: int | None) -> None:
+    """A locked day is view only: the line a transaction already
+    booked there can't be removed (re-tag or untag) until the day is
+    unlocked. Checked BEFORE anything changes so a refusal leaves the
+    row exactly as it was."""
+    if not line_id:
+        return
+    old = db.get(DailyLineItem, line_id)
+    if old is None:
+        return
+    rpt = find_report_by_date(db, int(old.store_id), old.report_date)
+    if rpt is not None and rpt.locked_at is not None:
+        raise DailyBookLockedError(old.report_date, unbook=True)
 
 
 def bank_date_for(txn: BankTransaction) -> date:
@@ -201,6 +220,7 @@ def categorize_transaction(
         existing = find_report_by_date(db, int(txn.store_id), line_date)
         if existing is not None and existing.locked_at is not None:
             raise DailyBookLockedError(line_date)
+    _refuse_locked_line(db, txn.daily_line_item_id)
 
     old_line_id = txn.daily_line_item_id
     txn.daily_line_item_id = None
@@ -229,7 +249,9 @@ def uncategorize_transaction(
     """Clear category_slug + unbook any line item (rolling the day's
     total back). The stored booking-day override goes with it — the
     row is back to untouched, so a later tag starts from the bank's
-    date again. Caller commits."""
+    date again. Raises `DailyBookLockedError` when the booked line
+    sits on a locked day. Caller commits."""
+    _refuse_locked_line(db, txn.daily_line_item_id)
     unbook_from_daily(db, txn)
     txn.category_slug = ""
     txn.matched_rule_id = None

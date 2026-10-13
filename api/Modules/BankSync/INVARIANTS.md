@@ -96,7 +96,13 @@ from the endpoint and from the rule engine alike.
    `409 {code: "daily_book_locked", report_date}` so the SPA can offer
    "open that day" or "book on another day". The rule engine catches
    it and keeps the tag WITHOUT the line (`locked_skipped`). Nothing
-   from the bank feed ever edits a closed day.
+   from the bank feed ever edits a closed day — that includes
+   REMOVING a line already booked there: untagging, re-tagging to
+   another category, or moving the booking to another day all raise
+   `DailyBookLockedError(<the line's day>)` before any write
+   (uncategorize → the same 409). The SPA tells those apart by the
+   date: when it equals the row's `booked_on` it says to unlock that
+   day instead of offering another one.
 4. **The operator chooses the day; the bank only suggests it.**
    `booking_date_for` resolves in one order and there is no other:
    **this call's `report_date` → the row's stored

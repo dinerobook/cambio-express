@@ -447,6 +447,8 @@ def delete_payment_route(
         raise HTTPException(status_code=404, detail="Return check not found")
     except ReturnCheckPaymentNotFoundError:
         raise HTTPException(status_code=404, detail="Payment not found")
+    except ReturnCheckStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     rc = find_return_check(db, sid, rc_id)
     _audit_return_check_action(
         db, claims=claims, action="delete_payment",

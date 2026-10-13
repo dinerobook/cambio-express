@@ -382,6 +382,10 @@ function CategoryCell({
   // A locked day: the slug the operator picked + the date the
   // server refused, so the cell can offer another day.
   const [locked, setLocked] = useState<{ slug: string; date: string } | null>(null);
+  // The line this row already booked sits on a locked day: untagging
+  // or re-tagging would change that day, so the only way on is to
+  // unlock it — no other day to offer.
+  const [lockedLine, setLockedLine] = useState<string | null>(null);
   // Open when the operator is choosing the day this row books on.
   const [choosingDay, setChoosingDay] = useState(false);
 
@@ -408,11 +412,16 @@ function CategoryCell({
         }
       }
       setLocked(null);
+      setLockedLine(null);
       setChoosingDay(false);
       onChanged();
     } catch (e) {
       const lockedDay = lockedDayFromError(e);
-      if (lockedDay) {
+      if (lockedDay && lockedDay.report_date === row.booked_on) {
+        setLockedLine(lockedDay.report_date);
+        setLocked(null);
+        setChoosingDay(false);
+      } else if (lockedDay) {
         setLocked({ slug, date: lockedDay.report_date });
         setChoosingDay(false);
       } else {
@@ -515,6 +524,19 @@ function CategoryCell({
           }
           onCancel={() => setChoosingDay(false)}
         />
+      )}
+      {lockedLine && (
+        <div className={styles.lockedRow} role="alert">
+          <span>
+            The daily book for {formatDate(lockedLine)} is locked, so the
+            line this transaction booked there can&rsquo;t change.{" "}
+            <AppLink to={`/daily/edit?date=${lockedLine}`}>Open it</AppLink>{" "}
+            to unlock it first.
+          </span>
+          <Button size="sm" tone="secondary" onClick={() => setLockedLine(null)}>
+            OK
+          </Button>
+        </div>
       )}
       {locked && (
         <BookDayForm

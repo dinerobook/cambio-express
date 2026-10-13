@@ -10,6 +10,8 @@ The invariants under test:
   * uncounted_drawers flags closes with no drawer count,
   * cashiers (employees) can submit closes but not manage the
     department catalog or delete closes,
+  * a day locked on the store daily book refuses every close write
+    (409) until it is unlocked,
   * module flag bundles: day_close ON for cstore, OFF for msb_hybrid.
 """
 from tests._app import db, db_session
@@ -222,6 +224,62 @@ def test_delete_close(client, test_store_id):
     assert client.delete(
         f"/api/v2/dayclose/closes/{close_id}", headers=h,
     ).status_code == 404
+
+
+# ── Locked store daily book ────────────────────────────────
+
+
+def _set_lock(client, h, day, locked):
+    resp = client.post(
+        f"/api/v2/storebook/{day}/lock", headers=h, json={"locked": locked},
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def test_locked_day_refuses_new_and_replaced_closes(client, test_store_id):
+    """A locked store daily book is view only: no register close can be
+    added or corrected until the day is unlocked."""
+    h = _admin(client, test_store_id)
+    url = "/api/v2/dayclose/day/2026-08-22/closes"
+    assert client.post(url, headers=h, json=_close_payload()).status_code == 200
+    _set_lock(client, h, "2026-08-22", True)
+    for body in (
+        _close_payload(register_label="Register 2"),     # new
+        _close_payload(gross_sales=5.0),                  # replace
+    ):
+        resp = client.post(url, headers=h, json=body)
+        assert resp.status_code == 409, body
+        assert "locked" in resp.json()["detail"]
+    day = client.get("/api/v2/dayclose/day/2026-08-22", headers=h).json()
+    assert [c["gross_sales"] for c in day["closes"]] == [1000.0]
+    _set_lock(client, h, "2026-08-22", False)
+    assert client.post(
+        url, headers=h, json=_close_payload(register_label="Register 2"),
+    ).status_code == 200
+
+
+def test_locked_day_refuses_deleting_a_close(client, test_store_id):
+    h = _admin(client, test_store_id)
+    close_id = client.post(
+        "/api/v2/dayclose/day/2026-08-23/closes", headers=h,
+        json=_close_payload(),
+    ).json()["closes"][0]["id"]
+    _set_lock(client, h, "2026-08-23", True)
+    url = f"/api/v2/dayclose/closes/{close_id}"
+    assert client.delete(url, headers=h).status_code == 409
+    _set_lock(client, h, "2026-08-23", False)
+    assert client.delete(url, headers=h).json()["closes"] == []
+
+
+def test_employee_close_on_a_locked_day_is_refused(client, test_store_id):
+    h = _admin(client, test_store_id)
+    _set_lock(client, h, "2026-08-24", True)
+    _emp_client, emp_jwt = make_employee_client(test_store_id)
+    resp = client.post(
+        "/api/v2/dayclose/day/2026-08-24/closes", headers=_headers(emp_jwt),
+        json=_close_payload(register_label="Register 9"),
+    )
+    assert resp.status_code == 409
 
 
 # ── Permissions ────────────────────────────────────────────
