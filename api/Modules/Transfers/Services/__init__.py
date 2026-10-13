@@ -41,6 +41,7 @@ from api.Modules.Transfers.Services.transfers import (
     TransferNotFoundError,
     create_transfer,
     delete_transfer,
+    find_replayed_transfer,
     list_transfers,
     update_transfer,
 )
@@ -58,6 +59,7 @@ __all__ = [
     "active_roster",
     "create_transfer",
     "delete_transfer",
+    "find_replayed_transfer",
     "federal_tax_for",
     "list_transfers",
     "normalize_service_type",

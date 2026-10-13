@@ -172,18 +172,51 @@ def test_upsert_explicit_customer_id_only_within_umbrella(test_store_id):
         assert c2.store_id == test_store_id
 
 
-def test_upsert_empty_phone_creates_one_row(test_store_id):
-    """A phone-less sender can be inserted once — the unique constraint
-    on (store_id, phone_country, phone_number) prevents a second
-    empty-phone row in the same store. Mirrors `find_or_upsert_customer`:
-    no dedup-by-name shortcut, but the constraint backstops dups."""
+def test_upsert_empty_phone_creates_one_row_per_sender(test_store_id):
+    """Every phone-less sender gets its own "no phone on file" row
+    (no dedup-by-name shortcut). The row stores phone_number NULL so
+    the (store_id, phone_country, phone_number) unique constraint
+    lets them repeat. It used to store "", which let a store save only
+    ONE phone-less sender: the second transfer failed with a 500."""
+    from tests._app import db
+    from api.Modules.Customers.Models import Customer
+    from api.Modules.Customers.Services import upsert
+    with db_session():
+        a = upsert(db.session, test_store_id, "Walk-in", "+1", "")
+        b = upsert(db.session, test_store_id, "Walk-in", "+1", "")
+        c = upsert(db.session, test_store_id, "Other", "+1", "")
+        db.session.commit()
+        assert len({a.id, b.id, c.id}) == 3
+        assert {a.phone_number, b.phone_number, c.phone_number} == {None}
+        assert a.to_dict()["phone_number"] == ""
+        assert db.session.query(Customer).filter_by(
+            store_id=test_store_id).count() == 3
+
+
+def test_upsert_empty_phone_beside_a_legacy_blank_row(test_store_id):
+    """Rows saved before the fix hold phone "". A new phone-less
+    sender must not collide with one."""
     from tests._app import db
     from api.Modules.Customers.Services import upsert
     with db_session():
-        c = upsert(db.session, test_store_id, "Walk-in", "+1", "")
+        legacy = _seed_customer(test_store_id, full_name="Old", phone_number="")
+        new = upsert(db.session, test_store_id, "New", "+1", "")
         db.session.commit()
-        assert c.id is not None
-        assert c.phone_number == ""
+        assert new.id != legacy
+
+
+def test_upsert_phone_still_collides_on_the_constraint(test_store_id):
+    """NULL only for a missing phone: two rows with the SAME real phone
+    in one store are still refused by the constraint (the upsert path
+    reuses the row instead of ever trying)."""
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    from tests._app import db
+    with db_session():
+        _seed_customer(test_store_id, full_name="A", phone_number="5550009999")
+        with pytest.raises(IntegrityError):
+            _seed_customer(test_store_id, full_name="B", phone_number="5550009999")
+        db.session.rollback()
 
 
 def test_upsert_does_not_overwrite_with_empty_values(test_store_id):

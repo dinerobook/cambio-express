@@ -15,6 +15,7 @@ controls that scope.
 from difflib import SequenceMatcher
 from typing import Any
 
+from sqlalchemy import null
 from sqlalchemy.orm import Session
 
 from api.Modules.Customers.Models import Customer
@@ -79,10 +80,18 @@ def upsert(
             db, siblings, phone_country, phone_number,
         )
     if cust is None:
+        # A sender with no phone is stored with phone_number NULL, not
+        # "". The unique (store_id, phone_country, phone_number)
+        # constraint treats NULLs as distinct, so every phoneless
+        # sender gets its own "no phone on file" row. With "" only the
+        # store's FIRST phoneless sender could ever be saved; the next
+        # one hit the constraint and the transfer failed with a 500.
         cust = Customer(
             store_id=store_id, full_name=full_name or "",
             phone_country=(phone_country or "+1"),
-            phone_number=phone_number or "",
+            # null(), not None: the column's default="" would
+            # replace a plain None on INSERT.
+            phone_number=phone_number or null(),
         )
         db.add(cust)
     if full_name:     setattr(cust, "full_name",     full_name)

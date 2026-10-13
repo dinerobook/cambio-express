@@ -181,7 +181,14 @@ docstring + `upsert()` body):
 3. **Otherwise create new** — a fresh `Customer` row pinned to
    the current `store_id` (the "home store"). Later transfers
    at sibling stores point `customer_id` at this row; they don't
-   create a duplicate.
+   create a duplicate. A sender with **no phone** always takes
+   this step (an empty phone is not a lookup key) and the row is
+   stored with `phone_number` **NULL**, never `""`: the
+   `(store_id, phone_country, phone_number)` unique constraint
+   treats NULLs as distinct, so a store can log any number of
+   phone-less senders. With `""` only the first one fit and every
+   later phone-less transfer failed with a 500. Read sites render
+   NULL as `""`.
 
 The home store of a Customer **never moves**. A customer first
 seen at Store A stays pinned to Store A in the `customer.
@@ -290,6 +297,29 @@ When you add a field to `CreateTransferRequest`, add it to
 `TransferDetail` and `_to_detail` too, or every edit will blank it.
 `test_get_detail_round_trips_every_edit_field` pins this.
 
+## Create saves once per form (`Idempotency-Key`)
+
+`POST /transfers` takes an optional `Idempotency-Key` header (max
+64 chars). `NewTransfer.tsx` makes one key when the form opens
+(`newIdempotencyKey()`) and sends it on every save attempt. The key
+is stored on the row as `client_request_id`, unique per store
+(`ux_msb_transfer_store_client_request_id`). A create whose key the
+store already holds returns that transfer unchanged: no second row,
+no second customer upsert, no second audit line, and the new body is
+ignored (changes go through Edit). Two saves racing on one key: the
+index lets one INSERT through and the Controller answers the other
+with the winner. A request without a key (or a blank one) saves
+every time, exactly as before. The key never widens access: the
+`transfers.create` check runs before the lookup.
+
+Why: a live store's employee got a 500 on a save that had already
+committed, pressed Save 8 times and logged 8 transfers. The 500
+itself came from the rate limiter stamping headers after the route
+returned (`api/Core/RateLimit.py` keeps `headers_enabled=False`),
+but any lost response (dropped Wi-Fi, a timeout) leaves the cashier
+in the same spot, so the form must be safe to resubmit.
+`tests/Modules/Transfers/test_transfer_create_retry.py` pins this.
+
 ## Cross-module dependencies
 
 - **Batches** (`api/Modules/Batches/`): aggregates transfers
@@ -324,7 +354,7 @@ table is the kind of change that creates phantom drift bugs.
 
 ## Indexes
 
-The Transfer model defines five indexes (see model file). All
+The Transfer model defines six indexes (see model file). All
 are load-bearing on hot-path queries:
 
 - `ix_transfer_store_send_date` — every period filter on every
@@ -337,6 +367,9 @@ are load-bearing on hot-path queries:
   list view.
 - `ix_transfer_confirm_number` — transfers-list "look up by
   confirmation #" search.
+- `ux_msb_transfer_store_client_request_id` (UNIQUE) — the
+  save-once key above. Correctness, not speed: dropping it lets
+  two racing saves both land.
 
 **Don't drop these.** If you're tempted to remove one, run the
 matching report at scale first (`pytest tests/test_transfer_

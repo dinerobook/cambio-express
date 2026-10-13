@@ -76,3 +76,80 @@ def test_fastapi_login_429_with_limiter_enabled_at_boot():
     rc, out, err = _run_in_subprocess(script)
     assert rc == 0, f"stderr:\n{err}\nstdout:\n{out}"
     assert "OK" in out
+
+
+# ── Limited routes must not 500 after they run ───────────────
+#
+# slowapi with ``headers_enabled=True`` stamps X-RateLimit-* onto the
+# route's return value AFTER the route ran, and raises when that value
+# is a Pydantic model or dict and the route takes no
+# ``response: Response``. The route had already committed, so the
+# caller saw a 500 for a write that landed (live 2026-10-13: one New
+# Transfer saved 8 times). The suite runs with the limiter OFF, so
+# these arm it in-process: slowapi reads ``enabled`` on every call.
+
+
+def test_rate_limit_headers_stay_off():
+    from api.Core.RateLimit import limiter as slow_limiter
+    assert slow_limiter._headers_enabled is False
+
+
+def _armed():
+    from api.Core.RateLimit import limiter as slow_limiter
+    slow_limiter.reset()
+    slow_limiter.enabled = True
+    return slow_limiter
+
+
+def _disarm(slow_limiter):
+    slow_limiter.enabled = False
+    slow_limiter.reset()
+
+
+def test_limited_route_returning_a_dict_answers_200_with_limiter_on(client):
+    """``/auth/forgot-password`` returns a plain dict and takes no
+    ``response`` parameter, the exact shape that used to 500."""
+    lim = _armed()
+    try:
+        resp = client.post(
+            "/api/v2/auth/forgot-password", json={"email": "nobody@x.com"},
+        )
+    finally:
+        _disarm(lim)
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "ok"}
+
+
+def test_every_limited_route_is_safe_without_headers():
+    """Any route the limiter wraps is safe ONLY because headers are
+    off; if someone turns them back on, every limited route that
+    returns a model or dict without a ``response: Response`` param
+    breaks again. List them so the failure names the routes."""
+    import inspect
+    from fastapi.routing import APIRoute
+    from starlette.responses import Response
+    from api.Core.RateLimit import limiter as slow_limiter
+    from api.main import create_app
+
+    limited = set(slow_limiter._route_limits)
+    unsafe = []
+    for route in create_app().routes:
+        if not isinstance(route, APIRoute):
+            continue
+        fn = route.endpoint
+        name = f"{fn.__module__}.{fn.__name__}"
+        if name not in limited:
+            continue
+        params = inspect.signature(fn).parameters
+        ret = inspect.signature(fn).return_annotation
+        returns_response = inspect.isclass(ret) and issubclass(ret, Response)
+        if "response" not in params and not returns_response:
+            unsafe.append(route.path)
+    assert limited, "no rate-limited routes found; did the registry move?"
+    # The scan must see the route the live store hit, or it is
+    # checking nothing.
+    assert "/transfers" in unsafe
+    assert slow_limiter._headers_enabled is False, (
+        "Rate-limit headers were turned on; these routes would 500 after "
+        f"committing: {sorted(unsafe)}"
+    )

@@ -6158,6 +6158,10 @@ export interface paths {
          *     `(send_amount, service_type, country, store)` so the client
          *     can't lie about the rate. Audited in the same transaction
          *     via `record_transfer_audit`.
+         *
+         *     Idempotent per ``Idempotency-Key``: a repeat with a key this
+         *     store already saved under returns that transfer, so a retry
+         *     after a lost response never logs the money twice.
          */
         post: operations["create_route_transfers_post"];
         delete?: never;
@@ -25976,6 +25980,8 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                /** @description Optional key the form generates once. Saving again with the same key returns the transfer it already created instead of logging a duplicate. */
+                "Idempotency-Key"?: string | null;
                 authorization?: string | null;
             };
             path?: never;

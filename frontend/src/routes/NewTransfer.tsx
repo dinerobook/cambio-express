@@ -1,6 +1,7 @@
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import SenderAutocomplete from "../components/SenderAutocomplete";
@@ -35,7 +36,7 @@ import {
   useEmployees,
 } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
-import { apiErrorMessage } from "../lib/api";
+import { apiErrorMessage, newIdempotencyKey } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 
@@ -166,10 +167,16 @@ export default function NewTransfer() {
   const country = useWatch({ control, name: "country" });
   const customerId = useWatch({ control, name: "customer_id" });
 
+  // One key for this form, sent on every save attempt. If a save
+  // landed but its response did not (dropped connection, an error
+  // after the commit), pressing Save again returns that transfer
+  // instead of logging the money a second time.
+  const [saveKey] = useState(newIdempotencyKey);
+
   async function onSubmit(values: TransferFormValues) {
     clearErrors("root");
     try {
-      const result = await createTransfer(values);
+      const result = await createTransfer(values, saveKey);
       toast({ message: "Transfer saved.", tone: "success" });
       navigate(`/transfers/${result.transfer.id}`, { replace: true });
     } catch (err) {

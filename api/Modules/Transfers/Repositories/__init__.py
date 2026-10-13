@@ -7,12 +7,14 @@ because they answer different questions.
 """
 from api.Modules.Transfers.Repositories.transfers import (
     TransferFilters,
+    get_by_client_request_id,
     get_by_id_in_stores,
     list_with_filters,
 )
 
 __all__ = [
     "TransferFilters",
+    "get_by_client_request_id",
     "get_by_id_in_stores",
     "list_with_filters",
 ]

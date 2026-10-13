@@ -30,7 +30,17 @@ limiter = Limiter(
     storage_uri=_storage,
     strategy="fixed-window",
     enabled=_enabled,
-    headers_enabled=True,
+    # OFF on purpose. With headers on, slowapi writes X-RateLimit-*
+    # onto the response AFTER the route returns, and it raises when
+    # the route returned a Pydantic model or dict rather than a
+    # Starlette ``Response`` and takes no ``response: Response``
+    # parameter. The route had already committed by then, so the
+    # caller got a 500 for a write that landed, and a retry wrote it
+    # again (live: one New Transfer saved 8 times). Nothing reads
+    # these headers; a 429 still answers with its status and body.
+    # ``tests/test_rate_limiting.py`` pins this and drives every
+    # limited route with the limiter on.
+    headers_enabled=False,
 )
 # slowapi >=0.1.9 reads `RATELIMIT_ENABLED` from os.environ itself
 # and stores the raw string, which is truthy (e.g. "0" is truthy in
