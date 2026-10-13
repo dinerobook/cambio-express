@@ -111,6 +111,14 @@ export default function AdminTimeClockSchedule() {
         </Card>
       ) : shifts.isLoading ? (
         <Card><Loading /></Card>
+      ) : shifts.isError && !shifts.data ? (
+        // A failed load is not an empty week: an empty grid would
+        // invite the admin to re-plan shifts that already exist.
+        <ErrorState
+          message="Couldn't load this week's shifts."
+          onRetry={() => { void shifts.refetch(); }}
+          busy={shifts.isFetching}
+        />
       ) : (
         <div className={styles.weekGrid}>
           {Array.from({ length: 7 }, (_, i) => {

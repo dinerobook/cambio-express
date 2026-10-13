@@ -2,10 +2,9 @@ import { useState } from "react";
 
 import { useTaxExportYears } from "../api/account";
 import { downloadCsv, apiErrorMessage } from "../lib/api";
-import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
-  Alert, Button, Card, DateInput, Empty, Field, PageHeader, PageShell,
+  Alert, Button, Card, DateInput, Field, PageHeader, PageShell,
   Section, Select,
 } from "../components/ui";
 import styles from "./AdminDataExport.module.css";
@@ -23,7 +22,6 @@ import {
 // onboarding ("show me what I'll be able to get back out").
 
 export default function AdminDataExport() {
-  const identity = getCurrentIdentity();
   const taxYears = useTaxExportYears();
 
   // Tax-pack year picker. Default to last year (matches the
@@ -60,19 +58,6 @@ export default function AdminDataExport() {
   // the same filters as the audit page on its own).
   const [auditBusy, setAuditBusy] = useState(false);
   const [auditErr,  setAuditErr]  = useState("");
-
-  if (identity?.role !== "admin"
-      && identity?.role !== "owner"
-      && identity?.role !== "superadmin") {
-    return (
-      <PageShell maxWidth="56rem">
-        <PageHeader title="Data export" subtitle="Download your store data as CSV or ZIP." />
-        <Empty>
-          You need a store-admin sign-in to pull data exports.
-        </Empty>
-      </PageShell>
-    );
-  }
 
   const resolvedTaxYear = taxYear
     ?? taxYears.data?.default_year

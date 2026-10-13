@@ -134,6 +134,22 @@ async function _reenterOwnerStore(): Promise<void> {
 }
 
 
+// Where a 401 is the endpoint's answer, not a dead session.
+//
+// Sign-in steps: the person is not signed in yet (or holds only a
+// pending 2FA token), so a 401 means "wrong password / code /
+// recovery code". A refresh can't help, and bouncing to /app/login
+// would throw away the pending token and the page's error message.
+// No refresh, no bounce: the page shows the error.
+const SIGN_IN_PATH = /^\/api\/v2\/auth\/login(?:-cross-store)?(?:[/?]|$)/;
+// Time-clock punches: a failed passkey assertion or a punch from
+// outside the geofence is a 401 too. The session itself may still
+// have expired, so these refresh and retry once as usual; but if the
+// retry still says 401 the session is alive and the punch was
+// refused — show that, don't sign the employee out.
+const PUNCH_PATH =
+  /^\/api\/v2\/timeclock\/(?:clock-in|clock-out|break\/start|break\/stop|passkey\/challenge)(?:[/?]|$)/;
+
 function _bounceToLogin(): void {
   clearAccessToken();
   clearRefreshFallback();
@@ -183,7 +199,9 @@ export async function api<T = unknown>(
     : await resp.text();
 
   if (!resp.ok) {
-    if (resp.status === 401 && _retryAfterRefresh) {
+    if (resp.status === 401 && SIGN_IN_PATH.test(path)) {
+      // Fall through to the ApiError below.
+    } else if (resp.status === 401 && _retryAfterRefresh) {
       // Try a silent refresh. If it succeeds, retry the original
       // request exactly once (with retry disabled this time so a
       // second 401 doesn't loop forever).
@@ -192,7 +210,7 @@ export async function api<T = unknown>(
         return api<T>(path, options, /* _retryAfterRefresh = */ false);
       }
       _bounceToLogin();
-    } else if (resp.status === 401) {
+    } else if (resp.status === 401 && !PUNCH_PATH.test(path)) {
       _bounceToLogin();
     } else if (
       resp.status === 403 && _retryAfterRefresh &&
@@ -238,6 +256,19 @@ export async function downloadCsv(
   path: string,
   filename: string,
 ): Promise<void> {
+  return downloadFile(path, { filename, failure: "CSV download failed" });
+}
+
+/** Any authenticated file download (CSV, ZIP, a JSON data export).
+ *  Same 401 refresh as `api()`; a failure throws an `ApiError` so
+ *  the caller can toast it. Without `filename` the server's
+ *  Content-Disposition name is used, else `fallbackName`. */
+export async function downloadFile(
+  path: string,
+  {
+    filename, fallbackName = "download", failure = "Download failed",
+  }: { filename?: string; fallbackName?: string; failure?: string } = {},
+): Promise<void> {
   const tryFetch = () => fetch(path, { credentials: "include" });
   let resp = await tryFetch();
   if (resp.status === 401) {
@@ -252,15 +283,15 @@ export async function downloadCsv(
   if (!resp.ok) {
     let body: unknown;
     try { body = await resp.json(); } catch { body = null; }
-    throw new ApiError(
-      resp.status, `CSV download failed (${resp.status})`, body,
-    );
+    throw new ApiError(resp.status, `${failure} (${resp.status})`, body);
   }
   const blob = await resp.blob();
+  const served = /filename="([^"]+)"/
+    .exec(resp.headers.get("content-disposition") ?? "")?.[1];
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  a.download = filename ?? served ?? fallbackName;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

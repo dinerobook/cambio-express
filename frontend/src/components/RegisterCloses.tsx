@@ -6,10 +6,10 @@ import {
   type Department, type RegisterClose,
 } from "../api/dayclose";
 import { apiErrorMessage } from "../lib/api";
-import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  Alert, Button, ButtonLink, Card, EmptyState, ErrorState, Field,
+  Alert, Button, ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState,
+  Field,
   InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, RowActions, Section,
   Table, Textarea, tdStyle, thStyle, useToast,
 } from "./ui";
@@ -35,7 +35,6 @@ export default function RegisterCloses({
   const departments = useDepartments();
   const qc = useQueryClient();
   const toast = useToast();
-  const toastApiError = useApiErrorToast();
   const [editing, setEditing] = useState<RegisterClose | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -43,13 +42,24 @@ export default function RegisterCloses({
     void qc.invalidateQueries({ queryKey: ["dayclose", "day"] });
   }
 
-  async function remove(close: RegisterClose) {
+  // Delete asks first; a refusal shows inside the dialog.
+  const [removing, setRemoving] = useState<RegisterClose | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeErr, setRemoveErr] = useState<string | null>(null);
+
+  async function remove() {
+    if (!removing || removeBusy) return;
+    setRemoveBusy(true);
+    setRemoveErr(null);
     try {
-      await deleteRegisterClose(close.id);
+      await deleteRegisterClose(removing.id);
+      setRemoving(null);
       refresh();
       toast({ message: "Register close removed.", tone: "success" });
     } catch (err) {
-      toastApiError(err, "Could not remove the close.");
+      setRemoveErr(apiErrorMessage(err, "Could not remove the close."));
+    } finally {
+      setRemoveBusy(false);
     }
   }
 
@@ -162,7 +172,10 @@ export default function RegisterCloses({
                               label: "Delete",
                               perm: "day_close.update",
                               tone: "warning",
-                              onClick: () => remove(c),
+                              onClick: () => {
+                                setRemoveErr(null);
+                                setRemoving(c);
+                              },
                             },
                           ]}
                         />
@@ -202,6 +215,19 @@ export default function RegisterCloses({
         departments={departments.data?.departments ?? []}
         onClose={() => { setAdding(false); setEditing(null); }}
         onDone={() => { setAdding(false); setEditing(null); refresh(); }}
+      />
+      <ConfirmDialog
+        open={removing != null}
+        title="Delete this register close?"
+        message={removing
+          ? `${removing.register_label}${removing.shift_label ? ` / ${removing.shift_label}` : ""} comes off this day's registers.`
+          : ""}
+        confirmLabel="Delete"
+        confirmTone="danger"
+        busy={removeBusy}
+        error={removeErr}
+        onConfirm={() => { void remove(); }}
+        onCancel={() => setRemoving(null)}
       />
     </Section>
   );

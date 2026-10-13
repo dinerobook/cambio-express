@@ -15,6 +15,9 @@
 
 const IDENTITY_KEY = "db.identity";
 const REFRESH_FALLBACK_KEY = "db.refresh_fallback";
+// Same key as ACTIVE_STORE_KEY in api/switchStore.ts (which imports
+// this module, so it can't be imported from here).
+const OWNER_ACTIVE_STORE_KEY = "db.owner_active_store";
 
 export interface IdentityClaims {
   user_id: number;
@@ -100,6 +103,15 @@ export function setCurrentIdentity(claims: IdentityClaims): void {
  */
 export async function logout(): Promise<void> {
   _clear();
+  // The PWA fallback is a live refresh-token id: left on the device,
+  // the next /auth/refresh (which accepts it in the body) would bring
+  // back the session the person just ended.
+  clearRefreshFallback();
+  // An owner's remembered store is per-session context, not a
+  // preference: the next person on this browser must not land in it.
+  try {
+    window.localStorage.removeItem(OWNER_ACTIVE_STORE_KEY);
+  } catch { /* storage blocked: nothing was remembered */ }
   try {
     await fetch("/api/v2/auth/logout", {
       method: "POST",

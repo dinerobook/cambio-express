@@ -4,10 +4,9 @@ import {
   useAdminAuditLog,
   type AdminAuditUserOption,
 } from "../api/admin";
-import { getCurrentIdentity } from "../lib/auth";
 import {
   Breadcrumbs,
-  Button, Card, Empty, Field, InfoTip, PageHeader, PageShell,
+  Button, Card, Field, InfoTip, PageHeader, PageShell,
   Pager, Select, space, TableStates,
 } from "../components/ui";
 import { AuditTable } from "../components/AuditTable";
@@ -19,7 +18,6 @@ import styles from "./AdminAuditLog.module.css";
 // page is shareable; per_page is the legacy 50.
 
 export default function AdminAuditLog() {
-  const identity = getCurrentIdentity();
   const [sp, setSP] = useSearchParams();
   const page   = Number(sp.get("page") ?? 1) || 1;
   const target = sp.get("target") ?? "";
@@ -36,15 +34,6 @@ export default function AdminAuditLog() {
     else       next.delete(key);
     if (key !== "page") next.delete("page");
     setSP(next, { replace: true });
-  }
-
-  if (identity?.role !== "admin" && identity?.role !== "owner") {
-    return (
-      <PageShell>
-        <PageHeader title="Audit log" />
-        <Empty>You need a store-admin sign-in to see the activity log.</Empty>
-      </PageShell>
-    );
   }
 
   const hasFilters = !!(target || action || user);

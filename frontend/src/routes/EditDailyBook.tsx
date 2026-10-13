@@ -1,5 +1,5 @@
 import {
-  useCallback, useEffect, useMemo, useState,
+  useCallback, useEffect, useMemo, useRef, useState,
   type FormEvent,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -35,7 +35,8 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
+  Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field,
+  InfoTip,
   Input, Loading, Modal, MoneyInput, PageHeader, PageShell, PeriodStepper,
   Pill,
   RowActions, TabsBar, TabsButton, Textarea,
@@ -224,17 +225,19 @@ export default function EditDailyBook() {
   // EditDailyBook.module.css `.dailyLayout` rules.
   const [mobileTab, setMobileTab] = useState<DailyTab>("receipts");
   const [error, setError] = useState<string | null>(null);
-  const [savedAt, setSavedAt] = useState<Date | null>(null);
-
-  // Hydrate the form from the server payload — runs again after a
-  // save invalidation so derived totals stay in sync.
-  useEffect(() => {
-    if (detail.isLoading || detail.isFetching) return;
-    const init = buildInitialForm(detail.data);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable form + dirty baseline from server-fetched daily report
-    setForm(init);
-    setBaseline(init);
-  }, [detail.data, detail.isLoading, detail.isFetching]);
+  // "Saved hh:mm" belongs to the day it was saved on: stepping to
+  // another day must not carry the pill over.
+  const [saved, setSaved] = useState<{ date: string; at: Date } | null>(null);
+  const savedAt = saved?.date === date ? saved.at : null;
+  // The day the form was last built from. Until it matches `date`
+  // the form on screen belongs to another day and must not render.
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
+  // Set by a save: the next server payload replaces the form outright
+  // (the server may have normalised a value, e.g. the carried
+  // forward balance), even though the form differs from the old
+  // baseline at that moment.
+  const forceHydrate = useRef(false);
+  const dirtyRef = useRef(false);
 
   // Real-time totals strip — combines editable form values with the
   // line-item-derived fields on the latest server row. The derived
@@ -263,6 +266,38 @@ export default function EditDailyBook() {
   const guard = useUnsavedGuard(isDirty && !busy, {
     message: "You have unsaved edits on this day's book. Leave without saving?",
   });
+
+  useEffect(() => {
+    dirtyRef.current = isDirty;
+  });
+
+  // Hydrate the form from the server payload. Only a successful load
+  // builds it: a failed one (500, network) renders <ErrorState> below
+  // instead of a blank zero form whose Save / Lock would PUT zeros
+  // over the real day.
+  //
+  // It re-runs on every refetch, and a line-item add / edit / remove
+  // refetches the report (its line-item-derived totals moved). Those
+  // refetches never change an operator-editable field, so when the
+  // operator has typed something not yet saved (notes, sales …) the
+  // form keeps it and only the baseline moves; the derived totals
+  // come straight off `detail.data` in computeTotals. A new day, a
+  // clean form or a just-saved form is rebuilt from the server.
+  useEffect(() => {
+    if (detail.isLoading || detail.isFetching || detail.isError) return;
+    if (detail.data === undefined) return;
+    const init = buildInitialForm(detail.data);
+    const keepEdits =
+      hydratedFor === date && dirtyRef.current && !forceHydrate.current;
+    forceHydrate.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable form + dirty baseline from server-fetched daily report
+    setBaseline(init);
+    if (!keepEdits) setForm(init);
+    setHydratedFor(date);
+  }, [
+    detail.data, detail.isLoading, detail.isFetching, detail.isError,
+    date, hydratedFor,
+  ]);
 
   function onBackToCalendar() {
     guard.confirmLeave(() => navigate("/daily"));
@@ -320,6 +355,7 @@ export default function EditDailyBook() {
       body.forward_balance_override = null;
     }
     await updateDailyReport(storeId, date, body);
+    forceHydrate.current = true;
     await queryClient.invalidateQueries({
       queryKey: ["dailybook", "report", storeId, date],
     });
@@ -332,7 +368,7 @@ export default function EditDailyBook() {
     setBusy(true);
     try {
       await persistEdits();
-      setSavedAt(new Date());
+      setSaved({ date, at: new Date() });
     } catch (err) {
       setError(apiErrorMessage(err, "Could not save the daily book."));
     } finally {
@@ -384,7 +420,19 @@ export default function EditDailyBook() {
       </PageShell>
     );
   }
-  if (detail.isLoading || form == null) {
+  if (detail.isError && detail.data === undefined) {
+    return (
+      <PageShell>
+        <PageHeader title="Edit daily book" />
+        <ErrorState
+          message="Could not load this day's book."
+          onRetry={() => void detail.refetch()}
+          busy={detail.isFetching}
+        />
+      </PageShell>
+    );
+  }
+  if (detail.isLoading || form == null || hydratedFor !== date) {
     return <PageShell><Loading /></PageShell>;
   }
 
@@ -2128,15 +2176,22 @@ function LineItemEntriesEditor({
     }
   }
 
-  async function remove(itemId: number) {
-    if (busy) return;
+  // Remove asks first (destructive: the entry and its money leave
+  // the day). The failure shows inside the dialog, which covers the
+  // modal behind it.
+  const [removing, setRemoving] = useState<LineItemRow | null>(null);
+  const [removeErr, setRemoveErr] = useState<string | null>(null);
+
+  async function remove() {
+    if (busy || removing == null) return;
     setBusy(true);
-    setErr(null);
+    setRemoveErr(null);
     try {
-      await deleteLineItem(storeId, itemId);
+      await deleteLineItem(storeId, removing.id);
+      setRemoving(null);
       onChange();
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not delete entry."));
+      setRemoveErr(apiErrorMessage(e, "Could not delete entry."));
     } finally {
       setBusy(false);
     }
@@ -2320,7 +2375,10 @@ function LineItemEntriesEditor({
                             {
                               label: "Remove",
                               tone: "danger",
-                              onClick: () => { void remove(item.id); },
+                              onClick: () => {
+                                setRemoveErr(null);
+                                setRemoving(item);
+                              },
                             },
                           ]}
                         />
@@ -2334,6 +2392,19 @@ function LineItemEntriesEditor({
         </table>
       </div>
     )}
+    <ConfirmDialog
+      open={removing != null}
+      title="Remove this entry?"
+      message={removing
+        ? `${fmtMoney2(removing.amount)}${removing.note ? ` (${removing.note})` : ""} comes off this day's book.`
+        : ""}
+      confirmLabel="Remove"
+      confirmTone="danger"
+      busy={busy}
+      error={removeErr}
+      onConfirm={() => { void remove(); }}
+      onCancel={() => setRemoving(null)}
+    />
   </div>
   );
 }

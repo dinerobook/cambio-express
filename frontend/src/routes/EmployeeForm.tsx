@@ -10,10 +10,9 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { accountTypeLabel } from "../lib/permissions";
-import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Card, Checkbox,
-  ConfirmDialog, DateInput, Empty, ErrorState, Field, Input, Loading, MoneyInput,
+  ConfirmDialog, DateInput, ErrorState, Field, Input, Loading, MoneyInput,
   PageHeader, PageShell, Pill, Section, Select, TabsBar, TabsButton,
   useToast,
 } from "../components/ui";
@@ -72,7 +71,6 @@ export default function EmployeeForm() {
   const empId = idStr ? Number(idStr) : null;
   const isEdit = empId != null;
 
-  const identity = getCurrentIdentity();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
@@ -222,18 +220,6 @@ export default function EmployeeForm() {
       setBusy(false);
       setConfirmUnlink(false);
     }
-  }
-
-  if (
-    !identity
-    || (identity.role !== "admin" && identity.role !== "owner")
-  ) {
-    return (
-      <PageShell maxWidth="44rem">
-        <PageHeader title="Employees" />
-        <Empty>You need a store-admin sign-in to manage employees.</Empty>
-      </PageShell>
-    );
   }
 
   if (isEdit && list.isLoading) {

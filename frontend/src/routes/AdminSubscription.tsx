@@ -180,7 +180,7 @@ export default function AdminSubscription() {
             <Button
               tone="ghost"
               className={styles.cancelLink}
-              onClick={() => setShowCancel(true)}
+              onClick={() => { setError(null); setShowCancel(true); }}
             >
               Cancel subscription
             </Button>
@@ -289,6 +289,9 @@ export default function AdminSubscription() {
         cancelLabel="Keep Subscription"
         confirmTone="danger"
         busy={busy === "cancel"}
+        // While the dialog is open the page behind is covered: a
+        // failed hand-off to Stripe must show in here.
+        error={showCancel ? error : null}
         onConfirm={() => handlePortal("cancel")}
         onCancel={() => setShowCancel(false)}
       />

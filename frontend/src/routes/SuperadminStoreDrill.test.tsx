@@ -17,6 +17,9 @@ const compStore = vi.fn();
 const endComp = vi.fn();
 const useStoreAuditLog = vi.fn();
 const creditStore = vi.fn();
+const toggleStoreActive = vi.fn();
+const unlinkOwnerFromStore = vi.fn();
+const useStoreOwnerLinks = vi.fn();
 
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
@@ -30,11 +33,13 @@ vi.mock("../api/superadmin", () => ({
   endComp: (...args: unknown[]) => endComp(...args),
   useStoreAuditLog: (...args: unknown[]) => useStoreAuditLog(...args),
   useStoreFeatures: () => ({ data: { rows: [] }, isLoading: false, isError: false, refetch: vi.fn() }),
-  useStoreOwnerLinks: () => ({ data: { rows: [] }, isLoading: false, isError: false, refetch: vi.fn() }),
+  useStoreOwnerLinks: (...args: unknown[]) => useStoreOwnerLinks(...args),
   creditStore: (...args: unknown[]) => creditStore(...args),
   emailStore: vi.fn(), extendTrial: vi.fn(),
-  freezeStore: vi.fn(), linkOwnerToStore: vi.fn(), toggleStoreActive: vi.fn(),
-  unfreezeStore: vi.fn(), unlinkOwnerFromStore: vi.fn(),
+  freezeStore: vi.fn(), linkOwnerToStore: vi.fn(),
+  toggleStoreActive: (...args: unknown[]) => toggleStoreActive(...args),
+  unfreezeStore: vi.fn(),
+  unlinkOwnerFromStore: (...args: unknown[]) => unlinkOwnerFromStore(...args),
 }));
 vi.mock("../api/account", () => ({
   useProfile: () => ({ data: { timezone: "" } }),
@@ -63,7 +68,8 @@ function drill(overrides: Record<string, unknown> = {}) {
   };
 }
 
-const permissions = {
+let permissions: Record<string, unknown>;
+const NO_OVERRIDES = {
   store_id: 7, store_name: "Cambio Express", roles: ["admin"], editable_roles: [],
   resources: [], actions: [], matrix: {}, has_overrides: [],
 };
@@ -87,6 +93,7 @@ function mockDrill(overrides: Record<string, unknown> = {}) {
   api.mockImplementation((path: string) => {
     if (String(path).endsWith("/drill")) return Promise.resolve(drill(overrides));
     if (String(path).endsWith("/permissions")) return Promise.resolve(permissions);
+    if (String(path).endsWith("/permissions/reset")) return Promise.resolve(NO_OVERRIDES);
     return Promise.reject(new Error(`unexpected ${path}`));
   });
 }
@@ -102,6 +109,12 @@ beforeEach(() => {
   endComp.mockReset();
   useStoreAuditLog.mockReset();
   creditStore.mockReset();
+  toggleStoreActive.mockReset();
+  unlinkOwnerFromStore.mockReset();
+  permissions = NO_OVERRIDES;
+  useStoreOwnerLinks.mockReset().mockReturnValue({
+    data: { rows: [] }, isLoading: false, isError: false, refetch: vi.fn(),
+  });
   useStoreAuditLog.mockReturnValue({
     data: { rows: [], total: 0, page: 1, per_page: 50, total_pages: 1 },
     isLoading: false, isError: false, refetch: vi.fn(),
@@ -158,6 +171,13 @@ describe("<SuperadminStoreDrill> comp plan", () => {
     expect(screen.getByText(/reason: make-good/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Comp plan" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "End comp" }));
+    // Asks first; Cancel ends nothing.
+    let dialog = await screen.findByRole("dialog", { name: "End this store's comp?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(endComp).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "End comp" }));
+    dialog = await screen.findByRole("dialog", { name: "End this store's comp?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "End comp" }));
     await waitFor(() => expect(endComp).toHaveBeenCalledWith(7));
     expect(await screen.findByText(/billing resumed on the pro plan/i)).toBeInTheDocument();
   });
@@ -221,5 +241,86 @@ describe("<SuperadminStoreDrill> credit", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Issue credit" }));
     expect(await within(dialog).findByText("A single credit is capped at $5,000.")).toBeInTheDocument();
     expect(creditStore).not.toHaveBeenCalled();
+  });
+});
+
+describe("<SuperadminStoreDrill> destructive actions ask first", () => {
+  it("Disable store confirms; Cancel leaves it enabled", async () => {
+    toggleStoreActive.mockResolvedValue({ is_active: false });
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    await userEvent.click(screen.getByRole("button", { name: "Disable" }));
+    let dialog = await screen.findByRole("dialog", { name: "Disable this store?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(toggleStoreActive).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Disable" }));
+    dialog = await screen.findByRole("dialog", { name: "Disable this store?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disable store" }));
+    await waitFor(() => expect(toggleStoreActive).toHaveBeenCalledWith(7));
+    expect(await screen.findByText("Store disabled.")).toBeInTheDocument();
+  });
+
+  it("Disable shows a refusal inside the dialog", async () => {
+    const { ApiError } = await import("../lib/api");
+    toggleStoreActive.mockRejectedValue(new ApiError(409, "Store has an open payout.", null));
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    await userEvent.click(screen.getByRole("button", { name: "Disable" }));
+    const dialog = await screen.findByRole("dialog", { name: "Disable this store?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disable store" }));
+    expect(await within(dialog).findByText("Store has an open payout.")).toBeInTheDocument();
+  });
+
+  it("Enable runs at once (nothing to confirm)", async () => {
+    mockDrill({ is_active: false });
+    toggleStoreActive.mockResolvedValue({ is_active: true });
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    await userEvent.click(screen.getByRole("button", { name: "Enable" }));
+    await waitFor(() => expect(toggleStoreActive).toHaveBeenCalledWith(7));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Disconnect owner confirms; Cancel keeps the link", async () => {
+    unlinkOwnerFromStore.mockResolvedValue({});
+    useStoreOwnerLinks.mockReturnValue({
+      data: { rows: [{
+        owner_id: 77, username: "boss", full_name: "Big Boss",
+        is_active: true, linked_at: "",
+      }] },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByText("Big Boss");
+    await userEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+    let dialog = await screen.findByRole("dialog", { name: "Disconnect boss?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(unlinkOwnerFromStore).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+    dialog = await screen.findByRole("dialog", { name: "Disconnect boss?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disconnect" }));
+    await waitFor(() => expect(unlinkOwnerFromStore).toHaveBeenCalledWith(7, 77));
+  });
+
+  it("Reset role permissions confirms; Cancel resets nothing", async () => {
+    permissions = {
+      ...NO_OVERRIDES, roles: ["employee"], editable_roles: ["employee"],
+      matrix: { employee: {} }, has_overrides: ["employee"],
+    };
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    const resets = () => api.mock.calls.filter(([p]) => String(p).endsWith("/reset"));
+    await userEvent.click(await screen.findByRole("button", { name: "Reset to defaults" }));
+    let dialog = await screen.findByRole("dialog", { name: "Reset employee permissions?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(resets()).toHaveLength(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+    dialog = await screen.findByRole("dialog", { name: "Reset employee permissions?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Reset to defaults" }));
+    await waitFor(() => expect(resets()).toHaveLength(1));
+    expect(resets()[0][1]).toMatchObject({ method: "POST", json: { role: "employee" } });
   });
 });

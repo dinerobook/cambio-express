@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import EditMonthly from "./EditMonthly";
@@ -52,14 +53,18 @@ function Where() {
   return <div data-testid="where">{loc.pathname + loc.search}</div>;
 }
 
+let qc: QueryClient;
+
 function renderPage(url = "/monthly/edit?year=2026&month=9") {
   return render(
-    <ToastProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <EditMonthly />
-        <Where />
-      </MemoryRouter>
-    </ToastProvider>,
+    <QueryClientProvider client={qc}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[url]}>
+          <EditMonthly />
+          <Where />
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -72,6 +77,7 @@ const DERIVED = [
 
 describe("EditMonthly", () => {
   beforeEach(() => {
+    qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     updateMonthly.mockReset();
     updateMonthly.mockResolvedValue(detail);
     useMonthly.mockReset();
@@ -101,6 +107,45 @@ describe("EditMonthly", () => {
     // Saved -> toast, then back to the report.
     expect(await screen.findByText("Monthly P&L saved.")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/monthly?year=2026&month=9"));
+  });
+
+  it("invalidates the cached month so the P&L page shows the new numbers", async () => {
+    // The P&L page's cached copy of September, as it was before the edit.
+    qc.setQueryData(["monthly", "report", 1, 2026, 9], detail);
+    qc.setQueryData(["monthly", "months", 1], []);
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.getByTestId("where"))
+      .toHaveTextContent("/monthly?year=2026&month=9"));
+    expect(qc.getQueryState(["monthly", "report", 1, 2026, 9])?.isInvalidated)
+      .toBe(true);
+    expect(qc.getQueryState(["monthly", "months", 1])?.isInvalidated)
+      .toBe(true);
+  });
+
+  it("does not invalidate anything when the save is refused", async () => {
+    qc.setQueryData(["monthly", "report", 1, 2026, 9], detail);
+    updateMonthly.mockRejectedValue(new ApiError(500, "Boom", null));
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Boom");
+    expect(qc.getQueryState(["monthly", "report", 1, 2026, 9])?.isInvalidated)
+      .toBe(false);
+  });
+
+  it("shows an error with Retry, not a zero form, when the month fails to load", async () => {
+    const refetch = vi.fn();
+    useMonthly.mockReturnValue({
+      data: undefined, isLoading: false, isFetching: false, isError: true,
+      refetch,
+    });
+    renderPage();
+    expect(screen.getByRole("alert"))
+      .toHaveTextContent("Could not load this month's P&L.");
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(refetch).toHaveBeenCalled();
+    expect(updateMonthly).not.toHaveBeenCalled();
   });
 
   it("sends notes edits", async () => {

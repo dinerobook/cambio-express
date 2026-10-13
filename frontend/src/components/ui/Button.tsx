@@ -40,6 +40,11 @@ export function Button({
     <button
       type={type}
       {...rest}
+      // A busy button is an in-flight request: a second click would
+      // send it twice (double save, double charge), so busy disables
+      // it rather than only dimming it.
+      disabled={busy || rest.disabled}
+      aria-busy={busy || undefined}
       className={cls.join(" ")}
       style={{
         display: "inline-flex",

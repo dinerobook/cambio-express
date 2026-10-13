@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   updateMonthly,
@@ -10,7 +11,8 @@ import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   AppLink, Breadcrumbs,
-  Alert, Button, Card, ConfirmDialog, FormActions, Loading, MoneyInput,
+  Alert, Button, Card, ConfirmDialog, ErrorState, FormActions, Loading,
+  MoneyInput,
   PageHeader, PageShell, Textarea,
   useToast,
 } from "../components/ui";
@@ -77,6 +79,7 @@ const SECTIONS: Array<"Income" | "Expenses" | "Cash flow"> = [
 export default function EditMonthly() {
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const identity = getCurrentIdentity();
   const [sp]     = useSearchParams();
   // Number(null) is 0, which counts as "finite" — a missing param must
@@ -96,9 +99,13 @@ export default function EditMonthly() {
   const [busy, setBusy] = useState(false);
   const [err,  setErr]  = useState<string | null>(null);
 
+  // Only a successful load builds the form: a failed one renders
+  // <ErrorState> below, never a zero form whose Save would PUT zeros
+  // over the real month.
   useEffect(() => {
-    if (detail.isLoading || detail.isFetching) return;
-    const r = detail.data?.report ?? null;
+    if (detail.isLoading || detail.isFetching || detail.isError) return;
+    if (detail.data === undefined) return;
+    const r = detail.data.report ?? null;
     const init: MonthlyUpdateBody = { notes: r?.notes ?? "" };
     for (const f of FIELDS) {
       const v = r ? (r as unknown as Record<string, number>)[f.key] : 0;
@@ -107,7 +114,7 @@ export default function EditMonthly() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable form + dirty baseline from server-fetched monthly P&L row once the GET resolves
     setForm(init);
     setBaseline(init);
-  }, [detail.data, detail.isLoading, detail.isFetching]);
+  }, [detail.data, detail.isLoading, detail.isFetching, detail.isError]);
 
   const bankLocked = new Set(detail.data?.report?.bank_locked ?? []);
   // The store's own name per line; absent keys fall back to FIELDS.
@@ -146,6 +153,10 @@ export default function EditMonthly() {
         }
       }
       await updateMonthly(year, month, body);
+      // The P&L page, the month list and the dashboards read cached
+      // copies of this month; without this they show the old numbers
+      // until the cache goes stale.
+      void queryClient.invalidateQueries({ queryKey: ["monthly"] });
       toast({ message: "Monthly P&L saved.", tone: "success" });
       navigate(`/monthly?year=${year}&month=${month}`, { replace: true });
     } catch (e) {
@@ -169,6 +180,19 @@ export default function EditMonthly() {
       <PageShell>
         <PageHeader title="Edit monthly P&L" />
         <p>Missing year or month. Open a P&L first, then click Edit.</p>
+      </PageShell>
+    );
+  }
+
+  if (detail.isError && detail.data === undefined) {
+    return (
+      <PageShell>
+        <PageHeader title="Edit monthly P&L" />
+        <ErrorState
+          message="Could not load this month's P&L."
+          onRetry={() => void detail.refetch()}
+          busy={detail.isFetching}
+        />
       </PageShell>
     );
   }

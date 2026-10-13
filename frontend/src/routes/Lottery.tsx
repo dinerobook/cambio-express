@@ -11,7 +11,8 @@ import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  Alert, Breadcrumbs, Button, Card, DateInput, EmptyState, ErrorState,
+  Alert, Breadcrumbs, Button, Card, ConfirmDialog, DateInput, EmptyState,
+  ErrorState,
   Field, InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, PageHeader,
   PageShell, Pill, RowActions, Section, Select, TabsBar, TabsButton,
   Table, tdStyle, thStyle, useToast,
@@ -120,8 +121,15 @@ function DayCloseTab() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Keyed by day AND pack: a pack is counted every day,
+                      and a pack-only key would keep yesterday's typed
+                      closing number in the box after a date switch. */}
                   {data.rows.map((r) => (
-                    <CountRow key={r.pack_id} row={r} onSave={saveCount} />
+                    <CountRow
+                      key={`${data.date}:${r.pack_id}`}
+                      row={r}
+                      onSave={saveCount}
+                    />
                   ))}
                 </tbody>
               </Table>
@@ -185,22 +193,37 @@ function PacksTab() {
   const packs = useLotteryPacks();
   const games = useLotteryGames();
   const qc = useQueryClient();
-  const toastApiError = useApiErrorToast();
   const [receiving, setReceiving] = useState(false);
   const [activating, setActivating] = useState<LotteryPack | null>(null);
+  // Settle and Return to state end a pack's life on the books, so
+  // both ask first. The failure shows inside the dialog.
+  const [pending, setPending] =
+    useState<{ kind: "settle" | "return"; pack: LotteryPack } | null>(null);
+  const [pendingBusy, setPendingBusy] = useState(false);
+  const [pendingErr, setPendingErr] = useState<string | null>(null);
 
   function refresh() {
     void qc.invalidateQueries({ queryKey: ["lottery"] });
   }
 
-  async function transition(
-    fn: (id: number, on: string) => Promise<unknown>, pack: LotteryPack,
-  ) {
+  function ask(kind: "settle" | "return", pack: LotteryPack) {
+    setPendingErr(null);
+    setPending({ kind, pack });
+  }
+
+  async function confirmPending() {
+    if (!pending || pendingBusy) return;
+    const fn = pending.kind === "settle" ? settleLotteryPack : returnLotteryPack;
+    setPendingBusy(true);
+    setPendingErr(null);
     try {
-      await fn(pack.id, todayIso());
+      await fn(pending.pack.id, todayIso());
+      setPending(null);
       refresh();
     } catch (err) {
-      toastApiError(err, "Could not update the pack.");
+      setPendingErr(apiErrorMessage(err, "Could not update the pack."));
+    } finally {
+      setPendingBusy(false);
     }
   }
 
@@ -263,14 +286,14 @@ function PacksTab() {
                             label: "Settle",
                             perm: "lottery.update",
                             hidden: p.status !== "active",
-                            onClick: () => transition(settleLotteryPack, p),
+                            onClick: () => ask("settle", p),
                           },
                           {
                             label: "Return to state",
                             perm: "lottery.update",
                             tone: "warning",
                             hidden: !["received", "active"].includes(p.status),
-                            onClick: () => transition(returnLotteryPack, p),
+                            onClick: () => ask("return", p),
                           },
                         ]}
                       />
@@ -292,6 +315,21 @@ function PacksTab() {
         pack={activating}
         onClose={() => setActivating(null)}
         onDone={() => { setActivating(null); refresh(); }}
+      />
+      <ConfirmDialog
+        open={pending != null}
+        title={pending?.kind === "return"
+          ? `Return pack ${pending.pack.pack_number} to the state?`
+          : `Settle pack ${pending?.pack.pack_number ?? ""}?`}
+        message={pending?.kind === "return"
+          ? "The pack comes off sale and out of the day-close counts."
+          : "The pack is closed out as sold and leaves the day-close counts."}
+        confirmLabel={pending?.kind === "return" ? "Return to state" : "Settle"}
+        confirmTone="danger"
+        busy={pendingBusy}
+        error={pendingErr}
+        onConfirm={() => { void confirmPending(); }}
+        onCancel={() => setPending(null)}
       />
     </Section>
   );
@@ -472,7 +510,7 @@ function GamesTab() {
           >
             {showInactive ? "Hide inactive" : "Show inactive"}
           </Button>
-          <Button size="sm" onClick={() => setAdding(true)}>
+          <Button size="sm" perm="lottery.update" onClick={() => setAdding(true)}>
             + Add game
           </Button>
         </div>
@@ -520,6 +558,7 @@ function GamesTab() {
                         title={`Game #${g.game_number}`}
                         actions={[{
                           label: g.is_active ? "Deactivate" : "Reactivate",
+                          perm: "lottery.update",
                           tone: g.is_active ? "warning" : "primary",
                           onClick: () => toggleActive(g),
                         }]}

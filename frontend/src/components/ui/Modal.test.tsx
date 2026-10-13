@@ -118,6 +118,21 @@ describe("<ConfirmDialog>", () => {
       .toBeInTheDocument();
   });
 
+  it("never nests a block message inside a <p>", () => {
+    render(
+      <ConfirmDialog
+        open
+        title="Cancel?"
+        message={<><p>First.</p><div>Box.</div></>}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.querySelector("p p, p div")).toBeNull();
+    expect(screen.getByText("Box.")).toBeInTheDocument();
+  });
+
   it("fires onConfirm when Confirm clicked", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
