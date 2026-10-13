@@ -25,6 +25,7 @@ from api.Modules.Tenancy.Models import Store, User
 from api.Modules.Transfers.Models import Transfer
 from api.Modules.Transfers.Repositories import (
     TransferFilters,
+    get_by_client_request_id,
     get_by_id_in_stores,
     list_with_filters,
 )
@@ -122,6 +123,19 @@ class CreateTransferInput:
     internal_notes: str = ""
     employee_id: int | None = None
     customer_id: int | None = None
+    # Idempotency key from the form (``Idempotency-Key`` header).
+    # Create only; ``update_transfer`` ignores it.
+    client_request_id: str | None = None
+
+
+def find_replayed_transfer(
+    db: Session, store_id: int, client_request_id: str | None,
+) -> Transfer | None:
+    """The transfer an earlier save of the same form already created,
+    or None. A request without a key never matches anything."""
+    if not client_request_id:
+        return None
+    return get_by_client_request_id(db, store_id, client_request_id)
 
 
 def create_transfer(
@@ -139,7 +153,20 @@ def create_transfer(
     Raises ValueError if the employee can't be resolved within the
     store. Caller is responsible for committing the outer transaction
     so the row is visible to subsequent reads.
+
+    Idempotent per ``client_request_id``: when the store already has
+    a transfer saved under that key, that row comes back unchanged and
+    nothing is written (no second customer upsert, no second audit
+    line). Two saves racing on the same key both reach the INSERT; the
+    unique index refuses the second and the Controller answers it with
+    the winner via ``find_replayed_transfer``.
     """
+    replayed = find_replayed_transfer(
+        db, payload.store_id, payload.client_request_id,
+    )
+    if replayed is not None:
+        return replayed
+
     user = db.query(User).filter_by(id=payload.created_by_user_id).first()
     if user is None:
         raise ValueError(f"Unknown created_by user_id={payload.created_by_user_id}")
@@ -191,6 +218,7 @@ def create_transfer(
         internal_notes=payload.internal_notes,
         employee_id=emp.id,
         employee_name=emp_name,
+        client_request_id=payload.client_request_id or None,
     )
     db.add(transfer)
     db.flush()

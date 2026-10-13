@@ -119,12 +119,16 @@ export interface CreateTransferBody {
 // POST /api/v2/transfers — server recomputes federal_tax from
 // (send_amount, service_type, country, store), so the client
 // CANNOT submit it (the schema's `extra="forbid"` rejects it).
+// `idempotencyKey` (from `newIdempotencyKey`, one per form) makes a
+// repeat save return the transfer it already created.
 export async function createTransfer(
   body: CreateTransferBody,
+  idempotencyKey?: string,
 ): Promise<TransferResponse> {
   return api<TransferResponse>("/api/v2/transfers", {
     method: "POST",
     json: body,
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
   });
 }
 

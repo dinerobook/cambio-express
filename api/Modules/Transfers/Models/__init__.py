@@ -77,6 +77,11 @@ class Transfer(Base):
     employee_name  = Column(String(120), default="")
     created_at     = Column(DateTime, default=datetime.utcnow)
     updated_at     = Column(DateTime, default=datetime.utcnow)
+    # Idempotency key the New Transfer form sends once per form
+    # (``Idempotency-Key`` header). A repeat create with the same
+    # key in the same store returns this row instead of logging a
+    # duplicate. NULL for every row saved without a key.
+    client_request_id = Column(String(64), nullable=True)
     creator        = relationship("User", foreign_keys=[created_by])
     employee       = relationship("StoreEmployee", foreign_keys=[employee_id])
     # Indexes for the hot-path queries:
@@ -85,12 +90,17 @@ class Transfer(Base):
     # • created_by              the sales-by-employee + employee-activity reports
     # • status                  the active-vs-cancelled filter on every list view
     # • confirm_number          the transfers-list "look up by confirmation #" search
+    # • (store_id, client_request_id) UNIQUE — one transfer per form save
     __table_args__ = (
         Index("ix_msb_transfer_store_send_date", "store_id", "send_date"),
         Index("ix_msb_transfer_customer_id",    "customer_id"),
         Index("ix_msb_transfer_created_by",     "created_by"),
         Index("ix_msb_transfer_status",         "status"),
         Index("ix_msb_transfer_confirm_number", "confirm_number"),
+        Index(
+            "ux_msb_transfer_store_client_request_id",
+            "store_id", "client_request_id", unique=True,
+        ),
     )
 
     # ── Dollar views over the cents columns ────────────────

@@ -25,7 +25,10 @@ Layer rules:
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
+from fastapi import (
+    APIRouter, Depends, Header, HTTPException, Path, Query, Request,
+)
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
@@ -53,6 +56,7 @@ from api.Modules.Transfers.Services import (
     active_roster,
     create_transfer,
     delete_transfer,
+    find_replayed_transfer,
     list_transfers,
     normalize_service_type,
     parse_dob,
@@ -232,6 +236,16 @@ from api.Core.RateLimit import limiter as _rate_limiter
 def create_route(
     request: Request,
     body: CreateTransferRequest,
+    idempotency_key: str | None = Header(
+        None,
+        alias="Idempotency-Key",
+        max_length=64,
+        description=(
+            "Optional key the form generates once. Saving again "
+            "with the same key returns the transfer it already "
+            "created instead of logging a duplicate."
+        ),
+    ),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> TransferResponse:
@@ -240,6 +254,10 @@ def create_route(
     `(send_amount, service_type, country, store)` so the client
     can't lie about the rate. Audited in the same transaction
     via `record_transfer_audit`.
+
+    Idempotent per ``Idempotency-Key``: a repeat with a key this
+    store already saved under returns that transfer, so a retry
+    after a lost response never logs the money twice.
     """
     require_permission(claims, "transfers", "create")
     store_id_claim = claims.get("store_id")
@@ -289,12 +307,23 @@ def create_route(
         internal_notes=body.internal_notes,
         employee_id=body.employee_id,
         customer_id=body.customer_id,
+        client_request_id=(idempotency_key or "").strip() or None,
     )
     try:
         transfer = create_transfer(db, payload)
+        db.commit()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    db.commit()
+    except IntegrityError:
+        # Two saves of the same form raced past the replay lookup;
+        # the unique (store_id, client_request_id) index let only
+        # one INSERT through. Answer the loser with the winner.
+        db.rollback()
+        transfer = find_replayed_transfer(
+            db, payload.store_id, payload.client_request_id,
+        )
+        if transfer is None:
+            raise
     return TransferResponse(transfer=_to_detail(transfer))
 
 

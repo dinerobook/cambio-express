@@ -17,6 +17,9 @@ import { ApiError } from "../lib/api";
 //     exempt services / domestic recipients.
 //   - The server's message lands in the root Alert; success goes to
 //     the new transfer.
+//   - Every save attempt from one form carries the SAME save key, so
+//     pressing Save again after an error can never log the transfer
+//     twice; a new form gets a new key.
 
 const createTransfer = vi.fn();
 
@@ -136,6 +139,43 @@ describe("NewTransfer", () => {
     await user.click(screen.getByRole("button", { name: "Save transfer" }));
     expect(await screen.findByText("Store is closed right now")).toBeInTheDocument();
     expect(screen.queryByText("detail page")).not.toBeInTheDocument();
+  });
+
+  it("retries with the same save key after a failed save", async () => {
+    createTransfer
+      .mockRejectedValueOnce(new ApiError(500, "Internal Server Error", null))
+      .mockResolvedValueOnce({ transfer: { id: 42 } });
+    const user = userEvent.setup();
+    renderPage();
+    await fillValid(user);
+    const save = screen.getByRole("button", { name: "Save transfer" });
+    await user.click(save);
+    expect(await screen.findByText("Internal Server Error")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+
+    expect(await screen.findByText("detail page")).toBeInTheDocument();
+    expect(createTransfer).toHaveBeenCalledTimes(2);
+    const [first, second] = createTransfer.mock.calls.map((c) => c[1]);
+    expect(typeof first).toBe("string");
+    expect(first).not.toBe("");
+    expect(second).toBe(first);
+  });
+
+  it("gives each new form its own save key", async () => {
+    createTransfer.mockResolvedValue({ transfer: { id: 43 } });
+    const user = userEvent.setup();
+    const first = renderPage();
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    await screen.findByText("detail page");
+    first.unmount();
+
+    renderPage();
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    await waitFor(() => expect(createTransfer).toHaveBeenCalledTimes(2));
+    const [a, b] = createTransfer.mock.calls.map((c) => c[1]);
+    expect(a).not.toBe(b);
   });
 
   it("falls back to a generic message for a non-API failure", async () => {

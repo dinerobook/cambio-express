@@ -42221,9 +42221,28 @@
         ]
       },
       "post": {
-        "description": "Create a transfer in the JWT principal's store. Server\nrecomputes federal_tax server-side from\n`(send_amount, service_type, country, store)` so the client\ncan't lie about the rate. Audited in the same transaction\nvia `record_transfer_audit`.",
+        "description": "Create a transfer in the JWT principal's store. Server\nrecomputes federal_tax server-side from\n`(send_amount, service_type, country, store)` so the client\ncan't lie about the rate. Audited in the same transaction\nvia `record_transfer_audit`.\n\nIdempotent per ``Idempotency-Key``: a repeat with a key this\nstore already saved under returns that transfer, so a retry\nafter a lost response never logs the money twice.",
         "operationId": "create_route_transfers_post",
         "parameters": [
+          {
+            "description": "Optional key the form generates once. Saving again with the same key returns the transfer it already created instead of logging a duplicate.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional key the form generates once. Saving again with the same key returns the transfer it already created instead of logging a duplicate.",
+              "title": "Idempotency-Key"
+            }
+          },
           {
             "in": "header",
             "name": "authorization",

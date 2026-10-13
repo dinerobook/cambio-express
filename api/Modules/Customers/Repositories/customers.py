@@ -62,8 +62,10 @@ def find_by_phone_in_stores(
 ) -> Customer | None:
     """Look up a customer by `(phone_country, phone_number)` across a
     set of stores. Empty `phone_number` returns `None` — empty phones
-    aren't a valid lookup key (the unique constraint allows multiple
-    rows with empty phones because each is a "no phone on file" placeholder)."""
+    aren't a valid lookup key. Each phoneless sender is its own "no
+    phone on file" row, stored with phone_number NULL so the unique
+    (store_id, phone_country, phone_number) constraint lets them
+    repeat (see ``Services.customers.upsert``)."""
     if not phone_number:
         return None
     return (

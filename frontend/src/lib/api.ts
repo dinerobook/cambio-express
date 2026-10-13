@@ -141,6 +141,18 @@ function _bounceToLogin(): void {
   if (!onLogin) window.location.assign("/app/login");
 }
 
+/** A fresh key for the ``Idempotency-Key`` header. A form makes one
+ *  when it opens and sends it on every save attempt, so a retry after
+ *  a dropped response or a server error that came after the save
+ *  returns the row the first attempt created instead of a duplicate.
+ *  ``crypto.randomUUID`` needs a secure context; plain http on a LAN
+ *  falls back to ``getRandomValues``. */
+export function newIdempotencyKey(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export async function api<T = unknown>(
   path: string,
   options: ApiOptions = {},

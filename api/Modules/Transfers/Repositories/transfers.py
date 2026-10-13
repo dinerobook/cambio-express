@@ -161,3 +161,19 @@ def get_by_id_in_stores(
           .filter(Transfer.id == transfer_id, Transfer.store_id.in_(store_ids))
           .first()
     )
+
+
+def get_by_client_request_id(
+    db: Session, store_id: int, client_request_id: str,
+) -> Transfer | None:
+    """The transfer a New Transfer form save already created, found
+    by the idempotency key that form sent. Scoped to one store: a key
+    never reaches across tenants."""
+    return (
+        db.query(Transfer)
+          .filter(
+              Transfer.store_id == store_id,
+              Transfer.client_request_id == client_request_id,
+          )
+          .first()
+    )
