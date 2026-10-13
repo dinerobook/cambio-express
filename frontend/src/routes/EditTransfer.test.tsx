@@ -22,6 +22,9 @@ import { ApiError } from "../lib/api";
 //     federal_tax, then returns to the detail page.
 //   - The server's refusal shows in the root alert.
 //   - A load failure shows the ErrorState with a retry.
+//   - Paid by debit card hydrates and saves (a row with no payment
+//     method is cash); a stored payout opens clean, with no fee or
+//     card box; turning a send into a payout sends cash and no fee.
 
 const updateTransfer = vi.fn();
 const useTransfer = vi.fn();
@@ -217,5 +220,71 @@ describe("EditTransfer", () => {
     expect(screen.getByText("boom")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /retry/i }));
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it("reads a row saved before payment method existed as cash", async () => {
+    updateTransfer.mockResolvedValue({ transfer: stored });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByDisplayValue("2026-10-01");
+    expect(screen.getByRole("checkbox", { name: /Paid by debit card/ })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(updateTransfer).toHaveBeenCalledTimes(1));
+    expect(updateTransfer.mock.calls[0][1].payment_method).toBe("cash");
+  });
+
+  it("keeps a debit card send as debit card, and can switch it to cash", async () => {
+    useTransfer.mockReturnValue({
+      data: { transfer: { ...stored, payment_method: "debit_card" } },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    updateTransfer.mockResolvedValue({ transfer: stored });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByDisplayValue("2026-10-01");
+    const box = screen.getByRole("checkbox", { name: /Paid by debit card/ });
+    expect(box).toBeChecked();
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(updateTransfer).toHaveBeenCalledTimes(1));
+    expect(updateTransfer.mock.calls[0][1].payment_method).toBe("cash");
+  });
+
+  it("opens a stored payout with its own names and no unsaved changes", async () => {
+    useTransfer.mockReturnValue({
+      data: { transfer: {
+        ...stored, service_type: "Payout", fee: 0, federal_tax: 0,
+        total_collected: 200, payment_method: "cash",
+      } },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByDisplayValue("2026-10-01");
+    expect(screen.getByLabelText("Service")).toHaveValue("Payout");
+    expect(screen.getByLabelText(/^Amount paid out/)).toHaveValue("200");
+    expect(screen.queryByLabelText(/^Fee/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Paid by debit card/ }))
+      .not.toBeInTheDocument();
+    expect(screen.getByText("Recipient (paid here)")).toBeInTheDocument();
+    expect(screen.getByText("Sent by")).toBeInTheDocument();
+    expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
+  });
+
+  it("turns a debit card send into a payout with cash and no fee", async () => {
+    useTransfer.mockReturnValue({
+      data: { transfer: { ...stored, payment_method: "debit_card" } },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    updateTransfer.mockResolvedValue({ transfer: stored });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByDisplayValue("2026-10-01");
+    await user.selectOptions(screen.getByLabelText("Service"), "Payout");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(updateTransfer).toHaveBeenCalledTimes(1));
+    expect(updateTransfer.mock.calls[0][1]).toMatchObject({
+      service_type: "Payout", payment_method: "cash", fee: 0,
+    });
   });
 });

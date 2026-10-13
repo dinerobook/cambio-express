@@ -32,7 +32,9 @@ def period_filters(
     """Standard filter set every Transfer-based report uses: scoped
     to `store_ids` (list — accepts admin's `[single_id]` or owner's
     umbrella), posted in the period, and excluding Canceled / Rejected
-    (same convention as the dashboard + owner pages).
+    (same convention as the dashboard + owner pages), and leaving out
+    payouts (`Transfer.is_send`): a payout is cash paid out, not money
+    sent, so it never counts in a volume figure.
 
     Spread into a `.filter(...)` call:
 
@@ -43,6 +45,7 @@ def period_filters(
         Transfer.send_date >= d_from,
         Transfer.send_date <= d_to,
         Transfer.status.notin_(_OWNER_TRANSFER_EXCLUDED),
+        Transfer.is_send,  # a payout is cash out, not volume
     )
 
 

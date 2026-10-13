@@ -12,6 +12,8 @@ Rules (per CLAUDE.md invariant #9):
   - Tax applies only to `service_type="Money Transfer"`. Bill
     Payment / Top Up / Recharge are exempt — no ACH withdrawal
     crosses a border for those.
+  - A "Payout" (the store pays cash out to a recipient) is exempt
+    too: the money comes in from abroad, nothing is sent.
   - Tax also skips when the recipient country is domestic (US),
     even for Money Transfer.
   - Rate is `Store.federal_tax_rate` (defaults to 0.01 = 1%).
@@ -20,11 +22,16 @@ Pure functions — no DB, no Stripe, no side-effects.
 """
 from typing import Any
 
+from api.Modules.Transfers.Models import PAYOUT_SERVICE
+
 
 # All recognized service types. The transfer form's dropdown
-# options must match this tuple exactly.
+# options must match this tuple exactly. "Payout" is the one
+# service where cash goes OUT of the drawer (see INVARIANTS.md
+# "Payouts").
 SERVICE_TYPES: tuple[str, ...] = (
     "Money Transfer", "Bill Payment", "Top Up", "Recharge",
+    PAYOUT_SERVICE,
 )
 
 # Service types that don't carry the federal-tax remittance.

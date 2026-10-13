@@ -88,4 +88,34 @@ describe("TransferReceipt", () => {
     expect(screen.getByText("Couldn't load receipt. nope")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
+
+  it("says the customer paid by debit card", () => {
+    useTransferReceipt.mockReturnValue({
+      data: { ...data, transfer: { ...data.transfer, payment_method: "debit_card" } },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByText("Customer paid by debit card").nextSibling)
+      .toHaveTextContent(/^\$1,017\.50$/);
+  });
+
+  it("prints a payout as cash paid to the customer", () => {
+    useTransferReceipt.mockReturnValue({
+      data: { ...data, transfer: {
+        ...data.transfer, service_type: "Payout", fee: 0, federal_tax: 0,
+        send_amount: 400, total_collected: 400, payment_method: "cash",
+      } },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    const receipt = screen.getByRole("article", { name: "Transfer receipt" });
+    expect(within(receipt).getByText("Paid to customer in cash").nextSibling)
+      .toHaveTextContent(/^\$400\.00$/);
+    expect(within(receipt).getByText("Amount paid out")).toBeInTheDocument();
+    expect(within(receipt).getByText("Recipient (paid here)")).toBeInTheDocument();
+    expect(within(receipt).getByText("Sent by")).toBeInTheDocument();
+    expect(within(receipt).getByText(/received the amount above in cash/))
+      .toBeInTheDocument();
+    expect(within(receipt).queryByText("Customer paid")).not.toBeInTheDocument();
+  });
 });

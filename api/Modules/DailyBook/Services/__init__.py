@@ -26,6 +26,7 @@ from api.Modules.DailyBook.Services.locks import (
 from api.Modules.DailyBook.Services.mt_breakdown import (
     MTBreakdown,
     MTRow,
+    MTRowError,
     MTWriteRow,
     SERVICE_KINDS,
     ServiceRow,
@@ -72,6 +73,7 @@ __all__ = [
     "SERVICE_KINDS",
     "ServiceRow",
     "UnknownServiceError",
+    "MTRowError",
     "OpenSettlement",
     "SETTLEMENT_PAIRS",
     "PeriodSummary",

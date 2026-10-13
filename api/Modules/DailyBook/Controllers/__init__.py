@@ -39,6 +39,7 @@ from api.Modules.DailyBook.Services import (
     LINE_ITEM_KINDS,
     LineItemValidationError,
     MTBreakdown,
+    MTRowError,
     MTWriteRow,
     SETTLEMENT_PAIRS,
     ServiceRow,
@@ -873,6 +874,9 @@ def transfers_summary_route(
                 fees=row.fees,
                 federal_tax=row.federal_tax,
                 commission=row.commission,
+                debit_card=row.debit_card,
+                payouts=row.payouts,
+                payout_count=row.payout_count,
                 total=row.total,
             )
             for row in summary.by_company
@@ -900,6 +904,11 @@ def _mt_breakdown_response(breakdown: MTBreakdown) -> MTBreakdownResponse:
                 auto_commission=row.auto_commission,
                 auto_count=row.auto_count,
                 auto_total=row.auto_total,
+                saved_debit_card=row.saved_debit_card,
+                saved_payouts=row.saved_payouts,
+                auto_debit_card=row.auto_debit_card,
+                auto_payouts=row.auto_payouts,
+                auto_payout_count=row.auto_payout_count,
             )
             for row in breakdown.rows
         ],
@@ -978,6 +987,8 @@ def mt_breakdown_put_route(
                     fees=r.fees,
                     federal_tax=r.federal_tax,
                     commission=r.commission,
+                    debit_card=r.debit_card,
+                    payouts=r.payouts,
                 )
                 for r in body.rows
             ],
@@ -989,6 +1000,8 @@ def mt_breakdown_put_route(
         )
     except DailyReportLockedError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
+    except MTRowError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     # Money-transfer breakdown is the receipts attribution table —
     # changing it changes the daily P&L's company allocation.
     # Summary lists the companies whose rows were submitted (zero-
@@ -998,6 +1011,7 @@ def mt_breakdown_put_route(
         (r.company or "").strip() for r in body.rows
         if (r.amount or 0) or (r.fees or 0)
            or (r.federal_tax or 0) or (r.commission or 0)
+           or (r.debit_card or 0) or (r.payouts or 0)
     })
     summary = (
         f"companies={','.join(company_list)}" if company_list else "cleared"

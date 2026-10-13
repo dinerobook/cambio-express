@@ -44,6 +44,7 @@ import { AppLink,
 } from "../components/ui";
 import { BATCH_STATUS_TONES } from "../api/batches";
 import { TRANSFER_STATUS_TONES } from "../api/transfers";
+import TransferKindPill from "../components/TransferKindPill";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
@@ -800,7 +801,11 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
                   <td style={dashTdStyle}>{t.sender_name}</td>
                   <td style={dashTdStyle}>{t.company}</td>
                   <td style={{ ...dashTdStyle, fontFamily: tokens.fontMono }}>
-                    {fmtMoney2(t.send_amount)}
+                    {fmtMoney2(t.send_amount)}{" "}
+                    <TransferKindPill
+                      serviceType={t.service_type}
+                      paymentMethod={t.payment_method}
+                    />
                   </td>
                   <td style={{ ...dashTdStyle, fontFamily: tokens.fontMono }}>
                     {fmtMoney2(t.fee)}
@@ -861,6 +866,16 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
                 {fmtMoney2(d.totals.sent)}
               </strong>
             </div>
+            {d.totals.paid_out > 0 && (
+              <div>
+                <span style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>
+                  Paid Out:
+                </span>{" "}
+                <strong style={{ fontFamily: tokens.fontMono }}>
+                  {fmtMoney2(d.totals.paid_out)}
+                </strong>
+              </div>
+            )}
             <div>
               <span style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>
                 Fees Collected:

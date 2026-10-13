@@ -14,10 +14,24 @@ from datetime import datetime
 from sqlalchemy import (
     BigInteger, Column, Date, DateTime, ForeignKey, Index, Integer, String,
 )
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
 from api.Core.Money import to_cents, to_dollars
+
+# The service type of a payout: the store hands cash to a recipient
+# for the company instead of taking cash in. Lives here (not in
+# Services/tax.py) so every module that sums transfer volume can
+# filter on ``Transfer.is_send`` without importing the tax rules.
+PAYOUT_SERVICE = "Payout"
+
+# How the customer paid for a send. ``None`` on the column (every row
+# saved before debit card existed) reads as cash.
+PAYMENT_CASH = "cash"
+PAYMENT_DEBIT_CARD = "debit_card"
+PAYMENT_METHODS: tuple[str, ...] = (PAYMENT_CASH, PAYMENT_DEBIT_CARD)
 
 
 class Transfer(Base):
@@ -38,6 +52,10 @@ class Transfer(Base):
     # carry it). Server-side tax math in new_transfer / edit_transfer
     # is the gate, not this column.
     service_type   = Column(String(30), default="Money Transfer", nullable=False)
+    # How the customer paid: "cash" or "debit_card" (on the company's
+    # card terminal, so no cash reached the drawer). NULL on rows saved
+    # before the column existed = cash. A payout is always cash.
+    payment_method = Column(String(20), nullable=True)
     sender_name    = Column(String(120), nullable=False)
     # Money is stored as INTEGER CENTS (P0-3 — exact math; see
     # api/Core/Money.py). The dollar-named @property pairs below
@@ -141,6 +159,33 @@ class Transfer(Base):
     def commission(self, dollars: object) -> None:
         self.commission_cents = to_cents(dollars)  # type: ignore[assignment]
 
+    @hybrid_property
+    def is_send(self) -> bool:
+        """True for everything but a payout. Sums of transfer VOLUME
+        (dashboards, sales reports, batch totals) filter on this so a
+        payout is never counted as money sent."""
+        return bool(self.service_type != PAYOUT_SERVICE)
+
+    @is_send.inplace.expression
+    @classmethod
+    def _is_send_expression(cls) -> ColumnElement[bool]:
+        return cls.service_type != PAYOUT_SERVICE
+
+    @property
+    def is_payout(self) -> bool:
+        return bool(self.service_type == PAYOUT_SERVICE)
+
+    @property
+    def is_debit_card(self) -> bool:
+        return bool(self.payment_method == PAYMENT_DEBIT_CARD)
+
+    @property
+    def paid_by(self) -> str:
+        """Display label for the payment method, NULL read as cash —
+        what the audit diff compares, so an edit of a row saved
+        before the column existed doesn't log "— → cash"."""
+        return "Debit card" if self.is_debit_card else "Cash"
+
     @property
     def total_collected_cents(self) -> int:
         """What the customer actually handed over, in exact cents:
@@ -163,4 +208,7 @@ from api.Modules.Customers.Models import Customer  # noqa: E402
 from api.Modules.Tenancy.Models import Store, User  # noqa: E402
 
 
-__all__ = ["ACHBatch", "Customer", "Store", "Transfer", "User"]
+__all__ = [
+    "ACHBatch", "Customer", "PAYMENT_CASH", "PAYMENT_DEBIT_CARD",
+    "PAYMENT_METHODS", "PAYOUT_SERVICE", "Store", "Transfer", "User",
+]

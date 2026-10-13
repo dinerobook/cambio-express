@@ -105,4 +105,33 @@ describe("TransferDetail", () => {
     renderPage("/transfers/abc");
     expect(screen.getByText("Invalid transfer ID.")).toBeInTheDocument();
   });
+
+  it("says how a send was paid", () => {
+    renderPage();
+    expect(rowValue("Paid by")).toBe("Cash");
+    useTransfer.mockReturnValue({
+      data: { transfer: { ...transfer, payment_method: "debit_card" } },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getAllByText("Debit card").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("shows a payout as cash paid out, with no fee or tax rows", () => {
+    useTransfer.mockReturnValue({
+      data: { transfer: {
+        ...transfer, service_type: "Payout", fee: 0, federal_tax: 0,
+        send_amount: 400, total_collected: 400, payment_method: "cash",
+      } },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    expect(rowValue("Amount paid out")).toBe("$400.00");
+    expect(rowValue("Paid out")).toBe("$400.00");
+    expect(screen.queryByText("Fee")).not.toBeInTheDocument();
+    expect(screen.queryByText("Total collected")).not.toBeInTheDocument();
+    expect(screen.getByText("Recipient (paid here)")).toBeInTheDocument();
+    expect(screen.getByText("Sent by")).toBeInTheDocument();
+    expect(screen.getByText("Payout")).toBeInTheDocument();
+  });
 });

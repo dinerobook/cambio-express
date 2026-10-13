@@ -332,17 +332,33 @@ class MoneyTransferSummary(Base):
     # transfers for the day. Tracked separately from fees because
     # tax leaves with the ACH withdrawal, not store revenue.
     federal_tax_cents = Column(BigInteger, default=0)
+    # The part of the day's sends the customers paid on the company's
+    # debit card terminal: no cash reached the drawer, the company
+    # credits it on the statement. Comes OFF the company's total.
+    # NULL on every row saved before debit card existed = 0.
+    debit_card_cents  = Column(BigInteger, nullable=True)
+    # Cash the store paid out to recipients for this company: it left
+    # the drawer, so it comes OFF the company's total too. NULL = 0.
+    payouts_cents     = Column(BigInteger, nullable=True)
     amount      = DollarView("amount_cents")
     fees        = DollarView("fees_cents")
     commission  = DollarView("commission_cents")
     federal_tax = DollarView("federal_tax_cents")
+    debit_card  = DollarView("debit_card_cents")
+    payouts     = DollarView("payouts_cents")
     __table_args__ = (UniqueConstraint("store_id", "report_date", "company"),)
 
     @property
     def individual_total_cents(self) -> int:
+        """The company's CASH for the day — what its cash drop is
+        checked against: everything taken in, less what was paid by
+        debit card, less what was paid out (INVARIANTS.md "Debit card
+        and payouts")."""
         return int((self.amount_cents or 0) + (self.fees_cents or 0)
                    + (self.commission_cents or 0)
-                   + (self.federal_tax_cents or 0))
+                   + (self.federal_tax_cents or 0)
+                   - (self.debit_card_cents or 0)
+                   - (self.payouts_cents or 0))
 
     @property
     def individual_total(self) -> float:

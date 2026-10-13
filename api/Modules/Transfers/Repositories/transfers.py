@@ -16,7 +16,7 @@ from typing import Any, Iterable, Literal
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from api.Modules.Transfers.Models import Transfer
+from api.Modules.Transfers.Models import PAYMENT_DEBIT_CARD, Transfer
 
 
 # Sort columns whitelisted on the legacy /transfers route. Slug names
@@ -52,6 +52,10 @@ class TransferFilters:
     country: str = ""
     confirm: str = ""
     batch: str = ""
+    # Exact service type ("Payout", "Money Transfer", …).
+    service: str = ""
+    # "cash" or "debit_card"; anything else drops the filter.
+    paid_by: str = ""
     q: str = ""
     sort_slug: str = ""
     sort_dir: Literal["asc", "desc"] = "desc"
@@ -83,6 +87,8 @@ class TransferFilters:
             country=(args.get("country") or "").strip(),
             confirm=(args.get("confirm") or "").strip(),
             batch=(args.get("batch") or "").strip(),
+            service=(args.get("service") or "").strip(),
+            paid_by=(args.get("paid_by") or "").strip(),
             q=(args.get("q") or "").strip(),
             sort_slug=(args.get("sort") or "").strip(),
             sort_dir=sort_dir,
@@ -120,6 +126,16 @@ def list_with_filters(
         q = q.filter(Transfer.confirm_number.ilike(f"%{f.confirm}%"))
     if f.batch:
         q = q.filter(Transfer.batch_id.ilike(f"%{f.batch}%"))
+    if f.service:
+        q = q.filter(Transfer.service_type == f.service)
+    if f.paid_by == PAYMENT_DEBIT_CARD:
+        q = q.filter(Transfer.payment_method == PAYMENT_DEBIT_CARD)
+    elif f.paid_by == "cash":
+        # NULL = saved before the column existed = cash.
+        q = q.filter(or_(
+            Transfer.payment_method.is_(None),
+            Transfer.payment_method != PAYMENT_DEBIT_CARD,
+        ))
     if f.q:
         like = f"%{f.q}%"
         q = q.filter(or_(

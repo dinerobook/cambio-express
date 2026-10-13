@@ -670,6 +670,7 @@ def owner_store_detail_route(
         Transfer.store_id == store_id,
         Transfer.send_date >= start, Transfer.send_date <= end,
         Transfer.status.notin_(_OWNER_TRANSFER_EXCLUDED),
+        Transfer.is_send,  # a payout is cash out, not volume
     ).group_by(Transfer.company).order_by(
         func.coalesce(func.sum(Transfer.send_amount_cents), 0).desc()
     ).all()

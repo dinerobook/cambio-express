@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
+from api.Modules.Transfers.Models import PAYMENT_CASH
 from api.Modules.Transfers.Repositories import (
     TransferFilters,
     get_by_id_in_stores,
@@ -93,6 +94,7 @@ def _to_row(t) -> TransferRow:
         send_date=t.send_date.isoformat() if t.send_date else "",
         company=t.company or "",
         service_type=t.service_type or "Money Transfer",
+        payment_method=t.payment_method or PAYMENT_CASH,
         sender_name=t.sender_name or "",
         recipient_name=t.recipient_name or "",
         country=t.country or "",
@@ -171,6 +173,8 @@ def list_route(
     country: str = Query(""),
     confirm: str = Query(""),
     batch: str = Query(""),
+    service: str = Query("", description="Exact service type, e.g. `Payout`."),
+    paid_by: str = Query("", description="`cash` or `debit_card`; cash includes rows saved before the field existed."),
     q: str = Query("", description="Global search across sender/recipient/confirm/country/batch."),
     sort: str = Query("", description="Column slug to sort by; empty falls back to send_date desc."),
     dir: str = Query("desc", pattern="^(asc|desc)$"),
@@ -186,6 +190,7 @@ def list_route(
         "date_from": date_from, "date_to": date_to,
         "sender": sender, "recipient": recipient,
         "country": country, "confirm": confirm, "batch": batch,
+        "service": service, "paid_by": paid_by,
         "q": q, "sort": sort, "dir": dir,
     })
     page_obj = list_transfers(
@@ -226,6 +231,53 @@ def _enforce_business_hours_gate(db: Session, store_id: int) -> None:
                 "should be allowed."
             ),
         )
+
+
+def _payload_from(
+    body: CreateTransferRequest, store_id: int, user_id: int,
+    client_request_id: str | None = None,
+) -> CreateTransferInput:
+    """POST and PUT share one body shape and one Service payload, so
+    they share this one translation: create and edit can't drift
+    apart on a field (the edit-wipes-fields bug of #933 was exactly
+    that kind of drift). ``client_request_id`` is the create-only
+    Idempotency-Key; the edit leaves it None."""
+    try:
+        send_date = datetime.strptime(body.send_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=422, detail="send_date must be YYYY-MM-DD",
+        )
+    return CreateTransferInput(
+        store_id=store_id,
+        created_by_user_id=user_id,
+        send_date=send_date,
+        company=body.company,
+        # Always pass through the same normalize_service_type the
+        # legacy form uses — anything unrecognized falls back to
+        # "Money Transfer" and the tax math runs on that.
+        service_type=normalize_service_type(body.service_type),
+        payment_method=body.payment_method,
+        sender_name=body.sender_name,
+        send_amount=float(body.send_amount or 0),
+        fee=float(body.fee or 0),
+        commission=float(body.commission or 0),
+        recipient_name=body.recipient_name,
+        country=body.country,
+        recipient_phone=body.recipient_phone,
+        sender_phone=body.sender_phone,
+        sender_phone_country=body.sender_phone_country or "+1",
+        sender_address=body.sender_address,
+        sender_dob=parse_dob(body.sender_dob),
+        confirm_number=body.confirm_number,
+        status=body.status or "Sent",
+        status_notes=body.status_notes,
+        batch_id=body.batch_id,
+        internal_notes=body.internal_notes,
+        employee_id=body.employee_id,
+        customer_id=body.customer_id,
+        client_request_id=client_request_id,
+    )
 
 
 from api.Core.RateLimit import limiter as _rate_limiter
@@ -272,41 +324,8 @@ def create_route(
     user_id = int(claims["sub"])
     _enforce_business_hours_gate(db, int(store_id_claim))
 
-    try:
-        send_date = datetime.strptime(body.send_date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422, detail="send_date must be YYYY-MM-DD",
-        )
-    sender_dob = parse_dob(body.sender_dob)
-
-    payload = CreateTransferInput(
-        store_id=int(store_id_claim),
-        created_by_user_id=user_id,
-        send_date=send_date,
-        company=body.company,
-        # Always pass through the same normalize_service_type the
-        # legacy form uses — anything unrecognized falls back to
-        # "Money Transfer" and the tax math runs on that.
-        service_type=normalize_service_type(body.service_type),
-        sender_name=body.sender_name,
-        send_amount=float(body.send_amount or 0),
-        fee=float(body.fee or 0),
-        commission=float(body.commission or 0),
-        recipient_name=body.recipient_name,
-        country=body.country,
-        recipient_phone=body.recipient_phone,
-        sender_phone=body.sender_phone,
-        sender_phone_country=body.sender_phone_country or "+1",
-        sender_address=body.sender_address,
-        sender_dob=sender_dob,
-        confirm_number=body.confirm_number,
-        status=body.status or "Sent",
-        status_notes=body.status_notes,
-        batch_id=body.batch_id,
-        internal_notes=body.internal_notes,
-        employee_id=body.employee_id,
-        customer_id=body.customer_id,
+    payload = _payload_from(
+        body, int(store_id_claim), user_id,
         client_request_id=(idempotency_key or "").strip() or None,
     )
     try:
@@ -384,6 +403,7 @@ def get_receipt_route(
             ),
             company=transfer.company or "",
             service_type=transfer.service_type or "Money Transfer",
+            payment_method=transfer.payment_method or PAYMENT_CASH,
             sender_name=transfer.sender_name or "",
             sender_phone=transfer.sender_phone or "",
             sender_phone_country=transfer.sender_phone_country or "",
@@ -450,39 +470,7 @@ def update_route(
     user_id = int(claims["sub"])
     _enforce_business_hours_gate(db, int(store_id_claim))
 
-    try:
-        send_date = datetime.strptime(body.send_date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422, detail="send_date must be YYYY-MM-DD",
-        )
-    sender_dob = parse_dob(body.sender_dob)
-
-    payload = CreateTransferInput(
-        store_id=int(store_id_claim),
-        created_by_user_id=user_id,
-        send_date=send_date,
-        company=body.company,
-        service_type=normalize_service_type(body.service_type),
-        sender_name=body.sender_name,
-        send_amount=float(body.send_amount or 0),
-        fee=float(body.fee or 0),
-        commission=float(body.commission or 0),
-        recipient_name=body.recipient_name,
-        country=body.country,
-        recipient_phone=body.recipient_phone,
-        sender_phone=body.sender_phone,
-        sender_phone_country=body.sender_phone_country or "+1",
-        sender_address=body.sender_address,
-        sender_dob=sender_dob,
-        confirm_number=body.confirm_number,
-        status=body.status or "Sent",
-        status_notes=body.status_notes,
-        batch_id=body.batch_id,
-        internal_notes=body.internal_notes,
-        employee_id=body.employee_id,
-        customer_id=body.customer_id,
-    )
+    payload = _payload_from(body, int(store_id_claim), user_id)
     try:
         transfer = update_transfer(
             db,

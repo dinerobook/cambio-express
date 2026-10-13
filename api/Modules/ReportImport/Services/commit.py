@@ -94,13 +94,19 @@ def commit_intermex_to_mt_breakdown(
     logged_amount = 0.0
     logged_total = 0.0
     write_rows: list[MTWriteRow] = []
+    # The report knows nothing about debit card or payouts, so the
+    # target company keeps whatever the operator saved for those.
+    keep_debit_card = keep_payouts = 0.0
     for row in before.rows:
-        saved_total = round(
-            row.saved_amount + row.saved_fees
-            + row.saved_federal_tax + row.saved_commission, 2,
-        )
+        saved_total = round(row.saved_total, 2)
+        has_saved = any((
+            row.saved_amount, row.saved_fees, row.saved_federal_tax,
+            row.saved_commission, row.saved_debit_card, row.saved_payouts,
+        ))
         if row.company == company:
             prev_saved_total = saved_total
+            keep_debit_card = row.saved_debit_card
+            keep_payouts = row.saved_payouts
             logged_amount = round(row.auto_amount, 2)
             logged_total = round(
                 row.auto_amount + row.auto_fees
@@ -108,18 +114,22 @@ def commit_intermex_to_mt_breakdown(
             )
             continue  # the target row is set from the report below
         # Preserve other companies' manual overrides. Auto-only rows
-        # (zero saved) are left out so they keep falling back to auto.
-        if saved_total > 0:
+        # (nothing saved) are left out so they keep falling back to auto.
+        if has_saved:
             write_rows.append(MTWriteRow(
                 company=row.company,
                 amount=row.saved_amount, fees=row.saved_fees,
                 federal_tax=row.saved_federal_tax,
                 commission=row.saved_commission,
+                debit_card=row.saved_debit_card,
+                payouts=row.saved_payouts,
             ))
 
     write_rows.append(MTWriteRow(
         company=company, amount=amount, fees=fees,
         federal_tax=federal_tax, commission=0.0,
+        debit_card=min(keep_debit_card, committed_total),
+        payouts=keep_payouts,
     ))
 
     grand_total = replace_mt_breakdown(

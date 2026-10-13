@@ -31,6 +31,13 @@ total of transfers AND services — the In column's "Services" box.
 Intermex import) leaves the day's services untouched and still
 counts them in the total.
 
+Debit card and payouts: each company row also carries `debit_card`
+(sends the customers paid on the company's card terminal: no cash in
+the drawer) and `payouts` (cash paid out to recipients). Both come OFF
+the company's total, so `money_transfer` and the By company figure are
+the cash the company's drop is checked against. Zero (NULL) on every
+row saved before they existed, so those days read as before.
+
 Locked-day guard: writes are refused when the daily report's lock
 is set — matches the contract on
 `update_daily_report` (DailyReportLockedError → HTTP 403).
@@ -50,6 +57,7 @@ from api.Modules.DailyBook.Services.transfers_summary import (
     summarize_transfers_for_day,
 )
 from api.Core.Clock import utc_now
+from api.Core.Money import to_cents
 
 
 @dataclass
@@ -71,6 +79,11 @@ class MTRow:
     auto_federal_tax: float
     auto_commission: float
     auto_count: int
+    saved_debit_card: float = 0.0
+    saved_payouts: float = 0.0
+    auto_debit_card: float = 0.0
+    auto_payouts: float = 0.0
+    auto_payout_count: int = 0
 
     @property
     def saved_total(self) -> float:
@@ -79,6 +92,8 @@ class MTRow:
             + float(self.saved_fees or 0)
             + float(self.saved_federal_tax or 0)
             + float(self.saved_commission or 0)
+            - float(self.saved_debit_card or 0)
+            - float(self.saved_payouts or 0)
         )
 
     @property
@@ -88,6 +103,8 @@ class MTRow:
             + float(self.auto_fees or 0)
             + float(self.auto_federal_tax or 0)
             + float(self.auto_commission or 0)
+            - float(self.auto_debit_card or 0)
+            - float(self.auto_payouts or 0)
         )
 
 
@@ -193,6 +210,11 @@ def read_mt_breakdown(
             auto_federal_tax=float(auto.federal_tax) if auto else 0.0,
             auto_commission=float(auto.commission) if auto else 0.0,
             auto_count=int(auto.count) if auto else 0,
+            saved_debit_card=float(saved.debit_card or 0) if saved else 0.0,
+            saved_payouts=float(saved.payouts or 0) if saved else 0.0,
+            auto_debit_card=float(auto.debit_card) if auto else 0.0,
+            auto_payouts=float(auto.payouts) if auto else 0.0,
+            auto_payout_count=int(auto.payout_count) if auto else 0,
         ))
     from api.Modules.Tenancy.Models import Store
     from api.Modules.Transfers.Services import store_money_order_companies
@@ -237,11 +259,40 @@ class MTWriteRow:
     fees: float
     federal_tax: float
     commission: float
+    # Off the company's total: paid by debit card / paid out in cash.
+    # Default 0 so a caller that predates them (the Intermex import)
+    # keeps working unchanged.
+    debit_card: float = 0.0
+    payouts: float = 0.0
 
 
 class UnknownServiceError(ValueError):
     """A service key outside SERVICE_KINDS. The request schema already
     refuses these (422); this guards direct Service callers."""
+
+
+class MTRowError(ValueError):
+    """A company row that can't be right: a negative debit card or
+    payout figure, or more paid by debit card than the company's
+    sends brought in. The controller maps it to 422."""
+
+
+def _check_row(row: MTWriteRow) -> None:
+    debit = float(row.debit_card or 0)
+    payouts = float(row.payouts or 0)
+    if debit < 0 or payouts < 0:
+        raise MTRowError(
+            f"{row.company}: debit card and payouts can't be negative."
+        )
+    collected = (float(row.amount or 0) + float(row.fees or 0)
+                 + float(row.federal_tax or 0))
+    # Half a cent of slack for float sums typed by hand.
+    if debit > collected + 0.005:
+        raise MTRowError(
+            f"{row.company}: debit card (${debit:,.2f}) is more than the "
+            f"amount + fees + federal tax (${collected:,.2f}). Debit card "
+            "is the part of those sends paid by card."
+        )
 
 
 def replace_mt_breakdown(
@@ -269,6 +320,8 @@ def replace_mt_breakdown(
     for svc in services or []:
         if svc.service not in SERVICE_KINDS:
             raise UnknownServiceError(f"Unknown service: {svc.service!r}")
+    for r in rows:
+        _check_row(r)
 
     report = ensure_daily_report(db, store_id, report_date)
     if report.locked_at is not None:
@@ -294,18 +347,24 @@ def replace_mt_breakdown(
         fees = float(row.fees or 0)
         tax = float(row.federal_tax or 0)
         comm = float(row.commission or 0)
-        row_total = amt + fees + tax + comm
-        # Skip pure-zero rows so we don't bloat the table for
-        # companies the cashier left untouched. The read-side
-        # falls back to the auto values when no saved row exists.
-        if row_total == 0:
+        debit = float(row.debit_card or 0)
+        paid_out = float(row.payouts or 0)
+        # Skip all-zero rows so we don't bloat the table for
+        # companies the cashier left untouched. Not "total == 0": a
+        # day of only debit card sends nets to zero cash and must
+        # still be stored.
+        if not any((amt, fees, tax, comm, debit, paid_out)):
             continue
         db.add(MoneyTransferSummary(
             store_id=int(store_id), report_date=report_date,
             company=co, amount=amt, fees=fees,
             federal_tax=tax, commission=comm,
+            # NULL, not 0, when unused: the row reads exactly like
+            # one saved before these columns existed.
+            debit_card_cents=to_cents(debit) or None,
+            payouts_cents=to_cents(paid_out) or None,
         ))
-        grand_total += row_total
+        grand_total += amt + fees + tax + comm - debit - paid_out
 
     if services is not None:
         (

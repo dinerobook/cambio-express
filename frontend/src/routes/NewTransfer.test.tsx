@@ -20,6 +20,9 @@ import { ApiError } from "../lib/api";
 //   - Every save attempt from one form carries the SAME save key, so
 //     pressing Save again after an error can never log the transfer
 //     twice; a new form gets a new key.
+//   - "Paid by debit card" sends payment_method "debit_card" (cash by
+//     default); a Payout hides the fee and the card box, swaps the
+//     party / amount names, and always sends cash with no fee.
 
 const createTransfer = vi.fn();
 
@@ -93,7 +96,7 @@ describe("NewTransfer", () => {
     screen.getByRole("button", { name: "Save transfer" })
       .closest("form")!.noValidate = true;
     await user.click(screen.getByRole("button", { name: "Save transfer" }));
-    expect(await screen.findByText("Send amount must be > 0")).toBeInTheDocument();
+    expect(await screen.findByText("Amount must be > 0")).toBeInTheDocument();
     expect(screen.getByText("Pick an employee")).toBeInTheDocument();
     expect(createTransfer).not.toHaveBeenCalled();
   });
@@ -204,5 +207,72 @@ describe("NewTransfer", () => {
     await user.selectOptions(screen.getByLabelText("Country"), "United States");
     expect(preview.value).toBe("$0.00");
     expect(screen.getByText(/Exempt — domestic recipient/)).toBeInTheDocument();
+  });
+
+  it("sends cash unless Paid by debit card is ticked", async () => {
+    createTransfer.mockResolvedValue({ transfer: { id: 42 } });
+    const user = userEvent.setup();
+    renderPage();
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    await waitFor(() => expect(createTransfer).toHaveBeenCalledTimes(1));
+    expect(createTransfer.mock.calls[0][0]).toMatchObject({ payment_method: "cash" });
+  });
+
+  it("sends a debit card send with its fee and tax as usual", async () => {
+    createTransfer.mockResolvedValue({ transfer: { id: 43 } });
+    const user = userEvent.setup();
+    renderPage();
+    await fillValid(user);
+    await user.click(screen.getByRole("checkbox", { name: /Paid by debit card/ }));
+    // Still a send to Mexico: the tax preview stays on.
+    expect((screen.getByLabelText(/^Federal tax preview/) as HTMLInputElement).value)
+      .toBe("$1.00");
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    await waitFor(() => expect(createTransfer).toHaveBeenCalledTimes(1));
+    expect(createTransfer.mock.calls[0][0]).toMatchObject({
+      payment_method: "debit_card", send_amount: 100, fee: 5.5,
+    });
+  });
+
+  it("logs a payout: cash out, no fee, no tax, names swapped", async () => {
+    createTransfer.mockResolvedValue({ transfer: { id: 44 } });
+    const user = userEvent.setup();
+    renderPage();
+    await fillValid(user);
+    // Ticked first, then Payout picked: the card box goes and the
+    // value falls back to cash, the typed fee to 0.
+    await user.click(screen.getByRole("checkbox", { name: /Paid by debit card/ }));
+    await user.selectOptions(screen.getByLabelText("Service"), "Payout");
+
+    expect(screen.queryByRole("checkbox", { name: /Paid by debit card/ }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Fee/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Amount paid out/)).toBeInTheDocument();
+    expect(screen.getByText("Recipient (paid here)")).toBeInTheDocument();
+    expect(screen.getByText("Sent by")).toBeInTheDocument();
+    expect(screen.getByLabelText("Sent from")).toBeInTheDocument();
+    expect((screen.getByLabelText(/^Federal tax preview/) as HTMLInputElement).value)
+      .toBe("$0.00");
+    expect(screen.getByText(/Exempt — Payout service/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    await waitFor(() => expect(createTransfer).toHaveBeenCalledTimes(1));
+    expect(createTransfer.mock.calls[0][0]).toMatchObject({
+      service_type: "Payout", payment_method: "cash", fee: 0, send_amount: 100,
+    });
+  });
+
+  it("shows the server's refusal of a payout rule", async () => {
+    createTransfer.mockRejectedValue(new ApiError(
+      422, "A payout has no fee: the recipient is paid the full amount.", null,
+    ));
+    const user = userEvent.setup();
+    renderPage();
+    await fillValid(user);
+    await user.selectOptions(screen.getByLabelText("Service"), "Payout");
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    expect(await screen.findByText(/A payout has no fee/)).toBeInTheDocument();
+    expect(screen.queryByText("detail page")).not.toBeInTheDocument();
   });
 });
