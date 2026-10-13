@@ -27,6 +27,8 @@ vi.mock("../api/batches", async (importOriginal) => {
 
 const base = {
   company: "Intermex", reconciled: false, transfer_dates: "", notes: "",
+  expected_ach: 0, card_credit: 0, card_credit_from: "",
+  card_credit_next: 0, card_credit_next_to: "",
 };
 const rows = [
   {
@@ -91,6 +93,27 @@ describe("Batches list", () => {
     expect(screen.getByLabelText("Open batch REF-2")).toHaveTextContent("+$0.00");
     expect(screen.getByLabelText("Open batch REF-3")).toHaveTextContent("+$50.00");
     expect(screen.getByText("3 batches")).toBeInTheDocument();
+  });
+
+  it("shows a debit card credit under the transfers it comes off", () => {
+    useBatches.mockReturnValue({
+      data: { rows: [{
+        ...base, id: 9, ach_date: "2026-10-05", batch_ref: "REF-9",
+        ach_amount: 197, transfers_total: 303, transfer_count: 1,
+        card_credit: 106, card_credit_from: "REF-8", expected_ach: 197,
+        variance: 0, status: "Pending",
+      }] },
+      isLoading: false, isError: false,
+    });
+    renderPage();
+    const row = screen.getByLabelText("Open batch REF-9");
+    expect(row).toHaveTextContent("-$106.00 debit card credit");
+    expect(row).toHaveTextContent("+$0.00");
+  });
+
+  it("shows no credit line on a batch without one", () => {
+    renderPage();
+    expect(screen.queryByText(/debit card credit/)).not.toBeInTheDocument();
   });
 
   it("renders status pills with the shared tone map", () => {

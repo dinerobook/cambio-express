@@ -8,6 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { components } from "./openapi";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
 
@@ -20,20 +21,11 @@ export const BATCH_STATUS_TONES: Record<string, PillTone> = {
   Held:     "info",
 };
 
-export interface BatchRow {
-  id: number;
-  ach_date: string;
-  company: string;
-  batch_ref: string;
-  ach_amount: number;
-  status: string;
-  reconciled: boolean;
-  transfer_dates: string;
-  notes: string;
-  transfers_total: number;
-  variance: number;
-  transfer_count: number;
-}
+/** One batch with its server-computed totals. `variance` is
+ *  `ach_amount - expected_ach`; `expected_ach` is the linked sends
+ *  less the debit card credit from the company's previous batch
+ *  (Transfers INVARIANTS "Debit card sends"). */
+export type BatchRow = components["schemas"]["BatchRow"];
 
 export interface BatchListResponse {
   rows: BatchRow[];

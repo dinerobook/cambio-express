@@ -24,6 +24,14 @@ class BatchRow(BaseModel):
     transfers_total: float
     variance: float
     transfer_count: int
+    # Debit card credits (Services/batches.py): the company credits
+    # what customers paid by card on its NEXT invoice. variance is
+    # ach_amount - expected_ach.
+    expected_ach: float = 0.0
+    card_credit: float = 0.0        # credited on this ACH ...
+    card_credit_from: str = ""      # ... from this earlier batch
+    card_credit_next: float = 0.0   # card sends here, credited next
+    card_credit_next_to: str = ""   # that batch; "" = still pending
 
 
 class BatchListResponse(BaseModel):

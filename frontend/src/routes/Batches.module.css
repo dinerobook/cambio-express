@@ -52,6 +52,15 @@
   margin-left: 0.5rem;
 }
 
+/* Debit card credit from the company's previous batch, under the
+   transfers total it comes off. */
+.cardCredit {
+  display: block;
+  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-size: 0.78rem;
+  color: var(--db-text-muted, #a3a3a3);
+}
+
 .variancePos {
   font-family: var(--db-font-mono, "JetBrains Mono", monospace);
   color: var(--db-accent, #3fff00);
