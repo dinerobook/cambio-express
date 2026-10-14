@@ -632,3 +632,88 @@ def test_delete_payment_on_a_locked_day_is_409_until_unlocked(
     _lock_day(test_store_id, date(2026, 4, 15), locked=False)
     assert client.delete(url, headers=headers).status_code == 200
     assert _paybacks(rid) == []
+
+
+# ── Editing the amount re-checks recovery ───────────────────
+
+
+def _edit_amount(client, token, rid, amount):
+    return client.put(
+        f"/api/v2/return-checks/{rid}",
+        json={
+            "bounced_on": "2026-09-01", "customer_name": "C",
+            "company_name": "X", "amount": amount,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+
+def _pay(client, token, rid, amount, paid_on="2026-09-02"):
+    return client.post(
+        f"/api/v2/return-checks/{rid}/payments",
+        json={"paid_on": paid_on, "amount": amount},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+
+def test_lowering_amount_below_paid_recovers_the_check(
+    client, test_store_id,
+):
+    """$60 paid on a $100 check, then the amount is corrected to $50:
+    the check is now fully paid and must read recovered (it used to
+    stay pending forever, with every further payback 409ing)."""
+    with db_session():
+        rid = _seed_rc(test_store_id, amount=100.0)
+    token = _login(client, test_store_id)
+    assert _pay(client, token, rid, 60.0).status_code == 201
+    resp = _edit_amount(client, token, rid, 50.0)
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    rc = resp.get_json()["return_check"]
+    assert rc["status"] == "recovered"
+    assert rc["status_changed_on"] != ""
+
+
+def test_raising_a_recovered_amount_reopens_it_to_pending(
+    client, test_store_id,
+):
+    """A recovered $100 check corrected to $150 has $50 left to
+    collect: it goes back to pending and takes the next payback."""
+    with db_session():
+        rid = _seed_rc(test_store_id, amount=100.0)
+    token = _login(client, test_store_id)
+    assert _pay(client, token, rid, 100.0).get_json()[
+        "return_check"]["status"] == "recovered"
+    resp = _edit_amount(client, token, rid, 150.0)
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    rc = resp.get_json()["return_check"]
+    assert rc["status"] == "pending"
+    assert rc["status_changed_on"] in ("", None)
+    pay = _pay(client, token, rid, 50.0, paid_on="2026-09-03")
+    assert pay.status_code == 201, pay.get_data(as_text=True)
+    assert pay.get_json()["return_check"]["status"] == "recovered"
+
+
+def test_editing_amount_leaves_written_off_checks_alone(
+    client, test_store_id,
+):
+    """Loss / fraud are explicit write-offs — an edit never moves
+    them, whatever the amount."""
+    with db_session():
+        loss = _seed_rc(test_store_id, amount=100.0, status="loss")
+        fraud = _seed_rc(test_store_id, amount=100.0, status="fraud")
+    token = _login(client, test_store_id)
+    for rid, status in ((loss, "loss"), (fraud, "fraud")):
+        resp = _edit_amount(client, token, rid, 10.0)
+        assert resp.status_code == 200
+        assert resp.get_json()["return_check"]["status"] == status
+
+
+def test_editing_pending_amount_above_paid_stays_pending(
+    client, test_store_id,
+):
+    with db_session():
+        rid = _seed_rc(test_store_id, amount=100.0)
+    token = _login(client, test_store_id)
+    assert _pay(client, token, rid, 30.0).status_code == 201
+    resp = _edit_amount(client, token, rid, 80.0)
+    assert resp.get_json()["return_check"]["status"] == "pending"

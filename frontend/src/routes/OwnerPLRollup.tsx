@@ -160,7 +160,7 @@ function RollupTable({
             <Money value={r.revenue} />
             <Money value={r.purchases} />
             <Money value={r.expenses} />
-            <Money value={r.over_short} signed />
+            <Money value={r.over_short} />
             <Money value={r.net} signed bold />
           </tr>
         ))}
@@ -171,7 +171,7 @@ function RollupTable({
           <Money value={totals.revenue}   bold />
           <Money value={totals.purchases} bold />
           <Money value={totals.expenses}  bold />
-          <Money value={totals.over_short} signed bold />
+          <Money value={totals.over_short} bold />
           <Money value={totals.net}        signed bold />
         </tr>
       </tfoot>
@@ -183,7 +183,8 @@ function Money({
   value, signed, bold,
 }: {
   value: number;
-  /** Tint negative red, positive green. Used for over/short + net. */
+  /** Tint negative red, positive green. Used for net. (Over/short is
+   *  shown plain: on the P&L a positive value is a shortage.) */
   signed?: boolean;
   bold?: boolean;
 }) {

@@ -164,3 +164,54 @@ def test_commit_rejects_non_reconciling_report(test_store_id):
                 db.session, store_id=test_store_id, report_date=day,
                 report=bad,
             )
+
+
+def test_commit_keeps_saved_intermex_commission(test_store_id):
+    """The report carries no commission, so a commit must keep the one
+    the operator saved on the Intermex row (it used to write 0 and
+    silently drop it from the day's money-transfer total)."""
+    from api.Modules.ReportImport.Services import (
+        commit_intermex_to_mt_breakdown,
+    )
+    from api.Modules.DailyBook.Services import read_mt_breakdown
+    day = date(2026, 5, 6)
+    with db_session():
+        _add_summary(test_store_id, day, "Intermex", amount=100.0,
+                     fees=5.0, federal_tax=1.0, commission=12.0)
+        db.session.commit()
+
+        result = commit_intermex_to_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=day,
+            report=_report([_giro("1", 200.0, 8.0, 2.0)]),
+        )
+        db.session.commit()
+
+        intermex = next(
+            r for r in read_mt_breakdown(db.session, test_store_id, day).rows
+            if r.company == "Intermex"
+        )
+        assert intermex.saved_amount == 200.0
+        assert intermex.saved_commission == 12.0
+        # 200 + 8 + 2 from the report + the kept 12 commission.
+        assert result.grand_total == 222.0
+
+
+def test_commit_without_saved_row_writes_no_commission(test_store_id):
+    """Nothing saved → nothing to keep: the commission stays 0."""
+    from api.Modules.ReportImport.Services import (
+        commit_intermex_to_mt_breakdown,
+    )
+    from api.Modules.DailyBook.Services import read_mt_breakdown
+    day = date(2026, 5, 7)
+    with db_session():
+        result = commit_intermex_to_mt_breakdown(
+            db.session, store_id=test_store_id, report_date=day,
+            report=_report([_giro("1", 100.0, 5.0, 1.0)]),
+        )
+        db.session.commit()
+        intermex = next(
+            r for r in read_mt_breakdown(db.session, test_store_id, day).rows
+            if r.company == "Intermex"
+        )
+        assert intermex.saved_commission == 0.0
+        assert result.grand_total == 106.0

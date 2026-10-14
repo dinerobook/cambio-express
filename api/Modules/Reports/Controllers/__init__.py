@@ -386,20 +386,21 @@ def period_comparison_route(
     compare_to: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    from datetime import datetime
+    from api.Modules.Reports.Controllers.csv_export import (
+        _parse_compare_dates,
+    )
     from api.Modules.Reports.Services import period_comparison
     d_from, d_to = period
-    cf = (
-        datetime.strptime(compare_from, "%Y-%m-%d").date()
-        if compare_from else None
-    )
-    ct = (
-        datetime.strptime(compare_to, "%Y-%m-%d").date()
-        if compare_to else None
+    # Same parse as the CSV export of this report: a malformed date
+    # is ignored (→ the auto prior window), like ``parse_period``.
+    # It used to escape as an uncaught ValueError (500).
+    compare = _parse_compare_dates(
+        {"compare_from": compare_from, "compare_to": compare_to},
     )
     rows, totals = period_comparison(
         db, store_ids, d_from, d_to,
-        compare_from=cf, compare_to=ct,
+        compare_from=compare["compare_from"],
+        compare_to=compare["compare_to"],
     )
     return {"rows": rows, "totals": totals}
 

@@ -94,9 +94,10 @@ def commit_intermex_to_mt_breakdown(
     logged_amount = 0.0
     logged_total = 0.0
     write_rows: list[MTWriteRow] = []
-    # The report knows nothing about debit card or payouts, so the
-    # target company keeps whatever the operator saved for those.
-    keep_debit_card = keep_payouts = 0.0
+    # The report knows nothing about commission, debit card or
+    # payouts, so the target company keeps whatever the operator
+    # saved for those (re-sending 0 would wipe them).
+    keep_commission = keep_debit_card = keep_payouts = 0.0
     for row in before.rows:
         saved_total = round(row.saved_total, 2)
         has_saved = any((
@@ -105,6 +106,7 @@ def commit_intermex_to_mt_breakdown(
         ))
         if row.company == company:
             prev_saved_total = saved_total
+            keep_commission = row.saved_commission
             keep_debit_card = row.saved_debit_card
             keep_payouts = row.saved_payouts
             logged_amount = round(row.auto_amount, 2)
@@ -127,7 +129,7 @@ def commit_intermex_to_mt_breakdown(
 
     write_rows.append(MTWriteRow(
         company=company, amount=amount, fees=fees,
-        federal_tax=federal_tax, commission=0.0,
+        federal_tax=federal_tax, commission=keep_commission,
         debit_card=min(keep_debit_card, committed_total),
         payouts=keep_payouts,
     ))

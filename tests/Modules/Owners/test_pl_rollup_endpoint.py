@@ -36,7 +36,8 @@ def _seed_pl(store_id, year, month, *, revenue=0.0, purchases=0.0,
     SQL-summed properties on the model — we route them to the
     canonical raw columns (`taxable_sales`, `cash_purchases`,
     `cash_expenses`) so the response carries the expected totals.
-    `net_income` is derived: rev - pur - exp + over_short."""
+    The row's net is the store's Monthly P&L net: revenue - purchases
+    - expenses - over_short."""
     from api.Modules.Monthly.Models import MonthlyFinancial
     from tests._app import db
     mf = MonthlyFinancial(
@@ -134,7 +135,7 @@ def test_pl_rollup_lists_per_store_with_totals(client):
     assert body["rows"][0]["has_pl"] is True
     assert body["totals"]["revenue"] == 1500.0
     assert body["totals"]["expenses"] == 700.0
-    # Net = Σ (revenue - purchases - expenses + over_short)
+    # Net = Σ (revenue - purchases - expenses - over_short)
     #     = (1000 - 0 - 400) + (500 - 0 - 300) = 600 + 200 = 800
     assert body["totals"]["net"] == 800.0
 
@@ -195,3 +196,40 @@ def test_pl_rollup_excludes_unrelated_stores(client):
     slugs = {r["store_slug"] for r in body["rows"]}
     assert slugs == {"mine-pl"}
     assert body["totals"]["revenue"] == 100.0
+
+
+def test_pl_rollup_net_matches_each_stores_monthly_pl(client):
+    """Each row is built from the store's own Monthly P&L, so its net
+    is the net /monthly shows (bank charges, over/short and profit
+    distributed are expenses there). The legacy model property gave
+    1000 + 50 = 1050 here."""
+    from api.Modules.Monthly.Models import MonthlyFinancial
+    from api.Modules.Monthly.Services import summarize_monthly
+    with db_session():
+        owner_id, _, pw = _make_owner()
+        sid = _link(owner_id, store_name="Gamma", store_slug="gamma-pl")
+        db.session.add(MonthlyFinancial(
+            store_id=sid, year=2026, month=9,
+            taxable_sales=1000.0, cash_purchases=120.0,
+            bank_charges_total=100.0, over_short=50.0,
+            profit_distributed=200.0,
+        ))
+        db.session.commit()
+        pl_net = summarize_monthly(db.session, sid, 2026, 9).net_profit
+    assert pl_net == 530.0
+    token = _login_owner(client, "boss-pl@example.com", pw)
+    body = client.get(
+        "/api/v2/owner/pl-rollup?year=2026&month=9",
+        headers={"Authorization": f"Bearer {token}"},
+    ).get_json()
+    row = next(r for r in body["rows"] if r["store_id"] == sid)
+    assert row["net"] == pl_net
+    assert row["revenue"] == 1000.0
+    assert row["purchases"] == 120.0
+    assert row["over_short"] == 50.0
+    # The other expense lines: bank charges + profit distributed.
+    assert row["expenses"] == 300.0
+    # The columns add up to the net the row shows.
+    assert round(row["revenue"] - row["purchases"] - row["expenses"]
+                 - row["over_short"], 2) == row["net"]
+    assert body["totals"]["net"] == pl_net
