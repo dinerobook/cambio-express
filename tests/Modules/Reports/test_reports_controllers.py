@@ -316,6 +316,16 @@ def test_store_ids_multi_value_aggregates_across_stores(test_store_id, authed_cl
         sid2 = s2.id
         _seed_transfer(test_store_id, send_amount=100.0)
         _seed_transfer(sid2, send_amount=200.0)
+    from tests.conftest import owner_token_for
+    # Multi-store aggregation is the owner's view; a store admin
+    # asking for a second store is refused (api.Core.StoreScope).
+    assert authed_client.get(
+        "/reports/sales-by-company",
+        params={"store_ids": f"{test_store_id},{sid2}"},
+    ).status_code == 403
+    authed_client.headers["Authorization"] = (
+        f"Bearer {owner_token_for([test_store_id, sid2])}"
+    )
     resp = authed_client.get(
         "/reports/sales-by-company",
         params={"store_ids": f"{test_store_id},{sid2}"},

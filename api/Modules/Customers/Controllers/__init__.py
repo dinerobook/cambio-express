@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.StoreScope import authorize_store_id
 from api.Modules.Audit.Services import record_operator_action
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
@@ -114,6 +115,7 @@ def search_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> CustomerSearchResponse:
     require_permission(claims, "customers", "read")
+    store_id = authorize_store_id(db, claims, store_id)
     matches, suggestions = search(db, store_id, q)
     home_names = _resolve_home_names(
         db, list(matches) + list(suggestions), store_id,
@@ -132,6 +134,7 @@ def upsert_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> CustomerUpsertResponse:
     require_permission(claims, "customers", "create")
+    store_id = authorize_store_id(db, claims, store_id)
     parsed_dob: date | None = None
     if body.dob:
         try:
@@ -255,6 +258,7 @@ def recent_recipients_route(
     outside the umbrella returns an empty list, never 404 — the
     caller's render path is the same either way."""
     require_permission(claims, "customers", "read")
+    store_id = authorize_store_id(db, claims, store_id)
     rows = list_recent_recipients(
         db, customer_id, store_id, limit=limit,
     )
@@ -278,6 +282,7 @@ def get_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> CustomerResponse:
     require_permission(claims, "customers", "read")
+    store_id = authorize_store_id(db, claims, store_id)
     siblings = sibling_store_ids(db, store_id)
     cust = find_by_id_in_stores(db, customer_id, siblings)
     if cust is None:

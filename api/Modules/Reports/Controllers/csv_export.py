@@ -33,8 +33,8 @@ from fastapi import Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
-from api.Modules.Owners.Services import owner_store_ids
 from api.Modules.Reports.Services import (
     ach_volume, bank_charges_by_account, bank_rule_audit,
     bank_txn_breakdown, by_destination_country, cancelled_transfers,
@@ -45,7 +45,6 @@ from api.Modules.Reports.Services import (
     returned_check_status, sales_by_company, sales_by_employee,
     sales_by_service, top_customers, top_recipients,
 )
-from api.Modules.Tenancy.Models import User
 
 
 # ── Period parsing (mirrors the JSON drilldown's parse_period) ──
@@ -89,53 +88,6 @@ def _parse_threshold(args: dict[str, str | None], default: float = 1000.0) -> fl
     except (ValueError, TypeError):
         v = default
     return max(0.0, v)
-
-
-# ── Scope authorization ─────────────────────────────────────
-
-
-def _authorize_store_scope(
-    db: Session, claims: dict[str, Any], requested_store_ids: list[int],
-) -> list[int]:
-    """Resolve the final list of store_ids the caller is allowed to query.
-
-    * Superadmin: pass-through (no umbrella filter); empty list
-      means "all stores" — the services interpret that as no
-      filter, which matches the platform-scope behaviour.
-    * Owner: intersect requested ids with `owner_store_ids(user)`.
-      Empty intersection is a 403 to make accidental misuse loud.
-    * Admin / employee: must match the user's own `store_id`.
-    """
-    role = claims.get("role")
-    user_id = claims.get("sub")
-    store_id = claims.get("store_id")
-
-    if role == "superadmin":
-        return list(requested_store_ids)
-    if role == "owner":
-        u = db.get(User, user_id) if user_id else None
-        allowed = set(owner_store_ids(db, u)) if u else set()
-        if not requested_store_ids:
-            return list(allowed)
-        scoped = [sid for sid in requested_store_ids if sid in allowed]
-        if not scoped:
-            raise HTTPException(
-                status_code=403,
-                detail="Requested store_ids fall outside your owner umbrella.",
-            )
-        return scoped
-    if role in ("admin", "employee"):
-        if store_id is None:
-            raise HTTPException(status_code=403, detail="No store on token.")
-        if not requested_store_ids:
-            return [store_id]
-        if any(sid != store_id for sid in requested_store_ids):
-            raise HTTPException(
-                status_code=403,
-                detail="Cannot query store_ids outside your own store.",
-            )
-        return [store_id]
-    raise HTTPException(status_code=403, detail="Unknown role.")
 
 
 # ── CSV emit helpers ────────────────────────────────────────
@@ -362,7 +314,7 @@ def store_csv_export(
     # (admin/employee → their store, owner → their umbrella) —
     # the Data Export page relies on this. Superadmin must still
     # name stores explicitly for store-scope reports.
-    store_ids = _authorize_store_scope(db, claims, requested)
+    store_ids = authorize_store_ids(db, claims, requested)
     if not store_ids:
         raise HTTPException(status_code=422, detail="store_ids must include at least one ID.")
 

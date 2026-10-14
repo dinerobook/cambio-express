@@ -433,3 +433,20 @@ def seed_transfer(store_id, creator_id, *, send_date=None,
         db.session.add(t)
         db.session.commit()
         return t.id
+
+
+def owner_token_for(store_ids, username="umbrella-owner@x.com"):
+    """Seed an owner linked to ``store_ids`` and return their JWT.
+    Multi-store reads (``store_ids=1,2``) are an owner's view — a
+    store admin is pinned to their own store (api.Core.StoreScope)."""
+    from api.Modules.Tenancy.Models import StoreOwnerLink, User
+    with db_session():
+        u = User(store_id=None, username=username, email=username,
+                 full_name="Umbrella Owner", role="owner")
+        u.set_password("ownerpass123")
+        db.session.add(u)
+        db.session.flush()
+        for sid in store_ids:
+            db.session.add(StoreOwnerLink(owner_id=u.id, store_id=sid))
+        db.session.commit()
+    return login_owner(AsgiTestClient(), username)

@@ -500,6 +500,14 @@ a monthly P&L edit needs the monthly ones.
     written before the audit row commits); sessions end only
     through `revoke_refresh_tokens`. Don't write a fourth copy of
     that loop, and never touch `RefreshToken.revoked_at` inline.
+19. **A store id from the client is a request, not a scope.** Any
+    route that reads `store_id` / `store_ids` from the URL or query
+    string runs it through `api.Core.StoreScope`
+    (`authorize_store_id` / `authorize_store_ids`) before touching
+    data: admins and employees get only the store on their token,
+    owners only their umbrella, superadmin any. Outside that is a
+    403. `tests/Core/test_store_scope_routes.py` walks every such
+    route and fails when one answers another store.
 
 ## Migrations
 **Every schema change is an Alembic revision.** Generate one with:
@@ -688,6 +696,7 @@ Cross-cutting (under `api/Core/`):
 | `PasswordHash` | bcrypt wrappers used by signup + change-password |
 | `Permissions` | Casbin-backed RBAC — `check_permission`, `permissions_for`, `set_store_permissions`, the rank rule (`ranks.py`), the one matrix-route path (`matrix_update.py`) |
 | `RateLimit` | slowapi singleton + decorator |
+| `StoreScope` | `authorize_store_id(s)` — which stores a client-supplied store id may reach (invariant 19) |
 
 Top-level files:
 

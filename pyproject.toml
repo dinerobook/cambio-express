@@ -39,6 +39,7 @@ files = [
     "api/Core/Boot.py",
     "api/Core/Bootstrap.py",
     "api/Core/Csv.py",
+    "api/Core/StoreScope.py",
     "api/Core/Config/settings.py",
     "api/Core/Database/session.py",
     "api/Core/Jobs.py",

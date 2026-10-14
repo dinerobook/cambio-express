@@ -32,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import (
     has_permission, require_permission,
@@ -215,7 +216,7 @@ def list_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> TransferListResponse:
     require_permission(claims, "transfers", "read")
-    ids = _parse_store_ids(store_ids)
+    ids = authorize_store_ids(db, claims, _parse_store_ids(store_ids))
     filters = TransferFilters.from_query({
         "company": company, "status": status,
         "date_from": date_from, "date_to": date_to,
@@ -405,7 +406,7 @@ def get_receipt_route(
     """
     require_permission(claims, "transfers", "read")
     from api.Modules.Tenancy.Models import Store
-    ids = _parse_store_ids(store_ids)
+    ids = authorize_store_ids(db, claims, _parse_store_ids(store_ids))
     transfer = get_by_id_in_stores(db, transfer_id, ids)
     if transfer is None:
         raise HTTPException(status_code=404, detail="Transfer not found")
@@ -468,7 +469,7 @@ def get_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> TransferResponse:
     require_permission(claims, "transfers", "read")
-    ids = _parse_store_ids(store_ids)
+    ids = authorize_store_ids(db, claims, _parse_store_ids(store_ids))
     transfer = get_by_id_in_stores(db, transfer_id, ids)
     if transfer is None:
         raise HTTPException(status_code=404, detail="Transfer not found")

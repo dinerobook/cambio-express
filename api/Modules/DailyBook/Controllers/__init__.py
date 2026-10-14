@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.StoreScope import authorize_store_id
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.DailyBook.Models import DailyLineItem
@@ -127,6 +128,7 @@ def period_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> PeriodSummaryResponse:
     require_permission(claims, "daily_book", "read")
+    authorize_store_id(db, claims, store_id)
     d_from = _parse_date(from_, field="from")
     d_to = _parse_date(to, field="to")
     if d_from > d_to:
@@ -152,6 +154,7 @@ def daily_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> DailyReportResponse:
     require_permission(claims, "daily_book", "read")
+    authorize_store_id(db, claims, store_id)
     d = _parse_date(report_date, field="report_date")
     summary = summarize_report(db, store_id, d)
     if summary is None:
