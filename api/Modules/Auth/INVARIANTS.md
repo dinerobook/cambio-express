@@ -275,6 +275,13 @@ before it writes:
   role they assign, clearing an overlay (which hands the role's
   grants back), and the built-in Employee matrix on
   `/admin/store-permissions`. The 403 names the extra grants.
+- The Employees hub is a route to the same logins: creating a
+  record with `user_id`, linking, unlinking, and an e-mail / phone
+  edit that moves the linked login's identifier all require
+  `can_manage` on that login (`_require_can_manage_login`). A
+  saved role owns its members' overlays, so editing or deleting
+  one requires `can_manage` on every member
+  (`_require_can_manage_role_members`).
 - The roster reports `can_manage` per row and `assignable_roles`
   per response; the SPA hides the controls from them (UI-STANDARDS
   §8). Self-edits are the self-edit guards' business (no self
@@ -345,9 +352,16 @@ per-route check: every non-safe method (anything but GET / HEAD /
 OPTIONS) on such a token is refused with 403 `{"detail": …,
 "reason": "read_only_impersonation"}` before the handler runs, so
 a route added later is covered without remembering to. The only
-writes it lets through are `/auth/*` (refresh, logout) and
-`/superadmin/impersonate/stop`, so the session can still be
-ended. `session-status.impersonation.read_only` tells the banner
+writes it lets through are the exact paths in `EXEMPT_PATHS`:
+`/auth/refresh`, `/auth/logout`, `/auth/switch-store`, the sign-in
+routes (`/auth/login*`, forgot / reset password — they never act on
+the bearer) and `/superadmin/impersonate/stop`. Never a prefix: the
+old `/auth/` prefix let a read-only viewer change the customer's
+e-mail (their login), password, passkeys and sessions.
+`/auth/switch-store` on an impersonation token (an impersonated
+owner entering a store) carries `impersonated_by`,
+`impersonator_name` and `impersonation_mode` onto the derived token
+and never outlives the impersonation token's `exp`. `session-status.impersonation.read_only` tells the banner
 to say "every save is blocked" instead of "recorded against them".
 The claim means nothing on a token without `impersonated_by`.
 
@@ -455,6 +469,13 @@ opacity. Pinned by `test_auth_errors_are_opaque`.
 - 5-minute expiry
 - Can ONLY be presented to `/auth/login/totp`,
   `/auth/login/recovery`, or `/auth/login/totp/enroll/*`
+- `enroll: true` is set ONLY when the user was unenrolled at
+  password time. `/auth/login/totp/enroll/*` refuse a token
+  without it (opaque 401), and start / finish also refuse once
+  `is_enrolled(user)`. Otherwise an enrolled superadmin's pending
+  token — password only — could `confirm` its way to a full token
+  with no code, read the live secret from `start`, or wipe the
+  recovery codes through `finish` (bug hunt 2026-10-13).
 - Cannot be used as a full access token (purpose claim
   prevents it — JWT verifier rejects)
 
@@ -670,6 +691,12 @@ because the rpId silently switched.
   where ONLY the URL is logged for debugging).
 - Tokens are 1-hour, single-use (`used_at` set after
   consumption).
+- A successful reset revokes every refresh row of the user
+  (`revoke_refresh_tokens(user_id=…)`), so whoever held the old
+  password is out on their next call. A self-service
+  `/auth/change-password` revokes every OTHER session
+  (`keep_session_id=` the caller's `sid`) and keeps the current
+  one.
 - **Superadmin is deliberately excluded.** An attacker who
   compromises the superadmin mailbox would bypass 2FA via the
   email reset. Recovery goes through
@@ -678,8 +705,10 @@ because the rpId silently switched.
 
 ## Rate limiting
 
-Every auth endpoint (`/login*`, `/password-reset/*`,
-`/passkeys/register/*`) is bucketed by slowapi. The shared
+Every auth endpoint (`/login*` including `/login/totp/enroll/*`,
+`/forgot-password`, `/reset-password`, `/change-password`,
+`/signup`, `/signup/owner`, `/passkeys/register/*`) is bucketed by
+slowapi. The shared
 singleton is `slow_limiter` in `api/Core/RateLimit.py`. See
 CLAUDE.md invariant #15 for storage backend + test-disable
 semantics.

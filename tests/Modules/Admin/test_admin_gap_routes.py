@@ -69,6 +69,10 @@ def test_redeem_connect_code_links_store_and_audits(client, test_store_id):
         log = db.session.query(OperatorAuditLog).filter_by(
             action="redeem_owner_connect_code", store_id=test_store_id).one()
         assert "ABCD1234" in log.summary
+        # Attributed through audit_operator: the token's name, not
+        # the "full_name" claim no token carries.
+        assert log.user_name == "admin@test.com"
+        assert log.user_role == "admin"
     # Single use: a second redemption is refused and adds no link.
     again = _redeem(client, token, "ABCD1234")
     assert again.status_code == 422

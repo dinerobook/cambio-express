@@ -11624,6 +11624,18 @@ export interface components {
             /** Stripe Self Txn Id */
             stripe_self_txn_id: string;
         };
+        /**
+         * RefreshRequest
+         * @description Optional POST body for /auth/refresh. The httpOnly cookie is
+         *     the normal path; installed PWAs (Chrome standalone windows drop
+         *     httpOnly cookies between launches) keep the refresh JTI in
+         *     localStorage and send it here instead. Extra keys are ignored so
+         *     an older SPA bundle never 422s its own refresh.
+         */
+        RefreshRequest: {
+            /** Refresh Token */
+            refresh_token?: string | null;
+        };
         /** RegisterCloseRow */
         RegisterCloseRow: {
             /** Card Total */
@@ -17395,7 +17407,11 @@ export interface operations {
                 db_refresh_token?: string | null;
             };
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

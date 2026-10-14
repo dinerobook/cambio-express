@@ -10933,6 +10933,25 @@
         "title": "ReferralRedemptionRow",
         "type": "object"
       },
+      "RefreshRequest": {
+        "description": "Optional POST body for /auth/refresh. The httpOnly cookie is\nthe normal path; installed PWAs (Chrome standalone windows drop\nhttpOnly cookies between launches) keep the refresh JTI in\nlocalStorage and send it here instead. Extra keys are ignored so\nan older SPA bundle never 422s its own refresh.",
+        "properties": {
+          "refresh_token": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
+          }
+        },
+        "title": "RefreshRequest",
+        "type": "object"
+      },
       "RegisterCloseRow": {
         "additionalProperties": false,
         "properties": {
@@ -22627,6 +22646,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {

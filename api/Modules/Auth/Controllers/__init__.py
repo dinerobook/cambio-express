@@ -10,7 +10,7 @@ share.
   GET  /auth/me   → returns the verified principal from the bearer
                      token (no DB roundtrip — claims-only).
 """
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Body, Cookie, Depends, Header, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 
 import os
@@ -51,6 +51,7 @@ from api.Modules.Auth.Requests import (
     SwitchStoreRequest,
     SwitchStoreResponse,
     TotpEnrollConfirmRequest,
+    RefreshRequest,
     TotpEnrollFinishRequest,
     TotpEnrollFinishResponse,
     TotpEnrollStartRequest,
@@ -639,7 +640,9 @@ def login_recovery_route(
 @router.post(
     "/login/totp/enroll/start", response_model=TotpEnrollStartResponse,
 )
+@_rate_limiter.limit("10/minute;50/hour")
 def login_totp_enroll_start_route(
+    request: Request,
     body: TotpEnrollStartRequest, db: Session = Depends(get_db),
 ) -> TotpEnrollStartResponse:
     """Mint a TOTP secret for the still-pending user and return the
@@ -656,7 +659,9 @@ def login_totp_enroll_start_route(
 @router.post(
     "/login/totp/enroll/finish", response_model=TotpEnrollFinishResponse,
 )
+@_rate_limiter.limit("10/minute;50/hour")
 def login_totp_enroll_finish_route(
+    request: Request,
     body: TotpEnrollFinishRequest, db: Session = Depends(get_db),
 ) -> TotpEnrollFinishResponse:
     """Verify the user's first 6-digit code, mark enrollment
@@ -678,6 +683,7 @@ def login_totp_enroll_finish_route(
 @router.post(
     "/login/totp/enroll/confirm", response_model=LoginResponse,
 )
+@_rate_limiter.limit("10/minute;50/hour")
 def login_totp_enroll_confirm_route(
     request: Request,
     body: TotpEnrollConfirmRequest,
@@ -728,6 +734,7 @@ def logout_route(
 def refresh_route(
     request: Request,
     response: Response,
+    body: RefreshRequest | None = Body(default=None),
     db_refresh_token: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
 ) -> LoginResponse:
@@ -746,21 +753,9 @@ def refresh_route(
     _refresh_log = logging.getLogger("api.Modules.Auth.refresh")
     ua = _client_user_agent(request)[:60]
     # PWA fallback: if the httpOnly cookie is gone, accept the
-    # JTI from the request body.
-    if not db_refresh_token:
-        try:
-            import json
-            raw = request._body if hasattr(request, "_body") else None
-            if raw is None:
-                import asyncio
-                raw = asyncio.get_event_loop().run_until_complete(
-                    request.body()
-                )
-            if raw:
-                body_data = json.loads(raw)
-                db_refresh_token = body_data.get("refresh_token")
-        except Exception:
-            pass
+    # JTI from the request body. The cookie always wins.
+    if not db_refresh_token and body is not None and body.refresh_token:
+        db_refresh_token = body.refresh_token.strip() or None
     if not db_refresh_token:
         _refresh_log.info(
             "auth.refresh_no_cookie ua=%r ip=%s",
@@ -1312,7 +1307,9 @@ def get_my_activity_route(
 
 
 @router.post("/change-password")
+@_rate_limiter.limit("5/minute;20/hour")
 def change_password_route(
+    request: Request,
     body: ChangePasswordRequest,
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1340,6 +1337,15 @@ def change_password_route(
         raise HTTPException(
             status_code=422, detail={"field": field, "message": msg},
         )
+    # A changed password ends every OTHER session (the reason people
+    # change it is often a device they no longer trust); the one that
+    # made the change stays signed in.
+    from api.Modules.Auth.Services.principal import revoke_refresh_tokens
+    sid = claims.get("sid")
+    revoke_refresh_tokens(
+        db, user_id=user.id,
+        keep_session_id=str(sid) if sid else None,
+    )
     db.commit()
     return {"status": "ok"}
 
@@ -1455,6 +1461,7 @@ def signup_route(
 @router.post(
     "/signup/owner", response_model=OwnerSignupResponse, status_code=201,
 )
+@_rate_limiter.limit("5/hour;20/day")
 def signup_owner_route(
     request: Request,
     body: OwnerSignupRequest,
@@ -1691,7 +1698,11 @@ def reset_password_route(
                 "Request a new one from the forgot-password page."
             ),
         )
-    consume_password_reset_token(db, token, body.new_password)
+    user = consume_password_reset_token(db, token, body.new_password)
+    # Whoever held the old password is signed out everywhere: the
+    # live-principal check refuses their access tokens at once.
+    from api.Modules.Auth.Services.principal import revoke_refresh_tokens
+    revoke_refresh_tokens(db, user_id=user.id)
     db.commit()
     return {"status": "ok"}
 
@@ -2062,6 +2073,43 @@ def _resolve_switching_owner(db: Session, claims: dict[str, Any]):
     return owner
 
 
+# Claims an impersonation token carries that a token derived from it
+# must keep: who is really behind the session, and whether it may
+# write at all. Dropping them turned a read-only look at an owner
+# into a full, unattributed admin session at their store.
+_IMPERSONATION_CLAIMS = (
+    "impersonated_by", "impersonator_name", "impersonation_mode",
+)
+
+
+def _switch_store_carryover(
+    claims: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    """``(extra claims, ttl seconds)`` for a switch-store token.
+
+    An ordinary owner session gets nothing extra and the default
+    TTL. An impersonated one keeps the impersonation claims and
+    never outlives the impersonation token it came from."""
+    import time
+    extra: dict[str, Any] = {}
+    ttl = DEFAULT_ACCESS_TOKEN_TTL_SECONDS
+    if claims.get("impersonated_by") is None:
+        return extra, ttl
+    for key in _IMPERSONATION_CLAIMS:
+        if claims.get(key) is not None:
+            extra[key] = claims[key]
+    exp = claims.get("exp")
+    if exp is not None:
+        remaining = int(exp) - int(time.time())
+        if remaining <= 0:
+            raise HTTPException(
+                status_code=401, detail="Session expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        ttl = min(ttl, remaining)
+    return extra, ttl
+
+
 def _owner_switchable_store_ids(db: Session, owner: Any) -> set[int]:
     """Umbrella links plus the owner's own home store."""
     from api.Modules.Owners.Services import owner_store_ids
@@ -2187,7 +2235,9 @@ def switch_store_route(
         username=owner.username or "",
         session_id=claims.get("sid"),
     )
-    token = issue_access_token(issuer, extra={"owner_id": owner.id})
+    extra, ttl = _switch_store_carryover(claims)
+    extra["owner_id"] = owner.id
+    token = issue_access_token(issuer, ttl_seconds=ttl, extra=extra)
     _set_access_token_cookie(response, token)
     record_operator_action(
         db,
@@ -2206,7 +2256,7 @@ def switch_store_route(
         store_id=store.id,
         store_name=store.name or "",
         role="admin",
-        expires_in=DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+        expires_in=ttl,
         user_id=owner.id,
         username=owner.username or "",
         full_name=owner.full_name or "",

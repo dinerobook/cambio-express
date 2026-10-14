@@ -878,13 +878,10 @@ def _audit_store_permissions(
     db: Session, claims: dict[str, Any], store_id: int,
     *, target_label: str, action: str, summary: str,
 ) -> None:
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
+    from api.Core.Audit import audit_operator
+    audit_operator(
+        db, claims,
         store_id=store_id,
-        user_id=int(claims.get("sub", 0)),
-        user_name=claims.get("full_name", ""),
-        user_role=claims.get("role", ""),
         target_type="store_role_override",
         target_id=str(store_id),
         target_label=target_label,

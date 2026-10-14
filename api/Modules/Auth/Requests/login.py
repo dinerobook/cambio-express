@@ -230,6 +230,18 @@ class TotpEnrollConfirmRequest(BaseModel):
     pending_token: str = Field(..., min_length=1)
 
 
+class RefreshRequest(BaseModel):
+    """Optional POST body for /auth/refresh. The httpOnly cookie is
+    the normal path; installed PWAs (Chrome standalone windows drop
+    httpOnly cookies between launches) keep the refresh JTI in
+    localStorage and send it here instead. Extra keys are ignored so
+    an older SPA bundle never 422s its own refresh."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    refresh_token: str | None = Field(default=None, max_length=256)
+
+
 class OwnerSignupRequest(BaseModel):
     """POST body for /auth/signup/owner. Mirrors the legacy
     /signup/owner Jinja form. Returns a JWT on success so the SPA

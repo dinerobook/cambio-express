@@ -432,3 +432,123 @@ def test_enroll_confirm_rejected_before_finish(client):
         json={"pending_token": pending},
     )
     assert resp.status_code == 401
+
+
+# ── Enrollment routes refuse an ALREADY-enrolled user ───────
+#
+# Bug hunt 2026-10-13: the pending token from an enrolled
+# superadmin's normal password step could call enroll/confirm and
+# get a full superadmin token with no code, read the live secret
+# from enroll/start, and wipe the recovery codes via enroll/finish.
+
+
+def _enrolled_pending(client, slug):
+    """Password step for an ENROLLED superadmin → (pending, secret)."""
+    with db_session():
+        username, password, secret = _make_enrolled_superadmin(slug=slug)
+        _add_recovery_code(username, "KEEP1234")
+    body = client.post(
+        "/api/v2/auth/login",
+        json={"username": username, "password": password, "store_id": None},
+    ).get_json()
+    assert body["requires_totp"] is True
+    assert not body.get("enroll_required")
+    return body["pending_token"], secret
+
+
+def test_enroll_confirm_refuses_enrolled_users_pending_token(client):
+    pending, _secret = _enrolled_pending(client, "tx1")
+    resp = client.post(
+        "/api/v2/auth/login/totp/enroll/confirm",
+        json={"pending_token": pending},
+    )
+    assert resp.status_code == 401, resp.text
+    assert not (resp.get_json() or {}).get("access_token")
+    assert "db_access_token" not in resp.headers.get("set-cookie", "")
+
+
+def test_enroll_start_does_not_leak_an_enrolled_secret(client):
+    pending, secret = _enrolled_pending(client, "tx2")
+    resp = client.post(
+        "/api/v2/auth/login/totp/enroll/start",
+        json={"pending_token": pending},
+    )
+    assert resp.status_code == 401, resp.text
+    assert secret not in resp.text
+
+
+def test_enroll_finish_does_not_regenerate_recovery_codes(client):
+    from api.Modules.Auth.Models import RecoveryCode
+    from api.Modules.Tenancy.Models import User
+    pending, secret = _enrolled_pending(client, "tx3")
+    resp = client.post(
+        "/api/v2/auth/login/totp/enroll/finish",
+        json={"pending_token": pending, "code": pyotp.TOTP(secret).now()},
+    )
+    assert resp.status_code == 401, resp.text
+    with db_session():
+        u = db.session.query(User).filter_by(username="tx3@superadmin").first()
+        rows = db.session.query(RecoveryCode).filter_by(user_id=u.id).all()
+        assert len(rows) == 1  # the original printed code survives
+
+
+def test_enrollment_errors_are_opaque(client):
+    """Same message whether the token is garbage or belongs to an
+    enrolled user — the endpoint says nothing about the account."""
+    pending, _ = _enrolled_pending(client, "tx4")
+    a = client.post(
+        "/api/v2/auth/login/totp/enroll/confirm",
+        json={"pending_token": pending},
+    ).get_json()
+    b = client.post(
+        "/api/v2/auth/login/totp/enroll/confirm",
+        json={"pending_token": "garbage"},
+    ).get_json()
+    assert a["detail"] == b["detail"]
+
+
+def test_enrolled_user_still_signs_in_with_a_code(client):
+    """The real second factor is untouched by the fix."""
+    pending, secret = _enrolled_pending(client, "tx5")
+    resp = client.post(
+        "/api/v2/auth/login/totp",
+        json={"pending_token": pending, "code": pyotp.TOTP(secret).now()},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.get_json()["role"] == "superadmin"
+
+
+def test_first_time_enrollment_end_to_end_still_works(client):
+    """start → finish → confirm with the token from the password
+    step, exactly as the SPA's /login/2fa/enroll page drives it."""
+    pending, start = _start_enroll_for(client, "tx6")
+    assert start["secret"]
+    fin = client.post(
+        "/api/v2/auth/login/totp/enroll/finish",
+        json={"pending_token": pending,
+              "code": pyotp.TOTP(start["secret"]).now()},
+    )
+    assert fin.status_code == 200, fin.text
+    # Once enrolled, start/finish refuse — even on the same token.
+    again = client.post(
+        "/api/v2/auth/login/totp/enroll/start",
+        json={"pending_token": pending},
+    )
+    assert again.status_code == 401
+    ok = client.post(
+        "/api/v2/auth/login/totp/enroll/confirm",
+        json={"pending_token": pending},
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.get_json()["role"] == "superadmin"
+
+
+def test_enrollment_routes_are_rate_limited():
+    from api.Core.RateLimit import limiter as slow_limiter
+    mod = "api.Modules.Auth.Controllers"
+    for fn in (
+        "login_totp_enroll_start_route",
+        "login_totp_enroll_finish_route",
+        "login_totp_enroll_confirm_route",
+    ):
+        assert f"{mod}.{fn}" in slow_limiter._route_limits, fn

@@ -108,6 +108,7 @@ def revoke_refresh_tokens(
     user_id: int | None = None,
     store_id: int | None = None,
     role: str | None = None,
+    keep_session_id: str | None = None,
 ) -> int:
     """Revoke live refresh tokens on ``db``'s transaction and return
     how many. The ONE session-revoking write: every route that
@@ -125,7 +126,11 @@ def revoke_refresh_tokens(
       matrix edit).
 
     Exactly one scope is required; a call with neither would revoke
-    the whole platform, so it refuses."""
+    the whole platform, so it refuses.
+
+    ``keep_session_id`` (``user_id`` scope only) spares one session:
+    a self-service password change signs out every OTHER device but
+    not the one that made the change."""
     from api.Modules.Auth.Models import RefreshToken
     if user_id is None and role is None:
         raise ValueError("revoke_refresh_tokens needs user_id or role")
@@ -136,6 +141,12 @@ def revoke_refresh_tokens(
     )
     if user_id is not None:
         q = q.filter(RefreshToken.user_id == int(user_id))
+        if keep_session_id is not None:
+            from sqlalchemy import or_
+            q = q.filter(or_(
+                RefreshToken.session_id.is_(None),
+                RefreshToken.session_id != keep_session_id,
+            ))
     else:
         people = db.query(User.id).filter(
             User.role == role, User.is_active.is_(True),

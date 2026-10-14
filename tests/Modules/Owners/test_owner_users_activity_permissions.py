@@ -397,6 +397,10 @@ def test_reset_store_permissions_happy_path_removes_overrides(client):
               .all()
         )
         assert len(rows) == 1
+        # Named after the actor (the token has no "full_name" claim,
+        # so the old hand-rolled write left the name blank).
+        assert rows[0].user_name == "boss-oup@x.com"
+        assert rows[0].user_id == owner_id
 
 
 # ── GET /owner/activity ─────────────────────────────────────

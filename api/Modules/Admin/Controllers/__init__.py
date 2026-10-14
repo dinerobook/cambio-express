@@ -430,6 +430,47 @@ def _require_within_ceiling(
         )
 
 
+def _require_can_manage_login(
+    db: Session, claims: dict[str, Any], store_id: int, user_id: int | None,
+    *, linking: bool = False,
+) -> None:
+    """Rank rule for the Employees hub: linking, unlinking or
+    re-identifying an HR record's login is a change to that login,
+    so the actor must be allowed to manage it — the same 403 as
+    ``PATCH /admin/users/{id}``. An id that is not a login at this
+    store, or (``linking``) a login that can never be linked, is
+    left to the Service's 422 so those answers stay as they were."""
+    if user_id is None:
+        return
+    target = db.get(User, int(user_id))
+    if target is None or target.store_id != store_id:
+        return
+    if linking:
+        from api.Modules.Admin.Services.employees import _LINKABLE_ROLES
+        if (target.role or "") not in _LINKABLE_ROLES:
+            return
+    _require_can_manage(claims, target)
+
+
+def _require_can_manage_role_members(
+    db: Session, claims: dict[str, Any], store_id: int, role_id: int,
+) -> None:
+    """A saved role OWNS its members' access: editing it rewrites
+    every member's overlay, deleting it detaches them. So the actor
+    must be allowed to manage every member, or an employee with the
+    Team permission could strip (or reshape) an admin's access
+    through a role the admin wears. 404 for an unknown role first."""
+    from api.Modules.Admin.Services.roles import (
+        RoleNotFoundError, get_role, members,
+    )
+    try:
+        role = get_role(db, store_id, role_id)
+    except RoleNotFoundError:
+        raise HTTPException(status_code=404, detail="Role not found")
+    for member in members(db, store_id, role.id):
+        _require_can_manage(claims, member)
+
+
 def _can_manage(claims: dict[str, Any], u) -> bool:
     from api.Core.Permissions.ranks import can_manage
     sub = claims.get("sub")
@@ -507,6 +548,9 @@ def create_employee_route(
 ) -> EmployeeRecord:
     require_permission(claims, "users", "create")
     store_id = resolve_store_scope(claims)
+    _require_can_manage_login(
+        db, claims, store_id, body.user_id, linking=True,
+    )
     try:
         emp = add_team_member(
             db, store_id, body.name,
@@ -555,6 +599,10 @@ def update_employee_route(
     if emp is None:
         raise HTTPException(status_code=404, detail="Employee not found")
     fields = body.model_dump(exclude_unset=True)
+    if fields.get("email") is not None or fields.get("phone") is not None:
+        # Email / phone are the linked login's identifier: moving
+        # them moves how that person signs in.
+        _require_can_manage_login(db, claims, store_id, emp.user_id)
     login_moved: tuple[str, str] | None = None
     try:
         # Sync the login FIRST. Email and phone are the login
@@ -628,6 +676,11 @@ def link_employee_login_route(
     emp = find_team_member(db, store_id, employee_id)
     if emp is None:
         raise HTTPException(status_code=404, detail="Employee not found")
+    # The login the record currently holds AND the one it takes on.
+    _require_can_manage_login(db, claims, store_id, emp.user_id)
+    _require_can_manage_login(
+        db, claims, store_id, body.user_id, linking=True,
+    )
     try:
         link_employee_user(db, store_id, emp, body.user_id)
     except EmployeeLinkError as exc:
@@ -659,6 +712,7 @@ def unlink_employee_login_route(
     emp = find_team_member(db, store_id, employee_id)
     if emp is None:
         raise HTTPException(status_code=404, detail="Employee not found")
+    _require_can_manage_login(db, claims, store_id, emp.user_id)
     prior = emp.user_id
     unlink_employee_user(db, emp)
     _audit_admin_action(
@@ -1649,13 +1703,10 @@ def redeem_connect_code_route(
     owner = db.get(User, occ.owner_id)
     owner_name = (owner.full_name or owner.username or "") if owner else ""
 
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
+    from api.Core.Audit import audit_operator
+    audit_operator(
+        db, claims,
         store_id=sid,
-        user_id=int(sub) if sub else 0,
-        user_name=claims.get("full_name", ""),
-        user_role=claims.get("role", ""),
         target_type="store_owner_link",
         target_id=str(occ.owner_id),
         target_label=owner_name[:160],
@@ -1793,6 +1844,7 @@ def update_role_route(
     """
     require_permission(claims, "users", "update")
     store_id = resolve_store_scope(claims)
+    _require_can_manage_role_members(db, claims, store_id, role_id)
     if body.matrix is not None:
         validate_role_matrix(body.matrix)
         _require_within_ceiling(claims, store_id, matrix=body.matrix)
@@ -1841,6 +1893,7 @@ def delete_role_route(
     anyone can do, in either direction."""
     require_permission(claims, "users", "update")
     store_id = resolve_store_scope(claims)
+    _require_can_manage_role_members(db, claims, store_id, role_id)
     from api.Modules.Admin.Services.roles import (
         RoleNotFoundError, delete_role,
     )

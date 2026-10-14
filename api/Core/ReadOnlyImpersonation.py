@@ -7,11 +7,18 @@ to change a number in their books. Every non-safe request on such a
 token is answered here with a 403 and ``reason:
 read_only_impersonation`` (the SPA shows why), before any route runs.
 
-Two exemptions: ``/auth/`` (logout / refresh carry no data) and the
-route that ends the impersonation. Nothing else — not even the
-"write-exempt" paths of the subscription gate, which exist so a
-lapsed store can still file a ticket; a read-only viewer files
-nothing.
+The exemptions are the writes that change no customer data and
+that the session itself needs: ``/auth/refresh`` and ``/auth/logout``
+(they carry no data), ``/auth/switch-store`` (an impersonated owner
+entering one of their stores — the derived token stays read-only),
+the sign-in routes (``/auth/login*``, the password-reset pair: they
+never act on the bearer, and a stale read-only cookie must not lock
+the browser out of signing in), and the route that ends the
+impersonation. Nothing else under ``/auth/`` — profile, e-mail,
+password, passkeys, sessions, push subscriptions and the owner's
+"add a store" are the customer's data — and not the "write-exempt"
+paths of the subscription gate either, which exist so a lapsed
+store can still file a ticket; a read-only viewer files nothing.
 
 Fails open on anything it cannot decode: a bad token is the auth
 layer's 401, not this gate's problem.
@@ -32,7 +39,23 @@ READ_ONLY_MESSAGE = (
     "This is a read-only view of the customer's account. Exit the "
     "impersonation, or start it again as a full sign-in, to make changes."
 )
-EXEMPT_PREFIXES = ("/auth/", "/superadmin/impersonate/stop")
+# Exact paths (no prefix match: "/auth/" once let every profile,
+# password and passkey write through on a read-only token).
+EXEMPT_PATHS = frozenset({
+    "/auth/refresh",
+    "/auth/logout",
+    "/auth/switch-store",
+    "/auth/login",
+    "/auth/login-cross-store",
+    "/auth/login/totp",
+    "/auth/login/recovery",
+    "/auth/login/totp/enroll/start",
+    "/auth/login/totp/enroll/finish",
+    "/auth/login/totp/enroll/confirm",
+    "/auth/forgot-password",
+    "/auth/reset-password",
+    "/superadmin/impersonate/stop",
+})
 
 
 def read_only_claims(request: Request) -> dict[str, Any] | None:
@@ -63,8 +86,8 @@ class ReadOnlyImpersonationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         if request.method in SAFE_METHODS:
             return await call_next(request)
-        path = request.url.path
-        if path.startswith(EXEMPT_PREFIXES):
+        path = request.url.path.rstrip("/") or "/"
+        if path in EXEMPT_PATHS:
             return await call_next(request)
         if read_only_claims(request) is None:
             return await call_next(request)
@@ -75,6 +98,6 @@ class ReadOnlyImpersonationMiddleware(BaseHTTPMiddleware):
 
 
 __all__ = [
-    "READ_ONLY_MESSAGE", "READ_ONLY_MODE", "READ_ONLY_REASON",
+    "EXEMPT_PATHS", "READ_ONLY_MESSAGE", "READ_ONLY_MODE", "READ_ONLY_REASON",
     "ReadOnlyImpersonationMiddleware", "read_only_claims",
 ]

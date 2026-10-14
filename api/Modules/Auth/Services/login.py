@@ -155,7 +155,7 @@ def _maybe_pending_2fa(db: Session, user: User) -> LoginPendingResult | None:
     from api.Modules.Auth.Models import RecoveryCode
     if not is_enrolled(user):
         return LoginPendingResult(
-            pending_token=issue_pending_2fa_token(user.id),
+            pending_token=issue_pending_2fa_token(user.id, enroll=True),
             user_id=user.id,
             has_recovery_codes=False,
             enroll_required=True,
@@ -332,6 +332,33 @@ def _user_for_pending(db: Session, pending_token: str) -> User:
     return user
 
 
+def _user_for_enrollment(db: Session, pending_token: str) -> User:
+    """Resolve a pending token that may drive TOTP ENROLLMENT.
+
+    The token must have been minted for a user who was NOT enrolled
+    at password time (``enroll`` claim), so a pending token from the
+    normal 2FA hop of an enrolled superadmin can never read the
+    existing secret, mint fresh recovery codes, or swap itself for
+    an access token through ``/enroll/confirm`` without a code.
+    Every refusal carries the same opaque message."""
+    import jwt as _jwt
+    from api.Modules.Auth.Services.jwt_issuer import decode_pending_2fa_token
+
+    try:
+        claims = decode_pending_2fa_token(pending_token)
+    except _jwt.InvalidTokenError:
+        raise AuthenticationError(_PENDING_SESSION_ERROR)
+    if claims.get("enroll") is not True:
+        raise AuthenticationError(_PENDING_SESSION_ERROR)
+    user = db.get(User, int(claims["sub"]))
+    if user is None or not user.is_active:
+        raise AuthenticationError(_PENDING_SESSION_ERROR)
+    return user
+
+
+_PENDING_SESSION_ERROR = "Invalid or expired pending session"
+
+
 def start_totp_enrollment(
     db: Session, *, pending_token: str,
 ) -> dict[str, Any]:
@@ -346,11 +373,14 @@ def start_totp_enrollment(
     import pyotp
     import qrcode
     import qrcode.image.svg
-    from api.Modules.Auth.Services.totp import needs_totp
+    from api.Modules.Auth.Services.totp import is_enrolled, needs_totp
 
-    user = _user_for_pending(db, pending_token)
+    user = _user_for_enrollment(db, pending_token)
     if not needs_totp(user):
         raise AuthenticationError("This account doesn't use 2FA")
+    if is_enrolled(user):
+        # Never hand out a live secret: that IS the second factor.
+        raise AuthenticationError(_PENDING_SESSION_ERROR)
     if not user.totp_secret:
         user.totp_secret = pyotp.random_base32()
         db.flush()
@@ -387,10 +417,13 @@ def finish_totp_enrollment(
     Caller commits.
     """
     from api.Modules.Auth.Services.totp import (
-        generate_recovery_codes, verify_totp_token,
+        generate_recovery_codes, is_enrolled, verify_totp_token,
     )
 
-    user = _user_for_pending(db, pending_token)
+    user = _user_for_enrollment(db, pending_token)
+    if is_enrolled(user):
+        # Re-enrolling would wipe the printed recovery codes.
+        raise AuthenticationError(_PENDING_SESSION_ERROR)
     if not user.totp_secret:
         raise AuthenticationError(
             "Enrollment hasn't started — call /enroll/start first.",
@@ -408,10 +441,15 @@ def confirm_recovery_codes_saved(
     they saved their recovery codes; we exchange the still-valid
     pending token for a real access token. Raises
     `AuthenticationError` on a bad/expired pending token, or when
-    the user hasn't actually completed enrollment yet."""
+    the user hasn't actually completed enrollment yet.
+
+    Only a token minted for this enrollment (``enroll`` claim — the
+    user was unenrolled at password time) is accepted, so the
+    pending token of an already-enrolled user cannot skip the code.
+    """
     from api.Modules.Auth.Services.totp import is_enrolled
 
-    user = _user_for_pending(db, pending_token)
+    user = _user_for_enrollment(db, pending_token)
     if not is_enrolled(user):
         raise AuthenticationError(
             "Enrollment is not complete — verify a code first.",
