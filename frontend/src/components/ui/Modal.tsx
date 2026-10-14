@@ -185,7 +185,12 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p style={messageStyle}>{message}</p>
+      {/* A plain sentence is a <p>; richer content (paragraphs, an
+          info box) brings its own blocks, which may not sit inside a
+          <p>. */}
+      {typeof message === "string"
+        ? <p style={messageStyle}>{message}</p>
+        : <div style={messageStyle}>{message}</div>}
       {error && <Alert tone="error">{error}</Alert>}
     </Modal>
   );

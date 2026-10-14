@@ -69,8 +69,12 @@ function setEdit(over: Partial<ReturnCheckRow> = {}) {
   });
 }
 
+let qc: QueryClient;
+// The returned-checks list as the list page cached it.
+const LIST_KEY = ["return-checks", "list", 1, "all"];
+const listInvalidated = () => qc.getQueryState(LIST_KEY)?.isInvalidated;
+
 function renderForm(path: string) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
@@ -94,6 +98,8 @@ function pillStyle(tone: PillTone) {
 }
 
 beforeEach(() => {
+  qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  qc.setQueryData(LIST_KEY, { items: [] });
   for (const f of [
     createReturnCheck, updateReturnCheck, markLoss, markFraud,
     reopenReturnCheck, createReturnCheckPayment, deleteReturnCheckPayment,
@@ -140,6 +146,8 @@ describe("ReturnCheckForm create", () => {
     });
     expect(await screen.findByText("checks list")).toBeInTheDocument();
     expect(screen.getByText("Return check recorded.")).toBeInTheDocument();
+    // The list it lands on refetches instead of showing the old rows.
+    expect(listInvalidated()).toBe(true);
   });
 
   it("shows the server error and stays put when create fails", async () => {
@@ -152,6 +160,7 @@ describe("ReturnCheckForm create", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create return check" }));
     expect(await screen.findByText("Amount must be positive.")).toBeInTheDocument();
     expect(screen.queryByText("checks list")).not.toBeInTheDocument();
+    expect(listInvalidated()).toBe(false);
   });
 
   it("confirms before discarding a dirty form on Cancel", async () => {
@@ -192,6 +201,7 @@ describe("ReturnCheckForm edit", () => {
       notes: "",
     });
     expect(await screen.findByText("Return check updated.")).toBeInTheDocument();
+    expect(listInvalidated()).toBe(true);
   });
 
   it("shows recovered-of-total (face amount plus fee) with the status tone", () => {
@@ -228,11 +238,25 @@ describe("ReturnCheckForm edit", () => {
   });
 });
 
+describe("ReturnCheckForm failed load", () => {
+  it("shows an error with Retry instead of spinning forever", async () => {
+    useReturnCheck.mockReturnValue({
+      data: undefined, isLoading: false, isFetching: false, isError: true,
+      refetch,
+    });
+    renderForm("/return-checks/5/edit");
+    expect(screen.getByRole("alert"))
+      .toHaveTextContent("Could not load this returned check.");
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(refetch).toHaveBeenCalled();
+  });
+});
+
 describe("ReturnCheckForm status transitions", () => {
   it.each([
     ["Mark loss", () => markLoss],
     ["Mark fraud", () => markFraud],
-  ])("%s asks first, then calls the API and refetches", async (label, fn) => {
+  ])("%s asks first, then calls the API and refreshes the check and the list", async (label, fn) => {
     setEdit();
     fn().mockResolvedValue({});
     renderForm("/return-checks/5/edit");
@@ -242,7 +266,7 @@ describe("ReturnCheckForm status transitions", () => {
     expect(within(dialog).getByText(`${label} this return check?`)).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: label }));
     await waitFor(() => expect(fn()).toHaveBeenCalledWith(5));
-    await waitFor(() => expect(refetch).toHaveBeenCalled());
+    await waitFor(() => expect(listInvalidated()).toBe(true));
   });
 
   it("cancelling the confirm does nothing", async () => {
@@ -274,7 +298,7 @@ describe("ReturnCheckForm status transitions", () => {
     // The open dialog hides the page behind it from the a11y tree.
     expect(await screen.findByText("Check already has payments.", {}, { timeout: 2000 }))
       .toBeInTheDocument();
-    expect(refetch).not.toHaveBeenCalled();
+    expect(listInvalidated()).toBe(false);
   });
 });
 

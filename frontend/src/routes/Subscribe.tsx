@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   fetchSubscriptionSummary, openBillingPortal, startCheckout,
@@ -66,31 +67,22 @@ const PLANS: PlanTile[] = [
 
 export default function Subscribe() {
   const identity = getCurrentIdentity();
-  const [summary, setSummary] = useState<SubscriptionSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  // A query, not an effect keyed on `identity`: getCurrentIdentity()
+  // hands back a fresh object on every render, so an effect that
+  // depended on it refetched (and re-rendered, and refetched …) in a
+  // loop, each call a Stripe round-trip on the server.
+  const summaryQuery = useQuery({
+    queryKey: ["billing", "subscription-summary", identity?.store_id],
+    queryFn: fetchSubscriptionSummary,
+    enabled: identity != null,
+    // Plan picker still renders if the summary fails — it falls back
+    // to the no-current-plan view — so don't hammer it with retries.
+    retry: false,
+  });
+  const summary: SubscriptionSummary | null = summaryQuery.data ?? null;
+  const loading = summaryQuery.isLoading;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (identity == null) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- skip the fetch when not signed in; the early return below handles the UI
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const s = await fetchSubscriptionSummary();
-        if (!cancelled) setSummary(s);
-      } catch {
-        // Plan picker should still render even if the summary
-        // fetch fails — fall back to the no-current-plan view.
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [identity]);
 
   if (identity == null) {
     return (

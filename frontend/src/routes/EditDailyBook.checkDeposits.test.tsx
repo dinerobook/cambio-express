@@ -221,7 +221,14 @@ describe("EditDailyBook — Check Deposits box", () => {
     // One add row: the check deposit one.
     expect(within(dialog).getAllByRole("button", { name: "+ Add" })).toHaveLength(1);
     const tr = within(dialog).getByText("ABC").closest("tr")!;
+    // Remove asks first; Cancel deletes nothing.
     await userEvent.click(within(tr).getByRole("button", { name: "Remove" }));
+    let confirm = await screen.findByRole("dialog", { name: "Remove this entry?" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Cancel" }));
+    expect(deleteLineItem).not.toHaveBeenCalled();
+    await userEvent.click(within(tr).getByRole("button", { name: "Remove" }));
+    confirm = await screen.findByRole("dialog", { name: "Remove this entry?" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(deleteLineItem).toHaveBeenCalledWith(1, 7));
   });
 

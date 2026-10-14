@@ -43,13 +43,14 @@ const summary = {
 };
 
 const upsertRegisterClose = vi.fn();
+const deleteRegisterClose = vi.fn();
 let departments: Array<{ id: number; name: string }> = [];
 
 vi.mock("../api/dayclose", () => ({
   useDayClose: () => ({ data: summary, isLoading: false, isError: false }),
   useDepartments: () => ({ data: { departments } }),
   upsertRegisterClose: (...a: unknown[]) => upsertRegisterClose(...a),
-  deleteRegisterClose: vi.fn(),
+  deleteRegisterClose: (...a: unknown[]) => deleteRegisterClose(...a),
 }));
 
 function renderSection(canEdit: boolean) {
@@ -161,5 +162,36 @@ describe("RegisterCloses form", () => {
       other_total: 0,
       cash_counted: 795,
     });
+  });
+});
+
+describe("RegisterCloses delete", () => {
+  beforeEach(() => {
+    deleteRegisterClose.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("asks first; Cancel deletes nothing, Delete deletes", async () => {
+    renderSection(true);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Register 1 / Morning");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(deleteRegisterClose).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(deleteRegisterClose).toHaveBeenCalledWith(1));
+    expect(await screen.findByText("Register close removed.")).toBeInTheDocument();
+  });
+
+  it("shows a refusal inside the dialog", async () => {
+    deleteRegisterClose.mockRejectedValue(new Error("boom"));
+    renderSection(true);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    expect(await within(dialog).findByText("Could not remove the close."))
+      .toBeInTheDocument();
   });
 });

@@ -9,7 +9,7 @@ import {
 } from "../api/admin";
 import { useSessionStatus } from "../api/account";
 import { ApiError, apiErrorMessage } from "../lib/api";
-import { toggleMatrixCell } from "../lib/permissions";
+import { hasPermission, toggleMatrixCell } from "../lib/permissions";
 import { modulesOffForGrants } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 import {
@@ -123,9 +123,9 @@ export default function AdminUserForm() {
   const accessRoles = useAccessRoles();
   // Built-in role matrices seed the "Custom" editor on create and
   // feed the "N of M areas" summary under the picker.
-  const storePerms = useBuiltinRoles(
-    identity?.role === "admin" || identity?.role === "owner",
-  );
+  // The endpoint needs settings.read; ask by permission, not by
+  // account type (a custom role can hold users.* without it).
+  const storePerms = useBuiltinRoles(hasPermission("settings", "read"));
 
   // Form state — three sources hydrate it: the detail response on
   // edit, blank defaults on create.
@@ -242,18 +242,6 @@ export default function AdminUserForm() {
       // Hand-editing any box means the matrix is theirs now.
       return { ...d, access: "custom", perm };
     });
-  }
-
-  if (
-    !identity
-    || (identity.role !== "admin" && identity.role !== "owner")
-  ) {
-    return (
-      <PageShell maxWidth="36rem">
-        <PageHeader title="Employees" />
-        <p>You need a store-admin sign-in to manage users.</p>
-      </PageShell>
-    );
   }
 
   if (isEdit && detail.isLoading) {

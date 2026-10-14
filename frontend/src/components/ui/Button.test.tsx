@@ -22,6 +22,16 @@ describe("<Button>", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("busy disables the button so a second click can't resubmit", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(<Button busy onClick={onClick}>Save</Button>);
+    const btn = screen.getByRole("button", { name: "Save" });
+    expect(btn).toBeDisabled();
+    await user.click(btn);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it("default type is button (not submit) so it won't accidentally submit forms", () => {
     render(<Button>Action</Button>);
     expect(screen.getByRole("button")).toHaveAttribute("type", "button");

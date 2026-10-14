@@ -4,12 +4,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProfile, useSessionStatus, useStoreInfo } from "../api/account";
 import { useTicketsUnread } from "../api/support";
 import { canAccess } from "../lib/access";
-import {
-  clearAccessToken, getCurrentIdentity, syncPermissions,
-} from "../lib/auth";
+import { getCurrentIdentity, syncPermissions } from "../lib/auth";
+import { useSignOut } from "../lib/useSignOut";
 import StoreGate from "./StoreGate";
 import { DisplayTimezone } from "./DisplayTimezone";
-import { clearVisits, recordVisit } from "../lib/recency";
+import { recordVisit } from "../lib/recency";
 import { reconcileTheme } from "../lib/theme";
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { ImpersonationBanner } from "./ImpersonationBanner";
@@ -51,7 +50,6 @@ import { UserMenu } from "./UserMenu";
 
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate();
   const location = useLocation();
   const identity = getCurrentIdentity();
   // Drawer is a mobile-only concern but the state lives unconditionally
@@ -90,12 +88,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [location.pathname]);
 
+  // Server-side revoke + local cleanup + cache wipe: see useSignOut.
+  const signOut = useSignOut();
   function onSignOut() {
-    clearAccessToken();
-    // Shared-device hygiene — the next user on this browser
-    // shouldn't inherit the previous cashier's "Most Used" tiles.
-    clearVisits();
-    navigate("/login", { replace: true });
+    void signOut();
   }
 
   // Store gate (PR C): a frozen or lapsed-subscription store locks its

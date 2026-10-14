@@ -22,7 +22,8 @@ import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   Breadcrumbs,
-  Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, Field,
+  Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, ErrorState,
+  Field,
   FormActions, Input, Loading, MoneyInput, PageHeader, PageShell, Pill,
   SectionTitle, Select, Table, Textarea, tdStyle, thStyle,
   useToast,
@@ -54,6 +55,7 @@ export default function ReturnCheckForm() {
   const navigate = useNavigate();
   const toast = useToast();
   const identity = getCurrentIdentity();
+  const queryClient = useQueryClient();
 
   const detail = useReturnCheck(isEdit ? rcId : undefined);
   const payments = useReturnCheckPayments(isEdit ? rcId : undefined);
@@ -125,6 +127,9 @@ export default function ReturnCheckForm() {
       };
       if (isEdit) await updateReturnCheck(rcId, body);
       else        await createReturnCheck(body);
+      // The list (and this check's detail) are cached; without this
+      // the list shows the old row until the cache goes stale.
+      void queryClient.invalidateQueries({ queryKey: ["return-checks"] });
       toast({
         message: isEdit ? "Return check updated." : "Return check recorded.",
         tone: "success",
@@ -162,7 +167,8 @@ export default function ReturnCheckForm() {
     setTransitionError(null); setBusy(true);
     try {
       await fn(rcId);
-      await detail.refetch();
+      // The status moved: refresh this check AND the list behind it.
+      await queryClient.invalidateQueries({ queryKey: ["return-checks"] });
       setPendingTransition(null);
     } catch (err) {
       setTransitionError(
@@ -178,6 +184,19 @@ export default function ReturnCheckForm() {
       <PageShell maxWidth="62rem">
         <PageHeader title={isEdit ? "Edit returned check" : "New returned check"} />
         <p>Sign in as a store admin to manage returned checks.</p>
+      </PageShell>
+    );
+  }
+
+  if (isEdit && detail.isError && !detail.data) {
+    return (
+      <PageShell maxWidth="62rem">
+        <PageHeader title={`Returned check #${rcId}`} />
+        <ErrorState
+          message="Could not load this returned check."
+          onRetry={() => void detail.refetch()}
+          busy={detail.isFetching}
+        />
       </PageShell>
     );
   }
@@ -388,7 +407,6 @@ function RecordPaymentForm({
   disabled: boolean;
 }) {
   const qc = useQueryClient();
-  const identity = getCurrentIdentity();
   const [paidOn,  setPaidOn]  = useState(() => todayIso());
   const [amount,  setAmount]  = useState(0);
   const [method,  setMethod]  = useState<string>(PAYMENT_METHODS[0].value);
@@ -421,12 +439,9 @@ function RecordPaymentForm({
         note,
       });
       // Refetch parent + payments so the totals strip + table flip.
-      qc.invalidateQueries({
-        queryKey: ["return-checks", "detail", identity?.store_id, rcId],
-      });
-      qc.invalidateQueries({
-        queryKey: ["return-checks", "payments", identity?.store_id, rcId],
-      });
+      // Detail, payments AND the list: a payment moves the check's
+      // recovered total and can flip it to recovered.
+      void qc.invalidateQueries({ queryKey: ["return-checks"] });
       setAmount(0); setNote("");
     } catch (err) {
       setError(
@@ -498,7 +513,6 @@ function PaymentsTable({
   canDelete: boolean;
 }) {
   const qc = useQueryClient();
-  const identity = getCurrentIdentity();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingRemove, setPendingRemove] =
@@ -511,12 +525,9 @@ function PaymentsTable({
     setBusyId(p.id);
     try {
       await deleteReturnCheckPayment(rcId, p.id);
-      qc.invalidateQueries({
-        queryKey: ["return-checks", "detail", identity?.store_id, rcId],
-      });
-      qc.invalidateQueries({
-        queryKey: ["return-checks", "payments", identity?.store_id, rcId],
-      });
+      // Detail, payments AND the list: a payment moves the check's
+      // recovered total and can flip it to recovered.
+      void qc.invalidateQueries({ queryKey: ["return-checks"] });
       setPendingRemove(null);
     } catch (err) {
       setError(

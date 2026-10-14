@@ -17,7 +17,8 @@ import {
 } from "../api/account";
 import { redeemConnectCode } from "../api/owner";
 import { TRANSFER_CHOICES_KEY } from "../api/transfers";
-import { ApiError, apiErrorMessage } from "../lib/api";
+import { ApiError, apiErrorMessage, downloadFile } from "../lib/api";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate, formatTimestamp } from "../lib/datetime";
 import { timezoneFromAddress } from "../lib/timezoneFromAddress";
 import { getCurrentIdentity } from "../lib/auth";
@@ -104,25 +105,18 @@ export function SettingsSecurity() {
 
 function DataExportCard() {
   const [busy, setBusy] = useState(false);
+  const toastApiError = useApiErrorToast();
   async function handleExport() {
     setBusy(true);
     try {
-      const resp = await fetch("/api/v2/auth/account/export", {
-        credentials: "include",
+      // The shared download path: refreshes an expired session like
+      // every API call, and names the file from the server's
+      // Content-Disposition.
+      await downloadFile("/api/v2/auth/account/export", {
+        fallbackName: "dinerobook-data.json",
       });
-      if (!resp.ok) throw new Error("Export failed");
-      const blob = await resp.blob();
-      const cd = resp.headers.get("content-disposition") || "";
-      const match = cd.match(/filename="([^"]+)"/);
-      const filename = match ? match[1] : "dinerobook-data.json";
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+    } catch (err) {
+      toastApiError(err, "Could not download your data.");
     } finally {
       setBusy(false);
     }

@@ -17,7 +17,7 @@ import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
 import {
-  Alert, Breadcrumbs, Button, ButtonLink, Card, EmptyState,
+  Alert, Breadcrumbs, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
   ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
   PageHeader, PageShell, Pager, Pill, Section, SectionTitle, Select,
   Switch, Table, TableStates, tdStyle, Textarea, thStyle, useToast,
@@ -101,20 +101,49 @@ export default function SuperadminStoreDrill() {
   const [compBusy, setCompBusy] = useState(false);
   const [compError, setCompError] = useState<string | null>(null);
 
-  async function doEndComp(id: number) {
+  // End comp and Disable store change what the store's people can
+  // do (billing resumes / everyone is locked out), so both ask first.
+  // A refusal shows inside the dialog.
+  const [pending, setPending] = useState<"end-comp" | "disable" | null>(null);
+  const [pendingError, setPendingError] = useState<string | null>(null);
+
+  function ask(which: "end-comp" | "disable") {
+    setPendingError(null);
+    setPending(which);
+  }
+
+  async function runPending(id: number) {
+    if (pending == null) return;
     setActionBusy(true);
+    setPendingError(null);
     try {
-      const res = await endComp(id);
-      toast({
-        message: res.stripe_resumed
-          ? `Comp ended — billing resumed on the ${res.plan} plan.`
-          : `Comp ended — the store is on ${res.plan} now.`,
-        tone: "success",
-      });
+      if (pending === "end-comp") {
+        const res = await endComp(id);
+        toast({
+          message: res.stripe_resumed
+            ? `Comp ended — billing resumed on the ${res.plan} plan.`
+            : `Comp ended — the store is on ${res.plan} now.`,
+          tone: "success",
+        });
+      } else {
+        await toggleActiveNow(id);
+      }
+      setPending(null);
       void refetch();
     } catch (e) {
-      toastApiError(e, "Could not end the comp");
+      setPendingError(apiErrorMessage(
+        e, pending === "end-comp"
+          ? "Could not end the comp." : "Could not disable the store.",
+      ));
     } finally { setActionBusy(false); }
+  }
+
+  async function toggleActiveNow(id: number) {
+    const res = await toggleStoreActive(id);
+    toast({
+      message: res.is_active ? "Store enabled." : "Store disabled.",
+      tone: "success",
+    });
   }
 
   async function doExtendTrial(id: number) {
@@ -205,7 +234,7 @@ export default function SuperadminStoreDrill() {
                   <Button
                     tone="secondary" size="sm"
                     busy={actionBusy} disabled={actionBusy}
-                    onClick={() => { void doEndComp(data.store.id); }}
+                    onClick={() => ask("end-comp")}
                   >
                     End comp
                   </Button>
@@ -242,13 +271,15 @@ export default function SuperadminStoreDrill() {
                   tone="secondary" size="sm"
                   busy={actionBusy}
                   onClick={async () => {
+                    // Disabling locks every user out: confirm first.
+                    // Enabling gives access back and runs at once.
+                    if (data.store.is_active) { ask("disable"); return; }
                     setActionBusy(true);
                     try {
-                      const res = await toggleStoreActive(data.store.id);
-                      toast({ message: res.is_active ? "Store enabled." : "Store disabled.", tone: "success" });
+                      await toggleActiveNow(data.store.id);
                       void refetch();
                     } catch (e) {
-                      toastApiError(e, "Failed");
+                      toastApiError(e, "Could not enable the store");
                     } finally { setActionBusy(false); }
                   }}
                 >
@@ -681,6 +712,20 @@ export default function SuperadminStoreDrill() {
           </div>
         </form>
       </Modal>
+      <ConfirmDialog
+        open={pending != null && data != null}
+        title={pending === "end-comp"
+          ? "End this store's comp?" : "Disable this store?"}
+        message={pending === "end-comp"
+          ? `${data?.store.name ?? "The store"} goes back to paying for its plan; Stripe billing resumes.`
+          : `Every user at ${data?.store.name ?? "the store"} is locked out until you enable it again.`}
+        confirmLabel={pending === "end-comp" ? "End comp" : "Disable store"}
+        confirmTone="danger"
+        busy={actionBusy}
+        error={pendingError}
+        onConfirm={() => { if (data) void runPending(data.store.id); }}
+        onCancel={() => setPending(null)}
+      />
     </PageShell>
   );
 }
@@ -753,8 +798,13 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
     } finally { setBusy(false); }
   }
 
+  // Reset wipes the store's customised grid for the role: ask first.
+  const [resetting, setResetting] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+
   async function resetRole(role: string) {
     setBusy(true);
+    setResetError(null);
     try {
       const result = await api<PermMatrix>(`/api/v2/superadmin/stores/${storeId}/permissions/reset`, {
         method: "POST", json: { role },
@@ -762,8 +812,9 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
       setDraft(structuredClone(result));
       qc.setQueryData(["superadmin", "store-permissions", storeId], result);
       toast({ message: `${role} permissions reset to global defaults.`, tone: "success" });
+      setResetting(null);
     } catch (err) {
-      toastApiError(err, "Failed to reset.");
+      setResetError(apiErrorMessage(err, "Failed to reset."));
     } finally { setBusy(false); }
   }
 
@@ -784,7 +835,10 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
               )}
             </SectionTitle>
             {draft.has_overrides.includes(role) && (
-              <Button size="sm" tone="secondary" onClick={() => { void resetRole(role); }} disabled={busy}>
+              <Button
+                size="sm" tone="secondary" disabled={busy}
+                onClick={() => { setResetError(null); setResetting(role); }}
+              >
                 Reset to defaults
               </Button>
             )}
@@ -808,6 +862,17 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
           </Button>
         </div>
       )}
+      <ConfirmDialog
+        open={resetting != null}
+        title={`Reset ${resetting ?? ""} permissions?`}
+        message={`${storeName}'s custom ${resetting ?? ""} permissions are replaced with the global defaults. People with that role are signed out.`}
+        confirmLabel="Reset to defaults"
+        confirmTone="danger"
+        busy={busy}
+        error={resetError}
+        onConfirm={() => { if (resetting) void resetRole(resetting); }}
+        onCancel={() => setResetting(null)}
+      />
     </Card>
   );
 }
@@ -960,15 +1025,22 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
     }
   }
 
-  async function remove(ownerId: number, name: string) {
-    if (storeId == null) return;
-    setBusy(true); setError(null);
+  // Disconnect asks first; a refusal shows inside the dialog.
+  const [disconnecting, setDisconnecting] =
+    useState<{ ownerId: number; name: string } | null>(null);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
+
+  async function remove() {
+    if (storeId == null || disconnecting == null) return;
+    const { ownerId, name } = disconnecting;
+    setBusy(true); setDisconnectError(null);
     try {
       await unlinkOwnerFromStore(storeId, ownerId);
+      setDisconnecting(null);
       refresh();
       toast({ message: `${name} disconnected.`, tone: "success" });
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not disconnect the owner."));
+      setDisconnectError(apiErrorMessage(err, "Could not disconnect the owner."));
     } finally {
       setBusy(false);
     }
@@ -999,7 +1071,10 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
               {!r.is_active && <Pill tone="neutral">Inactive</Pill>}
               <Button
                 size="sm" tone="danger" disabled={busy}
-                onClick={() => { void remove(r.owner_id, r.username); }}
+                onClick={() => {
+                  setDisconnectError(null);
+                  setDisconnecting({ ownerId: r.owner_id, name: r.username });
+                }}
               >
                 Disconnect
               </Button>
@@ -1025,6 +1100,17 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
           </Button>
         </div>
       </Card>
+      <ConfirmDialog
+        open={disconnecting != null}
+        title={`Disconnect ${disconnecting?.name ?? ""}?`}
+        message="The owner loses access to this store from their owner login."
+        confirmLabel="Disconnect"
+        confirmTone="danger"
+        busy={busy}
+        error={disconnectError}
+        onConfirm={() => { void remove(); }}
+        onCancel={() => setDisconnecting(null)}
+      />
     </Section>
   );
 }

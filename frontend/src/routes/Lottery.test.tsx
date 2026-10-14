@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -21,6 +21,12 @@ import { TEST_ADMIN } from "../test/setup";
 
 const recordLotteryCount = vi.fn();
 const createLotteryGame = vi.fn();
+const settleLotteryPack = vi.fn();
+const returnLotteryPack = vi.fn();
+const updateLotteryGame = vi.fn();
+const useLotteryDay = vi.fn();
+const useLotteryPacks = vi.fn();
+const useLotteryGames = vi.fn();
 
 const daySummary = {
   date: "2026-10-07",
@@ -47,16 +53,30 @@ vi.mock("../api/lottery", async (importOriginal) => {
     ...real,
     recordLotteryCount: (...a: unknown[]) => recordLotteryCount(...a),
     createLotteryGame: (...a: unknown[]) => createLotteryGame(...a),
-    useLotteryDay: () => ({
-      data: daySummary, isLoading: false, isError: false, refetch: vi.fn(),
-    }),
-    useLotteryGames: () => ({
-      data: { games: [] }, isLoading: false, isError: false, refetch: vi.fn(),
-    }),
-    useLotteryPacks: () => ({
-      data: { packs: [] }, isLoading: false, isError: false, refetch: vi.fn(),
-    }),
+    settleLotteryPack: (...a: unknown[]) => settleLotteryPack(...a),
+    returnLotteryPack: (...a: unknown[]) => returnLotteryPack(...a),
+    updateLotteryGame: (...a: unknown[]) => updateLotteryGame(...a),
+    useLotteryDay: (day: string) => useLotteryDay(day),
+    useLotteryGames: () => useLotteryGames(),
+    useLotteryPacks: () => useLotteryPacks(),
   };
+});
+
+const ok = <T,>(data: T) => ({
+  data, isLoading: false, isError: false, refetch: vi.fn(),
+});
+// Stable per-day objects: a new object per render would look like a
+// refetch.
+const DAY_CACHE = new Map<string, unknown>();
+
+beforeEach(() => {
+  DAY_CACHE.clear();
+  useLotteryDay.mockReset().mockImplementation((day: string) => {
+    if (!DAY_CACHE.has(day)) DAY_CACHE.set(day, ok({ ...daySummary, date: day }));
+    return DAY_CACHE.get(day);
+  });
+  useLotteryGames.mockReset().mockReturnValue(ok({ games: [] }));
+  useLotteryPacks.mockReset().mockReturnValue(ok({ packs: [] }));
 });
 
 function renderPage() {
@@ -153,5 +173,100 @@ describe("Lottery add game", () => {
       game_number: "2417", name: "Lucky 7s",
       ticket_price: 2.5, tickets_per_pack: 100,
     }));
+  });
+});
+
+describe("Lottery day close — date switch", () => {
+  it("does not carry a typed count over to another day", async () => {
+    renderPage();
+    const input = screen.getByLabelText("Closing count for pack 0012345");
+    await userEvent.clear(input);
+    await userEvent.type(input, "30");
+    // The next day: the same pack, not counted yet.
+    DAY_CACHE.set("2026-10-08", ok({
+      ...daySummary, date: "2026-10-08",
+      rows: daySummary.rows.map((r) => ({
+        ...r, closing_ticket: null, counted: false, previous_reference: 22,
+      })),
+    }));
+    fireEvent.change(screen.getByLabelText("Count date"), {
+      target: { value: "2026-10-08" },
+    });
+    await waitFor(() =>
+      expect(useLotteryDay).toHaveBeenLastCalledWith("2026-10-08"));
+    expect(screen.getByLabelText("Closing count for pack 0012345"))
+      .toHaveValue(null);
+  });
+});
+
+const PACK = {
+  id: 9, game_id: 1, game_number: "2417", game_name: "Lucky 7s",
+  pack_number: "0012345", status: "active", bin_number: "3",
+  opening_ticket: 0, received_on: "2026-10-01", activated_on: "2026-10-02",
+};
+
+describe("Lottery packs — settle / return ask first", () => {
+  beforeEach(() => {
+    settleLotteryPack.mockReset().mockResolvedValue({});
+    returnLotteryPack.mockReset().mockResolvedValue({});
+    useLotteryPacks.mockReturnValue(ok({ packs: [PACK] }));
+  });
+
+  it.each([
+    ["Settle", () => settleLotteryPack, "Settle"],
+    ["Return to state", () => returnLotteryPack, "Return to state"],
+  ])("%s confirms in a dialog; Cancel sends nothing", async (label, fn, confirm) => {
+    renderPage();
+    await userEvent.click(screen.getByRole("tab", { name: "Packs" }));
+    const row = screen.getByText("0012345").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: label }));
+    let dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(fn()).not.toHaveBeenCalled();
+
+    await userEvent.click(within(row).getByRole("button", { name: label }));
+    dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: confirm }));
+    await waitFor(() => expect(fn()).toHaveBeenCalledWith(9, expect.any(String)));
+  });
+
+  it("shows a refusal inside the dialog", async () => {
+    settleLotteryPack.mockRejectedValue(new ApiError(409, "Pack has uncounted days.", null));
+    renderPage();
+    await userEvent.click(screen.getByRole("tab", { name: "Packs" }));
+    const row = screen.getByText("0012345").closest("tr")!;
+    await userEvent.click(within(row).getByRole("button", { name: "Settle" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Settle" }));
+    expect(await within(dialog).findByText("Pack has uncounted days.")).toBeInTheDocument();
+  });
+});
+
+describe("Lottery games — lottery.update gates the controls", () => {
+  const GAME = {
+    id: 1, game_number: "2417", name: "Lucky 7s", ticket_price: 5,
+    tickets_per_pack: 100, is_active: true,
+  };
+  beforeEach(() => {
+    useLotteryGames.mockReturnValue(ok({ games: [GAME] }));
+  });
+
+  it("shows Add game and Deactivate to someone with lottery.update", async () => {
+    setCurrentIdentity(TEST_ADMIN);
+    renderPage();
+    await userEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(screen.getByRole("button", { name: "+ Add game" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Deactivate" })).toBeInTheDocument();
+  });
+
+  it("hides them from someone who can only view lottery", async () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee",
+      permissions: ["lottery.read", "lottery.create"],
+    });
+    renderPage();
+    await userEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(screen.queryByRole("button", { name: "+ Add game" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
   });
 });
