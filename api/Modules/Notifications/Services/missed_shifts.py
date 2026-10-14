@@ -26,12 +26,12 @@ separate toggle if/when operators ask for it.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, time, timedelta
+from datetime import date, time, timedelta
 from typing import Any, Optional
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from api.Core.Clock import utc_now
+from api.Core.Clock import local_day_start_utc, local_today
 
 
 _log = logging.getLogger(__name__)
@@ -69,10 +69,16 @@ def find_missed_shifts(
         return []
 
     # Build the set of (employee, date) pairs that have at least
-    # one entry — one query covers all shifts.
+    # one entry — one query covers all shifts.  ``shift_date`` is
+    # a store-local day and ``clock_in_at`` is naive UTC, so the
+    # window is the store's day converted to UTC (an evening
+    # shift in Chicago clocks in after UTC midnight).
+    from api.Modules.Tenancy.Models import Store
+    store = db.get(Store, store_id)
+    store_tz = str(getattr(store, "timezone", "") or "")
     employee_ids = {int(s.store_employee_id) for s in shifts}
-    start = datetime.combine(on_date, time.min)
-    end   = datetime.combine(on_date + timedelta(days=1), time.min)
+    start = local_day_start_utc(on_date, store_tz)
+    end   = local_day_start_utc(on_date + timedelta(days=1), store_tz)
     entries = (
         db.query(TimeClockEntry.store_employee_id)
           .filter(
@@ -184,7 +190,8 @@ def run(
     base_url: Optional[str] = None,
 ) -> int:
     """Cron orchestrator.  Iterates active stores, finds missed
-    shifts on ``on_date`` (defaults to yesterday), and emails +
+    shifts on ``on_date`` (defaults to each store's yesterday in
+    its own timezone), and emails +
     pushes the digest to opted-in admins/owners.
 
     Returns the count of notifications attempted (one per
@@ -195,9 +202,6 @@ def run(
     Stores with zero missed shifts get nothing — empty inbox >
     "good news!" emails.
     """
-    if on_date is None:
-        on_date = (utc_now() - timedelta(days=1)).date()
-
     from api.Modules.Notifications.Services.push import (
         send_push, user_wants_push,
     )
@@ -216,7 +220,14 @@ def run(
     )
 
     attempted = 0
+    requested_date = on_date
     for store in stores:
+        # "Yesterday" is the store's yesterday — the server's UTC
+        # day is already tomorrow for a US store in the evening.
+        on_date = (
+            requested_date if requested_date is not None
+            else local_today(str(store.timezone or "")) - timedelta(days=1)
+        )
         # Dedup: skip stores already notified for this date.
         sent_for = getattr(store, "missed_shifts_sent_for", None)
         if sent_for == on_date:

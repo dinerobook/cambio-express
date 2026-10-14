@@ -294,14 +294,18 @@ class EntryNotFoundError(ValueError):
 
 def _compute_hours(
     clock_in_at: datetime, clock_out_at: datetime | None,
+    break_minutes: float | None = 0.0,
 ) -> float | None:
     """Mirrors ``clock_out`` math so an admin-edited entry
-    matches what a normal punch would produce. Returns None
+    matches what a normal punch would produce: wall-clock time
+    minus the recorded break, never below zero. Returns None
     when the entry is still open."""
     if clock_out_at is None:
         return None
     delta = clock_out_at - clock_in_at
-    return round(delta.total_seconds() / 3600, 4)
+    elapsed_hours = delta.total_seconds() / 3600
+    break_hours   = float(break_minutes or 0.0) / 60
+    return round(max(0.0, elapsed_hours - break_hours), 4)
 
 
 def admin_create_entry(
@@ -413,6 +417,7 @@ def admin_update_entry(
     new_hours = _compute_hours(
         entry.clock_in_at,  # type: ignore[arg-type]
         entry.clock_out_at,  # type: ignore[arg-type]
+        entry.break_minutes,  # type: ignore[arg-type]
     )
     if new_hours != entry.hours_worked:
         diffs.append(

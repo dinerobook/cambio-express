@@ -5,7 +5,8 @@ Run nightly from the Render cron service::
     python -m scripts.send_missed_shift_digest
     python -m scripts.send_missed_shift_digest --date 2026-05-18
 
-Defaults to yesterday (UTC) when ``--date`` is omitted — the typical
+Defaults to each store's own yesterday (its ``Store.timezone``; UTC
+when unset) when ``--date`` is omitted — the typical
 cron use case is 02:30 UTC, after the daily-summary cron has run.
 Pass ``--date YYYY-MM-DD`` to backfill a specific day.
 
