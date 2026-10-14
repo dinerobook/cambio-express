@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import DebitCardCheckbox from "../components/DebitCardCheckbox";
+import FederalTaxPreview from "../components/FederalTaxPreview";
 import SenderAutocomplete from "../components/SenderAutocomplete";
 import StoreListField from "../components/StoreListField";
 import RecipientSuggestions from "../components/RecipientSuggestions";
@@ -25,7 +26,6 @@ import {
   Pill,
   Section,
   Select,
-  space,
   tokens,
   useToast,
   Empty,
@@ -35,14 +35,12 @@ import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { getOpenStatus, todayIso } from "../lib/datetime";
 import {
   createTransfer,
-  previewFederalTax,
   useEmployees,
   useTransferChoices,
 } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
 import { apiErrorMessage, newIdempotencyKey } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
 import {
   SERVICES, STATUSES, defaultCountry, isPayout, transferWording,
 } from "../lib/transferKinds";
@@ -456,7 +454,7 @@ export default function NewTransfer() {
                 serviceType={serviceType}
                 country={country ?? ""}
                 paymentMethod={paymentMethod}
-                rate={storeInfo.data?.store.federal_tax_rate ?? 0}
+                rate={choices.data?.federal_tax_rate ?? 0}
               />
               <Field label="Confirmation #">
                 <Input type="text" {...register("confirm_number")} />
@@ -550,64 +548,6 @@ function Grid({ children }: { children: React.ReactNode }) {
   );
 }
 
-
-
-// Read-only client-side preview of the federal tax the server is
-// about to compute. Mirrors the rule in
-// `api/Modules/Transfers/Services/tax.py` so the cashier can
-// sanity-check the number before submit; the actual value still
-// comes from the server (CLAUDE.md invariant #9).
-function FederalTaxPreview({
-  sendAmount, serviceType, country, paymentMethod, rate,
-}: {
-  sendAmount: number | string;
-  serviceType: string;
-  country: string;
-  paymentMethod: string;
-  rate: number;
-}) {
-  const tax = previewFederalTax({
-    sendAmount, serviceType, country, paymentMethod, rate,
-  });
-  const exempt = tax === 0 && (Number(sendAmount) || 0) > 0;
-  const pct = (rate * 100).toFixed(rate < 0.01 ? 2 : 0);
-  return (
-    <Field
-      label={
-        rate > 0
-          ? `Federal tax preview (${pct}%, server recomputes)`
-          : "Federal tax preview"
-      }
-    >
-      <Input
-        type="text"
-        readOnly
-        tabIndex={-1}
-        value={fmtMoney2(tax)}
-        style={{
-          background: tokens.surface2,
-          color: tokens.textMuted,
-          cursor: "default",
-          fontFamily: tokens.fontMono,
-        }}
-      />
-      {exempt && (
-        <span style={{
-          display: "block",
-          marginTop: space.xs,
-          fontSize: "0.75rem",
-          color: tokens.textMuted,
-        }}>
-          Exempt — {country === "United States"
-            ? "domestic recipient"
-            : paymentMethod === "debit_card"
-              ? "paid by debit card"
-              : `${serviceType} service`}
-        </span>
-      )}
-    </Field>
-  );
-}
 
 
 // Soft warning above the New Transfer form when the operator is

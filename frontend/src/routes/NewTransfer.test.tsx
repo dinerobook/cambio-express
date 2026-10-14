@@ -13,8 +13,10 @@ import { ApiError } from "../lib/api";
 //   - A valid form sends numbers (not strings), the ISO date and the
 //     sender/recipient fields to createTransfer — and never a
 //     federal_tax (the server computes it, CLAUDE.md invariant 9).
-//   - The federal-tax preview follows the store rate, and is zero for
-//     exempt services / domestic recipients.
+//   - The federal-tax preview follows the store rate (from the form's
+//     own lists, so a cashier who can't read Settings sees it too; it
+//     used to read $0 for them until save), and is zero for exempt
+//     services / domestic recipients.
 //   - The server's message lands in the root Alert; success goes to
 //     the new transfer.
 //   - Every save attempt from one form carries the SAME save key, so
@@ -35,9 +37,11 @@ const DEFAULT_COUNTRIES = [
 ];
 const refetchChoices = vi.fn();
 const choices = vi.fn();
-function storeLists(companies: string[], countries = DEFAULT_COUNTRIES) {
+function storeLists(
+  companies: string[], countries = DEFAULT_COUNTRIES, federal_tax_rate = 0.01,
+) {
   choices.mockReturnValue({
-    data: { companies, countries },
+    data: { companies, countries, federal_tax_rate },
     isLoading: false, isError: false, refetch: refetchChoices,
   });
 }
@@ -59,9 +63,9 @@ vi.mock("../api/account", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/account")>();
   return {
     ...real,
-    useStoreInfo: () => ({
-      data: { store: { federal_tax_rate: 0.01, store_hours: [], timezone: "" } },
-    }),
+    // Store info needs settings.read, which a cashier usually lacks:
+    // the page must not depend on it for the tax preview.
+    useStoreInfo: () => ({ data: undefined, isError: true }),
   };
 });
 
@@ -246,10 +250,13 @@ describe("NewTransfer", () => {
     expect((screen.getByLabelText(/^Federal tax preview/) as HTMLInputElement).value)
       .toBe("$1.00");
     await user.click(screen.getByRole("checkbox", { name: /Paid by debit card/ }));
-    // Since 2026-01-01 the 1% remittance tax is on cash sends only.
+    // Since 2026-01-01 the 1% remittance tax is on cash sends only, so
+    // a card send shows no tax box at all; unticking brings it back.
+    expect(screen.queryByLabelText(/^Federal tax preview/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /Paid by debit card/ }));
     expect((screen.getByLabelText(/^Federal tax preview/) as HTMLInputElement).value)
-      .toBe("$0.00");
-    expect(screen.getByText(/Exempt — paid by debit card/)).toBeInTheDocument();
+      .toBe("$1.00");
+    await user.click(screen.getByRole("checkbox", { name: /Paid by debit card/ }));
     await user.click(screen.getByRole("button", { name: "Save transfer" }));
     await waitFor(() => expect(createTransfer).toHaveBeenCalledTimes(1));
     expect(createTransfer.mock.calls[0][0]).toMatchObject({
@@ -376,5 +383,14 @@ describe("NewTransfer", () => {
     // The country picker only ever shows the store's list.
     expect([...(screen.getByLabelText("Country") as HTMLSelectElement).options]
       .map((o) => o.value)).toEqual(["Mexico", "Peru"]);
+  });
+
+  it("previews tax at the store's own rate for a cashier without Settings access", async () => {
+    storeLists(["Intermex"], DEFAULT_COUNTRIES, 0.02);
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByLabelText(/^Send amount/), "200");
+    expect((screen.getByLabelText(/^Federal tax preview \(2%/) as HTMLInputElement).value)
+      .toBe("$4.00");
   });
 });

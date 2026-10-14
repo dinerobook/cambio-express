@@ -101,6 +101,7 @@ def test_choices_default_store(client, test_store_id):
     assert resp.get_json() == {
         "companies": ["Intermex", "Maxi", "Barri"],
         "countries": list(TRANSFER_COUNTRIES),
+        "federal_tax_rate": 0.01,
     }
 
 
@@ -108,10 +109,12 @@ def test_choices_follow_settings(client, test_store_id):
     """The very list the daily book uses: active companies only, in
     roster order; the store's own countries."""
     _set_store(test_store_id, companies="Sigue,Intermex,Maxi",
-               companies_disabled="Maxi", transfer_countries="Cuba,Mexico")
+               companies_disabled="Maxi", transfer_countries="Cuba,Mexico",
+               federal_tax_rate=0.02)
     resp = client.get(CHOICES, headers=_h(login_admin(client, test_store_id)))
     assert resp.get_json() == {
         "companies": ["Sigue", "Intermex"], "countries": ["Cuba", "Mexico"],
+        "federal_tax_rate": 0.02,
     }
 
 
@@ -136,6 +139,17 @@ def test_choices_for_employee_with_transfer_read(client, test_store_id):
     _, h = _employee_with(client, test_store_id, "choices_tr",
                           {"transfers": {"read": True}})
     assert client.get(CHOICES, headers=h).status_code == 200
+
+
+def test_cashier_without_settings_gets_the_tax_rate(client, test_store_id):
+    """Owner report 2026-10-14: the form's live tax preview read the
+    rate from store-info, which needs settings.read, so a cashier saw
+    $0 until save. The form's own lists carry the rate."""
+    _, h = _employee_with(client, test_store_id, "choices_rate",
+                          {"transfers": {"read": True, "create": True}})
+    assert client.get(STORE_INFO, headers=h).status_code == 403
+    body = client.get(CHOICES, headers=h).get_json()
+    assert body["federal_tax_rate"] == 0.01
 
 
 def test_choices_for_employee_with_only_batch_read(client, test_store_id):

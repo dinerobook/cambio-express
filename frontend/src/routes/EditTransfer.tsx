@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useNavigate, useParams } from "react-router-dom";
 
 import DebitCardCheckbox from "../components/DebitCardCheckbox";
+import FederalTaxPreview from "../components/FederalTaxPreview";
 import SenderAutocomplete from "../components/SenderAutocomplete";
 import StoreListField from "../components/StoreListField";
 import RecipientSuggestions from "../components/RecipientSuggestions";
@@ -16,16 +17,13 @@ import {
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
-  previewFederalTax,
   updateTransfer,
   useEmployees,
   useTransfer,
   useTransferChoices,
 } from "../api/transfers";
-import { useStoreInfo } from "../api/account";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
 import {
   SERVICES, STATUSES, isPayout, transferWording,
 } from "../lib/transferKinds";
@@ -101,7 +99,6 @@ export default function EditTransfer() {
   const identity = getCurrentIdentity();
   const detail = useTransfer(Number.isFinite(transferId) ? transferId : undefined);
   const roster = useEmployees();
-  const storeInfo = useStoreInfo();
   const choices = useTransferChoices();
   const companies = choices.data?.companies;
   const countries = choices.data?.countries;
@@ -445,27 +442,13 @@ export default function EditTransfer() {
                   )}
                 />
               )}
-              <Field
-                label={
-                  (storeInfo.data?.store.federal_tax_rate ?? 0) > 0
-                    ? `Federal tax preview (${((storeInfo.data!.store.federal_tax_rate) * 100).toFixed(0)}%, server recomputes)`
-                    : "Federal tax preview"
-                }
-              >
-                <Input
-                  type="text"
-                  readOnly
-                  tabIndex={-1}
-                  value={fmtMoney2(previewFederalTax({
-                    sendAmount,
-                    serviceType,
-                    country: country ?? "",
-                    paymentMethod,
-                    rate: storeInfo.data?.store.federal_tax_rate ?? 0,
-                  }))}
-                  className={styles.taxPreview}
-                />
-              </Field>
+              <FederalTaxPreview
+                sendAmount={sendAmount}
+                serviceType={serviceType}
+                country={country ?? ""}
+                paymentMethod={paymentMethod}
+                rate={choices.data?.federal_tax_rate ?? 0}
+              />
               <Field label="Confirmation #">
                 <Input type="text" {...register("confirm_number")} />
               </Field>
