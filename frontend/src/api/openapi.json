@@ -15706,7 +15706,7 @@
       },
       "TransferChoicesResponse": {
         "additionalProperties": false,
-        "description": "The store's pick-lists for the transfer and ACH batch forms,\nboth managed under Settings \u2192 General: ``companies`` is the\nACTIVE money transfer company roster (the same list the MSB daily\nbook uses), ``countries`` the store's transfer countries.",
+        "description": "The store's pick-lists for the transfer and ACH batch forms,\nboth managed under Settings \u2192 General: ``companies`` is the\nACTIVE money transfer company roster (the same list the MSB daily\nbook uses), ``countries`` the store's transfer countries.\n``federal_tax_rate`` (decimal, 0.01 = 1%) drives the form's live\ntax preview; it is here, not only on store-info, because store-info\nneeds ``settings.read`` and a cashier without it saw $0.",
         "properties": {
           "companies": {
             "items": {
@@ -15721,11 +15721,16 @@
             },
             "title": "Countries",
             "type": "array"
+          },
+          "federal_tax_rate": {
+            "title": "Federal Tax Rate",
+            "type": "number"
           }
         },
         "required": [
           "companies",
-          "countries"
+          "countries",
+          "federal_tax_rate"
         ],
         "title": "TransferChoicesResponse",
         "type": "object"

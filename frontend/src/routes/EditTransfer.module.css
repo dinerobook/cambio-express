@@ -20,13 +20,6 @@
   align-items: center;
 }
 
-.taxPreview {
-  background: var(--db-surface-2, #141414) !important;
-  color: var(--db-text-muted, #a3a3a3) !important;
-  cursor: default;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
-}
-
 .fieldError {
   display: block;
   margin-top: 0.3rem;

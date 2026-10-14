@@ -108,12 +108,16 @@ class TransferChoicesResponse(BaseModel):
     """The store's pick-lists for the transfer and ACH batch forms,
     both managed under Settings → General: ``companies`` is the
     ACTIVE money transfer company roster (the same list the MSB daily
-    book uses), ``countries`` the store's transfer countries."""
+    book uses), ``countries`` the store's transfer countries.
+    ``federal_tax_rate`` (decimal, 0.01 = 1%) drives the form's live
+    tax preview; it is here, not only on store-info, because store-info
+    needs ``settings.read`` and a cashier without it saw $0."""
 
     model_config = ConfigDict(extra="forbid")
 
     companies: list[str]
     countries: list[str]
+    federal_tax_rate: float
 
 
 class CreateTransferRequest(BaseModel):

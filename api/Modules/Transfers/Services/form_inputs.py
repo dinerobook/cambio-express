@@ -17,7 +17,8 @@ before the route stores them on a `Transfer` row:
     cross-store picks. Returns `(employee_or_none, display_name)`.
 
   - `form_choices(db, store_id)` — the store's company + country
-    pick-lists, both managed in Settings → General.
+    pick-lists (both managed in Settings → General) and its federal
+    tax rate for the form's live tax preview.
 """
 from datetime import date, datetime
 
@@ -81,15 +82,21 @@ def pick_employee(
     return (emp, str(emp.name)) if emp else (None, "")
 
 
-def form_choices(db: Session, store_id: int) -> tuple[list[str], list[str]]:
-    """``(companies, countries)`` for the store's transfer and ACH
-    batch forms: the ACTIVE money transfer company roster (the very
-    list the MSB daily book breaks down by) and the store's transfer
-    countries. A missing store gets the defaults of both."""
+def form_choices(
+    db: Session, store_id: int,
+) -> tuple[list[str], list[str], float]:
+    """``(companies, countries, federal_tax_rate)`` for the store's
+    transfer and ACH batch forms: the ACTIVE money transfer company
+    roster (the very list the MSB daily book breaks down by), the
+    store's transfer countries, and the rate the server taxes a cash
+    send at (`federal_tax_for`), so the form's preview matches what is
+    saved for anyone who may open the form, not only people who may
+    read Settings. A missing store gets the defaults and rate 0."""
     from api.Modules.Tenancy.Models import Store
     from api.Modules.Transfers.Services.companies import store_mt_companies
     from api.Modules.Transfers.Services.countries import (
         store_transfer_countries,
     )
     store = db.get(Store, store_id)
-    return store_mt_companies(store), store_transfer_countries(store)
+    rate = float((store.federal_tax_rate if store else None) or 0)
+    return store_mt_companies(store), store_transfer_countries(store), rate

@@ -182,8 +182,10 @@ def choices_route(
                 "admin or owner to load the store's lists."
             ),
         )
-    companies, countries = form_choices(db, int(store_id))
-    return TransferChoicesResponse(companies=companies, countries=countries)
+    companies, countries, rate = form_choices(db, int(store_id))
+    return TransferChoicesResponse(
+        companies=companies, countries=countries, federal_tax_rate=rate,
+    )
 
 
 @router.get("", response_model=TransferListResponse)

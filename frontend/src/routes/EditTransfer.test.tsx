@@ -35,7 +35,7 @@ const choices = vi.fn();
 const refetchChoices = vi.fn();
 function storeLists(companies: string[], countries: string[]) {
   choices.mockReturnValue({
-    data: { companies, countries },
+    data: { companies, countries, federal_tax_rate: 0.01 },
     isLoading: false, isError: false, refetch: refetchChoices,
   });
 }
@@ -71,7 +71,8 @@ vi.mock("../api/account", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/account")>();
   return {
     ...real,
-    useStoreInfo: () => ({ data: { store: { federal_tax_rate: 0.01 } } }),
+    // Not used by the page: a cashier can't read store info.
+    useStoreInfo: () => ({ data: undefined, isError: true }),
   };
 });
 
@@ -258,8 +259,9 @@ describe("EditTransfer", () => {
     await screen.findByDisplayValue("2026-10-01");
     const box = screen.getByRole("checkbox", { name: /Paid by debit card/ });
     expect(box).toBeChecked();
-    // A card send carries no remittance tax; switching to cash brings it back.
-    expect(screen.getByLabelText(/^Federal tax preview/)).toHaveValue("$0.00");
+    // A card send carries no remittance tax, so no tax box; switching
+    // to cash brings it back.
+    expect(screen.queryByLabelText(/^Federal tax preview/)).not.toBeInTheDocument();
     await user.click(box);
     expect(screen.getByLabelText(/^Federal tax preview/)).toHaveValue("$2.00");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
