@@ -49,6 +49,10 @@ describe("canAccessWith", () => {
 
   it("role lists are exact — superadmin only where listed", () => {
     expect(canAccessWith(superadmin, "/owner/locations")).toBe(true);
+    // The server refuses the superadmin on /owner/reports alone.
+    expect(canAccessWith(superadmin, "/owner/reports")).toBe(false);
+    expect(canAccessWith(owner, "/owner/reports")).toBe(true);
+    expect(canAccessWith(superadmin, "/owner/reports/fees-vs-tax")).toBe(true);
     expect(canAccessWith(superadmin, "/settings/billing")).toBe(false);
     expect(canAccessWith(owner, "/settings/billing")).toBe(false);
     expect(canAccessWith(admin, "/settings/billing")).toBe(true);

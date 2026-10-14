@@ -5,7 +5,7 @@ import { api, apiErrorMessage } from "../lib/api";
 import { useOwnerLocations } from "../api/owner";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
-  Alert, Breadcrumbs, Button, Card, Checkbox, InfoTip, Loading,
+  Alert, Breadcrumbs, Button, Card, Checkbox, ErrorState, InfoTip, Loading,
   PageHeader, PageShell, SectionTitle, useToast,
 } from "../components/ui";
 import { BulkResultsCard } from "../components/BulkResultsCard";
@@ -22,7 +22,10 @@ interface PermissionMatrix {
 }
 
 export default function OwnerBulkPermissions() {
-  const { data: locations, isLoading: locsLoading } = useOwnerLocations("month");
+  const {
+    data: locations, isLoading: locsLoading, isError: locsError,
+    refetch: refetchLocations,
+  } = useOwnerLocations("month");
   const toast = useToast();
 
   const allStoreIds = useMemo(
@@ -35,11 +38,12 @@ export default function OwnerBulkPermissions() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Array<{ store_id: number; status: string; changes?: number; reason?: string }> | null>(null);
 
-  const { data: templatePerms } = useQuery<PermissionMatrix>({
+  const template = useQuery<PermissionMatrix>({
     enabled: templateStoreId !== null,
     queryKey: ["owner-store-permissions", templateStoreId],
     queryFn: () => api<PermissionMatrix>(`/api/v2/owner/store/${templateStoreId}/permissions`),
   });
+  const templatePerms = template.data;
 
   async function handlePush() {
     if (!templatePerms || stores.selected.length === 0) return;
@@ -73,6 +77,16 @@ export default function OwnerBulkPermissions() {
   }
 
   if (locsLoading) return <PageShell gap="1.25rem"><Loading /></PageShell>;
+  if (locsError) {
+    return (
+      <PageShell gap="1.25rem">
+        <ErrorState
+          message="Couldn't load your stores."
+          onRetry={() => { void refetchLocations(); }}
+        />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell gap="1.25rem">
@@ -113,6 +127,13 @@ export default function OwnerBulkPermissions() {
           ))}
         </div>
       </Card>
+
+      {template.isError && (
+        <ErrorState
+          message="Couldn't load this store's permissions."
+          onRetry={() => { void template.refetch(); }}
+        />
+      )}
 
       {templatePerms && (
         <Card>

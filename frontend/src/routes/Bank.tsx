@@ -10,6 +10,7 @@ import {
   useBankAccounts,
   type BankAccountRow,
 } from "../api/bankSync";
+import { canDo } from "../lib/access";
 import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -184,7 +185,7 @@ export default function Bank() {
           {accountList.length > 0 && (
             <div className={styles.headerActions}>
               <Button
-                tone="secondary" size="sm"
+                tone="secondary" size="sm" perm="bank_sync.update"
                 busy={busy === "refresh"}
                 disabled={busy !== null}
                 onClick={() => { void handleRefresh(); }}
@@ -193,7 +194,7 @@ export default function Bank() {
               </Button>
               {!atCap && (
                 <Button
-                  size="sm"
+                  size="sm" perm="bank_sync.update"
                   busy={busy === "connect"}
                   disabled={busy !== null}
                   onClick={() => { void handleConnect(); }}
@@ -221,6 +222,7 @@ export default function Bank() {
               We only see balances — never your bank login.
             </p>
             <Button
+              perm="bank_sync.update"
               busy={busy === "connect"}
               disabled={busy !== null}
               onClick={() => { void handleConnect(); }}
@@ -295,34 +297,36 @@ function AccountCard({
           ? `As of ${formatDateTime(acct.last_balance_as_of)}`
           : "Balance not yet refreshed."}
       </div>
-      <form
-        className={styles.nicknameForm}
-        onSubmit={(e) => {
-          e.preventDefault();
-          void onSaveNickname(nickname);
-        }}
-      >
-        <input
-          type="text"
-          name="nickname"
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          placeholder="Set nickname (e.g. MSB Checking)"
-          maxLength={60}
-          className={styles.nicknameInput}
-          disabled={anyBusy}
-        />
-        <Button
-          type="submit" tone="secondary" size="sm"
-          busy={nicknameBusy}
-          disabled={anyBusy || nickname === (acct.nickname || "")}
+      {canDo("bank_sync.update") && (
+        <form
+          className={styles.nicknameForm}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void onSaveNickname(nickname);
+          }}
         >
-          {nicknameBusy ? "Saving…" : "Save"}
-        </Button>
-      </form>
+          <input
+            type="text"
+            name="nickname"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="Set nickname (e.g. MSB Checking)"
+            maxLength={60}
+            className={styles.nicknameInput}
+            disabled={anyBusy}
+          />
+          <Button
+            type="submit" tone="secondary" size="sm"
+            busy={nicknameBusy}
+            disabled={anyBusy || nickname === (acct.nickname || "")}
+          >
+            {nicknameBusy ? "Saving…" : "Save"}
+          </Button>
+        </form>
+      )}
       <div className={styles.disconnectForm}>
         <Button
-          tone="danger" size="sm"
+          tone="danger" size="sm" perm="bank_sync.update"
           busy={disconnectBusy}
           disabled={anyBusy}
           onClick={onDisconnect}

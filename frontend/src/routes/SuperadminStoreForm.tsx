@@ -261,6 +261,7 @@ export default function SuperadminStoreForm() {
         };
         await createSuperadminStore(body);
         queryClient.invalidateQueries({ queryKey: ["superadmin", "stores"] });
+        toast({ message: `Store ${body.name} created.`, tone: "success" });
         navigate("/superadmin/stores");
       }
     } catch (err) {

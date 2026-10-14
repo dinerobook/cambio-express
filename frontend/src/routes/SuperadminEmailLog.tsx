@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { api, apiErrorMessage } from "../lib/api";
 import { EMAIL_EVENT_TONES } from "../api/superadmin";
 import { getCurrentIdentity } from "../lib/auth";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
   formatDate, formatTimestamp,
 } from "../lib/datetime";
@@ -63,11 +63,14 @@ function useEmailLog(opts: { q?: string; event_type?: string; page?: number }) {
 }
 
 export default function SuperadminEmailLog() {
-  const [q, setQ] = useState("");
-  const [eventType, setEventType] = useState("");
-  const [page, setPage] = useState(1);
-  const { data, isLoading, isError, error, refetch } =
-    useEmailLog({ q: q || undefined, event_type: eventType || undefined, page });
+  // Filters live in the URL; the search box applies as you type
+  // (300ms debounce, 2-char minimum), the event type at once.
+  const filters = useUrlFilterState({ q: "", event_type: "" });
+  const q = filters.params.q.trim();
+  const eventType = filters.params.event_type;
+  const { data, isLoading, isError, error, refetch } = useEmailLog({
+    q: q || undefined, event_type: eventType || undefined, page: filters.page,
+  });
 
   return (
     <PageShell gap="1.25rem">
@@ -79,14 +82,14 @@ export default function SuperadminEmailLog() {
           <div className={styles.filterRow}>
             <Input
               type="search"
-              value={q}
+              value={filters.draft.q ?? filters.params.q}
               placeholder="Search email address…"
-              onChange={(e) => { setQ(e.target.value); setPage(1); }}
+              onChange={(e) => filters.debounced("q", e.target.value)}
               className={styles.searchInput}
             />
             <Select
               value={eventType}
-              onChange={(e) => { setEventType(e.target.value); setPage(1); }}
+              onChange={(e) => filters.setParam("event_type", e.target.value)}
             >
               {EVENT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -154,7 +157,7 @@ export default function SuperadminEmailLog() {
           </Card>
 
           {data.total_pages > 1 && (
-            <Pager page={data.page} totalPages={data.total_pages} onPage={setPage} />
+            <Pager page={data.page} totalPages={data.total_pages} onPage={filters.setPage} />
           )}
 
           {data.suppressed.length > 0 && (

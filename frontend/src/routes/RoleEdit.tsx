@@ -53,8 +53,14 @@ export default function RoleEdit() {
   const copyFrom = isNew ? params.get("copy") : null;
   const fromUser = isNew ? Number(params.get("from_user")) || null : null;
 
+  // A built-in role (or a new role copied from one) is read from the
+  // store-permissions route, which needs settings.read.
+  const needsBuiltin = builtinKey != null
+    || (copyFrom != null && copyFrom in BUILTIN_NAMES);
+  const canReadBuiltin = hasPermission("settings", "read");
+
   const saved = useAccessRoles();
-  const builtin = useBuiltinRoles(hasPermission("settings", "read"));
+  const builtin = useBuiltinRoles(canReadBuiltin);
   const users = useAdminUsers();
   const userPerms = useAdminUserPermissions(fromUser);
   const members = useQuery({
@@ -277,8 +283,10 @@ export default function RoleEdit() {
     ? [fromUserRow.full_name || fromUserRow.username]
     : [];
 
+  const builtinDenied = needsBuiltin && !canReadBuiltin;
   const loadFailed = (savedId != null && saved.isSuccess && !savedRole)
-    || saved.isError;
+    || saved.isError
+    || (needsBuiltin && builtin.isError);
 
   return (
     <PageShell gap="1.25rem">
@@ -289,13 +297,17 @@ export default function RoleEdit() {
       ]} />
       <PageHeader title={title} />
 
-      {loadFailed && (
+      {builtinDenied ? (
+        <ErrorState message="You don't have access to the built-in roles." />
+      ) : loadFailed ? (
         <ErrorState
           message="Could not load this role."
-          onRetry={() => { void saved.refetch(); }}
+          onRetry={() => {
+            if (saved.isError) void saved.refetch();
+            if (builtin.isError) void builtin.refetch();
+          }}
         />
-      )}
-      {!loadFailed && !draft && <Loading />}
+      ) : !draft && <Loading />}
 
       {draft && (
         <form onSubmit={onSubmit} className={styles.layout}>
