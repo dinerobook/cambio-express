@@ -98,11 +98,12 @@ def test_debit_card_send_keeps_the_money_math(client, test_store_id, admin, emp_
     assert resp.status_code == 201, resp.get_data(as_text=True)
     row = resp.get_json()["transfer"]
     assert row["payment_method"] == "debit_card"
-    # Still a send to Mexico: the tax applies and the total is the
-    # usual send + fee + tax (what the card was charged).
-    assert row["federal_tax"] > 0
+    # A card-funded send carries no remittance tax (it applies to
+    # cash only since 2026-01-01); the total is send + fee, which is
+    # what the card was charged.
+    assert row["federal_tax"] == 0.0
     assert row["total_collected"] == pytest.approx(
-        row["send_amount"] + row["fee"] + row["federal_tax"])
+        row["send_amount"] + row["fee"])
     from api.Modules.Transfers.Models import Transfer
     with db_session():
         t = db.session.get(Transfer, row["id"])
@@ -226,6 +227,28 @@ def test_edit_cannot_turn_a_row_into_a_debit_card_payout(
         t = db.session.get(Transfer, tid)
         assert t.service_type == "Money Transfer"
         assert t.payment_method == "cash"
+
+
+def test_cash_send_still_carries_the_tax(client, test_store_id, admin, emp_id):
+    row = client.post("/api/v2/transfers", headers=admin,
+                      json=_body(emp_id)).get_json()["transfer"]
+    assert row["payment_method"] == "cash"
+    assert row["federal_tax"] == pytest.approx(row["send_amount"] * 0.01)
+
+
+def test_edit_cash_to_card_drops_the_tax_and_back_restores_it(
+    client, test_store_id, admin, emp_id,
+):
+    created = client.post("/api/v2/transfers", headers=admin,
+                          json=_body(emp_id)).get_json()["transfer"]
+    assert created["federal_tax"] > 0
+    card = client.put(f"/api/v2/transfers/{created['id']}", headers=admin,
+                      json=_body(emp_id, payment_method="debit_card"))
+    assert card.status_code == 200, card.get_data(as_text=True)
+    assert card.get_json()["transfer"]["federal_tax"] == 0.0
+    cash = client.put(f"/api/v2/transfers/{created['id']}", headers=admin,
+                      json=_body(emp_id, payment_method="cash"))
+    assert cash.get_json()["transfer"]["federal_tax"] == created["federal_tax"]
 
 
 def test_edit_send_to_payout_drops_the_tax(client, test_store_id, admin, emp_id):

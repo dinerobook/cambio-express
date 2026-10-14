@@ -258,7 +258,10 @@ describe("EditTransfer", () => {
     await screen.findByDisplayValue("2026-10-01");
     const box = screen.getByRole("checkbox", { name: /Paid by debit card/ });
     expect(box).toBeChecked();
+    // A card send carries no remittance tax; switching to cash brings it back.
+    expect(screen.getByLabelText(/^Federal tax preview/)).toHaveValue("$0.00");
     await user.click(box);
+    expect(screen.getByLabelText(/^Federal tax preview/)).toHaveValue("$2.00");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     await waitFor(() => expect(updateTransfer).toHaveBeenCalledTimes(1));
     expect(updateTransfer.mock.calls[0][1].payment_method).toBe("cash");

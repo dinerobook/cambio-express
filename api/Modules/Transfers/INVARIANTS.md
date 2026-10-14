@@ -101,9 +101,11 @@ every row saved before the column existed, and **NULL reads as cash**
 everywhere (`Transfer.is_debit_card`, the `paid_by` list filter, the
 API's `payment_method` field, the `paid_by` audit label).
 
-- The money math is unchanged: a debit card send has the same
-  `send_amount + fee + federal_tax`, the same tax, and counts in every
-  volume report like a cash send. Only the cash it brings in differs.
+- The money math is the same formula, `send_amount + fee +
+  federal_tax`, but a debit card send carries **no federal tax**: since
+  2026-01-01 the 1% remittance tax applies to cash sends only (see
+  "Federal tax" below). It counts in every volume report like a cash
+  send.
 - The daily book is where it matters: its Services box takes the
   company's debit card total OFF the company's cash (DailyBook
   INVARIANTS "Debit card and payouts"). The transfer log's auto
@@ -171,7 +173,7 @@ the client sends. The Pydantic schema (`CreateTransferRequest`)
 doesn't even list `federal_tax` as a field — `extra="forbid"`
 makes sending it a 422.
 
-`federal_tax_for()` returns 0.0 in three cases:
+`federal_tax_for()` returns 0.0 in four cases:
 
 1. `service_type` is in `TAX_EXEMPT_SERVICES` (Bill Payment,
    Top Up, Recharge — no ACH withdrawal crosses a border; Payout —
@@ -181,6 +183,12 @@ makes sending it a 422.
    sent abroad).
 3. The store has no `federal_tax_rate` set (defensive — defaults
    to 0.01 = 1% in seed data).
+4. `payment_method == "debit_card"`: the remittance tax in force
+   from 2026-01-01 applies to cash-funded sends only. NULL / `"cash"`
+   are taxed. Changing a send between cash and card on edit
+   recomputes the tax. Card sends saved before this rule can be
+   corrected with `python -m scripts.backfill_federal_tax
+   --debit-card-only` (dry run by default, `--commit` to write).
 
 Otherwise: `round(send_amount * store.federal_tax_rate, 2)`.
 

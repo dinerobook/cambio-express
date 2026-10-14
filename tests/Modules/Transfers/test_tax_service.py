@@ -198,3 +198,24 @@ def test_transfer_countries_includes_us_and_other():
 
 
 
+
+
+# ── Payment method (remittance tax is cash-only since 2026) ──
+
+
+def test_debit_card_send_is_not_taxed():
+    from api.Modules.Transfers.Services import federal_tax_for
+    assert federal_tax_for(
+        1000.0, "Money Transfer", _store(0.01), country="Mexico",
+        payment_method="debit_card",
+    ) == 0.0
+
+
+def test_cash_and_unset_payment_method_are_taxed():
+    """Rows saved before the column existed (None) read as cash."""
+    from api.Modules.Transfers.Services import federal_tax_for
+    for method in ("cash", None):
+        assert federal_tax_for(
+            1000.0, "Money Transfer", _store(0.01), country="Mexico",
+            payment_method=method,
+        ) == 10.0

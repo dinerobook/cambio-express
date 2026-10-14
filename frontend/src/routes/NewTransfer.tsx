@@ -169,6 +169,7 @@ export default function NewTransfer() {
   const sendAmount = useWatch({ control, name: "send_amount" });
   const serviceType = useWatch({ control, name: "service_type" });
   const country = useWatch({ control, name: "country" });
+  const paymentMethod = useWatch({ control, name: "payment_method" });
   const customerId = useWatch({ control, name: "customer_id" });
   const payout = isPayout(serviceType);
   const words = transferWording(serviceType);
@@ -454,6 +455,7 @@ export default function NewTransfer() {
                 sendAmount={sendAmount}
                 serviceType={serviceType}
                 country={country ?? ""}
+                paymentMethod={paymentMethod}
                 rate={storeInfo.data?.store.federal_tax_rate ?? 0}
               />
               <Field label="Confirmation #">
@@ -556,15 +558,16 @@ function Grid({ children }: { children: React.ReactNode }) {
 // sanity-check the number before submit; the actual value still
 // comes from the server (CLAUDE.md invariant #9).
 function FederalTaxPreview({
-  sendAmount, serviceType, country, rate,
+  sendAmount, serviceType, country, paymentMethod, rate,
 }: {
   sendAmount: number | string;
   serviceType: string;
   country: string;
+  paymentMethod: string;
   rate: number;
 }) {
   const tax = previewFederalTax({
-    sendAmount, serviceType, country, rate,
+    sendAmount, serviceType, country, paymentMethod, rate,
   });
   const exempt = tax === 0 && (Number(sendAmount) || 0) > 0;
   const pct = (rate * 100).toFixed(rate < 0.01 ? 2 : 0);
@@ -597,7 +600,9 @@ function FederalTaxPreview({
         }}>
           Exempt — {country === "United States"
             ? "domestic recipient"
-            : `${serviceType} service`}
+            : paymentMethod === "debit_card"
+              ? "paid by debit card"
+              : `${serviceType} service`}
         </span>
       )}
     </Field>

@@ -16,13 +16,16 @@ Rules (per CLAUDE.md invariant #9):
     too: the money comes in from abroad, nothing is sent.
   - Tax also skips when the recipient country is domestic (US),
     even for Money Transfer.
+  - A send paid by debit card is exempt: the remittance tax that
+    took effect on 2026-01-01 applies to cash-funded transfers
+    only, not to ones funded from a card or bank account.
   - Rate is `Store.federal_tax_rate` (defaults to 0.01 = 1%).
 
 Pure functions — no DB, no Stripe, no side-effects.
 """
 from typing import Any
 
-from api.Modules.Transfers.Models import PAYOUT_SERVICE
+from api.Modules.Transfers.Models import PAYMENT_DEBIT_CARD, PAYOUT_SERVICE
 
 
 # All recognized service types. The transfer form's dropdown
@@ -72,12 +75,14 @@ def federal_tax_for(
     service_type: str,
     store: Any,
     country: str | None = None,
+    payment_method: str | None = None,
 ) -> float:
     """Compute the federal tax on a transfer.
 
-    Returns 0.0 in three cases:
+    Returns 0.0 in four cases:
       - service_type isn't `Money Transfer`
       - recipient country is in `DOMESTIC_COUNTRIES`
+      - the send was paid by debit card (`PAYMENT_DEBIT_CARD`)
       - store has no `federal_tax_rate` set (defensive)
 
     Otherwise returns `send_amount * rate` rounded to cents.
@@ -85,6 +90,8 @@ def federal_tax_for(
     if service_type in TAX_EXEMPT_SERVICES:
         return 0.0
     if country and country.strip() in DOMESTIC_COUNTRIES:
+        return 0.0
+    if payment_method == PAYMENT_DEBIT_CARD:
         return 0.0
     rate = (store.federal_tax_rate if store else None) or 0
     return round((send_amount or 0) * rate, 2)

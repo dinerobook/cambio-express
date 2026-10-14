@@ -250,9 +250,13 @@ export function previewFederalTax(opts: {
   serviceType: string;
   country?: string | null;
   rate: number | null | undefined;
+  /** A debit-card send carries no remittance tax (cash only since
+   *  2026-01-01). Omitted reads as cash. */
+  paymentMethod?: string | null;
 }): number {
   if (TAX_EXEMPT_SERVICES.has(opts.serviceType)) return 0;
   if (opts.country && DOMESTIC_COUNTRIES.has(opts.country.trim())) return 0;
+  if (opts.paymentMethod === "debit_card") return 0;
   const amount = Number(opts.sendAmount) || 0;
   const rate = Number(opts.rate) || 0;
   return Math.round(amount * rate * 100) / 100;

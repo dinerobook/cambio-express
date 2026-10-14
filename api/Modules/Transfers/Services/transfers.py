@@ -233,6 +233,7 @@ def create_transfer(
     fed_tax = federal_tax_for(
         payload.send_amount, payload.service_type,
         store, country=payload.country,
+        payment_method=payload.payment_method,
     )
 
     transfer = Transfer(
@@ -348,6 +349,7 @@ def update_transfer(
     transfer.federal_tax            = federal_tax_for(
         transfer.send_amount, transfer.service_type, store,
         country=transfer.country,
+        payment_method=transfer.payment_method,
     )
     transfer.updated_at             = utc_now()
 

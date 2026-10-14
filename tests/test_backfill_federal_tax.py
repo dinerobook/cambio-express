@@ -30,7 +30,7 @@ def _seed_transfer(
     store_id: int, *,
     send_amount: float, federal_tax: float,
     service_type: str = "Money Transfer", country: str = "Mexico",
-    employee_id: int = 1,
+    employee_id: int = 1, payment_method: str = "cash",
 ):
     from api.Modules.Transfers.Models import Transfer
     t = Transfer(
@@ -51,6 +51,7 @@ def _seed_transfer(
         confirm_number="",
         status="Sent",
         employee_id=employee_id,
+        payment_method=payment_method,
     )
     db.session.add(t); db.session.commit()
     return t.id
@@ -191,3 +192,37 @@ def test_already_correct_row_is_noop():
     with db_session():
         t = db.session.get(Transfer, tid)
         assert t.federal_tax == 5.00
+
+
+# ── Debit card sends carry no remittance tax ───────────────
+
+
+def test_debit_card_only_clears_card_tax_and_leaves_cash_rows():
+    from api.Modules.Transfers.Models import Transfer
+    with db_session():
+        sid = _seed_store("bf-card")
+        emp = _seed_employee(sid)
+        card = _seed_transfer(sid, send_amount=200.0, federal_tax=2.0,
+                              employee_id=emp,
+                              payment_method="debit_card")
+        # A cash row with a stale tax: --debit-card-only must not
+        # touch it, even though a full run would.
+        cash = _seed_transfer(sid, send_amount=300.0, federal_tax=0.0,
+                              employee_id=emp)
+    assert main(["--debit-card-only", "--commit", "--quiet"]) == 0
+    with db_session():
+        assert db.session.get(Transfer, card).federal_tax == 0.0
+        assert db.session.get(Transfer, cash).federal_tax == 0.0
+
+
+def test_debit_card_only_dry_run_does_not_mutate():
+    from api.Modules.Transfers.Models import Transfer
+    with db_session():
+        sid = _seed_store("bf-card-dry")
+        emp = _seed_employee(sid)
+        card = _seed_transfer(sid, send_amount=200.0, federal_tax=2.0,
+                              employee_id=emp,
+                              payment_method="debit_card")
+    assert main(["--debit-card-only", "--quiet"]) == 0
+    with db_session():
+        assert db.session.get(Transfer, card).federal_tax == 2.0
