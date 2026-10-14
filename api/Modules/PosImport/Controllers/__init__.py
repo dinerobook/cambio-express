@@ -92,6 +92,7 @@ from api.Modules.PosImport.Services import (
     stage_journal_file,
     staged_days,
     staged_events_for_day,
+    with_staged_events,
 )
 
 router = APIRouter(prefix="/posimport", tags=["posimport"])
@@ -259,9 +260,12 @@ def commit_naxml_route(
         raise HTTPException(status_code=422, detail="day must be YYYY-MM-DD")
     loaded = _load_or_422(_decode_payload(body.content_base64))
     try:
+        # Keep the day's staged agent files the upload doesn't
+        # repeat — the commit rebuilds transactions / hourly / item
+        # movement from these events, replacing what was stored.
         result = commit_business_day(
             db, sid, day,
-            events=loaded.events,
+            events=with_staged_events(db, sid, day, loaded),
             created_by=int(claims["sub"]),
         )
     except PosImportError as exc:

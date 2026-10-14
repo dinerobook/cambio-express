@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.Modules.DayClose.Models import (
@@ -51,9 +52,11 @@ def list_departments(
 def _department_name_taken(
     db: Session, store_id: int, name: str, exclude_id: int | None = None,
 ) -> bool:
+    # Case-insensitive EQUALITY. ``ilike`` treated ``_`` / ``%`` in
+    # the name as wildcards, so "A_B" was refused when "AXB" existed.
     q = db.query(Department).filter(
         Department.store_id == store_id,
-        Department.name.ilike(name),
+        func.lower(Department.name) == name.lower(),
     )
     if exclude_id is not None:
         q = q.filter(Department.id != exclude_id)
