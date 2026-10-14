@@ -964,7 +964,7 @@ def store_drill_route(
             "email": store.email or "", "phone": store.phone or "",
             "address": store.address or "",
             "plan": store.plan or "", "billing_cycle": store.billing_cycle or "",
-            "is_active": bool(store.is_active),
+            "is_active": store.is_active is not False,
             "trial_status": get_trial_status(store),
             "created_at": _iso(store.created_at),
             "trial_ends_at": _iso(store.trial_ends_at),
@@ -1704,8 +1704,12 @@ def toggle_store_active_route(
     s = db.get(Store, store_id)
     if s is None:
         raise HTTPException(status_code=404, detail="Store not found")
-    s.is_active = not s.is_active
-    act = "enable_store" if s.is_active else "disable_store"
+    # Disabling ends the store's sessions and refuses its staff's
+    # logins (Auth INVARIANTS "Disabled stores"); NULL counts as
+    # active, so the first toggle of a NULL row disables it.
+    from api.Modules.Auth.Services.store_access import store_is_active
+    s.is_active = not store_is_active(s)
+    act ="enable_store" if s.is_active else "disable_store"
     _audit_and_commit(db, sa, act, target_id=str(s.id),
                       details=f"{s.name} ({s.slug})")
     return {"ok": True, "is_active": s.is_active}

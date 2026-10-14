@@ -90,6 +90,17 @@ describe("Login", () => {
     expect(getCurrentIdentity()).toBeNull();
   });
 
+  it("says why when the person's store has been disabled", async () => {
+    // 403, not 401: the server answers a good password at a store
+    // the superadmin disabled with the reason, and the page shows it.
+    const msg = "This store has been disabled. Contact support.";
+    api.mockRejectedValue(new ApiError(403, msg, { detail: msg }));
+    renderPage();
+    await signIn();
+    expect(await screen.findByRole("alert")).toHaveTextContent(msg);
+    expect(getCurrentIdentity()).toBeNull();
+  });
+
   it("asks for the TOTP code without persisting an identity, then finishes on verify", async () => {
     api.mockResolvedValueOnce({
       ...ok, role: "superadmin", requires_totp: true,

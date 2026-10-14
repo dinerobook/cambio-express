@@ -301,6 +301,9 @@ Tests: `tests/Modules/Admin/test_rank_rule.py`.
 - the user row must exist and be active;
 - the token's `role` must equal the row's role (an owner's
   switch-store token is the one sanctioned mismatch);
+- the token's store must not be disabled (see "Disabled stores"
+  below — owner base tokens, the superadmin and impersonation
+  tokens are exempt);
 - when the token carries `sid`, at least one refresh row of that
   session must be alive. A session with no rows at all is left
   alone (only the signing secret mints those).
@@ -367,6 +370,45 @@ The claim means nothing on a token without `impersonated_by`.
 
 Tests: `tests/Modules/Superadmin/test_impersonation.py`,
 `test_impersonation_read_only.py`.
+
+### Disabled stores — the superadmin "Disable store" switch
+
+`POST /superadmin/stores/{id}/toggle-active` and the bulk
+`disable` / `enable` actions flip `Store.is_active`. A disabled
+store is closed to its own people; the one rule lives in
+`api/Modules/Auth/Services/store_access.py` and every path asks it:
+
+- **Disabled means `is_active` is literally False.** The column is
+  nullable with no server default, so a NULL row counts as active
+  (and the first toggle of a NULL row disables it).
+- **Login** (`/auth/login`, `/auth/login-cross-store`, the TOTP /
+  recovery / enroll-confirm finishers — all through
+  `_issue_full_login` / `_maybe_pending_2fa`) refuses any
+  store-scoped user who is not `owner` / `superadmin` with
+  `StoreDisabledError` → **403** `"This store has been disabled.
+  Contact support."`. It fires only AFTER the password (and
+  `is_active` on the user) checked out — a wrong password at a
+  disabled store is still the opaque 401. 403, not 401, because
+  the SPA treats a 401 as "try a silent refresh". On cross-store
+  login a disabled store's account drops out of the
+  `store_ambiguous` choice; only when every matching account is
+  locked out does the person get the 403.
+- **Live sessions end:** `_require_live_principal` 401s a token
+  whose `store_id` names a disabled store, and `/auth/refresh`
+  refuses (401, cookies cleared) without revoking the refresh
+  chain.
+- **Owners** keep their base `role=owner` token (umbrella view,
+  `/auth/my-stores` — which lists only active stores) even when
+  their home store is disabled. `/auth/switch-store` into a
+  disabled store is **403** with the same message; an owner's
+  switch-store token (`role=admin` + `owner_id`) for a store that
+  is then disabled 401s like any other store session.
+- **Exempt:** the superadmin, store-less platform logins, and any
+  token carrying `impersonated_by` — support can still look.
+- **Re-enabling restores access with no other step:** nothing is
+  revoked, so an unexpired token or refresh chain works again.
+
+Tests: `tests/Modules/Auth/test_disabled_store.py`.
 
 
 ## The 2FA gate — `needs_totp` is THE single role check
@@ -456,6 +498,11 @@ of these failure modes:
 - Wrong password
 - Disabled user (`is_active=False`)
 
+The one deliberate exception is a **disabled store** (see
+"Disabled stores"): once the password has checked out, the person
+is told the store is disabled (403). Nothing is enumerated — they
+already proved they hold the credentials.
+
 **Never split the message** to indicate which condition failed.
 Doing so leaks account existence + status, defeating the
 opacity. Pinned by `test_auth_errors_are_opaque`.
@@ -511,7 +558,8 @@ a **store-scoped admin token** for the selected store. Rules:
   token (`get_principal` refuses pending/`purpose` tokens) whose
   subject is an **active `role=owner` user**; the target store
   must be in the owner's umbrella (`StoreOwnerLink` rows ∪ the
-  owner's own home `store_id`) and active. This is NOT a
+  owner's own home `store_id`) and active — a disabled store is
+  403 "This store has been disabled. Contact support.". This is NOT a
   privilege escalation: the owner owns the store.
 - The derived token carries `role=admin`, `store_id=<target>`,
   the admin permission set for that store, `sub=<owner user id>`
@@ -772,6 +820,10 @@ What needs a security discussion FIRST:
 - `test_principal_liveness.py` — the live-principal check in
   `get_principal`: deactivation, demotion, password reset and
   every session revoke refuse the old access token at once.
+- `test_disabled_store.py` — the superadmin "Disable store"
+  switch: staff login refused (403) and restored on enable, live
+  tokens + refresh refused, owners still sign in but cannot
+  switch in, superadmin + impersonation unaffected, bulk path.
 - `tests/Modules/Admin/test_rank_rule.py` — the rank rule: owner
   rows out of an admin's reach, the Team permission is not a
   store takeover, rejected matrix bodies write nothing.

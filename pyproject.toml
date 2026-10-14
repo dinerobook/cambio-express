@@ -104,6 +104,7 @@ files = [
     "api/Modules/Auth/Services/push_subscriptions.py",
     "api/Modules/Auth/Services/refresh.py",
     "api/Modules/Auth/Services/signup.py",
+    "api/Modules/Auth/Services/store_access.py",
     "api/Modules/Auth/Services/totp.py",
     # ── api/Modules/BankSync ─────────────────────────────────
     "api/Modules/BankSync/Models/__init__.py",
