@@ -10,6 +10,8 @@ from typing import Any
 from sqlalchemy import distinct, extract
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import store_local_today
+
 
 def list_year_choices(db: Session, store_id: int) -> list[int]:
     """Return every year that has at least one transfer or one
@@ -17,12 +19,16 @@ def list_year_choices(db: Session, store_id: int) -> list[int]:
     brand-new store still sees something to click. Sorted
     newest-first.
 
+    "This year" is the store's calendar year (its saved timezone):
+    on New Year's Eve evening the server's UTC day is already next
+    year for a US store.
+
     Pure SQL — no commit.
     """
     from api.Modules.DailyBook.Models import DailyReport
     from api.Modules.Transfers.Models import Transfer
 
-    today = date.today()
+    today = store_local_today(db, store_id)
     years: set[int] = {today.year, today.year - 1}
     # ``model`` is a class; mypy reads ``type[Base]`` and can't see
     # the SQLAlchemy ``store_id`` Column at class-access position.
@@ -43,13 +49,14 @@ def list_year_choices(db: Session, store_id: int) -> list[int]:
     return sorted(years, reverse=True)
 
 
-def default_year(years: list[int]) -> int:
+def default_year(years: list[int], *, today: date) -> int:
     """Default selection is last calendar year — that's almost
     always what an operator wants when running a tax pack. Fall
     back to the most-recent year on the list if for any reason
     last year isn't present (shouldn't happen because
-    list_year_choices seeds it)."""
-    today = date.today()
+    list_year_choices seeds it). ``today`` is the store's day
+    (``store_local_today``), the same anchor ``list_year_choices``
+    uses."""
     if (today.year - 1) in years:
         return today.year - 1
     return years[0] if years else today.year - 1

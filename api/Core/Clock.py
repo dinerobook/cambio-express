@@ -20,6 +20,8 @@ from datetime import date, datetime, time
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from fastapi import HTTPException
+
 
 def utc_now() -> datetime:
     """Return the current UTC time as a naive datetime."""
@@ -70,6 +72,21 @@ def iso_or_none(dt: object) -> str | None:
     return str(dt)
 
 
+def parse_iso_day(raw: str, *, field: str) -> date:
+    """A ``YYYY-MM-DD`` path/query/body value as a ``date``, or a 422
+    naming the field. The one parser every store-day route uses —
+    DailyBook, Catalog, Lottery, DayClose and StoreBook each used to
+    carry a private copy with its own error text. The detail is the
+    ``{field, message}`` shape the SPA's ``apiErrorMessage`` reads."""
+    try:
+        return datetime.strptime(str(raw), "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail={"field": field, "message": f"{field}: use YYYY-MM-DD."},
+        )
+
+
 def _zone(name: str | None) -> ZoneInfo:
     """ZoneInfo for an IANA name; blank or unknown names are UTC."""
     try:
@@ -91,6 +108,20 @@ def local_today(timezone: str | None) -> date:
     ``date.today()`` reads the server's UTC day, which is already
     tomorrow for a US store after about 7pm."""
     return local_now(timezone).date()
+
+
+def store_local_today(db: Any, store_id: int | None) -> date:
+    """``local_today`` for a store by id — the store's own calendar
+    day. A missing store, or one with no timezone saved, reads the
+    server's UTC day, exactly what it got before stores had zones.
+    For a route that already holds the ``Store`` row, call
+    ``local_today(store.timezone)`` directly."""
+    timezone: str | None = None
+    if store_id:
+        from api.Modules.Tenancy.Models import Store
+        store = db.get(Store, int(store_id))
+        timezone = store.timezone if store is not None else None
+    return local_today(timezone)
 
 
 def local_day_start_utc(day: date, timezone: str | None) -> datetime:

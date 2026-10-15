@@ -880,7 +880,8 @@ gaps. Ordered by "what I'd do next" at the top.
       * CLI: ``scripts/send_daily_summaries.py`` with
         ``--date YYYY-MM-DD`` for backfills.
       * Cron: ``dinerobook-daily-summary`` in ``render.yaml`` at
-        02:00 UTC daily.
+        10:00 UTC daily (each store summarizes its own yesterday,
+        so the run waits for every zone's midnight).
       * Migration: ``7a1c93f0d2b8`` adds
         ``User.notify_daily_summary`` (opt-out, default True for
         admins/owners) + ``Store.daily_summary_sent_for`` (dedup).
@@ -959,10 +960,11 @@ gaps. Ordered by "what I'd do next" at the top.
       ``todayIso`` / ``storeNow`` are the store's day; datetime-local
       inputs go through ``zonedInputToUtcIso``. Server: store-scoped
       "today" is ``Core.Clock.local_today(store.timezone)``
-      (dashboard, return-check status dates). Still on the server's
-      UTC day: report/CSV period defaults (the SPA always sends
-      from/to), the tax-pack default year, the daily-summary cron
-      and ``ReturnCheck.days_outstanding``.
+      (dashboard, return-check status dates, report/CSV period
+      defaults, the tax-pack default year, the daily-summary cron's
+      per-store "yesterday", ``ReturnCheck.days_outstanding(today)``;
+      ``Core.Clock.store_local_today(db, store_id)`` when only the
+      id is at hand). Platform-wide superadmin defaults stay UTC.
 - [~] **Store hours** (open/close per day) — schema + admin UI
       + read-side indicators landed.
       Schema: ``Store.store_hours`` is a JSON list of 7 entries

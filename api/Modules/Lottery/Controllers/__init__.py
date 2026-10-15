@@ -18,12 +18,14 @@ Cashiers (employees) hold lottery.create/read so they can enter
 day-close counts; game/pack lifecycle needs admin update rights.
 Every mutation records an operator-audit row (invariant #7).
 """
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
+from api.Core.Audit import audit_operator
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.Money import to_dollars
 from api.Modules.Auth.Controllers import get_principal
@@ -65,35 +67,6 @@ from api.Modules.Lottery.Services import (
 )
 
 router = APIRouter(prefix="/lottery", tags=["lottery"])
-
-
-def _audit(
-    db: Session, *, claims: dict[str, Any], action: str,
-    target_type: str, target_id: str, summary: str,
-) -> None:
-    """Operator-audit emitter — CLAUDE.md invariant #7."""
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
-        store_id=int(claims["store_id"]),
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
-        target_type=target_type,
-        action=action,
-        target_id=target_id,
-        summary=summary[:255],
-    )
-
-
-def _parse_date(raw: str, field: str) -> date:
-    try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail={"field": field, "message": "Use YYYY-MM-DD."},
-        )
 
 
 def _game_row(g) -> GameRow:
@@ -156,8 +129,8 @@ def create_game_route(
         )
     except LotteryStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="create_lottery_game",
+    audit_operator(
+        db, claims, action="create_lottery_game",
         target_type="lottery_game", target_id=str(game.id),
         summary=f"game #{game.game_number} {game.name} "
                 f"${game.ticket_price:,.2f} x{game.tickets_per_pack}",
@@ -185,8 +158,8 @@ def update_game_route(
         )
     except LotteryNotFoundError:
         raise HTTPException(status_code=404, detail="Game not found")
-    _audit(
-        db, claims=claims, action="update_lottery_game",
+    audit_operator(
+        db, claims, action="update_lottery_game",
         target_type="lottery_game", target_id=str(game.id),
         summary=f"game #{game.game_number} updated",
     )
@@ -224,15 +197,15 @@ def receive_pack_route(
         pack = receive_pack(
             db, sid, game_id=body.game_id,
             pack_number=body.pack_number.strip(),
-            received_on=_parse_date(body.received_on, "received_on"),
+            received_on=parse_iso_day(body.received_on, field="received_on"),
             created_by=int(claims["sub"]),
         )
     except LotteryNotFoundError:
         raise HTTPException(status_code=404, detail="Game not found")
     except LotteryStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="receive_lottery_pack",
+    audit_operator(
+        db, claims, action="receive_lottery_pack",
         target_type="lottery_pack", target_id=str(pack.id),
         summary=f"pack {pack.pack_number} game #{pack.game.game_number}",
     )
@@ -252,8 +225,8 @@ def _pack_transition(
         raise HTTPException(status_code=404, detail="Pack not found")
     except LotteryStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action=action,
+    audit_operator(
+        db, claims, action=action,
         target_type="lottery_pack", target_id=str(pack.id),
         summary=f"pack {pack.pack_number} game #{pack.game.game_number} "
                 f"→ {pack.status}",
@@ -272,7 +245,7 @@ def activate_pack_route(
     return _pack_transition(
         db, claims, pack_id, fn=activate_pack,
         action="activate_lottery_pack",
-        activated_on=_parse_date(body.activated_on, "activated_on"),
+        activated_on=parse_iso_day(body.activated_on, field="activated_on"),
         opening_ticket=body.opening_ticket,
         bin_number=body.bin_number.strip(),
     )
@@ -288,7 +261,7 @@ def settle_pack_route(
     return _pack_transition(
         db, claims, pack_id, fn=settle_pack,
         action="settle_lottery_pack",
-        settled_on=_parse_date(body.on, "on"),
+        settled_on=parse_iso_day(body.on, field="on"),
     )
 
 
@@ -302,7 +275,7 @@ def return_pack_route(
     return _pack_transition(
         db, claims, pack_id, fn=return_pack,
         action="return_lottery_pack",
-        returned_on=_parse_date(body.on, "on"),
+        returned_on=parse_iso_day(body.on, field="on"),
     )
 
 
@@ -345,7 +318,7 @@ def day_summary_route(
 ) -> DaySummaryResponse:
     sid = resolve_store_scope(claims)
     require_permission(claims, "lottery", "read")
-    return _summary_response(db, sid, _parse_date(day, "day"))
+    return _summary_response(db, sid, parse_iso_day(day, field="day"))
 
 
 @router.post("/day/{day}/counts", response_model=DaySummaryResponse)
@@ -357,7 +330,7 @@ def record_count_route(
 ) -> DaySummaryResponse:
     sid = resolve_store_scope(claims)
     require_permission(claims, "lottery", "create")
-    d = _parse_date(day, "day")
+    d = parse_iso_day(day, field="day")
     try:
         row = record_day_count(
             db, sid, pack_id=body.pack_id, day=d,
@@ -368,8 +341,8 @@ def record_count_route(
         raise HTTPException(status_code=404, detail="Pack not found")
     except LotteryStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="record_lottery_count",
+    audit_operator(
+        db, claims, action="record_lottery_count",
         target_type="lottery_day_count", target_id=str(row.id),
         summary=f"pack_id={body.pack_id} {d.isoformat()} "
                 f"closing={body.closing_ticket}",

@@ -89,7 +89,7 @@ from api.Modules.Admin.Services import (
     update_team_member,
 )
 from typing import Any
-from api.Core.Clock import utc_now
+from api.Core.Clock import store_local_today, utc_now
 
 
 router = APIRouter()
@@ -942,7 +942,10 @@ def list_tax_export_years_route(
     store_id = resolve_store_scope(claims)
     years = tax_export_year_choices(db, store_id)
     return TaxExportYearsResponse(
-        years=years, default_year=tax_export_default_year(years),
+        years=years,
+        default_year=tax_export_default_year(
+            years, today=store_local_today(db, store_id),
+        ),
     )
 
 
@@ -1051,8 +1054,7 @@ def export_admin_audit_log_csv_route(
     thousand rows / year which fits in memory comfortably.
     """
     require_permission(claims, "reports", "read")
-    import csv as csv_lib
-    import io
+    from api.Core.Csv import build_csv
 
     store_id = resolve_store_scope(claims)
     # Walk pagination to assemble the full filtered set —
@@ -1072,9 +1074,7 @@ def export_admin_audit_log_csv_route(
             break
         page += 1
 
-    buf = io.StringIO()
-    w = csv_lib.writer(buf)
-    w.writerow([
+    headers = [
         "Timestamp",
         "User",
         "Role",
@@ -1084,9 +1084,9 @@ def export_admin_audit_log_csv_route(
         "Target label",
         "Summary",
         "Source",
-    ])
-    for r in all_rows:
-        w.writerow([
+    ]
+    content = build_csv(headers, (
+        [
             r.get("ts") or "",
             r.get("user_name") or "",
             r.get("user_role") or "",
@@ -1096,10 +1096,12 @@ def export_admin_audit_log_csv_route(
             r.get("target_label") or "",
             r.get("summary") or "",
             r.get("source") or "",
-        ])
+        ]
+        for r in all_rows
+    ))
     today = utc_now().strftime("%Y-%m-%d")
     return Response(
-        content=buf.getvalue(),
+        content=content,
         media_type="text/csv",
         headers={
             "Content-Disposition":

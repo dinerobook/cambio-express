@@ -167,13 +167,14 @@ class ReturnCheck(Base):
     def remaining(self) -> float:
         return to_dollars(self.remaining_cents)
 
-    @property
-    def days_outstanding(self) -> int:
-        """Calendar days since the check bounced. Used for aging
-        buckets on the list and owner dashboard. Closed rows freeze
-        at the days-to-close so the value is meaningful for fraud /
-        write-off reporting too."""
-        end = self.status_changed_on if self.status != "pending" else date.today()
+    def days_outstanding(self, today: date) -> int:
+        """Calendar days since the check bounced, as of ``today`` —
+        the store's calendar day (``local_today(store.timezone)``),
+        passed in so a list of rows costs no Store lookup per row and
+        a US store's evening isn't counted as the server's UTC
+        tomorrow. Closed rows freeze at the days-to-close so the
+        value is meaningful for fraud / write-off reporting too."""
+        end = self.status_changed_on if self.status != "pending" else today
         if not self.bounced_on or not end:
             return 0
         return int((end - self.bounced_on).days)

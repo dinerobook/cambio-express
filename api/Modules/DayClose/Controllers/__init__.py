@@ -17,12 +17,14 @@ both writes (409) until it is unlocked; department catalog + deletions need admi
 update rights. Every mutation records an operator-audit row
 (invariant #7).
 """
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
+from api.Core.Audit import audit_operator
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.Money import to_dollars
 from api.Modules.Auth.Controllers import get_principal
@@ -59,35 +61,6 @@ from api.Modules.DayClose.Services import (
 )
 
 router = APIRouter(prefix="/dayclose", tags=["dayclose"])
-
-
-def _audit(
-    db: Session, *, claims: dict[str, Any], action: str,
-    target_type: str, target_id: str, summary: str,
-) -> None:
-    """Operator-audit emitter — CLAUDE.md invariant #7."""
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
-        store_id=int(claims["store_id"]),
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
-        target_type=target_type,
-        action=action,
-        target_id=target_id,
-        summary=summary[:255],
-    )
-
-
-def _parse_date(raw: str, field: str) -> date:
-    try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail={"field": field, "message": "Use YYYY-MM-DD."},
-        )
 
 
 def _department_row(d: Department) -> DepartmentRow:
@@ -171,8 +144,8 @@ def create_department_route(
         )
     except DayCloseStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="create_department",
+    audit_operator(
+        db, claims, action="create_department",
         target_type="department", target_id=str(dept.id),
         summary=f"department {dept.name}",
     )
@@ -201,8 +174,8 @@ def update_department_route(
         raise HTTPException(status_code=404, detail="Department not found")
     except DayCloseStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="update_department",
+    audit_operator(
+        db, claims, action="update_department",
         target_type="department", target_id=str(dept.id),
         summary=f"department {dept.name} updated",
     )
@@ -261,7 +234,7 @@ def day_summary_route(
 ) -> DayCloseSummaryResponse:
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "read")
-    return _summary_response(db, sid, _parse_date(day, "day"))
+    return _summary_response(db, sid, parse_iso_day(day, field="day"))
 
 
 @router.post("/day/{day}/closes", response_model=DayCloseSummaryResponse)
@@ -273,7 +246,7 @@ def upsert_close_route(
 ) -> DayCloseSummaryResponse:
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "create")
-    d = _parse_date(day, "day")
+    d = parse_iso_day(day, field="day")
     _refuse_locked_day(db, sid, d)
     lines = {l.department_id: l.amount for l in body.department_sales}
     if len(lines) != len(body.department_sales):
@@ -300,8 +273,8 @@ def upsert_close_route(
         raise HTTPException(status_code=404, detail="Department not found")
     except DayCloseStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="upsert_register_close",
+    audit_operator(
+        db, claims, action="upsert_register_close",
         target_type="register_close", target_id=str(row.id),
         summary=f"{d.isoformat()} {row.register_label}"
                 f"{' / ' + row.shift_label if row.shift_label else ''} "
@@ -329,8 +302,8 @@ def delete_close_route(
             status_code=404, detail="Register close not found",
         )
     d = row.report_date
-    _audit(
-        db, claims=claims, action="delete_register_close",
+    audit_operator(
+        db, claims, action="delete_register_close",
         target_type="register_close", target_id=str(close_id),
         summary=f"{d.isoformat()} {row.register_label}"
                 f"{' / ' + row.shift_label if row.shift_label else ''}",

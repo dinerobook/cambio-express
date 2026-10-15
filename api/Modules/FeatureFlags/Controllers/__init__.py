@@ -13,15 +13,15 @@ Per-store overrides (StoreFeatureOverride) ship in a follow-up
 PR — they need a different audit trail since they're per-tenant
 not platform-wide.
 
-Every mutation goes through `_audit()` so the
+Every mutation goes through `audit_superadmin()` so the
 `/superadmin/audit-log` feed stays the single source of truth
 (CLAUDE.md invariant #7).
 """
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
+from api.Core.Audit import audit_superadmin
 from api.Core.Database import get_db
-from api.Modules.Audit.Services import record_superadmin_action
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services import resolve_superadmin_user
 from api.Modules.FeatureFlags.Requests import (
@@ -40,18 +40,6 @@ from api.Core.Clock import utc_now
 
 
 router = APIRouter()
-
-
-def _audit(db, user, action, *, target_id="", details=""):
-    record_superadmin_action(
-        db,
-        admin_id=user.id,
-        admin_name=user.full_name or user.username or "",
-        action=action,
-        target_type="feature_flag",
-        target_id=target_id,
-        details=details,
-    )
 
 
 def _adapt(f) -> FeatureFlagRow:
@@ -103,8 +91,8 @@ def create_route(
         enabled_by_default=body.enabled_by_default,
     )
     db.add(f); db.flush()
-    _audit(
-        db, user, "create_feature_flag",
+    audit_superadmin(
+        db, user, action="create_feature_flag", target_type="feature_flag",
         target_id=body.key,
         details=f"enabled_by_default={body.enabled_by_default}",
     )
@@ -125,8 +113,8 @@ def toggle_route(
     if f is None:
         raise HTTPException(status_code=404, detail="Feature flag not found")
     f.enabled_by_default = body.enabled_by_default
-    _audit(
-        db, user, "toggle_feature_flag",
+    audit_superadmin(
+        db, user, action="toggle_feature_flag", target_type="feature_flag",
         target_id=key,
         details=f"enabled_by_default={body.enabled_by_default}",
     )
@@ -151,8 +139,8 @@ def delete_route(
         StoreFeatureOverride.flag_key == key,
     ).delete()
     db.delete(f)
-    _audit(
-        db, user, "delete_feature_flag",
+    audit_superadmin(
+        db, user, action="delete_feature_flag", target_type="feature_flag",
         target_id=key,
         details=(f.label or "")[:80],
     )
@@ -243,8 +231,8 @@ def upsert_override_route(
         o.enabled = body.enabled
         o.updated_at = utc_now()
         o.updated_by = user.id
-    _audit(
-        db, user, "set_feature_override",
+    audit_superadmin(
+        db, user, action="set_feature_override", target_type="feature_flag",
         target_id=f"{key}:{store_id}",
         details=f"enabled={body.enabled}",
     )
@@ -275,8 +263,8 @@ def clear_override_route(
     if o is None:
         raise HTTPException(status_code=404, detail="Override not found")
     db.delete(o)
-    _audit(
-        db, user, "clear_feature_override",
+    audit_superadmin(
+        db, user, action="clear_feature_override", target_type="feature_flag",
         target_id=f"{key}:{store_id}",
     )
     db.commit()

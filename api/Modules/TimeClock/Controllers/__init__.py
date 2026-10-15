@@ -446,8 +446,7 @@ def export_admin_entries_csv_route(
     notes) so the file plugs into a payroll spreadsheet without
     a JSON-to-CSV translation step.
     """
-    import csv as csv_lib
-    import io as _io
+    from api.Core.Csv import build_csv
 
     _require_admin_role(claims)
     store_id = resolve_store_scope(claims)
@@ -486,9 +485,7 @@ def export_admin_entries_csv_route(
         rows, shifts, store_timezone=store_tz,
     )
 
-    buf = _io.StringIO()
-    w = csv_lib.writer(buf)
-    w.writerow([
+    headers = [
         "Employee",
         "Clock in (UTC)",
         "Clock out (UTC)",
@@ -498,9 +495,9 @@ def export_admin_entries_csv_route(
         "Break minutes",
         "Late minutes",
         "Notes",
-    ])
-    for r in rows:
-        w.writerow([
+    ]
+    content = build_csv(headers, (
+        [
             names.get(int(r.store_employee_id), ""),
             r.clock_in_at.isoformat() if r.clock_in_at else "",
             r.clock_out_at.isoformat() if r.clock_out_at else "",
@@ -513,10 +510,12 @@ def export_admin_entries_csv_route(
                 if int(r.id) in lateness else ""
             ),
             (r.notes or "").replace("\n", " ").strip(),
-        ])
+        ]
+        for r in rows
+    ))
     fname = f"timeclock_{from_.isoformat()}_to_{to.isoformat()}.csv"
     return Response(
-        content=buf.getvalue(),
+        content=content,
         media_type="text/csv",
         headers={
             "Content-Disposition": f'attachment; filename="{fname}"',

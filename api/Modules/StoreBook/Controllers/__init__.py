@@ -17,6 +17,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
+from api.Core.Audit import audit_operator
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import (
@@ -35,25 +37,6 @@ from api.Modules.StoreBook.Services import (
 )
 
 router = APIRouter(prefix="/storebook", tags=["storebook"])
-
-
-def _audit(
-    db: Session, *, claims: dict[str, Any], action: str,
-    target_id: str, summary: str,
-) -> None:
-    """Operator-audit emitter — CLAUDE.md invariant #7."""
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
-        store_id=int(claims["store_id"]),
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
-        target_type="store_daily_entry",
-        action=action,
-        target_id=target_id,
-        summary=summary[:255],
-    )
 
 
 def _day_payload(entry: StoreDailyEntry) -> StoreBookDayResponse:
@@ -130,15 +113,6 @@ def storebook_month_route(
     )
 
 
-def _parse_day(raw: str) -> date:
-    try:
-        return date.fromisoformat(raw)
-    except ValueError:
-        raise HTTPException(
-            status_code=422, detail="Date must be YYYY-MM-DD.",
-        )
-
-
 @router.get("/{day}", response_model=StoreBookDayResponse)
 def storebook_day_route(
     day: str = Path(...),
@@ -149,7 +123,7 @@ def storebook_day_route(
     operator shouldn't have to 'start' a day before entering it."""
     require_permission(claims, "day_close", "read")
     store_id = resolve_store_scope(claims)
-    entry = get_or_create_entry(db, store_id, _parse_day(day))
+    entry = get_or_create_entry(db, store_id, parse_iso_day(day, field="day"))
     db.commit()
     return _day_payload(entry)
 
@@ -165,7 +139,7 @@ def storebook_update_route(
     can tell 'you need to unlock' apart from a validation error."""
     require_permission(claims, "day_close", "update")
     store_id = resolve_store_scope(claims)
-    entry = get_or_create_entry(db, store_id, _parse_day(day))
+    entry = get_or_create_entry(db, store_id, parse_iso_day(day, field="day"))
 
     values: dict[str, Any] = {}
     values.update(body.values or {})
@@ -178,8 +152,8 @@ def storebook_update_route(
         raise HTTPException(status_code=409, detail=str(exc))
     except StoreBookError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    _audit(
-        db, claims=claims, action="update",
+    audit_operator(
+        db, claims, target_type="store_daily_entry", action="update",
         target_id=entry.entry_date.isoformat(),
         summary=f"updated the daily book for {entry.entry_date}",
     )
@@ -200,10 +174,10 @@ def storebook_lock_route(
     require_permission(claims, "day_close", "update")
     require_permission(claims, "day_lock", "update")
     store_id = resolve_store_scope(claims)
-    entry = get_or_create_entry(db, store_id, _parse_day(day))
+    entry = get_or_create_entry(db, store_id, parse_iso_day(day, field="day"))
     set_lock(db, entry, locked=body.locked, user_id=int(claims["sub"]))
-    _audit(
-        db, claims=claims,
+    audit_operator(
+        db, claims, target_type="store_daily_entry",
         action="lock" if body.locked else "unlock",
         target_id=entry.entry_date.isoformat(),
         summary=(
@@ -225,15 +199,15 @@ def storebook_restore_route(
     """Take the register's number back for one overridden field."""
     require_permission(claims, "day_close", "update")
     store_id = resolve_store_scope(claims)
-    entry = get_or_create_entry(db, store_id, _parse_day(day))
+    entry = get_or_create_entry(db, store_id, parse_iso_day(day, field="day"))
     try:
         restore_original(db, entry, body.field_key)
     except DayLockedError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except StoreBookError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    _audit(
-        db, claims=claims, action="update",
+    audit_operator(
+        db, claims, target_type="store_daily_entry", action="update",
         target_id=entry.entry_date.isoformat(),
         summary=(
             f"restored the imported value for {body.field_key} "

@@ -30,6 +30,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import store_local_today
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
@@ -67,41 +68,6 @@ router = APIRouter(dependencies=[Depends(_check_reports_read)])
 # ── Shared dependencies ─────────────────────────────────────
 
 
-def parse_period(
-    from_: str | None = Query(
-        None,
-        alias="from",
-        description=(
-            "Start date in YYYY-MM-DD. Defaults to the first of the "
-            "current month."
-        ),
-    ),
-    to: str | None = Query(
-        None,
-        description="End date in YYYY-MM-DD. Defaults to today.",
-    ),
-) -> tuple[date, date]:
-    """Mirrors `app.py::_report_period`. Two YYYY-MM-DD strings,
-    parsed with sane defaults; if `from > to`, swap them so callers
-    can't construct an empty range by mistake.
-
-    Returned as a tuple so endpoints can `d_from, d_to = period`.
-    """
-    today = date.today()
-    default_from = date(today.year, today.month, 1)
-    try:
-        d_from = datetime.strptime(from_, "%Y-%m-%d").date() if from_ else default_from
-    except ValueError:
-        d_from = default_from
-    try:
-        d_to = datetime.strptime(to, "%Y-%m-%d").date() if to else today
-    except ValueError:
-        d_to = today
-    if d_from > d_to:
-        d_from, d_to = d_to, d_from
-    return d_from, d_to
-
-
 def parse_store_ids(
     store_ids: str = Query(
         ...,
@@ -131,6 +97,51 @@ def parse_store_ids(
             status_code=422, detail="store_ids must include at least one ID",
         )
     return authorize_store_ids(db, claims, ids)
+
+
+def parse_period(
+    from_: str | None = Query(
+        None,
+        alias="from",
+        description=(
+            "Start date in YYYY-MM-DD. Defaults to the first of the "
+            "current month."
+        ),
+    ),
+    to: str | None = Query(
+        None,
+        description=(
+            "End date in YYYY-MM-DD. Defaults to today (the store's "
+            "day, in its saved timezone)."
+        ),
+    ),
+    store_ids: list[int] = Depends(parse_store_ids),
+    db: Session = Depends(get_db),
+) -> tuple[date, date]:
+    """Mirrors `app.py::_report_period`. Two YYYY-MM-DD strings,
+    parsed with sane defaults; if `from > to`, swap them so callers
+    can't construct an empty range by mistake.
+
+    Returned as a tuple so endpoints can `d_from, d_to = period`.
+
+    "Today" is the first requested store's calendar day
+    (``store_local_today``) — the server's UTC day is already
+    tomorrow for a US store in the evening. FastAPI caches
+    ``parse_store_ids`` per request, so the scope check runs once.
+    """
+    today = store_local_today(db, store_ids[0] if store_ids else None)
+    default_from = date(today.year, today.month, 1)
+    try:
+        d_from = datetime.strptime(from_, "%Y-%m-%d").date() if from_ else default_from
+    except ValueError:
+        d_from = default_from
+    try:
+        d_to = datetime.strptime(to, "%Y-%m-%d").date() if to else today
+    except ValueError:
+        d_to = today
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    return d_from, d_to
 
 
 # ── Routes ──────────────────────────────────────────────────

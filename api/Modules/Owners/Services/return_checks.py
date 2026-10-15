@@ -32,6 +32,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import Any
 
+from api.Core.Clock import store_local_today
+
 
 def _models():
     """Lazy-import the ORM models so this module can be imported
@@ -177,9 +179,10 @@ def aging_buckets(
 ) -> list[dict[str, Any]]:
     """Pending balance sliced into 0–30 / 31–60 / 61–90 / 90+
     buckets by `bounced_on`. Helps the owner spot stale
-    receivables that probably won't recover."""
+    receivables that probably won't recover. ``today`` defaults to
+    the first store's calendar day (``store_local_today``)."""
     if today is None:
-        today = date.today()
+        today = store_local_today(db, store_ids[0] if store_ids else None)
     if not store_ids:
         return [
             {"label": "0–30 d",  "amount": 0.0, "count": 0},
@@ -219,9 +222,10 @@ def monthly_series(
 ) -> tuple[list[str], list[float], list[float]]:
     """12-month bars for the owner dashboard: per-month recoveries
     (positive) and losses+fraud (negative). Labels are 'YYYY-MM'
-    so ApexCharts renders them as a date axis."""
+    so ApexCharts renders them as a date axis. ``today`` defaults to
+    the first store's calendar day (``store_local_today``)."""
     if today is None:
-        today = date.today()
+        today = store_local_today(db, store_ids[0] if store_ids else None)
     months = []
     y, m = today.year, today.month
     for _ in range(12):

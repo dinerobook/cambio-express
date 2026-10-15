@@ -11,7 +11,7 @@ Auth: requires JWT principal with role="superadmin". Mirrors the
 legacy /superadmin/announcements/* form handlers but returns JSON
 envelopes the SPA can render directly.
 
-Every mutation calls `record_audit()` so the
+Every mutation calls `audit_superadmin()` so the
 `/superadmin/audit-log` view stays the single source of truth for
 "who did what" — same invariant as the legacy site (CLAUDE.md
 invariant #7).
@@ -32,32 +32,14 @@ from api.Modules.Announcements.Requests import (
     AnnouncementToggleRequest,
 )
 from api.Modules.Announcements.Services import active_announcements
-from api.Modules.Audit.Services import record_superadmin_action
+from api.Core.Audit import audit_superadmin
 from api.Modules.Auth.Controllers import get_principal
-from api.Modules.Auth.Models import User
 from api.Modules.Auth.Services import resolve_superadmin_user
 from typing import Any
 from api.Core.Clock import utc_now
 
 
 router = APIRouter()
-
-
-def _audit(db: Session, user: User, action: str, *,
-           target_type: str = "", target_id: str = "", details: str = ""):
-    """Thin wrapper that goes straight to the Service so we don't need
-    Flask's request context (the legacy `record_audit` reads
-    `current_user()` from Flask session, which isn't set inside a
-    FastAPI route through the dispatcher)."""
-    record_superadmin_action(
-        db,
-        admin_id=user.id,
-        admin_name=user.full_name or user.username or "",
-        action=action,
-        target_type=target_type,
-        target_id=target_id,
-        details=details,
-    )
 
 
 from api.Core.Clock import iso as _iso
@@ -238,8 +220,8 @@ def create_route(
     # a clear error.
     targets = _persist_targets(db, a.id, body.target_store_ids)
     scheduled = starts_at > now
-    _audit(
-        db, user, "create_announcement",
+    audit_superadmin(
+        db, user, action="create_announcement",
         target_type="announcement", target_id=str(a.id),
         details=(
             f"level={body.level}, broadcast={body.broadcast}, "
@@ -334,8 +316,8 @@ def toggle_route(
     if a is None:
         raise HTTPException(status_code=404, detail="Announcement not found")
     a.is_active = body.is_active
-    _audit(
-        db, user, "toggle_announcement",
+    audit_superadmin(
+        db, user, action="toggle_announcement",
         target_type="announcement", target_id=str(a.id),
         details=f"is_active={body.is_active}",
     )
@@ -356,8 +338,8 @@ def delete_route(
     a = db.query(Announcement).filter(Announcement.id == ann_id).one_or_none()
     if a is None:
         raise HTTPException(status_code=404, detail="Announcement not found")
-    _audit(
-        db, user, "delete_announcement",
+    audit_superadmin(
+        db, user, action="delete_announcement",
         target_type="announcement", target_id=str(a.id),
         details=(a.message or "")[:80],
     )
