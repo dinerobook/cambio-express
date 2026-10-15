@@ -10,7 +10,7 @@
 
 .dirty {
   font-size: 0.82rem;
-  color: var(--db-warning, #f59e0b);
+  color: var(--db-warning);
   margin-right: auto;
   align-self: center;
 }

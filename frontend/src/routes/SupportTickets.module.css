@@ -15,7 +15,7 @@
 
 .expandedBody {
   padding: 1rem 1.25rem;
-  background: var(--db-surface-2, #141414);
+  background: var(--db-surface-2);
 }
 
 .ticketBody {
@@ -26,14 +26,14 @@
 .replyBox {
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;
-  background: var(--db-surface, #0a0a0a);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
   border-radius: 0.5rem;
 }
 
 .replyMeta {
   font-size: 0.78rem;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
   margin-bottom: 0.35rem;
 }
 
@@ -44,7 +44,7 @@
 
 .clickableRow {
   cursor: pointer;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
 }
 
 /* Unread-reply marker on a ticket row: bold subject + a small
@@ -57,8 +57,8 @@
 }
 
 .unreadBadge {
-  background: var(--db-negative, #ff4d6d);
-  color: #fff;
+  background: var(--db-negative);
+  color: var(--db-on-negative);
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1;

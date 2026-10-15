@@ -16,22 +16,22 @@ import type { CSSProperties } from "react";
 //    ever stripped. ────────────────────────────────────────────
 
 export const tokens = {
-  surface:        "var(--db-surface, #0a0a0a)",
-  surface2:       "var(--db-surface-2, #141414)",
-  surface3:       "var(--db-surface-3, #1f1f1f)",
-  border:         "var(--db-border, #262626)",
-  borderSubtle:   "var(--db-border-subtle, #1f1f1f)",
-  text:           "var(--db-text, #f5f5f5)",
-  textMuted:      "var(--db-text-muted, #a3a3a3)",
-  accent:         "var(--db-accent, #3fff00)",
-  onAccent:       "var(--db-on-accent, #0a0a0a)",
-  negative:       "var(--db-negative, #ff4d6d)",
-  warning:        "var(--db-warning, #ffb020)",
-  info:           "var(--db-info, #5ea9ff)",
-  positive:       "var(--db-positive, #3fff00)",
-  fontDisplay:    "var(--db-font-display, 'Space Grotesk', sans-serif)",
-  fontBody:       "var(--db-font-body, 'Inter', system-ui, sans-serif)",
-  fontMono:       "var(--db-font-mono, 'JetBrains Mono', monospace)",
+  surface:        "var(--db-surface)",
+  surface2:       "var(--db-surface-2)",
+  surface3:       "var(--db-surface-3)",
+  border:         "var(--db-border)",
+  borderSubtle:   "var(--db-border-subtle)",
+  text:           "var(--db-text)",
+  textMuted:      "var(--db-text-muted)",
+  accent:         "var(--db-accent)",
+  onAccent:       "var(--db-on-accent)",
+  negative:       "var(--db-negative)",
+  warning:        "var(--db-warning)",
+  info:           "var(--db-info)",
+  positive:       "var(--db-positive)",
+  fontDisplay:    "var(--db-font-display)",
+  fontBody:       "var(--db-font-body)",
+  fontMono:       "var(--db-font-mono)",
 } as const;
 
 // Tone palette — shared by Alert, ErrorState, Pill, Field error
@@ -42,24 +42,24 @@ export const tokens = {
 // this map.
 export const toneTokens = {
   error: {
-    bg:     "var(--db-tone-error-bg, rgba(255,77,109,0.08))",
-    border: "var(--db-tone-error-border, rgba(255,77,109,0.32))",
-    fg:     "var(--db-tone-error-fg, #ff4d6d)",
+    bg:     "var(--db-tone-error-bg)",
+    border: "var(--db-tone-error-border)",
+    fg:     "var(--db-tone-error-fg)",
   },
   warning: {
-    bg:     "var(--db-tone-warning-bg, rgba(255,176,32,0.08))",
-    border: "var(--db-tone-warning-border, rgba(255,176,32,0.32))",
-    fg:     "var(--db-tone-warning-fg, #ffb020)",
+    bg:     "var(--db-tone-warning-bg)",
+    border: "var(--db-tone-warning-border)",
+    fg:     "var(--db-tone-warning-fg)",
   },
   success: {
-    bg:     "var(--db-tone-success-bg, rgba(63,255,0,0.08))",
-    border: "var(--db-tone-success-border, rgba(63,255,0,0.32))",
-    fg:     "var(--db-tone-success-fg, #3fff00)",
+    bg:     "var(--db-tone-success-bg)",
+    border: "var(--db-tone-success-border)",
+    fg:     "var(--db-tone-success-fg)",
   },
   info: {
-    bg:     "var(--db-tone-info-bg, rgba(94,169,255,0.08))",
-    border: "var(--db-tone-info-border, rgba(94,169,255,0.32))",
-    fg:     "var(--db-tone-info-fg, #5ea9ff)",
+    bg:     "var(--db-tone-info-bg)",
+    border: "var(--db-tone-info-border)",
+    fg:     "var(--db-tone-info-fg)",
   },
 } as const;
 

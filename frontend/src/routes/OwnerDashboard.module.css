@@ -14,8 +14,8 @@
 }
 
 .storeCard {
-  background: var(--db-surface, #0a0a0a);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
   border-radius: 0.5rem;
   padding: 0.85rem 1rem;
   text-decoration: none;
@@ -28,18 +28,18 @@
 
 .storeMeta {
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin-top: 0.25rem;
 }
 
 .storeOver {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
   margin-top: 0.4rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .muted {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin: 0;
 }

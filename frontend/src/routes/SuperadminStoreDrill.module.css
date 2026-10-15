@@ -12,19 +12,19 @@
   display: flex;
   justify-content: space-between;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
   gap: 1rem;
 }
 
 .infoRow:last-child { border-bottom: none; }
 
 .infoLabel {
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
   font-size: 0.88rem;
 }
 
 .infoValue {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.88rem;
   text-align: right;
 }
@@ -34,7 +34,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
 }
 
 .teamRow:last-child { border-bottom: none; }
@@ -46,17 +46,17 @@
 
 .teamMeta {
   font-size: 0.78rem;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
 }
 
 .monoMuted {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.82rem;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
 }
 
@@ -90,7 +90,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.65rem 0;
-  border-bottom: 1px solid var(--db-border, #2a2a2a);
+  border-bottom: 1px solid var(--db-border);
 }
 
 .featureRow:last-child { border-bottom: none; }
@@ -106,7 +106,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .linkButton {
@@ -114,7 +114,7 @@
   border: 0;
   padding: 0;
   font: inherit;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   cursor: pointer;
   text-decoration: underline;
 }
@@ -136,6 +136,6 @@
 .activityCount {
   margin-left: auto;
   align-self: center;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }

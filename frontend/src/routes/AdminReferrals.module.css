@@ -22,39 +22,39 @@
 
 .cardHeaderCount {
   margin-left: auto;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
   font-weight: 400;
 }
 
 .lead {
   margin: 0;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.95rem;
   line-height: 1.55;
 }
 
 .hero {
-  background: linear-gradient(135deg, var(--db-referral-navy, #0a1a2e) 0%, var(--db-referral-navy-deep, #050d1a) 100%);
-  border: 1px solid var(--db-referral-border, #1f3656);
+  background: linear-gradient(135deg, var(--db-referral-navy) 0%, var(--db-referral-navy-deep) 100%);
+  border: 1px solid var(--db-referral-border);
   border-radius: 1rem;
   padding: 1.75rem;
   margin-bottom: 1rem;
-  color: var(--db-referral-text, #e9eef5);
+  color: var(--db-referral-text);
 }
 
 .heroLabel {
   font-size: 0.7rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--db-referral-gold, #ffd96e);
+  color: var(--db-referral-gold);
   font-weight: 600;
 }
 
 .heroCode {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 2.2rem;
-  color: var(--db-referral-gold, #ffd96e);
+  color: var(--db-referral-gold);
   margin-top: 0.4rem;
   letter-spacing: 0.15em;
 }
@@ -62,7 +62,7 @@
 .heroMeta {
   margin-top: 0.85rem;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.78);
+  color: color-mix(in srgb, var(--db-referral-text) 78%, transparent);
   line-height: 1.55;
 }
 
@@ -71,32 +71,32 @@
 }
 
 .btnGold {
-  background: var(--db-referral-gold-deep, #d4a92a);
-  color: #fff;
+  background: var(--db-referral-gold-deep);
+  color: var(--db-referral-text);
   border: none;
   padding: 0.65rem 1.1rem;
   border-radius: 0.5rem;
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  font-family: var(--db-font-body, "Inter", system-ui, sans-serif);
+  font-family: var(--db-font-body);
 }
 
 .howBox {
-  background: var(--db-surface-2, #141414);
-  border-left: 3px solid var(--db-referral-gold-deep, #d4a92a);
+  background: var(--db-surface-2);
+  border-left: 3px solid var(--db-referral-gold-deep);
   border-radius: 0.4rem;
   padding: 0.85rem 1.1rem;
   font-size: 0.88rem;
   line-height: 1.6;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
   margin-bottom: 1rem;
 }
 
 .monoMuted {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .txnId {
@@ -106,6 +106,6 @@
 .emptyTable {
   padding: 1.4rem 0;
   text-align: center;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.9rem;
 }

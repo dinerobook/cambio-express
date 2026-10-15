@@ -1,7 +1,7 @@
 .up {
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
 }
 
 .down {
-  color: var(--db-negative, #ff3b30);
+  color: var(--db-negative);
 }

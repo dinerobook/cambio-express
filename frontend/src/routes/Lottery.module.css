@@ -9,7 +9,7 @@
    Left accent bar in the warning tone; text stays readable in
    both themes via the semantic tokens. */
 .uncountedRow td:first-child {
-  box-shadow: inset 3px 0 0 0 var(--db-warning, #ffb020);
+  box-shadow: inset 3px 0 0 0 var(--db-warning);
 }
 
 .modalForm {

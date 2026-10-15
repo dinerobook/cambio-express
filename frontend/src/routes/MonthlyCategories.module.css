@@ -8,7 +8,7 @@
 
 .intro {
   margin: 0 0 0.5rem;
-  color: var(--db-text-muted, var(--text-muted));
+  color: var(--db-text-muted);
   font-size: 0.92rem;
   max-width: 60ch;
   line-height: 1.5;
@@ -18,7 +18,7 @@
   margin: 0 0 1rem;
   font-size: 0.98rem;
   font-weight: 600;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
 }
 
 .lineGrid {

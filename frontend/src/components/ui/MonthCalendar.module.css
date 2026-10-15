@@ -34,7 +34,7 @@
   font-size: 0.65rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   text-align: center;
   padding: 0.3rem 0;
   font-weight: 600;
@@ -57,10 +57,10 @@
   gap: 0.2rem;
   padding: 0.4rem 0.25rem 0.35rem;
   border-radius: 0.5rem;
-  border: 1px solid var(--db-border, #262626);
-  background: var(--db-surface-2, #141414);
+  border: 1px solid var(--db-border);
+  background: var(--db-surface-2);
   text-decoration: none;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
   min-height: 3rem;
   aspect-ratio: 1 / 1;
   position: relative;
@@ -88,13 +88,13 @@
 }
 
 .hasData {
-  background: color-mix(in srgb, var(--db-accent, #3fff00) 6%, var(--db-surface-2, #141414));
-  border-color: color-mix(in srgb, var(--db-accent, #3fff00) 30%, transparent);
+  background: color-mix(in srgb, var(--db-accent) 6%, var(--db-surface-2));
+  border-color: color-mix(in srgb, var(--db-accent) 30%, transparent);
 }
 
 .isToday {
-  border-color: var(--db-accent, #3fff00);
-  box-shadow: 0 0 0 1px var(--db-accent, #3fff00) inset;
+  border-color: var(--db-accent);
+  box-shadow: 0 0 0 1px var(--db-accent) inset;
 }
 
 .isLocked {
@@ -122,7 +122,7 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   line-height: 1;
 }
 
@@ -139,7 +139,7 @@
 }
 
 .lockIcon {
-  color: var(--db-warning, #ffb800);
+  color: var(--db-warning);
   flex-shrink: 0;
 }
 
@@ -163,20 +163,20 @@
 }
 
 .dotEntry {
-  background: var(--db-accent, #3fff00);
+  background: var(--db-accent);
 }
 
 .dotOverPos {
-  background: var(--db-accent, #3fff00);
-  box-shadow: 0 0 0 1px var(--db-surface, #0a0a0a);
+  background: var(--db-accent);
+  box-shadow: 0 0 0 1px var(--db-surface);
 }
 
 .dotOverNeg {
-  background: var(--db-negative, #ff3b30);
+  background: var(--db-negative);
 }
 
 .dotLocked {
-  background: var(--db-warning, #ffb800);
+  background: var(--db-warning);
 }
 
 @media (min-width: 36rem) {
@@ -205,13 +205,13 @@
 }
 
 .money {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   /* Scales with the cell: a $180,023 day stays inside a narrow
      column instead of overflowing, while roomy cells keep the
      original 0.85rem. */
   font-size: clamp(0.62rem, 13cqi, 0.85rem);
   font-weight: 600;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -225,7 +225,7 @@
   /* No global border-box reset in the app shell — without this the
      pill's padding + border push it back outside the cell. */
   box-sizing: border-box;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: clamp(0.55rem, 9cqi, 0.65rem);
   font-weight: 600;
   padding: 0.1rem 0.35rem;
@@ -237,13 +237,13 @@
 }
 
 .pillOver {
-  color: var(--db-accent, #3fff00);
-  border-color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
+  border-color: var(--db-accent);
 }
 
 .pillShort {
-  color: var(--db-negative, #ff3b30);
-  border-color: var(--db-negative, #ff3b30);
+  color: var(--db-negative);
+  border-color: var(--db-negative);
 }
 
 
@@ -255,9 +255,9 @@
   gap: 0.75rem 1rem;
   margin-top: 1rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--db-border, #262626);
+  border-top: 1px solid var(--db-border);
   font-size: 0.7rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 @media (min-width: 36rem) {
@@ -277,8 +277,8 @@
   width: 1.1rem;
   height: 0.8rem;
   border-radius: 0.25rem;
-  border: 1px solid var(--db-border, #262626);
-  background: var(--db-surface-2, #141414);
+  border: 1px solid var(--db-border);
+  background: var(--db-surface-2);
 }
 
 /* Legend swatch variants reuse the cell modifier classes via

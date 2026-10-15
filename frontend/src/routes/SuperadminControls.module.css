@@ -9,8 +9,8 @@
 .quickLink {
   display: block;
   padding: 1rem;
-  background: var(--db-surface, #0a0a0a);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
   border-radius: 0.5rem;
   text-decoration: none;
   color: inherit;
@@ -19,8 +19,8 @@
 .quickLinkDisabled {
   display: block;
   padding: 1rem;
-  background: var(--db-surface, #0a0a0a);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
   border-radius: 0.5rem;
   text-decoration: none;
   color: inherit;
@@ -40,7 +40,7 @@
 }
 
 .muted {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
   margin: 0;
 }
@@ -49,6 +49,6 @@
   font-size: 0.65rem;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  background: rgba(255, 204, 0, 0.15);
-  color: var(--db-warning, #ffcc00);
+  background: var(--db-tone-warning-bg);
+  color: var(--db-warning);
 }

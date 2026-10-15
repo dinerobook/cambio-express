@@ -16,8 +16,8 @@ export type PillTone =
 //   pill matches the red of an error banner instead of drifting to a
 //   slightly different rgba.
 const pillPalette: Record<PillTone, { bg: string; fg: string }> = {
-  neutral:  { bg: "var(--db-fill-neutral, rgba(255,255,255,0.06))", fg: tokens.text },
-  accent:   { bg: "var(--db-neon-glow-15, rgba(63,255,0,0.15))",    fg: tokens.accent },
+  neutral:  { bg: "var(--db-fill-neutral)", fg: tokens.text },
+  accent:   { bg: "var(--db-neon-glow-15)",    fg: tokens.accent },
   negative: { bg: toneTokens.error.bg,                              fg: toneTokens.error.fg },
   warning:  { bg: toneTokens.warning.bg,                            fg: toneTokens.warning.fg },
   info:     { bg: toneTokens.info.bg,                               fg: toneTokens.info.fg },

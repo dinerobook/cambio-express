@@ -40,7 +40,7 @@
 
 .meta {
   font-size: 0.78rem;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
 }
 
 .metaCat {
@@ -56,14 +56,14 @@
 .replyBox {
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;
-  background: var(--db-surface-2, #141414);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-border);
   border-radius: 0.5rem;
 }
 
 .replyMeta {
   font-size: 0.72rem;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
   margin-bottom: 0.25rem;
 }
 

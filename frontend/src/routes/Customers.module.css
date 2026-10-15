@@ -3,22 +3,22 @@
 .searching {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .phone {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.9rem;
 }
 
 .dob {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .muted {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 
@@ -33,7 +33,7 @@
 .mergeBannerCopy {
   margin: 0.4rem 0 0;
   font-size: 0.88rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .mergeBannerActions {
@@ -45,12 +45,12 @@
 }
 
 .rowPicked {
-  background: var(--db-neon-glow-8, rgba(63, 255, 0, 0.08));
+  background: var(--db-neon-glow-8);
 }
 
 .pickedTag {
   font-size: 0.78rem;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   font-weight: 500;
 }
 
@@ -68,7 +68,7 @@
 .modalLead {
   margin: 0 0 1.25rem;
   font-size: 0.9rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   line-height: 1.5;
 }
 
@@ -81,19 +81,19 @@
 
 .mergeColKept,
 .mergeColDropped {
-  border: 1px solid var(--db-border, #262626);
+  border: 1px solid var(--db-border);
   border-radius: 0.55rem;
   padding: 0.85rem 1rem;
 }
 
 .mergeColKept {
-  border-color: var(--db-accent, #3fff00);
-  background: var(--db-neon-glow-8, rgba(63, 255, 0, 0.08));
+  border-color: var(--db-accent);
+  background: var(--db-neon-glow-8);
 }
 
 .mergeColDropped {
-  border-color: var(--db-negative, #ff3b30);
-  background: rgba(255, 59, 48, 0.08);
+  border-color: var(--db-negative);
+  background: var(--db-tone-error-bg);
 }
 
 .mergeColLabel {
@@ -101,7 +101,7 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 600;
 }
 
@@ -120,7 +120,7 @@
 }
 
 .mergeColDetails dt {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .mergeColDetails dd {

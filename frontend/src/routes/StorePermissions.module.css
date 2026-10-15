@@ -11,13 +11,13 @@
 
 .dirty {
   font-size: 0.82rem;
-  color: var(--db-warning, #f59e0b);
+  color: var(--db-warning);
   margin-right: auto;
 }
 
 .overrideBadge {
   font-size: 0.72rem;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   margin-left: 0.5rem;
 }
 

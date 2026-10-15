@@ -1314,7 +1314,7 @@ function OwnerAccessCard() {
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="ABCD1234"
             maxLength={8}
-            style={{ fontFamily: "var(--db-font-mono, monospace)", letterSpacing: "0.15em", width: "12rem" }}
+            style={{ fontFamily: "var(--db-font-mono)", letterSpacing: "0.15em", width: "12rem" }}
           />
         </Field>
         <Button type="submit" busy={busy} disabled={!code.trim()}>

@@ -91,19 +91,19 @@ const containerStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   fontSize: "0.78rem",
-  color: "var(--db-text-muted, #a3a3a3)",
+  color: "var(--db-text-muted)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
 };
 
 const chipStyle: React.CSSProperties = {
   appearance: "none",
-  background: "var(--db-surface-2, #141414)",
-  border: "1px solid var(--db-border, #262626)",
-  color: "var(--db-text, #f5f5f5)",
+  background: "var(--db-surface-2)",
+  border: "1px solid var(--db-border)",
+  color: "var(--db-text)",
   borderRadius: "999px",
   padding: "0.3rem 0.75rem",
   fontSize: "0.85rem",
-  fontFamily: "var(--db-font-body, 'Inter', system-ui, sans-serif)",
+  fontFamily: "var(--db-font-body)",
   cursor: "pointer",
 };

@@ -117,7 +117,7 @@ export default function OwnerBulkPermissions() {
                 border: templateStoreId === s.store_id
                   ? "2px solid var(--db-accent)" : "1px solid var(--db-border)",
                 background: templateStoreId === s.store_id
-                  ? "rgba(63,255,0,0.08)" : "var(--db-surface)",
+                  ? "var(--db-neon-glow-8)" : "var(--db-surface)",
                 color: "var(--db-text)", fontWeight: templateStoreId === s.store_id ? 600 : 400,
                 fontSize: "0.85rem",
               }}

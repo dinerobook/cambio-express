@@ -11,8 +11,8 @@
   display: inline-block;
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
-  background: var(--db-neon-glow-15, rgba(63, 255, 0, 0.15));
-  color: var(--db-accent, #3fff00);
+  background: var(--db-neon-glow-15);
+  color: var(--db-accent);
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -22,8 +22,8 @@
 .uaRaw {
   margin-top: 0.2rem;
   font-size: 0.78rem;
-  color: var(--db-text-muted, #a3a3a3);
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  color: var(--db-text-muted);
+  font-family: var(--db-font-mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -32,17 +32,17 @@
 
 .timestamp {
   font-size: 0.88rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .muted {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }
 
 .fine {
   margin-top: 1rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
   line-height: 1.55;
 }

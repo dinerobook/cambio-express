@@ -211,7 +211,7 @@ export function ReportDrilldown({
                       style={{
                         ...tdStyle,
                         textAlign: c.align ?? (c.mono ? "right" : "left"),
-                        fontFamily: c.mono ? "var(--db-font-mono, 'JetBrains Mono', monospace)" : undefined,
+                        fontFamily: c.mono ? "var(--db-font-mono)" : undefined,
                       }}
                     >
                       {value as React.ReactNode}

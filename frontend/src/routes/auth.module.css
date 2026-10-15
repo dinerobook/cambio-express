@@ -28,7 +28,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(11, 13, 18, 0.85);
+  background: var(--db-nav-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 0 40px;
@@ -50,7 +50,7 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  box-shadow: 0 0 12px rgba(63, 255, 0, 0.40);
+  box-shadow: 0 0 12px var(--db-brand-glow);
   display: block;
 }
 
@@ -114,7 +114,7 @@
   padding: 36px 40px;
   width: 100%;
   max-width: 460px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--db-shadow-modal);
 }
 
 .statusPill {
@@ -129,16 +129,16 @@
 }
 
 .statusPillError {
-  border-color: var(--db-tone-error-border, rgba(255, 77, 109, 0.3));
-  background: var(--db-tone-error-bg, rgba(255, 77, 109, 0.06));
+  border-color: var(--db-tone-error-border);
+  background: var(--db-tone-error-bg);
 }
 
 .statusPillError .pillDot {
-  background: var(--db-tone-error-fg, var(--db-negative));
-  box-shadow: 0 0 8px rgba(255, 77, 109, 0.5);
+  background: var(--db-tone-error-fg);
+  box-shadow: 0 0 8px var(--db-tone-error-border);
 }
 
-.statusPillError .pillLabel { color: var(--db-tone-error-fg, var(--db-negative)); }
+.statusPillError .pillLabel { color: var(--db-tone-error-fg); }
 
 /* Variant: dot-less neon-glow pill used by SignupOwner. */
 .badgePill {
@@ -146,7 +146,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  border: 1px solid rgba(63, 255, 0, 0.3);
+  border: 1px solid var(--db-neon-glow-25);
   border-radius: 999px;
   background: var(--db-neon-glow-8);
   font-family: var(--db-font-mono);
@@ -212,7 +212,7 @@
 .referralBanner {
   background: var(--db-neon-glow-8);
   color: var(--db-neon);
-  border: 1px solid rgba(63, 255, 0, 0.3);
+  border: 1px solid var(--db-neon-glow-25);
   border-radius: 10px;
   padding: 10px 14px;
   font-size: 13px;

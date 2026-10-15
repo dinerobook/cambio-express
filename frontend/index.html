@@ -9,7 +9,7 @@
          The service worker registers from src/lib/installPrompt.ts
          once the app boots. -->
     <link rel="manifest" href="/static/manifest.webmanifest" />
-    <meta name="theme-color" content="#0f1f3d" />
+    <meta name="theme-color" content="#0b0d12" />
     <!--
       Design-system tokens (colors, fonts, spacing) live in
       /static/design-tokens.css. Both [data-theme="dark"] and
@@ -32,6 +32,8 @@
           var t = window.localStorage.getItem("dinerobook.theme");
           if (t === "light") {
             document.documentElement.setAttribute("data-theme", "light");
+            document.querySelector('meta[name="theme-color"]')
+              .setAttribute("content", "#fafafa");
           }
         } catch (_e) {
           /* localStorage blocked — stay on dark */

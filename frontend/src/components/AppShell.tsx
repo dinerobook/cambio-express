@@ -293,9 +293,9 @@ function StoreSwitchChip({
           gap: "0.4rem",
           padding: "0.3rem 0.8rem",
           borderRadius: "999px",
-          border: "1px solid var(--db-border-strong, var(--border-strong))",
-          background: "var(--db-surface-2, var(--surface-2))",
-          color: "var(--db-text, var(--text))",
+          border: "1px solid var(--db-border-strong)",
+          background: "var(--db-surface-2)",
+          color: "var(--db-text)",
           cursor: "pointer",
           fontWeight: 600,
           maxWidth: "14rem",
@@ -330,23 +330,9 @@ function ReferralBadge({ code }: { code: string }) {
       type="button"
       onClick={() => navigate("/account/referrals")}
       title={`Earn $100 — share your code: ${code}`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "0.3rem",
-        padding: "0.3rem 0.7rem",
-        borderRadius: "999px",
-        background: "linear-gradient(135deg, #d4a017 0%, #f5c842 100%)",
-        color: "#1a1a1a",
-        fontSize: "0.72rem",
-        fontWeight: 800,
-        letterSpacing: "0.03em",
-        cursor: "pointer",
-        border: "none",
-        whiteSpace: "nowrap",
-      }}
+      className="app-referral-badge"
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="#1a1a1a"
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
         stroke="none" aria-hidden="true">
         <path d="M2.5 8.5L5 3h14l2.5 5.5L12 21 2.5 8.5z" />
         <path d="M12 3l-2 5.5h4L12 3z" opacity="0.5" />
@@ -370,9 +356,9 @@ function MaintenanceBanner() {
   if (!msg) return null;
   return (
     <div style={{
-      background: "var(--db-tone-warning-bg, rgba(245,158,11,0.12))",
-      border: "1px solid var(--db-tone-warning-border, rgba(245,158,11,0.3))",
-      color: "var(--db-tone-warning-fg, #fbbf24)",
+      background: "var(--db-tone-warning-bg)",
+      border: "1px solid var(--db-tone-warning-border)",
+      color: "var(--db-tone-warning-fg)",
       padding: "0.6rem 1.25rem",
       textAlign: "center",
       fontSize: "0.88rem",

@@ -21,7 +21,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(11, 13, 18, 0.85);
+  background: var(--db-nav-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 0 40px;
@@ -43,7 +43,7 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  box-shadow: 0 0 12px rgba(63, 255, 0, 0.40);
+  box-shadow: 0 0 12px var(--db-brand-glow);
 }
 
 .navBrandName {
@@ -118,7 +118,7 @@
   align-items: center;
   gap: 8px;
   padding: 5px 12px;
-  border: 1px solid rgba(63, 255, 0, 0.3);
+  border: 1px solid var(--db-neon-glow-25);
   border-radius: 999px;
   background: var(--db-neon-glow-8);
   font-family: var(--db-font-mono);

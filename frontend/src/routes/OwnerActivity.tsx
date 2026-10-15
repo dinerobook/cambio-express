@@ -91,7 +91,7 @@ export default function OwnerActivity() {
             <tbody>
               {data.rows.map((r, i) => (
                 <tr key={i}>
-                  <td style={{ whiteSpace: "nowrap", fontFamily: "var(--db-font-mono, monospace)", fontSize: "0.8rem" }}>
+                  <td style={{ whiteSpace: "nowrap", fontFamily: "var(--db-font-mono)", fontSize: "0.8rem" }}>
                     {r.created_at ? formatTimestamp(r.created_at) : "—"}
                   </td>
                   <td>

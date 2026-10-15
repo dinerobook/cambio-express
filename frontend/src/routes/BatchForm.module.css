@@ -10,5 +10,5 @@
 .cardNote {
   margin: 0.75rem 0 0;
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }

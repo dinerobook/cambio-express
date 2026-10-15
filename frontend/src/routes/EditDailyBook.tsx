@@ -608,9 +608,9 @@ function ColumnHeader({
   sub?: string;
 }) {
   const accent =
-    tone === "accent" ? "var(--db-accent, #3fff00)" : "var(--db-negative, #ff3b30)";
+    tone === "accent" ? "var(--db-accent)" : "var(--db-negative)";
   const valueColor =
-    tone === "negative" ? "var(--db-negative, #ff3b30)" : "var(--db-text, #f5f5f5)";
+    tone === "negative" ? "var(--db-negative)" : "var(--db-text)";
   return (
     <div className={styles.colHeader} style={{ borderTopColor: accent }}>
       <div className={styles.colHeaderRow}>
@@ -645,8 +645,8 @@ function OverShortReadout({
         className={styles.osReadoutValue}
         style={{
           color: negative
-            ? "var(--db-negative, #ff3b30)"
-            : "var(--db-accent, #3fff00)",
+            ? "var(--db-negative)"
+            : "var(--db-accent)",
         }}
       >
         {fmtMoney2(value)}
@@ -1767,10 +1767,10 @@ function sumDraftField(
 // Brand accent dots for the known major companies, neutral for the rest.
 function companyAccent(name: string): string {
   const k = name.toLowerCase();
-  if (k === "intermex") return "var(--db-co-intermex, #4a87d4)";
-  if (k === "maxi")     return "var(--db-co-maxi, #9d52e0)";
-  if (k === "barri")    return "var(--db-co-barri, #2cb5b0)";
-  return "var(--db-text-muted, #a3a3a3)";
+  if (k === "intermex") return "var(--db-co-intermex)";
+  if (k === "maxi")     return "var(--db-co-maxi)";
+  if (k === "barri")    return "var(--db-co-barri)";
+  return "var(--db-text-muted)";
 }
 
 /** Full-width Notes box, rendered below the In / Out columns. Over/Short

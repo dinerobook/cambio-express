@@ -9,7 +9,7 @@
 }
 
 .fileName {
-  color: var(--text-muted);
+  color: var(--db-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -24,7 +24,7 @@
 }
 
 .mapCode {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .mapSelect {
@@ -47,7 +47,7 @@
 .parseErrors {
   max-height: 10rem;
   overflow-y: auto;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--db-text-muted);
 }

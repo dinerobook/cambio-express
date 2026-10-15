@@ -674,7 +674,7 @@ function CountrySections({
           <summary className={styles.addCountrySummary}>
             <div className={styles.plusIcon}>+</div>
             <div style={{ flex: 1 }}>
-              <div className={styles.countryName} style={{ color: "var(--text-muted)" }}>Add a country</div>
+              <div className={styles.countryName} style={{ color: "var(--db-text-muted)" }}>Add a country</div>
               <div className={styles.countryStats}>
                 Mexico, Guatemala, El Salvador, Honduras…
               </div>

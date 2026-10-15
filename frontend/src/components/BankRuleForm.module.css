@@ -9,7 +9,7 @@
 .clause {
   margin: 0;
   padding: 0.85rem 1rem 1rem;
-  border: 1px solid var(--db-border, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--db-border);
   border-radius: 0.75rem;
   display: flex;
   flex-direction: column;
@@ -18,12 +18,12 @@
 }
 
 .legend {
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   padding: 0 0.35rem;
 }
 

@@ -35,7 +35,7 @@
 .sheetBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--db-scrim);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -44,7 +44,7 @@
 }
 
 .sheetCard {
-  background: var(--db-surface-2, #141414);
+  background: var(--db-surface-2);
   border-top-left-radius: 1.5rem;
   border-top-right-radius: 1.5rem;
   padding: 1rem 1rem 1.5rem;
@@ -59,7 +59,7 @@
 .sheetGrip {
   width: 3rem;
   height: 0.25rem;
-  background: var(--db-text-muted, #a3a3a3);
+  background: var(--db-text-muted);
   opacity: 0.5;
   border-radius: 999px;
   margin: 0 auto 0.5rem;
@@ -69,7 +69,7 @@
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   padding: 0 0.5rem 0.4rem;
 }
 
@@ -83,8 +83,8 @@
   text-align: left;
   cursor: pointer;
   transition: transform 120ms ease, opacity 120ms ease;
-  background: var(--db-fill-neutral, rgba(255,255,255,0.06));
-  color: var(--db-text, #f5f5f5);
+  background: var(--db-fill-neutral);
+  color: var(--db-text);
 }
 
 .sheetItem:disabled {
@@ -97,31 +97,31 @@
   opacity: 0.85;
 }
 
-/* Per-tone tints — share the Phase-2 `--db-tone-*` palette so a
- * "Delete" row action paints the same red as `<Alert tone="error">`
- * + `<Pill tone="negative">`.  Two tones (info / logs) keep their
- * jewel-tone backgrounds because they map to category colors
- * (purple = info-style metadata, orange = logs / audit trail) that
- * the semantic state palette doesn't cover. */
+/* Per-tone tints — share the `--db-tone-*` palette so a "Delete"
+ * row action paints the same red as `<Alert tone="error">` +
+ * `<Pill tone="negative">`. "info" is the info tone; "logs" (an
+ * audit trail / history entry) takes a jewel tone so the two stay
+ * apart. No colour here is outside design-tokens.css, so both flip
+ * with the theme. */
 .sheetTone_primary {
-  background: var(--db-neon-glow-15, rgba(63, 255, 0, 0.12));
-  color:      var(--db-accent, #3fff00);
+  background: var(--db-neon-glow-15);
+  color:      var(--db-accent);
 }
 .sheetTone_warning {
-  background: var(--db-tone-warning-bg, rgba(255, 176, 32, 0.08));
-  color:      var(--db-tone-warning-fg, #ffb020);
+  background: var(--db-tone-warning-bg);
+  color:      var(--db-tone-warning-fg);
 }
 .sheetTone_info {
-  background: rgba(184, 95, 255, 0.12);
-  color:      #b85fff;
+  background: var(--db-tone-info-bg);
+  color:      var(--db-tone-info-fg);
 }
 .sheetTone_logs {
-  background: rgba(255, 142, 71, 0.12);
-  color:      #ff8e47;
+  background: color-mix(in srgb, var(--db-co-maxi) 12%, transparent);
+  color:      var(--db-co-maxi);
 }
 .sheetTone_danger {
-  background: var(--db-tone-error-bg, rgba(255, 77, 109, 0.08));
-  color:      var(--db-tone-error-fg, #ff4d6d);
+  background: var(--db-tone-error-bg);
+  color:      var(--db-tone-error-fg);
 }
 
 @keyframes db-sheet-up {

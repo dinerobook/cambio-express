@@ -13,28 +13,28 @@
 }
 
 .storeSlug {
-  color: var(--db-text-muted, #a3a3a3);
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  color: var(--db-text-muted);
+  font-family: var(--db-font-mono);
   font-size: 0.78rem;
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .overShortPos {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
-  color: var(--db-accent, #3fff00);
+  font-family: var(--db-font-mono);
+  color: var(--db-accent);
 }
 
 .overShortNeg {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
-  color: var(--db-negative, #ff3b30);
+  font-family: var(--db-font-mono);
+  color: var(--db-negative);
 }
 
 .overShortZero {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
-  color: var(--db-text-muted, #a3a3a3);
+  font-family: var(--db-font-mono);
+  color: var(--db-text-muted);
 }
 
 .companyChips {
@@ -45,14 +45,14 @@
 
 .chip {
   display: inline-block;
-  background: var(--db-fill-neutral, rgba(255, 255, 255, 0.06));
-  color: var(--db-text, #f5f5f5);
+  background: var(--db-fill-neutral);
+  color: var(--db-text);
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
   font-size: 0.78rem;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .dash {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }

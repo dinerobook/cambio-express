@@ -27,8 +27,20 @@ export function getCurrentTheme(): Theme {
   return isTheme(attr) ? attr : "dark";
 }
 
+// Browser chrome colour (mobile address bar, installed-app title
+// bar) per theme: the --db-bg value of each palette in
+// static/design-tokens.css, so the bar matches the page behind it.
+// index.html's before-paint script sets the same light value.
+export const THEME_CHROME_COLOR: Record<Theme, string> = {
+  dark: "#0b0d12",
+  light: "#fafafa",
+};
+
 export function applyTheme(theme: Theme): void {
   document.documentElement.setAttribute("data-theme", theme);
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute("content", THEME_CHROME_COLOR[theme]);
   try {
     window.localStorage.setItem(STORAGE_KEY, theme);
   } catch {

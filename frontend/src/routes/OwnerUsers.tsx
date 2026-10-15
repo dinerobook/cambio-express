@@ -93,7 +93,7 @@ export default function OwnerUsers() {
               {data.rows.map((u) => (
                 <tr key={u.id}>
                   <td style={{ fontWeight: 500 }}>{u.full_name || "—"}</td>
-                  <td style={{ fontFamily: "var(--db-font-mono, monospace)", fontSize: "0.85rem" }}>
+                  <td style={{ fontFamily: "var(--db-font-mono)", fontSize: "0.85rem" }}>
                     {u.username}
                   </td>
                   <td>

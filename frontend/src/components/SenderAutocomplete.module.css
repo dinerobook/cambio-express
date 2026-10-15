@@ -15,7 +15,7 @@
   background: var(--db-surface-2);
   border: 1px solid var(--db-border);
   border-radius: 0.5rem;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--db-shadow-pop);
 }
 
 .status {

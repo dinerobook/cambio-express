@@ -10,25 +10,25 @@
 .helpText {
   margin: 0 0 1rem;
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .slugRow {
   margin: 0 0 1rem;
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .slug {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
-  color: var(--db-text, #f5f5f5);
+  font-family: var(--db-font-mono);
+  color: var(--db-text);
 }
 
 .addInset {
   margin-bottom: 1rem;
   padding: 0.85rem;
-  background: var(--db-bg-input, #0d0d0d);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-bg-input);
+  border: 1px solid var(--db-border);
   border-radius: 0.5rem;
 }
 
@@ -49,7 +49,7 @@
   gap: 0.75rem;
   align-items: center;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
 }
 
 .rowBody {
@@ -62,13 +62,13 @@
 
 .rowMeta {
   font-size: 0.78rem;
-  color: var(--db-text-muted, #a3a3a3);
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  color: var(--db-text-muted);
+  font-family: var(--db-font-mono);
 }
 
 .muted {
   margin: 0;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .actionsRow {
@@ -80,7 +80,7 @@
 .subscriptionInfo {
   margin: 0 0 1rem;
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .storeGrid {
@@ -117,17 +117,17 @@
 
 .hoursDay {
   font-weight: 600;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .hoursTime {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.9rem;
 }
 
 .hoursDashCell {
   text-align: center;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .hoursClosed {
@@ -148,11 +148,11 @@
   display: block;
   margin-top: 0.85rem;
   font-size: 0.85rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .enforceHint {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 400;
 }
 
@@ -160,14 +160,14 @@
  * when /account/profile collapsed into /settings/profile. */
 .profileLead {
   margin: 0 0 1.25rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.88rem;
   line-height: 1.55;
 }
 
 .profileHr {
   border: 0;
-  border-top: 1px solid var(--db-border, #262626);
+  border-top: 1px solid var(--db-border);
   margin: 1.5rem 0 1rem;
 }
 

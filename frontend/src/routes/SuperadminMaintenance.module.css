@@ -21,13 +21,13 @@
 
 .dotOn {
   composes: statusDot;
-  background: var(--db-negative, #ef4444);
-  box-shadow: 0 0 8px var(--db-negative, #ef4444);
+  background: var(--db-negative);
+  box-shadow: 0 0 8px var(--db-negative);
 }
 
 .dotOff {
   composes: statusDot;
-  background: var(--db-accent, #3fff00);
+  background: var(--db-accent);
 }
 
 .statusLabel {
@@ -48,9 +48,9 @@
   margin-top: 0.5rem;
   padding: 1rem 1.25rem;
   border-radius: 0.5rem;
-  background: var(--db-tone-warning-bg, rgba(245, 158, 11, 0.1));
-  border: 1px solid var(--db-tone-warning-border, rgba(245, 158, 11, 0.3));
-  color: var(--db-tone-warning-fg, #fbbf24);
+  background: var(--db-tone-warning-bg);
+  border: 1px solid var(--db-tone-warning-border);
+  color: var(--db-tone-warning-fg);
   font-size: 0.9rem;
   text-align: center;
 }

@@ -20,25 +20,25 @@
 
 .bubble {
   max-width: 42rem;
-  border: 1px solid var(--db-border, #262626);
+  border: 1px solid var(--db-border);
   border-radius: 0.75rem;
   padding: 0.6rem 0.85rem;
-  background: var(--db-surface-2, #141414);
+  background: var(--db-surface-2);
 }
 
 .bubbleMine {
-  border-color: var(--db-border-strong, #3a3a3a);
+  border-color: var(--db-border-strong);
 }
 
 /* Platform-side replies carry the accent stripe so "support said
    this" is scannable regardless of which side is viewing. */
 .bubbleStaff {
-  border-left: 3px solid var(--db-accent, #3fff00);
+  border-left: 3px solid var(--db-accent);
 }
 
 .bubbleMeta {
   font-size: 0.72rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin-bottom: 0.25rem;
 }
 
@@ -68,6 +68,6 @@
 }
 
 .closedNote {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }
