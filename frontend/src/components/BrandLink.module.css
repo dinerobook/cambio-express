@@ -1,0 +1,30 @@
+/* The brand mark + name that opens every public page's top bar and
+   the landing footer. One copy: AuthChrome and Landing both render
+   <BrandLink />. */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  box-shadow: 0 0 12px var(--db-brand-glow);
+  display: block;
+}
+
+.name {
+  font-family: var(--db-font-display);
+  color: var(--db-text);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 600px) {
+  .name { font-size: 16px; }
+}

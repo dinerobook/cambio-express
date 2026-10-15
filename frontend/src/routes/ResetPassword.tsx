@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { AuthChrome, StatusPill } from "../components/AuthChrome";
@@ -18,12 +18,6 @@ export default function ResetPassword() {
   const [busy,    setBusy]    = useState(false);
   const [error,   setError]   = useState<string | null>(null);
   const [done,    setDone]    = useState(false);
-
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

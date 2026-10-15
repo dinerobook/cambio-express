@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { AuthChrome } from "../components/AuthChrome";
@@ -19,12 +19,6 @@ export default function SignupOwner() {
   const [busy,     setBusy]     = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [errors,   setErrors]   = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

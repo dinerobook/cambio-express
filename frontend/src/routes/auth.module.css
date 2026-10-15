@@ -39,29 +39,6 @@
   border-bottom: 1px solid var(--db-gray-2);
 }
 
-.navBrand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-}
-
-.navBrandMark {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  box-shadow: 0 0 12px var(--db-brand-glow);
-  display: block;
-}
-
-.navBrandName {
-  font-family: var(--db-font-display);
-  color: var(--db-gray-9);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
 .navLink {
   color: var(--db-gray-7);
   font-size: 13px;
@@ -115,6 +92,18 @@
   width: 100%;
   max-width: 460px;
   box-shadow: var(--db-shadow-modal);
+}
+
+/* Long-form page (AuthChrome `document`): the privacy policy. Wide
+   card, top-aligned so the start of the text sits under the nav. */
+.pageDocument {
+  align-items: flex-start;
+  padding-bottom: 96px;
+}
+
+.cardDocument {
+  max-width: 780px;
+  padding: 48px 56px 56px;
 }
 
 /* Two halves (AuthChrome `aside`): features on the left, the card
@@ -350,7 +339,6 @@
 
 @media (max-width: 600px) {
   .nav { padding: 0 16px; height: 56px; }
-  .navBrandName { font-size: 16px; }
   .navLink { font-size: 12px; }
   .page {
     padding: 20px 14px;
@@ -362,6 +350,7 @@
     align-items: flex-start;
   }
   .card { padding: 24px 20px; border-radius: 14px; }
+  .cardDocument { padding: 32px 22px 36px; }
   .cardTitle { font-size: 24px; }
 }
 

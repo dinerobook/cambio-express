@@ -34,12 +34,6 @@ export default function LoginStore() {
   const [error,    setError]    = useState<string | null>(null);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset loading/error/store flags before async lookup of the store by slug; cancellation flag guards stale resolutions
     setLoading(true); setNotFound(false); setStore(null);

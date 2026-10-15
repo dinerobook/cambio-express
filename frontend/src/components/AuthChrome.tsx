@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 
 import styles from "../routes/auth.module.css";
-import { BRAND_NAME } from "../lib/brand";
+import { BrandLink } from "./BrandLink";
 
 /** Shared chrome for every logged-out page (Login, TwoFactor,
  *  ForgotPassword, ResetPassword, Signup, SignupOwner, ...).
@@ -12,30 +12,32 @@ import { BRAND_NAME } from "../lib/brand";
  *  `aside` turns the page into two halves: the aside on the left,
  *  the card on the right. The card comes first in the markup, so
  *  on narrow screens (where the halves stack) and for keyboard and
- *  screen-reader users the form is still the first thing. */
+ *  screen-reader users the form is still the first thing.
+ *
+ *  `document` is for long-form pages (the privacy policy): a wide,
+ *  top-aligned card instead of the narrow centred form card. */
 export function AuthChrome({
   navLink,
   aside,
+  document = false,
   children,
 }: {
   /** Right-side nav link. Pass `null` for no link. */
   navLink: { to: string; label: string } | null;
   aside?: ReactNode;
+  document?: boolean;
   children: ReactNode;
 }) {
   return (
     <>
       <nav className={styles.nav}>
-        <Link to="/" className={styles.navBrand}>
-          <img className={styles.navBrandMark} src="/static/brand-mark.svg" alt="" />
-          <span className={styles.navBrandName}>{BRAND_NAME}</span>
-        </Link>
+        <BrandLink />
         {navLink && (
           <Link to={navLink.to} className={styles.navLink}>{navLink.label}</Link>
         )}
       </nav>
 
-      <div className={styles.page}>
+      <div className={document ? `${styles.page} ${styles.pageDocument}` : styles.page}>
         <div className={styles.grid} aria-hidden="true" />
         <div className={styles.glow} aria-hidden="true" />
 
@@ -47,7 +49,7 @@ export function AuthChrome({
             <div className={styles.splitAside}>{aside}</div>
           </div>
         ) : (
-          <div className={styles.card}>
+          <div className={document ? `${styles.card} ${styles.cardDocument}` : styles.card}>
             {children}
           </div>
         )}

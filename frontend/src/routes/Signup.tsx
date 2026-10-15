@@ -32,12 +32,6 @@ export default function Signup() {
   const [referral,  setReferral]  = useState<ReferralPreview | null>(null);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  }, []);
-
-  useEffect(() => {
     const code = refCode.trim().toUpperCase();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- debounced referral-code preview: clear local referral state when the input empties (the .then callback below sets it for non-empty codes)
     if (!code) { setReferral(null); return; }
