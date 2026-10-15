@@ -147,9 +147,13 @@ services:
     runtime: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    # 02:00 UTC daily — runs after the data-retention purge, gives
-    # the prior US-day a few hours to settle before we summarize.
-    schedule: "0 2 * * *"
+    # 10:00 UTC daily. Each store is summarized for ITS OWN
+    # yesterday (store timezone), so the run must come after every
+    # store's local midnight: 10:00 UTC is midnight in Honolulu and
+    # early morning across the US, so every zone in
+    # TIMEZONE_CHOICES has closed its prior day. (At the old 02:00
+    # UTC a US store's "yesterday" was the day before that.)
+    schedule: "0 10 * * *"
     startCommand: python -m scripts.send_daily_summaries
     envVars:
       - key: DATABASE_URL

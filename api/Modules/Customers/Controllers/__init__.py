@@ -19,13 +19,12 @@ Layer rules:
     Controller → Repository  ✓ (for read-only export)
     Controller → DB session  ✓ (only via ``Depends(get_db)``)
 """
-import csv
-import io
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy.orm import Session
 
+from api.Core.Csv import build_csv
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_id
 from api.Modules.Audit.Services import record_operator_action
@@ -190,9 +189,7 @@ def export_csv_route(
     rows = list_for_export(db, siblings)
     home_names = _resolve_home_names(db, rows, sid)
 
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow([
+    headers = [
         "Full name",
         "Phone country",
         "Phone number",
@@ -201,9 +198,9 @@ def export_csv_route(
         "Home store",
         "Created",
         "Last updated",
-    ])
-    for c in rows:
-        w.writerow([
+    ]
+    content = build_csv(headers, (
+        [
             c.full_name or "",
             c.phone_country or "",
             c.phone_number or "",
@@ -215,10 +212,12 @@ def export_csv_route(
             ),
             c.created_at.isoformat() if c.created_at else "",
             c.updated_at.isoformat() if c.updated_at else "",
-        ])
+        ]
+        for c in rows
+    ))
     today = utc_now().strftime("%Y-%m-%d")
     return Response(
-        content=buf.getvalue(),
+        content=content,
         media_type="text/csv",
         headers={
             "Content-Disposition":

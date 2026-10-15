@@ -22,12 +22,13 @@ Cashiers (employees) hold catalog.read so they can look items up;
 catalog management (create/update) needs admin rights. Every
 mutation records an operator-audit row (invariant #7).
 """
-from datetime import date, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
+from api.Core.Audit import audit_operator
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams, paginate, pagination_dep
 from api.Modules.Auth.Controllers import get_principal
@@ -75,25 +76,6 @@ from api.Modules.Catalog.Services import (
 )
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
-
-
-def _audit(
-    db: Session, *, claims: dict[str, Any], action: str,
-    target_type: str, target_id: str, summary: str,
-) -> None:
-    """Operator-audit emitter — CLAUDE.md invariant #7."""
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
-        store_id=int(claims["store_id"]),
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
-        target_type=target_type,
-        action=action,
-        target_id=target_id,
-        summary=summary[:255],
-    )
 
 
 def _vendor_row(v: Vendor, item_count: int) -> VendorRow:
@@ -169,8 +151,8 @@ def create_vendor_route(
         vendor = create_vendor(db, sid, body.model_dump())
     except CatalogConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="create_vendor",
+    audit_operator(
+        db, claims, action="create_vendor",
         target_type="vendor", target_id=str(vendor.id),
         summary=f"vendor {vendor.name}",
     )
@@ -199,8 +181,8 @@ def update_vendor_route(
           .filter(PriceBookItem.vendor_id == vendor.id)
           .scalar()
     ) or 0
-    _audit(
-        db, claims=claims, action="update_vendor",
+    audit_operator(
+        db, claims, action="update_vendor",
         target_type="vendor", target_id=str(vendor.id),
         summary=f"vendor {vendor.name} updated",
     )
@@ -250,8 +232,8 @@ def create_item_route(
         raise HTTPException(status_code=404, detail=str(exc))
     except CatalogConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="create_price_book_item",
+    audit_operator(
+        db, claims, action="create_price_book_item",
         target_type="price_book_item", target_id=str(item.id),
         summary=f"item {item.pos_code} {item.name} ${item.price:,.2f}",
     )
@@ -274,8 +256,8 @@ def update_item_route(
         raise HTTPException(status_code=404, detail=str(exc))
     except CatalogConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="update_price_book_item",
+    audit_operator(
+        db, claims, action="update_price_book_item",
         target_type="price_book_item", target_id=str(item.id),
         summary=f"item {item.pos_code} {item.name} updated",
     )
@@ -284,16 +266,6 @@ def update_item_route(
 
 
 # ── Purchase invoices ──────────────────────────────────────
-
-
-def _parse_date(raw: str, field: str) -> date:
-    try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail={"field": field, "message": "Use YYYY-MM-DD."},
-        )
 
 
 def _invoice_row(inv: PurchaseInvoice, *, with_lines: bool = False):
@@ -337,14 +309,16 @@ def _invoice_dates_or_422(body) -> dict:
     dropping unset fields so the Service's PATCH semantics hold."""
     out = body.model_dump(exclude_unset=False)
     if out.get("invoice_date") is not None:
-        out["invoice_date"] = _parse_date(out["invoice_date"], "invoice_date")
+        out["invoice_date"] = parse_iso_day(
+            out["invoice_date"], field="invoice_date",
+        )
     if out.get("due_date") is not None:
-        out["due_date"] = _parse_date(out["due_date"], "due_date")
+        out["due_date"] = parse_iso_day(out["due_date"], field="due_date")
     elif not getattr(body, "clear_due_date", False):
         out.pop("due_date", None)
     out.pop("clear_due_date", None)
     if out.get("paid_on") is not None:
-        out["paid_on"] = _parse_date(out["paid_on"], "paid_on")
+        out["paid_on"] = parse_iso_day(out["paid_on"], field="paid_on")
     if out.get("lines") is not None:
         out["lines"] = [dict(line) for line in out["lines"]]
     return out
@@ -412,8 +386,8 @@ def create_invoice_route(
         raise HTTPException(status_code=404, detail=str(exc))
     except CatalogConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="create_purchase_invoice",
+    audit_operator(
+        db, claims, action="create_purchase_invoice",
         target_type="purchase_invoice", target_id=str(invoice.id),
         summary=(
             f"invoice {invoice.invoice_number} "
@@ -445,8 +419,8 @@ def update_invoice_route(
         raise HTTPException(status_code=404, detail=str(exc))
     except CatalogConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _audit(
-        db, claims=claims, action="update_purchase_invoice",
+    audit_operator(
+        db, claims, action="update_purchase_invoice",
         target_type="purchase_invoice", target_id=str(invoice.id),
         summary=f"invoice {invoice.invoice_number} updated",
     )
@@ -469,8 +443,8 @@ def delete_invoice_route(
         invoice = delete_invoice(db, sid, invoice_id)
     except CatalogNotFoundError:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    _audit(
-        db, claims=claims, action="delete_purchase_invoice",
+    audit_operator(
+        db, claims, action="delete_purchase_invoice",
         target_type="purchase_invoice", target_id=str(invoice_id),
         summary=f"invoice {invoice.invoice_number} deleted",
     )

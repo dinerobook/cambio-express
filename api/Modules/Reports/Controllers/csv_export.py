@@ -32,6 +32,7 @@ from typing import Any, Callable
 from fastapi import Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import store_local_today
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
@@ -50,8 +51,14 @@ from api.Modules.Reports.Services import (
 # ── Period parsing (mirrors the JSON drilldown's parse_period) ──
 
 
-def _parse_period(args: dict[str, str | None]) -> tuple[date, date, str]:
-    today = date.today()
+def _parse_period(
+    args: dict[str, str | None], *, today: date | None = None,
+) -> tuple[date, date, str]:
+    """``today`` anchors the defaults: store exports pass the store's
+    calendar day; the platform-wide superadmin exports leave it
+    unset and keep the server's UTC day."""
+    if today is None:
+        today = date.today()
     default_from = date(today.year, today.month, 1)
     raw_from = (args.get("from_") or "").strip()
     raw_to   = (args.get("to") or "").strip()
@@ -323,7 +330,9 @@ def store_csv_export(
         "threshold": threshold,
         "compare_from": compare_from, "compare_to": compare_to,
     }
-    d_from, d_to, _ = _parse_period(args)
+    d_from, d_to, _ = _parse_period(
+        args, today=store_local_today(db, store_ids[0]),
+    )
     extra_kwargs = spec["extra_args_fn"](args) if spec["extra_args_fn"] else {}
     rows, totals = spec["service"](db, store_ids, d_from, d_to, **extra_kwargs)
     return _emit_csv(

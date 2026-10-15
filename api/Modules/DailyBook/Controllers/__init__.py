@@ -4,11 +4,13 @@ Mounts at ``/api/v2/daily/*``. Owns the JSON surface for the
 daily cash-ledger and its line-items — the React SPA at
 ``/app/daily/*`` consumes these endpoints.
 """
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
+from api.Core.Audit import audit_operator
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_id
 from api.Modules.Auth.Controllers import get_principal
@@ -107,16 +109,6 @@ def _to_row(s: DailyReportSummary) -> DailyReportRow:
     )
 
 
-def _parse_date(raw: str, *, field: str) -> date:
-    try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail=f"{field} must be YYYY-MM-DD",
-        )
-
-
 @router.get(
     "/{store_id}/period", response_model=PeriodSummaryResponse,
 )
@@ -129,8 +121,8 @@ def period_route(
 ) -> PeriodSummaryResponse:
     require_permission(claims, "daily_book", "read")
     authorize_store_id(db, claims, store_id)
-    d_from = _parse_date(from_, field="from")
-    d_to = _parse_date(to, field="to")
+    d_from = parse_iso_day(from_, field="from")
+    d_to = parse_iso_day(to, field="to")
     if d_from > d_to:
         d_from, d_to = d_to, d_from
     page = summarize_period(db, [store_id], d_from, d_to)
@@ -155,7 +147,7 @@ def daily_route(
 ) -> DailyReportResponse:
     require_permission(claims, "daily_book", "read")
     authorize_store_id(db, claims, store_id)
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
     summary = summarize_report(db, store_id, d)
     if summary is None:
         raise HTTPException(
@@ -193,7 +185,7 @@ def update_daily_route(
     by their own tables and migrate in follow-up PRs.
     """
     require_permission(claims, "daily_book", "update")
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
 
     claim_store = claims.get("store_id")
     if claim_store is None or int(claim_store) != int(store_id):
@@ -297,14 +289,12 @@ def _audit_daily_action(
     the cash-ledger line-item CRUD, and the per-company MT
     breakdown replace, all of which were silently mutating state
     before this helper landed (the lock/unlock pair was the only
-    pre-existing audit emitter on the daily-book surface)."""
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
-        store_id=int(claims["store_id"]),
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
+    pre-existing audit emitter on the daily-book surface).
+
+    Goes through ``audit_operator`` so a superadmin acting as the
+    store ("Sign in as") is named on the row."""
+    audit_operator(
+        db, claims,
         target_type=target_type,
         target_id=target_id,
         target_label=target_label,
@@ -339,7 +329,7 @@ def lock_daily_route(
     lock or unlock it."""
     require_permission(claims, "daily_book", "update")
     require_permission(claims, "day_lock", "update")
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
     claim_store = claims.get("store_id")
     if claim_store is None or int(claim_store) != int(store_id):
         raise HTTPException(
@@ -411,7 +401,7 @@ def unlock_daily_route(
     lock."""
     require_permission(claims, "daily_book", "update")
     require_permission(claims, "day_lock", "update")
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
     claim_store = claims.get("store_id")
     if claim_store is None or int(claim_store) != int(store_id):
         raise HTTPException(
@@ -513,7 +503,7 @@ def line_items_list_route(
     book write-side endpoints."""
     require_permission(claims, "daily_book", "read")
     _require_store_match(claims, store_id)
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
     if kind and not is_known_kind(kind):
         raise HTTPException(
             status_code=422, detail=f"Unknown kind: {kind!r}",
@@ -557,7 +547,7 @@ def line_items_create_route(
     """
     require_permission(claims, "daily_book", "create")
     _require_store_match(claims, store_id)
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
     user_id = int(claims["sub"])
 
     if not is_known_kind(body.kind):
@@ -865,7 +855,7 @@ def transfers_summary_route(
     """
     require_permission(claims, "daily_book", "read")
     _require_store_match(claims, store_id)
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
     summary = summarize_transfers_for_day(db, int(store_id), d)
     return TransfersSummaryResponse(
         companies=summary.companies,
@@ -947,7 +937,7 @@ def mt_breakdown_get_route(
     """
     require_permission(claims, "daily_book", "read")
     _require_store_match(claims, store_id)
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
     breakdown = read_mt_breakdown(db, int(store_id), d)
     return _mt_breakdown_response(breakdown)
 
@@ -977,7 +967,7 @@ def mt_breakdown_put_route(
     """
     require_permission(claims, "daily_book", "update")
     _require_store_match(claims, store_id)
-    d = _parse_date(report_date, field="report_date")
+    d = parse_iso_day(report_date, field="report_date")
     try:
         replace_mt_breakdown(
             db,

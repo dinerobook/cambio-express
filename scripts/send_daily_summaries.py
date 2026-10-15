@@ -5,9 +5,10 @@ Run nightly from the Render cron service::
     python -m scripts.send_daily_summaries
     python -m scripts.send_daily_summaries --date 2026-05-15
 
-Defaults to yesterday (UTC) when ``--date`` is omitted — the typical
-cron use case: 02:00 UTC sends covers the prior day in every US
-timezone. Pass ``--date YYYY-MM-DD`` to backfill a specific day.
+Defaults to each store's own yesterday (its saved timezone; UTC when
+unset) when ``--date`` is omitted — the typical cron use case: the
+10:00 UTC run covers the prior day in every supported timezone. Pass
+``--date YYYY-MM-DD`` to backfill one day for every store.
 
 Idempotent — re-running on a quiet day or on a day already mailed
 is a no-op because ``Notifications.Services.daily_summary.run`` reads
@@ -61,7 +62,8 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         default=None,
         help=(
-            "Target date in YYYY-MM-DD form. Defaults to yesterday (UTC)."
+            "Target date in YYYY-MM-DD form. Defaults to each store's "
+            "own yesterday."
         ),
     )
     args = parser.parse_args(argv)

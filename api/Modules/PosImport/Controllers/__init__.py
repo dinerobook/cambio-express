@@ -32,6 +32,7 @@ from fastapi.responses import Response as PlainResponse
 from sqlalchemy.orm import Session
 
 from api.Core.Clock import utc_now
+from api.Core.Audit import audit_operator
 from api.Core.Database import get_db
 from api.Core.RateLimit import limiter as _rate_limiter
 from api.Modules.Auth.Controllers import get_principal
@@ -96,25 +97,6 @@ from api.Modules.PosImport.Services import (
 )
 
 router = APIRouter(prefix="/posimport", tags=["posimport"])
-
-
-def _audit(
-    db: Session, *, claims: dict[str, Any], action: str,
-    target_type: str, target_id: str, summary: str,
-) -> None:
-    """Operator-audit emitter — CLAUDE.md invariant #7."""
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
-        store_id=int(claims["store_id"]),
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
-        target_type=target_type,
-        action=action,
-        target_id=target_id,
-        summary=summary[:255],
-    )
 
 
 def _decode_payload(content_base64: str) -> bytes:
@@ -230,8 +212,8 @@ def set_mapping_route(
         rows = set_mappings(db, sid, mappings)
     except PosImportError:
         raise HTTPException(status_code=404, detail="Department not found")
-    _audit(
-        db, claims=claims, action="set_pos_merchandise_mapping",
+    audit_operator(
+        db, claims, action="set_pos_merchandise_mapping",
         target_type="pos_merchandise_map", target_id=str(sid),
         summary=f"{len(mappings)} code mapping(s) set",
     )
@@ -270,8 +252,8 @@ def commit_naxml_route(
         )
     except PosImportError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    _audit(
-        db, claims=claims, action="commit_pos_import",
+    audit_operator(
+        db, claims, action="commit_pos_import",
         target_type="register_close", target_id=day.isoformat(),
         summary=(
             f"Gilbarco import {day.isoformat()}: "
@@ -325,8 +307,8 @@ def issue_agent_key_route(
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "update")
     cred, raw = issue_agent_key(db, sid, label=body.label)
-    _audit(
-        db, claims=claims, action="issue_pos_agent_key",
+    audit_operator(
+        db, claims, action="issue_pos_agent_key",
         target_type="pos_agent_credential", target_id=str(cred.id),
         summary=f"agent key issued ({cred.label or 'unlabeled'})",
     )
@@ -349,8 +331,8 @@ def revoke_agent_key_route(
         cred = revoke_agent_key(db, sid, key_id)
     except PosImportError:
         raise HTTPException(status_code=404, detail="Agent key not found")
-    _audit(
-        db, claims=claims, action="revoke_pos_agent_key",
+    audit_operator(
+        db, claims, action="revoke_pos_agent_key",
         target_type="pos_agent_credential", target_id=str(cred.id),
         summary=f"agent key revoked ({cred.label or 'unlabeled'})",
     )
@@ -469,8 +451,8 @@ def pricebook_commit_route(
     sid = resolve_store_scope(claims)
     require_permission(claims, "catalog", "update")
     result = seed_price_book(db, sid)
-    _audit(
-        db, claims=claims, action="seed_price_book",
+    audit_operator(
+        db, claims, action="seed_price_book",
         target_type="price_book_item", target_id=str(sid),
         summary=(
             f"price book seeded from register data: {result.created} "
@@ -504,8 +486,8 @@ def commit_staged_route(
         )
     except PosImportError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    _audit(
-        db, claims=claims, action="commit_pos_import",
+    audit_operator(
+        db, claims, action="commit_pos_import",
         target_type="register_close", target_id=day.isoformat(),
         summary=(
             f"Gilbarco staged import {day.isoformat()}: "

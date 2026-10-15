@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 from api.Modules.Notifications.Services.format import fmt_money_2 as _fmt_money_2
 from api.Modules.Notifications.Services.smtp import send_email
 from api.Modules.Notifications.Services.templates import render_email_template
-from api.Core.Clock import utc_now
+from api.Core.Clock import local_today, utc_now
 
 
 _log = logging.getLogger(__name__)
@@ -206,73 +206,132 @@ def run(
     base_url: Optional[str] = None,
 ) -> int:
     """Send one daily-summary email per (store × eligible recipient)
-    for ``on_date`` (defaults to yesterday in UTC). Returns the
-    total emails attempted.
+    for ``on_date``. Returns the total emails attempted.
+
+    With no ``on_date`` each store gets its OWN yesterday —
+    ``local_today(store.timezone) - 1``. The server's UTC yesterday
+    is still "today" for a US store until its midnight, so the
+    summary would cover a day whose evening hasn't happened yet. A
+    store with no timezone keeps the UTC yesterday it always had.
+    An explicit ``on_date`` (CLI ``--date`` backfill) applies to
+    every store.
 
     Idempotent: stamps ``Store.daily_summary_sent_for`` after a
     successful pass. A re-run on a store with the stamp already at
-    ``on_date`` is a no-op. The cancellation Service does NOT
+    its target date is a no-op. The cancellation Service does NOT
     clear the stamp — once we've sent for a day, we've sent.
 
     The caller owns the session lifecycle.
     """
-
-    if on_date is None:
-        on_date = date.today() - timedelta(days=1)
     from api.Core.Urls import get_base_url
     base_url = (base_url or get_base_url()).rstrip("/")
 
     sent_total = 0
-    stores = stores_with_activity(session, on_date)
-    for store in stores:
-        # Skip stores we've already summarized for this date — the
-        # stamp lets a cron re-run safely (a flaky earlier pass can
-        # be re-invoked without duplicating emails).
-        if (
-            getattr(store, "daily_summary_sent_for", None) == on_date
-        ):
-            continue
-
-        try:
-            totals = compute_daily_totals(session, store.id, on_date)
-        except Exception:  # pragma: no cover — defensive log only
-            _log.exception(
-                "daily-summary: totals query failed for store_id=%s",
-                store.id,
-            )
-            continue
-        if not totals.has_activity:
-            # stores_with_activity should have filtered this already,
-            # but keep the defensive guard so a race window between
-            # the discovery query and the per-store query doesn't
-            # send a zero-totals email.
-            continue
-
-        try:
-            recipients = eligible_recipients(session, store)
-        except Exception:  # pragma: no cover — defensive log only
-            _log.exception(
-                "daily-summary: recipient query failed for store_id=%s",
-                store.id,
-            )
-            continue
-
-        date_iso = on_date.isoformat()
-        date_human = on_date.strftime("%B %d, %Y")
-        view_url = f"{base_url}/app/daily/edit?date={date_iso}"
-        notifications_url = f"{base_url}/app/account/notifications"
-        # Net = the day's cash position (receipts − disbursements),
-        # matching the calendar/period views. Over/Short is a SEPARATE
-        # derived reconciliation line — adding it here would double-
-        # count it (it already reflects safe balance + payouts vs
-        # receipts). See DailyBook/INVARIANTS.md.
-        net = totals.receipts - totals.disbursements
-        subject = DAILY_SUMMARY_SUBJECT.format(
-            store_name=store.name, date_human=date_human,
+    for store, store_date in _stores_and_days(session, on_date):
+        sent_total += _send_store_summary(
+            session, store, store_date, base_url,
         )
+    return sent_total
 
-        for user in recipients:
-            body = DAILY_SUMMARY_BODY.format(
+
+def _stores_and_days(
+    session: Session, on_date: Optional[date],
+) -> list[tuple[Any, date]]:
+    """(store, day to summarize) for every active store with activity
+    on its day. One ``stores_with_activity`` query per distinct day —
+    a handful at most (one per UTC offset in use) — rather than one
+    activity query per store."""
+    if on_date is not None:
+        return [(st, on_date) for st in stores_with_activity(session, on_date)]
+    from api.Modules.Tenancy.Models import Store
+    by_day: dict[date, set[int]] = {}
+    for sid, tz in (
+        session.query(Store.id, Store.timezone)
+               .filter(Store.is_active == True)  # noqa: E712
+               .all()
+    ):
+        day = local_today(tz) - timedelta(days=1)
+        by_day.setdefault(day, set()).add(int(sid))
+    out: list[tuple[Any, date]] = []
+    for day, ids in sorted(by_day.items()):
+        out.extend(
+            (st, day) for st in stores_with_activity(session, day)
+            if int(st.id) in ids
+        )
+    return out
+
+
+def _send_store_summary(
+    session: Session, store: Any, on_date: date, base_url: str,
+) -> int:
+    """Email (and push) one store's summary for ``on_date`` to its
+    eligible recipients, then stamp the store. Returns emails sent."""
+    sent_total = 0
+    # Skip stores we've already summarized for this date — the
+    # stamp lets a cron re-run safely (a flaky earlier pass can
+    # be re-invoked without duplicating emails).
+    if getattr(store, "daily_summary_sent_for", None) == on_date:
+        return 0
+
+    try:
+        totals = compute_daily_totals(session, store.id, on_date)
+    except Exception:  # pragma: no cover — defensive log only
+        _log.exception(
+            "daily-summary: totals query failed for store_id=%s",
+            store.id,
+        )
+        return 0
+    if not totals.has_activity:
+        # stores_with_activity should have filtered this already,
+        # but keep the defensive guard so a race window between
+        # the discovery query and the per-store query doesn't
+        # send a zero-totals email.
+        return 0
+
+    try:
+        recipients = eligible_recipients(session, store)
+    except Exception:  # pragma: no cover — defensive log only
+        _log.exception(
+            "daily-summary: recipient query failed for store_id=%s",
+            store.id,
+        )
+        return 0
+
+    date_iso = on_date.isoformat()
+    date_human = on_date.strftime("%B %d, %Y")
+    view_url = f"{base_url}/app/daily/edit?date={date_iso}"
+    notifications_url = f"{base_url}/app/account/notifications"
+    # Net = the day's cash position (receipts − disbursements),
+    # matching the calendar/period views. Over/Short is a SEPARATE
+    # derived reconciliation line — adding it here would double-
+    # count it (it already reflects safe balance + payouts vs
+    # receipts). See DailyBook/INVARIANTS.md.
+    net = totals.receipts - totals.disbursements
+    subject = DAILY_SUMMARY_SUBJECT.format(
+        store_name=store.name, date_human=date_human,
+    )
+
+    for user in recipients:
+        body = DAILY_SUMMARY_BODY.format(
+            name=user.full_name or user.username,
+            store_name=store.name,
+            date_human=date_human,
+            transfer_count=totals.transfer_count,
+            send_volume=_fmt_money_2(totals.send_volume),
+            receipts=_fmt_money_2(totals.receipts),
+            disbursements=_fmt_money_2(totals.disbursements),
+            over_short=_fmt_money_2(totals.over_short),
+            net=_fmt_money_2(net),
+            view_url=view_url,
+            notifications_url=notifications_url,
+        )
+        try:
+            html = render_email_template(
+                "emails/daily_summary.html",
+                preheader=(
+                    f"{totals.transfer_count} transfers · "
+                    f"{_fmt_money_2(totals.send_volume)} sent"
+                ),
                 name=user.full_name or user.username,
                 store_name=store.name,
                 date_human=date_human,
@@ -282,77 +341,57 @@ def run(
                 disbursements=_fmt_money_2(totals.disbursements),
                 over_short=_fmt_money_2(totals.over_short),
                 net=_fmt_money_2(net),
+                net_negative=net < 0,
                 view_url=view_url,
                 notifications_url=notifications_url,
+                year=utc_now().year,
+                base_url=base_url,
             )
-            try:
-                html = render_email_template(
-                    "emails/daily_summary.html",
-                    preheader=(
+        except Exception:  # pragma: no cover — template path
+            _log.exception(
+                "daily-summary: template render failed for "
+                "store_id=%s user_id=%s", store.id, user.id,
+            )
+            continue
+        try:
+            send_email(session, user.email, subject, body, html)
+            sent_total += 1
+        except Exception:  # pragma: no cover — best-effort SMTP
+            _log.exception(
+                "daily-summary: send_email failed for "
+                "store_id=%s user_id=%s", store.id, user.id,
+            )
+        # Fan out a Web Push too — best-effort, doesn't block the
+        # email path if VAPID isn't configured (helper short-
+        # circuits to 0).  Honors the per-kind push toggle so a
+        # user who opted out of daily-summary pushes still gets
+        # the email.  Tagged so multi-device deliveries coalesce
+        # into one notification per device.
+        try:
+            from api.Modules.Notifications.Services.push import (
+                send_push, user_wants_push,
+            )
+            if user_wants_push(user, "daily_summary"):
+                send_push(
+                    session,
+                    user_id=int(user.id),
+                    title=subject,
+                    body=(
                         f"{totals.transfer_count} transfers · "
-                        f"{_fmt_money_2(totals.send_volume)} sent"
+                        f"{_fmt_money_2(totals.send_volume)} sent · "
+                        f"net {_fmt_money_2(net)}"
                     ),
-                    name=user.full_name or user.username,
-                    store_name=store.name,
-                    date_human=date_human,
-                    transfer_count=totals.transfer_count,
-                    send_volume=_fmt_money_2(totals.send_volume),
-                    receipts=_fmt_money_2(totals.receipts),
-                    disbursements=_fmt_money_2(totals.disbursements),
-                    over_short=_fmt_money_2(totals.over_short),
-                    net=_fmt_money_2(net),
-                    net_negative=net < 0,
-                    view_url=view_url,
-                    notifications_url=notifications_url,
-                    year=utc_now().year,
-                    base_url=base_url,
+                    url=f"/app/daily/edit?date={date_iso}",
+                    tag=f"daily_summary:{store.id}:{date_iso}",
                 )
-            except Exception:  # pragma: no cover — template path
-                _log.exception(
-                    "daily-summary: template render failed for "
-                    "store_id=%s user_id=%s", store.id, user.id,
-                )
-                continue
-            try:
-                send_email(session, user.email, subject, body, html)
-                sent_total += 1
-            except Exception:  # pragma: no cover — best-effort SMTP
-                _log.exception(
-                    "daily-summary: send_email failed for "
-                    "store_id=%s user_id=%s", store.id, user.id,
-                )
-            # Fan out a Web Push too — best-effort, doesn't block the
-            # email path if VAPID isn't configured (helper short-
-            # circuits to 0).  Honors the per-kind push toggle so a
-            # user who opted out of daily-summary pushes still gets
-            # the email.  Tagged so multi-device deliveries coalesce
-            # into one notification per device.
-            try:
-                from api.Modules.Notifications.Services.push import (
-                    send_push, user_wants_push,
-                )
-                if user_wants_push(user, "daily_summary"):
-                    send_push(
-                        session,
-                        user_id=int(user.id),
-                        title=subject,
-                        body=(
-                            f"{totals.transfer_count} transfers · "
-                            f"{_fmt_money_2(totals.send_volume)} sent · "
-                            f"net {_fmt_money_2(net)}"
-                        ),
-                        url=f"/app/daily/edit?date={date_iso}",
-                        tag=f"daily_summary:{store.id}:{date_iso}",
-                    )
-            except Exception as exc:  # pragma: no cover — push best-effort
-                _log.warning(
-                    "daily-summary push failed for user %s: %s",
-                    user.id, exc,
-                )
+        except Exception as exc:  # pragma: no cover — push best-effort
+            _log.warning(
+                "daily-summary push failed for user %s: %s",
+                user.id, exc,
+            )
 
-        store.daily_summary_sent_for = on_date
-        session.commit()
-
+    store.daily_summary_sent_for = on_date
+    session.commit()
     return sent_total
 
 
