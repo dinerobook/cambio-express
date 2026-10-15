@@ -13,7 +13,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--db-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,8 +23,8 @@
 }
 
 .card {
-  background: var(--db-surface-2, #141414);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-border);
   border-radius: 0.875rem;
   padding: 1.5rem 1.75rem;
   width: 100%;
@@ -39,7 +39,7 @@
    * than overflow the page. */
   max-height: calc(100vh - 3rem);
   overflow-y: auto;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--db-shadow-modal);
   /* Strip the focus outline since the dialog announces itself
    * via aria-modal; the focus ring on inner controls remains. */
   outline: none;
@@ -52,17 +52,17 @@
 
 .title {
   margin: 0;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-weight: 600;
   font-size: 1.25rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .body {
   /* Body content gets no internal padding — the .card padding
    * already supplies it.  Children can use their own grid/flex
    * layouts here without fighting the modal chrome. */
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .actions {

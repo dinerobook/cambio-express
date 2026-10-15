@@ -32,12 +32,12 @@
 .summary::-webkit-details-marker { display: none; }
 
 .summary:hover {
-  background: var(--db-fill-subtle, rgba(255, 255, 255, 0.04));
+  background: var(--db-fill-subtle);
   border-radius: 0.75rem;
 }
 
 .caret {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   display: inline-flex;
   margin-left: auto;
   transition: transform 200ms ease;
@@ -48,7 +48,7 @@ details[open] > .summary .caret {
 }
 
 .icon {
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   display: inline-flex;
   width: 18px;
   height: 18px;
@@ -56,16 +56,16 @@ details[open] > .summary .caret {
 }
 
 .catLabel {
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 /* ── Accordion body animation ───────────────────────────── */
 
 .catBody {
-  border-top: 1px solid var(--db-border, #262626);
+  border-top: 1px solid var(--db-border);
   padding: 0.35rem 1.1rem 0.75rem;
   animation: catBodyIn 200ms ease both;
 }
@@ -93,11 +93,11 @@ details[open] > .summary .caret {
 }
 
 .row:hover {
-  background: var(--db-fill-subtle, rgba(255, 255, 255, 0.04));
+  background: var(--db-fill-subtle);
 }
 
 .row + .row {
-  border-top: 1px solid var(--db-border-subtle, #1a1a1a);
+  border-top: 1px solid var(--db-border-subtle);
 }
 
 .rowBody {
@@ -106,15 +106,15 @@ details[open] > .summary .caret {
 }
 
 .rowName {
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .rowDesc {
   font-size: 0.75rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin-top: 0.1rem;
 }
 

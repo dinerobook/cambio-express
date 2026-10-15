@@ -13,7 +13,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin: 1.5rem 0 0.75rem;
 }
 

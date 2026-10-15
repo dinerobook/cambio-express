@@ -8,14 +8,14 @@
 
 .lead {
   margin: 0 0 1rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.88rem;
   line-height: 1.55;
 }
 
 .fine {
   margin-top: 1rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.78rem;
   line-height: 1.55;
 }
@@ -25,7 +25,7 @@
   gap: 0.75rem;
   align-items: flex-start;
   padding: 0.75rem 0;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
 }
 
 /* ── Per-kind matrix (Email | Push columns) ───────────── */
@@ -36,7 +36,7 @@
   align-items: center;
   gap: 0.6rem;
   padding: 0.4rem 0 0.5rem;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
 }
 
 .channelLabel {
@@ -44,7 +44,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   text-align: center;
 }
 
@@ -54,7 +54,7 @@
   align-items: flex-start;
   gap: 0.6rem;
   padding: 0.85rem 0;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
 }
 
 .channelCell {
@@ -70,7 +70,7 @@
   height: 1.05rem;
   margin-top: 0.2rem;
   flex-shrink: 0;
-  accent-color: var(--db-accent, #3fff00);
+  accent-color: var(--db-accent);
   cursor: pointer;
 }
 
@@ -81,7 +81,7 @@
 .prefTitle {
   font-size: 0.95rem;
   font-weight: 500;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
   display: block;
   margin-bottom: 0.25rem;
   cursor: pointer;
@@ -109,30 +109,30 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  border: 1px solid var(--db-border, #262626);
+  border: 1px solid var(--db-border);
 }
 
 .statusBadgeOn {
-  color: var(--db-accent, #3fff00);
-  border-color: var(--db-neon-glow-25, rgba(63, 255, 0, 0.4));
-  background: var(--db-neon-glow-15, rgba(63, 255, 0, 0.08));
+  color: var(--db-accent);
+  border-color: var(--db-neon-glow-25);
+  background: var(--db-neon-glow-15);
 }
 
 .statusBadgeMixed {
-  color: var(--db-text, #f5f5f5);
-  border-color: var(--db-border, #262626);
-  background: var(--db-fill-neutral, rgba(255,255,255,0.04));
+  color: var(--db-text);
+  border-color: var(--db-border);
+  background: var(--db-fill-neutral);
 }
 
 .statusBadgeOff {
-  color: var(--db-text-muted, #a3a3a3);
-  border-color: var(--db-border, #262626);
+  color: var(--db-text-muted);
+  border-color: var(--db-border);
 }
 
 .prefDesc {
   font-size: 0.85rem;
   line-height: 1.55;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .notApplicable {
@@ -153,7 +153,7 @@
   align-items: center;
   gap: 0.6rem;
   font-size: 0.92rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .pushDot {
@@ -163,12 +163,12 @@
   display: inline-block;
 }
 
-.pushDotOn  { background: var(--db-accent, #3fff00); box-shadow: 0 0 6px var(--db-neon-glow-25, rgba(63, 255, 0, 0.4)); }
-.pushDotOff { background: var(--db-border, #262626); }
+.pushDotOn  { background: var(--db-accent); box-shadow: 0 0 6px var(--db-neon-glow-25); }
+.pushDotOff { background: var(--db-border); }
 
 .pushDeviceHint {
   font-size: 0.78rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 400;
 }
 
@@ -180,6 +180,6 @@
 
 .pushUnsupported {
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   line-height: 1.55;
 }

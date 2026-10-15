@@ -6,7 +6,7 @@
 
 .helpText {
   margin: 0.25rem 0 1rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }
 
@@ -24,7 +24,7 @@
 }
 
 .error {
-  color: var(--db-negative, #ff3b30);
+  color: var(--db-negative);
   font-size: 0.9rem;
   margin: 0;
 }
@@ -39,13 +39,13 @@
 }
 
 .dateCell {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .dash {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .actionsRow {
@@ -55,7 +55,7 @@
 }
 
 .rowError {
-  color: var(--db-negative, #ff3b30);
+  color: var(--db-negative);
   font-size: 0.8rem;
   margin-left: 0.5rem;
 }
@@ -77,7 +77,7 @@
 }
 
 .storePicker {
-  border: 1px solid var(--db-border, #2a2a2a);
+  border: 1px solid var(--db-border);
   border-radius: 0.5rem;
   padding: 0.5rem;
   display: flex;
@@ -98,13 +98,13 @@
   justify-content: space-between;
   align-items: center;
   font-size: 0.8rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .linkBtn {
   background: none;
   border: none;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   font-size: 0.8rem;
   cursor: pointer;
   padding: 0;
@@ -112,6 +112,6 @@
 
 .audienceNames {
   font-size: 0.75rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin-top: 0.2rem;
 }

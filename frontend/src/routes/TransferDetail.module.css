@@ -3,11 +3,11 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.6rem 0;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
 }
 
 .rowLabel {
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
 }
 
 .rowValue {
@@ -16,11 +16,11 @@
 
 .rowValueMono {
   composes: rowValue;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .rowValueEmphasis {
   composes: rowValueMono;
   font-weight: 600;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
 }

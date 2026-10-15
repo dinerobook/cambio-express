@@ -9,7 +9,7 @@
 .note {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 /* "Unsaved changes" pill in the form action bar — pushed left so
@@ -24,5 +24,5 @@
   display: block;
   margin-top: 0.3rem;
   font-size: 0.78rem;
-  color: var(--db-negative, #ff3b30);
+  color: var(--db-negative);
 }

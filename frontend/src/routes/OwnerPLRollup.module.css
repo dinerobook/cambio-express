@@ -5,13 +5,13 @@
 }
 
 .storeSlug {
-  color: var(--db-text-muted, #a3a3a3);
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  color: var(--db-text-muted);
+  font-family: var(--db-font-mono);
   font-size: 0.78rem;
 }
 
 .noPL {
-  color: var(--db-warning, #ffb800);
+  color: var(--db-warning);
 }
 
 .totalsLabel {
@@ -19,23 +19,23 @@
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .moneyDefault {
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .moneyPos {
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
 }
 
 .moneyNeg {
-  color: var(--db-negative, #ff3b30);
+  color: var(--db-negative);
 }
 
 .moneyZero {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .bold {

@@ -2,11 +2,10 @@
 // - Cache-first for the /static/ shell (CSS, icons)
 // - Network-first for navigations with /offline as fallback
 // - Push notifications (show + handle click)
-const CACHE = 'dinerobook-v10';
+const CACHE = 'dinerobook-v11';
 const SHELL = [
   '/offline',
   '/static/design-tokens.css',
-  '/static/shell.css',
   '/static/favicon.svg',
   '/static/favicon-32.png',
   '/static/logo.svg',
@@ -18,7 +17,6 @@ const SHELL = [
 // without waiting for a cache bust.
 const NETWORK_FIRST_CSS = new Set([
   '/static/design-tokens.css',
-  '/static/shell.css',
 ]);
 
 // Every SHELL entry must exist: addAll() rejects on a single 404 and

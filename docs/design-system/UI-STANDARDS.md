@@ -235,8 +235,18 @@ needed if the kit had been checked first.
 - Kit primitives first; page-specific leftovers in a co-located
   `<Route>.module.css`. No bottom-of-file `CSSProperties` constants,
   no large inline `style={{…}}` blocks.
-- No hardcoded hex — `--db-*` tokens (or `tokens.*` in TSX). A color
-  used twice gets a token.
+- No colour literal anywhere in `frontend/src` — no hex, no `rgb()`,
+  no `var(--db-x, #fallback)`. Every colour is a `--db-*` token from
+  `static/design-tokens.css` (or `tokens.*` in TSX). A colour you
+  need that is not there gets a token, with its light-mode value in
+  the `[data-theme="light"]` block, or is listed there as
+  theme-fixed (brand mark, referral gold, paper) with a reason.
+  Shadows, scrims and the sticky top-bar glass are tokens too
+  (`--db-shadow-pop`, `--db-shadow-modal`, `--db-scrim`,
+  `--db-nav-glass`). `tests/test_theme_tokens.py` fails on a
+  literal, a fallback, an undeclared variable, a colour token with
+  no light value, or a stylesheet under `static/` that no page
+  links.
 - Tables: kit `<Table>`; the permission matrix uses the shared
   matrix component, not a per-route copy.
 - A permission that is one on/off switch rather than an area (e.g.

@@ -78,7 +78,7 @@ export default function SuperadminDiscounts() {
             <tbody>
               {data.rows.map((row) => (
                 <tr key={row.id}>
-                  <td style={{ fontFamily: "var(--db-font-mono, monospace)", fontWeight: 600 }}>
+                  <td style={{ fontFamily: "var(--db-font-mono)", fontWeight: 600 }}>
                     {row.code}
                   </td>
                   <td>{row.value_label}</td>
@@ -87,7 +87,7 @@ export default function SuperadminDiscounts() {
                       ? `${row.duration_in_months} mo`
                       : row.duration}
                   </td>
-                  <td style={{ fontFamily: "var(--db-font-mono, monospace)" }}>
+                  <td style={{ fontFamily: "var(--db-font-mono)" }}>
                     {row.redeemed_count}
                     {row.max_redemptions != null && (
                       <span style={{ color: "var(--db-text-muted)" }}>

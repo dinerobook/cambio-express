@@ -5,7 +5,7 @@
  */
 
 .backLink {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
   text-decoration: none;
 }
@@ -36,16 +36,16 @@
   flex-direction: column;
   gap: 0.15rem;
   font-size: 0.7rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .dateInput {
   padding: 0.35rem 0.5rem;
-  background: var(--db-surface, #0a0a0a);
+  background: var(--db-surface);
   color: inherit;
-  border: 1px solid var(--db-border, #262626);
+  border: 1px solid var(--db-border);
   border-radius: 0.4rem;
   font-size: 0.85rem;
   font-family: inherit;
@@ -58,12 +58,12 @@
   display: flex;
   justify-content: space-between;
   padding: 0.5rem 0;
-  border-top: 1px solid var(--db-border, #262626);
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-top: 1px solid var(--db-border);
+  border-bottom: 1px solid var(--db-border);
 }
 
 .muted {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
   margin: 0;
 }
@@ -82,5 +82,5 @@
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }

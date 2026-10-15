@@ -13,7 +13,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.55rem 0;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
   gap: 1rem;
 }
 
@@ -26,17 +26,17 @@
 
 .storeMeta {
   font-size: 0.78rem;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
 }
 
 .monoMuted {
   composes: mono;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
 }
 
 .badge {
@@ -50,7 +50,7 @@
 .dryRunIntro {
   margin: 0 0 0.75rem;
   font-size: 0.85rem;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
 }
 
 .dryRunActions {
@@ -63,7 +63,7 @@
 
 .dryRunSummary {
   font-size: 0.85rem;
-  color: var(--db-text, inherit);
+  color: var(--db-text);
 }
 
 .dryRunList {

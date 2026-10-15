@@ -10,27 +10,25 @@
   z-index: 35;
   appearance: none;
   border: 0;
-  background: var(--db-accent, #3fff00);
-  color: var(--db-brand-ink, #001a0f);
+  background: var(--db-accent);
+  color: var(--db-brand-ink);
   width: 3.25rem;
   height: 3.25rem;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-weight: 700;
   font-size: 1.5rem;
-  box-shadow: 0 6px 24px rgba(63, 255, 0, 0.35),
-              0 1px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 24px var(--db-neon-glow-40), var(--db-shadow-pop);
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 .bubble:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 32px rgba(63, 255, 0, 0.45),
-              0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 32px var(--db-neon-glow-40), var(--db-shadow-pop);
 }
 
 .bubble:active {
@@ -55,7 +53,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--db-scrim);
   z-index: 40;
   display: flex;
   align-items: flex-end;
@@ -67,10 +65,10 @@
 .panel {
   width: min(26rem, 100%);
   max-height: min(40rem, calc(100vh - 2rem));
-  background: var(--db-surface-2, #141414);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-border);
   border-radius: 1rem;
-  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--db-shadow-pop);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -82,22 +80,22 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.95rem 1rem;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
 }
 
 .panelTitle {
   flex: 1;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-size: 1.05rem;
   font-weight: 600;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .closeBtn {
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 1.4rem;
   line-height: 1;
   padding: 0.25rem 0.5rem;
@@ -107,26 +105,26 @@
 }
 
 .closeBtn:hover {
-  background: var(--db-fill-neutral, rgba(255,255,255,0.06));
-  color: var(--db-text, #f5f5f5);
+  background: var(--db-fill-neutral);
+  color: var(--db-text);
 }
 
 .closeBtn:focus-visible {
-  outline: 2px solid var(--db-accent, #3fff00);
+  outline: 2px solid var(--db-accent);
   outline-offset: 2px;
 }
 
 .searchRow {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
 }
 
 .searchInput {
   width: 100%;
   appearance: none;
-  background: var(--db-surface, #0a0a0a);
-  border: 1px solid var(--db-border, #262626);
-  color: var(--db-text, #f5f5f5);
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
+  color: var(--db-text);
   font-size: 0.95rem;
   padding: 0.6rem 0.75rem;
   border-radius: 0.55rem;
@@ -138,8 +136,8 @@
  * vocabulary (Phase 1). */
 .searchInput:focus-visible {
   outline: 0;
-  border-color: var(--db-accent, #3fff00);
-  box-shadow: 0 0 0 3px var(--db-neon-glow-25, rgba(63, 255, 0, 0.25));
+  border-color: var(--db-accent);
+  box-shadow: 0 0 0 3px var(--db-neon-glow-25);
 }
 
 .results {
@@ -152,8 +150,8 @@
 }
 
 .answer {
-  background: var(--db-fill-neutral, rgba(255,255,255,0.04));
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-fill-neutral);
+  border: 1px solid var(--db-border);
   border-radius: 0.7rem;
   padding: 0.75rem 0.85rem;
   display: flex;
@@ -166,20 +164,20 @@
  * cards aren't an active surface, just an interactive container.
  * Neon stays reserved for the deep-link CTA inside the card. */
 .answer:hover {
-  border-color: var(--db-border-strong, #404040);
-  background: var(--db-fill-subtle, rgba(255, 255, 255, 0.06));
+  border-color: var(--db-border-strong);
+  background: var(--db-fill-subtle);
 }
 
 .answerTitle {
   font-size: 0.92rem;
   font-weight: 600;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .answerBody {
   font-size: 0.84rem;
   line-height: 1.45;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .answerBody p {
@@ -191,11 +189,11 @@
 }
 
 .answerBody code {
-  background: var(--db-surface, #0a0a0a);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
   border-radius: 0.3rem;
   padding: 0.05rem 0.35rem;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.78rem;
 }
 
@@ -205,7 +203,7 @@
   gap: 0.3rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   text-decoration: none;
   margin-top: 0.15rem;
 }
@@ -216,9 +214,9 @@
 
 .footer {
   padding: 0.55rem 1rem;
-  border-top: 1px solid var(--db-border, #262626);
+  border-top: 1px solid var(--db-border);
   font-size: 0.75rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   text-align: center;
 }
 

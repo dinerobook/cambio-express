@@ -21,7 +21,7 @@
 }
 
 .tileTitle {
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-size: 1.2rem;
   font-weight: 600;
   margin: 0;
@@ -35,20 +35,20 @@
 
 .tileBlurb {
   margin: 0;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.9rem;
   flex: 1;
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .cadence {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .inlineLink {
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   text-decoration: none;
 }

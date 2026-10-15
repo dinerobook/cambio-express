@@ -1,15 +1,16 @@
 /* ==========================================================================
-   DineroBook — Design Tokens (v1, dark-only, Robinhood-inspired)
+   DineroBook — Design Tokens (dark default + light, Robinhood-inspired)
    --------------------------------------------------------------------------
    Dark-first, near-black surfaces with a single neon-green accent. The
    ONLY saturated color in the system is the neon. Everything else is
    cool gray so the green actually reads.
 
-   This file is the new source of truth for tokens. It ships alongside
-   the legacy `app.css` during the migration — shell.css consumes these
-   tokens to restyle the sidebar + topbar; content-area templates
-   continue to use app.css's legacy tokens (navy/cream/gold) until
-   their own migration PRs land.
+   This file is the ONE source of colour for the SPA and the public
+   pages. A page never writes a hex or rgb() literal: it reaches for a
+   token here, and every token that must change with the theme is
+   redefined in the [data-theme="light"] block below.
+   frontend/src/lib/sourceGuards.test.ts fails on a colour literal
+   outside this file.
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
@@ -96,7 +97,7 @@
   --db-series-2: var(--db-co-maxi);
   --db-series-3: var(--db-co-barri);
   --db-series-4: var(--db-warning);
-  --db-series-5: var(--db-gray-6, #8a8f9c);
+  --db-series-5: var(--db-gray-6);
 
   /* ── Referral rewards accents ──
      The ONE sanctioned gold sub-theme — the topbar crown + the
@@ -155,12 +156,37 @@
   --db-fill-subtle:    rgba(255, 255, 255, 0.04);
   --db-fill-neutral:   rgba(255, 255, 255, 0.06);
 
+  /* Chrome glass, scrims and lifted-surface shadows. Every one of
+     these flips in [data-theme="light"], so a page that reaches for
+     them never paints a dark bar or a black halo on a white page
+     (the public pages' top bar did exactly that until 2026-10). */
+  --db-nav-glass:     rgba(11, 13, 18, 0.85);  /* sticky top bars */
+  --db-scrim:         rgba(0, 0, 0, 0.55);     /* behind modals and sheets */
+  --db-shadow-pop:    0 12px 32px rgba(0, 0, 0, 0.45); /* popovers, menus */
+  --db-shadow-modal:  0 24px 80px rgba(0, 0, 0, 0.5);  /* dialogs, auth card */
+
+  /* Text on a solid --db-negative fill (unread badges). */
+  --db-on-negative:   #ffffff;
+
   /* Brand-mark colors — FIXED across both themes. The DineroBook
      logo badge is brand identity; it must look the same on a
      light page as on a dark page. Don't override these inside
      [data-theme="light"]. */
   --db-brand:      #3fff00;
   --db-brand-ink:  #001a0f;
+  --db-brand-glow: rgba(63, 255, 0, 0.40);
+
+  /* Paper — FIXED across both themes. A printed transfer receipt
+     or paystub is black ink on white whichever theme the cashier
+     uses on screen. Only print layouts and the receipt preview
+     reach for these. */
+  --db-paper:           #ffffff;
+  --db-paper-ink:       #0a0a0a;
+  --db-paper-text:      #4a5162;
+  --db-paper-muted:     #6b7280;
+  --db-paper-faint:     #9ca3af;
+  --db-paper-rule:      #e5e7eb;
+  --db-paper-rule-soft: #f3f4f6;
 
   /* App-shell topbar height — shared by `.app-topbar`, the slim
      sidebar's brand block, and the slim-sidebar fly-out panel so
@@ -244,7 +270,29 @@
   --db-gray-9:  #11141b;
   --db-gray-10: #0b0d12;
 
+  /* State colors darkened so text and outlines read on white
+     (#ffb020 amber on white is ~1.9:1). The RGB triplets follow so
+     every --db-tone-* tint is built from the light value too. */
   --db-positive: #16a34a;
+  --db-negative: #dc2626;
+  --db-warning:  #b45309;
+  --db-info:     #2563eb;
+  --db-positive-rgb: 22, 163, 74;
+  --db-negative-rgb: 220, 38, 38;
+  --db-warning-rgb:  180, 83, 9;
+  --db-info-rgb:     37, 99, 235;
+
+  /* Company jewel tones, darkened for white. The breakdown series
+     (--db-series-1..4) point at these and --db-warning, so they
+     follow without their own overrides. */
+  --db-co-intermex: #1f6fd1;
+  --db-co-maxi:     #7b4fd6;
+  --db-co-barri:    #0e8f9c;
+
+  --db-nav-glass:    rgba(250, 250, 250, 0.85);
+  --db-scrim:        rgba(15, 18, 32, 0.40);
+  --db-shadow-pop:   0 12px 32px rgba(15, 18, 32, 0.12);
+  --db-shadow-modal: 0 24px 64px rgba(15, 18, 32, 0.16);
 
   --db-shadow-card:      0 0 0 1px var(--db-gray-3);
   --db-shadow-card-hvr:  0 0 0 1px var(--db-gray-4), 0 4px 14px rgba(15,18,32,0.08);
@@ -256,13 +304,6 @@
      invisible — that was the original bug). */
   --db-fill-subtle:  rgba(15, 18, 32, 0.04);
   --db-fill-neutral: rgba(15, 18, 32, 0.06);
-
-  /* Breakdown series, darkened so the pill text reads on white. */
-  --db-series-1: #1f6fd1;
-  --db-series-2: #7b4fd6;
-  --db-series-3: #0e8f9c;
-  --db-series-4: #b26b00;
-  --db-series-5: #6b7280;
 }
 
 [data-theme="light"] {

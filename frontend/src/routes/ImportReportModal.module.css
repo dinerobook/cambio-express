@@ -6,14 +6,14 @@
 
 .lead {
   margin: 0;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.9rem;
   line-height: 1.5;
 }
 
 .fileLabel input[type="file"] {
   font-size: 0.9rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .result {
@@ -37,7 +37,7 @@
 
 .sub {
   font-size: 0.82rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin-top: 0.15rem;
 }
 
@@ -46,7 +46,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 600;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin-top: 0.25rem;
 }
 
@@ -66,14 +66,14 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--db-text-muted, #a3a3a3);
-  border-bottom: 1px solid var(--db-border, #262626);
+  color: var(--db-text-muted);
+  border-bottom: 1px solid var(--db-border);
   white-space: nowrap;
 }
 
 .table td {
   padding: 0.45rem 0.55rem;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
   white-space: nowrap;
 }
 
@@ -82,7 +82,7 @@
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .cancelled td {
@@ -92,7 +92,7 @@
 
 .otherCounts {
   font-size: 0.84rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .soon {

@@ -8,8 +8,8 @@ import styles from "./RowActions.module.css";
 /** One entry in a RowActions list. ``tone`` controls both the
  *  desktop ``Button`` tone and the mobile bottom-sheet tint —
  *  ``"primary"`` for the affirmative action, ``"warning"`` for
- *  amber, ``"info"`` for purple, ``"logs"`` for orange (mirrors
- *  the inspiration palette), ``"danger"`` for destructive
+ *  amber, ``"info"`` for the info blue, ``"logs"`` for a jewel
+ *  purple, ``"danger"`` for destructive
  *  actions. Defaults to ``"secondary"``. */
 export type RowActionTone =
   | "secondary" | "primary" | "warning" | "info" | "logs" | "danger";

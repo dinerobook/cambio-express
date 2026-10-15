@@ -22,23 +22,23 @@
 }
 
 .totalNumber {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 1.4rem;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
 }
 
 .subtle {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.9rem;
 }
 
 .openTag {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-style: italic;
 }
 
@@ -57,7 +57,7 @@
 }
 
 .historyRow {
-  background: var(--db-fill-neutral, rgba(255,255,255,0.04));
+  background: var(--db-fill-neutral);
 }
 
 .historyList {
@@ -71,7 +71,7 @@
 
 .historyItem {
   padding: 0.4rem 0.55rem;
-  border: 1px solid var(--db-border, #262626);
+  border: 1px solid var(--db-border);
   border-radius: 0.4rem;
 }
 
@@ -83,21 +83,21 @@
 }
 
 .historyAction {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
 }
 
 .historyActor {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.78rem;
 }
 
 .historySummary {
   margin-top: 0.25rem;
   font-size: 0.85rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 /* `.modalBackdrop` + `.modalCard` retired — chrome now comes
@@ -136,7 +136,7 @@
   gap: 0.85rem;
   margin-bottom: 0.85rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
 }
 
 .groupName {
@@ -147,13 +147,13 @@
 
 .groupRange {
   font-weight: 400;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .totalCell {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-weight: 600;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
 }
 
 /* Narrow-viewport stack for the filter toolbar. The per-row

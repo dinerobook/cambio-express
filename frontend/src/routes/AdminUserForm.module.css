@@ -17,7 +17,7 @@
 .cardHeaderText {
   font-weight: 600;
   font-size: 0.98rem;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
 }
 
 /* The R-2 custom-access matrix renders through the shared

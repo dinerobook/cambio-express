@@ -158,7 +158,7 @@ function FlagRow({
   return (
     <>
       <tr>
-        <td style={{ fontFamily: "var(--db-font-mono, monospace)", fontSize: "0.85rem" }}>
+        <td style={{ fontFamily: "var(--db-font-mono)", fontSize: "0.85rem" }}>
           {flag.key}
         </td>
         <td>{flag.label || <span style={{ color: "var(--db-text-muted)" }}>—</span>}</td>
@@ -247,7 +247,7 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
   }
 
   return (
-    <div style={{ padding: "1rem 1.5rem", background: "var(--db-surface-2, rgba(255,255,255,0.03))" }}>
+    <div style={{ padding: "1rem 1.5rem", background: "var(--db-surface-2)" }}>
       <div style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: "0.5rem" }}>
         Per-store overrides for <code>{flagKey}</code>
       </div>

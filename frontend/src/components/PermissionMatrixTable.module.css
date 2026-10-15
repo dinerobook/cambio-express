@@ -19,9 +19,9 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
 }
 
 .matrix th:first-child {
@@ -31,7 +31,7 @@
 
 .matrix td {
   padding: 0.45rem 0.75rem;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
   text-align: center;
 }
 
@@ -47,7 +47,7 @@
 }
 
 .matrix tr:hover td {
-  background: var(--db-fill-neutral, rgba(255, 255, 255, 0.04));
+  background: var(--db-fill-neutral);
 }
 
 .checkCell {
@@ -64,10 +64,10 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--db-text-muted, #888);
-  background: var(--db-surface-2, rgba(255, 255, 255, 0.03));
+  color: var(--db-text-muted);
+  background: var(--db-surface-2);
 }
 
 .matrix tr.groupRow:hover td {
-  background: var(--db-surface-2, rgba(255, 255, 255, 0.03));
+  background: var(--db-surface-2);
 }

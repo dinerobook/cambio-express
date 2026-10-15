@@ -327,9 +327,9 @@ export default function Privacy() {
 // only for the status pill and link hovers so the policy reads as
 // content rather than UI.
 const PAGE_CSS = `
-nav.site{position:sticky;top:0;z-index:100;background:rgba(11,13,18,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:0 40px;height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--db-gray-2)}
+nav.site{position:sticky;top:0;z-index:100;background:var(--db-nav-glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:0 40px;height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--db-gray-2)}
 .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-.nav-brand .mark{width:28px;height:28px;border-radius:8px;box-shadow:0 0 12px rgba(63,255,0,0.40);display:block}
+.nav-brand .mark{width:28px;height:28px;border-radius:8px;box-shadow:0 0 12px var(--db-brand-glow);display:block}
 .nav-brand .name{font-family:var(--db-font-display);color:var(--db-gray-9);font-size:17px;font-weight:600;letter-spacing:-.02em}
 .nav-login{color:var(--db-gray-7);font-size:13px;text-decoration:none;font-weight:500}
 .nav-login:hover{color:var(--db-gray-9)}
@@ -338,7 +338,7 @@ nav.site{position:sticky;top:0;z-index:100;background:rgba(11,13,18,0.85);backdr
 .page-glow{position:absolute;inset:0;background:radial-gradient(ellipse 50% 40% at 50% 10%,var(--db-neon-glow-15),transparent 70%);pointer-events:none}
 .page-grid{position:absolute;inset:0;background-image:linear-gradient(var(--db-gray-2) 1px,transparent 1px),linear-gradient(90deg,var(--db-gray-2) 1px,transparent 1px);background-size:48px 48px;-webkit-mask-image:radial-gradient(ellipse at 50% 20%,black 20%,transparent 60%);mask-image:radial-gradient(ellipse at 50% 20%,black 20%,transparent 60%);opacity:.4;pointer-events:none}
 
-.doc{position:relative;width:100%;max-width:780px;background:var(--db-bg-elevated);border:1px solid var(--db-gray-3);border-radius:16px;padding:48px 56px 56px;box-shadow:0 24px 80px rgba(0,0,0,0.5)}
+.doc{position:relative;width:100%;max-width:780px;background:var(--db-bg-elevated);border:1px solid var(--db-gray-3);border-radius:16px;padding:48px 56px 56px;box-shadow: var(--db-shadow-modal)}
 .doc-head{margin-bottom:24px}
 .status-pill{display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border:1px solid var(--db-gray-2);border-radius:999px;background:var(--db-bg-input);margin-bottom:16px}
 .status-pill .dot{width:6px;height:6px;border-radius:999px;background:var(--db-neon);box-shadow:0 0 8px var(--db-neon)}

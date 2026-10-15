@@ -4,18 +4,18 @@
  */
 
 .paystub {
-  background: var(--db-surface, #0d0d0d);
-  border: 1px solid var(--db-border, #262626);
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
   border-radius: 0.75rem;
   padding: 1.75rem 2rem;
-  font-family: var(--db-font-body, "Inter", system-ui, sans-serif);
+  font-family: var(--db-font-body);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
   padding-bottom: 0.75rem;
   margin-bottom: 1rem;
 }
@@ -27,7 +27,7 @@
 
 .headerSub {
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .summary {
@@ -50,27 +50,27 @@
 .shifts th,
 .shifts td {
   padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
   text-align: left;
 }
 
 .shifts th {
   font-size: 0.78rem;
   text-transform: uppercase;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   letter-spacing: 0.05em;
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .footer {
   margin-top: 1.25rem;
   padding-top: 0.75rem;
-  border-top: 1px dashed var(--db-border, #262626);
+  border-top: 1px dashed var(--db-border);
   font-size: 0.78rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .printbar {
@@ -106,13 +106,13 @@
      !important rule reaches them for paper. */
   .summary :global(.ds-kpi-card) {
     background: white !important;
-    border-color: #ccc !important;
+    border-color: var(--db-paper-rule) !important;
   }
   .summary :global(.ds-kpi-card) * {
     color: black !important;
   }
   .shifts th,
   .shifts td {
-    border-color: #ccc !important;
+    border-color: var(--db-paper-rule) !important;
   }
 }

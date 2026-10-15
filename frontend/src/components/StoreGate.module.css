@@ -8,18 +8,18 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: var(--db-bg, #0a0a0a);
+  background: var(--db-bg);
 }
 
 .card {
   width: 100%;
   max-width: 30rem;
-  background: var(--db-surface, #141414);
-  border: 1px solid var(--db-border, #2a2a2a);
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
   border-radius: 1rem;
   padding: 2rem;
   text-align: center;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--db-shadow-pop);
 }
 
 .mark {
@@ -30,27 +30,27 @@
   align-items: center;
   justify-content: center;
   border-radius: 0.9rem;
-  color: var(--db-accent, #3fff00);
-  background: color-mix(in srgb, var(--db-accent, #3fff00) 12%, transparent);
+  color: var(--db-accent);
+  background: color-mix(in srgb, var(--db-accent) 12%, transparent);
 }
 
 .title {
   margin: 0 0 0.6rem;
-  font-family: var(--db-font-display, "Space Grotesk", system-ui, sans-serif);
+  font-family: var(--db-font-display);
   font-size: 1.4rem;
   font-weight: 600;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .body {
   margin: 0 0 1.5rem;
   font-size: 0.95rem;
   line-height: 1.5;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .body strong {
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
   font-weight: 600;
 }
 

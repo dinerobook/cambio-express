@@ -19,13 +19,13 @@
 }
 
 .wrap > table > tbody > tr:hover {
-  background: var(--db-fill-subtle, rgba(255, 255, 255, 0.04));
+  background: var(--db-fill-subtle);
 }
 
 .wrap > table > tbody > tr.is-active {
-  background: var(--db-neon-glow-15, rgba(63, 255, 0, 0.12));
+  background: var(--db-neon-glow-15);
 }
 
 .wrap > table > tbody > tr.is-active > td:first-child {
-  box-shadow: inset 3px 0 0 0 var(--db-accent, #3fff00);
+  box-shadow: inset 3px 0 0 0 var(--db-accent);
 }

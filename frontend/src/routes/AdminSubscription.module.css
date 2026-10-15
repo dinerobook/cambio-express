@@ -8,8 +8,8 @@
 }
 
 .planHero {
-  background: var(--db-surface-2, #141414);
-  border: 1px solid var(--db-accent, #3fff00);
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-accent);
   border-radius: 0.75rem;
   padding: 1.5rem;
   position: relative;
@@ -19,26 +19,26 @@
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
   font-weight: 600;
 }
 
 .planName {
   font-size: 1.75rem;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   margin-top: 0.25rem;
 }
 
 .planPrice {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .planMeta {
   margin-top: 1rem;
   font-size: 0.9rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .planActions {
@@ -50,7 +50,7 @@
 
 .cancelLink {
   background: transparent;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   border: none;
   padding: 0.5rem 0;
   margin-top: 0.5rem;
@@ -61,14 +61,14 @@
 }
 
 .muted {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }
 
 .bannerWarn {
-  background: rgba(255, 204, 0, 0.08);
-  border: 1px solid rgba(255, 204, 0, 0.4);
-  color: var(--db-warning, #ffcc00);
+  background: var(--db-tone-warning-bg);
+  border: 1px solid var(--db-tone-warning-border);
+  color: var(--db-warning);
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
   margin-bottom: 1rem;
@@ -101,15 +101,15 @@
 }
 
 .addonPrice {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .addonDesc {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .addonFoot {
@@ -123,8 +123,8 @@
 
 .btnLinkLive {
   background: transparent;
-  border: 1px solid var(--db-accent, #3fff00);
-  color: var(--db-accent, #3fff00);
+  border: 1px solid var(--db-accent);
+  color: var(--db-accent);
   padding: 0.4rem 0.85rem;
   border-radius: 0.5rem;
   font-size: 0.85rem;
@@ -133,8 +133,8 @@
 }
 
 .infoBox {
-  background: rgba(63, 255, 0, 0.05);
-  border: 1px solid rgba(63, 255, 0, 0.2);
+  background: var(--db-neon-glow-8);
+  border: 1px solid var(--db-neon-glow-25);
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
 }
@@ -143,11 +143,11 @@
   display: flex;
   justify-content: space-between;
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
 }
 
 .monoSm {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
 }
 

@@ -37,9 +37,9 @@
   font-family: var(--db-font-mono);
   font-size: 15px;
   letter-spacing: 1px;
-  background: var(--db-tone-warning-bg, rgba(255, 176, 32, 0.08));
-  border: 1px solid var(--db-tone-warning-border, rgba(255, 176, 32, 0.32));
-  color: var(--db-tone-warning-fg, var(--db-warning));
+  background: var(--db-tone-warning-bg);
+  border: 1px solid var(--db-tone-warning-border);
+  color: var(--db-tone-warning-fg);
   border-radius: 10px;
   padding: 16px;
 }

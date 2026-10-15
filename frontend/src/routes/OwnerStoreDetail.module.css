@@ -2,7 +2,7 @@
 
 .backLink {
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   text-decoration: none;
   display: block;
   margin-bottom: 0.5rem;

@@ -23,7 +23,7 @@
   gap: 0.75rem 1rem;
   flex-wrap: wrap;
   min-height: 3rem;
-  background: var(--db-bg, #0a0a0a);
+  background: var(--db-bg);
   padding: 0.25rem 0 0.5rem;
 }
 
@@ -47,10 +47,10 @@
 .stepDate {
   min-width: 9.5rem;
   text-align: center;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-weight: 600;
   font-size: 0.95rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .lockBtnInner {
@@ -67,9 +67,9 @@
   position: sticky;
   top: 3.75rem;
   z-index: 10;
-  background: var(--db-surface-2, #141414);
-  border: 1px solid var(--db-border, #262626);
-  border-top: 3px solid var(--db-accent, #3fff00);
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-border);
+  border-top: 3px solid var(--db-accent);
   border-radius: 0.875rem;
   padding: 0.7rem 1rem;
   margin-bottom: 0.75rem;
@@ -87,7 +87,7 @@
 .colHeaderValue {
   margin-left: auto;
   white-space: nowrap;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -97,14 +97,14 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 600;
 }
 
 .totalHint {
   margin-top: 0.25rem;
   font-size: 0.72rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 /* Mobile tab strip — picks which column is visible below 60rem.
@@ -204,19 +204,19 @@
   align-items: flex-end;
   line-height: 1.1;
   padding: 0.1rem 0.5rem 0.1rem 0.75rem;
-  border-left: 1px solid var(--db-border, #262626);
+  border-left: 1px solid var(--db-border);
 }
 
 .osReadoutLabel {
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 600;
 }
 
 .osReadoutValue {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -224,16 +224,16 @@
 
 .panelDivider {
   border: none;
-  border-top: 1px solid var(--db-border, #262626);
+  border-top: 1px solid var(--db-border);
   margin: 1.25rem 0;
 }
 
 .panelTitle {
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin: 0 0 0.85rem;
   font-weight: 600;
 }
@@ -253,7 +253,7 @@
 
 .subText {
   margin: 0 0 1rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }
 
@@ -278,18 +278,18 @@
   gap: 0.4rem;
   width: 100%;
   text-align: left;
-  border: 1px solid var(--db-border, #262626);
-  background: var(--db-surface, #0a0a0a);
+  border: 1px solid var(--db-border);
+  background: var(--db-surface);
   border-radius: 0.75rem;
   padding: 0.85rem 1rem;
   cursor: pointer;
-  color: var(--db-text, #f5f5f5);
-  font-family: var(--db-font-body, "Inter", system-ui, sans-serif);
+  color: var(--db-text);
+  font-family: var(--db-font-body);
   transition: border-color 120ms ease, transform 120ms ease;
 }
 
 .widgetCard:hover {
-  border-color: var(--db-border-strong, #3a3a3a);
+  border-color: var(--db-border-strong);
   transform: translateY(-1px);
 }
 
@@ -324,7 +324,7 @@
 .widgetTotal {
   line-height: 1.35;
   white-space: nowrap;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.95rem;
   font-weight: 600;
 }
@@ -389,14 +389,14 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 600;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
 }
 
 .widgetTd {
   padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
   font-size: 0.88rem;
 }
 
@@ -417,19 +417,19 @@
 
 .widgetTdMono {
   padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
   font-size: 0.88rem;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .widgetTdSmall {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.78rem;
 }
 
 .emptyEntries {
   margin: 0;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
   font-style: italic;
 }
@@ -440,15 +440,15 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  background: var(--db-surface, #0a0a0a);
-  border-top: 1px solid var(--db-border, #262626);
+  background: var(--db-surface);
+  border-top: 1px solid var(--db-border);
   padding: 0.85rem 0;
   z-index: 4;
 }
 
 .saveBarLeft {
   flex: 1;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }
 
@@ -465,10 +465,10 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 600;
-  border-bottom: 1px solid var(--db-border, #262626);
-  background: var(--db-surface, #0a0a0a);
+  border-bottom: 1px solid var(--db-border);
+  background: var(--db-surface);
 }
 
 .mtThNum {
@@ -477,7 +477,7 @@
 
 .mtTd {
   padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
   font-size: 0.88rem;
 }
 
@@ -486,7 +486,7 @@
 }
 
 .mtTdNum {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   text-align: right;
 }
 
@@ -495,8 +495,8 @@
 }
 
 .mtTdNumMuted {
-  color: var(--db-text-muted, #a3a3a3);
-  border-top: 1px solid var(--db-border, #262626);
+  color: var(--db-text-muted);
+  border-top: 1px solid var(--db-border);
 }
 
 .mtPanelHeader {
@@ -522,18 +522,18 @@
   flex-wrap: wrap;
   margin-top: 1rem;
   padding-top: 0.85rem;
-  border-top: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-top: 1px solid var(--db-border-subtle);
 }
 
 .mtSaveRowLeft {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
   flex: 1;
 }
 
 .mtCellTd {
   padding: 0.35rem 0.3rem;
-  border-bottom: 1px solid var(--db-border-subtle, #1f1f1f);
+  border-bottom: 1px solid var(--db-border-subtle);
   min-width: 4.75rem;
 }
 
@@ -554,8 +554,8 @@
 .mtResetBtn {
   margin-left: 0.55rem;
   background: transparent;
-  border: 1px solid var(--db-border, #262626);
-  color: var(--db-text-muted, #a3a3a3);
+  border: 1px solid var(--db-border);
+  color: var(--db-text-muted);
   font-size: 0.7rem;
   padding: 0.15rem 0.5rem;
   border-radius: 0.4rem;
@@ -565,9 +565,9 @@
 .mtRowHint {
   display: inline-block;
   margin-left: 0.6rem;
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.7rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 500;
 }
 

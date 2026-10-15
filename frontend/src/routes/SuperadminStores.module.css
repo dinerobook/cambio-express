@@ -5,34 +5,34 @@
 }
 
 .storeMeta {
-  color: var(--db-text-muted, #a3a3a3);
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  color: var(--db-text-muted);
+  font-family: var(--db-font-mono);
   font-size: 0.78rem;
 }
 
 .stripeId {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.8rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .monoMuted {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .dash {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .trialRetention {
-  color: var(--db-negative, #ff3b30);
+  color: var(--db-negative);
   font-size: 0.85rem;
 }
 
 .trialEnds {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
 }
 
@@ -46,8 +46,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1rem;
-  background: var(--db-surface-2, #141414);
-  border: 1px solid var(--db-accent, #3fff00);
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-accent);
   border-radius: 0.5rem;
 }
 

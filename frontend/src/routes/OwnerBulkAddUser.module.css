@@ -16,7 +16,7 @@
 
 .toolbarCount {
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .storeList {
@@ -34,9 +34,9 @@
 }
 
 .storeSlug {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.8rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   flex: 0 0 auto;
   margin-left: auto;
 }

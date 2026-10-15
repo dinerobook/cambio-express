@@ -1,7 +1,7 @@
 /* Page-specific styles for TVDisplayCountry.tsx. */
 
 .backLink {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   text-decoration: none;
   font-size: 0.85rem;
 }
@@ -12,7 +12,7 @@
 }
 
 .muted {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.85rem;
   margin: 0;
 }

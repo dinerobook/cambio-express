@@ -14,7 +14,7 @@
 
 .statusLine {
   margin: 0.35rem 0 0.75rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.9rem;
 }
 
@@ -30,9 +30,9 @@
   gap: 0.75rem;
   margin-bottom: 1rem;
   padding: 0.6rem 0.85rem;
-  border: 1px solid var(--db-border, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--db-border);
   border-radius: 0.6rem;
-  background: var(--db-surface-2, rgba(255, 255, 255, 0.03));
+  background: var(--db-surface-2);
 }
 
 .statusBarInfo {
@@ -51,7 +51,7 @@
 }
 
 .statusMeta {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-size: 0.9rem;
 }
 
@@ -62,13 +62,13 @@
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .monoMuted {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .paymentForm {

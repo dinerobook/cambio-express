@@ -22,23 +22,23 @@
 
 .backLink {
   font-size: 0.92rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   text-decoration: none;
 }
 
 .backLink:hover {
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
 }
 
 .receipt {
   width: 100%;
   max-width: 44rem;
-  background: #ffffff;
-  color: #0a0a0a;
+  background: var(--db-paper);
+  color: var(--db-paper-ink);
   padding: 2rem 2.5rem;
   border-radius: 0.5rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  font-family: var(--db-font-body, "Inter", system-ui, sans-serif);
+  box-shadow: var(--db-shadow-pop);
+  font-family: var(--db-font-body);
   line-height: 1.5;
 }
 
@@ -47,7 +47,7 @@
   gap: 1.5rem;
   align-items: flex-start;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #0a0a0a;
+  border-bottom: 2px solid var(--db-paper-ink);
 }
 
 .logo {
@@ -57,7 +57,7 @@
 }
 
 .wordmark {
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
   font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -76,7 +76,7 @@
 }
 
 .storeLine {
-  color: #4a5162;
+  color: var(--db-paper-text);
 }
 
 .titleBar {
@@ -85,7 +85,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  font-family: var(--db-font-display, "Space Grotesk", sans-serif);
+  font-family: var(--db-font-display);
 }
 
 .title {
@@ -96,8 +96,8 @@
 
 .meta {
   font-size: 0.85rem;
-  color: #4a5162;
-  font-family: var(--db-font-mono, monospace);
+  color: var(--db-paper-text);
+  font-family: var(--db-font-mono);
 }
 
 .parties {
@@ -105,8 +105,8 @@
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
   padding: 1rem 0;
-  border-top: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
+  border-top: 1px solid var(--db-paper-rule);
+  border-bottom: 1px solid var(--db-paper-rule);
 }
 
 .partyHeading {
@@ -115,7 +115,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--db-paper-muted);
 }
 
 .partyName {
@@ -126,7 +126,7 @@
 
 .partyLine {
   font-size: 0.88rem;
-  color: #4a5162;
+  color: var(--db-paper-text);
 }
 
 .amounts {
@@ -142,19 +142,19 @@
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--db-paper-muted);
   padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--db-paper-rule);
 }
 
 .amounts td {
   padding: 0.55rem 0.6rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--db-paper-rule-soft);
 }
 
 .numCol {
   text-align: right;
-  font-family: var(--db-font-mono, monospace);
+  font-family: var(--db-font-mono);
 }
 
 .totalCell {
@@ -168,19 +168,19 @@
   justify-content: flex-end;
   gap: 1rem;
   padding: 0.75rem 0;
-  border-top: 2px solid #0a0a0a;
+  border-top: 2px solid var(--db-paper-ink);
 }
 
 .totalLabel {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #6b7280;
+  color: var(--db-paper-muted);
   font-weight: 600;
 }
 
 .totalAmount {
-  font-family: var(--db-font-mono, monospace);
+  font-family: var(--db-font-mono);
   font-size: 1.6rem;
   font-weight: 700;
 }
@@ -201,12 +201,12 @@
 
 .signatureLine {
   height: 2.2rem;
-  border-bottom: 1px solid #0a0a0a;
+  border-bottom: 1px solid var(--db-paper-ink);
 }
 
 .signatureLabel {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--db-paper-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 600;
@@ -215,9 +215,9 @@
 .footer {
   margin-top: 1.75rem;
   padding-top: 0.85rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--db-paper-rule);
   font-size: 0.85rem;
-  color: #4a5162;
+  color: var(--db-paper-text);
   text-align: center;
   white-space: pre-line;
 }
@@ -225,7 +225,7 @@
 .footerMeta {
   margin-top: 0.4rem;
   font-size: 0.72rem;
-  color: #9ca3af;
+  color: var(--db-paper-faint);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }

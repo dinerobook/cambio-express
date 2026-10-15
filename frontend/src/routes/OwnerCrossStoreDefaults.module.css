@@ -11,12 +11,12 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: var(--db-text, #f5f5f5);
+  color: var(--db-text);
   margin: 0.85rem 0 0.4rem;
 }
 
 .fieldHint {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   font-weight: 400;
 }
 
@@ -30,7 +30,7 @@
 
 .toolbarCount {
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
 }
 
 .storeList {
@@ -47,22 +47,22 @@
   align-items: center;
   gap: 0.55rem;
   padding: 0.45rem 0.5rem;
-  border: 1px solid var(--db-border, #262626);
+  border: 1px solid var(--db-border);
   border-radius: 0.4rem;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .storeRow:hover {
-  border-color: var(--db-accent, #3fff00);
-  background: var(--db-fill-neutral, rgba(255,255,255,0.04));
+  border-color: var(--db-accent);
+  background: var(--db-fill-neutral);
 }
 
 .storeName { font-weight: 600; flex: 0 1 auto; }
 .storeSlug {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
   font-size: 0.8rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   flex: 0 0 auto;
   margin-left: auto;
 }

@@ -31,21 +31,21 @@
   width: 2.1rem;
   height: 2.1rem;
   border-radius: 0.5rem;
-  border: 1px solid var(--db-border, #262626);
-  background: var(--db-surface, #0a0a0a);
-  color: var(--db-text, #f5f5f5);
+  border: 1px solid var(--db-border);
+  background: var(--db-surface);
+  color: var(--db-text);
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
 .calendarBtn {
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin-left: 0.15rem;
 }
 
 .iconBtn:hover:not(:disabled) {
-  border-color: var(--db-accent, #3fff00);
-  color: var(--db-accent, #3fff00);
+  border-color: var(--db-accent);
+  color: var(--db-accent);
 }
 
 .iconBtn:active:not(:disabled) {

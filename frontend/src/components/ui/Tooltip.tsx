@@ -82,7 +82,7 @@ function tipStyle(
     ...(multiline
       ? { whiteSpace: "normal" as const, width: "max-content", maxWidth: "16rem" }
       : { whiteSpace: "nowrap" as const }),
-    boxShadow: "0 8px 20px rgba(0, 0, 0, 0.35)",
+    boxShadow: "var(--db-shadow-pop)",
     pointerEvents: "none",
     zIndex: 200,
     // Smooth fade + tiny slide-in.  Sub-150ms keeps it responsive.

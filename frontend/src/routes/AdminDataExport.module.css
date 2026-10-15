@@ -2,7 +2,7 @@
 
 .intro {
   font-size: 0.9rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin: 0 0 1.5rem;
 }
 
@@ -11,7 +11,7 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem 0;
-  border-bottom: 1px solid var(--db-border, #262626);
+  border-bottom: 1px solid var(--db-border);
   flex-wrap: wrap;
 }
 
@@ -31,7 +31,7 @@
 
 .exportDesc {
   font-size: 0.85rem;
-  color: var(--db-text-muted, #a3a3a3);
+  color: var(--db-text-muted);
   margin-top: 0.25rem;
 }
 

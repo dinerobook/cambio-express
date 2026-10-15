@@ -4,26 +4,26 @@
 }
 
 .row:hover {
-  background: var(--db-surface, #0a0a0a);
+  background: var(--db-surface);
 }
 
 .mono {
-  font-family: var(--db-font-mono, "JetBrains Mono", monospace);
+  font-family: var(--db-font-mono);
 }
 
 .monoMuted {
   composes: mono;
   font-size: 0.85rem;
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
 }
 
 .recoveredFull {
   composes: mono;
-  color: var(--db-accent, #3fff00);
+  color: var(--db-accent);
 }
 
 .paymentCount {
-  color: var(--db-text-muted, #888);
+  color: var(--db-text-muted);
   margin-left: 0.4rem;
   font-size: 0.85rem;
 }
