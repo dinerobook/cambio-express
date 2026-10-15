@@ -117,6 +117,39 @@
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
 }
 
+/* Two halves (AuthChrome `aside`): features on the left, the card
+   on the right. Below 960px they stack and the card, which is first
+   in the markup, comes first on screen. `minmax(0, 1fr)` lets a
+   column shrink below its content's width, so nothing pushes past
+   the screen edge. */
+.split {
+  position: relative;
+  width: 100%;
+  max-width: 1120px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  align-items: center;
+}
+
+.splitCard { justify-self: center; }
+
+.splitAside {
+  width: 100%;
+  max-width: 460px;
+  justify-self: center;
+}
+
+@media (min-width: 960px) {
+  .split {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 460px);
+    grid-template-areas: "aside card";
+    gap: 64px;
+  }
+  .splitCard { grid-area: card; }
+  .splitAside { grid-area: aside; max-width: none; }
+}
+
 .statusPill {
   display: inline-flex;
   align-items: center;

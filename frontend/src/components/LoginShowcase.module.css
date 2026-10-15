@@ -1,0 +1,170 @@
+/* The features half of the sign-in page. Theme tokens only, so it
+   follows the light/dark switch. Layout (which side, stacking on
+   narrow screens) belongs to auth.module.css; this file only styles
+   what is inside the panel. */
+
+.panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  color: var(--db-text);
+  font-family: var(--db-font-body);
+}
+
+.panel * { box-sizing: border-box; }
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 4px 12px;
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-pill);
+  background: var(--db-surface);
+  font-family: var(--db-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--db-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.eyebrowDot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--db-accent);
+  animation: showcase-pulse 2.4s ease-in-out infinite;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--db-font-display);
+  font-size: clamp(26px, 3.2vw, 40px);
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--db-text);
+  overflow-wrap: break-word;
+}
+
+.accent { color: var(--db-accent); }
+
+.card {
+  background: var(--db-bg-elevated);
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-card);
+  box-shadow: var(--db-shadow-card);
+  padding: 24px;
+  min-height: 196px;
+  animation: showcase-in 200ms ease-out;
+}
+
+.cardEye {
+  font-family: var(--db-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: var(--db-accent);
+  margin-bottom: 10px;
+}
+
+.cardTitle {
+  font-family: var(--db-font-display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--db-text);
+  margin-bottom: 10px;
+}
+
+.cardList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cardList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--db-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.cardList li::before {
+  content: "✓";
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--db-accent);
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dot {
+  width: 22px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-border-strong);
+  cursor: pointer;
+  transition: background 150ms ease, width 150ms ease;
+}
+
+.dot:hover { background: var(--db-text-muted); }
+
+.dot[aria-pressed="true"] {
+  width: 34px;
+  background: var(--db-accent);
+}
+
+.dot:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 3px;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.link {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--db-accent);
+  text-decoration: none;
+}
+
+.link:hover { text-decoration: underline; }
+
+@keyframes showcase-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes showcase-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .eyebrowDot { animation: none; }
+  .dot { transition: none; }
+}
+
+@media (max-width: 600px) {
+  .card { padding: 18px; min-height: 0; }
+  .cardTitle { font-size: 18px; }
+}
