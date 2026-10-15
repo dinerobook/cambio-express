@@ -1,8 +1,24 @@
-import Landing from "./Landing";
+import { useEffect } from "react";
+import { Navigate } from "react-router-dom";
 
-// /app/ root: signed-out visitors see the marketing landing; signed-in
-// visitors get bounced to their dashboard. The bounce lives inside
-// Landing so the redirect happens before any markup mounts.
+import { getCurrentIdentity } from "../lib/auth";
+import Login from "./Login";
+
+// Site root (/app/). Most people who open the site are coming to
+// sign in, so a signed-out visitor gets the sign-in page (with the
+// features panel beside the form) rather than the marketing page,
+// which lives at /features. A visitor who is already signed in goes
+// straight to the dashboard; if their session has lapsed,
+// RequireAuth there sends them back to sign in.
 export default function Home() {
-  return <Landing />;
+  // The root used to be the marketing page, which registered the
+  // service worker for first-time visitors; keep doing that here.
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
+  if (getCurrentIdentity()) return <Navigate to="/dashboard" replace />;
+  return <Login />;
 }

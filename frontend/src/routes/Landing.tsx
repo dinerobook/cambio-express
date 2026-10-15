@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 
 import { usePublicPricing } from "../api/billing";
 import { fmtMoney } from "../lib/formatters";
+import { PRODUCT_FEATURES } from "../lib/productFeatures";
 import { Link } from "react-router-dom";
 
 import styles from "./Landing.module.css";
 
-// Marketing landing page.
+// Marketing page, at /features. The site root opens on sign-in
+// (Home → Login, with a features panel beside the form); this is
+// the full tour that panel links to.
 //
 // Positioning (2026-09): the people we are talking to run a
 // convenience store or gas station, very often with a money-service
@@ -160,46 +163,15 @@ export default function Landing() {
         </p>
 
         <div className={styles.features}>
-          <Feature eye="STORE DAILY BOOK" title="Close the day from the register.">
-            <li>Import Gilbarco Passport journals — tickets, tenders, departments</li>
-            <li>Register closes, over/short and deposits on one sheet</li>
-            <li>Lock a day when it's done; every edit after is logged</li>
-          </Feature>
-          <Feature eye="TRANSACTIONS" title="Every ticket, item by item.">
-            <li>Search any register ticket by time, cashier or item</li>
-            <li>Voids and cancels kept, not hidden</li>
-            <li>Item movement and department reports built from the same data</li>
-          </Feature>
-          <Feature eye="LOTTERY" title="Packs, activations and day counts.">
-            <li>Receive, activate, settle and return packs</li>
-            <li>Cashiers enter the day's counts; the book does the math</li>
-            <li>Uncounted packs show on the dashboard until they're done</li>
-          </Feature>
-          <Feature eye="PRICE BOOK & PURCHASES" title="Know your cost on every item.">
-            <li>Items, departments and vendors in one place</li>
-            <li>Vendor invoices update item cost as they're entered</li>
-            <li>Open invoices and what's owed, on the dashboard</li>
-          </Feature>
-          <Feature eye="MONEY TRANSFERS" title="Every wire logged. Every sender remembered.">
-            <li>Intermex, Maxi, Barri, Ria, Western Union — one form</li>
-            <li>Fee and federal tax separated correctly, every time</li>
-            <li>Sender lookup shared across all your stores</li>
-          </Feature>
-          <Feature eye="ACH & RETURNED CHECKS" title="Catch the variance the day it happens.">
-            <li>Match each ACH batch to the transfers behind it</li>
-            <li>Track bounced checks and what's been recovered</li>
-            <li>Rate board for the TV in your store, paired in a minute</li>
-          </Feature>
-          <Feature eye="MONTHLY P&amp;L & REPORTS" title="Know what you made last month.">
-            <li>P&amp;L auto-filled from the daily books and transfer ledger</li>
-            <li>Sales by company, employee, service and destination</li>
-            <li>CSV export for your accountant; period comparison year over year</li>
-          </Feature>
-          <Feature eye="TEAM" title="Everyone gets exactly the access they need.">
-            <li>Time clock with PIN or passkey punch, shift schedule, hours for payroll</li>
-            <li>Access roles per job — a cashier never sees the P&amp;L</li>
-            <li>Owners see every store from one sign-in</li>
-          </Feature>
+          {PRODUCT_FEATURES.map((f) => (
+            <div key={f.eye} className={styles.feature}>
+              <div className={styles.featureEye}>{f.eye}</div>
+              <div className={styles.featureTitle}>{f.title}</div>
+              <ul className={styles.featureList}>
+                {f.points.map((pt) => <li key={pt}>{pt}</li>)}
+              </ul>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -366,19 +338,3 @@ export default function Landing() {
   );
 }
 
-
-function Feature({
-  eye, title, children,
-}: {
-  eye: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={styles.feature}>
-      <div className={styles.featureEye}>{eye}</div>
-      <div className={styles.featureTitle}>{title}</div>
-      <ul className={styles.featureList}>{children}</ul>
-    </div>
-  );
-}
