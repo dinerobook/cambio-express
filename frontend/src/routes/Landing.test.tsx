@@ -36,4 +36,14 @@ describe("Landing (/features)", () => {
     expect(signIns.length).toBeGreaterThan(0);
     for (const a of signIns) expect(a).toHaveAttribute("href", "/login");
   });
+
+  it("uses the shared brand link and in-app links in the top bar and footer", () => {
+    mockFetch({ "GET /api/v2/billing/pricing": { body: { plans } } });
+    renderRoute(<Landing />, { path: "/features" });
+    const brands = screen.getAllByRole("link", { name: "DineroBook" });
+    expect(brands).toHaveLength(2);
+    for (const a of brands) expect(a).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Privacy" }))
+      .toHaveAttribute("href", "/privacy");
+  });
 });

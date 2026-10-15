@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { usePublicPricing } from "../api/billing";
+import { BrandLink } from "../components/BrandLink";
 import { fmtMoney } from "../lib/formatters";
 import { PRODUCT_FEATURES } from "../lib/productFeatures";
 import { Link } from "react-router-dom";
@@ -41,19 +42,10 @@ export default function Landing() {
   const pro = plans.find((p) => p.key === "pro");
   const fromPrice = basic ? fmtMoney(basic.monthly_cents / 100) : null;
 
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  }, []);
-
   return (
     <div className={styles.shell}>
       <nav className={styles.nav}>
-        <a href="/" className={styles.navBrand}>
-          <img className={styles.navBrandMark} src="/static/brand-mark.svg" alt="" />
-          <span className={styles.navBrandName}>DineroBook</span>
-        </a>
+        <BrandLink />
         <button
           type="button"
           className={styles.navToggle}
@@ -323,13 +315,10 @@ export default function Landing() {
 
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
-          <a href="/" className={styles.navBrand}>
-            <img className={styles.navBrandMark} src="/static/brand-mark.svg" alt="" />
-            <span className={styles.navBrandName}>DineroBook</span>
-          </a>
+          <BrandLink />
           <div className={styles.footerCopy}>© 2026 DineroBook · Back office for stores that move money.</div>
           <div className={styles.footerLinks}>
-            <a href="/privacy">Privacy</a>
+            <Link to="/privacy">Privacy</Link>
             <Link to="/login">Sign in</Link>
           </div>
         </div>

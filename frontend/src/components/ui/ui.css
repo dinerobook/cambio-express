@@ -214,6 +214,11 @@
 
 /* ── Content fade-in: smooth reveal when data arrives ──────── */
 
+/* Loading spinner (kit <Loading>). */
+@keyframes ds-spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes ds-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }

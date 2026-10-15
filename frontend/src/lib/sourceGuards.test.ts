@@ -113,4 +113,23 @@ describe("source guards", () => {
       ),
     ).toEqual([]);
   });
+
+  it("keeps one copy of the public-page chrome pieces", () => {
+    // main.tsx registers the service worker on every boot
+    // (lib/installPrompt.ts); a page-level copy is dead code.
+    expect(
+      offenders(/serviceWorker\.register\(/,
+        ["installPrompt.ts", "/push.ts"]),
+    ).toEqual([]);
+    // The brand mark + name is <BrandLink />.
+    expect(offenders(/brand-mark\.svg/, ["/components/BrandLink.tsx"]))
+      .toEqual([]);
+  });
+
+  it("never ships an inline <style> element", () => {
+    // Styles live in ui.css or a co-located *.module.css, where the
+    // token guard (tests/test_theme_tokens.py) can see them; Privacy
+    // carried a whole copy of the sign-in chrome this way.
+    expect(offenders(/<style(>\{|\s+[a-z])/)).toEqual([]);
+  });
 });

@@ -32,28 +32,6 @@
   border-bottom: 1px solid var(--db-gray-2);
 }
 
-.navBrand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-}
-
-.navBrandMark {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  box-shadow: 0 0 12px var(--db-brand-glow);
-}
-
-.navBrandName {
-  font-family: var(--db-font-display);
-  color: var(--db-gray-9);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
 .navLinks {
   display: flex;
   align-items: center;

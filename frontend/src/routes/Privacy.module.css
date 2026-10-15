@@ -1,0 +1,80 @@
+/* Long-form type for the privacy policy. The chrome (top bar,
+   backdrop, card) is AuthChrome's `document` layout; this file only
+   styles the text inside the card. */
+
+.doc h1 {
+  font-family: var(--db-font-display);
+  font-size: 34px;
+  color: var(--db-text);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0 0 6px;
+}
+
+.doc h2 {
+  font-family: var(--db-font-display);
+  font-size: 22px;
+  color: var(--db-text);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 36px 0 12px;
+}
+
+.doc h3 {
+  font-family: var(--db-font-display);
+  font-size: 15px;
+  color: var(--db-text);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  margin: 22px 0 8px;
+}
+
+.doc p,
+.doc li {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--db-gray-8);
+  margin: 0 0 12px;
+}
+
+.doc ul { padding-left: 22px; margin: 0 0 12px; }
+.doc ul ul { padding-left: 20px; margin-top: 8px; }
+.doc strong { color: var(--db-text); font-weight: 600; }
+
+.doc a {
+  color: var(--db-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  overflow-wrap: anywhere;
+  transition: border-color 0.12s;
+}
+
+.doc a:hover { border-bottom-color: var(--db-accent); }
+
+.head { margin-bottom: 24px; }
+
+.effective {
+  color: var(--db-text-muted);
+  font-family: var(--db-font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.note {
+  background: var(--db-bg-input);
+  border-left: 3px solid var(--db-accent);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 13.5px;
+  color: var(--db-text-muted);
+  line-height: 1.65;
+  margin: 24px 0 0;
+}
+
+@media (max-width: 600px) {
+  .doc h1 { font-size: 26px; }
+  .doc h2 { font-size: 19px; margin-top: 28px; }
+  .doc h3 { font-size: 14px; }
+}

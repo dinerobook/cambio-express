@@ -35,7 +35,6 @@ function Spinner() {
     <svg width="14" height="14" viewBox="0 0 50 50"
          style={{ animation: "ds-spin 0.9s linear infinite" }}
          aria-hidden>
-      <style>{`@keyframes ds-spin { to { transform: rotate(360deg); } }`}</style>
       <circle cx="25" cy="25" r="20"
               stroke="currentColor" fill="none"
               strokeWidth="4" strokeLinecap="round"
