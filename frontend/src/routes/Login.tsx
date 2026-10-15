@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { AuthChrome } from "../components/AuthChrome";
+import { LoginShowcase } from "../components/LoginShowcase";
 import { Alert, Button, Field, Input, Pill } from "../components/ui";
 import { api, apiErrorMessage } from "../lib/api";
 import { persistLoginResponse } from "../lib/auth";
@@ -26,7 +27,8 @@ interface PendingState {
 
 
 /** SPA sign-in, inside the one auth chrome every logged-out page
- *  uses (AuthChrome). Two-step when the role requires 2FA (superadmin):
+ *  uses (AuthChrome), with the features panel beside it. This is
+ *  also what the site root shows a signed-out visitor (Home). Two-step when the role requires 2FA (superadmin):
  *  step 1 POSTs creds, step 2 verifies a 6-digit TOTP or recovery
  *  code. Admin/owner/employee skip step 2 and get the token straight
  *  from /login-cross-store. */
@@ -132,7 +134,10 @@ export default function Login() {
   }
 
   return (
-    <AuthChrome navLink={{ to: "/signup", label: "Create an account" }}>
+    <AuthChrome
+      navLink={{ to: "/signup", label: "Create an account" }}
+      aside={<LoginShowcase />}
+    >
       <div className={chrome.stack}>
       {pending ? (
         <SecondFactor

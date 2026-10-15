@@ -7,6 +7,9 @@ import Gate from "./components/Gate";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { Loading, ToastProvider } from "./components/ui";
 import Home from "./routes/Home";
+// Static, not lazy: the site root renders sign-in, so Home already
+// pulls Login into the first bundle.
+import Login from "./routes/Login";
 import NotFound from "./routes/NotFound";
 
 // Eager: tiny bounce + 404 modules that should be in the entry chunk
@@ -47,7 +50,7 @@ const MonthlyCategories = lazy(() => import("./routes/MonthlyCategories"));
 const EditTransfer = lazy(() => import("./routes/EditTransfer"));
 const ForgotPassword = lazy(() => import("./routes/ForgotPassword"));
 const ItemMovement = lazy(() => import("./routes/ItemMovement"));
-const Login = lazy(() => import("./routes/Login"));
+const Landing = lazy(() => import("./routes/Landing"));
 const LoginStore = lazy(() => import("./routes/LoginStore"));
 const Monthly = lazy(() => import("./routes/Monthly"));
 const NewTransfer = lazy(() => import("./routes/NewTransfer"));
@@ -202,7 +205,9 @@ const TopSenders = lazy(() => import("./routes/reports/TopSenders"));
 
 // Top-level routing for the SPA.
 //
-//   /              → bounces to /login or /dashboard
+//   /              → sign-in (with features panel), or /dashboard
+//                    when already signed in
+//   /features      → the full marketing / product tour page
 //   /login         → unauthed-only login form (no shell)
 //   <AuthedShell>  → applies RequireAuth + AppShell (sidebar +
 //                     topbar) to every nested route
@@ -232,6 +237,7 @@ export default function App() {
         <Route path="forgot-password"  element={<ForgotPassword />} />
         <Route path="reset-password"   element={<ResetPassword />} />
         <Route path="privacy"          element={<Privacy />} />
+        <Route path="features"         element={<Landing />} />
         <Route element={<AuthedShell />}>
           <Route path="home"             element={<Navigate to="/dashboard" replace />} />
           {/* Section-hub tile landings — one per nav section, driven

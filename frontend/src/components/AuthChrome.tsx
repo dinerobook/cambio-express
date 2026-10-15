@@ -4,16 +4,23 @@ import type { ReactNode } from "react";
 import styles from "../routes/auth.module.css";
 import { BRAND_NAME } from "../lib/brand";
 
-/** Shared chrome for the centered-card auth pages (ForgotPassword,
- *  ResetPassword, Signup, SignupOwner). Renders the sticky nav +
- *  the dark backdrop + the card. Children are the inner card
- *  contents (status pill, heading, form, etc.). */
+/** Shared chrome for every logged-out page (Login, TwoFactor,
+ *  ForgotPassword, ResetPassword, Signup, SignupOwner, ...).
+ *  Renders the sticky nav + the backdrop + the card. Children are
+ *  the inner card contents (status pill, heading, form, etc.).
+ *
+ *  `aside` turns the page into two halves: the aside on the left,
+ *  the card on the right. The card comes first in the markup, so
+ *  on narrow screens (where the halves stack) and for keyboard and
+ *  screen-reader users the form is still the first thing. */
 export function AuthChrome({
   navLink,
+  aside,
   children,
 }: {
   /** Right-side nav link. Pass `null` for no link. */
   navLink: { to: string; label: string } | null;
+  aside?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -32,9 +39,18 @@ export function AuthChrome({
         <div className={styles.grid} aria-hidden="true" />
         <div className={styles.glow} aria-hidden="true" />
 
-        <div className={styles.card}>
-          {children}
-        </div>
+        {aside ? (
+          <div className={styles.split}>
+            <div className={`${styles.card} ${styles.splitCard}`}>
+              {children}
+            </div>
+            <div className={styles.splitAside}>{aside}</div>
+          </div>
+        ) : (
+          <div className={styles.card}>
+            {children}
+          </div>
+        )}
       </div>
     </>
   );
