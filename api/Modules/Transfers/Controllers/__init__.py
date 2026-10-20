@@ -560,15 +560,12 @@ def delete_transfer_route(
         f"company={transfer.company or ''} "
         f"status={transfer.status or ''}"
     )
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
+    from api.Core.Audit import audit_operator
+    audit_operator(
+        db, claims,
         store_id=int(sid),
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
         target_type="transfer",
-        target_id=transfer.id,
+        target_id=str(transfer.id),
         target_label=label,
         action="delete",
         summary=summary,

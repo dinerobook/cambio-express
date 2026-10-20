@@ -2213,7 +2213,7 @@ def owner_add_store_route(
     and builds that store's team from inside it. Accepts base
     owner tokens AND owner-context store tokens (same rule as
     switching)."""
-    from api.Modules.Audit.Services import record_operator_action
+    from api.Core.Audit import audit_operator
     from api.Modules.Auth.Services import create_store_for_owner
     owner = _resolve_switching_owner(db, claims)
     name = (body.name or "").strip()
@@ -2229,12 +2229,10 @@ def owner_add_store_route(
         phone=(body.phone or "").strip(),
         address=(body.address or "").strip(),
     )
-    record_operator_action(
-        db,
+    audit_operator(
+        db, claims,
         store_id=store.id,
-        user_id=owner.id,
-        user_name=owner.full_name or owner.username or "",
-        user_role="owner",
+        actor=owner,
         target_type="store",
         action="owner_add_store",
         target_id=str(store.id),
@@ -2262,8 +2260,8 @@ def switch_store_route(
 ) -> SwitchStoreResponse:
     """Enter one of the owner's stores: issue a store-scoped admin
     token so the owner gets the exact store view their team sees."""
+    from api.Core.Audit import audit_operator
     from api.Core.Permissions import permissions_for as _perms_for
-    from api.Modules.Audit.Services import record_operator_action
     from api.Modules.Tenancy.Models import Store
     owner = _resolve_switching_owner(db, claims)
     if body.store_id not in _owner_switchable_store_ids(db, owner):
@@ -2287,12 +2285,10 @@ def switch_store_route(
     extra["owner_id"] = owner.id
     token = issue_access_token(issuer, ttl_seconds=ttl, extra=extra)
     _set_access_token_cookie(response, token)
-    record_operator_action(
-        db,
+    audit_operator(
+        db, claims,
         store_id=store.id,
-        user_id=owner.id,
-        user_name=owner.full_name or owner.username or "",
-        user_role="owner",
+        actor=owner,
         target_type="store",
         action="owner_enter_store",
         target_id=str(store.id),

@@ -90,13 +90,9 @@ def _audit_return_check_action(
     transitions, "return_check_payment" for the installment
     record/delete pair — keeps the audit feed filterable per
     legacy contract."""
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
-        store_id=int(claims["store_id"]),
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
+    from api.Core.Audit import audit_operator
+    audit_operator(
+        db, claims,
         target_type=(
             "return_check_payment"
             if action in ("record_payment", "delete_payment")

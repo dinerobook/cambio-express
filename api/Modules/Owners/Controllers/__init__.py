@@ -394,7 +394,7 @@ def owner_bulk_add_user_route(
 
     # Audit one row per successful create. Skipped / rejected
     # don't get audit entries — nothing mutated.
-    from api.Modules.Audit.Services import record_operator_action
+    from api.Core.Audit import audit_operator
     from api.Modules.Auth.Services.identity import login_identifier
 
     # The identifier the person will actually sign in with — same
@@ -403,12 +403,10 @@ def owner_bulk_add_user_route(
     for r in raw_results:
         if r["status"] != "created":
             continue
-        record_operator_action(
-            db,
+        audit_operator(
+            db, claims,
             store_id=r["store_id"],
-            user_id=user.id,
-            user_name=user.full_name or user.username,
-            user_role=user.role,
+            actor=user,
             target_type="user",
             target_id="",
             target_label=_bulk_add_label,
@@ -471,17 +469,15 @@ def owner_cross_store_defaults_route(
     # Audit the bulk push as one OperatorAuditLog row per
     # updated store — keeps the per-store admin audit log
     # consistent with the rest of the surface.
-    from api.Modules.Audit.Services import record_operator_action
+    from api.Core.Audit import audit_operator
     field_summary = ", ".join(sorted(defaults.keys()))
     for r in raw_results:
         if r["status"] != "updated":
             continue
-        record_operator_action(
-            db,
+        audit_operator(
+            db, claims,
             store_id=r["store_id"],
-            user_id=user.id,
-            user_name=user.full_name or user.username,
-            user_role=user.role,
+            actor=user,
             target_type="store",
             target_id=str(r["store_id"]),
             target_label=r["store_name"],
@@ -522,15 +518,13 @@ def owner_unlink_store_route(
     # row.  Disconnecting a store from the owner umbrella materially
     # changes who can see it, so the affected store's admin audit
     # feed should show that an owner unlinked them.
-    from api.Modules.Audit.Services import record_operator_action
+    from api.Core.Audit import audit_operator
     from api.Modules.Tenancy.Models import Store
     target_store = db.get(Store, store_id)
-    record_operator_action(
-        db,
+    audit_operator(
+        db, claims,
         store_id=store_id,
-        user_id=int(user.id),
-        user_name=user.full_name or user.username or "",
-        user_role=user.role or "owner",
+        actor=user,
         target_type="store_owner_link",
         target_id=str(store_id),
         target_label=(getattr(target_store, "name", "") or "")[:160],

@@ -961,6 +961,7 @@ def _write_audit(
     ``target_type=time_clock_entry``. Reused by every endpoint
     that mutates an entry — the per-entry history view replays
     these rows."""
+    from api.Core.Audit import operator_display_name
     from api.Modules.Audit.Services import record_operator_action
     from api.Modules.Tenancy.Models import StoreEmployee
     emp = db.get(StoreEmployee, store_employee_id)
@@ -974,7 +975,7 @@ def _write_audit(
         db,
         store_id=store_id,
         user_id=user_id,
-        user_name=str(claims.get("username") or ""),
+        user_name=operator_display_name(claims),
         user_role=str(claims.get("role") or ""),
         target_type="time_clock_entry",
         target_id=str(entry_id),
