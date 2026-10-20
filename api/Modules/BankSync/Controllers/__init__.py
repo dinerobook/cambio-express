@@ -739,13 +739,9 @@ def _audit_bank_action(
     CLAUDE.md invariant #7 — every mutating endpoint records an
     audit row. ``target_type`` defaults to ``bank_account``; rule
     mutations pass ``bank_rule``."""
-    from api.Modules.Audit.Services import record_operator_action
-    record_operator_action(
-        db,
-        store_id=int(claims["store_id"]),
-        user_id=int(claims["sub"]),
-        user_name=str(claims.get("name") or claims.get("username") or ""),
-        user_role=str(claims.get("role") or ""),
+    from api.Core.Audit import audit_operator
+    audit_operator(
+        db, claims,
         target_type=target_type,
         target_id=target_id,
         target_label=target_label,

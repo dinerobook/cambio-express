@@ -63,8 +63,14 @@ F = TypeVar("F", bound=Callable[..., Any])
 _USER_NAME_MAX = 120
 
 
-def operator_display_name(claims: dict[str, Any]) -> str:
+def operator_display_name(
+    claims: dict[str, Any], own_name: str | None = None,
+) -> str:
     """Who to write on an operator audit row for this token.
+
+    ``own_name`` replaces the token's own username when the route
+    has already loaded the acting ``User`` row (owner routes); the
+    impersonation suffix still comes from the claims.
 
     An impersonation token (``impersonated_by`` set by
     ``POST /superadmin/impersonate/{id}``) names the superadmin
@@ -72,7 +78,9 @@ def operator_display_name(claims: dict[str, Any]) -> str:
     login (``user_id``, the first part of the name) so their store
     audit log reads naturally, and the suffix says it was support
     acting as them, which the plain claims could never show."""
-    own = str(claims.get("username") or claims.get("full_name") or "")
+    own = own_name if own_name is not None else str(
+        claims.get("username") or claims.get("full_name") or ""
+    )
     if claims.get("impersonated_by") is None:
         return own[:_USER_NAME_MAX]
     by = str(claims.get("impersonator_name") or "").strip() or (
@@ -93,6 +101,7 @@ def audit_operator(
     target_label: str = "",
     summary: str = "",
     store_id: int | None = None,
+    actor: Any = None,
 ) -> OperatorAuditLog:
     """Record a per-store operator action, deriving user identity
     from the JWT claims dict.
@@ -102,19 +111,33 @@ def audit_operator(
     explicit ``store_id`` kwarg when not in claims (owners who
     operate cross-store).
 
+    ``actor`` is the acting ``User`` row when the route already
+    loaded it (owner routes): its id, name and role go on the row,
+    and an impersonation token still adds "(via superadmin X)".
+
     Caller still owns the commit — the audit row is added to the
     session but not flushed, so it rolls back with the mutation
     that triggered it.
     """
     sid = int(store_id if store_id is not None
               else (claims.get("store_id") or 0))
-    sub = claims.get("sub")
+    if actor is not None:
+        user_id: int | None = int(actor.id)
+        user_name = operator_display_name(
+            claims, actor.full_name or actor.username or "",
+        )
+        user_role = str(actor.role or "")
+    else:
+        sub = claims.get("sub")
+        user_id = int(sub) if sub else None
+        user_name = operator_display_name(claims)
+        user_role = str(claims.get("role") or "")
     return record_operator_action(
         db,
         store_id=sid,
-        user_id=int(sub) if sub else None,
-        user_name=operator_display_name(claims),
-        user_role=str(claims.get("role") or ""),
+        user_id=user_id,
+        user_name=user_name,
+        user_role=user_role,
         target_type=target_type,
         target_id=target_id,
         target_label=target_label,

@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from api.Core.Csv import build_csv
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_id
-from api.Modules.Audit.Services import record_operator_action
+from api.Core.Audit import audit_operator
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.Auth.Models import User
@@ -342,12 +342,10 @@ def merge_route(
     # endpoints follow.
     sub = claims.get("sub")
     actor = db.get(User, int(sub)) if sub is not None else None
-    record_operator_action(
-        db,
+    audit_operator(
+        db, claims,
         store_id=store_id,
-        user_id=actor.id if actor else None,
-        user_name=(actor.full_name or actor.username) if actor else "",
-        user_role=actor.role if actor else (claims.get("role") or ""),
+        actor=actor,
         target_type="customer",
         target_id=str(result.winner_id),
         target_label=f"merged #{result.loser_id} → #{result.winner_id}",

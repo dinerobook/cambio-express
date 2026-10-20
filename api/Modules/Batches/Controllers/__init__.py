@@ -122,20 +122,14 @@ def _audit_batch(db, claims, action, batch, *, summary):
     here directly, the audit row needs to land on this side or it
     silently disappears from the operator audit log.
 
-    Actor identity comes from the JWT claims (no DB roundtrip);
-    `record_operator_action` is the per-store audit Service that
-    backs both surfaces.
+    Actor identity comes from the JWT claims (no DB roundtrip) via
+    `audit_operator`, which also marks a "Sign in as" session.
     """
-    from api.Modules.Audit.Services import record_operator_action
-    sid = int(claims["store_id"])
-    record_operator_action(
-        db,
-        store_id=sid,
-        user_id=int(claims["sub"]),
-        user_name=claims.get("name") or claims.get("username") or "",
-        user_role=claims.get("role") or "",
+    from api.Core.Audit import audit_operator
+    audit_operator(
+        db, claims,
         target_type="batch",
-        target_id=batch.id,
+        target_id=str(batch.id),
         target_label=f"{batch.company or ''} {batch.batch_ref or ''}".strip(),
         action=action,
         summary=summary,
