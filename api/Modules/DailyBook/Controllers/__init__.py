@@ -907,7 +907,7 @@ def _mt_breakdown_response(breakdown: MTBreakdown) -> MTBreakdownResponse:
         ],
         services=[
             MTServiceRow(company=svc.company, service=svc.service,  # type: ignore[arg-type]
-                         amount=svc.amount, fees=svc.fees)
+                         amount=svc.amount, fees=svc.fees, count=svc.count)
             for svc in breakdown.services
         ],
         saved_total=breakdown.saved_total,
@@ -987,7 +987,7 @@ def mt_breakdown_put_route(
             ],
             services=None if body.services is None else [
                 ServiceRow(company=svc.company, service=svc.service,
-                           amount=svc.amount, fees=svc.fees)
+                           amount=svc.amount, fees=svc.fees, count=svc.count)
                 for svc in body.services
             ],
         )

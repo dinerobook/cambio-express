@@ -1,0 +1,113 @@
+/* Page-specific styles for SettingsMoneyServices.tsx. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.muted {
+  margin: 0;
+  color: var(--db-text-muted);
+}
+
+.companyList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Name | Money orders | charge | Remove. The name column may shrink
+   and wrap (min-width: 0); on a narrow screen the row wraps rather
+   than pushing anything out of the card. */
+.companyRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 15rem) auto;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--db-border-subtle);
+}
+
+.companyName {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.charge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.chargeInput {
+  flex: none;
+  width: 7rem;
+}
+
+.chargeLabel {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--db-text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 36rem) {
+  .companyRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.saveRow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* "type a name, press Add" row under a Settings list (companies,
+   transfer countries). Wraps on a narrow screen instead of
+   overflowing. */
+.addNameRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1rem;
+  max-width: 26rem;
+}
+
+.addNameRow > :first-child {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+/* Settings → Transfer countries: one chip per country, wrapping. */
+.countryList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.countryChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  max-width: 100%;
+  padding-left: 0.65rem;
+  border: 1px solid var(--db-border);
+  border-radius: 999px;
+  background: var(--db-surface);
+  color: var(--db-text);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}

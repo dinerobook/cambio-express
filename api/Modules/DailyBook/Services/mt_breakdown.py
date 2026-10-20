@@ -132,6 +132,8 @@ class ServiceRow:
     service: str
     amount: float
     fees: float
+    # How many were sold (money orders). Not part of any total.
+    count: int | None = None
 
     @property
     def total(self) -> float:
@@ -239,7 +241,8 @@ def _read_services(
     )
     rows = [
         ServiceRow(company=str(r.company), service=str(r.service),
-                   amount=float(r.amount or 0), fees=float(r.fees or 0))
+                   amount=float(r.amount or 0), fees=float(r.fees or 0),
+                   count=int(r.item_count) if r.item_count else None)
         for r in saved
     ]
     rows.sort(key=lambda r: (
@@ -372,18 +375,24 @@ def replace_mt_breakdown(
               .filter_by(store_id=int(store_id), report_date=report_date)
               .delete(synchronize_session=False)
         )
-        merged: dict[tuple[str, str], tuple[float, float]] = {}
+        merged: dict[tuple[str, str], tuple[float, float, int]] = {}
         for svc in services:
             co = (svc.company or "").strip()
             amt, fees = float(svc.amount or 0), float(svc.fees or 0)
-            if not co or (amt == 0 and fees == 0):
+            count = int(svc.count or 0)
+            if not co or (amt == 0 and fees == 0 and count == 0):
                 continue
-            prev = merged.get((co, svc.service), (0.0, 0.0))
-            merged[(co, svc.service)] = (prev[0] + amt, prev[1] + fees)
-        for (co, kind), (amt, fees) in merged.items():
+            prev = merged.get((co, svc.service), (0.0, 0.0, 0))
+            merged[(co, svc.service)] = (
+                prev[0] + amt, prev[1] + fees, prev[2] + count,
+            )
+        for (co, kind), (amt, fees, count) in merged.items():
             db.add(MoneyServiceSummary(
                 store_id=int(store_id), report_date=report_date,
                 company=co, service=kind, amount=amt, fees=fees,
+                # NULL, not 0, when not counted — reads like a row
+                # saved before the count existed.
+                item_count=count or None,
             ))
     db.flush()
     # Services count in the day's total whether or not this call

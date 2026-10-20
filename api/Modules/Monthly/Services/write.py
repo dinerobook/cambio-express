@@ -10,8 +10,10 @@ P&L away from the daily ledger.
 
 Auto-derived fields:
   cash_purchases, check_purchases, cash_expenses, check_expenses,
-  cash_payroll, check_cashing_fees → sums from DailyReport over
-  the month.
+  cash_payroll, check_payroll, check_cashing_fees → sums from both
+  daily books over the month; sales, service fees, hold fees and
+  rebates too when the daily books have a figure for them
+  (`daily_feed.py` owns the map).
   return_check_gl → net P&L from the ReturnCheck workflow.
   bank-fed lines → `bank_charges_total` (every bank_charge slug)
   plus any column a `pl_*` bank category feeds (credit-card
@@ -23,12 +25,10 @@ Auto-derived fields:
 Operator-editable fields: everything else in `_DAILY_REPORT_FIELDS`
 plus the dozens of one-off P&L columns.
 """
-from calendar import monthrange
-from datetime import date
-
 from sqlalchemy.orm import Session
 
 from api.Modules.Monthly.Models import MonthlyFinancial
+from api.Modules.Monthly.Services.daily_feed import daily_feed_for_month
 from api.Core.Clock import utc_now
 
 
@@ -50,38 +50,6 @@ EDITABLE_MONTHLY_FIELDS: tuple[str, ...] = (
     "over_short", "borrowed_money_return", "profit_distributed",
     "cash_carry_forward",
 )
-
-
-# Field name on MonthlyFinancial → field name on DailyReport.
-# These are summed over the month and overwrite operator input.
-_DAILY_DERIVED_FIELDS: dict[str, str] = {
-    "cash_purchases":     "cash_purchases",
-    "check_purchases":    "check_purchases",
-    "cash_expenses":      "cash_expense",     # singular on DailyReport
-    "check_expenses":     "check_expense",
-    "cash_payroll":       "payroll_expense",
-    "check_payroll":      "payroll_check",
-    "check_cashing_fees": "check_cashing_fees",
-}
-
-
-def _sum_daily(
-    db: Session, store_id: int, year: int, month: int,
-    *, daily_field: str,
-) -> float:
-    """Σ a column on DailyReport across one (store, year, month)."""
-    from api.Modules.DailyBook.Models import DailyReport
-    month_end = date(year, month, monthrange(year, month)[1])
-    rows = (
-        db.query(DailyReport)
-          .filter(
-              DailyReport.store_id == store_id,
-              DailyReport.report_date >= date(year, month, 1),
-              DailyReport.report_date <= month_end,
-          )
-          .all()
-    )
-    return float(sum(getattr(r, daily_field, 0) or 0 for r in rows))
 
 
 def _auto_return_check_gl(
@@ -133,12 +101,14 @@ def update_monthly(
         if field in fields and fields[field] is not None:
             setattr(row, field, float(fields[field]))
 
-    # 2) Overwrite auto-derived daily fields.
-    for monthly_field, daily_field in _DAILY_DERIVED_FIELDS.items():
-        setattr(
-            row, monthly_field,
-            _sum_daily(db, store_id, year, month, daily_field=daily_field),
-        )
+    # 2) Daily books: the derived lines always, once the month has a
+    #    day in either book (a month that predates the daily book
+    #    keeps what was saved on it); then every operator line the
+    #    daily books have a figure for — the same sums the read side
+    #    shows (`daily_feed.py`).
+    feed = daily_feed_for_month(db, store_id, year, month)
+    for field, value in {**feed.derived, **feed.fed}.items():
+        setattr(row, field, float(value))
 
     # 3) Overwrite return_check_gl from the workflow.
     setattr(row, "return_check_gl", _auto_return_check_gl(

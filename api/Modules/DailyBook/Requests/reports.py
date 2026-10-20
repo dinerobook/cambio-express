@@ -257,6 +257,10 @@ class MTServiceRow(BaseModel):
     service: ServiceKind
     amount: float = 0.0
     fees: float = 0.0
+    # How many were sold. Optional (null = not counted); typed on the
+    # Money orders tab, where the Monthly P&L takes the company's
+    # per-order charge off the fees. Not part of any total.
+    count: int | None = Field(None, ge=0)
 
 
 class MTBreakdownResponse(BaseModel):

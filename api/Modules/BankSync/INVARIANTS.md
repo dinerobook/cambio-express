@@ -71,7 +71,7 @@ count the same money twice. Do not add one.
 
 `monthly_field_for(slug)` is the single lookup from slug to P&L
 column. Daily-book kinds reach the P&L through the daily ledger
-(Monthly `_DAILY_DERIVED_FIELDS`), never directly — a
+(Monthly `Services/daily_feed.py`), never directly — a
 `check_deposit` must not ALSO be summed into a monthly column.
 
 

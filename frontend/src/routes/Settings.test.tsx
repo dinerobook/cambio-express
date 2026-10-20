@@ -39,13 +39,13 @@ describe("<Settings> tabs follow route access", () => {
   it("an employee granted settings.read gets General too, still no Billing", () => {
     signIn("employee", ["settings.read"]);
     render(<MemoryRouter><Settings /></MemoryRouter>);
-    expect(tabs()).toEqual(["Profile", "General", "Security"]);
+    expect(tabs()).toEqual(["Profile", "General", "Money services", "Security"]);
   });
 
   it("a store admin gets every tab", () => {
     signIn("admin", ["settings.read", "settings.update"]);
     render(<MemoryRouter><Settings /></MemoryRouter>);
-    expect(tabs()).toEqual(["Profile", "General", "Billing", "Referrals", "Security"]);
+    expect(tabs()).toEqual(["Profile", "General", "Money services", "Billing", "Referrals", "Security"]);
   });
 
   it("an owner pays per store, so no Billing at the umbrella level", () => {

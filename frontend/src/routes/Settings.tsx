@@ -11,12 +11,10 @@ import {
   usePasskeys,
   useProfile,
   useStoreInfo,
-  type MTCompanyEntry,
   type ProfileUpdateBody,
   type StoreHourEntry,
 } from "../api/account";
 import { redeemConnectCode } from "../api/owner";
-import { TRANSFER_CHOICES_KEY } from "../api/transfers";
 import { ApiError, apiErrorMessage, downloadFile } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate, formatTimestamp } from "../lib/datetime";
@@ -60,6 +58,7 @@ export default function Settings() {
       <TabsBar>
         <TabsLink to="/settings/profile">Profile</TabsLink>
         <TabsLink to="/settings/general">General</TabsLink>
+        <TabsLink to="/settings/money-services">Money services</TabsLink>
         <TabsLink to="/settings/billing">Billing</TabsLink>
         <TabsLink to="/settings/referrals">Referrals</TabsLink>
         <TabsLink to="/settings/security">Security</TabsLink>
@@ -582,12 +581,6 @@ function StoreInfoCard() {
   const [timezone, setTimezone] = useState("");
   const [hours, setHours] = useState<StoreHourEntry[]>(() => defaultHours());
   const [enforceHours, setEnforceHours] = useState(false);
-  // Money-transfer company roster (name + enabled toggle). Saved
-  // with the rest of the tab; `newCompany` is the transient add-row
-  // input and deliberately NOT part of the dirty snapshot.
-  const [mtCompanies, setMtCompanies] = useState<MTCompanyEntry[]>([]);
-  // The transfer form's country picker, in order. Same save posture.
-  const [countries, setCountries] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   // Last-saved snapshot (JSON) — the form is dirty when it drifts.
@@ -596,14 +589,10 @@ function StoreInfoCard() {
 
   // Serialize every editable field into one comparable snapshot. Same
   // key order here + at hydrate so the dirty compare is stable.
-  const snapshot = (
-    h: StoreHourEntry[], enforce: boolean, companies: MTCompanyEntry[],
-    countryList: string[],
-  ) => JSON.stringify({
+  const snapshot = (h: StoreHourEntry[], enforce: boolean) => JSON.stringify({
     name, email, phone, address, legalName, ein, businessAddress,
     taxRatePct, salesTaxPct, receiptLogoUrl, receiptFooter, receiptTaxId,
-    timezone, hours: h, enforceHours: enforce, mtCompanies: companies,
-    countries: countryList,
+    timezone, hours: h, enforceHours: enforce,
   });
 
   // Hydrate the form from the read-side row when it arrives.
@@ -618,10 +607,6 @@ function StoreInfoCard() {
     const taxPct = ((data.store.federal_tax_rate || 0) * 100).toFixed(2);
     const salesPct = ((data.store.sales_tax_rate || 0) * 100).toFixed(2);
     const enforce = Boolean(data.store.enforce_business_hours);
-    const companies = (data.store.mt_companies ?? []).map((c) => ({
-      ...c, money_orders: c.money_orders ?? true,
-    }));
-    const countryList = [...(data.store.transfer_countries ?? [])];
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable store-settings fields + dirty baseline from server-fetched row (federal_tax_rate gets a decimal->percent conversion for display)
     setName(data.store.name);
     setEmail(data.store.email);
@@ -638,8 +623,6 @@ function StoreInfoCard() {
     setTimezone(data.store.timezone);
     setHours(hydratedHours);
     setEnforceHours(enforce);
-    setMtCompanies(companies);
-    setCountries(countryList);
     // Baseline mirrors the snapshot() shape exactly (same key order).
     setBaseline(JSON.stringify({
       name: data.store.name, email: data.store.email,
@@ -652,8 +635,6 @@ function StoreInfoCard() {
       receiptTaxId: data.store.receipt_tax_id,
       timezone: data.store.timezone,
       hours: hydratedHours, enforceHours: enforce,
-      mtCompanies: companies,
-      countries: countryList,
     }));
   }, [data]);
 
@@ -663,15 +644,9 @@ function StoreInfoCard() {
 
   const isDirty =
     baseline !== ""
-    && snapshot(hours, enforceHours, mtCompanies, countries) !== baseline;
+    && snapshot(hours, enforceHours) !== baseline;
   // Arm the browser "leave site?" prompt while there are unsaved edits.
   useUnsavedChangesGuard(isDirty && !busy && canEdit);
-
-  function addCompany(name: string) {
-    setMtCompanies((list) => [
-      ...list, { name, enabled: true, money_orders: true },
-    ]);
-  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -691,8 +666,6 @@ function StoreInfoCard() {
         timezone,
         store_hours: hours,
         enforce_business_hours:     enforceHours,
-        mt_companies: mtCompanies,
-        transfer_countries: countries,
       });
       await queryClient.invalidateQueries({
         queryKey: ["admin", "store-info"],
@@ -701,10 +674,8 @@ function StoreInfoCard() {
       await queryClient.invalidateQueries({
         queryKey: ["account", "session-status"],
       });
-      // The transfer + batch forms pick from these lists.
-      await queryClient.invalidateQueries({ queryKey: TRANSFER_CHOICES_KEY });
       // Edits are now the saved state — clear the dirty flag.
-      setBaseline(snapshot(hours, enforceHours, mtCompanies, countries));
+      setBaseline(snapshot(hours, enforceHours));
       toast({ message: "Store info saved.", tone: "success" });
     } catch (e) {
       setErr(apiErrorMessage(e, "Could not save."));
@@ -860,113 +831,6 @@ function StoreInfoCard() {
         </div>
       </Card>
 
-      {/* Money-transfer company roster. Toggle OFF hides a company
-          from the daily book + transfer form without deleting it
-          (historical days keep showing its data); Remove drops it
-          from the roster entirely. Saved with the rest of the tab. */}
-      <Card>
-        <SectionTitle>
-          Money transfer companies
-          <InfoTip text="The companies available in the daily book's money-transfer breakdown and the transfer form. Toggle one off to hide it without losing its history; remove it to take it off the roster entirely. Money orders: only companies with it on appear on the daily book's Money orders tab." />
-        </SectionTitle>
-        <div style={{ display: "flex", flexDirection: "column", gap: space.sm }}>
-          {mtCompanies.map((c, i) => (
-            <div
-              key={c.name}
-              style={{ display: "flex", alignItems: "center", gap: space.md }}
-            >
-              <Switch
-                checked={c.enabled}
-                disabled={!canEdit}
-                onChange={(next) =>
-                  setMtCompanies((list) =>
-                    list.map((row, j) =>
-                      j === i ? { ...row, enabled: next } : row,
-                    ),
-                  )
-                }
-              >
-                {c.name}
-              </Switch>
-              {!c.enabled && (
-                <Pill tone="neutral">Hidden</Pill>
-              )}
-              <span style={{ marginLeft: "auto" }}>
-                <Switch
-                  checked={c.money_orders}
-                  disabled={!canEdit || !c.enabled}
-                  onChange={(next) =>
-                    setMtCompanies((list) =>
-                      list.map((row, j) =>
-                        j === i ? { ...row, money_orders: next } : row,
-                      ),
-                    )
-                  }
-                  aria-label={`${c.name} sells money orders`}
-                >
-                  Money orders
-                </Switch>
-              </span>
-              <Button
-                type="button"
-                tone="ghost"
-                size="sm"
-                disabled={!canEdit || mtCompanies.length <= 1}
-                onClick={() =>
-                  setMtCompanies((list) => list.filter((_, j) => j !== i))
-                }
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
-        </div>
-        <AddNameRow
-          kind="company"
-          placeholder="Add a company (e.g. Ria)"
-          maxLength={30}
-          existing={mtCompanies.map((c) => c.name)}
-          disabled={!canEdit}
-          onAdd={addCompany}
-        />
-      </Card>
-
-      {/* The transfer form's country picker. Only the picker: saved
-          transfers keep their country when it leaves this list. */}
-      <Card>
-        <SectionTitle>
-          Transfer countries
-          <InfoTip text="The countries on the transfer form, in this order. Removing one only takes it off the form: transfers already saved keep their country. Transfers to “United States” carry no federal tax." />
-        </SectionTitle>
-        <div className={styles.countryList}>
-          {countries.map((c, i) => (
-            <span key={c} className={styles.countryChip}>
-              {c}
-              <Button
-                type="button"
-                tone="ghost"
-                size="sm"
-                aria-label={`Remove ${c}`}
-                disabled={!canEdit || countries.length <= 1}
-                onClick={() =>
-                  setCountries((list) => list.filter((_, j) => j !== i))
-                }
-              >
-                ×
-              </Button>
-            </span>
-          ))}
-        </div>
-        <AddNameRow
-          kind="country"
-          placeholder="Add a country (e.g. Cuba)"
-          maxLength={60}
-          existing={countries}
-          disabled={!canEdit}
-          onAdd={(c) => setCountries((list) => [...list, c])}
-        />
-      </Card>
-
       {/* Business / Legal is its own card — the compliance identity +
           tax config, kept apart from the day-to-day store contact
           fields above. (It used to be a bare <SectionTitle> dropped
@@ -1056,72 +920,6 @@ function StoreInfoCard() {
         </div>
       )}
     </form>
-  );
-}
-
-/** The "type a name, press Add" row under a Settings list (money
- *  transfer companies, transfer countries). Refuses a blank name, a
- *  comma (the lists are stored comma-separated) and a name already on
- *  the list, case-insensitively, with a toast; the server re-checks. */
-function AddNameRow({
-  kind, placeholder, maxLength, existing, disabled, onAdd,
-}: {
-  kind: "company" | "country";
-  placeholder: string;
-  maxLength: number;
-  existing: readonly string[];
-  disabled: boolean;
-  onAdd: (name: string) => void;
-}) {
-  const toast = useToast();
-  const [value, setValue] = useState("");
-  const noun = kind === "company" ? "Company" : "Country";
-
-  function add() {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    if (trimmed.includes(",")) {
-      toast({ message: `${noun} names can’t contain commas.`, tone: "info" });
-      return;
-    }
-    if (existing.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
-      toast({ message: `${trimmed} is already on the list.`, tone: "info" });
-      return;
-    }
-    onAdd(trimmed);
-    setValue("");
-  }
-
-  return (
-    <div className={styles.addNameRow}>
-      <Input
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={placeholder}
-        aria-label={kind === "company" ? "New company" : "New country"}
-        maxLength={maxLength}
-        disabled={disabled}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            // Enter adds the name instead of submitting the whole
-            // settings form.
-            e.preventDefault();
-            add();
-          }
-        }}
-      />
-      <Button
-        type="button"
-        tone="secondary"
-        size="sm"
-        disabled={disabled || !value.trim()}
-        onClick={add}
-        aria-label={`Add ${kind}`}
-      >
-        Add
-      </Button>
-    </div>
   );
 }
 

@@ -200,11 +200,11 @@ def test_put_and_get_round_trip(client, test_store_id, admin):
     })
     assert resp.status_code == 200, resp.get_data(as_text=True)
     body = resp.get_json()
-    assert body["services"] == [MAXI_BILL]
+    assert body["services"] == [{**MAXI_BILL, "count": None}]
     assert body["saved_total"] == 848 + 123
 
     got = client.get(_url(test_store_id), headers=admin).get_json()
-    assert got["services"] == [MAXI_BILL]
+    assert got["services"] == [{**MAXI_BILL, "count": None}]
     day = client.get(
         f"/api/v2/daily/{test_store_id}/{DAY.isoformat()}", headers=admin,
     ).get_json()["report"]
@@ -219,7 +219,7 @@ def test_put_without_services_leaves_them(client, test_store_id, admin):
     resp = client.put(_url(test_store_id), headers=admin,
                       json={"rows": [MAXI_TRANSFERS]})
     assert resp.status_code == 200
-    assert resp.get_json()["services"] == [MAXI_BILL]
+    assert resp.get_json()["services"] == [{**MAXI_BILL, "count": None}]
 
 
 def test_put_rejects_unknown_service(client, test_store_id, admin):
@@ -277,7 +277,7 @@ def test_reader_sees_services_but_cannot_save(client, test_store_id, admin):
     reader = _employee(client, test_store_id, "svc_ro",
                        {"daily_book": {"read": True}})
     assert client.get(_url(test_store_id), headers=reader).get_json()[
-        "services"] == [MAXI_BILL]
+        "services"] == [{**MAXI_BILL, "count": None}]
     resp = client.put(_url(test_store_id), headers=reader,
                       json={"rows": [], "services": []})
     assert resp.status_code == 403
@@ -356,7 +356,7 @@ def test_switched_off_company_keeps_its_saved_money_orders(
     })
     _set_money_orders_off(test_store_id, "Maxi")
     got = client.get(_url(test_store_id), headers=admin).get_json()
-    assert got["services"] == [MAXI_MO]
+    assert got["services"] == [{**MAXI_MO, "count": None}]
     assert got["saved_total"] == 406
 
 

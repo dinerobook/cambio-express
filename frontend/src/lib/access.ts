@@ -127,6 +127,8 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/settings/profile", open: true },
   { path: "/settings/security", open: true },
   { path: "/settings/general", perm: "settings.read", roles: STORE_ROLES },
+  // Owners at the umbrella level have no single store to set up.
+  { path: "/settings/money-services", perm: "settings.read", roles: ["admin", "employee"] },
   { path: "/settings/billing", perm: "settings.update", roles: ["admin"] },
   { path: "/settings/referrals", perm: "settings.read", roles: ["admin"] },
   { path: "/subscribe", perm: "settings.update", roles: ["admin"] },

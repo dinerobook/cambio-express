@@ -285,6 +285,41 @@ describe("EditDailyBook — Services box", () => {
     ]);
   });
 
+  it("takes how many money orders were sold and saves the count", async () => {
+    const dialog = await openBox();
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    const row = rowOf(dialog, "Intermex");
+    const [amount, fee] = within(row).getAllByRole("textbox");
+    await typeInto(amount, "400");
+    await typeInto(fee, "8");
+    await userEvent.type(
+      within(row).getByRole("spinbutton", { name: "Intermex money orders sold" }), "4",
+    );
+    // A count is not money: the tab and the company total do not move.
+    expect(within(dialog).getByRole("tab", { name: /^Money orders/ }))
+      .toHaveTextContent("$408.00");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: /Save services/ }));
+    await waitFor(() => expect(replaceMTBreakdown).toHaveBeenCalled());
+    expect(replaceMTBreakdown.mock.calls[0][3]).toEqual([
+      { company: "Intermex", service: "money_order", amount: 400, fees: 8, count: 4 },
+    ]);
+  });
+
+  it("shows a saved count, and no count column on the other services", async () => {
+    useMTBreakdown.mockReturnValue(breakdown(
+      [mtRow("Intermex")],
+      [{ company: "Intermex", service: "money_order", amount: 200, fees: 4, count: 2 }],
+      ["Intermex"],
+    ));
+    const dialog = await openBox();
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Money orders/ }));
+    expect(within(dialog).getByRole("spinbutton", { name: "Intermex money orders sold" }))
+      .toHaveValue(2);
+    await userEvent.click(within(dialog).getByRole("tab", { name: /^Bill payments/ }));
+    expect(within(dialog).queryByRole("spinbutton")).not.toBeInTheDocument();
+  });
+
   it("lists only the companies that sell money orders", async () => {
     useMTBreakdown.mockReturnValue(breakdown(
       [mtRow("Intermex"), mtRow("Maxi", MAXI_TRANSFERS)], [], ["Intermex"],

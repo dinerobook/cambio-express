@@ -1,32 +1,41 @@
 import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useLoggedMonths, useMonthly, type MonthlyRow } from "../api/monthly";
+import {
+  MONTHLY_LINES, MONTHLY_SOURCE_LABELS, monthlyLineSource,
+  useLoggedMonths, useMonthly, type MonthlyLine, type MonthlyRow,
+} from "../api/monthly";
+import { Delta } from "../components/Delta";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   Breadcrumbs,
   ButtonLink, Card, Empty, EmptyState, ErrorState, Loading, PageHeader,
-  KpiCard, KpiGrid, PageShell, Section, Select, tokens,
+  KpiCard, KpiGrid, PageShell, PeriodStepper, Pill, Section, Select, Table,
+  tdStyle, tdStyleRight, thStyle, thStyleRight,
+  type PillTone,
 } from "../components/ui";
 import styles from "./Monthly.module.css";
 import {
-  MONTH_NAMES_SHORT, storeNow,
+  MONTH_NAMES_SHORT, shiftMonth, storeNow,
 } from "../lib/datetime";
 
 // Monthly P&L at /app/monthly?year=Y&month=M.
 //
-// Read-only for now; the legacy /monthly/<year>/<month> Jinja
-// page handles edits + the auto-derived bank-charges/line-item
-// totals. Defaults to the most recent logged month for the store.
+// Every figure is live: the server works the month out from both
+// daily books, the bank feed and the return-check workflow on every
+// read, so one day entered is enough for the month to show and a day
+// entered later shows without anyone pressing Save (Monthly
+// INVARIANTS.md "Daily feed"). Each line says where its figure comes
+// from; lines at $0 are left out so the statement reads as what
+// happened, not a form to fill in.
 
 interface YearMonth { year: number; month: number; }
 
-// The month picker must always be usable — even before the store has
-// saved a single monthly P&L. Offer the current month + the previous
-// 11, merged with any months that DO have a saved row (which may be
-// older than the 12-month window), newest first.
+// The month picker must always be usable. Offer the current month +
+// the previous 11, merged with every month the server knows of (a
+// saved P&L or a day in either daily book), newest first.
 function buildMonthOptions(logged: YearMonth[]): YearMonth[] {
   const seen = new Map<string, YearMonth>();
   const now = storeNow();
@@ -41,52 +50,18 @@ function buildMonthOptions(logged: YearMonth[]): YearMonth[] {
   );
 }
 
-// The lines each half of the P&L shows, in order. `label` is the
-// FALLBACK only: a store can rename most of these (see
-// /monthly/categories), and the server sends its names alongside
-// the month. The ones it cannot rename — the daily-derived lines
-// and the returned-check gain/loss — fall through to the label
-// here, which is why the list still carries one.
-const INCOME_FIELDS: Array<{ key: keyof MonthlyRow; label: string }> = [
-  { key: "taxable_sales",          label: "Taxable sales" },
-  { key: "non_taxable",            label: "Non-taxable" },
-  { key: "bill_payment_charge",    label: "Bill payment charge" },
-  { key: "phone_recargas",         label: "Phone recargas" },
-  { key: "boost_mobile",           label: "Boost Mobile" },
-  { key: "check_cashing_fees",     label: "Check cashing fees" },
-  { key: "return_check_hold_fees", label: "Return check hold fees" },
-  { key: "rebates_commissions",    label: "Rebates / commissions" },
-  { key: "mt_commission_in_bank",  label: "Money transfer commission in bank" },
-  { key: "other_income_1",         label: "Other income 1" },
-  { key: "other_income_2",         label: "Other income 2" },
-  { key: "other_income_3",         label: "Other income 3" },
-];
+// Over/short, borrowed money and profit distributed count in total
+// expenses (legacy P&L convention), so the Expenses statement lists
+// them last. Cash carry forward is in neither total: it is a KPI.
+const INCOME_LINES = MONTHLY_LINES.filter((l) => l.section === "Income");
+const EXPENSE_LINES = MONTHLY_LINES.filter(
+  (l) => l.section === "Expenses"
+    || (l.section === "Cash flow" && l.key !== "cash_carry_forward"),
+);
 
-const EXPENSE_FIELDS: Array<{ key: keyof MonthlyRow; label: string }> = [
-  { key: "cash_purchases",      label: "Cash purchases" },
-  { key: "check_purchases",     label: "Check purchases" },
-  { key: "cash_expenses",       label: "Cash expenses" },
-  { key: "check_expenses",      label: "Check expenses" },
-  { key: "cash_payroll",        label: "Cash payroll" },
-  { key: "check_payroll",       label: "Check payroll" },
-  { key: "bank_charges_total",  label: "Bank charges" },
-  { key: "credit_card_fees",    label: "Credit card fees" },
-  { key: "money_order_rent",    label: "Money order rent" },
-  { key: "emaginenet_tech",     label: "EmagineNet / tech" },
-  { key: "irs_payroll_tax",     label: "IRS payroll tax" },
-  { key: "texas_workforce",     label: "Texas workforce" },
-  { key: "other_taxes",         label: "Other taxes" },
-  { key: "accounting_charges",  label: "Accounting charges" },
-  { key: "return_check_gl",     label: "Returned check gain/loss" },
-  { key: "other_expense_1",     label: "Other expense 1" },
-  { key: "other_expense_2",     label: "Other expense 2" },
-  { key: "other_expense_3",     label: "Other expense 3" },
-  { key: "other_expense_4",     label: "Other expense 4" },
-  { key: "other_expense_5",     label: "Other expense 5" },
-  { key: "over_short",          label: "Over / short" },
-  { key: "borrowed_money_return", label: "Borrowed money return" },
-  { key: "profit_distributed",  label: "Profit distributed" },
-];
+const SOURCE_TONES: Record<ReturnType<typeof monthlyLineSource>, PillTone> = {
+  daily: "info", bank: "info", returns: "info", typed: "neutral",
+};
 
 export default function Monthly() {
   const identity = getCurrentIdentity();
@@ -100,9 +75,8 @@ export default function Monthly() {
     [months.data],
   );
 
-  // Default on first paint: the most recent month that has a saved
-  // row (so you land on real data), else the current month — so the
-  // page is never blank with an unusable picker.
+  // Default on first paint: the most recent month with anything in
+  // it, else the current month — never a blank page.
   useEffect(() => {
     if (yearParam && monthParam) return;
     const now = storeNow();
@@ -117,6 +91,15 @@ export default function Monthly() {
   const year  = yearParam ? Number(yearParam) : undefined;
   const month = monthParam ? Number(monthParam) : undefined;
   const detail = useMonthly(year, month);
+  const prev = year && month ? shiftMonth(year, month, -1) : undefined;
+  const previous = useMonthly(prev?.year, prev?.month);
+
+  function goTo(ym: YearMonth) {
+    const params = new URLSearchParams(sp);
+    params.set("year", String(ym.year));
+    params.set("month", String(ym.month));
+    setSP(params, { replace: true });
+  }
 
   if (identity?.store_id == null) {
     return (
@@ -126,6 +109,8 @@ export default function Monthly() {
       </PageShell>
     );
   }
+
+  const monthLabel = year && month ? `${MONTH_NAMES_SHORT[month - 1]} ${year}` : "—";
 
   return (
     <PageShell gap="1rem">
@@ -137,35 +122,35 @@ export default function Monthly() {
 
       <PageHeader
         title="Monthly P&L"
-        subtitle={year && month ? (
-          <span style={{ fontFamily: tokens.fontMono }}>
-            {MONTH_NAMES_SHORT[month - 1]} {year}
-          </span>
-        ) : "—"}
+        subtitle={<span className={styles.mono}>{monthLabel}</span>}
         actions={(
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <Select
-              value={year && month ? `${year}-${month}` : ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (!v) return;
-                const [y, m] = v.split("-").map(Number);
-                const params = new URLSearchParams(sp);
-                params.set("year", String(y));
-                params.set("month", String(m));
-                setSP(params, { replace: true });
-              }}
-              style={{ width: "auto" }}
-            >
-              {monthOptions.map((m) => (
-                <option
-                  key={`${m.year}-${m.month}`}
-                  value={`${m.year}-${m.month}`}
+          <div className={styles.actions}>
+            {year && month && (
+              <PeriodStepper
+                unit="month"
+                onPrev={() => goTo(shiftMonth(year, month, -1))}
+                onNext={() => goTo(shiftMonth(year, month, 1))}
+              >
+                <Select
+                  aria-label="Month"
+                  value={`${year}-${month}`}
+                  onChange={(e) => {
+                    const [y, m] = e.target.value.split("-").map(Number);
+                    if (y && m) goTo({ year: y, month: m });
+                  }}
+                  style={{ width: "auto" }}
                 >
-                  {MONTH_NAMES_SHORT[m.month - 1]} {m.year}
-                </option>
-              ))}
-            </Select>
+                  {monthOptions.map((m) => (
+                    <option
+                      key={`${m.year}-${m.month}`}
+                      value={`${m.year}-${m.month}`}
+                    >
+                      {MONTH_NAMES_SHORT[m.month - 1]} {m.year}
+                    </option>
+                  ))}
+                </Select>
+              </PeriodStepper>
+            )}
             <ButtonLink to="/monthly/categories" tone="secondary" size="sm">
               Categories
             </ButtonLink>
@@ -189,15 +174,26 @@ export default function Monthly() {
           onRetry={() => { void detail.refetch(); }}
         />
       )}
-      {detail.data?.report == null && !detail.isLoading && year && month && (
-        <EmptyState
-          title={`No P&L logged for ${MONTH_NAMES_SHORT[month - 1]} ${year} yet.`}
-        />
+      {detail.data?.report == null && !detail.isLoading && !detail.isError
+        && year && month && (
+        <Card>
+          <EmptyState
+            title={`Nothing recorded for ${monthLabel} yet.`}
+            body="Enter a day in the daily book and this month's P&L fills in by itself."
+            cta={(
+              <ButtonLink to="/daily" tone="secondary" size="sm">
+                Open the daily book
+              </ButtonLink>
+            )}
+          />
+        </Card>
       )}
       {detail.data?.report && (
         <ReportContent
           r={detail.data.report}
           labels={detail.data.labels}
+          previous={previous.data?.report ?? null}
+          previousLabel={prev ? MONTH_NAMES_SHORT[prev.month - 1] : ""}
         />
       )}
     </PageShell>
@@ -205,58 +201,81 @@ export default function Monthly() {
 }
 
 function ReportContent({
-  r, labels,
+  r, labels, previous, previousLabel,
 }: {
   r: MonthlyRow;
   /** The store's own name per P&L column, from the server. */
   labels: Record<string, string>;
+  previous: MonthlyRow | null;
+  previousLabel: string;
 }) {
+  const margin = r.total_income > 0
+    ? Math.round((r.net_profit / r.total_income) * 1000) / 10
+    : null;
+  const vsPrev = (now: number, before: number | undefined) =>
+    previous && before !== undefined
+      ? <Delta value={now - before} money suffix={` vs ${previousLabel}`} />
+      : undefined;
+
   return (
     <>
-      <Section title="Totals">
-        <Card>
-          <Grid>
-            <Stat
-              label="Total income" value={r.total_income} tone="positive"
-            />
-            <Stat label="Total expenses"   value={r.total_expenses} />
-            <Stat
-              label="Net profit"
-              value={r.net_profit}
-              tone={r.net_profit >= 0 ? "positive" : "negative"}
-            />
-            <Stat label="Cash carry forward" value={r.cash_carry_forward} />
-          </Grid>
-        </Card>
-      </Section>
+      <p className={styles.status}>
+        <Pill tone="accent" dot>Live</Pill>
+        <span>
+          {r.days_entered > 0
+            ? `Built from ${fmtNumber(r.days_entered)} day${r.days_entered === 1 ? "" : "s"} entered in the daily books. It updates as you enter more.`
+            : "No daily book days this month. Showing what was saved."}
+          {!r.saved && r.days_entered > 0
+            && " Rent, payroll tax and other lines the daily book can't know are added under Edit."}
+        </span>
+      </p>
 
-      <Section title="Income">
-        <Card>
-          <Grid>
-            {INCOME_FIELDS.map((f) => (
-              <Stat
-                key={f.key}
-                label={labels[f.key] || f.label}
-                value={r[f.key] as number}
-              />
-            ))}
-          </Grid>
-        </Card>
-      </Section>
+      <KpiGrid minWidth="12rem">
+        <KpiCard
+          label="Total income"
+          value={fmtMoney2(r.total_income)}
+          tone="positive"
+          sub={vsPrev(r.total_income, previous?.total_income)}
+        />
+        <KpiCard
+          label="Total expenses"
+          value={fmtMoney2(r.total_expenses)}
+          sub={vsPrev(r.total_expenses, previous?.total_expenses)}
+        />
+        <KpiCard
+          label="Net profit"
+          value={fmtMoney2(r.net_profit)}
+          tone={r.net_profit >= 0 ? "positive" : "negative"}
+          colorValue
+          sub={(
+            <span className={styles.subStack}>
+              {margin != null && <span>{margin}% of income</span>}
+              {vsPrev(r.net_profit, previous?.net_profit)}
+            </span>
+          )}
+        />
+        {r.cash_carry_forward !== 0 && (
+          <KpiCard
+            label="Cash carry forward"
+            value={fmtMoney2(r.cash_carry_forward)}
+          />
+        )}
+      </KpiGrid>
 
-      <Section title="Expenses">
-        <Card>
-          <Grid>
-            {EXPENSE_FIELDS.map((f) => (
-              <Stat
-                key={f.key}
-                label={labels[f.key] || f.label}
-                value={r[f.key] as number}
-              />
-            ))}
-          </Grid>
-        </Card>
-      </Section>
+      <div className={styles.statements}>
+        <Section title="Income">
+          <Statement
+            r={r} labels={labels} lines={INCOME_LINES}
+            total={r.total_income} totalLabel="Total income"
+          />
+        </Section>
+        <Section title="Expenses">
+          <Statement
+            r={r} labels={labels} lines={EXPENSE_LINES}
+            total={r.total_expenses} totalLabel="Total expenses"
+          />
+        </Section>
+      </div>
 
       {r.notes && (
         <Section title="Notes">
@@ -269,24 +288,79 @@ function ReportContent({
   );
 }
 
-function Grid({ children }: { children: React.ReactNode }) {
-  return <KpiGrid minWidth="11rem">{children}</KpiGrid>;
-}
-
-/** One P&L figure. A toned figure (income, net profit) carries its
- *  colour on the number; a plain line stays in body text. */
-function Stat({
-  label, value, tone,
+/** One half of the P&L as a statement: every line with a figure, a
+ *  pill saying where it comes from, and the half's total. Lines at
+ *  $0 are left out (a line that does not apply disappears rather
+ *  than show $0); a footnote says how many. */
+function Statement({
+  r, labels, lines, total, totalLabel,
 }: {
-  label: string; value: number;
-  tone?: "positive" | "negative";
+  r: MonthlyRow;
+  labels: Record<string, string>;
+  lines: MonthlyLine[];
+  total: number;
+  totalLabel: string;
 }) {
+  const shown = lines.filter((l) => Number(r[l.key]) !== 0);
+  const hidden = lines.length - shown.length;
   return (
-    <KpiCard
-      label={label}
-      value={fmtMoney2(value || 0)}
-      tone={tone ?? "neutral"}
-      colorValue={tone != null}
-    />
+    <Card>
+      {shown.length === 0 ? (
+        <Empty>Nothing yet this month.</Empty>
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <th style={thStyle}>Line</th>
+              <th style={thStyle}>From</th>
+              <th style={thStyleRight}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((l) => {
+              const source = monthlyLineSource(r, l.key);
+              return (
+                <tr key={l.key}>
+                  <td style={tdStyle}>
+                    <span className={styles.lineName}>
+                      {labels[l.key] || l.label}
+                    </span>
+                    {l.key === "money_order_fees" && r.money_order_charges > 0 && (
+                      <span className={styles.lineNote}>
+                        After {fmtMoney2(r.money_order_charges)} company charges
+                        on {fmtNumber(r.money_order_count)} money orders
+                      </span>
+                    )}
+                  </td>
+                  <td style={tdStyle}>
+                    <Pill tone={SOURCE_TONES[source]}>
+                      {MONTHLY_SOURCE_LABELS[source]}
+                    </Pill>
+                  </td>
+                  <td style={tdStyleRight} className={styles.amount}>
+                    {fmtMoney2(Number(r[l.key]))}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style={tdStyle} className={styles.totalCell} colSpan={2}>
+                {totalLabel}
+              </td>
+              <td style={tdStyleRight} className={`${styles.amount} ${styles.totalCell}`}>
+                {fmtMoney2(total)}
+              </td>
+            </tr>
+          </tfoot>
+        </Table>
+      )}
+      {hidden > 0 && (
+        <p className={styles.footnote}>
+          {hidden} line{hidden === 1 ? "" : "s"} at $0 not shown.
+        </p>
+      )}
+    </Card>
   );
 }

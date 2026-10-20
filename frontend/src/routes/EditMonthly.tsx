@@ -3,8 +3,14 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  MONTHLY_LINES,
+  monthlyLineSource,
   updateMonthly,
   useMonthly,
+  type MonthlyLine,
+  type MonthlyLineSource,
+  type MonthlyRow,
+  type MonthlySection,
   type MonthlyUpdateBody,
 } from "../api/monthly";
 import { apiErrorMessage } from "../lib/api";
@@ -22,59 +28,23 @@ import { MONTH_NAMES_SHORT } from "../lib/datetime";
 
 // Edit page for the monthly P&L at /app/monthly/edit?year=Y&month=M.
 //
-// Fields shown here are the operator-editable subset only —
-// auto-derived rows (cash_purchases, cash_expenses, return_check_gl)
-// are excluded from the schema and overwritten server-side from the
-// daily ledger / return-check workflow. Bank-fed lines (bank charges
-// plus any P&L column a bank category feeds this month) come back
-// in `bank_locked`: they render read-only with the bank's live sum
-// and the server keeps its own value on save.
+// Only the lines the operator types are fields here (MONTHLY_LINES
+// `editable`); the daily-derived lines, money order fees and the
+// returned-check line are the server's and never in the PUT. Of the
+// typed lines, those the bank feed (`bank_locked`) or the daily books
+// (`daily_fed`) fill this month render read-only with the live
+// figure and are left out of the PUT — the server writes its own.
 
-// `label` is the FALLBACK. Every income and expense line here can
-// be renamed per store on /monthly/categories, and the server sends
-// the store's names alongside the month — so what most operators
-// read is `labels[key]`, not this. The cash-flow lines are
-// structural and keep the names below.
-const FIELDS: Array<{
-  key: keyof MonthlyUpdateBody;
-  label: string;
-  section: "Income" | "Expenses" | "Cash flow";
-}> = [
-  { key: "taxable_sales",          label: "Taxable sales",          section: "Income" },
-  { key: "non_taxable",            label: "Non-taxable",            section: "Income" },
-  { key: "bill_payment_charge",    label: "Bill payment charge",    section: "Income" },
-  { key: "phone_recargas",         label: "Phone recargas",         section: "Income" },
-  { key: "boost_mobile",           label: "Boost Mobile",           section: "Income" },
-  { key: "return_check_hold_fees", label: "Return check hold fees", section: "Income" },
-  { key: "rebates_commissions",    label: "Rebates / commissions",  section: "Income" },
-  { key: "mt_commission_in_bank",  label: "Money transfer commission in bank",  section: "Income" },
-  { key: "other_income_1",         label: "Other income 1",         section: "Income" },
-  { key: "other_income_2",         label: "Other income 2",         section: "Income" },
-  { key: "other_income_3",         label: "Other income 3",         section: "Income" },
+const FIELDS = MONTHLY_LINES.filter((l) => l.editable) as Array<
+  MonthlyLine & { key: keyof MonthlyUpdateBody & keyof MonthlyRow }
+>;
 
-  { key: "bank_charges_total",     label: "Bank charges",  section: "Expenses" },
-  { key: "credit_card_fees",       label: "Credit card fees",       section: "Expenses" },
-  { key: "money_order_rent",       label: "Money order rent",       section: "Expenses" },
-  { key: "emaginenet_tech",        label: "EmagineNet / tech",      section: "Expenses" },
-  { key: "irs_payroll_tax",        label: "IRS payroll tax",        section: "Expenses" },
-  { key: "texas_workforce",        label: "Texas workforce",        section: "Expenses" },
-  { key: "other_taxes",            label: "Other taxes",            section: "Expenses" },
-  { key: "accounting_charges",     label: "Accounting charges",     section: "Expenses" },
-  { key: "other_expense_1",        label: "Other expense 1",        section: "Expenses" },
-  { key: "other_expense_2",        label: "Other expense 2",        section: "Expenses" },
-  { key: "other_expense_3",        label: "Other expense 3",        section: "Expenses" },
-  { key: "other_expense_4",        label: "Other expense 4",        section: "Expenses" },
-  { key: "other_expense_5",        label: "Other expense 5",        section: "Expenses" },
+const SECTIONS: MonthlySection[] = ["Income", "Expenses", "Cash flow"];
 
-  { key: "over_short",             label: "Over / short",           section: "Cash flow" },
-  { key: "borrowed_money_return",  label: "Borrowed money return",  section: "Cash flow" },
-  { key: "profit_distributed",     label: "Profit distributed",     section: "Cash flow" },
-  { key: "cash_carry_forward",     label: "Cash carry forward",     section: "Cash flow" },
-];
-
-const SECTIONS: Array<"Income" | "Expenses" | "Cash flow"> = [
-  "Income", "Expenses", "Cash flow",
-];
+const LOCKED_HINTS: Partial<Record<MonthlyLineSource, string>> = {
+  bank: "From bank: summed from categorized transactions.",
+  daily: "From daily book: change it on the day it was entered.",
+};
 
 export default function EditMonthly() {
   const navigate = useNavigate();
@@ -116,7 +86,13 @@ export default function EditMonthly() {
     setBaseline(init);
   }, [detail.data, detail.isLoading, detail.isFetching, detail.isError]);
 
-  const bankLocked = new Set(detail.data?.report?.bank_locked ?? []);
+  const report = detail.data?.report ?? null;
+  // A line the bank or the daily books fill this month is theirs.
+  const lockedSource = (key: string): MonthlyLineSource | null => {
+    if (!report) return null;
+    const source = monthlyLineSource(report, key);
+    return source === "bank" || source === "daily" ? source : null;
+  };
   // The store's own name per line; absent keys fall back to FIELDS.
   const labels = detail.data?.labels ?? {};
 
@@ -144,9 +120,9 @@ export default function EditMonthly() {
     try {
       const body: MonthlyUpdateBody = { notes: form.notes ?? "" };
       for (const f of FIELDS) {
-        // A bank-fed line is the server's to write; sending the
-        // displayed sum back would be harmless but misleading.
-        if (bankLocked.has(f.key)) continue;
+        // A bank- or daily-fed line is the server's to write; sending
+        // the displayed sum back would be harmless but misleading.
+        if (lockedSource(f.key)) continue;
         const v = form[f.key];
         if (typeof v === "number" || typeof v === "string") {
           (body as Record<string, number>)[f.key] = Number(v) || 0;
@@ -216,11 +192,11 @@ export default function EditMonthly() {
           {MONTH_NAMES_SHORT[month - 1]} {year}
         </p>
         <p className={styles.headerNote}>
-          Auto-derived fields (cash purchases / expenses / payroll /
-          check cashing fees / return-check P&L) are server-recomputed
-          on save and can't be edited here. Lines marked "from bank"
-          are summed from categorized bank transactions this month —
-          change them on the bank transactions page.
+          Purchases, expenses, payroll, sales and fees come from the
+          daily books and fill in by themselves. Type the lines the
+          daily book can't know, like rent, payroll tax or utilities.
+          Lines marked "From bank" or "From daily book" are already
+          filled for this month.
         </p>
         <p className={styles.headerNote}>
           Lines not named after your business? <AppLink to="/monthly/categories">
@@ -238,7 +214,7 @@ export default function EditMonthly() {
             <h2 className={styles.sectionTitle}>{sec}</h2>
             <div className={styles.fieldGrid}>
               {FIELDS.filter((f) => f.section === sec).map((f) => {
-                const fromBank = bankLocked.has(f.key);
+                const locked = lockedSource(f.key);
                 return (
                   <MoneyInput
                     key={f.key}
@@ -249,9 +225,9 @@ export default function EditMonthly() {
                         : 0
                     }
                     onChange={(v) => set(f.key, v as never)}
-                    readOnly={fromBank}
-                    disabled={fromBank}
-                    hint={fromBank ? "From bank — summed from categorized transactions." : undefined}
+                    readOnly={locked != null}
+                    disabled={locked != null}
+                    hint={locked ? LOCKED_HINTS[locked] : undefined}
                   />
                 );
               })}
