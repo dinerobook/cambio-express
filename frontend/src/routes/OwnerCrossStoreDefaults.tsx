@@ -7,10 +7,11 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs,
-  Alert, Button, Card, Checkbox, Empty, ErrorState, Field, Input,
-  Loading, PageHeader, PageShell, Section, Select, Switch,
+  Alert, Breadcrumbs, Button, Card, Checkbox, Empty, ErrorState, Field,
+  FormActions, Input, Loading, PageHeader, PageShell, Section, Select,
+  Switch,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import styles from "./OwnerCrossStoreDefaults.module.css";
@@ -79,6 +80,14 @@ export default function OwnerCrossStoreDefaults() {
     selected: storeIds, isSelected, toggle: toggleStore, toggleAll, allSelected,
   } = useStoreSelection(allStoreIds);
 
+  const { dirty, markSaved } = useDirtyBaseline({
+    applyTz, tz, applyFedTax, fedTaxPct, applyEnforceHours, enforceHours,
+    applyPasskey, passkeyOn, applyPhone, phone, applyAddress, address,
+  });
+  const guard = useUnsavedGuard(dirty && !busy, {
+    message: "You have defaults you haven't applied yet. Leave without applying?",
+  });
+
   if (!identity || (identity.role !== "owner"
                     && identity.role !== "superadmin")) {
     return (
@@ -111,6 +120,7 @@ export default function OwnerCrossStoreDefaults() {
       if (applyAddress)        body.address                   = address;
       const out = await applyCrossStoreDefaults(body);
       setResults(out.results);
+      markSaved();
     } catch (e2) {
       setErr(apiErrorMessage(
         e2, "Couldn't apply the cross-store defaults.", { anyError: true },
@@ -274,7 +284,7 @@ export default function OwnerCrossStoreDefaults() {
 
             {err && <Alert tone="error">{err}</Alert>}
 
-            <div className={styles.actions}>
+            <FormActions guard={guard}>
               <Button
                 type="submit"
                 busy={busy}
@@ -288,7 +298,7 @@ export default function OwnerCrossStoreDefaults() {
                   ? "Applying…"
                   : `Apply to ${storeIds.length} store${storeIds.length === 1 ? "" : "s"}`}
               </Button>
-            </div>
+            </FormActions>
           </Card>
         </form>
       )}

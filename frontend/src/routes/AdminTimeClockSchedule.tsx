@@ -11,10 +11,11 @@ import {
 import { useEmployees } from "../api/transfers";
 import { apiErrorMessage } from "../lib/api";
 import {
-  Breadcrumbs,
-  Button, Card, ConfirmDialog, EmptyState, ErrorState, Field, Input,
-  Loading, PageHeader, PageShell, PeriodStepper, Select, useToast,
+  Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field,
+  FormActions, Input, Loading, PageHeader, PageShell, PeriodStepper,
+  Select, useToast,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./AdminTimeClockSchedule.module.css";
 import {
   WEEKDAY_NAMES_SHORT, addDaysIso, formatWeekRange, mondayOfIso, todayIso,
@@ -298,6 +299,10 @@ function ShiftForm({
   );
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [busy, setBusy] = useState(false);
+  const { dirty } = useDirtyBaseline({ empId, startTime, endTime, notes });
+  const guard = useUnsavedGuard(dirty && !busy, {
+    message: "You have an unsaved shift. Leave without saving?",
+  });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -370,17 +375,17 @@ function ShiftForm({
           onChange={(e) => setNotes(e.target.value)}
         />
       </Field>
-      <div className={styles.formActions}>
+      <FormActions guard={guard}>
         <Button
           type="button" tone="secondary"
-          onClick={onCancel} disabled={busy}
+          onClick={() => guard.confirmLeave(onCancel)} disabled={busy}
         >
           Cancel
         </Button>
         <Button type="submit" busy={busy} disabled={busy || empId === ""}>
           {existing ? "Save" : "Add"}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

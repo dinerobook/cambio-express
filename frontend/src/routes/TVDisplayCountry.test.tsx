@@ -7,6 +7,7 @@ import TVDisplayCountry from "./TVDisplayCountry";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
+import { renderRouteWithGuard } from "../test/renderRoute";
 import { TEST_ADMIN } from "../test/setup";
 
 // TV rate board country editor. Save used to post an HTML form to a
@@ -133,5 +134,22 @@ describe("TVDisplayCountry", () => {
     renderPage();
     expect(screen.getByText(/Country not found/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("asks before Cancel throws away an edited rate; a save leaves without asking", async () => {
+    renderRouteWithGuard(<TVDisplayCountry />, {
+      path: "/tv-display/countries/:countryId", at: "/tv-display/countries/7",
+    });
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await userEvent.type(rateInput(2, 1), "18.1");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Cancel" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Keep editing" }));
+    expect(rateInput(2, 1)).toHaveValue("18.1");
+
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Navigated to /tv-display")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
   });
 });

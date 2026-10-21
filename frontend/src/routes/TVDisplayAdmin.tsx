@@ -12,11 +12,13 @@ import {
 } from "../api/tvDisplay";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
-import { AppLink,
-  Button, ButtonLink, Card, ConfirmDialog, CopyField, ErrorState, Field,
-  IconButton, Input, KpiCard, KpiGrid, Loading, PageShell, Section, Select,
-  Switch, TabsBar, TabsLink, useToast, EmptyState,
+import {
+  AppLink, Button, ButtonLink, Card, ConfirmDialog, CopyField, EmptyState,
+  ErrorState, Field, FormActions, IconButton, Input, KpiCard, KpiGrid,
+  Loading, PageShell, Section, Select, Switch, TabsBar, TabsLink, useToast,
 } from "../components/ui";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./TVDisplayAdmin.module.css";
 
 // /app/tv-display — TV Display add-on operator console.
@@ -460,24 +462,27 @@ function SettingsAndStatsGrid({
   onSave: (payload: import("../api/tvDisplay").TVDisplaySettingsUpdate) => Promise<unknown>;
   savePending: boolean;
 }) {
-  const [draft, setDraft] = useState(() => ({
+  const saved = useMemo(() => ({
     title:       data.title,
     subtitle:    data.subtitle,
     orientation: data.orientation || "auto",
     theme:       data.theme || "light",
-  }));
+  }), [data.title, data.subtitle, data.orientation, data.theme]);
+  const [draft, setDraft] = useState(saved);
   const toast = useToast();
 
   // Re-sync if the upstream data changes (e.g. after a save invalidation).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- re-hydrate local editable draft from server-fetched TV display config after save invalidation
-    setDraft({
-      title:       data.title,
-      subtitle:    data.subtitle,
-      orientation: data.orientation || "auto",
-      theme:       data.theme || "light",
-    });
-  }, [data.title, data.subtitle, data.orientation, data.theme]);
+    setDraft(saved);
+  }, [saved]);
+
+  // The saved settings are the baseline, so a save clears it once the
+  // refreshed config arrives.
+  const guard = useUnsavedGuard(
+    JSON.stringify(draft) !== JSON.stringify(saved) && !savePending,
+    { message: "You have unsaved display settings. Leave without saving?" },
+  );
 
   const stats = useMemo(() => {
     let totalBanks = 0, totalRates = 0;
@@ -488,9 +493,18 @@ function SettingsAndStatsGrid({
     return { totalBanks, totalRates };
   }, [data.countries]);
 
+  const toastApiError = useApiErrorToast();
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    await onSave(draft);
+    try {
+      await onSave(draft);
+    } catch (err) {
+      // A refused save used to reject unhandled: no message, and the
+      // edits looked saved.
+      toastApiError(err, "Couldn't save the display settings.");
+      return;
+    }
     toast({ message: "Display settings saved.", tone: "success" });
   }
 
@@ -542,7 +556,7 @@ function SettingsAndStatsGrid({
                 </Switch>
               </Field>
             </div>
-            <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 12, alignItems: "center" }}>
+            <FormActions guard={guard}>
               <Button
                 type="submit"
                 busy={savePending}
@@ -550,7 +564,7 @@ function SettingsAndStatsGrid({
               >
                 {savePending ? "Saving…" : "Save settings"}
               </Button>
-            </div>
+            </FormActions>
           </form>
         </Section>
       </Card>

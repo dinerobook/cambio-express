@@ -8,10 +8,11 @@ import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Alert, Breadcrumbs, Button, Card, DataTable, Field,
-  Input, PageHeader, PageShell, Pill, Section, Select,
-  Textarea, useToast, type DataColumn,
+  Alert, Breadcrumbs, Button, Card, DataTable, Field, FormActions, Input,
+  PageHeader, PageShell, Pill, Section, Select, Textarea, type DataColumn,
+  useToast,
 } from "../components/ui";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SupportTickets.module.css";
 import { formatDateTime } from "../lib/datetime";
 
@@ -73,6 +74,12 @@ function SupportTicketsInner() {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // A typed ticket is the work to protect; the category alone is not.
+  const guard = useUnsavedGuard(
+    showForm && Boolean(subject.trim() || body.trim()) && !busy,
+    { message: "You have a ticket you haven't submitted. Leave without submitting?" },
+  );
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -147,11 +154,11 @@ function SupportTicketsInner() {
                   required
                 />
               </Field>
-              <div className={styles.formActions}>
+              <FormActions guard={guard}>
                 <Button type="submit" busy={busy} disabled={busy || !subject.trim() || !body.trim()}>
                   {busy ? "Submitting…" : "Submit ticket"}
                 </Button>
-              </div>
+              </FormActions>
             </form>
           </Section>
         </Card>

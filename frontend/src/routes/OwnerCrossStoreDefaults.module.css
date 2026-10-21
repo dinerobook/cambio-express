@@ -67,10 +67,3 @@
   margin-left: auto;
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}

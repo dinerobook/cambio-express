@@ -22,12 +22,12 @@ import { timezoneFromAddress } from "../lib/timezoneFromAddress";
 import { getCurrentIdentity } from "../lib/auth";
 import { hasPermission } from "../lib/permissions";
 import { passkeysSupported } from "../lib/webauthn";
-import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
-  Alert, Button, ButtonLink, Card, Checkbox, ConfirmDialog, ErrorState, Field,
-  InfoTip, Input, Loading, PageHeader, PageShell, Pill, SectionTitle, Select,
-  space, Switch, TabsBar, TabsLink, useToast,
-  Empty,
+  Alert, Button, ButtonLink, Card, Checkbox, ConfirmDialog, Empty,
+  ErrorState, Field, FormActions, InfoTip, Input, Loading, PageHeader,
+  PageShell, SectionTitle, Select, space, Switch, TabsBar, TabsLink,
+  useToast,
 } from "../components/ui";
 import styles from "./Settings.module.css";
 
@@ -166,8 +166,9 @@ function ProfileCard() {
   }, [data]);
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(baseline);
-  // Arm the browser "leave site?" prompt while there are unsaved edits.
-  useUnsavedChangesGuard(isDirty && !busy);
+  const guard = useUnsavedGuard(isDirty && !busy, {
+    message: "You have unsaved edits to your profile. Leave without saving?",
+  });
 
   function set<K extends keyof ProfileUpdateBody>(
     key: K, value: ProfileUpdateBody[K],
@@ -322,14 +323,11 @@ function ProfileCard() {
           <ProfileReadOnly label="Last sign-in" value={lastLogin} />
         </div>
 
-        <div style={{ marginTop: space.sm, display: "flex", gap: "0.6rem", alignItems: "center" }}>
+        <FormActions guard={guard}>
           <Button type="submit" busy={busy} disabled={busy || !isDirty}>
             {busy ? "Saving…" : "Save profile"}
           </Button>
-          {isDirty && !busy && (
-            <Pill tone="warning" dot>Unsaved changes</Pill>
-          )}
-        </div>
+        </FormActions>
       </form>
     </Card>
   );
@@ -645,8 +643,9 @@ function StoreInfoCard() {
   const isDirty =
     baseline !== ""
     && snapshot(hours, enforceHours) !== baseline;
-  // Arm the browser "leave site?" prompt while there are unsaved edits.
-  useUnsavedChangesGuard(isDirty && !busy && canEdit);
+  const guard = useUnsavedGuard(isDirty && !busy && canEdit, {
+    message: "You have unsaved store settings. Leave without saving?",
+  });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -910,14 +909,11 @@ function StoreInfoCard() {
       {err && <Alert tone="error">{err}</Alert>}
 
       {canEdit && (
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.6rem" }}>
-          {isDirty && !busy && (
-            <Pill tone="warning" dot>Unsaved changes</Pill>
-          )}
+        <FormActions guard={guard}>
           <Button type="submit" busy={busy} disabled={busy || !name || !isDirty}>
             {busy ? "Saving…" : "Save"}
           </Button>
-        </div>
+        </FormActions>
       )}
     </form>
   );

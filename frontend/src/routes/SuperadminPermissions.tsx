@@ -5,23 +5,12 @@ import { api, apiErrorMessage } from "../lib/api";
 import { roleTone } from "../api/roles";
 import { actionsFor, toggleMatrixCell } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
-import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
-  Alert,
-  Breadcrumbs,
-  Button,
-  Card,
-  Checkbox,
-  ErrorState,
-  Loading,
-  PageHeader,
-  PageShell,
-  Pill,
-  SectionTitle,
-  useToast,
+  Alert, Breadcrumbs, Button, Card, Checkbox, ErrorState, FormActions,
+  Loading, PageHeader, PageShell, Pill, SectionTitle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
-import styles from "./SuperadminPermissions.module.css";
 
 interface PermissionMatrix {
   roles: string[];
@@ -65,7 +54,9 @@ export default function SuperadminPermissions() {
     : false;
   // Warn on tab-close / refresh while the permission matrix has unsaved
   // toggles (the page saves in place — no navigating Cancel to guard).
-  useUnsavedChangesGuard(isDirty);
+  const guard = useUnsavedGuard(Boolean(isDirty) && !busy, {
+    message: "You have unsaved permission changes. Leave without saving?",
+  });
 
   function toggle(role: string, resource: string, action: string) {
     if (!draft) return;
@@ -179,17 +170,14 @@ export default function SuperadminPermissions() {
       ))}
 
       {draft && (
-        <div className={styles.saveBar}>
-          {isDirty && (
-            <span className={styles.dirty}>Unsaved changes</span>
-          )}
+        <FormActions guard={guard}>
           <Button tone="secondary" onClick={reset} disabled={!isDirty || busy}>
             Reset
           </Button>
           <Button onClick={() => { void save(); }} busy={busy} disabled={!isDirty || busy}>
             {busy ? "Saving…" : "Save permissions"}
           </Button>
-        </div>
+        </FormActions>
       )}
     </PageShell>
   );

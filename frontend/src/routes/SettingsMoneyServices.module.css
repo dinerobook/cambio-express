@@ -66,13 +66,6 @@
   }
 }
 
-.saveRow {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 0.6rem;
-}
-
 /* "type a name, press Add" row under a Settings list (companies,
    transfer countries). Wraps on a narrow screen instead of
    overflowing. */

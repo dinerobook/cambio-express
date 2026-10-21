@@ -11,12 +11,12 @@ import {
   type CreateAnnouncementBody,
 } from "../api/announcements";
 import {
-  Breadcrumbs,
-  Alert, Button, Card, Checkbox, ConfirmDialog, Empty, ErrorState, Field,
-  Input, PageHeader, PageShell, Pill, SectionTitle, Select, Table,
-  TableStates, Textarea, tdStyle, thStyle,
-  Loading,
+  Alert, Breadcrumbs, Button, Card, Checkbox, ConfirmDialog, Empty,
+  ErrorState, Field, FormActions, Input, Loading, PageHeader, PageShell,
+  Pill, SectionTitle, Select, Table, TableStates, tdStyle, Textarea,
+  thStyle,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { useSuperadminStores } from "../api/superadmin";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
@@ -102,6 +102,13 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   const [targetIds, setTargetIds] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const { dirty, markSaved } = useDirtyBaseline({
+    message, level, expiresDays, broadcast, scheduleLocal, targetMode,
+    targetIds: Array.from(targetIds),
+  });
+  const guard = useUnsavedGuard(dirty && !busy, {
+    message: "You have a banner you haven't posted. Leave without posting?",
+  });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -130,6 +137,8 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       setMessage(""); setExpiresDays("0"); setBroadcast(false);
       setScheduleLocal("");
       setTargetMode("all"); setTargetIds(new Set());
+      // The level is kept for the next banner; what is left is clean.
+      markSaved();
       onCreated();
     } catch (e) {
       setErr(apiErrorMessage(e, "Could not post."));
@@ -210,7 +219,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
           )}
         </Field>
         {err && <Alert tone="error">{err}</Alert>}
-        <div className={styles.submitRow}>
+        <FormActions guard={guard}>
           <Button
             type="submit"
             tone="primary"
@@ -219,7 +228,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
           >
             {busy ? "Posting…" : "Post banner"}
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Card>
   );

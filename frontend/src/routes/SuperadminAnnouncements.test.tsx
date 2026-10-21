@@ -194,4 +194,25 @@ describe("SuperadminAnnouncements", () => {
     expect(await within(screen.getByRole("dialog")).findByText("Broadcast in progress."))
       .toBeInTheDocument();
   });
+
+  it("shows Unsaved changes on a typed banner and clears it once posted", async () => {
+    renderPage();
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await userEvent.type(screen.getByLabelText("Message"), "Rates updated");
+    await userEvent.selectOptions(screen.getByLabelText("Level"), "warning");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Post banner" }));
+    await waitFor(() => expect(screen.getByLabelText("Message")).toHaveValue(""));
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+  });
+
+  it("keeps Unsaved changes when posting fails", async () => {
+    createAnnouncement.mockRejectedValue(new Error("down"));
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Message"), "Rates updated");
+    await userEvent.click(screen.getByRole("button", { name: "Post banner" }));
+    await waitFor(() => expect(createAnnouncement).toHaveBeenCalled());
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    expect(screen.getByLabelText("Message")).toHaveValue("Rates updated");
+  });
 });

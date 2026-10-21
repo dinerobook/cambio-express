@@ -35,12 +35,10 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field,
-  InfoTip,
-  Input, Loading, Modal, MoneyInput, PageHeader, PageShell, PeriodStepper,
-  Pill,
-  RowActions, TabsBar, TabsButton, Textarea,
-  Alert, type BreakdownPart,
+  Alert, Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, ErrorState,
+  Field, FormActions, InfoTip, Input, Loading, Modal, MoneyInput,
+  PageHeader, PageShell, PeriodStepper, Pill, RowActions, TabsBar,
+  TabsButton, Textarea, type BreakdownPart,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { computeTotals, type FormState } from "./editDailyBook.totals";
@@ -549,15 +547,35 @@ export default function EditDailyBook() {
 
         {error && <Alert tone="error">{error}</Alert>}
 
-        <StickySaveBar
-          locked={locked}
-          busy={busy}
-          dirty={isDirty && !locked}
-          onCancel={onBackToCalendar}
-        />
+        <FormActions
+          sticky
+          guard={guard}
+          note={locked
+            ? "This day is locked. Use Unlock (top-right) to edit any field."
+            : "Saves apply to every field in every column."}
+        >
+          <Button
+            type="button"
+            tone="secondary"
+            size="md"
+            onClick={onBackToCalendar}
+            disabled={busy}
+          >
+            Back to calendar
+          </Button>
+          {!locked && (
+            <Button
+              type="submit"
+              tone="primary"
+              size="md"
+              busy={busy}
+              disabled={busy}
+            >
+              {busy ? "Saving…" : "Save daily book"}
+            </Button>
+          )}
+        </FormActions>
       </form>
-
-      <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
   );
 }
@@ -2470,48 +2488,7 @@ function LineItemEntriesEditor({
   );
 }
 
-// ── Save bar + helpers ──────────────────────────────────────
-
-function StickySaveBar({
-  locked, busy, dirty, onCancel,
-}: {
-  locked: boolean;
-  busy: boolean;
-  dirty: boolean;
-  onCancel: () => void;
-}) {
-  return (
-    <div className={styles.saveBar}>
-      <div className={styles.saveBarLeft}>
-        {locked
-          ? "This day is locked. Use Unlock (top-right) to edit any field."
-          : dirty
-            ? <Pill tone="warning" dot>Unsaved changes</Pill>
-            : "Saves apply to every field in every column."}
-      </div>
-      <Button
-        type="button"
-        tone="secondary"
-        size="md"
-        onClick={onCancel}
-        disabled={busy}
-      >
-        Back to calendar
-      </Button>
-      {!locked && (
-        <Button
-          type="submit"
-          tone="primary"
-          size="md"
-          busy={busy}
-          disabled={busy}
-        >
-          {busy ? "Saving…" : "Save daily book"}
-        </Button>
-      )}
-    </div>
-  );
-}
+// ── Helpers ──────────────────────────────────────────────
 
 function PanelTitle({ children }: { children: React.ReactNode }) {
   return <h2 className={styles.panelTitle}>{children}</h2>;

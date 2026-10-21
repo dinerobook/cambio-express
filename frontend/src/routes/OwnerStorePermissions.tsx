@@ -5,9 +5,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiErrorMessage } from "../lib/api";
 import { roleTone } from "../api/roles";
 import { toggleMatrixCell } from "../lib/permissions";
-import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
-  Alert, Breadcrumbs, Button, Card, ErrorState, Loading,
+  Alert, Breadcrumbs, Button, Card, ErrorState, FormActions, Loading,
   PageHeader, PageShell, Pill, SectionTitle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
@@ -52,7 +52,9 @@ export default function OwnerStorePermissions() {
     : false;
   // Warn on tab-close / refresh while the permission matrix has unsaved
   // toggles (the page saves in place — no navigating Cancel to guard).
-  useUnsavedChangesGuard(isDirty);
+  const guard = useUnsavedGuard(Boolean(isDirty) && !busy, {
+    message: "You have unsaved permission changes. Leave without saving?",
+  });
 
   function toggle(role: string, resource: string, action: string) {
     if (!draft || !draft.editable_roles.includes(role)) return;
@@ -162,13 +164,12 @@ export default function OwnerStorePermissions() {
       })}
 
       {draft && (
-        <div className={styles.saveBar}>
-          {isDirty && <span className={styles.dirty}>Unsaved changes</span>}
+        <FormActions guard={guard}>
           <Button tone="secondary" onClick={reset} disabled={!isDirty || busy}>Reset</Button>
           <Button onClick={() => { void save(); }} busy={busy} disabled={!isDirty || busy}>
             {busy ? "Saving…" : "Save permissions"}
           </Button>
-        </div>
+        </FormActions>
       )}
     </PageShell>
   );

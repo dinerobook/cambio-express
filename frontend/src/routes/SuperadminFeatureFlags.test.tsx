@@ -154,4 +154,22 @@ describe("SuperadminFeatureFlags", () => {
     await userEvent.click(within(north).getByRole("button", { name: "Clear" }));
     await waitFor(() => expect(clearStoreOverride).toHaveBeenCalledWith("bank_sync", 4));
   });
+
+  it("asks before Cancel throws away a typed flag; an empty form closes at once", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "+ New flag" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "+ New flag" }));
+    await userEvent.type(screen.getByLabelText(/^Key/), "addon_lottery");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText(/^Key/)).toHaveValue("addon_lottery");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Leave" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument());
+  });
 });

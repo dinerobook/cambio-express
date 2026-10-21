@@ -1,10 +1,10 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SupportTickets from "./SupportTickets";
 import { ApiError } from "../lib/api";
-import { renderRoute, signInAs } from "../test/renderRoute";
+import { renderRoute, renderRouteWithGuard, signInAs } from "../test/renderRoute";
 
 // The store's own support tickets: a paged list on the shared table,
 // a row opens its conversation underneath (mouse or keyboard), the
@@ -153,5 +153,26 @@ describe("SupportTickets", () => {
     signInAs({ role: "superadmin", store_id: null });
     renderPage();
     expect(screen.getByText(/Navigated to \/superadmin\/tickets/)).toBeInTheDocument();
+  });
+
+  it("asks before leaving a typed ticket; a submitted one leaves freely", async () => {
+    createTicket.mockResolvedValue({ ticket: ticket(3, "Help") });
+    const { router } = renderRouteWithGuard(<SupportTickets />, { path: "/account/tickets" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "+ New ticket" }));
+    // Picking a category alone is not work to protect.
+    await user.selectOptions(screen.getByLabelText("Category"), "feature");
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await user.type(screen.getByPlaceholderText("Brief summary"), "Help");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    act(() => { void router.navigate("/dashboard"); });
+    await user.click(await screen.findByRole("button", { name: "Keep editing" }));
+    expect(screen.getByPlaceholderText("Brief summary")).toHaveValue("Help");
+
+    await user.type(screen.getByPlaceholderText(/Describe the issue/), "It broke");
+    await user.click(screen.getByRole("button", { name: "Submit ticket" }));
+    expect(await screen.findByText(/Ticket submitted/)).toBeInTheDocument();
+    act(() => { void router.navigate("/dashboard"); });
+    expect(await screen.findByText("Navigated to /dashboard")).toBeInTheDocument();
   });
 });

@@ -1,20 +1,6 @@
 /* The permission matrix itself renders through the shared
  * components/PermissionMatrixTable — its styles live there. */
 
-.saveBar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding-top: 0.75rem;
-  align-items: center;
-}
-
-.dirty {
-  font-size: 0.82rem;
-  color: var(--db-warning);
-  margin-right: auto;
-}
-
 .overrideBadge {
   font-size: 0.72rem;
   color: var(--db-accent);

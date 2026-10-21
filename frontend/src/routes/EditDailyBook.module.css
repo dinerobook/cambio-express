@@ -457,24 +457,6 @@
   font-style: italic;
 }
 
-.saveBar {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  background: var(--db-surface);
-  border-top: 1px solid var(--db-border);
-  padding: 0.85rem 0;
-  z-index: 4;
-}
-
-.saveBarLeft {
-  flex: 1;
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-}
-
 /* MT auto-summary table */
 .mtTable {
   width: 100%;

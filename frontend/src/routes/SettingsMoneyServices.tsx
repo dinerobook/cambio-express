@@ -8,10 +8,10 @@ import { TRANSFER_CHOICES_KEY } from "../api/transfers";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { hasPermission } from "../lib/permissions";
-import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
-  Alert, Button, Card, ErrorState, InfoTip, Input, Loading, MoneyInput,
-  Pill, SectionTitle, Switch, useToast,
+  Alert, Button, Card, ErrorState, FormActions, InfoTip, Input, Loading,
+  MoneyInput, Pill, SectionTitle, Switch, useToast,
 } from "../components/ui";
 import styles from "./SettingsMoneyServices.module.css";
 
@@ -53,7 +53,9 @@ export default function SettingsMoneyServices() {
   }, [data]);
 
   const isDirty = baseline !== "" && snapshot(companies, countries) !== baseline;
-  useUnsavedChangesGuard(isDirty && !busy && canEdit);
+  const guard = useUnsavedGuard(isDirty && !busy && canEdit, {
+    message: "You have unsaved money services settings. Leave without saving?",
+  });
 
   function patch(i: number, change: Partial<MTCompanyEntry>) {
     setCompanies((list) =>
@@ -229,12 +231,11 @@ export default function SettingsMoneyServices() {
       {err && <Alert tone="error">{err}</Alert>}
 
       {canEdit && (
-        <div className={styles.saveRow}>
-          {isDirty && !busy && <Pill tone="warning" dot>Unsaved changes</Pill>}
+        <FormActions guard={guard}>
           <Button type="submit" busy={busy} disabled={busy || !isDirty}>
             {busy ? "Saving…" : "Save"}
           </Button>
-        </div>
+        </FormActions>
       )}
     </form>
   );

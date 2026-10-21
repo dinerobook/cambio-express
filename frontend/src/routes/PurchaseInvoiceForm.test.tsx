@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import PurchaseInvoiceForm from "./PurchaseInvoiceForm";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { renderRouteWithGuard } from "../test/renderRoute";
 
 // Purchase invoice form. Pinned here:
 //   - Line unit cost / line total are <MoneyInput>s; the API gets the
@@ -168,5 +169,36 @@ describe("PurchaseInvoiceForm", () => {
     expect(screen.getByText("Could not load the invoice.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("guards unsaved edits: the bar, Cancel and the breadcrumb all ask first", async () => {
+    useInvoice.mockReturnValue({
+      data: { invoice: EXISTING }, isLoading: false, isError: false,
+      refetch: vi.fn(),
+    });
+    const user = userEvent.setup();
+    renderRouteWithGuard(<PurchaseInvoiceForm />, {
+      path: "/purchase-invoices/:id", at: "/purchase-invoices/5",
+    });
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await user.type(screen.getByLabelText("Invoice #"), "-B");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(await screen.findByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText("Invoice #")).toHaveValue("INV-77-B");
+
+    await user.click(screen.getByRole("link", { name: "Purchases" }));
+    await user.click(await screen.findByRole("button", { name: "Leave" }));
+    expect(await screen.findByText("Navigated to /purchase-invoices")).toBeInTheDocument();
+  });
+
+  it("a saved invoice leaves without asking", async () => {
+    const user = userEvent.setup();
+    renderRouteWithGuard(<PurchaseInvoiceForm />, { path: "/purchase-invoices/new" });
+    await fillHeader(user);
+    await user.click(screen.getByRole("button", { name: "Add invoice" }));
+    expect(await screen.findByText("Navigated to /purchase-invoices")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Keep editing" })).toBeNull();
   });
 });

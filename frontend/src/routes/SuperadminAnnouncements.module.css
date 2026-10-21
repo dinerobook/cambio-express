@@ -29,11 +29,6 @@
   margin: 0;
 }
 
-.submitRow {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .cellWide {
   max-width: 32rem;
 }

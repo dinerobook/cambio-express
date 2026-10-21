@@ -165,10 +165,3 @@
   gap: 0.4rem;
 }
 
-.formActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-  flex-wrap: wrap;
-}
