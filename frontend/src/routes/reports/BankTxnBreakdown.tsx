@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 
 import { ReportDrilldown } from "../../components/ReportDrilldown";
-import { fmtMoney2 } from "../../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../../lib/formatters";
 
 export default function BankTxnBreakdown() {
   const isOwner = useLocation().pathname.startsWith("/owner/");
@@ -9,7 +9,7 @@ export default function BankTxnBreakdown() {
   return (
     <ReportDrilldown
       apiSlug="bank-transactions-breakdown"
-      title="Bank Transactions Breakdown"
+      title="Bank transactions breakdown"
       resultUnit={["category", "categories"]}
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/bank-transactions-breakdown.csv`}
@@ -20,12 +20,12 @@ export default function BankTxnBreakdown() {
           value: t => fmtMoney2(Number(t.outflow ?? 0)) },
         { label: "Net",              tone: "muted",
           value: t => fmtMoney2(Number(t.amount ?? 0)) },
-        { label: "Transaction Count", tone: "muted",
-          value: t => Number(t.count ?? 0).toLocaleString() },
+        { label: "Transaction count", tone: "muted",
+          value: t => fmtNumber(Number(t.count ?? 0)) },
       ]}
       columns={[
         { label: "Category", field: "label" },
-        { label: "Count",    field: r => Number(r.count).toLocaleString(), align: "right", mono: true },
+        { label: "Count",    field: r => fmtNumber(Number(r.count)), align: "right", mono: true },
         { label: "Signed",   field: r => fmtMoney2(Number(r.signed)),       align: "right", mono: true },
         { label: "Amount",   field: r => fmtMoney2(Number(r.amount)),       align: "right", mono: true },
       ]}

@@ -14,7 +14,7 @@ import {
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 
 import { apiErrorMessage } from "../lib/api";
-import { fmtMoney } from "../lib/formatters";
+import { fmtMoney, fmtNumber } from "../lib/formatters";
 import {
   useSuperadminDashboard,
   type ActivityEntry,
@@ -24,7 +24,6 @@ import {
   chartSeries, chartTokens, countChartOptions, moneyChartOptions, seriesFill,
 } from "../lib/chartOptions";
 import {
-  Breadcrumbs,
   Card,
   EmptyState,
   ErrorState,
@@ -38,6 +37,7 @@ import {
 } from "../components/ui";
 import styles from "./SuperadminDashboard.module.css";
 import { formatDateTime, formatShortDate } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -50,10 +50,10 @@ export default function SuperadminDashboard() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Dashboard" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Platform Dashboard"
+        title="Dashboard"
         subtitle="Real-time overview of all stores, revenue, and activity"
       />
 
@@ -70,21 +70,21 @@ export default function SuperadminDashboard() {
           <KpiGrid>
             <KpiCard
               label="Total stores"
-              value={data.total_stores.toLocaleString()}
+              value={fmtNumber(data.total_stores)}
             />
             <KpiCard
               label="Active stores"
-              value={data.active_count.toLocaleString()}
+              value={fmtNumber(data.active_count)}
               tone="positive"
             />
             <KpiCard
               label="Trial stores"
-              value={data.trial_count.toLocaleString()}
+              value={fmtNumber(data.trial_count)}
               tone="warning"
             />
             <KpiCard
               label="Paid stores"
-              value={data.paid_count.toLocaleString()}
+              value={fmtNumber(data.paid_count)}
               tone="positive"
             />
             <KpiCard
@@ -115,7 +115,7 @@ export default function SuperadminDashboard() {
             <KpiCard
               label="30d volume"
               value={fmtMoney(data.total_volume_30d)}
-              sub={`${data.total_transfers_30d.toLocaleString()} transfers`}
+              sub={`${fmtNumber(data.total_transfers_30d)} transfers`}
             />
           </KpiGrid>
 

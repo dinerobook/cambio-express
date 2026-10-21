@@ -83,7 +83,7 @@ export { BreakdownPills, type BreakdownPart } from "./BreakdownPills";
 export { Alert, type AlertTone } from "./Alert";
 export { AppLink } from "./AppLink";
 export { Button, ButtonLink, type ButtonTone } from "./Button";
-export { Modal, ConfirmDialog } from "./Modal";
+export { Modal, ModalActions, ConfirmDialog } from "./Modal";
 export {
   IconButton,
   type IconButtonSize,

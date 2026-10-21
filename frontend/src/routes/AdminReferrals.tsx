@@ -5,7 +5,7 @@ import {
 } from "../api/admin";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney, fmtMoney2 } from "../lib/formatters";
+import { fmtMoney, fmtMoney2, fmtCount } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
 import {
   ButtonLink, Card, CopyButton, CopyField, Empty, ErrorState, KpiCard, KpiGrid, Loading,
@@ -107,8 +107,7 @@ export default function AdminReferrals() {
             <div className={styles.cardHeader}>
               <span>History</span>
               <span className={styles.cardHeaderCount}>
-                {data.redemptions.length}{" "}
-                {data.redemptions.length === 1 ? "redemption" : "redemptions"}
+                {fmtCount(data.redemptions.length, "redemption")}
               </span>
             </div>
             <HistoryTable rows={data.redemptions} />

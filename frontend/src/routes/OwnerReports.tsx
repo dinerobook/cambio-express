@@ -1,8 +1,9 @@
 import { useOwnerReportList } from "../api/reports";
 import ReportCenter from "../components/ReportCenter";
 import {
-  Breadcrumbs, ErrorState, Loading, PageHeader, PageShell } from "../components/ui";
+  ErrorState, Loading, PageHeader, PageShell } from "../components/ui";
 import { ApiError, apiErrorMessage } from "../lib/api";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/owner/reports — owner-scoped report center index.
 //
@@ -18,7 +19,8 @@ export default function OwnerReports() {
   if (isLoading) {
     return (
       <PageShell>
-        <PageHeader title="Reports" />
+        <PageCrumbs />
+        <PageHeader title="Cross-store reports" />
         <Loading />
       </PageShell>
     );
@@ -27,10 +29,8 @@ export default function OwnerReports() {
     const status = error instanceof ApiError ? error.status : 0;
     return (
       <PageShell>
-
-        <Breadcrumbs crumbs={[{ label: "Owner" }, { label: "Reports" }]} />
-
-        <PageHeader title="Reports" />
+        <PageCrumbs />
+        <PageHeader title="Cross-store reports" />
         <ErrorState
           message={
             status === 403
@@ -45,7 +45,8 @@ export default function OwnerReports() {
 
   return (
     <PageShell>
-      <ReportCenter categories={data.categories} />
+      <PageCrumbs />
+      <ReportCenter title={"Cross-store reports"} categories={data.categories} />
     </PageShell>
   );
 }

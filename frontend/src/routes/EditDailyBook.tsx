@@ -28,17 +28,17 @@ import {
   SERVICE_KINDS,
 } from "../api/dailybook";
 import { useSessionStatus, useStoreInfo } from "../api/account";
-import { fmtMoney2, fmtNumber } from "../lib/formatters";
+import { fmtMoney2, fmtNumber, fmtCount } from "../lib/formatters";
 import {
   addDaysIso, formatDateTime, formatDayLabel, formatTime, parseTimestamp,
 } from "../lib/datetime";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, ErrorState,
-  Field, FormActions, InfoTip, Input, Loading, Modal, MoneyInput,
-  PageHeader, PageShell, PeriodStepper, Pill, RowActions, TabsBar,
-  TabsButton, Textarea, type BreakdownPart,
+  Alert, type BreakdownPart, Button, Card, ConfirmDialog, EmptyState,
+  ErrorState, Field, FormActions, InfoTip, Input, Loading, Modal,
+  MoneyInput, PageHeader, PageShell, PeriodStepper, Pill, RowActions,
+  TabsBar, TabsButton, Textarea,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { computeTotals, type FormState } from "./editDailyBook.totals";
@@ -48,6 +48,7 @@ import {
 } from "./DailyBookSettlements";
 import { BoxTabs, DailyBookTile, OpenStatusPill } from "./DailyBookTile";
 import { useOpenOfKind } from "./dailyBookOpen";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/daily/edit?date=YYYY-MM-DD — the per-day editor.
 //
@@ -449,10 +450,7 @@ export default function EditDailyBook() {
           see `.toolbar` / `.colHeader` offsets in the module CSS. */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarLead}>
-          <Breadcrumbs crumbs={[
-            { label: "Daily book", to: "/daily" },
-            { label: formatDayLabel(date) },
-          ]} />
+          <PageCrumbs current={formatDayLabel(date)} />
         </div>
 
         {/* Prev / next day + calendar shortcut. ← / → step too, but
@@ -2010,7 +2008,7 @@ function MethodSplitWidget({
 
 /** "N entries" — the one part of a box that is a list of entries. */
 function entriesPart(count: number, amount: number): BreakdownPart {
-  return { label: `${count} ${count === 1 ? "entry" : "entries"}`, amount };
+  return { label: fmtCount(count, "entry", "entries"), amount };
 }
 
 // Check Deposits — one tile, one modal, three kinds behind two tabs:

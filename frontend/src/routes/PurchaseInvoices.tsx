@@ -11,12 +11,13 @@ import { fmtMoney2 } from "../lib/formatters";
 import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Breadcrumbs, ButtonLink, Card, ConfirmDialog, DataTable, Field,
+  ButtonLink, Card, ConfirmDialog, DataTable, Field,
   InfoTip, Input, PageHeader, PageShell, Pill,
   RowActions, Section, Select, useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./PurchaseInvoices.module.css";
 import { formatDate, todayIso } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/purchase-invoices — vendor invoice log (P3-2). Key each
 // paper invoice, optionally line-by-line with price-book links so
@@ -145,7 +146,7 @@ export default function PurchaseInvoices() {
   ];
   return (
     <PageShell maxWidth="72rem">
-      <Breadcrumbs crumbs={[{ label: "Purchases" }]} />
+      <PageCrumbs />
       <PageHeader
         title={
           <>
@@ -231,7 +232,7 @@ export default function PurchaseInvoices() {
 
       <ConfirmDialog
         open={pendingRemove != null}
-        title="Delete invoice"
+        title="Delete this invoice?"
         message={`Delete invoice ${pendingRemove?.invoice_number ?? ""} and its lines? This cannot be undone.`}
         confirmLabel="Delete"
         confirmTone="danger"

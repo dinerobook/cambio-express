@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
-import { Breadcrumbs, Card, Input, PageHeader, PageShell } from "../components/ui";
+import { Card, Input, PageHeader, PageShell } from "../components/ui";
 import { AuditTable, type AuditTableRow } from "../components/AuditTable";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 interface ActivityRow {
   type: string;
@@ -49,9 +50,9 @@ export default function OwnerActivity() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Activity stream" }]} />
+      <PageCrumbs />
       <PageHeader
-        title="Activity Stream"
+        title="Activity stream"
         subtitle="Recent actions across all your stores"
       />
 

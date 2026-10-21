@@ -31,7 +31,7 @@ const renderNew = () =>
 
 async function fill(user: ReturnType<typeof userEvent.setup>) {
   await user.type(await screen.findByLabelText(/^Email/), "luis@example.com");
-  await user.type(screen.getByLabelText("Full Name"), "Luis Paz");
+  await user.type(screen.getByLabelText("Full name"), "Luis Paz");
   await user.type(screen.getByLabelText(/^Password/), "s3cret-pass");
 }
 
@@ -44,7 +44,7 @@ describe("AdminUserForm — new login", () => {
     renderNew();
     await fill(user);
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Create User" }));
+    await user.click(screen.getByRole("button", { name: "Create user" }));
     expect(await screen.findByText("Navigated to /employees")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
     const body = callsTo(calls, "POST /api/v2/admin/users")[0].body as Record<string, unknown>;
@@ -60,9 +60,9 @@ describe("AdminUserForm — new login", () => {
     const user = userEvent.setup();
     renderNew();
     await fill(user);
-    await user.click(screen.getByRole("button", { name: "Create User" }));
+    await user.click(screen.getByRole("button", { name: "Create user" }));
     expect(await screen.findByText("That email already has a login.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Full Name")).toHaveValue("Luis Paz");
+    expect(screen.getByLabelText("Full name")).toHaveValue("Luis Paz");
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
   });
 
@@ -70,10 +70,10 @@ describe("AdminUserForm — new login", () => {
     mockFetch(routes());
     const user = userEvent.setup();
     const { router } = renderNew();
-    await user.type(await screen.findByLabelText("Full Name"), "Luis");
+    await user.type(await screen.findByLabelText("Full name"), "Luis");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await user.click(await screen.findByRole("button", { name: "Keep editing" }));
-    expect(screen.getByLabelText("Full Name")).toHaveValue("Luis");
+    expect(screen.getByLabelText("Full name")).toHaveValue("Luis");
     act(() => { void router.navigate("/dashboard"); });
     await user.click(await screen.findByRole("button", { name: "Leave" }));
     expect(await screen.findByText("Navigated to /dashboard")).toBeInTheDocument();

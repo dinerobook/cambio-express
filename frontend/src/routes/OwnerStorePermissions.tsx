@@ -7,11 +7,12 @@ import { roleTone } from "../api/roles";
 import { toggleMatrixCell } from "../lib/permissions";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
-  Alert, Breadcrumbs, Button, Card, ErrorState, FormActions, Loading,
+  Alert, Button, Card, ErrorState, FormActions, Loading,
   PageHeader, PageShell, Pill, SectionTitle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import styles from "./StorePermissions.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 interface PermissionMatrix {
   store_id: number;
@@ -114,13 +115,9 @@ export default function OwnerStorePermissions() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[
-        { label: "Locations", to: "/owner/locations" },
-        { label: `Store ${sid}`, to: `/owner/store/${sid}` },
-        { label: "Permissions" },
-      ]} />
+      <PageCrumbs under="/owner/locations" via={[{ label: `Store ${sid}`, to: `/owner/store/${sid}` }]} current="Permissions" />
       <PageHeader
-        title="Store Permissions"
+        title="Store permissions"
         subtitle="Customize what each role can do in this store"
       />
 

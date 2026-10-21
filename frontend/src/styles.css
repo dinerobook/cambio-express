@@ -129,7 +129,9 @@ body {
    in from the left, push the topbar to the top. */
 @media (max-width: 768px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    /* minmax(0, …): a wide child (a long store name in the topbar,
+       a table) must never widen the page past the phone screen. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 1fr;
   }
   .app-sidebar {
@@ -153,6 +155,7 @@ body {
     grid-row: 1;
     justify-content: space-between;
     min-height: 0;
+    gap: 0.5rem;
     padding: 0.7rem 1rem;
     position: sticky;
     top: 0;
@@ -163,6 +166,33 @@ body {
     grid-row: 2;
   }
   .app-hamburger { display: inline-flex; }
+  /* Everything in the bar keeps its size except the store name,
+     which gives way (ellipsis) so the bar fits a 360px phone. */
+  .app-topbar > * { flex-shrink: 0; }
+  .app-topbar > .app-store-chip { flex-shrink: 1; }
+}
+
+/* Owner's store switcher in the topbar. */
+.app-store-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 14rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--db-radius-pill);
+  border: 1px solid var(--db-border-strong);
+  background: var(--db-surface-2);
+  color: var(--db-text);
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.app-store-chip > svg { flex-shrink: 0; }
+.app-store-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Trial countdown chip (W-1) ────────────────────────────
@@ -214,6 +244,11 @@ body {
 /* On a narrow topbar the day count is the part worth keeping. */
 @media (max-width: 40rem) {
   .app-trial-chip-cta {
+    display: none;
+  }
+  /* On a phone the crown alone says "referral"; the amount is in
+     its tooltip and on the page it opens. */
+  .app-referral-badge-amount {
     display: none;
   }
 }

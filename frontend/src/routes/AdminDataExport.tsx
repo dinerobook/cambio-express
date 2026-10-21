@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useTaxExportYears } from "../api/account";
 import { downloadCsv, apiErrorMessage } from "../lib/api";
 import {
-  Breadcrumbs,
   Alert, Button, Card, DateInput, Field, PageHeader, PageShell,
   Section, Select,
 } from "../components/ui";
@@ -11,6 +10,7 @@ import styles from "./AdminDataExport.module.css";
 import {
   daysAgoIso, storeNow, todayIso,
 } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/admin/data-export — single hub for every authed CSV /
 // ZIP download the admin can pull. Catalogs the scattered
@@ -155,7 +155,7 @@ export default function AdminDataExport() {
   return (
     <PageShell maxWidth="56rem">
 
-      <Breadcrumbs crumbs={[{ label: "Finance" }, { label: "Data export" }]} />
+      <PageCrumbs under="/reports" current="Data export" />
 
       <PageHeader
         title="Data export"

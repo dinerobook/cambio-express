@@ -33,7 +33,7 @@ export default function HighValueTransfers() {
 
       <ReportDrilldown
         apiSlug="high-value-transfers"
-        title="High Value Transfers"
+        title="High-value transfers"
         resultUnit={["transfer", "transfers"]}
         backTo={baseRoute}
         csvUrl={`/api/v2/reports/high-value-transfers.csv`}
@@ -41,11 +41,11 @@ export default function HighValueTransfers() {
         kpis={[
           { label: `Above ${fmtMoney(effective)}`, tone: "primary",
             value: t => fmtNumber(Number(t.count ?? 0)) },
-          { label: "Total Volume", tone: "neon",
+          { label: "Total volume", tone: "neon",
             value: t => fmtMoney2(Number(t.amount ?? 0)) },
-          { label: "Total Fees", tone: "muted",
+          { label: "Total fees", tone: "muted",
             value: t => fmtMoney2(Number(t.fees ?? 0)) },
-          { label: "Federal Tax", tone: "muted",
+          { label: "Federal tax", tone: "muted",
             value: t => fmtMoney2(Number(t.tax ?? 0)) },
         ]}
         columns={[
@@ -54,9 +54,9 @@ export default function HighValueTransfers() {
           { label: "Recipient",   field: "recipient_name" },
           { label: "Country",     field: "country" },
           { label: "Company",     field: "company" },
-          { label: "Send Amount", field: r => fmtMoney2(Number(r.amount)), align: "right", mono: true },
+          { label: "Send amount", field: r => fmtMoney2(Number(r.amount)), align: "right", mono: true },
           { label: "Fee",         field: r => fmtMoney2(Number(r.fee)),    align: "right", mono: true },
-          { label: "Federal Tax", field: r => fmtMoney2(Number(r.tax)),    align: "right", mono: true },
+          { label: "Federal tax", field: r => fmtMoney2(Number(r.tax)),    align: "right", mono: true },
           { label: "Confirmation #",   field: "confirm", mono: true },
         ]}
       />

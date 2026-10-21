@@ -8,13 +8,14 @@ import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Alert, Breadcrumbs, Button, Card, DataTable, Field, FormActions, Input,
-  PageHeader, PageShell, Pill, Section, Select, Textarea, type DataColumn,
-  useToast,
+  Alert, Button, Card, type DataColumn, DataTable, Field, FormActions,
+  Input, PageHeader, PageShell, Pill, Section, Select, Textarea, useToast,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SupportTickets.module.css";
 import { formatDateTime } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtCount } from "../lib/formatters";
 
 const CATEGORIES = [
   { value: "bug", label: "Bug report" },
@@ -31,7 +32,7 @@ const COLUMNS: DataColumn<TicketRow>[] = [
         {t.subject}
         <span
           className={styles.unreadBadge}
-          title={`${t.unread_count} new ${t.unread_count === 1 ? "reply" : "replies"}`}
+          title={`${fmtCount(t.unread_count, "new reply", "new replies")}`}
         >
           {t.unread_count}
         </span>
@@ -105,12 +106,9 @@ function SupportTicketsInner() {
 
   return (
     <PageShell maxWidth="56rem">
-      <Breadcrumbs crumbs={[
-        { label: "Account", to: "/settings" },
-        { label: "Support tickets" },
-      ]} />
+      <PageCrumbs />
       <PageHeader
-        title="Support tickets"
+        title="Support"
         subtitle="Report bugs, request features, or ask questions."
         actions={
           <Button size="sm" onClick={() => setShowForm((v) => !v)}>

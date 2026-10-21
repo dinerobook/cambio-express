@@ -8,10 +8,12 @@ import {
   formatDate, formatTimestamp,
 } from "../lib/datetime";
 import {
-  Breadcrumbs, Card, DataTable, Input, PageHeader, PageShell, Pill,
+  Card, DataTable, Input, PageHeader, PageShell, Pill,
   Section, Select, type DataColumn,
 } from "../components/ui";
 import styles from "./SuperadminEmailLog.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtNumber } from "../lib/formatters";
 
 interface EmailEventRow {
   id: number;
@@ -106,10 +108,10 @@ export default function SuperadminEmailLog() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Email log" }]} />
+      <PageCrumbs />
       <PageHeader
-        title="Email Log"
-        subtitle={data ? `${data.total.toLocaleString()} events` : "—"}
+        title="Email log"
+        subtitle={data ? `${fmtNumber(data.total)} events` : "—"}
         actions={(
           <div className={styles.filterRow}>
             <Input

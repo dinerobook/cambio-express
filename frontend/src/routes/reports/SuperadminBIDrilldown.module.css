@@ -6,12 +6,6 @@
  * variant, which renders a Chart/Table/Both segmented control.
  */
 
-.backLink {
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-  text-decoration: none;
-}
-
 .actionRow {
   display: flex;
   flex-wrap: wrap;

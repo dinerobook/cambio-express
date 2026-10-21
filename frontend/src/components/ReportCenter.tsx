@@ -26,8 +26,10 @@ export interface ReportCategoryRow {
 }
 
 export default function ReportCenter({
-  categories,
+  title, categories,
 }: {
+  /** The page's sidebar name ("MSB reports", "Platform reports"…). */
+  title: string;
   categories: ReportCategoryRow[];
 }) {
   const [query, setQuery] = useState("");
@@ -51,7 +53,7 @@ export default function ReportCenter({
   return (
     <section>
       <PageHeader
-        title="Report Center"
+        title={title}
         actions={(
           <div className={styles.searchBox}>
             <Input

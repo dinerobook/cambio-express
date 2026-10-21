@@ -10,13 +10,14 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  Alert, Breadcrumbs, Button, Card, Checkbox, DateInput, ErrorState, Field,
-  FormActions, InfoTip, Input, Loading, MoneyInput, PageHeader, PageShell,
-  Section, Select, Textarea, useToast,
+  Alert, Button, Card, Checkbox, DateInput, ErrorState, Field, FormActions,
+  InfoTip, Input, Loading, MoneyInput, PageHeader, PageShell, Section,
+  Select, Textarea, useToast,
 } from "../components/ui";
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./PurchaseInvoices.module.css";
 import { todayIso } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/purchase-invoices/new + /purchase-invoices/:id — key one
 // vendor invoice, optionally line-by-line. Lines resolve to
@@ -228,12 +229,7 @@ function InvoiceForm({
 
   return (
     <PageShell maxWidth="64rem">
-      <Breadcrumbs
-        crumbs={[
-          { label: "Purchases", to: "/purchase-invoices" },
-          { label: invoiceId == null ? "New invoice" : "Edit invoice" },
-        ]}
-      />
+      <PageCrumbs current={invoiceId == null ? "New invoice" : "Edit invoice"} />
       <PageHeader
         title={invoiceId == null ? "New purchase invoice" : "Edit invoice"}
         subtitle="Key the paper invoice as printed."

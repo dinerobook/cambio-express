@@ -19,6 +19,7 @@ import {
 } from "../components/ui";
 import styles from "./Customers.module.css";
 import { todayIso } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Customer search at /app/customers. Live-search box; results
 // split into "exact matches" (phone/full-name match) and
@@ -131,6 +132,7 @@ export default function Customers() {
   if (identity?.store_id == null) {
     return (
       <PageShell>
+        <PageCrumbs />
         <PageHeader title="Customers" />
         <Empty>Sign in as a store admin to search this store's customers.</Empty>
       </PageShell>
@@ -175,6 +177,8 @@ export default function Customers() {
 
   return (
     <PageShell>
+
+      <PageCrumbs />
 
       <PageHeader
         title="Customers"

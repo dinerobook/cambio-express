@@ -17,10 +17,12 @@ import {
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
-  Alert, Breadcrumbs, Button, Card, ConfirmDialog, ErrorState, Field,
-  FormActions, Input, Loading, PageHeader, PageShell, Select, useToast,
+  Alert, Button, Card, ConfirmDialog, ErrorState, Field, FormActions,
+  Input, Loading, PageHeader, PageShell, Select, useToast,
 } from "../components/ui";
 import styles from "./RoleEdit.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtCount } from "../lib/formatters";
 
 // One role, on its own page (Team → Roles & access → a role).
 //
@@ -190,7 +192,7 @@ export default function RoleEdit() {
         const n = res.affected_members?.length ?? 0;
         toast({
           message: n
-            ? `Saved. Access updated for ${n} ${n === 1 ? "person" : "people"}.`
+            ? `Saved. Access updated for ${fmtCount(n, "person", "people")}.`
             : "Saved.",
           tone: "success",
         });
@@ -290,11 +292,7 @@ export default function RoleEdit() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[
-        { label: "Team" },
-        { label: "Roles & access", to: "/team/roles" },
-        { label: title },
-      ]} />
+      <PageCrumbs current={title} />
       <PageHeader title={title} />
 
       {builtinDenied ? (
@@ -437,8 +435,7 @@ export default function RoleEdit() {
         title="This changes people's access"
         message={
           pending && pending.length
-            ? `Saving updates access for ${pending.length} `
-              + `${pending.length === 1 ? "person" : "people"}: `
+            ? `Saving updates access for ${fmtCount(pending.length, "person", "people")}: `
               + `${pending.join(", ")}. `
               + "They'll be signed out so the change takes effect."
             : "Saving updates this role."

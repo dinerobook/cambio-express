@@ -30,6 +30,7 @@ import {
   useToast,
 } from "../components/ui";
 import styles from "./Settings.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/settings — tabbed admin / account hub.  The route is a
 // LAYOUT route (this default export renders the page chrome +
@@ -52,6 +53,8 @@ export default function Settings() {
   // from inside that store); superadmin sees no General (no store).
   return (
     <PageShell maxWidth="60rem" gap="1rem">
+
+      <PageCrumbs />
 
       <PageHeader title="Settings" subtitle={identity?.username || "—"} />
 
@@ -490,7 +493,7 @@ function PasskeysCard() {
       {err && <Alert tone="error">{err}</Alert>}
       <ConfirmDialog
         open={pendingRemove != null}
-        title="Remove passkey"
+        title="Remove this passkey?"
         message={
           `Remove "${pendingRemove?.label || "this device"}"? `
           + "You can re-enroll it later if you change your mind, but "

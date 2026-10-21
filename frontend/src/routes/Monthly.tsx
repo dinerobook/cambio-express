@@ -10,7 +10,6 @@ import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
-  Breadcrumbs,
   ButtonLink, Card, Empty, EmptyState, ErrorState, Loading, PageHeader,
   KpiCard, KpiGrid, PageShell, PeriodStepper, Pill, Section, Select, Table,
   tdStyle, tdStyleRight, thStyle, thStyleRight,
@@ -20,6 +19,7 @@ import styles from "./Monthly.module.css";
 import {
   MONTH_NAMES_SHORT, shiftMonth, storeNow,
 } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Monthly P&L at /app/monthly?year=Y&month=M.
 //
@@ -116,10 +116,7 @@ export default function Monthly() {
   return (
     <PageShell gap="1rem">
 
-      <Breadcrumbs crumbs={[
-        { label: "Reports", to: "/reports" },
-        { label: "Monthly P&L" },
-      ]} />
+      <PageCrumbs under="/reports" current="Monthly P&L" />
 
       <PageHeader
         title="Monthly P&L"

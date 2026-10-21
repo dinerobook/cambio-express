@@ -2,13 +2,14 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { useTransaction } from "../api/posimport";
 import {
-  Alert, Breadcrumbs, Button, Card, ErrorState, KpiCard, KpiGrid,
+  Alert, Button, Card, ErrorState, KpiCard, KpiGrid,
   Loading, PageHeader, PageShell, Pill, Section, Table,
   tdStyle, thStyle, tokens,
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
 import { formatTimestamp } from "../lib/datetime";
 import styles from "./TransactionDetail.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/transactions/:id (G-6) — one ticket, as the register rang it.
 //
@@ -53,10 +54,7 @@ export default function TransactionDetail() {
 
   return (
     <PageShell maxWidth="60rem">
-      <Breadcrumbs crumbs={[
-        { label: "Transactions", to: "/transactions" },
-        { label: t.transaction_no || `#${t.id}` },
-      ]} />
+      <PageCrumbs current={t.transaction_no || `#${t.id}`} />
       <PageHeader
         title={`Ticket ${t.transaction_no || `#${t.id}`}`}
         subtitle={

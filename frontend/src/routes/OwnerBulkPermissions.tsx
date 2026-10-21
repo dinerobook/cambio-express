@@ -5,11 +5,12 @@ import { api, apiErrorMessage } from "../lib/api";
 import { useOwnerLocations } from "../api/owner";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
-  Alert, Breadcrumbs, Button, Card, Checkbox, ErrorState, InfoTip, Loading,
+  Alert, Button, Card, Checkbox, ErrorState, InfoTip, Loading,
   PageHeader, PageShell, SectionTitle, useToast,
 } from "../components/ui";
 import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 interface PermissionMatrix {
   store_id: number;
@@ -90,12 +91,9 @@ export default function OwnerBulkPermissions() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[
-        { label: "Owner settings", to: "/owner/settings" },
-        { label: "Bulk permissions" },
-      ]} />
+      <PageCrumbs />
       <PageHeader
-        title="Bulk Permissions"
+        title="Bulk permissions"
         subtitle="Copy one store's employee permissions to other stores"
       />
 

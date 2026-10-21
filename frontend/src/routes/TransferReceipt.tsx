@@ -144,7 +144,7 @@ export default function TransferReceipt() {
         </header>
 
         <div className={styles.titleBar}>
-          <span className={styles.title}>Transfer Receipt</span>
+          <span className={styles.title}>Transfer receipt</span>
           <span className={styles.meta}>
             {transfer.send_date}
             {transfer.confirm_number && (

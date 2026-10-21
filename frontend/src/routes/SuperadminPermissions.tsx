@@ -7,10 +7,11 @@ import { actionsFor, toggleMatrixCell } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
-  Alert, Breadcrumbs, Button, Card, Checkbox, ErrorState, FormActions,
+  Alert, Button, Card, Checkbox, ErrorState, FormActions,
   Loading, PageHeader, PageShell, Pill, SectionTitle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 interface PermissionMatrix {
   roles: string[];
@@ -122,10 +123,10 @@ export default function SuperadminPermissions() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Permissions" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Role Permissions"
+        title="Permissions"
         subtitle="Configure what each role can do across the platform"
       />
 

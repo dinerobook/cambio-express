@@ -461,3 +461,34 @@ def test_store_report_collection_is_separate(authed_client):
 
     # Unknown collection values are rejected, not silently defaulted.
     assert authed_client.get("/reports?collection=x").status_code == 422
+
+
+# ── Report card names (2026-10-21 consistency sweep) ────────────────
+# Every card in the report centers is named in sentence case, the
+# same name the SPA puts on the report's page (UI-STANDARDS §10).
+
+_PROPER = {"MSB", "ACH", "P&L", "TV", "MRR", "ARR", "Stripe", "Intermex",
+           "Maxi", "Barri", "DineroBook", "I"}
+
+
+def _title_cased_words(label):
+    words = label.split()
+    return [w for w in words[1:]
+            if w[:1].isupper() and w[1:2].islower() and w.strip(".,") not in _PROPER]
+
+
+def test_every_report_card_label_is_sentence_case():
+    from api.Modules.Reports.Services import categories as cats
+
+    labels = []
+    for value in vars(cats).values():
+        if isinstance(value, list):
+            for cat in value:
+                if isinstance(cat, dict) and "reports" in cat:
+                    labels.append(cat["label"])
+                    labels.extend(r["label"] for r in cat["reports"])
+        elif isinstance(value, dict) and "label" in value:
+            labels.append(value["label"])
+    assert len(labels) > 40
+    bad = [label for label in labels if _title_cased_words(label)]
+    assert bad == []

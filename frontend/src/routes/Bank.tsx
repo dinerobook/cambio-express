@@ -14,12 +14,12 @@ import { canDo } from "../lib/access";
 import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  Breadcrumbs,
   Button, Card, ConfirmDialog, ErrorState,
   Loading, PageHeader, PageShell, SectionTitle, space, useToast,
 } from "../components/ui";
 import styles from "./Bank.module.css";
 import { formatDateTime } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 declare global {
   interface Window {
@@ -168,9 +168,9 @@ export default function Bank() {
   return (
     <PageShell gap="1.25rem">
 
-      <Breadcrumbs crumbs={[{ label: "Finance" }, { label: "Bank accounts" }]} />
+      <PageCrumbs />
 
-      <PageHeader title="Bank Accounts" />
+      <PageHeader title="Bank accounts" />
 
       {connectError && <ErrorState message={connectError} />}
 
@@ -252,7 +252,7 @@ export default function Bank() {
 
       <ConfirmDialog
         open={pendingDisconnect != null}
-        title="Disconnect bank"
+        title="Disconnect this bank?"
         message={
           `Disconnect ${pendingDisconnect?.label ?? "this bank"}? `
           + "Future transactions won't sync to DineroBook until "

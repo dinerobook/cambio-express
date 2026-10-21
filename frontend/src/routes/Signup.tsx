@@ -98,7 +98,7 @@ export default function Signup() {
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
         {error && <Alert tone="error">{error}</Alert>}
 
-        <Field label="Store Name" error={errors.store_name}>
+        <Field label="Store name" error={errors.store_name}>
           <Input
             type="text"
             value={storeName}
@@ -120,7 +120,7 @@ export default function Signup() {
             <option value="msb_hybrid">Money services / hybrid</option>
           </Select>
         </Field>
-        <Field label="Store Email" error={errors.email}>
+        <Field label="Store email" error={errors.email}>
           <Input
             type="email"
             value={email}

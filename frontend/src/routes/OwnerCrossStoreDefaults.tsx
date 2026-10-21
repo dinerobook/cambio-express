@@ -7,14 +7,14 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Breadcrumbs, Button, Card, Checkbox, Empty, ErrorState, Field,
-  FormActions, Input, Loading, PageHeader, PageShell, Section, Select,
-  Switch,
+  Alert, Button, Card, Checkbox, Empty, ErrorState, Field, FormActions,
+  Input, Loading, PageHeader, PageShell, Section, Select, Switch,
 } from "../components/ui";
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import styles from "./OwnerCrossStoreDefaults.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/owner/cross-store-defaults — owner pushes the same
 // field defaults (fed-tax-rate, timezone, business-hours
@@ -133,7 +133,7 @@ export default function OwnerCrossStoreDefaults() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Owner" }, { label: "Cross-store defaults" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="Cross-store defaults"

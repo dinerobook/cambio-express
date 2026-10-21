@@ -50,7 +50,7 @@ describe("EmployeeForm", () => {
     renderNew();
     await user.type(screen.getByLabelText(/^Full name/), "Luis Paz");
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Create Employee" }));
+    await user.click(screen.getByRole("button", { name: "Create employee" }));
     await waitFor(() => expect(createEmployee).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Luis Paz" }),
     ));
@@ -61,7 +61,7 @@ describe("EmployeeForm", () => {
   it("catches a blank name before calling the server", async () => {
     const user = userEvent.setup();
     renderNew();
-    await user.click(screen.getByRole("button", { name: "Create Employee" }));
+    await user.click(screen.getByRole("button", { name: "Create employee" }));
     expect(await screen.findByText("Enter the employee's full name.")).toBeInTheDocument();
     expect(createEmployee).not.toHaveBeenCalled();
   });
@@ -71,7 +71,7 @@ describe("EmployeeForm", () => {
     const user = userEvent.setup();
     renderEdit();
     await user.type(screen.getByLabelText(/^Full name/), " Jr");
-    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByText("You can't edit this employee.")).toBeInTheDocument();
     expect(screen.getByLabelText(/^Full name/)).toHaveValue("Ana Ruiz Jr");
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe("EmployeeForm", () => {
     const { router } = renderEdit();
     expect(screen.getByLabelText(/^Full name/)).toHaveValue("Ana Ruiz");
     expect(screen.queryByText("Unsaved changes")).toBeNull();
-    expect(screen.getByText("Save Changes stores every tab at once.")).toBeInTheDocument();
+    expect(screen.getByText("Save changes stores every tab at once.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/^Full name/), " Jr");
     await user.click(screen.getByRole("tab", { name: "Payroll" }));

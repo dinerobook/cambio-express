@@ -102,9 +102,9 @@
 
 /* `.modalBackdrop` + `.modalCard` retired — chrome now comes
  * from the kit <Modal> primitive in components/ui/Modal.tsx.
- * `.modalGrid` + `.modalActions` stay because they describe
- * the body layout (a 2-column form grid + its submit row),
- * not the modal chrome itself. */
+ * `.modalGrid` stays because it describes the body layout (a
+ * 2-column form grid); the submit row is the kit's
+ * <ModalActions>. */
 
 .modalGrid {
   display: grid;
@@ -121,11 +121,6 @@
   }
 }
 
-.modalActions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
 
 /* ── Per-employee group header ─────────────────────────── */
 

@@ -8,10 +8,10 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { AppLink,
-  Breadcrumbs,
   Alert, Button, Card, Empty, Loading, PageHeader, PageShell, Pill,
 } from "../components/ui";
 import styles from "./Subscribe.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Plan picker at /app/subscribe.  Mirrors the legacy /subscribe
 // Jinja form.  Two flows:
@@ -133,7 +133,7 @@ export default function Subscribe() {
   return (
     <PageShell maxWidth="62rem">
 
-      <Breadcrumbs crumbs={[{ label: "Subscribe" }]} />
+      <PageCrumbs under="/settings" current="Subscribe" />
 
       <PageHeader
         title="Choose a plan"

@@ -8,7 +8,7 @@ import {
   type StoreBookField,
 } from "../api/storebook";
 import {
-  Alert, Breadcrumbs, Button, Card, ConfirmDialog, DateInput, ErrorState, Field,
+  Alert, Button, Card, ConfirmDialog, DateInput, ErrorState, Field,
   IconButton, Input, Loading, MoneyInput, PageHeader, PageShell, PeriodStepper,
   Textarea, useToast,
 } from "../components/ui";
@@ -19,6 +19,7 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import { addDaysIso, formatDate, todayIso } from "../lib/datetime";
 import styles from "./StoreBookDay.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/store-book/day?date=YYYY-MM-DD — one store day.
 //
@@ -171,10 +172,7 @@ export default function StoreBookDay() {
 
   return (
     <PageShell maxWidth="76rem">
-      <Breadcrumbs crumbs={[
-        { label: "Daily book", to: "/store-book" },
-        { label: formatDate(day) },
-      ]} />
+      <PageCrumbs current={formatDate(day)} />
 
       <PageHeader
         title="Daily book"
@@ -344,7 +342,7 @@ export default function StoreBookDay() {
 
       <ConfirmDialog
         open={confirmLock}
-        title="Lock this day"
+        title="Lock this day?"
         message="Locking stops further edits until an admin unlocks it. Imported register data still lands while locked."
         confirmLabel="Lock day"
         busy={busy}

@@ -42,7 +42,8 @@ a single `true/false` is a `<Checkbox>` (form) or `<Switch>` (setting).
 | Data loading | list/table routes: `<TableStates>` (skeleton→error→empty); everything else: `<Loading />`. Never bare "Loading…" text, never an info Alert |
 | Zero rows (whole region: table, tab pane, page section) | `<EmptyState title body>` — never an ad-hoc muted `<p>` |
 | Zero rows (small in-card sub-list) or permission/scope gate | `<Empty>` |
-| Destructive action | `<ConfirmDialog>` — never `window.confirm` / `alert()` |
+| Destructive action | `<ConfirmDialog>` — never `window.confirm` / `alert()`. The title asks the question ("Delete this rule?", "Disconnect this bank?"), the confirm button repeats the verb ("Delete", "Disconnect"), and a destructive verb (Delete, Remove, Disconnect, Revoke, Deactivate, Unlink, Unpair) gets `confirmTone="danger"` (red) |
+| Buttons at the bottom of a popup | `<Modal actions={…}>`, or `<ModalActions>` as the last child when the body is a `<form>` (the submit button must sit inside it). Cancel first, the primary action last, right-aligned, wrapping on a phone. Never a page-local `.modalActions` class or an inline flex row |
 | Form has edits that are not saved | the unsaved-changes guard — see "Unsaved changes" below |
 
 ### Unsaved changes — one guard on every form
@@ -191,7 +192,7 @@ button).
 | Date | `formatDate`; `formatShortDate` in charts, `formatDateCompact` in dense tables, `formatDayLabel` for a day heading | `.slice(0, 10)` (wrong calendar date for US stores on UTC timestamps), `toLocaleDateString()` |
 | Comparing an API timestamp | `parseTimestamp` (reads the server's offset-less UTC strings as UTC) | `new Date(row.created_at)` (reads them as local time: off by the UTC offset) |
 | A `datetime-local` input | `utcToZonedInput` to prefill, `zonedInputToUtcIso` to send | `new Date(value).toISOString()` (the device's clock, not the store's) |
-| Counts | `fmtNumber` | — |
+| Counts | `fmtNumber`; a count with its noun (list subtitles, "N results") through `fmtCount(n, "transfer")` / `fmtCount(n, "person", "people")` | bare `.toLocaleString()`, a hand-written `n === 1 ? "x" : "xs"` |
 | Today / a day N ago / a month start as `YYYY-MM-DD` | `todayIso`, `daysAgoIso`, `monthStartIso` (the store's day); `storeNow()` for "this month / week" math; `toIsoDate` only for a Date built from calendar fields | `toISOString().slice(0, 10)` (the UTC day: tomorrow for a US store after ~7pm), `new Date()` for the current day or month, per-route `todayIso` copies |
 | Month names | `MONTH_NAMES` / `MONTH_NAMES_SHORT` | a per-route array |
 
@@ -282,6 +283,9 @@ Known shared components, and what they own:
 | `RowActions` | inline row buttons (it handles the mobile sheet) |
 | `TabsBar` / `TabsLink` / `TabsButton` | a hand-built tab strip |
 | `ConfirmDialog` | `window.confirm` |
+| `ModalActions` | a `.modalActions` CSS class or an inline right-aligned button row inside a popup |
+| `PageCrumbs` (`components/PageCrumbs.tsx`) | a hand-typed `<Breadcrumbs crumbs={[…]}>` trail |
+| `fmtCount` (`lib/formatters`) | `` `${n.toLocaleString()} ${n === 1 ? "x" : "xs"}` `` |
 | `useUnsavedGuard` / `useDirtyBaseline` + `<FormActions guard>` | your own `beforeunload`, "Unsaved changes" label, leave-confirm dialog, baseline-vs-draft compare, or save bar — see "Unsaved changes" in §2 |
 | `useApiErrorToast` | `toast({ message: err instanceof ApiError ? … , tone: "error" })` |
 | `*_STATUS_TONES` in `api/` (`BATCH_`, `TRANSFER_`, `RETURN_CHECK_`, `TICKET_`) | a per-route status → tone map |
@@ -401,6 +405,47 @@ from `routes/auth.module.css`. That is the whole standard:
 - **Marketing lives on the landing page,** not in the sign-in
   chrome. No testimonials, illustrations or uptime badges beside
   the password field.
+
+## 7b. Names, the trail and wording — one name per page
+
+Set by the 2026-10-21 consistency sweep; `src/lib/consistencyGuards.test.ts`
+fails on each rule below.
+
+- **Sentence case everywhere.** Page titles, sidebar sections and
+  items, buttons, field labels, table headers, KPI labels, report
+  cards and report columns: only the first word and proper nouns
+  (MSB, ACH, P&L, TV, Intermex, Stripe…) start with a capital —
+  "Edit employee", "Bank accounts", "Total sent", never "Edit
+  Employee". The server's report card names
+  (`api/Modules/Reports/Services/categories.py`) follow the same
+  rule (`test_every_report_card_label_is_sentence_case`).
+- **One name per page.** A page in the sidebar is titled exactly its
+  sidebar label (`NAV` in `components/navConfig.tsx`), and a report
+  page is titled exactly its card in the report center. Renaming a
+  page means renaming the sidebar item (or card) in the same change.
+  The guard checks every sidebar item against its page's title.
+- **The trail comes from the sidebar.** Every page under the shell
+  renders `<PageCrumbs />` above its `PageHeader` (dashboards, hubs
+  and the subscribe flow excepted). Its first crumbs are the
+  sidebar section (linked to its hub) and the sidebar item, never
+  typed by hand:
+  - a sidebar page: `<PageCrumbs />`;
+  - a page under one (`/transfers/12`): `<PageCrumbs current="Transfer #12" />`;
+  - a page the sidebar does not list: `<PageCrumbs under="/reports"
+    via={[{ label: "Monthly P&L", to: "/monthly" }]} current="Edit" />`.
+
+  The trail replaces "← Back to …" links at the top of a page.
+- **Wording.** "Sign in" / "Sign out", never "Log in" / "Log out". The
+  page's create button reads "+ New <thing>" (a record you start) or
+  "+ Add <thing>" (something you put on a list), and the submit
+  button inside the form says what it does ("Create rule", "Add
+  invoice", "Save changes").
+- **The phone top bar never widens the page.** The shell's single
+  column is `minmax(0, 1fr)`; in the top bar only the store name
+  shrinks (with an ellipsis) and the referral badge drops to its
+  icon. Anything added to the bar must fit a 360px screen beside
+  the menu button, the store name, the trial chip, the theme
+  toggle and the avatar.
 
 ## 8. Access — no access, no control
 

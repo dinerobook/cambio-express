@@ -107,7 +107,7 @@ describe("pages open to a custom role holding the right", () => {
     customRole(["users.read", "users.create"]);
     wrap(<EmployeeForm />);
     expect(screen.queryByText(REFUSAL)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Add Employee" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add employee" })).toBeInTheDocument();
   });
 
   it("Add login with users.create", () => {

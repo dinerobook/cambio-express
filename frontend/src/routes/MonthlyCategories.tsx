@@ -8,12 +8,13 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, AppLink, Breadcrumbs, Button, Card, ErrorState, Field, FormActions,
+  Alert, AppLink, Button, Card, ErrorState, Field, FormActions,
   Input, Loading, PageHeader, PageShell, Pill,
   useToast,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./MonthlyCategories.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // P&L categories at /app/monthly/categories.
 //
@@ -107,10 +108,7 @@ export default function MonthlyCategories() {
 
   return (
     <PageShell>
-      <Breadcrumbs crumbs={[
-        { label: "Monthly P&L", to: "/monthly" },
-        { label: "Categories" },
-      ]} />
+      <PageCrumbs under="/reports" via={[{ label: "Monthly P&L", to: "/monthly" }]} current="Categories" />
 
       <PageHeader
         title="P&L categories"

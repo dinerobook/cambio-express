@@ -115,7 +115,7 @@ def test_reports_includes_audit_log_card(client):
     ).get_json()
     support = next(c for c in body["categories"] if c["key"] == "support")
     audit = next(r for r in support["reports"] if r["key"] == "audit_log")
-    assert audit["label"] == "Superadmin Audit Log"
+    assert audit["label"] == "Superadmin audit log"
     # The audit-log GET itself 301s to /app/superadmin/audit-log; the
     # *legacy* report-center URL still points at the Flask-side
     # endpoint name, which is fine — the bounce happens transparently.

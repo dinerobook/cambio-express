@@ -2,13 +2,14 @@ import { useState } from "react";
 
 import { useItemMovement, type ItemMovement as ItemMovementData } from "../api/posimport";
 import {
-  Breadcrumbs, Card, DataTable, DateInput, Field, InfoTip, Input,
+  Card, DataTable, DateInput, Field, InfoTip, Input,
   KpiCard, KpiGrid, PageHeader, PageShell, Pill,
   Section, tokens, type DataColumn,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { daysAgoIso } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/store-reports/item-movement (G-2) — per-item quantity +
 // dollars over a date range from the booked Gilbarco journal
@@ -49,10 +50,7 @@ export default function ItemMovement() {
 
   return (
     <PageShell maxWidth="72rem">
-      <Breadcrumbs crumbs={[
-        { label: "Store Reports", to: "/store-reports" },
-        { label: "Item Movement" },
-      ]} />
+      <PageCrumbs current="Item movement" />
       <PageHeader
         title={
           <>
@@ -92,7 +90,7 @@ export default function ItemMovement() {
         <KpiGrid>
           <KpiCard
             label="Items sold"
-            value={data.total.toLocaleString()}
+            value={fmtNumber(data.total)}
             sub={`${data.start} → ${data.end}`}
           />
           <KpiCard

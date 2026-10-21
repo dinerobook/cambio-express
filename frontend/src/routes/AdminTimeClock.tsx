@@ -15,15 +15,16 @@ import {
   daysAgoIso, formatDate, formatTimestamp, utcToZonedInput, zonedInputToUtcIso,
 } from "../lib/datetime";
 import {
-  Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, ErrorState,
   Field, InfoTip, Input, KpiCard, KpiGrid,
-  Loading, Modal, PageHeader, PageShell, Pill, RowActions, Select, space, Table,
+  Loading, Modal, PageHeader, PageShell, Pill, RowActions, Select, Table,
   TableSkeleton, Textarea, tdStyle, thStyle, useToast,
   Empty,
+  ModalActions,
 } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
 import styles from "./AdminTimeClock.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/admin/timeclock — payroll history view. Admins can:
 //   • Filter by date window + roster member
@@ -98,7 +99,7 @@ export default function AdminTimeClock() {
   if (!canView) {
     return (
       <PageShell>
-        <PageHeader title="Payroll history" />
+        <PageHeader title="Payroll" />
         <EmptyState title="Admin or owner only." />
       </PageShell>
     );
@@ -107,10 +108,10 @@ export default function AdminTimeClock() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "HR" }, { label: "Payroll history" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Payroll history"
+        title="Payroll"
         subtitle="Approved hours feed payroll; pending shifts are still waiting on admin review."
         actions={(
           <Button size="sm" onClick={() => setModal({ kind: "create" })}>
@@ -283,7 +284,7 @@ export default function AdminTimeClock() {
 
       <ConfirmDialog
         open={pendingDelete != null}
-        title="Delete time-clock entry"
+        title="Delete this time-clock entry?"
         message={
           "Delete this time-clock entry?  The audit row survives, but "
           + "the entry disappears from the payroll roll-up."
@@ -648,7 +649,7 @@ function EntryModal({
           </Field>
         </div>
         {err && <Alert tone="error">{err}</Alert>}
-        <div className={styles.modalActions} style={{ marginTop: space.md }}>
+        <ModalActions>
           <Button
             type="button" tone="secondary"
             onClick={onClose} disabled={busy}
@@ -658,7 +659,7 @@ function EntryModal({
           <Button type="submit" busy={busy} disabled={busy}>
             {isEdit ? "Save changes" : "Create entry"}
           </Button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );

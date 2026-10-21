@@ -9,12 +9,12 @@ import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { AppLink,
-  Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, CopyField, ErrorState, Loading, PageHeader, PageShell,
   Section, Table, tdStyle, thStyle,
   Empty,
 } from "../components/ui";
 import styles from "./OwnerConnect.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/owner/connect — owner mints 8-character invite codes that
 // store admins redeem on their settings page to link a store to
@@ -59,7 +59,7 @@ export default function OwnerConnect() {
   if (identity?.role !== "owner") {
     return (
       <PageShell maxWidth="40rem">
-        <PageHeader title="Connect a Store" />
+        <PageHeader title="Connect a store" />
         <p className={styles.deny}>
           Only owners can mint store-connect codes.
         </p>
@@ -103,9 +103,9 @@ export default function OwnerConnect() {
   return (
     <PageShell maxWidth="40rem">
 
-      <Breadcrumbs crumbs={[{ label: "Owner" }, { label: "Connect a store" }]} />
+      <PageCrumbs />
 
-      <PageHeader title="Connect a Store" />
+      <PageHeader title="Connect a store" />
 
       {serverError && <Alert tone="error">{serverError}</Alert>}
 

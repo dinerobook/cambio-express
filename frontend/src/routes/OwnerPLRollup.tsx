@@ -5,16 +5,16 @@ import {
   type OwnerPLRollupRow,
 } from "../api/owner";
 import {
-  Breadcrumbs,
   Card, Empty, monoStyle, PageHeader,
   PageShell, PeriodStepper, Select, Table, TableStates, tdStyle, thStyle,
 } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import styles from "./OwnerPLRollup.module.css";
 import {
   MONTH_NAMES, shiftMonth, storeNow,
 } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/owner/pl-rollup — side-by-side monthly P&L for every store
 // in the owner umbrella. Mirrors the legacy /owner/pl-rollup view.
@@ -58,14 +58,14 @@ export default function OwnerPLRollup() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Owner" }, { label: "P&L rollup" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="P&L rollup"
         subtitle={
           data
             ? `${MONTH_NAMES[data.month - 1]} ${data.year} · ` +
-              `${data.rows.length.toLocaleString()} stores`
+              `${fmtNumber(data.rows.length)} stores`
             : "—"
         }
         actions={

@@ -61,13 +61,13 @@ export const NAV: NavGroup[] = [
     icon: iconDaily(),
     items: [
       {
-        to: "/daily", label: "MSB Daily book",
+        to: "/daily", label: "MSB daily book",
         roles: ["admin", "employee"],
         icon: iconDaily(),
         desc: "MSB cash ledger and daily close-out.",
       },
       {
-        to: "/store-book", label: "Store Daily book",
+        to: "/store-book", label: "Store daily book",
         roles: ["admin", "employee"],
         flag: "module_day_close",
         icon: iconRegister(),
@@ -207,12 +207,12 @@ export const NAV: NavGroup[] = [
     icon: iconReports(),
     items: [
       {
-        to: "/reports", label: "MSB Reports",
+        to: "/reports", label: "MSB reports",
         icon: iconTransfers(),
         desc: "Money-services analytics and exports.",
       },
       {
-        to: "/store-reports", label: "Store Reports",
+        to: "/store-reports", label: "Store reports",
         flag: "module_day_close",
         icon: iconRegister(),
         desc: "Back-office reports for the storefront.",
@@ -224,7 +224,7 @@ export const NAV: NavGroup[] = [
     roles: ["admin"],
     icon: iconBank(),
     items: [
-      { to: "/bank",               label: "Bank sync", icon: iconBank(),    desc: "Connect and reconcile accounts." },
+      { to: "/bank",               label: "Bank accounts", icon: iconBank(),    desc: "Connect and reconcile accounts." },
       { to: "/bank-transactions",  label: "Bank transactions", icon: iconBank(),    desc: "Categorize imported transactions." },
       { to: "/bank/rules",         label: "Bank rules", icon: iconRules(),   desc: "Auto-categorize and book transactions." },
     ],
@@ -250,7 +250,7 @@ export const NAV: NavGroup[] = [
     icon: iconOwner(),
     items: [
       { to: "/owner/locations",             label: "Locations",             icon: iconOwner(),     desc: "Stores under your umbrella." },
-      { to: "/owner/connect",               label: "Connect",               icon: iconBanner(),    desc: "Link a store via invite code." },
+      { to: "/owner/connect",               label: "Connect a store",       icon: iconBanner(),    desc: "Link a store via invite code." },
       { to: "/owner/users",                 label: "Team users",            icon: iconCustomers(), desc: "People across all locations." },
       { to: "/owner/bulk-add-user",         label: "Add user to stores",         icon: iconOwner(),     desc: "Add one user to many stores." },
       { to: "/owner/cross-store-defaults",  label: "Cross-store defaults",  icon: iconRollup(),    desc: "Shared settings for every store." },
@@ -270,16 +270,16 @@ export const NAV: NavGroup[] = [
     icon: iconReports(),
     items: [
       { to: "/owner/pl-rollup",  label: "P&L rollup", icon: iconRollup(),  desc: "Combined P&L for all stores." },
-      { to: "/owner/reports",    label: "Reports",    icon: iconReports(), desc: "Cross-store analytics." },
+      { to: "/owner/reports", label: "Cross-store reports",    icon: iconReports(), desc: "Cross-store analytics." },
     ],
   },
   {
+    // A direct link, like the store and owner Dashboards.
     title: "Dashboard",
     roles: ["superadmin"],
     icon: iconDashboard(),
-    items: [
-      { to: "/superadmin/dashboard",     label: "Dashboard",     icon: iconDashboard(), desc: "Platform-wide overview." },
-    ],
+    to: "/superadmin/dashboard",
+    items: [],
   },
   {
     // Visible to the tickets-only "support" platform role too —
@@ -301,7 +301,7 @@ export const NAV: NavGroup[] = [
     roles: ["superadmin"],
     icon: iconReports(),
     items: [
-      { to: "/superadmin/reports",       label: "Reports",       icon: iconReports(), desc: "Platform BI and drilldowns." },
+      { to: "/superadmin/reports",       label: "Platform reports",     icon: iconReports(), desc: "Platform BI and drilldowns." },
       { to: "/superadmin/audit-log",     label: "Audit log",     icon: iconAudit(),   desc: "Superadmin action history." },
       { to: "/superadmin/email-log",     label: "Email log",     icon: iconBell(),    desc: "Outbound email delivery." },
     ],
@@ -388,6 +388,43 @@ export function filterNavForRole(
     .filter((g) => !g.roles || g.roles.includes(role))
     .map((g) => ({ ...g, items: g.items.filter(visible) }))
     .filter((g) => g.items.length > 0 || !!g.to);
+}
+
+export interface NavCrumb {
+  label: string;
+  to?: string;
+}
+
+/** Where `path` sits in the sidebar: the section (linked to its
+ *  hub, or to its page for a direct-link section) and the sidebar
+ *  item whose route is the longest prefix of `path`. `[]` when no
+ *  sidebar entry covers it. This is what `<PageCrumbs>` shows above
+ *  every page title, so a page is called the same thing in the
+ *  sidebar, in the trail and in its own title. */
+export function navTrail(path: string, groups: NavGroup[]): NavCrumb[] {
+  const covers = (to: string) => {
+    const base = to.split("?")[0];
+    return path === base || path.startsWith(`${base}/`);
+  };
+  let best: { group: NavGroup; item?: NavItem; len: number } | null = null;
+  for (const group of groups) {
+    if (group.to && covers(group.to)) {
+      const len = group.to.split("?")[0].length;
+      if (!best || len > best.len) best = { group, len };
+    }
+    for (const item of group.items) {
+      if (!covers(item.to)) continue;
+      const len = item.to.split("?")[0].length;
+      if (!best || len > best.len) best = { group, item, len };
+    }
+  }
+  if (!best) return [];
+  const { group, item } = best;
+  if (!item) return [{ label: group.title, to: group.to }];
+  return [
+    { label: group.title, to: `/hub/${sectionSlug(group.title)}` },
+    { label: item.label, to: item.to },
+  ];
 }
 
 // Inline stroke SVGs per CLAUDE.md design system: stroke-width 2,

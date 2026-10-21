@@ -11,9 +11,9 @@ import {
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Breadcrumbs, Button, Card, Checkbox, DateInput, ErrorState, Field,
-  FormActions, Input, KpiCard, KpiGrid, Loading, MoneyInput, PageHeader,
-  PageShell, Section, Select, Textarea, useToast,
+  Alert, Button, Card, Checkbox, DateInput, ErrorState,
+  Field, FormActions, Input, KpiCard, KpiGrid, Loading, MoneyInput,
+  PageHeader, PageShell, Section, Select, Textarea, useToast,
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
 import { useTransferChoices } from "../api/transfers";
@@ -21,6 +21,7 @@ import StoreListField from "../components/StoreListField";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./BatchForm.module.css";
 import { todayIso } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Combined New/Edit form for ACH batches at /app/batches/new
 // and /app/batches/:id/edit. Mirrors the legacy batch_form.html
@@ -162,7 +163,7 @@ export default function BatchForm() {
   return (
     <PageShell maxWidth="62rem">
 
-      <Breadcrumbs crumbs={[{ label: "Batches", to: "/batches" }, { label: isEdit ? "Edit batch" : "New batch" }]} />
+      <PageCrumbs current={isEdit ? "Edit batch" : "New batch"} />
 
       <PageHeader
         title={isEdit ? `Edit batch #${batchId}` : "New ACH batch"}

@@ -7,11 +7,13 @@ import {
 } from "../api/reportDrilldown";
 import { downloadCsv, apiErrorMessage } from "../lib/api";
 import {
-  Breadcrumbs, Button, DateInput, EmptyState, ErrorState, KpiCard,
+  Button, DateInput, EmptyState, ErrorState, KpiCard,
   KpiGrid, PageHeader, PageShell, TableSkeleton, tdStyle, thStyle,
 } from "./ui";
 import styles from "./ReportDrilldown.module.css";
 import { formatDate, monthStartIso, todayIso } from "../lib/datetime";
+import { PageCrumbs } from "./PageCrumbs";
+import { fmtNumber } from "../lib/formatters";
 
 export interface KpiSpec {
   label: string;
@@ -85,10 +87,7 @@ export function ReportDrilldown({
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[
-        { label: "Reports", to: backTo },
-        { label: title },
-      ]} />
+      <PageCrumbs under={backTo} current={title} />
       <div>
         <PageHeader
           title={title}
@@ -162,7 +161,7 @@ export function ReportDrilldown({
         </span>
         {data && (
           <span className={styles.muted}>
-            {rowCount.toLocaleString()} {unit}
+            {fmtNumber(rowCount)} {unit}
           </span>
         )}
       </div>

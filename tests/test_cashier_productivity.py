@@ -121,7 +121,7 @@ def test_cashier_productivity_listed_in_report_center(client, test_store_id):
     rows = [r for cat in resp.get_json()["categories"] for r in cat["reports"]]
     cashier = next((r for r in rows if r["key"] == "cashier_productivity"), None)
     assert cashier is not None, "cashier_productivity missing from report center"
-    assert cashier["label"] == "Cashier Productivity"
+    assert cashier["label"] == "Cashier productivity"
     assert cashier["url"] == "/reports/cashier-productivity"
 
 

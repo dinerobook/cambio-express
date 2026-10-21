@@ -3,14 +3,15 @@ import { useNavigate } from "react-router-dom";
 
 import { useTransactions, type PosTransactionRow } from "../api/posimport";
 import { AppLink,
-  Breadcrumbs, Card, Checkbox, DataTable, DateInput, Field, InfoTip,
+  Card, Checkbox, DataTable, DateInput, Field, InfoTip,
   Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill,
   Section, Select, tokens, type DataColumn,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { daysAgoIso, formatTimestamp } from "../lib/datetime";
 import styles from "./Transactions.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/transactions (G-6) — every register ticket, searchable.
 //
@@ -86,7 +87,7 @@ export default function Transactions() {
 
   return (
     <PageShell maxWidth="76rem">
-      <Breadcrumbs crumbs={[{ label: "Transactions" }]} />
+      <PageCrumbs />
       <PageHeader
         title={
           <>
@@ -145,7 +146,7 @@ export default function Transactions() {
         <KpiGrid>
           <KpiCard
             label="Tickets"
-            value={data.total.toLocaleString()}
+            value={fmtNumber(data.total)}
             sub={`${filters.params.start} → ${filters.params.end}`}
           />
           <KpiCard
@@ -155,7 +156,7 @@ export default function Transactions() {
           />
           <KpiCard
             label="With a voided item"
-            value={data.voided_count.toLocaleString()}
+            value={fmtNumber(data.voided_count)}
             tone={data.voided_count > 0 ? "warning" : "positive"}
           />
         </KpiGrid>

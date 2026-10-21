@@ -19,7 +19,6 @@ import { formatDate } from "../lib/datetime";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
   Alert,
-  Breadcrumbs,
   Button,
   Card,
   ConfirmDialog,
@@ -35,6 +34,8 @@ import {
   type DataColumn,
 } from "../components/ui";
 import styles from "./SuperadminUsers.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtNumber } from "../lib/formatters";
 
 type UserAction =
   | "toggle" | "reset2fa" | "resetpw" | "impersonate" | "view" | "revokesessions";
@@ -144,11 +145,11 @@ export default function SuperadminUsers() {
 
   return (
     <PageShell>
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Users" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="All users"
-        subtitle={data ? `${data.total.toLocaleString()} users` : "—"}
+        title="Users"
+        subtitle={data ? `${fmtNumber(data.total)} users` : "—"}
         actions={(
           <div className={styles.filterRow}>
             <Input

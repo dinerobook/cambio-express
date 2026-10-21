@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, apiErrorMessage } from "../lib/api";
 import { toggleMatrixCell } from "../lib/permissions";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtCount, fmtNumber } from "../lib/formatters";
 import {
   compStore, creditStore, emailStore, endComp, extendTrial, freezeStore,
   linkOwnerToStore, toggleStoreActive, unfreezeStore, unlinkOwnerFromStore,
@@ -17,10 +17,11 @@ import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
 import {
-  Alert, Breadcrumbs, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
-  ErrorState, Field, FormActions, Input, KpiCard, KpiGrid, Loading, Modal,
-  MoneyInput, PageHeader, PageShell, Pill, Section, SectionTitle, Select,
+  Alert, Button, ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState,
+  Field, FormActions, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
+  PageHeader, PageShell, Pill, Section, SectionTitle, Select,
   Switch, Table, tdStyle, Textarea, thStyle, useToast,
+  ModalActions,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
@@ -30,6 +31,7 @@ import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditF
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
 import styles from "./SuperadminStoreDrill.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 interface StoreInfo {
   id: number; name: string; slug: string; email: string;
@@ -185,10 +187,7 @@ export default function SuperadminStoreDrill() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[
-        { label: "Stores", to: "/superadmin/stores" },
-        { label: data?.store.name || `Store #${storeId}` },
-      ]} />
+      <PageCrumbs current={data?.store.name || `Store #${storeId}`} />
 
       {isLoading && <Loading />}
       {isError && (
@@ -288,7 +287,7 @@ export default function SuperadminStoreDrill() {
                   {data.store.is_active ? "Disable" : "Enable"}
                 </Button>
                 <ButtonLink
-                  href={`/superadmin/stores/${data.store.id}/edit`}
+                  to={`/superadmin/stores/${data.store.id}/edit`}
                   tone="secondary" size="sm"
                 >
                   Edit
@@ -322,7 +321,7 @@ export default function SuperadminStoreDrill() {
               </Pill>
             } />
             <KpiCard label="Status" value={data.store.is_active ? "Active" : "Inactive"} tone={data.store.is_active ? "positive" : "muted"} />
-            <KpiCard label="Transfers (30d)" value={data.stats_30d.transfer_count.toLocaleString()} />
+            <KpiCard label="Transfers (30d)" value={fmtNumber(data.stats_30d.transfer_count)} />
             <KpiCard label="Volume (30d)" value={fmtMoney2(data.stats_30d.volume)} tone="positive" />
             <KpiCard label="Fees (30d)" value={fmtMoney2(data.stats_30d.fees)} />
             <KpiCard label="Team" value={data.team.length} />
@@ -515,7 +514,7 @@ export default function SuperadminStoreDrill() {
             />
           </Field>
           {compError && <Alert tone="error">{compError}</Alert>}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+          <ModalActions>
             <Button
               tone="secondary" type="button"
               onClick={() => { setShowComp(false); setCompError(null); }}
@@ -525,7 +524,7 @@ export default function SuperadminStoreDrill() {
             <Button type="submit" busy={compBusy} disabled={compBusy}>
               {compBusy ? "Applying…" : "Comp this store"}
             </Button>
-          </div>
+          </ModalActions>
         </form>
       </Modal>
 
@@ -571,7 +570,7 @@ export default function SuperadminStoreDrill() {
             />
           </Field>
           {emailError && <Alert tone="error">{emailError}</Alert>}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+          <ModalActions>
             <Button
               tone="secondary"
               onClick={() => { setShowEmail(false); setEmailError(null); }}
@@ -582,7 +581,7 @@ export default function SuperadminStoreDrill() {
             <Button type="submit" busy={emailBusy} disabled={emailBusy}>
               {emailBusy ? "Sending…" : "Send email"}
             </Button>
-          </div>
+          </ModalActions>
         </form>
       </Modal>
 
@@ -625,7 +624,7 @@ export default function SuperadminStoreDrill() {
             />
           </Field>
           {freezeError && <Alert tone="error">{freezeError}</Alert>}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+          <ModalActions>
             <Button
               tone="secondary" type="button"
               onClick={() => { setShowFreeze(false); setFreezeError(null); }}
@@ -635,7 +634,7 @@ export default function SuperadminStoreDrill() {
             <Button type="submit" tone="danger" busy={freezeBusy} disabled={freezeBusy}>
               {freezeBusy ? "Freezing…" : "Freeze store"}
             </Button>
-          </div>
+          </ModalActions>
         </form>
       </Modal>
 
@@ -701,7 +700,7 @@ export default function SuperadminStoreDrill() {
             />
           </Field>
           {creditError && <Alert tone="error">{creditError}</Alert>}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+          <ModalActions>
             <Button
               tone="secondary" type="button"
               onClick={() => { setShowCredit(false); setCreditError(null); }}
@@ -711,7 +710,7 @@ export default function SuperadminStoreDrill() {
             <Button type="submit" busy={creditBusy} disabled={creditBusy}>
               {creditBusy ? "Issuing…" : "Issue credit"}
             </Button>
-          </div>
+          </ModalActions>
         </form>
       </Modal>
       <ConfirmDialog
@@ -1167,7 +1166,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
             </Select>
           </Field>
           <span className={styles.activityCount}>
-            {log.data ? `${log.data.total.toLocaleString()} ${log.data.total === 1 ? "event" : "events"}` : ""}
+            {log.data ? `${fmtCount(log.data.total, "event")}` : ""}
           </span>
         </div>
         <AuditTable

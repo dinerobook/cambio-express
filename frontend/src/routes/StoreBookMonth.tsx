@@ -2,13 +2,14 @@ import { useSearchParams } from "react-router-dom";
 
 import { useStoreBookMonth } from "../api/storebook";
 import {
-  Breadcrumbs, Card, ErrorState, KpiCard, KpiGrid, Loading,
+  Card, ErrorState, KpiCard, KpiGrid, Loading,
   MonthCalendar, PageHeader, PageShell, PeriodStepper, Select,
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   MONTH_NAMES, shiftMonth, storeNow, todayIso,
 } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/store-book — the month calendar. One cell per day with its
 // sales total and lock state; click through to the day sheet.
@@ -40,9 +41,9 @@ export default function StoreBookMonth() {
 
   return (
     <PageShell>
-      <Breadcrumbs crumbs={[{ label: "Daily book" }]} />
+      <PageCrumbs />
       <PageHeader
-        title="Daily book"
+        title="Store daily book"
         subtitle={`${MONTH_NAMES[month - 1]} ${year}`}
         actions={
           <PeriodStepper

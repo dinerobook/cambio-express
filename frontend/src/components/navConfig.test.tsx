@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-import { filterNavForRole, sectionSlug } from "./navConfig";
+import { filterNavForRole, navTrail, sectionSlug } from "./navConfig";
+import { TEST_ADMIN } from "../test/setup";
 
 describe("sectionSlug", () => {
   it("lowercases and hyphenates", () => {
@@ -44,12 +45,12 @@ describe("filterNavForRole → section-hub resolution", () => {
     expect(reports).toBeDefined();
     expect(reports!.to).toBeUndefined();
     expect(reports!.items.map((i) => i.label))
-      .toEqual(["MSB Reports", "Store Reports"]);
+      .toEqual(["MSB reports", "Store reports"]);
     // Store Reports is flag-gated — an MSB-profile store (no
     // module_day_close) sees only the MSB center.
     const msbOnly = filterNavForRole("admin", ["reports.read"], [])
       .find((g) => g.title === "Reports");
-    expect(msbOnly!.items.map((i) => i.label)).toEqual(["MSB Reports"]);
+    expect(msbOnly!.items.map((i) => i.label)).toEqual(["MSB reports"]);
   });
 
   it("Finance links the rules page so it is reachable from the nav", () => {
@@ -80,7 +81,7 @@ describe("filterNavForRole → section-hub resolution", () => {
     const daily = groups.find((g) => sectionSlug(g.title) === "daily");
     expect(daily).toBeDefined();
     const labels = daily!.items.map((i) => i.label);
-    expect(labels).toContain("MSB Daily book");
+    expect(labels).toContain("MSB daily book");
     // Dashboard + Returned checks moved out of Daily (own entry /
     // Money services respectively).
     expect(labels).not.toContain("Dashboard");
@@ -103,7 +104,7 @@ describe("filterNavForRole → section-hub resolution", () => {
     const labels = filterNavForRole("superadmin", [])
       .flatMap((g) => g.items.map((i) => i.label));
     for (const storeOnly of [
-      "MSB Daily book", "Store Daily book", "Transactions", "Lottery",
+      "MSB daily book", "Store Daily book", "Transactions", "Lottery",
       "Price book", "Purchases",
     ]) {
       expect(labels).not.toContain(storeOnly);
@@ -145,14 +146,14 @@ describe("module-flag gating (business-type bundles)", () => {
     expect(labels).not.toContain("Customers");
     expect(labels).not.toContain("ACH batches");
     expect(labels).toContain("Returned checks");
-    expect(labels).toContain("MSB Daily book");
+    expect(labels).toContain("MSB daily book");
   });
 
   it("hides Returned checks when check cashing is switched off", () => {
     const groups = filterNavForRole("admin", perms, []);
     const labels = groups.flatMap((g) => g.items.map((i) => i.label));
     expect(labels).not.toContain("Returned checks");
-    expect(labels).toContain("MSB Daily book");
+    expect(labels).toContain("MSB daily book");
   });
 
   it("shows them when module_money_services is on", () => {
@@ -195,5 +196,33 @@ describe("module-flag gating (business-type bundles)", () => {
     const without = filterNavForRole("superadmin", [], undefined);
     expect(withFlags.map((g) => g.items.map((i) => i.label)))
       .toEqual(without.map((g) => g.items.map((i) => i.label)));
+  });
+});
+
+describe("navTrail", () => {
+  const admin = filterNavForRole("admin", TEST_ADMIN.permissions);
+
+  it("returns the section and item for a sidebar route", () => {
+    expect(navTrail("/employees", admin)).toEqual([
+      { label: "Team", to: "/hub/team" },
+      { label: "Employees", to: "/employees" },
+    ]);
+  });
+
+  it("covers the pages under a sidebar route", () => {
+    expect(navTrail("/employees/4/edit", admin).map((c) => c.label))
+      .toEqual(["Team", "Employees"]);
+  });
+
+  it("returns a direct-link section on its own", () => {
+    expect(navTrail("/dashboard", admin)).toEqual([
+      { label: "Dashboard", to: "/dashboard" },
+    ]);
+    expect(navTrail("/superadmin/dashboard", filterNavForRole("superadmin", [])))
+      .toEqual([{ label: "Dashboard", to: "/superadmin/dashboard" }]);
+  });
+
+  it("returns nothing for a route the sidebar does not cover", () => {
+    expect(navTrail("/monthly", admin)).toEqual([]);
   });
 });

@@ -5,9 +5,10 @@ import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Breadcrumbs, Card, DataTable, Input, PageHeader, PageShell, Pill,
+  Card, DataTable, Input, PageHeader, PageShell, Pill,
   type DataColumn,
 } from "../components/ui";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 interface UserRow {
   id: number;
@@ -68,12 +69,9 @@ export default function OwnerUsers() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[
-        { label: "Locations", to: "/owner/locations" },
-        { label: "Team users" },
-      ]} />
+      <PageCrumbs />
       <PageHeader
-        title="Team Users"
+        title="Team users"
         subtitle="Users across all your linked stores"
       />
 

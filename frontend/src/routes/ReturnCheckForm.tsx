@@ -21,7 +21,6 @@ import { getCurrentIdentity } from "../lib/auth";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, ErrorState,
   Field,
   FormActions, Input, Loading, MoneyInput, PageHeader, PageShell, Pill,
@@ -30,6 +29,7 @@ import {
 } from "../components/ui";
 import styles from "./ReturnCheckForm.module.css";
 import { todayIso } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 const PAYMENT_METHODS: Array<{ value: string; label: string }> = [
   { value: "cash",        label: "Cash"        },
@@ -215,7 +215,7 @@ export default function ReturnCheckForm() {
   return (
     <PageShell maxWidth="62rem">
 
-      <Breadcrumbs crumbs={[{ label: "Returned checks", to: "/return-checks" }, { label: isEdit ? "Edit returned check" : "New returned check" }]} />
+      <PageCrumbs current={isEdit ? "Edit returned check" : "New returned check"} />
 
       <PageHeader
         title={isEdit ? `Returned check #${rcId}` : "New returned check"}
@@ -573,7 +573,7 @@ function PaymentsTable({
       </Table>
       <ConfirmDialog
         open={pendingRemove != null}
-        title="Remove payment"
+        title="Remove this payment?"
         message={
           pendingRemove
             ? `Remove the ${fmtMoney2(pendingRemove.amount)} payment from `

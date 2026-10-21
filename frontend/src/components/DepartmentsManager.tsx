@@ -11,6 +11,7 @@ import {
   Alert, Button, Card, EmptyState, ErrorState, Field, InfoTip, Input,
   Loading, Modal, Pill, RowActions, Section, Select, Table,
   tdStyle, thStyle, useToast,
+  ModalActions,
 } from "./ui";
 import styles from "./DepartmentsManager.module.css";
 
@@ -295,14 +296,14 @@ function DepartmentForm({
           ))}
         </Select>
       </Field>
-      <div className={styles.modalActions}>
+      <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
           Cancel
         </Button>
         <Button type="submit" busy={busy} disabled={busy}>
           {existing ? "Save changes" : "Add department"}
         </Button>
-      </div>
+      </ModalActions>
     </form>
   );
 }

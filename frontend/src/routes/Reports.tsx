@@ -1,7 +1,8 @@
 import { useReportList } from "../api/reports";
 import ReportCenter from "../components/ReportCenter";
-import { Breadcrumbs, ErrorState, Loading, PageShell } from "../components/ui";
+import { ErrorState, Loading, PageHeader, PageShell } from "../components/ui";
 import { ApiError, apiErrorMessage } from "../lib/api";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Two report centers, kept fully separate (owner directive — MSB
 // and back-office must not blur): /reports renders the MSB
@@ -14,14 +15,15 @@ export default function Reports({
 }: {
   collection?: "msb" | "store";
 }) {
-  const title = collection === "store" ? "Store Reports" : "MSB Reports";
+  const title = collection === "store" ? "Store reports" : "MSB reports";
   const { data, isLoading, isError, error, refetch } =
     useReportList(collection);
 
   if (isLoading) {
     return (
       <PageShell>
-        <Breadcrumbs crumbs={[{ label: title }]} />
+        <PageCrumbs />
+        <PageHeader title={title} />
         <Loading />
       </PageShell>
     );
@@ -30,7 +32,8 @@ export default function Reports({
     const status = error instanceof ApiError ? error.status : 0;
     return (
       <PageShell>
-        <Breadcrumbs crumbs={[{ label: title }]} />
+        <PageCrumbs />
+        <PageHeader title={title} />
         <ErrorState
           message={
             status === 403
@@ -45,8 +48,8 @@ export default function Reports({
 
   return (
     <PageShell>
-      <Breadcrumbs crumbs={[{ label: title }]} />
-      <ReportCenter categories={data.categories} />
+      <PageCrumbs />
+      <ReportCenter title={title} categories={data.categories} />
     </PageShell>
   );
 }

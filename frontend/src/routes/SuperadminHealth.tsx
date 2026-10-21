@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { api, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs,
   Card,
   ErrorState,
   Loading,
@@ -13,6 +12,8 @@ import {
   Section,
 } from "../components/ui";
 import styles from "./SuperadminHealth.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtNumber } from "../lib/formatters";
 
 interface HealthData {
   db: {
@@ -96,10 +97,10 @@ export default function SuperadminHealth() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "System health" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="System Health"
+        title="Health"
         subtitle="Real-time platform infrastructure status"
       />
 
@@ -124,9 +125,9 @@ export default function SuperadminHealth() {
                 {data.db.error && (
                   <div className={styles.errorText}>{data.db.error}</div>
                 )}
-                <Row label="Total stores" value={data.db.total_stores.toLocaleString()} />
-                <Row label="Total users" value={data.db.total_users.toLocaleString()} />
-                <Row label="Total transfers" value={data.db.total_transfers.toLocaleString()} />
+                <Row label="Total stores" value={fmtNumber(data.db.total_stores)} />
+                <Row label="Total users" value={fmtNumber(data.db.total_users)} />
+                <Row label="Total transfers" value={fmtNumber(data.db.total_transfers)} />
               </Card>
             </Section>
 
@@ -157,7 +158,7 @@ export default function SuperadminHealth() {
                       status={data.stripe.key_pair_match ? "ok" : "error"}
                     />
                     <Row
-                      label="Financial Connections"
+                      label="Financial connections"
                       value={data.stripe.fc_ok ? "Enabled" : "Not available"}
                       status={data.stripe.fc_ok ? "ok" : "muted"}
                     />
@@ -210,7 +211,7 @@ export default function SuperadminHealth() {
                 {data.email.recent_events && (
                   <>
                     {Object.entries(data.email.recent_events).map(([evt, count]) => (
-                      <Row key={evt} label={`7d ${evt}`} value={count.toLocaleString()} />
+                      <Row key={evt} label={`7d ${evt}`} value={fmtNumber(count)} />
                     ))}
                   </>
                 )}

@@ -11,9 +11,8 @@ import {
 import { useEmployees } from "../api/transfers";
 import { apiErrorMessage } from "../lib/api";
 import {
-  Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field,
-  FormActions, Input, Loading, PageHeader, PageShell, PeriodStepper,
-  Select, useToast,
+  Button, Card, ConfirmDialog, EmptyState, ErrorState, Field, FormActions,
+  Input, Loading, PageHeader, PageShell, PeriodStepper, Select, useToast,
 } from "../components/ui";
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./AdminTimeClockSchedule.module.css";
@@ -21,6 +20,7 @@ import {
   WEEKDAY_NAMES_SHORT, addDaysIso, formatWeekRange, mondayOfIso, todayIso,
   weekdayOfIso,
 } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/admin/timeclock/schedule — admin shift planner.
 //
@@ -80,7 +80,7 @@ export default function AdminTimeClockSchedule() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Team" }, { label: "Schedule" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="Schedule"
@@ -261,7 +261,7 @@ function ShiftCard({
       </div>
       <ConfirmDialog
         open={confirmingDelete}
-        title="Delete shift"
+        title="Delete this shift?"
         message={
           `Delete the ${trimSeconds(shift.start_time)} shift for `
           + `${shift.employee_name}? The roster row stays; only this `

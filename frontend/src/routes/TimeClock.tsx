@@ -16,12 +16,12 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentCoordinates } from "../lib/geolocation";
 import { passkeysSupported, performPasskeyAssert } from "../lib/webauthn";
 import {
-  Breadcrumbs,
   Button, Card, EmptyState, Empty, ErrorState, Field, InfoTip, Input,
   Loading, PageHeader, PageShell, Select, Table, tdStyle, thStyle,
   useToast,
 } from "../components/ui";
 import styles from "./TimeClock.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/timeclock — employee punch page. Pick your roster name,
 // clock in / out. The "who's currently clocked in?" panel below
@@ -152,7 +152,7 @@ export default function TimeClock() {
   return (
     <PageShell maxWidth="56rem">
 
-      <Breadcrumbs crumbs={[{ label: "Time clock" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="Time clock"

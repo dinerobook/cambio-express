@@ -7,14 +7,15 @@ import {
   type TVDisplayBankRow,
 } from "../api/tvDisplay";
 import {
-  AppLink, Breadcrumbs, Button, ButtonLink, Card, Checkbox, ErrorState,
-  Field, FormActions, Input, Loading, PageHeader, PageShell, Table,
-  tdStyle, thStyle, useToast,
+  Button, ButtonLink, Card, Checkbox, ErrorState, Field,
+  FormActions, Input, Loading, PageHeader, PageShell, Table, tdStyle,
+  thStyle, useToast,
 } from "../components/ui";
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import styles from "./TVDisplayCountry.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/tv-display/countries/:id — country editor for the rate
 // board. Save sends the whole editor (header, company columns,
@@ -156,9 +157,7 @@ export default function TVDisplayCountry() {
   return (
     <PageShell>
       <div>
-        <AppLink to="/tv-display" className={styles.backLink}>← Back to TV Display</AppLink>
-
-        <Breadcrumbs crumbs={[{ label: "TV Display", to: "/tv-display/content" }, { label: "Country" }]} />
+        <PageCrumbs current={data.country_name || "Country"} />
 
         <PageHeader
           title={data.country_name || "Country"}

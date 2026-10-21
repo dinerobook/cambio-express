@@ -42,8 +42,8 @@ function renderPage(url = "/signup") {
 }
 
 async function fillRequired() {
-  await userEvent.type(screen.getByLabelText(/^Store Name/), "  Lamar Corner  ");
-  await userEvent.type(screen.getByLabelText(/^Store Email/), "lamar@shop.com");
+  await userEvent.type(screen.getByLabelText(/^Store name/), "  Lamar Corner  ");
+  await userEvent.type(screen.getByLabelText(/^Store email/), "lamar@shop.com");
   await userEvent.type(screen.getByLabelText(/^Password/), "longpass1");
 }
 

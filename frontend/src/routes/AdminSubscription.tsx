@@ -9,11 +9,11 @@ import {
 } from "../api/billing";
 import { apiErrorMessage } from "../lib/api";
 import { AppLink,
-  Breadcrumbs,
   Alert, Button, ButtonLink, Card, ConfirmDialog, ErrorState, Loading,
   PageHeader, PageShell, Pill, Empty,
 } from "../components/ui";
 import styles from "./AdminSubscription.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/admin/subscription — current plan hero + account snapshot +
 // add-ons grid + cancel modal. Mirrors the legacy
@@ -67,7 +67,7 @@ export default function AdminSubscription() {
   if (error && !data) {
     return (
       <PageShell>
-        <PageHeader title="Billing & Subscription" />
+        <PageHeader title="Billing & subscription" />
         <ErrorState message={error} onRetry={() => { void load(); }} />
       </PageShell>
     );
@@ -75,7 +75,7 @@ export default function AdminSubscription() {
   if (!data) {
     return (
       <PageShell>
-        <PageHeader title="Billing & Subscription" />
+        <PageHeader title="Billing & subscription" />
         <Loading />
       </PageShell>
     );
@@ -88,9 +88,9 @@ export default function AdminSubscription() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Account", to: "/settings" }, { label: "Billing" }]} />
+      <PageCrumbs under="/settings" current="Billing & subscription" />
 
-      <PageHeader title="Billing & Subscription" />
+      <PageHeader title="Billing & subscription" />
 
       {error && <Alert tone="error">{error}</Alert>}
 
@@ -110,7 +110,7 @@ export default function AdminSubscription() {
 
       <div className={styles.twoColGrid}>
         <div className={styles.planHero}>
-          <div className={styles.planEyebrow}>Current Plan</div>
+          <div className={styles.planEyebrow}>Current plan</div>
           <div className={styles.planName}>{plan_label}</div>
           {plan_price && (
             <div className={styles.planPrice}>{plan_price} · per store</div>
@@ -170,10 +170,10 @@ export default function AdminSubscription() {
                 >
                   {busy === "portal" ? "Opening…" : "Manage Billing"}
                 </Button>
-                <ButtonLink to="/subscribe" tone="secondary">Change Plan</ButtonLink>
+                <ButtonLink to="/subscribe" tone="secondary">Change plan</ButtonLink>
               </>
             ) : (
-              <ButtonLink to="/subscribe" tone="primary">Choose a Plan</ButtonLink>
+              <ButtonLink to="/subscribe" tone="primary">Choose a plan</ButtonLink>
             )}
           </div>
           {has_paid_plan && (
@@ -190,7 +190,7 @@ export default function AdminSubscription() {
         <Card>
           <h3 className={styles.cardH3}>Account</h3>
           <InfoRow label="Store" value={store.name || "—"} />
-          <InfoRow label="Billing Email" value={store.email || "—"} />
+          <InfoRow label="Billing email" value={store.email || "—"} />
           <InfoRow
             label="Customer ID"
             value={store.stripe_customer_id || "—"}
@@ -201,7 +201,7 @@ export default function AdminSubscription() {
             value={store.stripe_subscription_id || "—"}
             mono
           />
-          <InfoRow label="Active Add-ons" value={String(data.active_addon_count)} />
+          <InfoRow label="Active add-ons" value={String(data.active_addon_count)} />
         </Card>
       </div>
 
@@ -228,7 +228,7 @@ export default function AdminSubscription() {
               </div>
               <div className={styles.addonRowEnd}>
                 {a.status === "coming_soon" && (
-                  <Pill tone="warning">Coming Soon</Pill>
+                  <Pill tone="warning">Coming soon</Pill>
                 )}
                 <span className={styles.addonPrice}>{a.price_label}</span>
               </div>
@@ -249,7 +249,7 @@ export default function AdminSubscription() {
                 onClick={() => handleToggle(a)}
               >
                 {a.status === "coming_soon"
-                  ? "Notify Me"
+                  ? "Notify me"
                   : a.is_active
                     ? "Remove"
                     : "Add"}

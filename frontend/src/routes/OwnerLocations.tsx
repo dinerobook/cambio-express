@@ -7,13 +7,13 @@ import {
   type OwnerStoreRow,
 } from "../api/owner";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
-  Breadcrumbs,
   Card, Empty, Input, PageHeader, PageShell,
   Table, TableStates, TabsBar, TabsButton, tdStyle, thStyle,
 } from "../components/ui";
 import styles from "./OwnerLocations.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Owner umbrella: per-store stats grid at /app/owner/locations.
 // Period selector (today/month/year) drives the date window for
@@ -50,7 +50,7 @@ export default function OwnerLocations() {
   if (!isOwner) {
     return (
       <PageShell>
-        <PageHeader title="Owner locations" />
+        <PageHeader title="Locations" />
         <Empty>Sign in as an owner to view the multi-store umbrella.</Empty>
       </PageShell>
     );
@@ -59,12 +59,12 @@ export default function OwnerLocations() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Locations" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="Locations"
         subtitle={data
-          ? `${data.matched.toLocaleString()} of ${data.total.toLocaleString()} stores`
+          ? `${fmtNumber(data.matched)} of ${fmtNumber(data.total)} stores`
           : "—"}
       />
 
@@ -147,7 +147,7 @@ function StoreTable({ rows }: { rows: OwnerStoreRow[] }) {
               <div className={styles.storeSlug}>{r.store_slug}</div>
             </td>
             <td style={{ ...tdStyle, textAlign: "right" }}>
-              <span className={styles.mono}>{r.transfer_count.toLocaleString()}</span>
+              <span className={styles.mono}>{fmtNumber(r.transfer_count)}</span>
             </td>
             <td style={{ ...tdStyle, textAlign: "right" }}>
               <span className={styles.mono}>{fmtMoney2(r.volume)}</span>

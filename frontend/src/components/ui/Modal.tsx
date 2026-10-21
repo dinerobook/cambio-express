@@ -34,6 +34,15 @@ import styles from "./Modal.module.css";
  *  working unchanged.
  *
  *  When `open` is false the component renders nothing. */
+/** The Cancel / Save row at the bottom of a modal. `Modal`'s
+ *  `actions` prop renders it for you; a modal whose body is a
+ *  `<form>` (the submit button must sit inside the form) puts this
+ *  as the form's last child instead. One row everywhere: buttons on
+ *  the right, primary last, wrapping on a narrow phone. */
+export function ModalActions({ children }: { children: ReactNode }) {
+  return <div className={styles.actions}>{children}</div>;
+}
+
 export function Modal({
   open, onClose, title, children, actions, size = "md",
   closeOnBackdrop = true, closeOnEscape = true, disabled = false,
@@ -93,7 +102,7 @@ export function Modal({
               <h2 className={styles.title}>{title}</h2>
             </Dialog.Title>
             <div className={styles.body}>{children}</div>
-            {actions && <div className={styles.actions}>{actions}</div>}
+            {actions && <ModalActions>{actions}</ModalActions>}
           </Dialog.Content>
         </Dialog.Overlay>
       </Dialog.Portal>

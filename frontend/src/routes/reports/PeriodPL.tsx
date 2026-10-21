@@ -18,7 +18,7 @@ export default function PeriodPL() {
           value: t => fmtMoney2(Number(t.revenue ?? 0)) },
         { label: "Expenses",  tone: "muted",
           value: t => fmtMoney2(Number(t.expenses ?? 0)) },
-        { label: "Net Income", tone: "neon",
+        { label: "Net income", tone: "neon",
           value: t => fmtMoney2(Number(t.net_income ?? 0)) },
       ]}
       columns={[
