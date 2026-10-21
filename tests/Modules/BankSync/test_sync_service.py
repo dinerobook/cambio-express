@@ -376,3 +376,39 @@ def test_sync_records_account_error_in_last_error(monkeypatch):
 
 
 
+
+
+def test_sync_survives_a_matching_fault(monkeypatch):
+    """Bank matching runs after the new rows are committed; if it
+    blows up the sync still succeeds and the rows stay (BankSync
+    INVARIANTS "Matching")."""
+    from api.Modules.BankSync.Models import BankTransaction
+    from api.Modules.BankSync.Services import reconcile, sync_bank_transactions
+    from tests._app import db
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    monkeypatch.setattr(reconcile, "matching_enabled", lambda *_: True)
+
+    def boom(*_):
+        raise RuntimeError("matching broke")
+
+    monkeypatch.setattr(reconcile, "reconcile_store", boom)
+    with db_session():
+        db.session.query(BankTransaction).delete()
+        db.session.commit()
+        s, _ = _store_with_account(db.session, slug="match-fault", last4="0231")
+        list_response = MagicMock()
+        list_response.auto_paging_iter = MagicMock(
+            return_value=iter([_stripe_txn_dict(description="ATM DEPOSIT", amount=5000)]),
+        )
+        with patch(
+            "stripe.financial_connections.Account.subscribe",
+        ), patch(
+            "stripe.financial_connections.Account.refresh_account",
+        ), patch(
+            "stripe.financial_connections.Transaction.list",
+            return_value=list_response,
+        ):
+            new_rows, total, err = sync_bank_transactions(db.session, s)
+        assert (new_rows, err) == (1, "")
+        assert db.session.query(BankTransaction).filter_by(
+            store_id=s.id, description="ATM DEPOSIT").count() == 1

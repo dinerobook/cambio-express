@@ -646,3 +646,10 @@
   width: 5rem;
   min-width: 3.5rem;
 }
+
+/* "In bank" mark beside an entry's note (InBankPill). */
+.inBank {
+  display: inline-flex;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}

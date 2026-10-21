@@ -38,6 +38,11 @@ class BankTransactionFilters:
     uncategorized_only: bool = False
     sort_slug: str = ""
     sort_dir: Literal["asc", "desc"] = "desc"
+    # Where the row stands against the daily book: "" (any) |
+    # "review" | "matched" | "dismissed". Resolved to a SQL clause by
+    # the Service (`reconcile.books_clause`) and handed back in
+    # `extra`.
+    books: str = ""
 
     @classmethod
     def from_query(cls, args: Any) -> "BankTransactionFilters":
@@ -80,14 +85,17 @@ class BankTransactionFilters:
                 "asc" if (args.get("dir") or "").strip().lower() == "asc"
                 else "desc"
             ),
+            books=(args.get("books") or "").strip(),
         )
 
 
 def list_transactions(
     db: Session, store_ids: Iterable[int], filters: BankTransactionFilters,
     *, page: int = 1, per_page: int = 100,
+    extra: Iterable[Any] = (),
 ) -> tuple[list[BankTransaction], int]:
-    """Return `(rows, total)`. Sorted by `posted_at` desc with id
+    """Return `(rows, total)`. `extra` adds SQL clauses the Service
+    built (the daily-book status filter). Sorted by `posted_at` desc with id
     tie-break for stable ordering. Paginated 1-indexed; out-of-range
     pages clamp to the last page.
     """
@@ -116,6 +124,8 @@ def list_transactions(
         q = q.filter(BankTransaction.amount_cents < 0)
     if f.q:
         q = q.filter(BankTransaction.description.ilike(f"%{f.q}%"))
+    for clause in extra:
+        q = q.filter(clause)
 
     newest = (BankTransaction.posted_at.desc(), BankTransaction.id.desc())
     q = order_by_slug(

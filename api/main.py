@@ -60,6 +60,11 @@ def _register_routers(app: FastAPI) -> None:
         superadmin_router as bank_templates_superadmin_router,
     )
     app.include_router(bank_templates_router, prefix="/bank", tags=["bank"])
+    # Bank transactions matched to daily book entries.
+    from api.Modules.BankSync.Controllers.matching import (
+        router as bank_matching_router,
+    )
+    app.include_router(bank_matching_router, prefix="/bank", tags=["bank"])
     app.include_router(
         bank_templates_superadmin_router,
         prefix="/superadmin/bank-rule-templates", tags=["superadmin"],

@@ -41,8 +41,11 @@ def list_transactions_page(
     *, page: int = 1, per_page: int = 100,
 ) -> TransactionListPage:
     """Bundles the rows + paging meta + the two summary counts."""
+    from api.Modules.BankSync.Services.reconcile import books_clause
+
+    extra = books_clause(filters.books)
     rows, total = list_transactions(
-        db, store_ids, filters, page=page, per_page=per_page,
+        db, store_ids, filters, page=page, per_page=per_page, extra=extra,
     )
     total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
     page = max(1, min(page, total_pages))
@@ -56,7 +59,7 @@ def list_transactions_page(
     # rows the user could currently be looking at".
     from dataclasses import replace
     uncat_filters = replace(
-        filters, category_slug="", uncategorized_only=True,
+        filters, category_slug="", uncategorized_only=True, books="",
     )
     _, uncategorized_count = list_transactions(
         db, store_ids, uncat_filters, page=1, per_page=1,

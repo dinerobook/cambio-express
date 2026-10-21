@@ -34,6 +34,8 @@ export const RESOURCE_LABELS: Record<string, string> = {
   // One switch for both daily books' Lock / Unlock buttons. Only
   // bites alongside Edit on that book.
   day_lock: "Lock / unlock days",
+  // One switch: mark bank transactions as already handled.
+  bank_dismiss: "Dismiss bank transactions",
 };
 
 export const ACTION_LABELS: Record<string, string> = {
@@ -54,7 +56,7 @@ export const RESOURCE_GROUPS: { title: string; resources: string[] }[] = [
       "daily_book", "day_close", "day_lock", "monthly", "lottery", "catalog",
     ],
   },
-  { title: "Finance", resources: ["bank_sync", "reports"] },
+  { title: "Finance", resources: ["bank_sync", "bank_dismiss", "reports"] },
   { title: "Team", resources: ["users", "time_clock"] },
   { title: "Store", resources: ["settings"] },
 ];

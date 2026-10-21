@@ -45,6 +45,7 @@ export const TEST_ADMIN = {
     // "Lock / unlock days" is a single switch (lib/permissions.ts
     // RESOURCE_ACTIONS), so only its one action.
     "day_lock.update",
+    "bank_dismiss.update",
   ],
 };
 

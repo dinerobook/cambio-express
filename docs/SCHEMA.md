@@ -84,6 +84,7 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 
 | Table | Model | Module | Scope | Foreign keys | Read first |
 |---|---|---|---|---|---|
+| `bank_daily_match` | `BankDailyMatch` | `BankSync` | store | `bank_transaction.id`, `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/BankSync/INVARIANTS.md) |
 | `bank_rule` | `BankRule` | `BankSync` | store | `bank_stripe_account.id`, `tenancy_store.id` | [INVARIANTS](../api/Modules/BankSync/INVARIANTS.md) |
 | `bank_rule_template` | `BankRuleTemplate` | `BankSync` | global | `tenancy_user.id` | [INVARIANTS](../api/Modules/BankSync/INVARIANTS.md) |
 | `bank_stripe_account` | `StripeBankAccount` | `BankSync` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/BankSync/INVARIANTS.md) |

@@ -25,6 +25,8 @@ export function hasPermission(resource: string, action: string): boolean {
  */
 export const RESOURCE_ACTIONS: Record<string, string[]> = {
   day_lock: ["update"],
+  // "Dismiss bank transactions" (already handled): Admin by default.
+  bank_dismiss: ["update"],
 };
 
 /** The actions `resource` has, in the order `actions` lists them. */

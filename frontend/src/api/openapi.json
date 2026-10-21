@@ -1383,6 +1383,11 @@
             "title": "Locked Skipped",
             "type": "integer"
           },
+          "matched": {
+            "default": 0,
+            "title": "Matched",
+            "type": "integer"
+          },
           "tagged": {
             "default": 0,
             "title": "Tagged",
@@ -1918,6 +1923,21 @@
         "additionalProperties": false,
         "description": "Paginated response envelope. Mirrors the partial-render JSON\nshape the legacy /bank/transactions page already returns.",
         "properties": {
+          "books_counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BooksCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matching_enabled": {
+            "default": false,
+            "title": "Matching Enabled",
+            "type": "boolean"
+          },
           "page": {
             "title": "Page",
             "type": "integer"
@@ -1992,6 +2012,11 @@
             "title": "Booked On",
             "type": "string"
           },
+          "books_status": {
+            "default": "",
+            "title": "Books Status",
+            "type": "string"
+          },
           "category_slug": {
             "default": "",
             "title": "Category Slug",
@@ -2018,9 +2043,21 @@
             "title": "Description",
             "type": "string"
           },
+          "dismissed_at": {
+            "default": "",
+            "title": "Dismissed At",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "matched_entries": {
+            "items": {
+              "$ref": "#/components/schemas/MatchedEntry"
+            },
+            "title": "Matched Entries",
+            "type": "array"
           },
           "posted_at": {
             "default": "",
@@ -2036,6 +2073,11 @@
             "default": "posted",
             "title": "Status",
             "type": "string"
+          },
+          "suggestion_count": {
+            "default": 0,
+            "title": "Suggestion Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -2357,6 +2399,34 @@
           "url"
         ],
         "title": "BillingPortalResponse",
+        "type": "object"
+      },
+      "BooksCounts": {
+        "additionalProperties": false,
+        "description": "Store-wide: how many bank rows are on the books, matched,\nstill need a person, or were dismissed.",
+        "properties": {
+          "added": {
+            "default": 0,
+            "title": "Added",
+            "type": "integer"
+          },
+          "dismissed": {
+            "default": 0,
+            "title": "Dismissed",
+            "type": "integer"
+          },
+          "matched": {
+            "default": 0,
+            "title": "Matched",
+            "type": "integer"
+          },
+          "to_review": {
+            "default": 0,
+            "title": "To Review",
+            "type": "integer"
+          }
+        },
+        "title": "BooksCounts",
         "type": "object"
       },
       "BreakPunchRequest": {
@@ -4090,6 +4160,51 @@
           "is_active"
         ],
         "title": "DiscountCodeToggleRequest",
+        "type": "object"
+      },
+      "DismissRequest": {
+        "additionalProperties": false,
+        "description": "Dismiss bank rows as already handled: the ticked `ids`, or\nevery row still needing review posted on or before `before`.\nExactly one of the two.",
+        "properties": {
+          "before": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "title": "DismissRequest",
+        "type": "object"
+      },
+      "DismissResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "dismissed": {
+            "default": 0,
+            "title": "Dismissed",
+            "type": "integer"
+          },
+          "skipped": {
+            "default": 0,
+            "title": "Skipped",
+            "type": "integer"
+          }
+        },
+        "title": "DismissResponse",
         "type": "object"
       },
       "EmployeeCreateRequest": {
@@ -6516,6 +6631,18 @@
             "title": "At Time",
             "type": "string"
           },
+          "bank_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Date"
+          },
           "expects_settlement": {
             "default": false,
             "title": "Expects Settlement",
@@ -6524,6 +6651,21 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "in_bank": {
+            "anyOf": [
+              {
+                "enum": [
+                  "added",
+                  "matched"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Bank"
           },
           "kind": {
             "title": "Kind",
@@ -7229,6 +7371,132 @@
           "department_id"
         ],
         "title": "MappingWriteRow",
+        "type": "object"
+      },
+      "MatchCandidateRow": {
+        "additionalProperties": false,
+        "description": "One answer to \"which entry is this bank row\": one entry, or\nseveral same-day entries of one kind that add up to it.",
+        "properties": {
+          "by_check_number": {
+            "default": false,
+            "title": "By Check Number",
+            "type": "boolean"
+          },
+          "days_from_bank": {
+            "default": 0,
+            "title": "Days From Bank",
+            "type": "integer"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/MatchedEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "kind_label": {
+            "title": "Kind Label",
+            "type": "string"
+          },
+          "line_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Line Ids",
+            "type": "array"
+          },
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_ids",
+          "report_date",
+          "kind",
+          "kind_label"
+        ],
+        "title": "MatchCandidateRow",
+        "type": "object"
+      },
+      "MatchCandidatesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/MatchCandidateRow"
+            },
+            "title": "Candidates",
+            "type": "array"
+          }
+        },
+        "title": "MatchCandidatesResponse",
+        "type": "object"
+      },
+      "MatchLinesRequest": {
+        "additionalProperties": false,
+        "description": "POST body for match (\"Yes, same money\") and reject (\"No,\ndifferent\"): the entries in question.",
+        "properties": {
+          "line_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Line Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "line_ids"
+        ],
+        "title": "MatchLinesRequest",
+        "type": "object"
+      },
+      "MatchedEntry": {
+        "additionalProperties": false,
+        "description": "A daily book entry a bank row is matched to (or could be).",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "kind_label": {
+            "title": "Kind Label",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "report_date",
+          "kind",
+          "kind_label",
+          "amount"
+        ],
+        "title": "MatchedEntry",
         "type": "object"
       },
       "MessageListResponse": {
@@ -10472,6 +10740,41 @@
         "title": "PosTransactionTenderRow",
         "type": "object"
       },
+      "PossibleDoubleRow": {
+        "additionalProperties": false,
+        "properties": {
+          "bank_entry": {
+            "$ref": "#/components/schemas/MatchedEntry"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/BankTransactionRow"
+          },
+          "typed_entry": {
+            "$ref": "#/components/schemas/MatchedEntry"
+          }
+        },
+        "required": [
+          "transaction",
+          "bank_entry",
+          "typed_entry"
+        ],
+        "title": "PossibleDoubleRow",
+        "type": "object"
+      },
+      "PossibleDoublesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PossibleDoubleRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "title": "PossibleDoublesResponse",
+        "type": "object"
+      },
       "PriceBookHarvestResponse": {
         "additionalProperties": false,
         "properties": {
@@ -11085,6 +11388,18 @@
           "recipient"
         ],
         "title": "RecipientRow",
+        "type": "object"
+      },
+      "ReconcileRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "matched": {
+            "default": 0,
+            "title": "Matched",
+            "type": "integer"
+          }
+        },
+        "title": "ReconcileRunResponse",
         "type": "object"
       },
       "RecoveryLoginRequest": {
@@ -16507,6 +16822,22 @@
           }
         },
         "title": "UpdateTicketRequest",
+        "type": "object"
+      },
+      "UseEntryRequest": {
+        "additionalProperties": false,
+        "description": "Keep the typed entry: remove the one the bank added and\nmatch the bank row to the typed one.",
+        "properties": {
+          "line_id": {
+            "minimum": 1.0,
+            "title": "Line Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line_id"
+        ],
+        "title": "UseEntryRequest",
         "type": "object"
       },
       "ValidationError": {
@@ -23983,6 +24314,138 @@
         ]
       }
     },
+    "/bank/reconcile/doubles": {
+      "get": {
+        "description": "Money that is probably in the daily book twice: the bank\nadded an entry, and a typed entry of the same kind and amount\nsits inside the window. Listed only \u2014 a person decides.",
+        "operationId": "doubles_route_bank_reconcile_doubles_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PossibleDoublesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Doubles Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/bank/reconcile/run": {
+      "post": {
+        "description": "Match every waiting bank row whose entry is surely on the\nbooks (sync does this on its own; this is the button).",
+        "operationId": "reconcile_run_route_bank_reconcile_run_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile Run Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
     "/bank/refresh": {
       "post": {
         "description": "Trigger a manual balance refresh across every connected FC\naccount on the principal's store.\n\nReturns the count of accounts the refresh touched + any\ntransient error message from Stripe.  Doesn't 502 on Stripe\nhiccups \u2014 those are surfaced in `error` so the SPA can show\na soft warning without blocking the user.",
@@ -24794,6 +25257,19 @@
             }
           },
           {
+            "description": "Daily-book status: review (still needs a person), matched or dismissed.",
+            "in": "query",
+            "name": "books",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Daily-book status: review (still needs a person), matched or dismissed.",
+              "pattern": "^(|review|matched|dismissed)$",
+              "title": "Books",
+              "type": "string"
+            }
+          },
+          {
             "description": "posted, description, category or amount; empty = newest first.",
             "in": "query",
             "name": "sort",
@@ -24900,6 +25376,158 @@
         ]
       }
     },
+    "/bank/transactions/dismiss": {
+      "post": {
+        "description": "An admin's \"already handled\": the ticked rows, or every row\nstill needing review posted on or before `before`. Only rows\nstill needing review are dismissed \u2014 one already on the books\n(added or matched), or tagged to the P&L, is skipped. Nothing\nin the books changes.",
+        "operationId": "dismiss_route_bank_transactions_dismiss_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/bank/transactions/{txn_id}/candidates": {
+      "get": {
+        "description": "The daily book entries this bank row could be \u2014 the \"Check\nmatch\" choices and \"Find in daily book\". Rejected pairs and\nentries already in the bank are left out.",
+        "operationId": "candidates_route_bank_transactions__txn_id__candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "txn_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Txn Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchCandidatesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Candidates Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
     "/bank/transactions/{txn_id}/categorize": {
       "post": {
         "description": "Tag a transaction with a category and (when the kind is a\ndaily-book line item) book the matching DailyLineItem, rolling\nthe day's total up the same way a cashier's entry does.\n\nIdempotent: re-categorizing replaces any prior booked line\nbefore adding the new one. `post_to_daily=False` keeps the\nmetadata-only path; `report_date` moves the line to another day\nand is remembered on the row, so re-tagging later does not walk\nit back to the bank's date (send `null` to clear it). Unknown\nslug \u2192 422; locked day \u2192 409 with the date in the detail so the\nSPA can offer \"unlock\" or \"book on another day\".",
@@ -24986,6 +25614,254 @@
         ]
       }
     },
+    "/bank/transactions/{txn_id}/match": {
+      "post": {
+        "description": "\"Yes, same money\": link this bank row to the entries a person\npicked. They must be one day's entries of one matchable kind\nthat add up to the bank amount exactly, going the bank's way,\ninside the date window, and not already in the bank. An untagged\nrow takes the entries' tag (nothing is booked).",
+        "operationId": "match_route_bank_transactions__txn_id__match_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "txn_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Txn Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchLinesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Match Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/bank/transactions/{txn_id}/reject": {
+      "post": {
+        "description": "\"No, different\": these entries are not this bank row. Never\nsuggested again; nothing in the daily book changes.",
+        "operationId": "reject_route_bank_transactions__txn_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "txn_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Txn Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchLinesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/bank/transactions/{txn_id}/restore": {
+      "post": {
+        "description": "Undo a dismiss: the row needs review again.",
+        "operationId": "restore_route_bank_transactions__txn_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "txn_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Txn Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
     "/bank/transactions/{txn_id}/uncategorize": {
       "post": {
         "description": "Clear a transaction's category and remove any auto-created\nDailyLineItem. The row stays in the table \u2014 it just goes back\nto \"uncategorized\" so it can be re-tagged. A line booked on a\nlocked day \u2192 409, same shape as categorize.",
@@ -25057,6 +25933,168 @@
           }
         },
         "summary": "Uncategorize Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/bank/transactions/{txn_id}/unmatch": {
+      "post": {
+        "description": "Undo a match. Nothing is deleted; the pair is remembered as\n\"not the same\" so the next sync does not match it straight\nback. Allowed on a locked day: no money moves.",
+        "operationId": "unmatch_route_bank_transactions__txn_id__unmatch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "txn_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Txn Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unmatch Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
+    "/bank/transactions/{txn_id}/use-entry": {
+      "post": {
+        "description": "The same money is in twice \u2014 once typed, once added by the\nbank. Keep the typed entry: remove the bank's entry (rolling\nits day back) and match the bank row to the typed one. Removing\nan entry needs Delete on the daily book, and a locked day\nrefuses (409) \u2014 unlock it first.",
+        "operationId": "use_entry_route_bank_transactions__txn_id__use_entry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "txn_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Txn Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseEntryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Use Entry Route",
         "tags": [
           "bank"
         ]

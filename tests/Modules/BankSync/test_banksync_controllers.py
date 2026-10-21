@@ -100,7 +100,11 @@ def test_list_response_envelope(client, test_store_id):
     assert set(body.keys()) == {
         "rows", "total", "page", "per_page", "total_pages",
         "page_total_cents", "uncategorized_count",
+        "matching_enabled", "books_counts",
     }
+    # Matching is off until a store is switched on: nothing new shows.
+    assert body["matching_enabled"] is False
+    assert body["books_counts"] is None
     assert body["total"] == 1
     row = body["rows"][0]
     assert row["amount"] == -1.0

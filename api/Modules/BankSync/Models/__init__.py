@@ -9,6 +9,9 @@ Three classes that back the Stripe Financial Connections integration:
 * ``BankRule``          — operator-managed auto-categorization rule.
 * ``BankRuleTemplate``  — a platform-wide rule the superadmin writes
                           and every store can copy into its own rules.
+* ``BankDailyMatch``    — "this bank transaction IS that daily book
+                          entry" (or, rejected: "is not"), so a late
+                          bank row never books the money twice.
 """
 from __future__ import annotations
 
@@ -16,7 +19,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Index, Integer,
-    String,
+    String, UniqueConstraint,
 )
 
 from api.Core.Database import Base
@@ -114,6 +117,11 @@ class BankTransaction(Base):
     # changing the category later silently walked the line back to
     # the bank's date.
     report_date_override     = Column(Date, nullable=True)
+    # An admin's "already handled, leave it": the row books nothing,
+    # matches nothing and drops out of the review list. NULL on every
+    # row written before the feature. Restore clears both.
+    dismissed_at             = Column(DateTime, nullable=True)
+    dismissed_by             = Column(Integer, nullable=True)
     created_at               = Column(DateTime, default=datetime.utcnow)
     __table_args__ = (
         Index("ix_bank_transaction_store_posted",
@@ -219,12 +227,56 @@ class BankRuleTemplate(Base):
                                     onupdate=datetime.utcnow)
 
 
+class BankDailyMatch(Base):
+    """One bank transaction ↔ one daily book entry it is the same
+    money as. See BankSync INVARIANTS.md "Matching".
+
+    ``state``:
+      * ``matched``  — the entry IS this bank row. One bank row may
+                       match several same-day entries of one kind (a
+                       morning and an afternoon deposit the bank
+                       posted as one); an entry matches at most one
+                       bank row.
+      * ``rejected`` — the person said "No, different" (or unmatched
+                       it): never suggested or auto-matched again.
+
+    ``method``: ``auto`` (sure match, nobody asked), ``confirmed``
+    (a person said yes to a suggestion or picked the entry).
+
+    A match only links two records: it moves no money, so it is
+    allowed on a locked day. ``daily_line_item_id`` carries no DB
+    foreign key on purpose (same as ``settles_item_id``): a
+    constraint onto the live line-item table would lock it, and the
+    service drops the link when the entry is deleted or its amount
+    changes; readers join on the live entry anyway.
+    """
+
+    __tablename__ = "bank_daily_match"
+    id                  = Column(Integer, primary_key=True)
+    store_id            = Column(Integer, ForeignKey("tenancy_store.id"),
+                                 nullable=False, index=True)
+    bank_transaction_id = Column(Integer, ForeignKey("bank_transaction.id"),
+                                 nullable=False, index=True)
+    daily_line_item_id  = Column(Integer, nullable=False, index=True)
+    state               = Column(String(12), nullable=False)
+    method              = Column(String(12), nullable=False, default="auto")
+    created_by          = Column(Integer, ForeignKey("tenancy_user.id"),
+                                 nullable=True)
+    created_at          = Column(DateTime, default=datetime.utcnow)
+    __table_args__ = (
+        UniqueConstraint(
+            "bank_transaction_id", "daily_line_item_id",
+            name="uq_bank_daily_match_pair",
+        ),
+    )
+
+
 # Re-export Store for existing
 # ``from api.Modules.BankSync.Models import Store`` call sites.
 from api.Modules.Tenancy.Models import Store  # noqa: E402
 
 
 __all__ = [
-    "BankRule", "BankRuleTemplate", "BankTransaction", "Store",
+    "BankDailyMatch", "BankRule", "BankRuleTemplate", "BankTransaction", "Store",
     "StripeBankAccount",
 ]

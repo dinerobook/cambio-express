@@ -44,6 +44,8 @@ from api.Core.Clock import utc_now
 # Order matters: a class must purge before any class that FKs to
 # it. Add new per-store models here when introducing them.
 STORE_OWNED_MODELS: list[str] = [
+    # Bank ↔ daily book matches FK bank_transaction — purge first.
+    "BankDailyMatch",
     "TransferAudit", "OperatorAuditLog",
     "Transfer", "ACHBatch", "DailyReport", "DailyDrop", "CheckDeposit",
     "DailyLineItem", "MoneyTransferSummary", "MoneyServiceSummary",
@@ -105,7 +107,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
     """
     from api.Modules.Audit.Models import OperatorAuditLog, TransferAudit
     from api.Modules.BankSync.Models import (
-        BankRule, BankTransaction, StripeBankAccount,
+        BankDailyMatch, BankRule, BankTransaction, StripeBankAccount,
     )
     from api.Modules.Batches.Models import ACHBatch
     from api.Modules.Billing.Models import (
@@ -150,6 +152,8 @@ def _store_owned_models() -> list[tuple[type, str]]:
     from api.Modules.Announcements.Models import AnnouncementStore
 
     return [
+        # Matches FK bank_transaction — before anything else.
+        (BankDailyMatch, "store_id"),
         # TransferAudit must purge before Transfer (FK to transfer.id),
         # and StoreEmployee before any row that FKs to it.
         (TransferAudit, "store_id"),

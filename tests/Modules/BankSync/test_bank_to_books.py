@@ -413,7 +413,7 @@ def test_create_rule_with_apply_to_existing_books_matching_rows(client, test_sto
     )
     assert resp.status_code == 201, resp.get_data(as_text=True)
     body = resp.get_json()
-    assert body["applied"] == {"tagged": 2, "booked": 2, "locked_skipped": 0}
+    assert body["applied"] == {"tagged": 2, "booked": 2, "locked_skipped": 0, "matched": 0}
     assert body["rule"]["match_count"] == 2
     with db_session():
         assert abs(_report(test_store_id, date(2026, 5, 6)).checks_deposit - 900.0) < 0.005
@@ -461,7 +461,7 @@ def test_apply_rule_endpoint(client, test_store_id):
     resp = client.post(f"/api/v2/bank/rules/{rid}/apply",
                        headers=_login(client, test_store_id))
     assert resp.status_code == 200
-    assert resp.get_json()["applied"] == {"tagged": 1, "booked": 0, "locked_skipped": 0}
+    assert resp.get_json()["applied"] == {"tagged": 1, "booked": 0, "locked_skipped": 0, "matched": 0}
 
 
 def test_reorder_rewrites_priorities_in_the_given_order(client, test_store_id):

@@ -99,3 +99,63 @@
   color: var(--db-negative);
   font-size: 0.8rem;
 }
+
+/* Daily-book matching (BankMatching.tsx). */
+.booksSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.booksCounts {
+  color: var(--db-text-muted);
+  font-size: 0.85rem;
+}
+
+.booksCounts strong {
+  color: var(--db-text);
+}
+
+.booksCell {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.candidateList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.candidate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-md);
+  background: var(--db-surface);
+  min-width: 0;
+}
+
+.candidate > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidateMeta {
+  margin-top: 0.2rem;
+  color: var(--db-text-muted);
+  font-size: 0.82rem;
+}

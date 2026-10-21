@@ -65,6 +65,14 @@ class ApplyOutcome:
     tagged: bool
     booked: bool = False
     locked_skipped: bool = False
+    # Linked to an entry already on the daily book instead of booked
+    # (store has matching on — INVARIANTS.md "Matching").
+    matched: bool = False
+
+
+def _matched(db: Session, row: Any) -> bool:
+    from api.Modules.BankSync.Services.reconcile import matched_lines
+    return bool(matched_lines(db, row))
 
 
 def rule_booking_date(rule: Any, row: Any) -> date | None:
@@ -103,8 +111,14 @@ def _apply_rule(db: Session, row: Any, rule: Any, *, allow_auto_post: bool) -> A
             report_date_explicit=explicit,
             is_daily_book_kind=is_daily_book_kind,
         )
-        return ApplyOutcome(tagged=True, booked=False, locked_skipped=True)
-    return ApplyOutcome(tagged=True, booked=bool(row.daily_line_item_id))
+        return ApplyOutcome(
+            tagged=True, booked=False, locked_skipped=True,
+            matched=_matched(db, row),
+        )
+    return ApplyOutcome(
+        tagged=True, booked=bool(row.daily_line_item_id),
+        matched=_matched(db, row),
+    )
 
 
 def apply_rules_to_uncategorized_row(
@@ -121,7 +135,8 @@ def apply_rules_to_uncategorized_row(
          matches, tag the row WITHOUT posting to the daily book.
       3. Otherwise leave the row uncategorised.
     """
-    if row.category_slug:
+    # A dismissed row was handled by an admin: rules leave it alone.
+    if row.category_slug or row.dismissed_at is not None:
         return False
 
     rule = find_matching_rule(db, row.store_id, row)
@@ -148,6 +163,7 @@ class RuleApplyReport:
     tagged: int = 0
     booked: int = 0
     locked_skipped: int = 0
+    matched: int = 0
 
 
 def apply_rule_to_existing(
@@ -172,6 +188,7 @@ def apply_rule_to_existing(
         db.query(BankTransaction)
           .filter(
               BankTransaction.store_id == rule.store_id,
+              BankTransaction.dismissed_at.is_(None),
               or_(
                   BankTransaction.category_slug.is_(None),
                   BankTransaction.category_slug == "",
@@ -180,7 +197,7 @@ def apply_rule_to_existing(
           .order_by(BankTransaction.posted_at.asc(), BankTransaction.id.asc())
           .all()
     )
-    tagged = booked = locked = 0
+    tagged = booked = locked = matched = 0
     for row in rows:
         if not rule_matches(rule, row):
             continue
@@ -188,4 +205,7 @@ def apply_rule_to_existing(
         tagged += 1
         booked += int(out.booked)
         locked += int(out.locked_skipped)
-    return RuleApplyReport(tagged=tagged, booked=booked, locked_skipped=locked)
+        matched += int(out.matched)
+    return RuleApplyReport(
+        tagged=tagged, booked=booked, locked_skipped=locked, matched=matched,
+    )

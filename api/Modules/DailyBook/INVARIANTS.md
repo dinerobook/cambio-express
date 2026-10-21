@@ -639,6 +639,14 @@ The daily book feeds:
   keeps the tag and skips the line). Re-tagging or clearing the
   tag removes the line and rolls the day back. The line's `note`
   is the bank description. See `BankSync/INVARIANTS.md`.
+  With the store's `bank_matching` switch on, a bank row that is
+  already in the book is LINKED to the typed entry
+  (`bank_daily_match`) instead of booked. The line-item create /
+  update / delete routes call the matcher (a new entry looks for a
+  waiting bank row; an amount change or delete drops its links),
+  and the day's line list carries `in_bank` / `bank_date`. A link
+  never changes a total, so it is allowed on a locked day. See
+  BankSync `INVARIANTS.md` → "Matching".
 - **Return checks** (`api/Modules/ReturnChecks/`): recording a
   return-check payback creates a `msb_daily_line_item` with
   `kind='return_payback'` whose amount rolls into

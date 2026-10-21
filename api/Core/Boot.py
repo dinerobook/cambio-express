@@ -55,7 +55,7 @@ def warn_default_seed_passwords(
 # policy exists). Append new resources here when they join
 # ``RBAC_RESOURCES``.
 LATER_RESOURCES: tuple[str, ...] = (
-    "lottery", "day_close", "catalog", "day_lock",
+    "lottery", "day_close", "catalog", "day_lock", "bank_dismiss",
 )
 
 _SEED_MARKER = "casbin_seeded:{resource}"

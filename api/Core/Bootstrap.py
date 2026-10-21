@@ -93,6 +93,13 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
      True),
     ("multi_store_owner", "Multi-store owner portal",
      "Allow store admins to generate owner invite codes.", True),
+    # Off until a store is switched on (owner, 2026-10-21): the
+    # owner's store first, every store once it has proven itself.
+    # BankSync INVARIANTS.md "Matching".
+    ("bank_matching", "Bank matched to daily book",
+     "Recognise a bank transaction that is already in the daily book, "
+     "link it instead of adding it twice, and let admins dismiss "
+     "transactions that were already handled.", False),
     # Module flags. The business-type bundle decides these per
     # store (``_BUSINESS_TYPE_MODULE_DEFAULTS``); the rows exist so
     # the superadmin Feature-flags page can set a PER-STORE override

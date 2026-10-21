@@ -2019,6 +2019,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bank/reconcile/doubles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Doubles Route
+         * @description Money that is probably in the daily book twice: the bank
+         *     added an entry, and a typed entry of the same kind and amount
+         *     sits inside the window. Listed only — a person decides.
+         */
+        get: operations["doubles_route_bank_reconcile_doubles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bank/reconcile/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile Run Route
+         * @description Match every waiting bank row whose entry is surely on the
+         *     books (sync does this on its own; this is the button).
+         */
+        post: operations["reconcile_run_route_bank_reconcile_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bank/refresh": {
         parameters: {
             query?: never;
@@ -2214,6 +2257,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bank/transactions/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Route
+         * @description An admin's "already handled": the ticked rows, or every row
+         *     still needing review posted on or before `before`. Only rows
+         *     still needing review are dismissed — one already on the books
+         *     (added or matched), or tagged to the P&L, is skipped. Nothing
+         *     in the books changes.
+         */
+        post: operations["dismiss_route_bank_transactions_dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bank/transactions/{txn_id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Candidates Route
+         * @description The daily book entries this bank row could be — the "Check
+         *     match" choices and "Find in daily book". Rejected pairs and
+         *     entries already in the bank are left out.
+         */
+        get: operations["candidates_route_bank_transactions__txn_id__candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bank/transactions/{txn_id}/categorize": {
         parameters: {
             query?: never;
@@ -2244,6 +2333,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bank/transactions/{txn_id}/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Match Route
+         * @description "Yes, same money": link this bank row to the entries a person
+         *     picked. They must be one day's entries of one matchable kind
+         *     that add up to the bank amount exactly, going the bank's way,
+         *     inside the date window, and not already in the bank. An untagged
+         *     row takes the entries' tag (nothing is booked).
+         */
+        post: operations["match_route_bank_transactions__txn_id__match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bank/transactions/{txn_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Route
+         * @description "No, different": these entries are not this bank row. Never
+         *     suggested again; nothing in the daily book changes.
+         */
+        post: operations["reject_route_bank_transactions__txn_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bank/transactions/{txn_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Route
+         * @description Undo a dismiss: the row needs review again.
+         */
+        post: operations["restore_route_bank_transactions__txn_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bank/transactions/{txn_id}/uncategorize": {
         parameters: {
             query?: never;
@@ -2261,6 +2415,52 @@ export interface paths {
          *     locked day → 409, same shape as categorize.
          */
         post: operations["uncategorize_route_bank_transactions__txn_id__uncategorize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bank/transactions/{txn_id}/unmatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unmatch Route
+         * @description Undo a match. Nothing is deleted; the pair is remembered as
+         *     "not the same" so the next sync does not match it straight
+         *     back. Allowed on a locked day: no money moves.
+         */
+        post: operations["unmatch_route_bank_transactions__txn_id__unmatch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bank/transactions/{txn_id}/use-entry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Use Entry Route
+         * @description The same money is in twice — once typed, once added by the
+         *     bank. Keep the typed entry: remove the bank's entry (rolling
+         *     its day back) and match the bank row to the typed one. Removing
+         *     an entry needs Delete on the daily book, and a locked day
+         *     refuses (409) — unlock it first.
+         */
+        post: operations["use_entry_route_bank_transactions__txn_id__use_entry_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7293,6 +7493,11 @@ export interface components {
              */
             locked_skipped: number;
             /**
+             * Matched
+             * @default 0
+             */
+            matched: number;
+            /**
              * Tagged
              * @default 0
              */
@@ -7623,6 +7828,12 @@ export interface components {
          *     shape the legacy /bank/transactions page already returns.
          */
         BankTransactionListResponse: {
+            books_counts?: components["schemas"]["BooksCounts"] | null;
+            /**
+             * Matching Enabled
+             * @default false
+             */
+            matching_enabled: boolean;
             /** Page */
             page: number;
             /** Page Total Cents */
@@ -7667,6 +7878,11 @@ export interface components {
              */
             booked_on: string;
             /**
+             * Books Status
+             * @default
+             */
+            books_status: string;
+            /**
              * Category Slug
              * @default
              */
@@ -7683,8 +7899,15 @@ export interface components {
              * @default
              */
             description: string;
+            /**
+             * Dismissed At
+             * @default
+             */
+            dismissed_at: string;
             /** Id */
             id: number;
+            /** Matched Entries */
+            matched_entries?: components["schemas"]["MatchedEntry"][];
             /**
              * Posted At
              * @default
@@ -7700,6 +7923,11 @@ export interface components {
              * @default posted
              */
             status: string;
+            /**
+             * Suggestion Count
+             * @default 0
+             */
+            suggestion_count: number;
         };
         /**
          * BatchLinkedTransferRow
@@ -7920,6 +8148,33 @@ export interface components {
         BillingPortalResponse: {
             /** Url */
             url: string;
+        };
+        /**
+         * BooksCounts
+         * @description Store-wide: how many bank rows are on the books, matched,
+         *     still need a person, or were dismissed.
+         */
+        BooksCounts: {
+            /**
+             * Added
+             * @default 0
+             */
+            added: number;
+            /**
+             * Dismissed
+             * @default 0
+             */
+            dismissed: number;
+            /**
+             * Matched
+             * @default 0
+             */
+            matched: number;
+            /**
+             * To Review
+             * @default 0
+             */
+            to_review: number;
         };
         /**
          * BreakPunchRequest
@@ -8818,6 +9073,31 @@ export interface components {
             /** Is Active */
             is_active: boolean;
         };
+        /**
+         * DismissRequest
+         * @description Dismiss bank rows as already handled: the ticked `ids`, or
+         *     every row still needing review posted on or before `before`.
+         *     Exactly one of the two.
+         */
+        DismissRequest: {
+            /** Before */
+            before?: string | null;
+            /** Ids */
+            ids?: number[];
+        };
+        /** DismissResponse */
+        DismissResponse: {
+            /**
+             * Dismissed
+             * @default 0
+             */
+            dismissed: number;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped: number;
+        };
         /** EmployeeCreateRequest */
         EmployeeCreateRequest: {
             /** Address Line1 */
@@ -9653,6 +9933,8 @@ export interface components {
             amount: number;
             /** At Time */
             at_time: string;
+            /** Bank Date */
+            bank_date?: string | null;
             /**
              * Expects Settlement
              * @default false
@@ -9660,6 +9942,8 @@ export interface components {
             expects_settlement: boolean;
             /** Id */
             id: number;
+            /** In Bank */
+            in_bank?: ("added" | "matched") | null;
             /** Kind */
             kind: string;
             /**
@@ -10037,6 +10321,74 @@ export interface components {
             department_id: number;
             /** Merchandise Code */
             merchandise_code: string;
+        };
+        /**
+         * MatchCandidateRow
+         * @description One answer to "which entry is this bank row": one entry, or
+         *     several same-day entries of one kind that add up to it.
+         */
+        MatchCandidateRow: {
+            /**
+             * By Check Number
+             * @default false
+             */
+            by_check_number: boolean;
+            /**
+             * Days From Bank
+             * @default 0
+             */
+            days_from_bank: number;
+            /** Entries */
+            entries?: components["schemas"]["MatchedEntry"][];
+            /** Kind */
+            kind: string;
+            /** Kind Label */
+            kind_label: string;
+            /** Line Ids */
+            line_ids: number[];
+            /**
+             * Report Date
+             * Format: date
+             */
+            report_date: string;
+        };
+        /** MatchCandidatesResponse */
+        MatchCandidatesResponse: {
+            /** Candidates */
+            candidates?: components["schemas"]["MatchCandidateRow"][];
+        };
+        /**
+         * MatchLinesRequest
+         * @description POST body for match ("Yes, same money") and reject ("No,
+         *     different"): the entries in question.
+         */
+        MatchLinesRequest: {
+            /** Line Ids */
+            line_ids: number[];
+        };
+        /**
+         * MatchedEntry
+         * @description A daily book entry a bank row is matched to (or could be).
+         */
+        MatchedEntry: {
+            /** Amount */
+            amount: number;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Kind Label */
+            kind_label: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Report Date
+             * Format: date
+             */
+            report_date: string;
         };
         /** MessageListResponse */
         MessageListResponse: {
@@ -11513,6 +11865,17 @@ export interface components {
             /** Sub Code */
             sub_code: string;
         };
+        /** PossibleDoubleRow */
+        PossibleDoubleRow: {
+            bank_entry: components["schemas"]["MatchedEntry"];
+            transaction: components["schemas"]["BankTransactionRow"];
+            typed_entry: components["schemas"]["MatchedEntry"];
+        };
+        /** PossibleDoublesResponse */
+        PossibleDoublesResponse: {
+            /** Rows */
+            rows?: components["schemas"]["PossibleDoubleRow"][];
+        };
         /** PriceBookHarvestResponse */
         PriceBookHarvestResponse: {
             /** Existing Count */
@@ -11814,6 +12177,14 @@ export interface components {
              * @description Sum of federal_tax in USD.
              */
             tax: number;
+        };
+        /** ReconcileRunResponse */
+        ReconcileRunResponse: {
+            /**
+             * Matched
+             * @default 0
+             */
+            matched: number;
         };
         /**
          * RecoveryLoginRequest
@@ -14502,6 +14873,15 @@ export interface components {
             priority?: string | null;
             /** Status */
             status?: string | null;
+        };
+        /**
+         * UseEntryRequest
+         * @description Keep the typed entry: remove the one the bank added and
+         *     match the bank row to the typed one.
+         */
+        UseEntryRequest: {
+            /** Line Id */
+            line_id: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -18241,6 +18621,72 @@ export interface operations {
             };
         };
     };
+    doubles_route_bank_reconcile_doubles_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PossibleDoublesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reconcile_run_route_bank_reconcile_run_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcileRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     refresh_balances_route_bank_refresh_post: {
         parameters: {
             query?: never;
@@ -18605,6 +19051,8 @@ export interface operations {
                 sign?: string;
                 q?: string;
                 uncategorized_only?: boolean;
+                /** @description Daily-book status: review (still needs a person), matched or dismissed. */
+                books?: string;
                 /** @description posted, description, category or amount; empty = newest first. */
                 sort?: string;
                 dir?: string;
@@ -18628,6 +19076,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BankTransactionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_route_bank_transactions_dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DismissResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    candidates_route_bank_transactions__txn_id__candidates_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                txn_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchCandidatesResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18680,6 +19200,119 @@ export interface operations {
             };
         };
     };
+    match_route_bank_transactions__txn_id__match_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                txn_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatchLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategorizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_route_bank_transactions__txn_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                txn_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatchLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategorizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_route_bank_transactions__txn_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                txn_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategorizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     uncategorize_route_bank_transactions__txn_id__uncategorize_post: {
         parameters: {
             query?: never;
@@ -18694,6 +19327,80 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategorizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unmatch_route_bank_transactions__txn_id__unmatch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                txn_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategorizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    use_entry_route_bank_transactions__txn_id__use_entry_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                txn_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UseEntryRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

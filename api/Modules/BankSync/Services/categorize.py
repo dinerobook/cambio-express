@@ -59,6 +59,17 @@ class DailyBookLockedError(Exception):
         )
 
 
+class TransactionDismissedError(Exception):
+    """An admin dismissed this bank row ("already handled"): it is
+    not tagged, booked or matched until someone restores it."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "This transaction was dismissed as already handled. "
+            "Restore it first."
+        )
+
+
 def _refuse_locked_line(db: Session, line_id: int | None) -> None:
     """A locked day is view only: the line a transaction already
     booked there can't be removed (re-tag or untag) until the day is
@@ -181,6 +192,7 @@ def categorize_transaction(
     report_date: date | None = None,
     report_date_explicit: bool = False,
     is_daily_book_kind: Callable[[str], bool] | None = None,
+    match: bool = True,
 ) -> BankTransaction:
     """Set the transaction's category, booking a daily-book line
     item when the category is a line-item kind and `post_to_daily`
@@ -201,17 +213,52 @@ def categorize_transaction(
     next re-tag. Left False, a stored override from an earlier
     choice still applies; see `booking_date_for`.
 
-    Raises `DailyBookLockedError` when the target day is locked.
+    With matching on for the store (`reconcile.matching_enabled`), a
+    matchable kind first looks for the same money already on the
+    daily book: a sure match is LINKED instead of booked, a possible
+    one books nothing and waits for a person. See INVARIANTS.md
+    "Matching".
+
+    `match=False` is for a caller that links the entries itself (a
+    person picking them on the Bank page).
+
+    Raises `TransactionDismissedError` for a dismissed row and
+    `DailyBookLockedError` when the target day is locked.
     The category is NOT applied in that case — the caller decides
     whether to retry without booking (the rule engine does) or to
     surface the lock (the manual endpoint does).
     """
+    from api.Modules.BankSync.Services import reconcile
+
+    if txn.dismissed_at is not None:
+        raise TransactionDismissedError()
     predicate = is_daily_book_kind or _registry_is_daily_book_kind
     wants_booking = bool(post_to_daily and target_kind and predicate(target_kind))
 
     line_date = booking_date_for(
         txn, report_date, explicit=report_date_explicit,
     )
+
+    # Match first, then post (INVARIANTS.md "Matching"). When the
+    # store has matching on and the money is already on the daily
+    # book — a sure match links it, a possible one waits for a
+    # person — nothing is booked. Decided BEFORE the lock check: a
+    # link moves no money, so a locked day does not stop it.
+    kind_changes = (txn.category_slug or "") != (target_kind or "")
+    sure_lines: list[DailyLineItem] = []
+    if (
+        match
+        and target_kind in reconcile.MATCH_RULES
+        and reconcile.matching_enabled(db, int(txn.store_id))
+    ):
+        if not kind_changes and reconcile.matched_lines(db, txn):
+            wants_booking = False
+        else:
+            sure, cands = reconcile.sure_match(db, txn, slug=target_kind)
+            if sure is not None:
+                sure_lines = sure.lines
+            if sure is not None or cands:
+                wants_booking = False
 
     # Check the lock BEFORE touching anything so a refused booking
     # leaves the row exactly as it was — the stored override
@@ -240,6 +287,11 @@ def categorize_transaction(
     if wants_booking:
         book_to_daily(db, txn, target_kind, report_date=line_date)
     _remove_line(db, old_line_id)
+    # Matches belong to the kind they were made for.
+    if kind_changes:
+        reconcile.drop_matches_for_txn(db, txn)
+    if sure_lines:
+        reconcile.link(db, txn, sure_lines, method="auto")
     return txn
 
 
@@ -251,8 +303,13 @@ def uncategorize_transaction(
     row is back to untouched, so a later tag starts from the bank's
     date again. Raises `DailyBookLockedError` when the booked line
     sits on a locked day. Caller commits."""
+    from api.Modules.BankSync.Services import reconcile
+
+    if txn.dismissed_at is not None:
+        raise TransactionDismissedError()
     _refuse_locked_line(db, txn.daily_line_item_id)
     unbook_from_daily(db, txn)
+    reconcile.drop_matches_for_txn(db, txn)
     txn.category_slug = ""
     txn.matched_rule_id = None
     txn.report_date_override = None

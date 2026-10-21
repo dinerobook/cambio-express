@@ -47,7 +47,7 @@ RBAC_RESOURCES = [
     "transfers", "customers", "daily_book", "monthly",
     "batches", "bank_sync", "reports", "settings",
     "users", "time_clock", "return_checks", "lottery",
-    "day_close", "catalog", "day_lock",
+    "day_close", "catalog", "day_lock", "bank_dismiss",
 ]
 RBAC_ACTIONS = ["create", "read", "update", "delete"]
 
@@ -58,6 +58,9 @@ RBAC_ACTIONS = ["create", "read", "update", "delete"]
 # never written, granted, implied or shown — see ``actions_for``.
 RBAC_RESOURCE_ACTIONS: dict[str, list[str]] = {
     "day_lock": ["update"],
+    # "Dismiss bank transactions" (already handled, leave them).
+    # Admin by default; employees only when an admin grants it.
+    "bank_dismiss": ["update"],
 }
 
 
