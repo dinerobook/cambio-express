@@ -340,7 +340,9 @@ describe("Who sees what", () => {
 
 describe("Money in the daily book twice", () => {
   const DOUBLE: PossibleDouble = {
-    transaction: txn({ id: 21, description: "ATM DEPOSIT 21" }),
+    transaction: txn({
+      id: 21, description: "ATM DEPOSIT 21", books_status: "added",
+    }) as PossibleDouble["transaction"],
     typed_entry: { ...ENTRY, id: 80, report_date: "2026-10-02" },
     bank_entry: { ...ENTRY, id: 81, report_date: "2026-10-03", note: "ATM DEPOSIT 21" },
   };
