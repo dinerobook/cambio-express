@@ -109,7 +109,8 @@ def update_store_info(
             # the two CSV columns. ValueError propagates to the
             # controller's 422 like every other validation here.
             from api.Modules.Transfers.Services import (
-                encode_mt_companies, encode_mt_money_orders_off,
+                encode_money_order_charges, encode_mt_companies,
+                encode_mt_money_orders_off, store_money_order_charges,
                 store_mt_company_roster,
             )
             # Names already on the roster are grandfathered past the
@@ -123,6 +124,9 @@ def update_store_info(
             setattr(store, "companies_disabled", disabled_csv)
             setattr(store, "companies_money_orders_off",
                     encode_mt_money_orders_off(v))
+            setattr(store, "money_order_charges", encode_money_order_charges(
+                v, store_money_order_charges(store),
+            ))
             continue
         if k == "transfer_countries":
             from api.Modules.Transfers.Services import (

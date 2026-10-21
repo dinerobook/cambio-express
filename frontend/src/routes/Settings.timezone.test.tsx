@@ -89,6 +89,12 @@ describe("Settings → General timezone", () => {
     await waitFor(() => expect(updateStoreInfo).toHaveBeenCalledWith(
       expect.objectContaining({ timezone: "America/Chicago" }),
     ));
+    // The company roster and countries live on Settings → Money
+    // services now; General's save must never send (and so never
+    // overwrite) them.
+    const body = updateStoreInfo.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty("mt_companies");
+    expect(body).not.toHaveProperty("transfer_countries");
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({
       queryKey: ["account", "session-status"],
     }));

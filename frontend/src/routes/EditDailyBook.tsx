@@ -28,7 +28,7 @@ import {
   SERVICE_KINDS,
 } from "../api/dailybook";
 import { useSessionStatus, useStoreInfo } from "../api/account";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   addDaysIso, formatDateTime, formatDayLabel, formatTime, parseTimestamp,
 } from "../lib/datetime";
@@ -1250,7 +1250,10 @@ function FeesWidget({
 // Money In. INVARIANTS.md "Services".
 type ServicesTab = "transfer" | ServiceKind;
 
-interface ServiceDraft { amount: number; fees: number }
+// `count` is how many were sold — money orders only, where the
+// Monthly P&L takes each company's charge per money order off the
+// fees (Settings → Money services). Not money, in no total.
+interface ServiceDraft { amount: number; fees: number; count?: number }
 
 const svcKey = (service: ServiceKind, company: string) => `${service}|${company}`;
 
@@ -1291,7 +1294,9 @@ function ServicesWidget({
     for (const r of breakdown.data?.rows ?? []) next.set(r.company, draftFromRow(r));
     const nextSvc = new Map<string, ServiceDraft>();
     for (const s of breakdown.data?.services ?? []) {
-      nextSvc.set(svcKey(s.service, s.company), { amount: s.amount, fees: s.fees });
+      nextSvc.set(svcKey(s.service, s.company), {
+        amount: s.amount, fees: s.fees, count: s.count ?? 0,
+      });
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local draft state from server payload
     setDrafts(next);
@@ -1408,8 +1413,12 @@ function ServicesWidget({
           const d = svcDraft(k.key, co);
           const amount = Number(d.amount) || 0;
           const fees = Number(d.fees) || 0;
-          if (amount !== 0 || fees !== 0) {
-            writeServices.push({ company: co, service: k.key, amount, fees });
+          const count = k.key === "money_order" ? Number(d.count) || 0 : 0;
+          if (amount !== 0 || fees !== 0 || count !== 0) {
+            writeServices.push({
+              company: co, service: k.key, amount, fees,
+              ...(count > 0 ? { count } : {}),
+            });
           }
         }
       }
@@ -1551,6 +1560,12 @@ function ServicesWidget({
                         <thead>
                           <tr>
                             <th className={styles.mtTh}>Company</th>
+                            {activeService === "money_order" && (
+                              <th className={`${styles.mtTh} ${styles.mtThNum}`}>
+                                # sold
+                                <InfoTip text="How many money orders this company sold today. Optional. The Monthly P&L takes the company's charge per money order (Settings → Money services) off your money order fees." />
+                              </th>
+                            )}
                             <th className={`${styles.mtTh} ${styles.mtThNum}`}>Amount</th>
                             <th className={`${styles.mtTh} ${styles.mtThNum}`}>Fee</th>
                             <th className={`${styles.mtTh} ${styles.mtThNum}`}>Total</th>
@@ -1565,6 +1580,14 @@ function ServicesWidget({
                                   <span style={{ color: companyAccent(co) }}>•</span>{" "}
                                   {co}
                                 </td>
+                                {activeService === "money_order" && (
+                                  <MTCountInput
+                                    value={d.count ?? 0}
+                                    onChange={(v) => setSvcCell(activeService, co, "count", v)}
+                                    locked={locked}
+                                    label={`${co} money orders sold`}
+                                  />
+                                )}
                                 <MTCellInput
                                   value={d.amount}
                                   onChange={(v) => setSvcCell(activeService, co, "amount", v)}
@@ -1585,6 +1608,12 @@ function ServicesWidget({
                         <tfoot>
                           <tr>
                             <td className={`${styles.mtTd} ${styles.mtTdStrong}`}>TOTAL</td>
+                            {activeService === "money_order" && (
+                              <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
+                                {fmtNumber(companiesFor(activeService).reduce(
+                                  (s, co) => s + (Number(svcDraft(activeService, co).count) || 0), 0))}
+                              </td>
+                            )}
                             <td className={`${styles.mtTd} ${styles.mtTdNum} ${styles.mtTdNumMuted}`}>
                               {fmtMoney2(companiesFor(activeService).reduce(
                                 (s, co) => s + (Number(svcDraft(activeService, co).amount) || 0), 0))}
@@ -1751,6 +1780,38 @@ function MTCellInput({
         prefix=""
         fullWidth
         aria-label={label}
+      />
+    </td>
+  );
+}
+
+/** A whole-number cell (money orders sold). Empty means 0; never
+ *  negative — the server refuses a negative count too. */
+function MTCountInput({
+  value, onChange, locked, label,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+  locked: boolean;
+  label: string;
+}) {
+  return (
+    <td className={`${styles.mtCellTd} ${styles.mtCountTd}`}>
+      <Input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        step={1}
+        value={value ? String(value) : ""}
+        placeholder="0"
+        onChange={(e) => {
+          const n = Math.floor(Number(e.target.value));
+          onChange(Number.isFinite(n) && n > 0 ? n : 0);
+        }}
+        onWheel={(e) => (e.target as HTMLInputElement).blur()}
+        disabled={locked}
+        aria-label={label}
+        className={styles.mtCountInput}
       />
     </td>
   );

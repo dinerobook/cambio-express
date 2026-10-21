@@ -6,7 +6,9 @@ import { api, ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 
 export interface MonthlyRow {
-  id: number;
+  /** Null until someone saves the month (`saved` is false): the
+   *  figures are still live from the daily books and bank feed. */
+  id: number | null;
   store_id: number;
   year: number;
   month: number;
@@ -22,6 +24,8 @@ export interface MonthlyRow {
   other_income_1: number;
   other_income_2: number;
   other_income_3: number;
+  /** Daily-book income with no stored column — read-only. */
+  money_order_fees: number;
   cash_purchases: number;
   check_purchases: number;
   cash_expenses: number;
@@ -53,12 +57,113 @@ export interface MonthlyRow {
   /** Columns the bank feed fills this month — rendered read-only,
    *  ignored by the server on save. */
   bank_locked: string[];
+  /** Every line whose figure comes from the daily books this month
+   *  (and not the bank) — read-only, "From daily book". */
+  daily_fed: string[];
+  /** Distinct days entered in either daily book this month. */
+  days_entered: number;
+  /** Money orders counted this month, and what the companies charge
+   *  for them — already taken off `money_order_fees`. */
+  money_order_count: number;
+  money_order_charges: number;
+  /** False until someone saves the month. */
+  saved: boolean;
 }
+
+// ── The P&L's lines, in order ───────────────────────────────
+//
+// One list for the P&L page and the edit form. `label` is the
+// FALLBACK: a store can rename most lines (/monthly/categories) and
+// the server sends its names with the month. `editable` lines are
+// the ones the PUT takes; the rest are always filled by the server.
+// "Cash flow" lines are adjustments: the first three count in total
+// expenses (legacy P&L convention), cash carry forward counts in
+// neither total.
+
+export type MonthlySection = "Income" | "Expenses" | "Cash flow";
+
+export interface MonthlyLine {
+  key: keyof MonthlyRow & string;
+  label: string;
+  section: MonthlySection;
+  editable: boolean;
+}
+
+function line(
+  key: MonthlyLine["key"], label: string, section: MonthlySection,
+  editable = true,
+): MonthlyLine {
+  return { key, label, section, editable };
+}
+
+export const MONTHLY_LINES: MonthlyLine[] = [
+  line("taxable_sales",          "Taxable sales",          "Income"),
+  line("non_taxable",            "Non-taxable",            "Income"),
+  line("money_order_fees",       "Money order fees",       "Income", false),
+  line("bill_payment_charge",    "Bill payment charge",    "Income"),
+  line("phone_recargas",         "Phone recargas",         "Income"),
+  line("boost_mobile",           "Boost Mobile",           "Income"),
+  line("check_cashing_fees",     "Check cashing fees",     "Income", false),
+  line("return_check_hold_fees", "Return check hold fees", "Income"),
+  line("rebates_commissions",    "Rebates / commissions",  "Income"),
+  line("mt_commission_in_bank",  "Money transfer commission in bank", "Income"),
+  line("other_income_1",         "Other income 1",         "Income"),
+  line("other_income_2",         "Other income 2",         "Income"),
+  line("other_income_3",         "Other income 3",         "Income"),
+
+  line("cash_purchases",      "Cash purchases",   "Expenses", false),
+  line("check_purchases",     "Check purchases",  "Expenses", false),
+  line("cash_expenses",       "Cash expenses",    "Expenses", false),
+  line("check_expenses",      "Check expenses",   "Expenses", false),
+  line("cash_payroll",        "Cash payroll",     "Expenses", false),
+  line("check_payroll",       "Check payroll",    "Expenses", false),
+  line("bank_charges_total",  "Bank charges",     "Expenses"),
+  line("credit_card_fees",    "Credit card fees", "Expenses"),
+  line("money_order_rent",    "Money order rent", "Expenses"),
+  line("emaginenet_tech",     "EmagineNet / tech", "Expenses"),
+  line("irs_payroll_tax",     "IRS payroll tax",  "Expenses"),
+  line("texas_workforce",     "Texas workforce",  "Expenses"),
+  line("other_taxes",         "Other taxes",      "Expenses"),
+  line("accounting_charges",  "Accounting charges", "Expenses"),
+  line("return_check_gl",     "Returned check gain/loss", "Expenses", false),
+  line("other_expense_1",     "Other expense 1",  "Expenses"),
+  line("other_expense_2",     "Other expense 2",  "Expenses"),
+  line("other_expense_3",     "Other expense 3",  "Expenses"),
+  line("other_expense_4",     "Other expense 4",  "Expenses"),
+  line("other_expense_5",     "Other expense 5",  "Expenses"),
+
+  line("over_short",            "Over / short",          "Cash flow"),
+  line("borrowed_money_return", "Borrowed money return", "Cash flow"),
+  line("profit_distributed",    "Profit distributed",    "Cash flow"),
+  line("cash_carry_forward",    "Cash carry forward",    "Cash flow"),
+];
+
+/** Where one line's figure comes from this month. */
+export type MonthlyLineSource = "daily" | "bank" | "returns" | "typed";
+
+export function monthlyLineSource(
+  r: MonthlyRow, key: string,
+): MonthlyLineSource {
+  // `?? []`: a response cached from before the daily feed shipped
+  // has no `daily_fed`.
+  if ((r.bank_locked ?? []).includes(key)) return "bank";
+  if ((r.daily_fed ?? []).includes(key)) return "daily";
+  if (key === "return_check_gl") return "returns";
+  return "typed";
+}
+
+export const MONTHLY_SOURCE_LABELS: Record<MonthlyLineSource, string> = {
+  daily: "Daily book",
+  bank: "Bank",
+  returns: "Return checks",
+  typed: "Typed",
+};
 
 /** A month, plus the store's own name for each P&L line. The
  *  labels ride along with the month so the form never renders
  *  "Other expense 1" for a beat before a second request corrects
- *  it. `report` is null when the month has no row yet. */
+ *  it. `report` is null only when nothing feeds the month: no saved
+ *  row, no daily book day, no bank or return-check activity. */
 export interface MonthlyDetail {
   report: MonthlyRow | null;
   labels: Record<string, string>;

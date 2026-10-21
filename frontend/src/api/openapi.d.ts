@@ -9754,6 +9754,8 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /** Money Order Charge */
+            money_order_charge?: number | null;
             /**
              * Money Orders
              * @default true
@@ -9776,6 +9778,8 @@ export interface components {
             amount: number;
             /** Company */
             company: string;
+            /** Count */
+            count?: number | null;
             /**
              * Fees
              * @default 0
@@ -9990,17 +9994,42 @@ export interface components {
              */
             credit_card_fees: number;
             /**
+             * Daily Fed
+             * @default []
+             */
+            daily_fed: string[];
+            /**
+             * Days Entered
+             * @default 0
+             */
+            days_entered: number;
+            /**
              * Emaginenet Tech
              * @default 0
              */
             emaginenet_tech: number;
             /** Id */
-            id: number;
+            id?: number | null;
             /**
              * Irs Payroll Tax
              * @default 0
              */
             irs_payroll_tax: number;
+            /**
+             * Money Order Charges
+             * @default 0
+             */
+            money_order_charges: number;
+            /**
+             * Money Order Count
+             * @default 0
+             */
+            money_order_count: number;
+            /**
+             * Money Order Fees
+             * @default 0
+             */
+            money_order_fees: number;
             /**
              * Money Order Rent
              * @default 0
@@ -10103,6 +10132,11 @@ export interface components {
              * @default 0
              */
             return_check_hold_fees: number;
+            /**
+             * Saved
+             * @default true
+             */
+            saved: boolean;
             /** Store Id */
             store_id: number;
             /**
@@ -22246,7 +22280,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22286,7 +22320,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22326,7 +22360,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22366,7 +22400,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22406,7 +22440,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22446,7 +22480,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22486,7 +22520,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22526,7 +22560,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22566,7 +22600,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22606,7 +22640,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22646,7 +22680,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22687,7 +22721,7 @@ export interface operations {
                 threshold?: number;
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22727,7 +22761,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22769,7 +22803,7 @@ export interface operations {
                 compare_to?: string | null;
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22809,7 +22843,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22849,7 +22883,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22889,7 +22923,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22929,7 +22963,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -22969,7 +23003,7 @@ export interface operations {
             query: {
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -23012,7 +23046,7 @@ export interface operations {
                 limit?: number;
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;
@@ -23053,7 +23087,7 @@ export interface operations {
                 limit?: number;
                 /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
                 from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today. */
+                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
                 to?: string | null;
                 /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
                 store_ids: string;

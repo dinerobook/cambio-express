@@ -165,6 +165,14 @@ nullable `tenancy_store.companies_money_orders_off` CSV (NULL / empty
 = every company sells them, so no store loses the tab on deploy) —
 plus any company that already has a saved money order row that day.
 
+Each Money orders row also takes an optional **count** (how many
+were sold, `msb_mt_service.item_count`, NULL when not typed). It is
+not money and is in no daily total; the Monthly P&L multiplies it by
+the company's charge per money order (Settings → Money services) and
+takes that off the money order fees (Monthly/INVARIANTS.md
+"Category 2c"). A row is kept when its amount, fee OR count is
+non-zero; a negative count is a 422.
+
 Older days are untouched: their `money_order` line items (column
 `money_order`) and typed `money_order_fees` still count in
 `total_receipts` exactly as before, and the tab shows them under
@@ -406,8 +414,8 @@ Rules:
   the stored column (`forward_balance_auto` defaults `False` there).
   Fine because the value was forced-correct at each day's save.
 - **`forward_balance` does NOT feed the Monthly P&L.** Monthly's
-  `_DAILY_DERIVED_FIELDS` sums only cash/check purchases + expenses,
-  payroll, and check-cashing fees — never `forward_balance`,
+  `Services/daily_feed.py` sums purchases, expenses, payroll, sales
+  and fee lines (see Monthly/INVARIANTS.md "Daily feed") — never `forward_balance`,
   `safe_balance`, or `outside_cash_drops`. So the carry only affects
   the daily book's own receipts / net / over-short display.
 

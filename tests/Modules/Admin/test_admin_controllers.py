@@ -765,9 +765,9 @@ def test_put_store_info_saves_company_roster(client, test_store_id):
     assert resp.status_code == 200
     roster = resp.get_json()["store"]["mt_companies"]
     assert roster == [
-        {"name": "Intermex", "enabled": True,  "money_orders": True},
-        {"name": "Maxi",     "enabled": False, "money_orders": True},
-        {"name": "Sigue",    "enabled": True,  "money_orders": True},
+        {"name": "Intermex", "enabled": True,  "money_orders": True, "money_order_charge": 0.0},
+        {"name": "Maxi",     "enabled": False, "money_orders": True, "money_order_charge": 0.0},
+        {"name": "Sigue",    "enabled": True,  "money_orders": True, "money_order_charge": 0.0},
     ]
     # The active list (what the daily book + transfer form see)
     # excludes the toggled-off company.
@@ -795,6 +795,7 @@ def test_put_store_info_saves_money_order_switch(client, test_store_id):
     assert resp.status_code == 200
     assert resp.get_json()["store"]["mt_companies"][1] == {
         "name": "Maxi", "enabled": True, "money_orders": False,
+        "money_order_charge": 0.0,
     }
     with db_session():
         store = db.session.get(Store, test_store_id)

@@ -15,7 +15,8 @@ import { TEST_ADMIN } from "../test/setup";
 //     (cash_purchases, cash_expenses, check_cashing_fees, payroll,
 //     return_check_gl, totals) are the 422 trap: they must NEVER be
 //     in the PUT body.
-//   - A bank-fed column is read-only and is not sent either.
+//   - A bank-fed column is read-only and is not sent either; so is a
+//     line the daily books fill this month (`daily_fed`).
 //   - The store's own line names are what the operator reads.
 //   - A refused save shows the server's reason and stays on the page.
 
@@ -73,6 +74,9 @@ const DERIVED = [
   "cash_payroll", "check_payroll", "check_cashing_fees", "return_check_gl",
   "total_income", "total_expenses", "net_profit", "bank_locked",
   "id", "store_id", "year", "month",
+  // The daily feed's own lines and flags.
+  "money_order_fees", "money_order_count", "money_order_charges",
+  "daily_fed", "days_entered", "saved",
 ];
 
 describe("EditMonthly", () => {
@@ -164,11 +168,35 @@ describe("EditMonthly", () => {
     expect(bank).toHaveValue("18.5");
     expect(bank).toHaveAttribute("readonly");
     expect(bank).toBeDisabled();
-    expect(screen.getByText(/From bank/)).toBeInTheDocument();
+    expect(screen.getByText(/From bank: summed/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(updateMonthly).toHaveBeenCalled());
     expect(updateMonthly.mock.calls[0][2]).not.toHaveProperty("bank_charges_total");
+  });
+
+  it("shows a daily-book line read-only with its live figure and does not send it", async () => {
+    useMonthly.mockReturnValue({
+      data: {
+        ...detail,
+        report: { ...detail.report, money_order_fees: 9, daily_fed: ["taxable_sales", "money_order_fees"] },
+      },
+      isLoading: false, isFetching: false, isError: false,
+    });
+    renderPage();
+    const sales = screen.getByLabelText(/^\$?\s*Taxable sales/);
+    expect(sales).toHaveValue("1000");
+    expect(sales).toBeDisabled();
+    expect(screen.getByText(/From daily book: change it/)).toBeInTheDocument();
+    // A line the daily book does not fill stays typed.
+    expect(screen.getByLabelText(/^\$?\s*Non-taxable/)).not.toBeDisabled();
+    // Money order fees are never a form field.
+    expect(screen.queryByLabelText(/Money order fees/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateMonthly).toHaveBeenCalled());
+    expect(updateMonthly.mock.calls[0][2]).not.toHaveProperty("taxable_sales");
+    expect(updateMonthly.mock.calls[0][2]).toHaveProperty("non_taxable", 0);
   });
 
   it("leaves a bank-charges column editable when the bank does not feed it", async () => {

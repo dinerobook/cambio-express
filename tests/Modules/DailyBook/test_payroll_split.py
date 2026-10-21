@@ -19,9 +19,11 @@ def test_monthly_check_payroll_derives_from_daily(test_store_id):
     the check-payroll kind (checks skip the daily book but must hit
     the P&L)."""
     from api.Modules.DailyBook.Models import DailyReport
-    from api.Modules.Monthly.Services.write import _DAILY_DERIVED_FIELDS, _sum_daily
+    from api.Modules.Monthly.Services import (
+        DAILY_DERIVED_FIELDS, daily_feed_for_month,
+    )
 
-    assert _DAILY_DERIVED_FIELDS["check_payroll"] == "payroll_check"
+    assert ("msb", "payroll_check") in DAILY_DERIVED_FIELDS["check_payroll"]
     with db_session():
         db.session.add(DailyReport(
             store_id=test_store_id, report_date=date(2026, 4, 3),
@@ -37,10 +39,8 @@ def test_monthly_check_payroll_derives_from_daily(test_store_id):
             payroll_check=999.0,
         ))
         db.session.commit()
-        assert _sum_daily(
-            db.session, test_store_id, 2026, 4,
-            daily_field="payroll_check",
-        ) == 2000.0
+        feed = daily_feed_for_month(db.session, test_store_id, 2026, 4)
+        assert feed.derived["check_payroll"] == 2000.0
 
 
 def test_check_payroll_in_monthly_total_expenses(test_store_id):

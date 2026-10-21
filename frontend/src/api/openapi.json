@@ -6851,6 +6851,19 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "money_order_charge": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Money Order Charge"
+          },
           "money_orders": {
             "default": true,
             "title": "Money Orders",
@@ -6880,6 +6893,18 @@
           "company": {
             "title": "Company",
             "type": "string"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
           },
           "fees": {
             "default": 0.0,
@@ -7251,18 +7276,53 @@
             "title": "Credit Card Fees",
             "type": "number"
           },
+          "daily_fed": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Daily Fed",
+            "type": "array"
+          },
+          "days_entered": {
+            "default": 0,
+            "title": "Days Entered",
+            "type": "integer"
+          },
           "emaginenet_tech": {
             "default": 0.0,
             "title": "Emaginenet Tech",
             "type": "number"
           },
           "id": {
-            "title": "Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
           },
           "irs_payroll_tax": {
             "default": 0.0,
             "title": "Irs Payroll Tax",
+            "type": "number"
+          },
+          "money_order_charges": {
+            "default": 0.0,
+            "title": "Money Order Charges",
+            "type": "number"
+          },
+          "money_order_count": {
+            "default": 0,
+            "title": "Money Order Count",
+            "type": "integer"
+          },
+          "money_order_fees": {
+            "default": 0.0,
+            "title": "Money Order Fees",
             "type": "number"
           },
           "money_order_rent": {
@@ -7369,6 +7429,11 @@
             "title": "Return Check Hold Fees",
             "type": "number"
           },
+          "saved": {
+            "default": true,
+            "title": "Saved",
+            "type": "boolean"
+          },
           "store_id": {
             "title": "Store Id",
             "type": "integer"
@@ -7399,7 +7464,6 @@
           }
         },
         "required": [
-          "id",
           "store_id",
           "year",
           "month"
@@ -33140,7 +33204,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -33153,7 +33217,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -33250,7 +33314,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -33263,7 +33327,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -33360,7 +33424,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -33373,7 +33437,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -33470,7 +33534,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -33483,7 +33547,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -33580,7 +33644,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -33593,7 +33657,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -33692,7 +33756,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -33705,7 +33769,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -33802,7 +33866,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -33815,7 +33879,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -33914,7 +33978,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -33927,7 +33991,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34024,7 +34088,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34037,7 +34101,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34134,7 +34198,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34147,7 +34211,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34244,7 +34308,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34257,7 +34321,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34365,7 +34429,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34378,7 +34442,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34475,7 +34539,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34488,7 +34552,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34617,7 +34681,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34630,7 +34694,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34727,7 +34791,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34740,7 +34804,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34837,7 +34901,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34850,7 +34914,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -34947,7 +35011,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -34960,7 +35024,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -35059,7 +35123,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -35072,7 +35136,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -35171,7 +35235,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -35184,7 +35248,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -35308,7 +35372,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -35321,7 +35385,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },
@@ -35432,7 +35496,7 @@
             }
           },
           {
-            "description": "End date in YYYY-MM-DD. Defaults to today.",
+            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
             "in": "query",
             "name": "to",
             "required": false,
@@ -35445,7 +35509,7 @@
                   "type": "null"
                 }
               ],
-              "description": "End date in YYYY-MM-DD. Defaults to today.",
+              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
               "title": "To"
             }
           },

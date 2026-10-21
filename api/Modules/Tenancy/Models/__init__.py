@@ -122,6 +122,11 @@ class Store(Base):
     # switch keep the Money orders tab exactly as before. Resolve via
     # store_money_order_companies — never read raw.
     companies_money_orders_off = Column(String(500), nullable=True)
+    # JSON {company: dollars} — what each company charges the store per
+    # money order (Settings → Money services). The Monthly P&L takes
+    # count × charge off the money order fees. NULL = no charges set.
+    # Read via Transfers.Services.store_money_order_charges.
+    money_order_charges = Column(Text, nullable=True)
     # The store's countries for the transfer form's country picker
     # (Settings → General → Transfer countries), CSV in display order.
     # NULL / empty = the built-in list the form always showed, so a

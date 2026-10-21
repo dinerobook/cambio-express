@@ -11,6 +11,14 @@ from api.Modules.Monthly.Services.labels import (
     resolved_line_labels,
     set_line_labels,
 )
+from api.Modules.Monthly.Services.daily_feed import (
+    DAILY_DERIVED_FIELDS,
+    DAILY_EXTRA_INCOME,
+    DAILY_FED_FIELDS,
+    DailyFeed,
+    daily_feed_for_month,
+    months_with_daily_entries,
+)
 from api.Modules.Monthly.Services.monthly import (
     MonthlySummary,
     summarize_monthly,
@@ -21,6 +29,12 @@ from api.Modules.Monthly.Services.write import (
 )
 
 __all__ = [
+    "DAILY_DERIVED_FIELDS",
+    "DAILY_EXTRA_INCOME",
+    "DAILY_FED_FIELDS",
+    "DailyFeed",
+    "daily_feed_for_month",
+    "months_with_daily_entries",
     "EDITABLE_MONTHLY_FIELDS",
     "MAX_LABEL_LEN",
     "MONTHLY_LINE_DEFAULTS",

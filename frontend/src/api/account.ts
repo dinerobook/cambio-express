@@ -181,7 +181,8 @@ export interface StoreInfoRow {
   ein:              string;
   business_address: string;
   mt_companies:     MTCompanyEntry[];
-  /** The transfer form's countries, in order (Settings → General). */
+  /** The transfer form's countries, in order (Settings → Money
+   *  services). */
   transfer_countries: string[];
 }
 
@@ -195,6 +196,10 @@ export interface MTCompanyEntry {
   /** Sells money orders: listed on the daily book's Money orders
    *  tab. Every company starts with it on. */
   money_orders: boolean;
+  /** What the company charges the store per money order, in
+   *  dollars. The Monthly P&L takes count × charge off the money
+   *  order fees. Omitted on a save keeps the saved value. */
+  money_order_charge?: number | null;
 }
 
 export interface StoreHourEntry {

@@ -10,7 +10,9 @@ class MonthlyRow(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id: int
+    # None for a month nobody has saved yet: the figures are still
+    # live from the daily books / bank feed (`saved` is False).
+    id: int | None = None
     store_id: int
     year: int
     month: int
@@ -27,6 +29,10 @@ class MonthlyRow(BaseModel):
     other_income_1:         float = 0.0
     other_income_2:         float = 0.0
     other_income_3:         float = 0.0
+    # Daily-book income with no stored column — read-only, always
+    # summed live from the daily book (Monthly/Services/daily_feed).
+    # Net of the companies' per-order charges below.
+    money_order_fees:       float = 0.0
     # Expense side
     cash_purchases:         float = 0.0
     check_purchases:        float = 0.0
@@ -62,6 +68,19 @@ class MonthlyRow(BaseModel):
     # server ignores them on PUT. Empty for stores without bank
     # sync or months with no tagged rows.
     bank_locked:            list[str] = []
+    # Every line whose figure comes from the daily books this month
+    # (and not the bank). Read-only on the form like `bank_locked`;
+    # the server writes the daily figure on save.
+    daily_fed:              list[str] = []
+    # Distinct days entered in either daily book this month.
+    days_entered:           int = 0
+    # Money orders counted this month and what the companies charge
+    # for them — already taken off `money_order_fees`; for display.
+    money_order_count:      int = 0
+    money_order_charges:    float = 0.0
+    # False until someone saves the month: nothing is stored yet,
+    # every figure above is live.
+    saved:                  bool = True
 
 
 class MonthlyResponse(BaseModel):

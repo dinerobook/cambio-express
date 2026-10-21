@@ -11,7 +11,7 @@ Three sweeps:
   2. **Bedrock formula**: `total_income`, `total_expenses`,
      `net_profit` pinned to the documented math.
   3. **Daily-derived auto-fill**: parametrized over the
-     `_DAILY_DERIVED_FIELDS` mapping — each monthly column equals
+     `DAILY_DERIVED_FIELDS` mapping — each monthly column equals
      the sum of its corresponding daily column over the month.
 
 If you change any of these, change the doc + the test together.
@@ -217,8 +217,8 @@ def test_net_profit_is_income_minus_expenses(client, test_store_id):
 
 # ── 3. Daily-derived auto-fill sweep ────────────────────────
 #
-# Parametrize over the `_DAILY_DERIVED_FIELDS` mapping (the
-# canonical registry in `Services/write.py`) so adding a new
+# Parametrize over the `DAILY_DERIVED_FIELDS` mapping (the
+# canonical registry in `Services/daily_feed.py`) so adding a new
 # auto-derived field just requires extending the registry +
 # this list — the test infrastructure stays the same.
 
@@ -243,7 +243,7 @@ def test_daily_derived_field_sums_from_ledger(
 ):
     """Every Category-2 field equals the sum of its DailyReport
     column over the month. Pinned per-field so a typo in
-    `_DAILY_DERIVED_FIELDS` (e.g. an off-by-one on the daily
+    `DAILY_DERIVED_FIELDS` (e.g. an off-by-one on the daily
     column name) shows up as a per-field assertion failure, not a
     cryptic aggregate mismatch."""
     from api.Modules.Monthly.Models import MonthlyFinancial

@@ -27,12 +27,16 @@ sells them, so `Store.companies_money_orders_off` holds the subset of
 the roster that does NOT. Empty means every company sells them (the
 default, so the daily book's Money orders tab is unchanged until a
 store switches a company off). `store_money_order_companies` is the
-active roster minus that subset.
+active roster minus that subset. `Store.money_order_charges` (JSON)
+holds what each company charges the store per money order, which the
+Monthly P&L takes off the money order fees
+(`store_money_order_charges`).
 
 Pure functions — no DB writes, no I/O. The write path goes through
 `update_store_info` (Admin Services), which encodes via
 `encode_mt_companies` below.
 """
+import json
 from typing import Any
 
 
@@ -112,6 +116,55 @@ def store_money_order_companies(store: Any) -> list[str]:
     the companies the daily book's Money orders tab lists."""
     off = _money_orders_off(store)
     return [c for c in store_mt_companies(store) if c.lower() not in off]
+
+
+def store_money_order_charges(store: Any) -> dict[str, float]:
+    """``{company: dollars}`` — what each company charges the store per
+    money order (`Store.money_order_charges` JSON). Keys are lower-cased
+    so a lookup survives a re-cased roster name. Bad or missing JSON
+    reads as no charges: this feeds a report, never a save."""
+    raw = getattr(store, "money_order_charges", None) if store else None
+    try:
+        data = json.loads(raw) if raw else {}
+    except (TypeError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out: dict[str, float] = {}
+    for name, value in data.items():
+        try:
+            charge = round(float(value), 4)
+        except (TypeError, ValueError):
+            continue
+        if charge > 0:
+            out[str(name).strip().lower()] = charge
+    return out
+
+
+def encode_money_order_charges(
+    entries: list[Any], existing: dict[str, float],
+) -> str | None:
+    """The ``money_order_charges`` JSON for a Settings payload. An entry
+    whose ``money_order_charge`` is missing (None) keeps the store's
+    saved charge, so a client that predates the field cannot wipe it;
+    0 clears it. ``None`` (NULL) when no company has a charge."""
+    out: dict[str, float] = {}
+    for e in entries:
+        if isinstance(e, dict):
+            name, charge = e.get("name"), e.get("money_order_charge")
+        else:
+            name = getattr(e, "name", None)
+            charge = getattr(e, "money_order_charge", None)
+        name = str(name or "").strip()
+        if not name:
+            continue
+        if charge is None:
+            charge = existing.get(name.lower(), 0)
+        if float(charge) < 0:
+            raise ValueError("A money order charge cannot be negative.")
+        if float(charge) > 0:
+            out[name] = round(float(charge), 4)
+    return json.dumps(out, sort_keys=True) if out else None
 
 
 def encode_mt_money_orders_off(entries: list[Any]) -> str:

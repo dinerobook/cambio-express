@@ -102,6 +102,7 @@ const SettingsGeneral = lazy(
     (m) => ({ default: m.SettingsGeneral }),
   ),
 );
+const SettingsMoneyServices = lazy(() => import("./routes/SettingsMoneyServices"));
 const SettingsBilling = lazy(
   () => import("./routes/Settings").then(
     (m) => ({ default: m.SettingsBilling }),
@@ -414,6 +415,7 @@ export default function App() {
             <Route index element={<Navigate to="profile" replace />} />
             <Route path="profile" element={<Gate><SettingsProfile /></Gate>} />
             <Route path="general" element={<Gate><SettingsGeneral /></Gate>} />
+            <Route path="money-services" element={<Gate><SettingsMoneyServices /></Gate>} />
             {/* Legacy /settings/team — cashier roster moved to
                 /admin/cashiers when HR became its own sidebar
                 section.  Keep a redirect for bookmarks. */}

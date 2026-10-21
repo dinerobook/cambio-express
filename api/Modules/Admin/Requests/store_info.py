@@ -36,6 +36,10 @@ class MTCompanyEntry(BaseModel):
     # Sells money orders: the company appears on the daily book's
     # Money orders tab. Missing = True (the default for every store).
     money_orders: bool = True
+    # What the company charges the store per money order, in dollars.
+    # The Monthly P&L takes count × charge off the money order fees.
+    # Missing (None) on a save keeps the saved charge; 0 clears it.
+    money_order_charge: float | None = Field(None, ge=0, le=100)
 
 
 class StoreInfoRow(BaseModel):

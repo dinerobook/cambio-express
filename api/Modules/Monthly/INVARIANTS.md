@@ -44,9 +44,9 @@ Two tables:
 | `msb_monthly_financial` | The per-month P&L row. ~30 numeric columns + `notes`. UNIQUE on `(store_id, year, month)`. |
 | `msb_monthly_line_label` | What ONE store calls one P&L line. `(store_id, field)` → `label`, UNIQUE. A display layer and nothing else. |
 
-That's it. Every other table the P&L cares about (`msb_daily_report`,
-`bank_transaction`, the return-check workflow) is read on save and
-the resulting sums are written into the matching columns here.
+That's it. Every other table the P&L cares about (both daily books,
+`bank_transaction`, the return-check workflow) is read live on every
+GET and its sums are written into the matching columns on save.
 
 
 ## Renaming a line — a label, never a column
@@ -120,36 +120,82 @@ before `setattr`).
 
 ### Category 2: Daily-ledger-derived (always locked)
 
-These columns are the **sum of `msb_daily_report` rows for the month**.
-The mapping is canonical in
-`api/Modules/Monthly/Services/write.py` :: `_DAILY_DERIVED_FIELDS`:
+These columns are the **sum of both daily books for the month** —
+the MSB daily book (`msb_daily_report`) and the Store daily book
+(`retail_store_daily_entry`). The map is canonical in
+`api/Modules/Monthly/Services/daily_feed.py` ::
+`DAILY_DERIVED_FIELDS`:
 
-| `MonthlyFinancial` field | `DailyReport` field | What it sums |
+| `MonthlyFinancial` field | MSB `DailyReport` | Store `StoreDailyEntry` |
 |---|---|---|
-| `cash_purchases`     | `cash_purchases`     | Cash drawer petty purchases |
-| `check_purchases`    | `check_purchases`    | Checks written for purchases |
-| `cash_expenses`      | `cash_expense`       | Cash paid for expenses (singular on DailyReport — historic) |
-| `check_expenses`     | `check_expense`      | Checks written for expenses |
-| `cash_payroll`       | `payroll_expense`    | Cash paid for payroll |
-| `check_payroll`      | `payroll_check`      | Payroll paid by check (skips the daily book's totals by design) |
-| `check_cashing_fees` | `check_cashing_fees` | Fee revenue from check cashing |
+| `cash_purchases`     | `cash_purchases`     | `paid_out_purchases` |
+| `check_purchases`    | `check_purchases`    | `check_paid_purchases` |
+| `cash_expenses`      | `cash_expense` (singular — historic) | `paid_out_expenses` |
+| `check_expenses`     | `check_expense`      | `check_paid_expenses` |
+| `cash_payroll`       | `payroll_expense`    | — |
+| `check_payroll`      | `payroll_check` (skips the daily book's totals by design) | `check_paid_payroll` |
+| `check_cashing_fees` | `check_cashing_fees` | `check_fees` |
 
-**These fields are NOT writable via the monthly PUT.** They get
-overwritten by `_sum_daily(...)` on every save. If you try to PUT
-them, the schema's `extra="forbid"` rejects with HTTP 422 — and
-that 422 is INTENTIONAL.
+**These fields are NOT writable via the monthly PUT.** If you try
+to PUT them, the schema's `extra="forbid"` rejects with HTTP 422 —
+and that 422 is INTENTIONAL.
 
-The contract is "**always trust the daily ledger, never the stored
-MonthlyFinancial value**". This means:
+**A month with no day in either book keeps its stored values** (a
+month saved before the store used the daily book must not read as
+zero). Once the month has one day entered, these lines are always
+the daily books' sums, on read and on save.
 
-- Re-saving the monthly P&L picks up fresh daily edits — even ones
-  made after the first save.
-- Backdating a daily-book entry (e.g. recording a missed cash
-  expense for the 5th in the middle of the month) automatically
-  flows into the locked column the next time the operator saves
-  the monthly.
-- Tampered PUT bodies that include any of these field names get
-  the whole payload rejected — not silently overwritten.
+### Category 2b: Daily-fed operator lines (conditionally locked)
+
+Operator-editable lines the daily books ALSO know. Same presence
+rule as the bank feed: the daily books win for a line only when
+their sum for it this month is non-zero; otherwise the typed value
+stands. `DAILY_FED_FIELDS` in `daily_feed.py`:
+
+| `MonthlyFinancial` field | Fed by |
+|---|---|
+| `taxable_sales` | MSB `taxable_sales` + Store `taxable_sales` |
+| `non_taxable` | MSB `non_taxable` + Store `non_taxable_sales` |
+| `bill_payment_charge` | MSB `bill_payment_charge` (retired box) + Services box `bill_payment` fees |
+| `phone_recargas` | MSB `phone_recargas` (retired box) + Services box `top_up` + `recharge` fees |
+| `boost_mobile` | MSB `boost_mobile` (retired box) |
+| `return_check_hold_fees` | MSB `return_check_hold_fees` |
+| `rebates_commissions` | MSB `rebates_commissions` |
+
+The read side lists them (with every Category 2 / 2c line, once the
+month has a day entered) in `MonthlyRow.daily_fed`; the SPA renders
+them read-only "From daily book" and leaves them out of the PUT. A
+stale client that sends one anyway is not refused (the column is in
+the schema so it can be typed in other months) — the server writes
+the daily figure over it on save. **The bank feed wins over the
+daily feed** for a bank-taggable line (`rebates_commissions`): a
+column in `bank_locked` is never in `daily_fed`.
+
+### Category 2c: Daily-book income with no column (read-only)
+
+`DAILY_EXTRA_INCOME` — income the daily book records that the P&L
+never had a column for. Never stored, never in the PUT, always
+summed live, counted in `total_income`:
+
+| `MonthlyRow` field | Fed by |
+|---|---|
+| `money_order_fees` | MSB `money_order_fees` (older days) + Services box `money_order` fees, **less** Σ per company of `msb_mt_service.item_count` × the company's charge per money order (`tenancy_store.money_order_charges`, Settings → Money services) |
+
+The money order rule (owner, 2026-10-20): what the store charges on
+top of a money order is its own; the company takes the face value
+plus its own per-order charge from the bank. A company with no charge
+set, or a day with no count typed, takes nothing off — so nothing
+changed for any store until it fills both in. `MonthlyRow` carries
+`money_order_count` / `money_order_charges` for display only; they
+are already inside `money_order_fees`.
+
+Send amounts, federal tax, money order face value and bill payment
+amounts pass through to the provider and are NOT income. **Money
+transfer fees are NOT income here either** (owner, 2026-10-20): the
+companies pay the store's share as a commission deposit at the start
+of the next month, which lands on `mt_commission_in_bank` (typed, or
+tagged from the bank with a rule). Counting the daily fees as well
+would count the same money twice.
 
 ### Category 3: Cross-table-derived
 
@@ -202,6 +248,26 @@ them. The SPA (`EditMonthly.tsx`) renders `bank_locked` columns
 read-only with a "from bank" hint and omits them from the PUT.
 
 
+## Daily feed — the P&L is read live
+
+`summarize_monthly` computes every line on READ, so one day entered
+in either daily book is enough for the month to show, and a day
+entered or a transaction tagged after the last save shows without a
+re-save. Precedence per line: bank feed → daily books (2, 2b, 2c) →
+the return-check workflow (when it has a figure) → the stored value.
+
+- **Pure read.** For a month nobody has saved, the summary carries
+  an unsaved placeholder row that is never added to the session;
+  `MonthlyRow.saved` is False and `id` is null. Nothing is
+  backfilled — a month is stored only when someone saves it.
+- **404 only when nothing feeds the month**: no saved row, no day in
+  either book, no tagged bank row, no return-check activity.
+- `GET /monthly/months` lists saved months AND months with a day in
+  either book.
+- The owner P&L roll-up and the dashboard's month KPI call
+  `summarize_monthly`, so they read the same live month.
+- `MonthlyRow.days_entered` counts distinct days in either book.
+
 ## The 422 trap — explicit DO-NOT-WRITE list
 
 Any code that constructs the monthly-P&L PUT body MUST NOT include
@@ -238,6 +304,7 @@ total_income = taxable_sales + non_taxable
              + check_cashing_fees + return_check_hold_fees
              + rebates_commissions + mt_commission_in_bank
              + other_income_1 + other_income_2 + other_income_3
+             + money_order_fees                          # 2c, live
 ```
 
 `MonthlySummary.total_expenses`:
@@ -282,7 +349,9 @@ The order of operations in `update_monthly` is:
 
 1. Apply operator-editable fields from the request body
    (`EDITABLE_MONTHLY_FIELDS` only).
-2. Overwrite every Category 2 field from `_sum_daily(...)`.
+2. Overwrite every Category 2 field (when the month has a day in
+   either book) and every Category 2b field the daily books have a
+   figure for, from `daily_feed_for_month(...)`.
 3. Overwrite `return_check_gl` from the workflow.
 4. Overwrite every bank-fed column the bank has data for this
    month (`bank_fed_fields`); accept the legacy manual
@@ -317,9 +386,10 @@ the dollar amounts (the P&L numbers are sensitive). Renaming lines
 
 The monthly P&L reads from:
 
-- **DailyBook** (`api/Modules/DailyBook/`): every Category 2 field
-  is `Σ DailyReport.<field>` for the month. Editing a daily row
-  changes the next monthly save's locked-field values.
+- **DailyBook** (`api/Modules/DailyBook/`) and **StoreBook**
+  (`api/Modules/StoreBook/`): Categories 2, 2b and 2c, summed live
+  by `Services/daily_feed.py`. Editing a daily row changes the P&L
+  on its next read.
 - **BankSync** (`api/Modules/BankSync/`): `bank_charges_total` =
   `Σ BankTransaction WHERE category_slug LIKE 'bank_charge%'` for
   the month (legacy `bank_charge` slug + every per-account slug);
@@ -361,10 +431,11 @@ Things that are safe:
   matching income or expense field list in
   `Services/monthly.py` (`INCOME_FIELDS` / `EXPENSE_FIELDS`) if it
   should flow into the totals.
-- Adding a new daily-derived field: one entry in
-  `_DAILY_DERIVED_FIELDS`, one matching column on
-  `MonthlyFinancial`, one migration. The auto-derive on save
-  handles the rest.
+- Feeding another P&L line from the daily books: one entry in
+  `DAILY_DERIVED_FIELDS` / `DAILY_FED_FIELDS` (an existing column)
+  or `DAILY_EXTRA_INCOME` (a live line with no column, plus a field
+  on `MonthlyRow`) in `Services/daily_feed.py`, and a case in
+  `test_daily_feed.py`. The live read and the save both pick it up.
 - Adding a new built-in bank-charge rule: it auto-flows into
   `bank_charges_total` via the `bank_charge%` prefix match. No
   monthly-side change needed unless you want a separately-displayed
@@ -407,6 +478,10 @@ cover:
   resave-refresh-from-ledger guarantee.
 - `test_monthly_invariants.py` — parametrized 422-trap sweep over
   every read-only field + bedrock formula characterization.
+- `test_daily_feed.py` — the live daily feed: one day is enough,
+  entries after a save show without a re-save, both books and the
+  Services box fees, typed-vs-daily-vs-bank precedence, old saved
+  months untouched, access and store isolation.
 
 Before changing this module, run:
 

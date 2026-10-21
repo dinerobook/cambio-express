@@ -384,6 +384,10 @@ class MoneyServiceSummary(Base):
     service      = Column(String(20), nullable=False)
     amount_cents = Column(BigInteger, default=0)
     fees_cents   = Column(BigInteger, default=0)
+    # How many were sold — typed on the Money orders tab, where the
+    # Monthly P&L takes each company's per-order charge off the fees.
+    # NULL on every row saved before it existed (= no count).
+    item_count   = Column(Integer, nullable=True)
     amount = DollarView("amount_cents")
     fees   = DollarView("fees_cents")
     __table_args__ = (

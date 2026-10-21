@@ -1,3 +1,73 @@
+/* Page-specific styles for Monthly.tsx. */
+
+.mono {
+  font-family: var(--db-font-mono);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--db-text-muted);
+  line-height: 1.5;
+}
+
+.status > :first-child {
+  flex: none;
+}
+
+.subStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Income and Expenses side by side when there is room, stacked
+   otherwise. minmax(0, …) lets each column shrink below its
+   content so a long line name wraps instead of overflowing. */
+.statements {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.lineName {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.lineNote {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--db-text-muted);
+}
+
+.amount {
+  font-family: var(--db-font-mono);
+  white-space: nowrap;
+}
+
+.totalCell {
+  font-weight: 600;
+}
+
+.footnote {
+  margin: 0.6rem 0 0;
+  font-size: 0.78rem;
+  color: var(--db-text-muted);
+}
+
 .notes {
   margin: 0;
   white-space: pre-wrap;

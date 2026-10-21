@@ -546,6 +546,12 @@
   width: 0;
 }
 
+/* Money orders sold: a whole number, read like the money cells. */
+.mtCountInput {
+  font-family: var(--db-font-mono);
+  text-align: right;
+}
+
 /* Company names stay on one line next to their dot. */
 .mtCompany {
   white-space: nowrap;
@@ -627,4 +633,11 @@
 .forwardBalanceWarning {
   font-size: 0.75rem;
   color: var(--db-warning);
+}
+
+/* The money order count is a short number: keep its column narrow so
+   Amount and Fee keep their room. */
+.mtCountTd {
+  width: 5rem;
+  min-width: 3.5rem;
 }

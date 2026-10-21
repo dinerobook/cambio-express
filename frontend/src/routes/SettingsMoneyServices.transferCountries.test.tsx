@@ -4,10 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 
-import { SettingsGeneral } from "./Settings";
+import SettingsMoneyServices from "./SettingsMoneyServices";
 import { ToastProvider } from "../components/ui/Toast";
 
-// Settings → General → Transfer countries: the store admin's own list
+// Settings → Money services → Transfer countries: the store admin's own list
 // for the transfer form's country picker (owner ask 2026-10-13). Starts
 // as the list the form always had; add, remove, refuse a duplicate or
 // a comma, save with the tab, and tell the transfer + batch forms to
@@ -60,7 +60,7 @@ function renderTab() {
   render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <MemoryRouter><SettingsGeneral /></MemoryRouter>
+        <MemoryRouter><SettingsMoneyServices /></MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
   );

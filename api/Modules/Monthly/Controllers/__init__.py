@@ -2,13 +2,16 @@
 
 Mounts at `/api/v2/monthly/*`. Read-side endpoints:
 
-  GET /monthly/months         → list of (year, month) the store has logged
+  GET /monthly/months         → every (year, month) with a saved P&L
+                                or a day in either daily book
   GET /monthly/labels         → the store's name for each P&L line
   PUT /monthly/labels         → rename P&L lines
-  GET /monthly/{year}/{month} → single-month P&L breakdown or 404
+  GET /monthly/{year}/{month} → single-month P&L, live from the daily
+                                books + bank feed; 404 only when
+                                nothing at all feeds the month
 
 JWT-required, scoped to the principal's store. Superadmin (no
-store scope) → 403. Write-side stays on Flask.
+store scope) → 403.
 """
 from fastapi import APIRouter, Body, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
@@ -36,6 +39,7 @@ from api.Modules.Monthly.Services import (
     MonthlySummary,
     UnknownMonthlyLineError,
     custom_line_labels,
+    months_with_daily_entries,
     resolved_line_labels,
     set_line_labels,
     summarize_monthly,
@@ -53,18 +57,24 @@ def _to_row(s: MonthlySummary) -> MonthlyRow:
     # MonthlyRow's annotations — keeps the adapter from drifting
     # if a column is added / removed.
     kw: dict[str, Any] = {
-        "id": r.id, "store_id": r.store_id,
+        "id": r.id if s.saved else None, "store_id": r.store_id,
         "year": int(r.year), "month": int(r.month),
         "notes": r.notes or "",
         "total_income":   s.total_income,
         "total_expenses": s.total_expenses,
         "net_profit":     s.net_profit,
         "bank_locked":    sorted(s.bank_fed),
+        "daily_fed":      s.daily_fed,
+        "days_entered":   s.daily.days,
+        "money_order_count":   s.daily.money_order_count,
+        "money_order_charges": s.daily.money_order_charges,
+        "saved":          s.saved,
     }
     for f in MonthlyRow.model_fields:
         if f in kw:
             continue
-        # Bank-fed columns read the live sum, not the stored value.
+        # Every line reads its live value (bank feed, daily books,
+        # return-check workflow), not only what was last saved.
         kw[f] = s.value(f)
     return MonthlyRow(**kw)
 
@@ -76,9 +86,15 @@ def months_route(
 ) -> MonthsLoggedResponse:
     require_permission(claims, "monthly", "read")
     store_id = resolve_store_scope(claims)
-    pairs = list_logged_months(db, store_id)
+    # A month with a day in either daily book has a P&L whether or
+    # not anyone saved it, so it belongs in the picker too.
+    pairs = set(list_logged_months(db, store_id))
+    pairs |= months_with_daily_entries(db, store_id)
     return MonthsLoggedResponse(
-        months=[MonthLogged(year=y, month=m) for y, m in pairs],
+        months=[
+            MonthLogged(year=y, month=m)
+            for y, m in sorted(pairs, reverse=True)
+        ],
     )
 
 
@@ -98,7 +114,7 @@ def monthly_route(
     if summary is None:
         raise HTTPException(
             status_code=404,
-            detail="No monthly P&L logged for this period",
+            detail="Nothing recorded for this month yet",
         )
     return MonthlyResponse(
         report=_to_row(summary),

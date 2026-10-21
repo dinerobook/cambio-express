@@ -4,16 +4,19 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 
-import { SettingsGeneral } from "./Settings";
+import SettingsMoneyServices from "./SettingsMoneyServices";
 import { ToastProvider } from "../components/ui/Toast";
 import type { MTCompanyEntry } from "../api/account";
 
-// Settings → Money transfer companies → "Money orders": not every
-// provider sells money orders, so each company has its own switch.
-// Only companies with it on are listed on the daily book's Money
-// orders tab. Every company starts with it on; a company that is
-// switched off entirely can't have it changed; someone who may only
-// read settings can't change it either.
+// Settings → Money services → "Money orders": not every provider
+// sells money orders, so each company has its own switch. Only
+// companies with it on are listed on the daily book's Money orders
+// tab. Every company starts with it on; a company that is switched
+// off entirely can't have it changed; someone who may only read
+// settings can't change it either. A company that sells money orders
+// also takes what it charges per money order (owner, 2026-10-20) —
+// the Monthly P&L takes count × charge off the money order fees — and
+// the box is not shown for a company that does not sell them.
 
 const useStoreInfo = vi.fn();
 const updateStoreInfo = vi.fn();
@@ -58,7 +61,7 @@ function renderTab() {
   render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <MemoryRouter><SettingsGeneral /></MemoryRouter>
+        <MemoryRouter><SettingsMoneyServices /></MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -66,6 +69,8 @@ function renderTab() {
 
 const moSwitch = (company: string) =>
   screen.getByRole("switch", { name: `${company} sells money orders` });
+const chargeBox = (company: string) =>
+  screen.queryByRole("textbox", { name: `${company} charge per money order` });
 
 beforeEach(() => {
   signIn(["settings.read", "settings.update"]);
@@ -100,8 +105,8 @@ describe("Settings → money orders per company", () => {
     await waitFor(() => expect(updateStoreInfo).toHaveBeenCalledWith(
       expect.objectContaining({
         mt_companies: [
-          { name: "Intermex", enabled: true, money_orders: true },
-          { name: "Barri", enabled: true, money_orders: false },
+          { name: "Intermex", enabled: true, money_orders: true, money_order_charge: 0 },
+          { name: "Barri", enabled: true, money_orders: false, money_order_charge: 0 },
         ],
       }),
     ));
@@ -134,5 +139,52 @@ describe("Settings → money orders per company", () => {
     ]));
     renderTab();
     expect(moSwitch("Intermex")).toBeDisabled();
+  });
+
+  it("shows the charge per money order only for companies that sell them", () => {
+    useStoreInfo.mockReturnValue(store([
+      { name: "Intermex", enabled: true, money_orders: true, money_order_charge: 0.3 },
+      { name: "Maxi", enabled: true, money_orders: false },
+      { name: "Barri", enabled: false, money_orders: true },
+    ]));
+    renderTab();
+    expect(chargeBox("Intermex")).toHaveValue("0.3");
+    expect(chargeBox("Maxi")).not.toBeInTheDocument();
+    expect(chargeBox("Barri")).not.toBeInTheDocument();
+  });
+
+  it("saves a company's charge per money order", async () => {
+    useStoreInfo.mockReturnValue(store([
+      { name: "Intermex", enabled: true, money_orders: true },
+    ]));
+    renderTab();
+    await userEvent.type(chargeBox("Intermex")!, "0.30");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateStoreInfo).toHaveBeenCalledWith({
+      mt_companies: [
+        { name: "Intermex", enabled: true, money_orders: true, money_order_charge: 0.3 },
+      ],
+      transfer_countries: [],
+    }));
+  });
+
+  it("hides the charge box when money orders are switched off", async () => {
+    useStoreInfo.mockReturnValue(store([
+      { name: "Intermex", enabled: true, money_orders: true },
+    ]));
+    renderTab();
+    expect(chargeBox("Intermex")).toBeInTheDocument();
+    await userEvent.click(moSwitch("Intermex"));
+    expect(chargeBox("Intermex")).not.toBeInTheDocument();
+  });
+
+  it("locks the charge for someone who may only read settings", () => {
+    signIn(["settings.read"]);
+    useStoreInfo.mockReturnValue(store([
+      { name: "Intermex", enabled: true, money_orders: true, money_order_charge: 0.3 },
+    ]));
+    renderTab();
+    expect(chargeBox("Intermex")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 });
