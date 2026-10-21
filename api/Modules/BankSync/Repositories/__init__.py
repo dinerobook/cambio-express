@@ -11,6 +11,8 @@ from api.Modules.BankSync.Repositories.rules import (
     find_account_in_store,
     get_rule_by_id,
     list_rules,
+    list_rule_templates,
+    get_rule_template,
 )
 from api.Modules.BankSync.Repositories.transactions import (
     BankTransactionFilters,
@@ -24,6 +26,8 @@ __all__ = [
     "get_rule_by_id",
     "list_accounts",
     "list_rules",
+    "list_rule_templates",
+    "get_rule_template",
     "list_transactions",
     "sum_amount_cents_by_category",
 ]

@@ -7,6 +7,7 @@ import {
   updateRule,
   useBankAccounts,
   useBankCategories,
+  type BankCategoryGroup,
   type BankRuleResponse,
 } from "../api/bankSync";
 import { ApiError } from "../lib/api";
@@ -20,31 +21,46 @@ import {
 } from "./ui";
 import styles from "./BankRuleForm.module.css";
 
-// One rule form, two entry points: the rules page (create / edit)
-// and the "Make a rule" modal on the bank transactions page, which
-// opens it prefilled from the row the operator is looking at. The
-// layout reads as the sentence the rule is — IF these conditions
-// THEN this category — the way Monarch's rules page does.
+// One rule form, three entry points: the rules page (create / edit,
+// or "Use" on a template), the "Make a rule" modal on the bank
+// transactions page, which opens it prefilled from the row the
+// operator is looking at, and the superadmin's rule templates page
+// (`template` set). The layout reads as the sentence the rule is —
+// IF these conditions THEN this category — the way Monarch's rules
+// page does.
+
+/** Template mode: the superadmin writes a rule for every store. No
+ *  account (that is per-store), a required name, "Enabled" means
+ *  "shown to stores", and saving goes through `submit`. */
+export interface BankRuleTemplateMode {
+  /** The categories every store has (useTemplateCategories). */
+  groups: BankCategoryGroup[] | undefined;
+  submit: (values: BankRuleFormValues) => Promise<void>;
+}
 
 export function BankRuleForm({
-  initial, editingId = null, onSaved, onCancel,
+  initial, editingId = null, onSaved, onCancel, template,
 }: {
   /** Prefill. Partial so the modal can pass just the suggestion. */
   initial?: Partial<BankRuleFormValues>;
   /** Set when editing an existing rule; null creates one. */
   editingId?: number | null;
-  onSaved: (resp: BankRuleResponse, mode: "create" | "edit") => void;
+  onSaved?: (resp: BankRuleResponse, mode: "create" | "edit") => void;
   onCancel?: () => void;
+  template?: BankRuleTemplateMode;
 }) {
-  const categories = useBankCategories();
-  const accounts = useBankAccounts();
+  // The store's categories and accounts, never fetched in template
+  // mode (the superadmin has no store).
+  const storeCategories = useBankCategories(!template);
+  const accounts = useBankAccounts(!template);
+  const groups = template ? template.groups : storeCategories.data?.groups;
   const [form, setForm] = useState<BankRuleFormValues>({ ...EMPTY_RULE_FORM, ...initial });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null);
 
   const isEdit = editingId != null;
-  const booksLine = dailyBookSlugs(categories.data?.groups).has(form.target_kind);
+  const booksLine = dailyBookSlugs(groups).has(form.target_kind);
 
   function patch(p: Partial<BankRuleFormValues>) {
     setForm((f) => ({ ...f, ...p }));
@@ -56,11 +72,15 @@ export function BankRuleForm({
     setError(null);
     setFieldError(null);
     try {
-      const body = bodyFromFormValues(form);
-      const resp = isEdit
-        ? await updateRule(editingId, body)
-        : await createRule(body);
-      onSaved(resp, isEdit ? "edit" : "create");
+      if (template) {
+        await template.submit(form);
+      } else {
+        const body = bodyFromFormValues(form);
+        const resp = isEdit
+          ? await updateRule(editingId, body)
+          : await createRule(body);
+        onSaved?.(resp, isEdit ? "edit" : "create");
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         const detail = (err.body as { detail?: unknown } | null)?.detail;
@@ -130,17 +150,19 @@ export function BankRuleForm({
             error={errFor("amount_max_cents")}
             fullWidth
           />
-          <Field label="Account" error={errFor("account_filter_id")}>
-            <Select
-              value={form.account_filter_id}
-              onChange={(e) => patch({ account_filter_id: e.target.value })}
-            >
-              <option value="">Any account</option>
-              {(accounts.data?.rows ?? []).map((a) => (
-                <option key={a.id} value={a.id}>{a.label}</option>
-              ))}
-            </Select>
-          </Field>
+          {!template && (
+            <Field label="Account" error={errFor("account_filter_id")}>
+              <Select
+                value={form.account_filter_id}
+                onChange={(e) => patch({ account_filter_id: e.target.value })}
+              >
+                <option value="">Any account</option>
+                {(accounts.data?.rows ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>{a.label}</option>
+                ))}
+              </Select>
+            </Field>
+          )}
         </div>
       </fieldset>
 
@@ -154,16 +176,27 @@ export function BankRuleForm({
               onChange={(e) => patch({ target_kind: e.target.value })}
             >
               <option value="">Pick a category…</option>
-              <BankCategoryOptions groups={categories.data?.groups} />
+              <BankCategoryOptions groups={groups} />
             </Select>
           </Field>
-          <Field label="Rule name (optional)">
-            <Input
-              value={form.description}
-              onChange={(e) => patch({ description: e.target.value })}
-              placeholder="What this rule is for"
-            />
-          </Field>
+          {template ? (
+            <Field label="Template name" error={errFor("name")}>
+              <Input
+                required
+                value={form.description}
+                onChange={(e) => patch({ description: e.target.value })}
+                placeholder="e.g. Intermex commission deposit"
+              />
+            </Field>
+          ) : (
+            <Field label="Rule name (optional)">
+              <Input
+                value={form.description}
+                onChange={(e) => patch({ description: e.target.value })}
+                placeholder="What this rule is for"
+              />
+            </Field>
+          )}
         </div>
         {booksLine && (
           <>
@@ -196,9 +229,9 @@ export function BankRuleForm({
 
       <div className={styles.options}>
         <Checkbox checked={form.enabled} onChange={(v) => patch({ enabled: v })}>
-          Enabled
+          {template ? "Show to stores" : "Enabled"}
         </Checkbox>
-        {!isEdit && (
+        {!isEdit && !template && (
           <Checkbox
             checked={form.apply_to_existing}
             onChange={(v) => patch({ apply_to_existing: v })}
@@ -214,12 +247,18 @@ export function BankRuleForm({
             Cancel
           </Button>
         )}
-        <Button
-          type="submit" busy={busy} disabled={busy}
-          perm={isEdit ? "bank_sync.update" : "bank_sync.create"}
-        >
-          {isEdit ? (busy ? "Saving…" : "Save rule") : (busy ? "Creating…" : "Create rule")}
-        </Button>
+        {template ? (
+          <Button type="submit" busy={busy} disabled={busy}>
+            {isEdit ? "Save template" : "Create template"}
+          </Button>
+        ) : (
+          <Button
+            type="submit" busy={busy} disabled={busy}
+            perm={isEdit ? "bank_sync.update" : "bank_sync.create"}
+          >
+            {isEdit ? (busy ? "Saving…" : "Save rule") : (busy ? "Creating…" : "Create rule")}
+          </Button>
+        )}
       </FormActions>
     </form>
   );

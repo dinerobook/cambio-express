@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { components } from "./openapi";
 
 export interface BankAccountRow {
   id: number;
@@ -96,10 +97,10 @@ export interface BankTransactionFilters {
   per_page?: number;
 }
 
-export function useBankAccounts() {
+export function useBankAccounts(enabled = true) {
   const identity = getCurrentIdentity();
   return useQuery<{ rows: BankAccountRow[]; total: number }>({
-    enabled: identity?.store_id != null,
+    enabled: enabled && identity?.store_id != null,
     queryKey: ["bank", "accounts", identity?.store_id],
     queryFn: () =>
       api<{ rows: BankAccountRow[]; total: number }>("/api/v2/bank/accounts"),
@@ -163,10 +164,10 @@ export interface BankCategoryGroup {
   options: BankCategoryOption[];
 }
 
-export function useBankCategories() {
+export function useBankCategories(enabled = true) {
   const identity = getCurrentIdentity();
   return useQuery<{ groups: BankCategoryGroup[] }>({
-    enabled: identity?.store_id != null,
+    enabled: enabled && identity?.store_id != null,
     queryKey: ["bank", "categories", identity?.store_id],
     queryFn: () => api<{ groups: BankCategoryGroup[] }>("/api/v2/bank/categories"),
     staleTime: 5 * 60_000,
@@ -322,6 +323,65 @@ export async function deleteRule(ruleId: number): Promise<void> {
   await api<void>(`/api/v2/bank/rules/${ruleId}`, { method: "DELETE" });
 }
 
+
+// ── Rule templates ─────────────────────────────────────────
+//
+// Rules the superadmin writes once for every store (BankSync
+// INVARIANTS "Rule templates"). A store lists the enabled ones on
+// its rules page and "Use" opens the ordinary rule form prefilled —
+// saving is createRule, so a template is never applied by itself.
+
+export type BankRuleTemplateRow = components["schemas"]["BankRuleTemplateRow"];
+export type BankRuleTemplateWriteBody = components["schemas"]["BankRuleTemplateWriteRequest"];
+type TemplateList = components["schemas"]["BankRuleTemplateListResponse"];
+type TemplateResponse = components["schemas"]["BankRuleTemplateResponse"];
+
+const TEMPLATES = "/api/v2/superadmin/bank-rule-templates";
+
+/** The store's view: enabled templates, under its own line names. */
+export function useRuleTemplates() {
+  const identity = getCurrentIdentity();
+  return useQuery<TemplateList>({
+    enabled: identity?.store_id != null,
+    queryKey: ["bank", "rule-templates", identity?.store_id],
+    queryFn: () => api<TemplateList>("/api/v2/bank/rule-templates"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Superadmin: every template, shown or not. */
+export function useAllRuleTemplates() {
+  return useQuery<TemplateList>({
+    queryKey: ["superadmin", "bank-rule-templates"],
+    queryFn: () => api<TemplateList>(TEMPLATES),
+  });
+}
+
+/** Superadmin: the categories a template may target — the ones
+ *  every store has. */
+export function useTemplateCategories() {
+  return useQuery<{ groups: BankCategoryGroup[] }>({
+    queryKey: ["superadmin", "bank-rule-templates", "categories"],
+    queryFn: () => api<{ groups: BankCategoryGroup[] }>(`${TEMPLATES}/categories`),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export async function createRuleTemplate(
+  body: BankRuleTemplateWriteBody,
+): Promise<TemplateResponse> {
+  return api<TemplateResponse>(TEMPLATES, { method: "POST", json: body });
+}
+
+export async function updateRuleTemplate(
+  id: number, body: BankRuleTemplateWriteBody,
+): Promise<TemplateResponse> {
+  return api<TemplateResponse>(`${TEMPLATES}/${id}`, { method: "PUT", json: body });
+}
+
+export async function deleteRuleTemplate(id: number): Promise<void> {
+  await api<void>(`${TEMPLATES}/${id}`, { method: "DELETE" });
+}
 
 // ── Stripe FC connect lifecycle ────────────────────────────
 //

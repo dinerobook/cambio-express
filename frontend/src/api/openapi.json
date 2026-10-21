@@ -1564,6 +1564,211 @@
         "title": "BankRuleRow",
         "type": "object"
       },
+      "BankRuleTemplateListResponse": {
+        "additionalProperties": false,
+        "description": "Templates by name. The store route lists only the enabled\nones whose category the store has.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BankRuleTemplateRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total"
+        ],
+        "title": "BankRuleTemplateListResponse",
+        "type": "object"
+      },
+      "BankRuleTemplateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "template": {
+            "$ref": "#/components/schemas/BankRuleTemplateRow"
+          }
+        },
+        "required": [
+          "template"
+        ],
+        "title": "BankRuleTemplateResponse",
+        "type": "object"
+      },
+      "BankRuleTemplateRow": {
+        "additionalProperties": false,
+        "description": "One rule template (BankRuleTemplate). ``target_label`` is the\ncategory's name as the reader sees it: the store's own name for\na P&L line on the store route, the shipped name for the\nsuperadmin.",
+        "properties": {
+          "amount_max_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Max Cents"
+          },
+          "amount_min_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Min Cents"
+          },
+          "auto_post": {
+            "default": true,
+            "title": "Auto Post",
+            "type": "boolean"
+          },
+          "desc_match_type": {
+            "default": "",
+            "title": "Desc Match Type",
+            "type": "string"
+          },
+          "desc_match_value": {
+            "default": "",
+            "title": "Desc Match Value",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "post_date_offset_days": {
+            "default": 0,
+            "title": "Post Date Offset Days",
+            "type": "integer"
+          },
+          "sign_filter": {
+            "default": "",
+            "title": "Sign Filter",
+            "type": "string"
+          },
+          "target_kind": {
+            "title": "Target Kind",
+            "type": "string"
+          },
+          "target_label": {
+            "default": "",
+            "title": "Target Label",
+            "type": "string"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "target_kind"
+        ],
+        "title": "BankRuleTemplateRow",
+        "type": "object"
+      },
+      "BankRuleTemplateWriteRequest": {
+        "additionalProperties": false,
+        "description": "Superadmin POST / PUT body for a rule template. Same condition\nfields as ``BankRuleWriteRequest`` minus what is per-store (the\naccount, the priority, apply-to-existing); ``name`` is what\nstores read in the list.",
+        "properties": {
+          "amount_max_cents": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Max Cents"
+          },
+          "amount_min_cents": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Min Cents"
+          },
+          "auto_post": {
+            "default": true,
+            "title": "Auto Post",
+            "type": "boolean"
+          },
+          "desc_match_type": {
+            "default": "",
+            "pattern": "^(|contains|starts_with|ends_with|equals|regex)$",
+            "title": "Desc Match Type",
+            "type": "string"
+          },
+          "desc_match_value": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Desc Match Value",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "post_date_offset_days": {
+            "default": 0,
+            "maximum": 31.0,
+            "minimum": -31.0,
+            "title": "Post Date Offset Days",
+            "type": "integer"
+          },
+          "sign_filter": {
+            "default": "",
+            "pattern": "^(|credit|debit)$",
+            "title": "Sign Filter",
+            "type": "string"
+          },
+          "target_kind": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Target Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "target_kind"
+        ],
+        "title": "BankRuleTemplateWriteRequest",
+        "type": "object"
+      },
       "BankRuleToggleRequest": {
         "additionalProperties": false,
         "description": "POST body for /bank/rules/{id}/toggle. Explicit `enabled`\nso callers don't accidentally flip the wrong way when their\ncached row is stale.",
@@ -23844,6 +24049,72 @@
         ]
       }
     },
+    "/bank/rule-templates": {
+      "get": {
+        "description": "The templates this store can use: enabled ones whose category\nit has, each labelled with the store's own name for it.",
+        "operationId": "list_store_templates_route_bank_rule_templates_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankRuleTemplateListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Store Templates Route",
+        "tags": [
+          "bank"
+        ]
+      }
+    },
     "/bank/rules": {
       "get": {
         "description": "Operator-managed BankRule list. Order matches the auto-\ncategorize sync's evaluation order (priority asc, id tie-break)\nso the rules-manager UI shows what would actually fire first.",
@@ -37327,6 +37598,362 @@
           }
         },
         "summary": "List Audit Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
+    "/superadmin/bank-rule-templates": {
+      "get": {
+        "operationId": "list_templates_route_superadmin_bank_rule_templates_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankRuleTemplateListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Templates Route",
+        "tags": [
+          "superadmin"
+        ]
+      },
+      "post": {
+        "operationId": "create_template_route_superadmin_bank_rule_templates_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankRuleTemplateWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankRuleTemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Template Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
+    "/superadmin/bank-rule-templates/categories": {
+      "get": {
+        "description": "The categories a template may target \u2014 the ones every store\nhas (``template_category_groups``).",
+        "operationId": "template_categories_route_superadmin_bank_rule_templates_categories_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankCategoriesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Template Categories Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
+    "/superadmin/bank-rule-templates/{template_id}": {
+      "delete": {
+        "description": "Deletes the template only. Rules stores already made from it\nare their own rows and stay.",
+        "operationId": "delete_template_route_superadmin_bank_rule_templates__template_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Template Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Template Route",
+        "tags": [
+          "superadmin"
+        ]
+      },
+      "put": {
+        "operationId": "update_template_route_superadmin_bank_rule_templates__template_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Template Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankRuleTemplateWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankRuleTemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Template Route",
         "tags": [
           "superadmin"
         ]

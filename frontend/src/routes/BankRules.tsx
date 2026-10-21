@@ -8,19 +8,23 @@ import {
   toggleRule,
   useBankCategories,
   useBankRules,
+  useRuleTemplates,
   type BankRuleRow,
+  type BankRuleTemplateRow,
 } from "../api/bankSync";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { canDo } from "../lib/access";
 import { BankRuleForm } from "../components/BankRuleForm";
+import { BankRuleSentence } from "../components/BankRuleSentence";
+import { BankRuleTemplateList } from "../components/BankRuleTemplateList";
 import {
-  conditionChips, describeAppliedRule, formValuesFromRule, postOffsetLabel,
+  describeAppliedRule, formValuesFromRule, formValuesFromTemplate,
   ruleSentence,
 } from "../lib/bankRules";
 import {
   Button, ButtonLink, Card, ConfirmDialog, EmptyState,
   ErrorState, IconButton, Input, Loading, Modal, PageHeader, PageShell,
-  Pill, RowActions, useToast,
+  RowActions, useToast,
 } from "../components/ui";
 import styles from "./BankRules.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
@@ -31,22 +35,29 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // evaluation order (first match wins), and the operator moves a
 // rule up or down to change it. Create / edit happen in a modal
 // built on the shared BankRuleForm, the same form the bank
-// transactions page opens from a row.
+// transactions page opens from a row. Below the list, the rule
+// templates the platform ships ("Intermex commission deposit"…):
+// "Use" opens the same form prefilled, so the store saves its own
+// copy and can add its account first.
 
 export default function BankRules() {
   const rules = useBankRules();
+  const templates = useRuleTemplates();
   const categories = useBankCategories();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
   const labels = useMemo(() => categoryLabels(categories.data?.groups), [categories.data]);
 
   const [q, setQ] = useState("");
-  const [editing, setEditing] = useState<BankRuleRow | "new" | null>(null);
+  const [editing, setEditing] = useState<
+    BankRuleRow | "new" | { template: BankRuleTemplateRow } | null
+  >(null);
   const [pendingDelete, setPendingDelete] = useState<BankRuleRow | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const rows = rules.data?.rows ?? [];
+  const templateRows = templates.data?.rows ?? [];
   const shown = q.trim()
     ? rows.filter((r) => ruleSentence(r, labels).toLowerCase().includes(q.trim().toLowerCase()))
     : rows;
@@ -198,33 +209,11 @@ export default function BankRules() {
                 </div>
 
                 <div className={styles.sentence}>
-                  <div className={styles.clauseRow}>
-                    <span className={styles.kw}>If</span>
-                    {conditionChips(r).map((c, j) => (
-                      <span key={j} className={styles.chipGroup}>
-                        {j > 0 && <span className={styles.kw}>and</span>}
-                        {c.map((t, k) => (
-                          <span key={k} className={styles.chip}>{t}</span>
-                        ))}
-                      </span>
-                    ))}
-                  </div>
-                  <div className={styles.clauseRow}>
-                    <span className={styles.arrow} aria-hidden>→</span>
-                    <span className={styles.kw}>Categorize as</span>
-                    <span className={`${styles.chip} ${styles.chipTarget}`}>
-                      {labels.get(r.target_kind) ?? r.target_kind}
-                    </span>
-                    {r.auto_post && (
-                      <Pill tone="accent">books on daily book</Pill>
-                    )}
-                    {r.auto_post && r.post_date_offset_days !== 0 && (
-                      <Pill tone="neutral">
-                        {postOffsetLabel(r.post_date_offset_days)}
-                      </Pill>
-                    )}
-                    {!r.enabled && <Pill tone="neutral">off</Pill>}
-                  </div>
+                  <BankRuleSentence
+                    rule={r}
+                    target={labels.get(r.target_kind) ?? r.target_kind}
+                    off={!r.enabled}
+                  />
                   <div className={styles.meta}>
                     {r.description && <span className={styles.name}>{r.description}</span>}
                     <span>
@@ -262,17 +251,52 @@ export default function BankRules() {
         )}
       </Card>
 
+      {templateRows.length > 0 && (
+        <Card>
+          <div className={styles.toolbar}>
+            <h2 className={styles.templatesTitle}>Templates</h2>
+            <span className={styles.hint}>
+              Ready-made rules. Use one to add it to your rules; you can
+              change it before saving.
+            </span>
+          </div>
+          <BankRuleTemplateList
+            rows={templateRows}
+            action={(t) => (
+              <Button
+                size="sm" tone="secondary" perm="bank_sync.create"
+                onClick={() => setEditing({ template: t })}
+                aria-label={`Use template ${t.name}`}
+              >
+                Use
+              </Button>
+            )}
+          />
+        </Card>
+      )}
+
       <Modal
         open={editing != null}
         onClose={() => setEditing(null)}
-        title={editing === "new" ? "New rule" : "Edit rule"}
+        title={
+          editing === "new" ? "New rule"
+            : editing != null && "template" in editing ? "New rule from template"
+              : "Edit rule"
+        }
         size="lg"
       >
         {editing != null && (
           <BankRuleForm
-            key={editing === "new" ? "new" : editing.id}
-            editingId={editing === "new" ? null : editing.id}
-            initial={editing === "new" ? undefined : formValuesFromRule(editing)}
+            key={
+              editing === "new" ? "new"
+                : "template" in editing ? `t${editing.template.id}` : editing.id
+            }
+            editingId={editing === "new" || "template" in editing ? null : editing.id}
+            initial={
+              editing === "new" ? undefined
+                : "template" in editing ? formValuesFromTemplate(editing.template)
+                  : formValuesFromRule(editing)
+            }
             onCancel={() => setEditing(null)}
             onSaved={async (resp, mode) => {
               setEditing(null);

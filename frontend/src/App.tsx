@@ -120,6 +120,7 @@ const SignupOwner = lazy(() => import("./routes/SignupOwner"));
 const Subscribe = lazy(() => import("./routes/Subscribe"));
 const SubscribeSuccess = lazy(() => import("./routes/SubscribeSuccess"));
 const SuperadminAnnouncements = lazy(() => import("./routes/SuperadminAnnouncements"));
+const SuperadminBankRuleTemplates = lazy(() => import("./routes/SuperadminBankRuleTemplates"));
 const SuperadminAuditLog = lazy(() => import("./routes/SuperadminAuditLog"));
 const SuperadminControls = lazy(() => import("./routes/SuperadminControls"));
 const SuperadminDashboard = lazy(() => import("./routes/SuperadminDashboard"));
@@ -361,6 +362,7 @@ export default function App() {
           <Route path="superadmin/controls"      element={<Gate><SuperadminControls /></Gate>} />
           <Route path="superadmin/feature-flags" element={<Gate><SuperadminFeatureFlags /></Gate>} />
           <Route path="superadmin/discounts"     element={<Gate><SuperadminDiscounts /></Gate>} />
+          <Route path="superadmin/bank-rule-templates" element={<Gate><SuperadminBankRuleTemplates /></Gate>} />
           <Route path="superadmin/reports"       element={<Gate><SuperadminReports /></Gate>} />
           <Route path="subscribe"             element={<Gate><Subscribe /></Gate>} />
           <Route path="subscribe/success"     element={<Gate><SubscribeSuccess /></Gate>} />

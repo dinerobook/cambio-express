@@ -73,6 +73,9 @@ from api.Modules.BankSync.Services import (
     list_transactions_page,
     uncategorize_transaction,
 )
+from api.Modules.BankSync.Controllers.rule_validation import (
+    validate_rule_conditions,
+)
 from api.Modules.DailyBook.Models import DailyLineItem
 from typing import Any
 import logging
@@ -465,48 +468,10 @@ def _validate_rule_body(
                 "message": "Unknown category for this store.",
             },
         )
-    # A value without a type defaults to "contains" — the SPA's
-    # quick "Make a rule" form only asks for the words.
-    if body.desc_match_value.strip() and not body.desc_match_type:
-        body.desc_match_type = "contains"
-    # If desc_match_type is set, desc_match_value must be non-empty.
-    if body.desc_match_type and not body.desc_match_value.strip():
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "field": "desc_match_value",
-                "message": "Description match value is required when "
-                           "match type is set.",
-            },
-        )
-    # amount_min must be ≤ amount_max if both set.
-    if (
-        body.amount_min_cents is not None
-        and body.amount_max_cents is not None
-        and body.amount_min_cents > body.amount_max_cents
-    ):
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "field": "amount_max_cents",
-                "message": "Max amount must be ≥ min amount.",
-            },
-        )
-    # An empty rule matches every transaction — always a mistake.
-    if (
-        require_condition
-        and not body.desc_match_type and not body.sign_filter
-        and body.amount_min_cents is None and body.amount_max_cents is None
-        and body.account_filter_id is None
-    ):
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "field": "desc_match_value",
-                "message": "Set at least one condition (description, "
-                           "sign, amount, or account).",
-            },
-        )
+    validate_rule_conditions(
+        body, require_condition=require_condition,
+        account_filter_id=body.account_filter_id,
+    )
 
 
 def _find_owned_rule(db: Session, store_id: int, rule_id: int) -> BankRule:
