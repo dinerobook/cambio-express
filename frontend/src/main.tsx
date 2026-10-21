@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import App from "./App";
@@ -61,12 +61,20 @@ if (!rootEl) throw new Error("Missing #root");
 
 // Routes live under /app/ in production (see vite.config.ts `base`),
 // so React Router's `basename` matches.
+//
+// A data router (rather than <BrowserRouter>) so `useBlocker` works:
+// the unsaved-changes guard holds in-app navigation away from a form
+// with unsaved edits (components/UnsavedChangesHost.tsx). Every route
+// still lives in App's <Routes>; this one splat route just mounts it.
+const router = createBrowserRouter(
+  [{ path: "*", element: <App /> }],
+  { basename: "/app" },
+);
+
 createRoot(rootEl).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/app">
-        <App />
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   </StrictMode>,
 );

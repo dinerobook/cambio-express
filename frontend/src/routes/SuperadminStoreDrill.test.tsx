@@ -323,4 +323,24 @@ describe("<SuperadminStoreDrill> destructive actions ask first", () => {
     await waitFor(() => expect(resets()).toHaveLength(1));
     expect(resets()[0][1]).toMatchObject({ method: "POST", json: { role: "employee" } });
   });
+
+  it("a toggled permission shows Unsaved changes; Save sends it and clears the bar", async () => {
+    permissions = {
+      ...NO_OVERRIDES, roles: ["employee"], editable_roles: ["employee"],
+      resources: ["transfers"], actions: ["read"],
+      matrix: { employee: { transfers: { read: false } } }, has_overrides: [],
+    };
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    const box = (await screen.findAllByRole("checkbox"))[0];
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await userEvent.click(box);
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save permissions" }));
+    await waitFor(() => expect(api).toHaveBeenCalledWith(
+      "/api/v2/superadmin/stores/7/permissions",
+      { method: "PUT", json: { matrix: { employee: { transfers: { read: true } } } } },
+    ));
+    await waitFor(() => expect(screen.queryByText("Unsaved changes")).toBeNull());
+  });
 });

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AdminTimeClockSchedule from "./AdminTimeClockSchedule";
 import { ToastProvider } from "../components/ui";
+import { ApiError } from "../lib/api";
 
 // A week whose shifts failed to load must say so (with Retry), not
 // render seven empty "No shifts" columns that invite the admin to
@@ -13,10 +14,15 @@ import { ToastProvider } from "../components/ui";
 
 const useShifts = vi.fn();
 const refetch = vi.fn();
+const createShift = vi.fn();
 
 vi.mock("../api/timeclock", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/timeclock")>();
-  return { ...real, useShifts: () => useShifts() };
+  return {
+    ...real,
+    useShifts: () => useShifts(),
+    createShift: (...a: unknown[]) => createShift(...a),
+  };
 });
 vi.mock("../api/transfers", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/transfers")>();
@@ -42,6 +48,7 @@ function renderPage() {
 
 beforeEach(() => {
   refetch.mockReset();
+  createShift.mockReset();
 });
 
 describe("AdminTimeClockSchedule", () => {
@@ -66,5 +73,61 @@ describe("AdminTimeClockSchedule", () => {
     });
     renderPage();
     expect(screen.getAllByText("No shifts")).toHaveLength(7);
+  });
+
+  describe("planning a shift", () => {
+    beforeEach(() => {
+      useShifts.mockReturnValue({
+        data: { rows: [] }, isLoading: false, isError: false, isFetching: false,
+        refetch,
+      });
+    });
+
+    async function openFirstDay(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getAllByRole("button", { name: "+ Add shift" })[0]);
+    }
+
+    it("schedules a cashier and closes the form", async () => {
+      createShift.mockResolvedValue({ employee_name: "Ana" });
+      const user = userEvent.setup();
+      renderPage();
+      await openFirstDay(user);
+      await user.selectOptions(screen.getByLabelText("Cashier"), "1");
+      await user.click(screen.getByRole("button", { name: "Add" }));
+      expect(createShift).toHaveBeenCalledWith(expect.objectContaining({
+        store_employee_id: 1, start_time: "09:00", end_time: "17:00", notes: "",
+      }));
+      expect(await screen.findByText("Scheduled Ana.")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Cashier")).not.toBeInTheDocument();
+    });
+
+    it("keeps the form when the save is refused", async () => {
+      createShift.mockRejectedValue(new ApiError(409, "Ana already works then.", null));
+      const user = userEvent.setup();
+      renderPage();
+      await openFirstDay(user);
+      await user.selectOptions(screen.getByLabelText("Cashier"), "1");
+      await user.click(screen.getByRole("button", { name: "Add" }));
+      expect(await screen.findByText("Ana already works then.")).toBeInTheDocument();
+      expect(screen.getByLabelText("Cashier")).toHaveValue("1");
+      expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    });
+
+    it("asks before Cancel drops a filled-in shift; an untouched one closes at once", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await openFirstDay(user);
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByLabelText("Cashier")).not.toBeInTheDocument();
+
+      await openFirstDay(user);
+      await user.selectOptions(screen.getByLabelText("Cashier"), "1");
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      await user.click(await screen.findByRole("button", { name: "Keep editing" }));
+      expect(screen.getByLabelText("Cashier")).toHaveValue("1");
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      await user.click(await screen.findByRole("button", { name: "Leave" }));
+      expect(screen.queryByLabelText("Cashier")).not.toBeInTheDocument();
+    });
   });
 });

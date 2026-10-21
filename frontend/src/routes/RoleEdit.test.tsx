@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import RoleEdit from "./RoleEdit";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
-import { renderRoute, signInAs } from "../test/renderRoute";
+import { renderRoute, renderRouteWithGuard, signInAs } from "../test/renderRoute";
 
 // One role's page (Team → Roles & access → a role). A save here
 // changes what people can do right away, so pin who may save at all
@@ -216,5 +216,17 @@ describe("RoleEdit — built-in roles", () => {
     mockFetch(routes());
     renderRoute(<RoleEdit />, { path: PATH, at: "/team/roles/new?copy=employee" });
     expect(await screen.findByText(/don't have access to the built-in roles/)).toBeInTheDocument();
+  });
+});
+
+describe("RoleEdit — unsaved changes", () => {
+  it("shows Unsaved changes after a toggle and asks before Cancel throws it away", async () => {
+    mockFetch(routes());
+    renderRouteWithGuard(<RoleEdit />, { path: PATH, at: "/team/roles/2" });
+    await userEvent.click(await screen.findByLabelText("View — Monthly P&L (Closer)"));
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Leave" }));
+    expect(await screen.findByText("Navigated to /team/roles")).toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ import {
   Input, Loading, PageHeader, PageShell, Pill,
   useToast,
 } from "../components/ui";
-import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./MonthlyCategories.module.css";
 
 // P&L categories at /app/monthly/categories.
@@ -62,9 +62,9 @@ export default function MonthlyCategories() {
   const isDirty =
     draft != null && baseline != null &&
     JSON.stringify(draft) !== JSON.stringify(baseline);
-  // The page has no Cancel control to intercept, so the browser's
-  // own "Leave site?" prompt is the whole guard here.
-  useUnsavedChangesGuard(isDirty && !busy);
+  const guard = useUnsavedGuard(isDirty && !busy, {
+    message: "You have unsaved P&L line names. Leave without saving?",
+  });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -176,7 +176,7 @@ export default function MonthlyCategories() {
             </Card>
           ))}
 
-          <FormActions>
+          <FormActions guard={guard}>
             <Button type="submit" tone="primary" disabled={busy || !isDirty}>
               {busy ? "Saving…" : "Save names"}
             </Button>

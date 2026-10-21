@@ -113,4 +113,22 @@ describe("Settings → General timezone", () => {
       queryKey: ["account", "session-status"],
     });
   });
+
+  it("shows Unsaved changes after an edit, clears it on save, keeps it on a failure", async () => {
+    useStoreInfo.mockReturnValue(store(""));
+    renderTab();
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    const tz = screen.getByRole("combobox", { name: /Timezone/ });
+    await userEvent.selectOptions(tz, "America/Chicago");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
+    updateStoreInfo.mockRejectedValueOnce(new Error("boom"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateStoreInfo).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateStoreInfo).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText("Unsaved changes")).toBeNull());
+  });
 });

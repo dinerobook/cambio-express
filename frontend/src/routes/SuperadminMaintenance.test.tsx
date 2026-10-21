@@ -90,4 +90,28 @@ describe("SuperadminMaintenance", () => {
     expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
+
+  it("shows Unsaved changes after an edit and clears it once saved", async () => {
+    serve(async () => ({ enabled: false, message: "" }));
+    renderPage();
+    await screen.findByText("Platform is operational");
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await userEvent.type(screen.getByLabelText(/^Maintenance message/), "Back soon");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByText("Unsaved changes")).toBeNull());
+  });
+
+  it("keeps Unsaved changes when the save is refused", async () => {
+    serve(
+      async () => ({ enabled: false, message: "" }),
+      async () => { throw new ApiError(403, "Superadmin only.", null); },
+    );
+    renderPage();
+    await screen.findByText("Platform is operational");
+    await userEvent.click(screen.getByRole("switch"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Superadmin only.");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+  });
 });

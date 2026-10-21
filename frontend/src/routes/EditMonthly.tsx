@@ -16,11 +16,8 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  AppLink, Breadcrumbs,
-  Alert, Button, Card, ConfirmDialog, ErrorState, FormActions, Loading,
-  MoneyInput,
-  PageHeader, PageShell, Textarea,
-  useToast,
+  Alert, AppLink, Breadcrumbs, Button, Card, ErrorState, FormActions,
+  Loading, MoneyInput, PageHeader, PageShell, Textarea, useToast,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./EditMonthly.module.css";
@@ -134,7 +131,7 @@ export default function EditMonthly() {
       // until the cache goes stale.
       void queryClient.invalidateQueries({ queryKey: ["monthly"] });
       toast({ message: "Monthly P&L saved.", tone: "success" });
-      navigate(`/monthly?year=${year}&month=${month}`, { replace: true });
+      guard.proceed(() => navigate(`/monthly?year=${year}&month=${month}`, { replace: true }));
     } catch (e) {
       setErr(apiErrorMessage(e, "Could not save P&L."));
     } finally {
@@ -246,7 +243,7 @@ export default function EditMonthly() {
 
         {err && <Alert tone="error">{err}</Alert>}
 
-        <FormActions>
+        <FormActions guard={guard}>
           <Button
             type="button"
             tone="secondary"
@@ -262,8 +259,6 @@ export default function EditMonthly() {
           </Button>
         </FormActions>
       </form>
-
-      <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
   );
 }

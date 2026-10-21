@@ -20,6 +20,7 @@ import { TEST_ADMIN } from "../test/setup";
 //   - "At a glance" totals the countries' banks and rate cells.
 
 const overview = vi.fn();
+const saveSettings = vi.fn();
 const mutation = () => ({
   mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false, error: null,
 });
@@ -30,7 +31,7 @@ vi.mock("../api/tvDisplay", async (importOriginal) => {
     ...real,
     useTVDisplayOverview: () => overview(),
     useRegenerateTVDisplayToken: () => mutation(),
-    useSaveTVDisplaySettings: () => mutation(),
+    useSaveTVDisplaySettings: () => ({ ...mutation(), mutateAsync: saveSettings }),
     useClaimTVPairCode: () => mutation(),
     useRevokeTVPairing: () => mutation(),
     useCreateTVDisplayCountry: () => mutation(),
@@ -156,5 +157,33 @@ describe("TVDisplayAdmin", () => {
     expect(screen.getByText("Payout banks").parentElement).toHaveTextContent("5");
     expect(screen.getByText("Rate cells filled").parentElement).toHaveTextContent("11");
     expect(screen.getByText("Subscription").parentElement).toHaveTextContent("$5/mo");
+  });
+
+  describe("display settings", () => {
+    beforeEach(() => { saveSettings.mockReset(); });
+
+    it("saves the edited title and shows Unsaved changes until then", async () => {
+      saveSettings.mockResolvedValue({});
+      renderAt(<TVDisplayDevice />);
+      expect(screen.queryByText("Unsaved changes")).toBeNull();
+      const title = screen.getByLabelText("Title (top line)");
+      await userEvent.clear(title);
+      await userEvent.type(title, "Best rates");
+      expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
+      expect(saveSettings).toHaveBeenCalledWith(expect.objectContaining({ title: "Best rates" }));
+      expect(await screen.findByText("Display settings saved.")).toBeInTheDocument();
+    });
+
+    it("says so when the save is refused, and keeps the edit", async () => {
+      saveSettings.mockRejectedValue(new ApiError(403, "Needs settings rights.", null));
+      renderAt(<TVDisplayDevice />);
+      const title = screen.getByLabelText("Title (top line)");
+      await userEvent.type(title, "!");
+      await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
+      expect(await screen.findByText("Needs settings rights.")).toBeInTheDocument();
+      expect(screen.queryByText("Display settings saved.")).not.toBeInTheDocument();
+      expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    });
   });
 });

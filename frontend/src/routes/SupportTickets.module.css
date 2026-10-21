@@ -8,11 +8,6 @@
   .formGrid { grid-template-columns: 1fr; }
 }
 
-.formActions {
-  display: flex;
-  justify-content: flex-end;
-}
-
 /* Unread-reply marker on a ticket row: bold subject + a small
    phone-style count circle (matches the sidebar badge). */
 .unreadSubject {

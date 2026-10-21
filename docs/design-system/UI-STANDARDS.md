@@ -43,6 +43,72 @@ a single `true/false` is a `<Checkbox>` (form) or `<Switch>` (setting).
 | Zero rows (whole region: table, tab pane, page section) | `<EmptyState title body>` — never an ad-hoc muted `<p>` |
 | Zero rows (small in-card sub-list) or permission/scope gate | `<Empty>` |
 | Destructive action | `<ConfirmDialog>` — never `window.confirm` / `alert()` |
+| Form has edits that are not saved | the unsaved-changes guard — see "Unsaved changes" below |
+
+### Unsaved changes — one guard on every form
+
+Every page or inline form where someone types data that a Save
+button stores uses the same guard. Owner's standard (2026-10-21):
+"if a form is edited it says unsaved changes, and leaving or
+refreshing warns that the changes will be lost."
+
+```tsx
+const { dirty, markSaved } = useDirtyBaseline(values, loaded); // or RHF isDirty
+const guard = useUnsavedGuard(dirty && !busy, {
+  message: "You have unsaved edits on this batch. Leave without saving?",
+});
+…
+<FormActions guard={guard}>
+  <Button tone="secondary" onClick={() => guard.confirmLeave(() => navigate("/batches"))}>
+    Cancel
+  </Button>
+  <Button type="submit" busy={busy}>Save</Button>
+</FormActions>
+// after a successful save:
+guard.proceed(() => navigate("/batches"));
+```
+
+What the person gets, the same on every form:
+
+- **The bar.** `<FormActions guard>` shows the warning
+  `Unsaved changes` pill on its left while dirty and pins itself to
+  the bottom of the window, so Save stays in reach on long forms
+  (`sticky` keeps it pinned while clean too — the daily book). A
+  `note` prop holds the clean-state hint. Never hand-write the pill,
+  a "you have unsaved edits" line, or a second save bar.
+- **Leaving inside the app** — sidebar, breadcrumb, Cancel link,
+  back button, `navigate()` — is held by the one router blocker in
+  `components/UnsavedChangesHost.tsx` (needs the data router in
+  `main.tsx`) and confirmed with "Discard unsaved changes? — Keep
+  editing / Leave". Only a change of page counts: a query-string
+  change on the same page (a tab, a list's filters or page) keeps the
+  form mounted and goes through. When the query names WHAT is being
+  edited (the daily book's `?date=`), step it with
+  `guard.confirmLeave`.
+- **Refresh, tab close, typed URL** — the browser's own "Leave
+  site?" prompt (`beforeunload`; browsers do not allow custom text).
+- **The form's own Cancel / Back** goes through
+  `guard.confirmLeave(fn)`, which also covers leaves that are not a
+  route change (closing an inline form).
+
+Rules:
+
+- `dirty` means "differs from the last saved values", never "the
+  person touched a field". `useDirtyBaseline(values, ready)` for
+  useState forms — `ready` turns true only once the loaded values
+  are in state (a `hydrated` flag set in the hydrate effect), and
+  `markSaved()` after a save that stays on the page.
+  react-hook-form forms pass `isDirty`.
+- Gate on `&& !busy` so a save in flight never prompts, and wrap the
+  post-save navigation in `guard.proceed(...)`.
+- Sign-out never prompts (the session is already gone).
+- Not guarded: sign-in / sign-up / password / 2FA screens, forms
+  inside a `<Modal>` (closing one is explicit), autosave pages (the
+  store daily book saves on blur), single-field row editors with
+  their own Save (lottery counts, pay rate), and pick-then-push
+  tools that hold no typed data (bulk permissions).
+- `lib/sourceGuards.test.ts` fails on a `beforeunload` listener or
+  an "Unsaved changes" label written outside the guard.
 
 ## 3. Status display
 
@@ -216,6 +282,7 @@ Known shared components, and what they own:
 | `RowActions` | inline row buttons (it handles the mobile sheet) |
 | `TabsBar` / `TabsLink` / `TabsButton` | a hand-built tab strip |
 | `ConfirmDialog` | `window.confirm` |
+| `useUnsavedGuard` / `useDirtyBaseline` + `<FormActions guard>` | your own `beforeunload`, "Unsaved changes" label, leave-confirm dialog, baseline-vs-draft compare, or save bar — see "Unsaved changes" in §2 |
 | `useApiErrorToast` | `toast({ message: err instanceof ApiError ? … , tone: "error" })` |
 | `*_STATUS_TONES` in `api/` (`BATCH_`, `TRANSFER_`, `RETURN_CHECK_`, `TICKET_`) | a per-route status → tone map |
 | `fmtMoney2` / `formatDate` / `formatTimestamp` | `toFixed(2)`, `.slice(0, 10)`, `toLocaleDateString()` |
@@ -378,3 +445,11 @@ This is enforced by the kit, not by per-page checks:
   something in section 6's table.**
 - When you fix a drift, fix ALL instances of that drift in the same
   PR — one pattern, everywhere, or the standard erodes again.
+- **An app-wide consistency change is not done until it is written
+  down.** Any PR that makes something the same across the software
+  (one control, one bar, one message, one behaviour) adds or updates
+  the rule in this file — and, when it is a rule every change must
+  respect, a line in `CLAUDE.md` "Design system" — in the SAME PR,
+  with the shared component to use and what it replaces. Where a
+  grep can catch a relapse, add it to `lib/sourceGuards.test.ts`.
+  Owner's standing rule (2026-10-21).

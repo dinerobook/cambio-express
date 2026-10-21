@@ -12,9 +12,9 @@ import {
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs,
-  Alert, Button, Card, ConfirmDialog, ErrorState, Field, Input, Loading,
-  PageHeader, PageShell, PhoneField, SectionTitle, Select, space, useToast,
+  Alert, Breadcrumbs, Button, Card, ErrorState, Field, FormActions, Input,
+  Loading, PageHeader, PageShell, PhoneField, SectionTitle, Select, space,
+  useToast,
 } from "../components/ui";
 import { firstError, zEmailOptional, zPhoneOptional } from "../lib/validators";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
@@ -91,7 +91,7 @@ export default function SuperadminStoreForm() {
 
   const snapshot = JSON.stringify({
     name, slug, email, phone, address, plan, bizType, federalTaxRate,
-    adminName, adminUsername, adminPassword,
+    adminName, adminUsername, adminPassword, initialRole,
   });
 
   // Hydrate the form once the GET resolves on edit.
@@ -116,7 +116,7 @@ export default function SuperadminStoreForm() {
       address: s.address, plan: s.plan || "trial",
       bizType: s.business_type || "msb_hybrid",
       federalTaxRate: String(s.federal_tax_rate ?? 0.01),
-      adminName, adminUsername, adminPassword,
+      adminName, adminUsername, adminPassword, initialRole,
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- admin* are create-only defaults, stable in edit mode; re-running on their change isn't wanted
   }, [detailQuery.data, isEdit]);
@@ -262,7 +262,7 @@ export default function SuperadminStoreForm() {
         await createSuperadminStore(body);
         queryClient.invalidateQueries({ queryKey: ["superadmin", "stores"] });
         toast({ message: `Store ${body.name} created.`, tone: "success" });
-        navigate("/superadmin/stores");
+        guard.proceed(() => navigate("/superadmin/stores"));
       }
     } catch (err) {
       handleApiError(err);
@@ -473,7 +473,10 @@ export default function SuperadminStoreForm() {
             </>
           )}
 
-          <div style={{ marginTop: space.xl, display: "flex", gap: space.md, flexWrap: "wrap" }}>
+          <FormActions guard={guard}>
+            <Button type="button" tone="secondary" onClick={leaveToStores}>
+              Cancel
+            </Button>
             <Button
               type="submit"
               busy={busy}
@@ -483,14 +486,9 @@ export default function SuperadminStoreForm() {
                 ? (isEdit ? "Saving…" : "Creating…")
                 : (isEdit ? "Save changes" : "Create store")}
             </Button>
-            <Button type="button" tone="secondary" onClick={leaveToStores}>
-              Cancel
-            </Button>
-          </div>
+          </FormActions>
         </form>
       </Card>
-
-      <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
   );
 }

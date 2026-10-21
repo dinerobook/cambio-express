@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import EditDailyBook from "./EditDailyBook";
 import { setCurrentIdentity } from "../lib/auth";
+import { renderRouteWithGuard } from "../test/renderRoute";
 import { TEST_ADMIN } from "../test/setup";
 
 // How the editable form is built from the server's report:
@@ -140,5 +141,69 @@ describe("EditDailyBook — Saved pill", () => {
     await waitFor(() =>
       expect(screen.getAllByText(/Oct 7/).length).toBeGreaterThan(0));
     expect(screen.queryByText(/^Saved /)).not.toBeInTheDocument();
+  });
+});
+
+describe("EditDailyBook — unsaved changes", () => {
+  it("swaps the save-bar note for the Unsaved changes pill while edited", async () => {
+    useDailyReport.mockReturnValue(savedDay({}));
+    render(tree());
+    expect(screen.getByText("Saves apply to every field in every column."))
+      .toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText(/cash drop at 2pm/), "x");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    expect(screen.queryByText("Saves apply to every field in every column."))
+      .not.toBeInTheDocument();
+  });
+
+  it("the day stepper asks once; Keep editing stays on the day", async () => {
+    const days = new Map<string | undefined, ReturnType<typeof savedDay>>();
+    useDailyReport.mockImplementation((date?: string) => {
+      if (!days.has(date)) days.set(date, savedDay({ report_date: date }));
+      return days.get(date);
+    });
+    const { router } = renderRouteWithGuard(<EditDailyBook />, {
+      path: "/daily/edit", at: `/daily/edit?date=${DAY}`,
+    });
+    await userEvent.type(screen.getByPlaceholderText(/cash drop at 2pm/), "x");
+    await userEvent.click(screen.getByRole("button", { name: "Next day" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Keep editing" }));
+    expect(router.state.location.search).toBe(`?date=${DAY}`);
+
+    await userEvent.click(screen.getByRole("button", { name: "Next day" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Leave" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toBe("?date=2026-10-07"));
+    expect(screen.queryByRole("button", { name: "Leave" })).not.toBeInTheDocument();
+  });
+
+  it("holds a sidebar navigation away from an edited day", async () => {
+    useDailyReport.mockReturnValue(savedDay({}));
+    const { router } = renderRouteWithGuard(<EditDailyBook />, {
+      path: "/daily/edit", at: `/daily/edit?date=${DAY}`,
+    });
+    await userEvent.type(screen.getByPlaceholderText(/cash drop at 2pm/), "x");
+    act(() => { void router.navigate("/transfers"); });
+    expect(await screen.findByText(
+      "You have unsaved edits on this day's book. Leave without saving?",
+    )).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/daily/edit");
+  });
+
+  it("a saved day leaves without asking", async () => {
+    useDailyReport.mockReturnValue(savedDay({}));
+    const { router } = renderRouteWithGuard(<EditDailyBook />, {
+      path: "/daily/edit", at: `/daily/edit?date=${DAY}`,
+    });
+    await userEvent.type(screen.getByPlaceholderText(/cash drop at 2pm/), "x");
+    // The save's refetch brings the saved notes back from the server.
+    updateDailyReport.mockImplementation(async () => {
+      useDailyReport.mockReturnValue(savedDay({ notes: "x" }));
+      return {};
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Save daily book/ }));
+    await waitFor(() => expect(screen.queryByText("Unsaved changes")).toBeNull());
+    act(() => { void router.navigate("/transfers"); });
+    expect(await screen.findByText("Navigated to /transfers")).toBeInTheDocument();
   });
 });

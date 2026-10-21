@@ -5,6 +5,7 @@ import AppShell from "./components/AppShell";
 import RequireAuth from "./components/RequireAuth";
 import Gate from "./components/Gate";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
+import { UnsavedChangesHost } from "./components/UnsavedChangesHost";
 import { Loading, ToastProvider } from "./components/ui";
 import Home from "./routes/Home";
 // Static, not lazy: the site root renders sign-in, so Home already
@@ -433,6 +434,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
+    <UnsavedChangesHost />
     </RouteErrorBoundary>
   );
 }

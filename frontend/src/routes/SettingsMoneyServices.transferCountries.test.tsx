@@ -159,4 +159,16 @@ describe("Settings → Transfer countries", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add company" }));
     expect(await screen.findByText("INTERMEX is already on the list.")).toBeInTheDocument();
   });
+
+  it("shows Unsaved changes after an edit, keeps it on a refused save", async () => {
+    useStoreInfo.mockReturnValue(store(["Mexico", "Guatemala"]));
+    updateStoreInfo.mockRejectedValue(new Error("network"));
+    renderTab();
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Remove Guatemala" }));
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await userEvent.click(save());
+    await waitFor(() => expect(updateStoreInfo).toHaveBeenCalled());
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+  });
 });

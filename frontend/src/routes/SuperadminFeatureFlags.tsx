@@ -15,24 +15,11 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import {
-  Alert,
-  Button,
-  Card,
-  Checkbox,
-  ConfirmDialog,
-  EmptyState,
-  ErrorState,
-  Field,
-  Input,
-  Loading,
-  PageHeader,
-  PageShell,
-  Pill,
-  RowActions,
-  Table,
-  Textarea,
-  useToast,
+  Alert, Button, Card, Checkbox, ConfirmDialog, EmptyState, ErrorState,
+  Field, FormActions, Input, Loading, PageHeader, PageShell, Pill,
+  RowActions, Table, Textarea, useToast,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { formatDate } from "../lib/datetime";
 
 export default function SuperadminFeatureFlags() {
@@ -328,6 +315,10 @@ function CreateFlagForm({
   const [enabled, setEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { dirty } = useDirtyBaseline({ key, label, description, enabled });
+  const guard = useUnsavedGuard(dirty && !busy, {
+    message: "You have a flag you haven't created. Leave without creating?",
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -373,10 +364,15 @@ function CreateFlagForm({
         <Checkbox checked={enabled} onChange={setEnabled}>
           Enabled by default
         </Checkbox>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <FormActions guard={guard}>
+          <Button
+            tone="secondary" type="button"
+            onClick={() => guard.confirmLeave(onCancel)}
+          >
+            Cancel
+          </Button>
           <Button type="submit" busy={busy}>Create</Button>
-          <Button tone="secondary" onClick={onCancel} type="button">Cancel</Button>
-        </div>
+        </FormActions>
       </form>
     </Card>
   );

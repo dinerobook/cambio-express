@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import NewTransfer from "./NewTransfer";
+import { renderRouteWithGuard } from "../test/renderRoute";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 
@@ -392,5 +393,23 @@ describe("NewTransfer", () => {
     await user.type(screen.getByLabelText(/^Send amount/), "200");
     expect((screen.getByLabelText(/^Federal tax preview \(2%/) as HTMLInputElement).value)
       .toBe("$4.00");
+  });
+
+  it("asks before leaving a half-typed transfer; a saved one leaves without asking", async () => {
+    createTransfer.mockResolvedValue({ transfer: { id: 41 } });
+    const user = userEvent.setup();
+    const { router } = renderRouteWithGuard(<NewTransfer />, { path: "/transfers/new" });
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await fillValid(user);
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
+    act(() => { void router.navigate("/dashboard"); });
+    await user.click(await screen.findByRole("button", { name: "Keep editing" }));
+    expect(router.state.location.pathname).toBe("/transfers/new");
+    expect(screen.getByLabelText("Full name")).toHaveValue("Maria Lopez");
+
+    await user.click(screen.getByRole("button", { name: "Save transfer" }));
+    expect(await screen.findByText("Navigated to /transfers/41")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
   });
 });

@@ -4,9 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Breadcrumbs, Button, Card, ErrorState, Field, Input,
+  Alert, Breadcrumbs, Button, Card, ErrorState, Field, FormActions, Input,
   Loading, PageHeader, PageShell, SectionTitle, Switch, useToast,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SuperadminMaintenance.module.css";
 
 interface MaintenanceState {
@@ -31,14 +32,21 @@ export default function SuperadminMaintenance() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (data) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local toggle state from server-fetched maintenance config
       setEnabled(data.enabled);
       setMessage(data.message);
+      setHydrated(true);
     }
   }, [data]);
+
+  const { dirty, markSaved } = useDirtyBaseline({ enabled, message }, hydrated);
+  const guard = useUnsavedGuard(dirty && !busy, {
+    message: "You have unsaved maintenance settings. Leave without saving?",
+  });
 
   async function save() {
     setBusy(true);
@@ -48,6 +56,7 @@ export default function SuperadminMaintenance() {
         method: "POST",
         json: { enabled, message: message.trim() },
       });
+      markSaved();
       qc.invalidateQueries({ queryKey: ["superadmin", "maintenance"] });
       toast({
         message: enabled
@@ -127,11 +136,11 @@ export default function SuperadminMaintenance() {
 
             {error && <Alert tone="error">{error}</Alert>}
 
-            <div className={styles.actions}>
+            <FormActions guard={guard}>
               <Button onClick={() => { void save(); }} busy={busy} disabled={busy}>
                 {busy ? "Saving…" : "Save"}
               </Button>
-            </div>
+            </FormActions>
           </div>
         </Card>
       )}
