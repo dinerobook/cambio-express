@@ -26,6 +26,9 @@ INCOME_FIELDS: tuple[str, ...] = (
     "check_cashing_fees", "return_check_hold_fees",
     "rebates_commissions", "mt_commission_in_bank",
     "other_income_1", "other_income_2", "other_income_3",
+    # The drawer's over/short: an over is the store's money, a short
+    # (negative) takes it back. Fed from the daily book.
+    "over_short",
     # Daily-book income with no stored column (daily_feed.py).
     *DAILY_EXTRA_INCOME,
 )
@@ -39,7 +42,7 @@ EXPENSE_FIELDS: tuple[str, ...] = (
     "accounting_charges", "return_check_gl",
     "other_expense_1", "other_expense_2", "other_expense_3",
     "other_expense_4", "other_expense_5",
-    "over_short", "borrowed_money_return", "profit_distributed",
+    "borrowed_money_return", "profit_distributed",
 )
 
 # The purchase lines inside EXPENSE_FIELDS, for roll-ups that show
@@ -136,9 +139,10 @@ def summarize_monthly(
         ),
         total_income=0.0, total_expenses=0.0,
         bank_fed=bank, daily=daily,
-        # A saved month keeps its stored figure when the workflow
-        # has nothing for it (a month that predates the workflow).
-        return_check_gl=rc_gl if (row is None or rc_gl != 0) else None,
+        # Always the workflow's live figure, never the stored one:
+        # rows saved under the old rule (paybacks counted as a gain)
+        # hold a wrong value, and the column is not operator-typed.
+        return_check_gl=rc_gl,
         saved=row is not None,
     )
     summary.total_income = _sum_fields(summary, INCOME_FIELDS)

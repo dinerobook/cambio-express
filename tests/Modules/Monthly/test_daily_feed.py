@@ -373,3 +373,73 @@ def test_owner_rollup_counts_a_month_nobody_saved(client, test_store_id):
     assert row["revenue"] == 800.0
     assert row["purchases"] == 300.0
     assert row["net"] == 500.0
+
+
+# ── Over/short is income (owner's rule, 2026-10-21) ──────────
+
+
+def test_daily_over_short_is_income(client, test_store_id):
+    """The drawer's over/short comes from the daily book and counts
+    as income: an over adds, a short takes back."""
+    _msb_day(test_store_id, date(Y, M, 3), taxable_sales_cents=100000,
+             over_short_cents=4000)
+    _msb_day(test_store_id, date(Y, M, 4), over_short_cents=-1500)
+    r = _get(client, test_store_id).get_json()["report"]
+    assert r["over_short"] == 25.0
+    assert "over_short" in r["daily_fed"]
+    assert r["total_income"] == 1025.0
+    assert r["total_expenses"] == 0.0
+    assert r["net_profit"] == 1025.0
+
+
+def test_typed_over_short_stands_until_the_daily_book_has_one(
+    client, test_store_id,
+):
+    """2b rule: with no daily over/short the typed figure is used
+    (and is income); once the days carry one it wins, read-only."""
+    assert _put(client, test_store_id, {"over_short": 30.0}).status_code == 200
+    _msb_day(test_store_id, date(Y, M, 5), taxable_sales_cents=10000)
+    r = _get(client, test_store_id).get_json()["report"]
+    assert r["over_short"] == 30.0
+    assert "over_short" not in r["daily_fed"]
+    assert r["total_income"] == 130.0
+
+    _msb_day(test_store_id, date(Y, M, 6), over_short_cents=700)
+    r = _get(client, test_store_id).get_json()["report"]
+    assert r["over_short"] == 7.0
+    assert "over_short" in r["daily_fed"]
+    assert r["total_income"] == 107.0
+
+
+# ── Returned check line is always the workflow's live figure ──
+
+
+def test_a_stale_saved_returned_check_figure_is_not_shown(
+    client, test_store_id,
+):
+    """The reported bug: a month saved under the old rule (full
+    paybacks counted as a gain) carried -11,579.75. The workflow now
+    says 0 for a full payback, and the P&L must show 0 — not fall
+    back to the stale stored figure."""
+    from api.Modules.Monthly.Models import MonthlyFinancial
+    from api.Modules.ReturnChecks.Models import ReturnCheck, ReturnCheckPayment
+    with db_session():
+        db.session.add(MonthlyFinancial(
+            store_id=test_store_id, year=Y, month=M,
+            taxable_sales=500.0, return_check_gl=-11579.75,
+        ))
+        rc = ReturnCheck(
+            store_id=test_store_id, bounced_on=date(Y, M, 2),
+            customer_name="C", amount=11579.75, status="recovered",
+            status_changed_on=date(Y, M, 9),
+        )
+        db.session.add(rc)
+        db.session.flush()
+        db.session.add(ReturnCheckPayment(
+            return_check_id=rc.id, amount=11579.75, paid_on=date(Y, M, 9),
+        ))
+        db.session.commit()
+    r = _get(client, test_store_id).get_json()["report"]
+    assert r["return_check_gl"] == 0.0
+    assert r["total_expenses"] == 0.0
+    assert r["net_profit"] == 500.0

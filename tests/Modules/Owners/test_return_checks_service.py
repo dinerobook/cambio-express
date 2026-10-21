@@ -138,8 +138,8 @@ def test_period_aggregates_empty_store_ids_returns_zeros():
             db.session, [], date(2026, 1, 1), date(2026, 12, 31),
         )
         assert result == {
-            "recoveries": 0.0, "losses": 0.0, "fraud": 0.0,
-            "net_gl": 0.0, "pending": 0.0, "pending_count": 0,
+            "recoveries": 0.0, "fee_income": 0.0, "losses": 0.0,
+            "fraud": 0.0, "net_gl": 0.0, "pending": 0.0, "pending_count": 0,
         }
 
 
@@ -203,7 +203,8 @@ def test_period_aggregates_pending_balance_subtracts_installments():
 
 
 def test_period_aggregates_net_gl_uses_gain_positive():
-    """net_gl = recoveries - (losses + fraud)."""
+    """net_gl = fee income - (losses + fraud). Cash paid back up to
+    the face amount is reported as a recovery but is not a gain."""
     from tests._app import db
     from api.Modules.Owners.Services import (
         return_check_period_aggregates,
@@ -230,9 +231,92 @@ def test_period_aggregates_net_gl_uses_gain_positive():
             db.session, [s.id], date(2026, 5, 1), date(2026, 5, 31),
         )
         assert agg["recoveries"] == 500.0
+        assert agg["fee_income"] == 0.0   # 500 of a 600 check: no fee yet
         assert agg["losses"] == 200.0
         assert agg["fraud"] == 0.0
-        assert agg["net_gl"] == 300.0  # 500 - 200 - 0
+        assert agg["net_gl"] == -200.0  # 0 fees - 200 - 0
+
+
+def test_full_payback_is_not_a_gain():
+    """The reported bug: $11,579.75 of bounced checks fully paid
+    back showed as an $11,579.75 gain. Getting the face amount back
+    is the store's own money returning — the month's P&L line is 0."""
+    from tests._app import db
+    from api.Modules.Owners.Services import (
+        return_check_monthly_pl,
+        return_check_period_aggregates,
+    )
+    with db_session():
+        db.session.query(ReturnCheck).delete()
+        db.session.query(ReturnCheckPayment).delete()
+        db.session.commit()
+        s = _add_store(db.session, slug="payback-store")
+        a = _add_check(db.session, s.id, bounced_on=date(2026, 9, 2),
+                       amount=11000.0, status="recovered",
+                       status_changed_on=date(2026, 9, 20))
+        b = _add_check(db.session, s.id, bounced_on=date(2026, 9, 3),
+                       amount=579.75, status="recovered",
+                       status_changed_on=date(2026, 9, 21))
+        _add_payment(db.session, a.id, paid_on=date(2026, 9, 10), amount=6000.0)
+        _add_payment(db.session, a.id, paid_on=date(2026, 9, 20), amount=5000.0)
+        _add_payment(db.session, b.id, paid_on=date(2026, 9, 21), amount=579.75)
+        agg = return_check_period_aggregates(
+            db.session, [s.id], date(2026, 9, 1), date(2026, 9, 30),
+        )
+        assert agg["recoveries"] == 11579.75   # cash back, still reported
+        assert agg["fee_income"] == 0.0
+        assert agg["net_gl"] == 0.0
+        assert return_check_monthly_pl(db.session, s.id, 2026, 9) == 0.0
+
+
+def test_fee_on_top_of_face_amount_is_the_gain_in_the_month_paid():
+    """Paybacks pay the face amount first; what lands above it is the
+    returned-check fee, and it counts in the month it was paid."""
+    from tests._app import db
+    from api.Modules.Owners.Services import (
+        return_check_monthly_pl,
+        return_check_period_aggregates,
+    )
+    with db_session():
+        db.session.query(ReturnCheck).delete()
+        db.session.query(ReturnCheckPayment).delete()
+        db.session.commit()
+        s = _add_store(db.session, slug="fee-store")
+        rc = _add_check(db.session, s.id, bounced_on=date(2026, 4, 1),
+                        amount=300.0)
+        # April: 250 of the 300 face. May: 50 face + 25 fee, then 5 more fee.
+        _add_payment(db.session, rc.id, paid_on=date(2026, 4, 20), amount=250.0)
+        _add_payment(db.session, rc.id, paid_on=date(2026, 5, 3), amount=75.0)
+        _add_payment(db.session, rc.id, paid_on=date(2026, 5, 9), amount=5.0)
+        april = return_check_period_aggregates(
+            db.session, [s.id], date(2026, 4, 1), date(2026, 4, 30),
+        )
+        may = return_check_period_aggregates(
+            db.session, [s.id], date(2026, 5, 1), date(2026, 5, 31),
+        )
+        assert (april["recoveries"], april["fee_income"]) == (250.0, 0.0)
+        assert (may["recoveries"], may["fee_income"]) == (80.0, 30.0)
+        # Expense convention: a gain is negative on the P&L line.
+        assert return_check_monthly_pl(db.session, s.id, 2026, 5) == -30.0
+        assert return_check_monthly_pl(db.session, s.id, 2026, 4) == 0.0
+
+
+def test_fee_income_is_scoped_to_the_stores_asked_for():
+    from tests._app import db
+    from api.Modules.Owners.Services.return_checks import fee_income
+    with db_session():
+        db.session.query(ReturnCheck).delete()
+        db.session.query(ReturnCheckPayment).delete()
+        db.session.commit()
+        mine = _add_store(db.session, slug="fee-mine")
+        other = _add_store(db.session, slug="fee-other")
+        rc = _add_check(db.session, other.id, bounced_on=date(2026, 5, 1),
+                        amount=100.0)
+        _add_payment(db.session, rc.id, paid_on=date(2026, 5, 2), amount=120.0)
+        window = (date(2026, 5, 1), date(2026, 5, 31))
+        assert fee_income(db.session, [mine.id], *window) == 0.0
+        assert fee_income(db.session, [other.id], *window) == 20.0
+        assert fee_income(db.session, [], *window) == 0.0
 
 
 # ── aging_buckets ──────────────────────────────────────────
