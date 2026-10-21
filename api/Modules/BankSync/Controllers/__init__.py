@@ -60,11 +60,14 @@ from api.Modules.BankSync.Requests import (
     BankSyncTransactionsResponse,
     BankTransactionListResponse,
     BankTransactionRow,
+    BooksCounts,
     CategorizeRequest,
     CategorizeResponse,
+    MatchedEntry,
 )
 from api.Modules.BankSync.Services import (
     DailyBookLockedError,
+    TransactionDismissedError,
     RuleApplyReport,
     apply_rule_to_existing,
     bank_category_groups,
@@ -123,11 +126,25 @@ def _booked_dates(db: Session, line_ids: list[int]) -> dict[int, str]:
     return {int(i): d.isoformat() for i, d in rows if d is not None}
 
 
+def _entry(line: DailyLineItem) -> MatchedEntry:
+    from api.Modules.BankSync.Services.reconcile import line_label
+    return MatchedEntry(
+        id=int(line.id),
+        report_date=line.report_date,
+        kind=str(line.kind),
+        kind_label=line_label(str(line.kind)),
+        amount=float(line.amount or 0),
+        note=line.note or "",
+    )
+
+
 def _txn_row(
     r: BankTransaction, labels: dict[int, str], booked: dict[int, str],
+    states: "dict[int, Any] | None" = None,
 ) -> BankTransactionRow:
     line_id = r.daily_line_item_id
     booked_on = booked.get(int(line_id), "") if line_id else ""
+    state = (states or {}).get(int(r.id))
     return BankTransactionRow(
         id=r.id,
         posted_at=r.posted_at.isoformat() if r.posted_at else "",
@@ -146,7 +163,24 @@ def _txn_row(
             if r.report_date_override else ""
         ),
         bank_date=r.posted_at.date().isoformat() if r.posted_at else "",
+        books_status=state.status if state else "",
+        matched_entries=[_entry(x) for x in state.lines] if state else [],
+        suggestion_count=state.candidates if state else 0,
+        dismissed_at=r.dismissed_at.isoformat() if r.dismissed_at else "",
     )
+
+
+def _books_states(
+    db: Session, store_id: int, rows: list[BankTransaction],
+) -> "dict[int, Any] | None":
+    """The daily-book pill for each row, or None when the store has
+    matching off (the rows then read exactly as before)."""
+    from api.Modules.BankSync.Services.reconcile import (
+        books_states, matching_enabled,
+    )
+    if not matching_enabled(db, store_id):
+        return None
+    return books_states(db, store_id, rows)
 
 
 @router.get("/categories", response_model=BankCategoriesResponse)
@@ -183,6 +217,10 @@ def list_transactions_route(
     sign: str = Query("", pattern="^(|credit|debit)$"),
     q: str = Query(""),
     uncategorized_only: bool = Query(False),
+    books: str = Query(
+        "", pattern="^(|review|matched|dismissed)$",
+        description="Daily-book status: review (still needs a person), matched or dismissed.",
+    ),
     sort: str = Query("", description="posted, description, category or amount; empty = newest first."),
     dir: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -197,7 +235,7 @@ def list_transactions_route(
         "account_id": account_id, "category_slug": category_slug,
         "sign": sign, "q": q,
         "uncategorized_only": "1" if uncategorized_only else "",
-        "sort": sort, "dir": dir,
+        "sort": sort, "dir": dir, "books": books,
     })
     page_obj = list_transactions_page(
         db, [sid], filters, page=page, per_page=per_page,
@@ -208,7 +246,16 @@ def list_transactions_route(
     booked = _booked_dates(
         db, [r.daily_line_item_id for r in page_obj.rows],
     )
-    rows = [_txn_row(r, labels, booked) for r in page_obj.rows]
+    states = _books_states(db, sid, page_obj.rows)
+    rows = [_txn_row(r, labels, booked, states) for r in page_obj.rows]
+    counts = None
+    if states is not None:
+        from api.Modules.BankSync.Services.reconcile import books_counts
+        c = books_counts(db, sid)
+        counts = BooksCounts(
+            added=c["added"], matched=c["matched"],
+            to_review=c["review"], dismissed=c["dismissed"],
+        )
     return BankTransactionListResponse(
         rows=rows,
         total=page_obj.total,
@@ -217,6 +264,8 @@ def list_transactions_route(
         total_pages=page_obj.total_pages,
         page_total_cents=page_obj.page_total_cents,
         uncategorized_count=page_obj.uncategorized_count,
+        matching_enabled=states is not None,
+        books_counts=counts,
     )
 
 
@@ -288,7 +337,13 @@ def _adapt_txn(db: Session, txn: BankTransaction) -> BankTransactionRow:
     `_account_labels` for the per-account nickname lookup."""
     labels = _account_labels(db, [txn.stripe_bank_account_id])
     booked = _booked_dates(db, [txn.daily_line_item_id])
-    return _txn_row(txn, labels, booked)
+    states = _books_states(db, int(txn.store_id), [txn])
+    return _txn_row(txn, labels, booked, states)
+
+
+def _is_matched(db: Session, txn: BankTransaction) -> bool:
+    from api.Modules.BankSync.Services.reconcile import matched_lines
+    return bool(matched_lines(db, txn))
 
 
 def _find_owned_txn(db: Session, store_id: int, txn_id: int) -> BankTransaction:
@@ -349,6 +404,12 @@ def categorize_route(
             # a date or an explicit null — sets or clears it.
             report_date_explicit="report_date" in body.model_fields_set,
         )
+    except TransactionDismissedError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "transaction_dismissed", "message": str(exc)},
+        )
     except DailyBookLockedError as exc:
         db.rollback()
         raise HTTPException(
@@ -366,6 +427,7 @@ def categorize_route(
         summary=(
             f"category={body.target_kind} "
             f"booked={'yes' if txn.daily_line_item_id else 'no'}"
+            + (" matched=yes" if _is_matched(db, txn) else "")
             + (
                 f" day={txn.report_date_override.isoformat()}"
                 if txn.report_date_override else ""
@@ -396,6 +458,12 @@ def uncategorize_route(
     previous = txn.category_slug or ""
     try:
         uncategorize_transaction(db, txn)
+    except TransactionDismissedError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "transaction_dismissed", "message": str(exc)},
+        )
     except DailyBookLockedError as exc:
         db.rollback()
         raise HTTPException(
@@ -546,6 +614,7 @@ def _apply_report(rep: RuleApplyReport | None) -> BankRuleApplyReport | None:
         return None
     return BankRuleApplyReport(
         tagged=rep.tagged, booked=rep.booked, locked_skipped=rep.locked_skipped,
+        matched=rep.matched,
     )
 
 

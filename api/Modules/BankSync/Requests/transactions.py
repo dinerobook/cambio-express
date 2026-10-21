@@ -4,6 +4,19 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class MatchedEntry(BaseModel):
+    """A daily book entry a bank row is matched to (or could be)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    report_date: date
+    kind: str
+    kind_label: str
+    amount: float
+    note: str = ""
+
+
 class BankTransactionRow(BaseModel):
     """One row in the /bank/transactions list. Wire shape mirrors
     what the legacy template renders — id, date, label, amount in
@@ -34,6 +47,13 @@ class BankTransactionRow(BaseModel):
     # `posted_at`'s date — what the row books on with no override.
     # The SPA shows it as the "use the bank's date" choice.
     bank_date: str = ""
+    # Where this money stands against the daily book (only when the
+    # store has matching on; "" otherwise and for P&L / other tags):
+    # added | matched | suggested | not_on_books | dismissed.
+    books_status: str = ""
+    matched_entries: list[MatchedEntry] = Field(default_factory=list)
+    suggestion_count: int = 0
+    dismissed_at: str = ""
 
 
 class BankTransactionListResponse(BaseModel):
@@ -49,6 +69,22 @@ class BankTransactionListResponse(BaseModel):
     total_pages: int
     page_total_cents: int
     uncategorized_count: int
+    # The store's matching switch, and its store-wide counts (all
+    # zero when the switch is off).
+    matching_enabled: bool = False
+    books_counts: "BooksCounts | None" = None
+
+
+class BooksCounts(BaseModel):
+    """Store-wide: how many bank rows are on the books, matched,
+    still need a person, or were dismissed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    added: int = 0
+    matched: int = 0
+    to_review: int = 0
+    dismissed: int = 0
 
 
 class CategorizeRequest(BaseModel):
@@ -119,3 +155,87 @@ class BankCategoriesResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     groups: list[BankCategoryGroup] = Field(default_factory=list)
+
+
+class MatchCandidateRow(BaseModel):
+    """One answer to "which entry is this bank row": one entry, or
+    several same-day entries of one kind that add up to it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    line_ids: list[int]
+    report_date: date
+    kind: str
+    kind_label: str
+    entries: list[MatchedEntry] = Field(default_factory=list)
+    by_check_number: bool = False
+    # Bank date minus the entry's day: 2 = the bank posted it two
+    # days after the day it was typed on.
+    days_from_bank: int = 0
+
+
+class MatchCandidatesResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    candidates: list[MatchCandidateRow] = Field(default_factory=list)
+
+
+class MatchLinesRequest(BaseModel):
+    """POST body for match ("Yes, same money") and reject ("No,
+    different"): the entries in question."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    line_ids: list[int] = Field(..., min_length=1, max_length=4)
+
+
+class DismissRequest(BaseModel):
+    """Dismiss bank rows as already handled: the ticked `ids`, or
+    every row still needing review posted on or before `before`.
+    Exactly one of the two."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ids: list[int] = Field(default_factory=list, max_length=500)
+    before: date | None = None
+
+
+class DismissResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dismissed: int = 0
+    # Rows already on the books (added or matched) are never
+    # dismissed — there is nothing left to handle.
+    skipped: int = 0
+
+
+class UseEntryRequest(BaseModel):
+    """Keep the typed entry: remove the one the bank added and
+    match the bank row to the typed one."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    line_id: int = Field(..., ge=1)
+
+
+class PossibleDoubleRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    transaction: BankTransactionRow
+    bank_entry: MatchedEntry
+    typed_entry: MatchedEntry
+
+
+class PossibleDoublesResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[PossibleDoubleRow] = Field(default_factory=list)
+
+
+class ReconcileRunResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    matched: int = 0
+
+
+BankTransactionListResponse.model_rebuild()

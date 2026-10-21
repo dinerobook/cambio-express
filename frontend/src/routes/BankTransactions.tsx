@@ -37,6 +37,8 @@ import {
 } from "../lib/datetime";
 import styles from "./BankTransactions.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { BooksCell, BooksSummary, PossibleDoublesCard } from "./BankMatching";
+import { canDismissRow } from "../lib/bankMatching";
 
 // Bank transactions at /app/bank-transactions. Filters: account,
 // sign, uncategorized-only, free-text search. Each row's category
@@ -52,6 +54,11 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // afternoon posts Monday morning, and belongs on Friday's close-out
 // — so a booked row offers "Change day". The server remembers the
 // choice on the row, so re-tagging does not walk it back.
+//
+// With the store's bank matching switched on (BankMatching.tsx), a
+// "Daily book" column shows whether the money is already there
+// (matched / added from bank), needs a person (check match), or is
+// not on the books yet; admins can dismiss rows already handled.
 
 export default function BankTransactions() {
   const identity = getCurrentIdentity();
@@ -67,7 +74,7 @@ export default function BankTransactions() {
   // characters) like every list — CLAUDE.md "Table search UX".
   const url = useUrlFilterState({
     posted_from: "", posted_to: "", account_id: "", category_slug: "",
-    sign: "", q: "", uncategorized_only: "",
+    sign: "", q: "", uncategorized_only: "", books: "",
   }, {
     pageSizeKey: "bank-transactions",
     defaultSort: { key: "posted", direction: "desc" },
@@ -82,6 +89,7 @@ export default function BankTransactions() {
     sign:               params.sign as "" | "credit" | "debit",
     q:                  params.q.length >= 2 ? params.q : "",
     uncategorized_only: params.uncategorized_only === "1",
+    books:              params.books === "review" ? "review" : "",
     sort:               url.sort?.key,
     dir:                url.sort?.direction,
     page:               url.page,
@@ -89,6 +97,8 @@ export default function BankTransactions() {
   };
 
   const txns = useBankTransactions(filters);
+  const matching = Boolean(txns.data?.matching_enabled);
+  const [ticked, setTicked] = useState<number[]>([]);
 
   if (identity?.store_id == null) {
     return (
@@ -151,6 +161,8 @@ export default function BankTransactions() {
       {accounts.data && accounts.data.rows.length > 0 && (
         <BalanceCards accounts={accounts.data.rows} />
       )}
+
+      {matching && <PossibleDoublesCard />}
 
       <Card>
         <div className="ds-filter-bar">
@@ -216,9 +228,23 @@ export default function BankTransactions() {
           </Field>
         </div>
 
+        {matching && (
+          <BooksSummary
+            counts={txns.data?.books_counts}
+            reviewOnly={params.books === "review"}
+            onReviewOnly={(v) => setParam("books", v ? "review" : "")}
+            ticked={ticked}
+            onClearTicked={() => setTicked([])}
+          />
+        )}
+
         <TxnTable
           rows={txns.data?.rows}
           groups={groups}
+          matching={matching}
+          ticked={ticked}
+          onTick={(id, on) =>
+            setTicked((t) => (on ? [...t, id] : t.filter((x) => x !== id)))}
           onMakeRule={setRuleFor}
           isLoading={txns.isLoading} isError={txns.isError} error={txns.error}
           onRetry={() => { void txns.refetch(); }}
@@ -280,10 +306,14 @@ export default function BankTransactions() {
 }
 
 function TxnTable({
-  rows, groups, onMakeRule, ...table
+  rows, groups, matching, ticked, onTick, onMakeRule, ...table
 }: {
   rows: BankTransactionRow[] | undefined;
   groups: BankCategoryGroup[] | undefined;
+  /** The store has bank matching on: show the Daily book column. */
+  matching: boolean;
+  ticked: number[];
+  onTick: (id: number, on: boolean) => void;
   onMakeRule: (row: BankTransactionRow) => void;
 } & Pick<
   DataTableProps<BankTransactionRow>,
@@ -299,7 +329,23 @@ function TxnTable({
         queryKey: ["bank", "transactions", identity?.store_id],
       });
     }
+    const canDismiss = matching && hasPermission("bank_dismiss", "update");
+    const tickColumn: DataColumn<BankTransactionRow>[] = canDismiss ? [{
+      key: "tick", header: "Select",
+      render: (r) => canDismissRow(r) ? (
+        <Checkbox
+          aria-label={`Tick ${r.description || "transaction"} to dismiss`}
+          checked={ticked.includes(r.id)}
+          onChange={(v) => onTick(r.id, v)}
+        />
+      ) : null,
+    }] : [];
+    const booksColumn: DataColumn<BankTransactionRow>[] = matching ? [{
+      key: "books", header: "Daily book",
+      render: (r) => <BooksCell row={r} />,
+    }] : [];
     return [
+      ...tickColumn,
       {
         key: "posted", header: "Posted", sortKey: "posted", sortFirst: "desc",
         render: (r) => <span className={styles.dateCell}>{formatDate(r.posted_at)}</span>,
@@ -329,6 +375,7 @@ function TxnTable({
           />
         ),
       },
+      ...booksColumn,
       {
         key: "amount", header: "Amount", align: "right", sortKey: "amount", sortFirst: "desc",
         render: (r) => (
@@ -338,7 +385,10 @@ function TxnTable({
         ),
       },
     ];
-  }, [qc, identity?.store_id, groups, labels, bookable, onMakeRule]);
+  }, [
+    qc, identity?.store_id, groups, labels, bookable, onMakeRule,
+    matching, ticked, onTick,
+  ]);
   return (
     <DataTable
       {...table}

@@ -30,7 +30,7 @@ import {
 import { useSessionStatus, useStoreInfo } from "../api/account";
 import { fmtMoney2, fmtNumber, fmtCount } from "../lib/formatters";
 import {
-  addDaysIso, formatDateTime, formatDayLabel, formatTime, parseTimestamp,
+  addDaysIso, formatDate, formatDateTime, formatDayLabel, formatTime, parseTimestamp,
 } from "../lib/datetime";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
@@ -2147,6 +2147,22 @@ function CheckDepositsWidget({
 // The add-row + entries table shared by every line-item modal
 // (single-kind widgets AND the two-kind Payroll modal). Owns the
 // add / inline-edit / delete state so callers stay presentational.
+/** The bank has this entry: the bank feed added it, or a bank
+ *  transaction was matched to it (BankSync INVARIANTS.md
+ *  "Matching"). Nothing shows for an entry the bank hasn't seen. */
+export function InBankPill({ item }: { item: LineItemRow }) {
+  if (!item.in_bank) return null;
+  const how = item.in_bank === "added" ? "Added by the bank feed" : "Matched to a bank transaction";
+  return (
+    <span
+      className={styles.inBank}
+      title={item.bank_date ? `${how}, bank date ${formatDate(item.bank_date)}` : how}
+    >
+      <Pill tone="accent">In bank</Pill>
+    </span>
+  );
+}
+
 function LineItemEntriesEditor({
   kind, readOnly, items, storeId, date, onChange, canAdd = true,
 }: {
@@ -2225,12 +2241,25 @@ function LineItemEntriesEditor({
     }
   }
 
-  async function add() {
+  // The bank feed already put this amount on this day's box: ask
+  // before adding the same money twice (BankSync "Matching").
+  const [dupeOf, setDupeOf] = useState<LineItemRow | null>(null);
+
+  async function add(confirmed = false) {
     if (busy) return;
     setErr(null);
     if (!amount || amount <= 0) {
       setErr("Amount must be greater than zero."); return;
     }
+    const fromBank = items.find(
+      (i) => i.in_bank === "added"
+        && Math.round(i.amount * 100) === Math.round(amount * 100),
+    );
+    if (fromBank && !confirmed) {
+      setDupeOf(fromBank);
+      return;
+    }
+    setDupeOf(null);
     setBusy(true);
     try {
       await createLineItem(storeId, date, {
@@ -2314,7 +2343,7 @@ function LineItemEntriesEditor({
             tone="primary"
             size="sm"
             busy={busy}
-            onClick={add}
+            onClick={() => { void add(); }}
             disabled={busy}
           >
             + Add
@@ -2429,7 +2458,10 @@ function LineItemEntriesEditor({
                 <tr key={item.id}>
                   <td className={styles.widgetTdMono}>{item.at_time || "—"}</td>
                   <td className={styles.widgetTdMono}>{fmtMoney2(item.amount)}</td>
-                  <td className={styles.widgetTd}>{item.note || "—"}</td>
+                  <td className={styles.widgetTd}>
+                    {item.note || "—"}
+                    <InBankPill item={item} />
+                  </td>
                   {settleable && (
                     <td className={styles.widgetTd}>
                       <SettlementPill item={item} />
@@ -2469,6 +2501,20 @@ function LineItemEntriesEditor({
         </table>
       </div>
     )}
+    <ConfirmDialog
+      open={dupeOf != null}
+      title="Already here from the bank?"
+      message={dupeOf
+        ? `The bank feed already added ${fmtMoney2(dupeOf.amount)} to this box`
+          + (dupeOf.bank_date ? ` (bank date ${formatDate(dupeOf.bank_date)})` : "")
+          + ". Adding it again counts the same money twice."
+        : ""}
+      confirmLabel="Add anyway"
+      cancelLabel="Don't add"
+      busy={busy}
+      onConfirm={() => { void add(true); }}
+      onCancel={() => setDupeOf(null)}
+    />
     <ConfirmDialog
       open={removing != null}
       title="Remove this entry?"

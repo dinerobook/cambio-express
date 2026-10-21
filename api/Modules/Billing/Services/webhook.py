@@ -104,6 +104,10 @@ def handle_stripe_event(
           referee credits if the store was referred.
       - `customer.subscription.deleted`:
           mark the store inactive + start the retention countdown.
+      - `financial_connections.account.refreshed_transactions`:
+          Stripe has new bank transactions for a connected account;
+          pull them in for its store (BankSync `sync_after_stripe_
+          refresh`). The bank feed's only automatic trigger.
 
     Anything else is a no-op (Stripe still gets a 200 from the
     route — that's fine, we log it as "ok" upstream).
@@ -121,6 +125,11 @@ def handle_stripe_event(
         _handle_checkout_session_completed(db, event)
     elif event_type == "customer.subscription.deleted":
         _handle_subscription_deleted(db, event, retention_days=retention_days)
+    elif event_type == "financial_connections.account.refreshed_transactions":
+        from api.Modules.BankSync.Services.sync import sync_after_stripe_refresh
+        obj = (event.get("data") or {}).get("object") or {}
+        if obj.get("id"):
+            sync_after_stripe_refresh(db, str(obj["id"]))
     # Other event types: accepted by the route, no-op here.
 
 

@@ -456,6 +456,14 @@ def _line_item_row_with_settled(
     return _line_item_row(item, settled_cents_=done)
 
 
+def _match_bank_to_line(db: Session, line: DailyLineItem) -> None:
+    """Store with bank matching on: link a waiting bank transaction
+    that is surely this entry (BankSync INVARIANTS.md "Matching")."""
+    from api.Modules.BankSync.Services import reconcile
+    if reconcile.matching_enabled(db, int(line.store_id)):
+        reconcile.match_new_line(db, line)
+
+
 def _refuse_locked_day(db: Session, store_id: int, d: date) -> None:
     """The lock is the kill-switch for EVERY line-item write
     (INVARIANTS.md "Lock rules") — create and delete included."""
@@ -518,10 +526,22 @@ def line_items_list_route(
         db, int(store_id),
         [int(r.id) for r in rows if str(r.kind) in SETTLEMENT_PAIRS],
     )
-    return LineItemListResponse(items=[
+    items = [
         _line_item_row(r, settled_cents_=done.get(int(r.id), 0))
         for r in rows
-    ])
+    ]
+    # Which entries the bank has confirmed (BankSync INVARIANTS.md
+    # "Matching"); only for a store with matching switched on.
+    from api.Modules.BankSync.Services import reconcile
+    if reconcile.matching_enabled(db, int(store_id)):
+        marks = reconcile.line_bank_marks(
+            db, int(store_id), [int(r.id) for r in rows],
+        )
+        for item in items:
+            mark = marks.get(int(item.id))
+            if mark:
+                item.in_bank, item.bank_date = mark
+    return LineItemListResponse(items=items)
 
 
 @router.post(
@@ -596,6 +616,9 @@ def line_items_create_route(
             )
     except LineItemValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    # A bank transaction that was waiting for this entry is matched
+    # to it now (moves no money).
+    _match_bank_to_line(db, row)
     # Each cash-ledger entry the cashier logs (cash in, cash out,
     # drop, bank deposit, …) is financially material — "who logged
     # this $500 drop at 2pm?" should be answerable from the audit
@@ -711,6 +734,12 @@ def line_items_update_route(
             db, int(store_id), item.report_date,
             kind=item.kind, daily_report_field=target_field,
         )
+    # A new amount no longer says what the bank said: the match goes
+    # and the entry is looked up afresh.
+    if float(item.amount or 0) != original_amount:
+        from api.Modules.BankSync.Services import reconcile
+        reconcile.drop_matches_for_line(db, int(item.id))
+        _match_bank_to_line(db, item)
 
     # Audit row — same shape as delete (kind + amount delta).
     new_amount = float(item.amount or 0)
@@ -768,6 +797,10 @@ def line_items_delete_route(
         delete_line_item(db, item)
     except LineItemValidationError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    # The bank transaction it was matched to goes back to "not on
+    # the books" so it is not forgotten.
+    from api.Modules.BankSync.Services import reconcile
+    reconcile.drop_matches_for_line(db, int(item_id))
     target_field = field_for_kind(kind)
     if target_field:
         recompute_line_items_total(

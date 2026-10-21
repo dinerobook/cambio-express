@@ -128,6 +128,12 @@ class LineItemRow(BaseModel):
     settle_by: date | None = None
     settled: float = 0.0
     settles_item_id: int | None = None
+    # The bank has this entry (store with bank matching on):
+    # "added" = the bank feed put it here, "matched" = a bank
+    # transaction was matched to it; None = not seen at the bank yet.
+    # `bank_date` is the day the bank dated it.
+    in_bank: Literal["added", "matched"] | None = None
+    bank_date: date | None = None
 
 
 class LineItemListResponse(BaseModel):

@@ -23,6 +23,7 @@ from api.Modules.BankSync.Services.categories import (
 )
 from api.Modules.BankSync.Services.categorize import (
     DailyBookLockedError,
+    TransactionDismissedError,
     bank_date_for,
     book_to_daily,
     booking_date_for,
@@ -55,7 +56,7 @@ from api.Modules.BankSync.Services.rules import (
     update_rule,
 )
 from api.Modules.BankSync.Services.sync import (
-    INITIAL_SYNC_DAYS_BACK,
+    LOOKBACK_DAYS,
     backfill_uncategorized_rows,
     migrate_generic_bank_charge_per_account,
     sync_bank_transactions,
@@ -72,7 +73,8 @@ __all__ = [
     "BUILTIN_BANK_RULES",
     "DESC_MATCH_TYPES",
     "DailyBookLockedError",
-    "INITIAL_SYNC_DAYS_BACK",
+    "TransactionDismissedError",
+    "LOOKBACK_DAYS",
     "RuleApplyReport",
     "RuleFields",
     "RuleNotFoundError",

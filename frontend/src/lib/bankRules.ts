@@ -201,6 +201,7 @@ export function describeAppliedRule(a: BankRuleApplyReport | null | undefined): 
   if (!a) return "";
   const parts = [`${a.tagged} tagged`];
   if (a.booked) parts.push(`${a.booked} booked on the daily book`);
+  if (a.matched) parts.push(`${a.matched} already in the daily book (matched)`);
   if (a.locked_skipped) parts.push(`${a.locked_skipped} skipped (day locked)`);
   return ` ${parts.join(", ")}.`;
 }

@@ -50,12 +50,6 @@ from api.Core.Clock import utc_now
 logger = logging.getLogger(__name__)
 
 
-# How far back to scan on a fresh sync when no `since` is provided.
-# Yesterday + today only by default — minimal cost, still catches
-# same-day deposits not yet entered into the daily book.
-INITIAL_SYNC_DAYS_BACK = 1
-
-
 def upsert_bank_transaction(
     db: Session, store_id: int, account_row, api_obj,
 ) -> tuple:
@@ -211,19 +205,56 @@ def backfill_uncategorized_rows(db: Session, store_id: int) -> int:
     return tagged
 
 
+# How far back a routine sync looks. A bank reports some
+# transactions days after they happened, and a store may not sync
+# for a while; looking back only to yesterday (as this once did)
+# silently skipped both. The window reaches back to the account's
+# newest row we already have when that is older, but never further
+# than `MAX_LOOKBACK_DAYS`.
+LOOKBACK_DAYS = 30
+MAX_LOOKBACK_DAYS = 90
+
+
+def lookback_start(db: Session, account_id: int, now: datetime) -> datetime:
+    """The `transacted_at` lower bound for a routine sync of one
+    account: 30 days back, or back to just before the newest row we
+    hold when the account has not synced for longer — capped at 90
+    days. A brand-new account (no rows) gets the 30 days."""
+    from sqlalchemy import func
+
+    from api.Modules.BankSync.Models import BankTransaction
+
+    lo = now - timedelta(days=LOOKBACK_DAYS)
+    newest = (
+        db.query(func.max(BankTransaction.posted_at))
+          .filter(BankTransaction.stripe_bank_account_id == account_id)
+          .scalar()
+    )
+    if newest is not None and newest < lo:
+        lo = max(newest - timedelta(days=1), now - timedelta(days=MAX_LOOKBACK_DAYS))
+    return lo
+
+
 def sync_bank_transactions(
     db: Session, store, since: datetime | None = None,
     until: datetime | None = None,
+    *, account_ids: list[int] | None = None, refresh: bool = True,
 ) -> tuple[int, int, str]:
     """Pull transactions from every enabled FC account on `store`.
 
     `since` / `until` are datetimes mapped to Stripe's
     `transacted_at[gte]` / `transacted_at[lte]` filters. When
-    `since` is None, we use a rolling 7-day lookback (Stripe FC
+    `since` is None, `lookback_start` picks the window (Stripe FC
     surfaces transactions retroactively — a transaction posted
     on May 1 may not appear in Stripe's feed until May 3 — so
     filtering strictly by `max(posted_at)` would skip late-arriving
     rows).
+
+    `account_ids` limits the sync to those accounts (the webhook
+    syncs the one Stripe just refreshed). `refresh=False` skips
+    asking Stripe for a new refresh — the webhook path, where Stripe
+    has just finished one and asking again would only start the
+    next, which would send the webhook again.
 
     Returns `(new_rows, total_seen, last_error)`:
       - `new_rows`: count of rows inserted (vs updated)
@@ -238,15 +269,13 @@ def sync_bank_transactions(
     total = 0
     last_error = ""
     now = utc_now()
-    fallback_since = datetime.combine(
-        (now - timedelta(days=INITIAL_SYNC_DAYS_BACK)).date(),
-        datetime.min.time(),
-    )
-    accounts = (
+    accounts_q = (
         db.query(StripeBankAccount)
           .filter_by(store_id=store.id, enabled=True)
-          .all()
     )
+    if account_ids is not None:
+        accounts_q = accounts_q.filter(StripeBankAccount.id.in_(account_ids))
+    accounts = accounts_q.all()
     for acct in accounts:
         try:
             # Idempotent self-heal: ensure this account is
@@ -267,25 +296,20 @@ def sync_bank_transactions(
             # data from the bank before we list. The refresh is
             # async — this call may return stale data, but the
             # NEXT manual sync will see whatever the bank has now.
-            try:
-                stripe.financial_connections.Account.refresh_account(
-                    acct.stripe_account_id, features=["transactions"],
-                )
-            except stripe.error.StripeError as e:
-                logger.warning(
-                    "FC transactions refresh (sync) failed for %s: %s",
-                    acct.stripe_account_id, e,
-                )
+            if refresh:
+                try:
+                    stripe.financial_connections.Account.refresh_account(
+                        acct.stripe_account_id, features=["transactions"],
+                    )
+                except stripe.error.StripeError as e:
+                    logger.warning(
+                        "FC transactions refresh (sync) failed for %s: %s",
+                        acct.stripe_account_id, e,
+                    )
 
             # Resolve the lower bound. Caller-provided `since` for
-            # initial connect; otherwise rolling 7-day lookback.
-            if since is not None:
-                lo = since
-            else:
-                lo = max(
-                    utc_now() - timedelta(days=7),
-                    fallback_since,
-                )
+            # initial connect; otherwise `lookback_start`.
+            lo = since if since is not None else lookback_start(db, acct.id, now)
             params = {
                 "account": acct.stripe_account_id,
                 "limit": 100,
@@ -344,4 +368,48 @@ def sync_bank_transactions(
     migrated = migrate_generic_bank_charge_per_account(db, store.id)
     if migrated:
         db.commit()
+    # Rows that were waiting for their daily book entry (tagged
+    # before the cashier typed it, or before matching was switched
+    # on) are matched now when the match is sure.
+    from api.Modules.BankSync.Services import reconcile
+    # The new rows are already committed: a matching fault must never
+    # turn a good sync into a failed one. Roll back the half-done
+    # links, log, and leave the rows for "Match now" / the next sync.
+    try:
+        if reconcile.matching_enabled(db, store.id):
+            if reconcile.reconcile_store(db, store.id):
+                db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Bank matching after sync failed for store %s", store.id)
     return new_rows, total, last_error
+
+
+def sync_after_stripe_refresh(db: Session, fc_account_id: str) -> int:
+    """Stripe finished refreshing an account's transactions
+    (`financial_connections.account.refreshed_transactions`): pull
+    them in for the store that owns the account. This is what makes
+    transactions arrive without anyone pressing Sync — Stripe
+    refreshes subscribed accounts on its own daily schedule. Returns
+    the new-row count; an unknown or disconnected account is a
+    no-op. Commits."""
+    from api.Modules.BankSync.Models import StripeBankAccount
+    from api.Modules.Tenancy.Models import Store
+
+    acct = (
+        db.query(StripeBankAccount)
+          .filter_by(stripe_account_id=fc_account_id, enabled=True)
+          .first()
+    )
+    if acct is None:
+        return 0
+    store = db.get(Store, acct.store_id)
+    if store is None:
+        return 0
+    new_rows, _, err = sync_bank_transactions(
+        db, store, account_ids=[acct.id], refresh=False,
+    )
+    db.commit()
+    if err:
+        logger.warning("FC webhook sync for %s: %s", fc_account_id, err)
+    return new_rows

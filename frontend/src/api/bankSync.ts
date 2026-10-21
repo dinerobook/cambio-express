@@ -70,7 +70,26 @@ export interface BankTransactionRow {
   /** ISO date of `posted_at` — the day it books on with no
    *  override. */
   bank_date: string;
+  /** Where this money stands against the daily book, only when the
+   *  store has bank matching on ("" otherwise, and for P&L / other
+   *  tags). */
+  books_status?: BooksStatus;
+  matched_entries?: MatchedEntry[];
+  suggestion_count?: number;
+  dismissed_at?: string;
 }
+
+/** `added` = the bank feed put it on the daily book; `matched` =
+ *  linked to an entry someone typed; `suggested` = possible entries
+ *  found, a person decides; `not_on_books` = belongs on the daily
+ *  book but is not there; `dismissed` = an admin marked it handled. */
+export type BooksStatus =
+  | "" | "added" | "matched" | "suggested" | "not_on_books" | "dismissed";
+
+export type MatchedEntry = components["schemas"]["MatchedEntry"];
+export type MatchCandidate = components["schemas"]["MatchCandidateRow"];
+export type BooksCounts = components["schemas"]["BooksCounts"];
+export type PossibleDouble = components["schemas"]["PossibleDoubleRow"];
 
 export interface BankTransactionListResponse {
   rows: BankTransactionRow[];
@@ -80,6 +99,9 @@ export interface BankTransactionListResponse {
   total_pages: number;
   page_total_cents: number;
   uncategorized_count: number;
+  /** The store's bank-matching switch and its store-wide counts. */
+  matching_enabled?: boolean;
+  books_counts?: BooksCounts | null;
 }
 
 export interface BankTransactionFilters {
@@ -90,6 +112,8 @@ export interface BankTransactionFilters {
   sign?: "" | "credit" | "debit";
   q?: string;
   uncategorized_only?: boolean;
+  /** Daily-book status: review | matched | dismissed. */
+  books?: "" | "review" | "matched" | "dismissed";
   /** posted | description | category | amount; default newest first. */
   sort?: string;
   dir?: "asc" | "desc";
@@ -135,6 +159,7 @@ export function useBankTransactions(filters: BankTransactionFilters) {
       if (filters.sign)               p.set("sign",          filters.sign);
       if (filters.q)                  p.set("q",             filters.q);
       if (filters.uncategorized_only) p.set("uncategorized_only", "true");
+      if (filters.books)              p.set("books",    filters.books);
       if (filters.sort)               p.set("sort",     filters.sort);
       if (filters.dir)                p.set("dir",      filters.dir);
       if (filters.page)               p.set("page",     String(filters.page));
@@ -236,6 +261,80 @@ export async function uncategorizeTransaction(
 }
 
 
+// ── Matching bank transactions to daily book entries ───────
+// BankSync INVARIANTS.md "Matching". Every call 403s with code
+// `matching_off` unless the store has the switch on.
+
+type TxnResponse = { transaction: BankTransactionRow };
+
+export function useMatchCandidates(txnId: number | null) {
+  return useQuery<{ candidates: MatchCandidate[] }>({
+    enabled: txnId != null,
+    queryKey: ["bank", "candidates", txnId],
+    queryFn: () =>
+      api<{ candidates: MatchCandidate[] }>(
+        `/api/v2/bank/transactions/${txnId}/candidates`,
+      ),
+  });
+}
+
+export function usePossibleDoubles(enabled: boolean) {
+  const identity = getCurrentIdentity();
+  return useQuery<{ rows: PossibleDouble[] }>({
+    enabled: enabled && identity?.store_id != null,
+    queryKey: ["bank", "doubles", identity?.store_id],
+    queryFn: () => api<{ rows: PossibleDouble[] }>("/api/v2/bank/reconcile/doubles"),
+  });
+}
+
+/** "Yes, same money". */
+export function matchTransaction(txnId: number, lineIds: number[]): Promise<TxnResponse> {
+  return api<TxnResponse>(`/api/v2/bank/transactions/${txnId}/match`, {
+    method: "POST", json: { line_ids: lineIds },
+  });
+}
+
+/** "No, different" — never suggested again. */
+export function rejectMatch(txnId: number, lineIds: number[]): Promise<TxnResponse> {
+  return api<TxnResponse>(`/api/v2/bank/transactions/${txnId}/reject`, {
+    method: "POST", json: { line_ids: lineIds },
+  });
+}
+
+export function unmatchTransaction(txnId: number): Promise<TxnResponse> {
+  return api<TxnResponse>(`/api/v2/bank/transactions/${txnId}/unmatch`, {
+    method: "POST", json: {},
+  });
+}
+
+/** In twice: keep the typed entry, remove the one the bank added. */
+export function keepTypedEntry(txnId: number, lineId: number): Promise<TxnResponse> {
+  return api<TxnResponse>(`/api/v2/bank/transactions/${txnId}/use-entry`, {
+    method: "POST", json: { line_id: lineId },
+  });
+}
+
+export function dismissTransactions(
+  body: { ids: number[] } | { before: string },
+): Promise<{ dismissed: number; skipped: number }> {
+  return api<{ dismissed: number; skipped: number }>(
+    "/api/v2/bank/transactions/dismiss", { method: "POST", json: body },
+  );
+}
+
+export function restoreTransaction(txnId: number): Promise<TxnResponse> {
+  return api<TxnResponse>(`/api/v2/bank/transactions/${txnId}/restore`, {
+    method: "POST", json: {},
+  });
+}
+
+export function runMatching(): Promise<{ matched: number }> {
+  return api<{ matched: number }>("/api/v2/bank/reconcile/run", {
+    method: "POST", json: {},
+  });
+}
+
+
 // ── Rule CRUD ──────────────────────────────────────────────
 
 /** Description match operators — must agree with `DESC_MATCH_TYPES`
@@ -269,6 +368,8 @@ export interface BankRuleApplyReport {
   tagged: number;
   booked: number;
   locked_skipped: number;
+  /** Linked to an entry already on the daily book instead of booked. */
+  matched?: number;
 }
 
 export interface BankRuleResponse {

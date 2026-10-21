@@ -183,6 +183,28 @@ book toolbar from 78rem up); in a flush-right header the button after
 it keeps one width for every label (the store daily book's lock
 button).
 
+### Bank vs daily book — reconciled status
+
+Whether bank money is already in the daily book shows the same way
+on both sides (BankSync `INVARIANTS.md` → "Matching"):
+
+- **Bank page**, "Daily book" column: one `<Pill>` per row through
+  the `PILL` map in `routes/BankMatching.tsx` — `Matched` / `Added
+  from bank` = `accent` (on the books), `Check match` = `warning`
+  (a person decides), `Not on books` / `Dismissed` = `neutral`.
+  Never a second map, never a coloured row background.
+- **Daily book**, any entry the bank has: the `<InBankPill>`
+  (`accent` "In bank", the bank date in its tooltip) in the entry's
+  note cell. An entry the bank hasn't seen shows nothing.
+- **Same money twice**: typing an amount the bank feed already added
+  to that box asks first in a `ConfirmDialog` ("Already here from
+  the bank?", "Add anyway" / "Don't add") — never a silent add, never
+  a block.
+- "Is this already in the daily book?" is the one review popup
+  (`MatchReviewModal`); Unmatch and Dismiss confirm with
+  `confirmTone="danger"`; Dismiss buttons carry
+  `perm="bank_dismiss.update"`.
+
 ## 4. Formatting
 
 | Value | Formatter (`lib/formatters.ts`, `lib/datetime.ts`) | Never |

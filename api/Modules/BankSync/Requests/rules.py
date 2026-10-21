@@ -91,6 +91,8 @@ class BankRuleApplyReport(BaseModel):
 
     tagged: int = 0
     booked: int = 0
+    # Linked to an entry already on the daily book instead of booked.
+    matched: int = 0
     locked_skipped: int = 0
 
 

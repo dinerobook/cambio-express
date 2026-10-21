@@ -179,7 +179,10 @@ decides matches; `Services/applier.py` applies them.
 - **Booking on match** requires BOTH `rule.auto_post` AND the
   caller's `allow_auto_post`: on for freshly-synced rows and for an
   explicit apply; off for the historical backfill during a sync,
-  where the daily book may already be reconciled.
+  where the daily book may already be reconciled. With bank
+  matching on, a rule's tag goes through the same match-first step:
+  a sure match links instead of booking (the apply report counts it
+  as `matched`), and dismissed rows are never touched.
 - **Apply to existing is explicit.** `POST /rules` with
   `apply_to_existing` and `POST /rules/{id}/apply` return
   `{tagged, booked, locked_skipped}`; the SPA shows the counts. A
@@ -228,13 +231,88 @@ not only commission). Owner's ask, 2026-10-21.
   a store has saved its copy.
 
 
+## Matching — bank rows already in the daily book
+
+`Services/reconcile.py`. Bank money often arrives days after a
+person typed it into the daily book. A bank row that is already on
+the books is **linked** to the typed entry, shown as reconciled,
+and never booked a second time. Per-store switch `bank_matching`
+(feature flag, **off by default**; test DBs with no flag row read
+the declared default, never fail open). Switch off = the old
+behaviour exactly.
+
+- **Match first, then post.** `categorize_transaction` looks for a
+  sure match BEFORE the lock check and before booking. A sure match
+  is linked (`bank_daily_match`, `state="matched"`, `method="auto"`)
+  and nothing is booked. Candidates but nothing sure = nothing is
+  booked; the row shows "Check match". No candidates = book as
+  before. `match=False` skips all of it (the manual match path tags
+  an untagged row this way so it does not recurse).
+- **What can match** is `MATCH_RULES`: tag → (line kind, direction,
+  days before, days after). Deposits and cash from the bank (`check_deposit`,
+  `drop`, `held_checks_deposited` → `held_check_deposit`,
+  `from_bank`): the bank's date from 1 day before to 7 days after
+  the entry's day. Written checks (`check_expense`,
+  `check_purchase`, `payroll_check`): same day to 90 days after. The bank's day is
+  `bank_date_for` (posted date). Amounts match to the cent.
+- **Sure** = exactly one candidate entry and no other bank row
+  that could take it, OR a unique check-number hit (number in the
+  bank description equals the number in the entry's note).
+  **Suggested** = several candidates, or 2–4 same-day entries of
+  one kind that add up (searched only on days with ≤ 12 entries).
+  A person confirms with "Yes, same money" (`method="confirmed"`)
+  or "No, different" (`state="rejected"`, never suggested again).
+- **One entry, one bank row.** An entry already matched, or a line
+  the bank feed itself added, is never a candidate. The match
+  endpoint re-checks everything (one kind, one day, direction,
+  exact sum, window, not taken → 409 `entry_taken`,
+  `already_on_books`, `already_matched`).
+- **A link moves no money**, so matching to an entry on a locked
+  day is allowed. "Keep typed entry" (`/use-entry`), which REMOVES
+  the bank's line, is refused on a locked day (409) and needs
+  `daily_book.delete` as well as `bank_sync.update`.
+- **The daily book side.** Adding a matchable entry looks for a
+  waiting bank row (`match_new_line`); changing its amount or
+  deleting it drops its links (`drop_matches_for_line`) and looks
+  again. Re-tagging a bank row to another kind drops its links;
+  un-tagging drops them. The day's line list carries `in_bank`
+  (`added` / `matched`) + `bank_date` for the "In bank" pill.
+- **Status per row** (`books_states`): `added` (the feed booked
+  it), `matched`, `suggested`, `not_on_books`, `dismissed`, or ""
+  (not a matchable tag). `?books=review|matched|dismissed` filters
+  the list with the same rules in SQL (`books_clause`), and the list
+  carries `books_counts`.
+- **Dismiss** (`POST /transactions/dismiss`, `ids` XOR `before`) is
+  the clean-up for old rows already handled by hand: a dismissed row
+  is never matched, booked, tagged or touched by rules
+  (categorize / uncategorize → 409 `transaction_dismissed`). Only
+  rows still to review are dismissed; the rest come back as
+  `skipped`. It needs the single-switch `bank_dismiss.update`:
+  Admin by default, never employees or owners unless granted on
+  purpose. `/restore` undoes it.
+- **In twice** (`possible_doubles`, `GET /reconcile/doubles`): a
+  line the feed added AND a typed entry with the same kind, amount
+  and window. Listed only, never deleted automatically.
+- **Sync feeds it.** A sync looks back `LOOKBACK_DAYS` (30) or to
+  the account's newest row minus a day when older, capped at 90 —
+  late-posting banks used to be missed. Stripe's
+  `financial_connections.account.refreshed_transactions` webhook
+  syncs that account (`sync_after_stripe_refresh`, no second refresh)
+  and every sync ends with `reconcile_store` when the switch is on.
+  There is no scheduled job; the webhook is the automatic trigger.
+- Every match endpoint answers 403 `matching_off` while the switch
+  is off, and writes an audit row.
+
+
 ## Audit
 
 Every mutating endpoint writes an operator-audit row through
 `_audit_bank_action`: categorize / uncategorize
 (`target_type="bank_transaction"`), rule create / update / toggle /
 delete / apply / reorder (`bank_rule`), connect / disconnect /
-refresh / sync / rename (`bank_account`). Amounts stay out of the
+refresh / sync / rename (`bank_account`), and match / reject /
+unmatch / use-entry / dismiss / restore / match-now
+(`bank_transaction`). Amounts stay out of the
 summary; the slug and whether a line was booked go in.
 
 
@@ -263,8 +341,14 @@ summary; the slug and whether a line was booked go in.
 ```bash
 pytest tests/Modules/BankSync/ tests/Modules/Monthly/ tests/test_monthly_locked_fields.py -q
 cd frontend && npx vitest run src/lib/bankRules.test.ts src/lib/bankRuleSuggest.test.ts \
-  src/routes/BankRules.test.tsx src/routes/SuperadminBankRuleTemplates.test.tsx
+  src/routes/BankRules.test.tsx src/routes/SuperadminBankRuleTemplates.test.tsx \
+  src/routes/BankMatching.test.tsx src/routes/EditDailyBook.inBank.test.tsx
 ```
+
+`test_matching.py` covers matching: the switch, every tier and
+window, direction, sums, check numbers, the daily-book hooks,
+review / reject / unmatch, locked days, doubles, dismiss, the
+permission split, the lookback and the webhook.
 
 `test_bank_to_books.py` covers the booking roll-up, the locked-day
 refusal at both layers, `report_date`, uncategorize, the categories

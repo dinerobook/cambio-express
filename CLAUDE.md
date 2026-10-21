@@ -668,6 +668,18 @@ this.** The short version:
   deliberately NOT bank-taggable — the register close already
   books the day's sales.
 
+- **Matching** (`Services/reconcile.py`, per-store switch
+  `bank_matching`, off by default): a bank row already typed into
+  the daily book is LINKED to that entry (`bank_daily_match`), shown
+  as reconciled, and never booked twice. Match first, then post:
+  `categorize_transaction` links a sure match instead of booking,
+  and books nothing while a person still has to pick. A link moves
+  no money, so it is allowed on a locked day; anything that removes
+  a line is not. Dismissing old rows is the single switch
+  `bank_dismiss.update` (Admin only by default). Line-item create /
+  update / delete in DailyBook call the matcher too. See BankSync
+  `INVARIANTS.md` → "Matching" before touching either side.
+
 ### Built-in rules (platform-managed bank charges)
 Standard bank charges from a known institution shouldn't require the
 operator to set up their own rule. Example: Nizari Progressive's
