@@ -12,13 +12,13 @@ import {
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, ErrorState, Field, Input, Loading,
   PageHeader, PageShell, PhoneField, SectionTitle, Select, space, useToast,
 } from "../components/ui";
 import { firstError, zEmailOptional, zPhoneOptional } from "../lib/validators";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SuperadminStoreForm.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/superadmin/stores/new + /app/superadmin/stores/:id/edit
 //
@@ -282,13 +282,7 @@ export default function SuperadminStoreForm() {
     <PageShell maxWidth="44rem">
       <div className={styles.headerRow}>
 
-        <Breadcrumbs crumbs={[
-          { label: "All stores", to: "/superadmin/stores" },
-          ...(isEdit && storeId
-            ? [{ label: name || `Store #${storeId}`, to: `/superadmin/stores/${storeId}/drill` }]
-            : []),
-          { label: isEdit ? "Edit" : "New store" },
-        ]} />
+        <PageCrumbs via={isEdit && storeId ? [{ label: name || `Store #${storeId}`, to: `/superadmin/stores/${storeId}/drill` }] : []} current={isEdit ? "Edit" : "New store"} />
 
         <PageHeader title={heading} />
         <Button type="button" tone="secondary" onClick={leaveToStores}>
@@ -419,7 +413,7 @@ export default function SuperadminStoreForm() {
                       setAdminName(e.target.value);
                       clearFieldError("admin_name");
                     }}
-                    placeholder="Store Owner Name"
+                    placeholder="Store owner name"
                     disabled={busy}
                   />
                 </Field>

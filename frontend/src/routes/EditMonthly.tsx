@@ -16,8 +16,7 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  AppLink, Breadcrumbs,
-  Alert, Button, Card, ConfirmDialog, ErrorState, FormActions, Loading,
+  AppLink, Alert, Button, Card, ConfirmDialog, ErrorState, FormActions, Loading,
   MoneyInput,
   PageHeader, PageShell, Textarea,
   useToast,
@@ -25,6 +24,7 @@ import {
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./EditMonthly.module.css";
 import { MONTH_NAMES_SHORT } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Edit page for the monthly P&L at /app/monthly/edit?year=Y&month=M.
 //
@@ -185,7 +185,7 @@ export default function EditMonthly() {
     <PageShell>
       <header>
 
-        <Breadcrumbs crumbs={[{ label: "Monthly P&L", to: "/monthly" }, { label: "Edit" }]} />
+        <PageCrumbs under="/reports" via={[{ label: "Monthly P&L", to: "/monthly" }]} current="Edit" />
 
         <PageHeader title="Edit monthly P&L" />
         <p className={styles.headerMono}>

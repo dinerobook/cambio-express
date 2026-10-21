@@ -29,6 +29,17 @@ export function fmtNumber(n: number | null | undefined): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
+/** A count with its noun: "1 transfer", "1,204 transfers". The one
+ *  way a page says how many of something there are (list subtitles,
+ *  result counts), so the number gets its thousands separator and
+ *  the noun agrees with it. `plural` defaults to `singular + "s"`. */
+export function fmtCount(
+  n: number | null | undefined, singular: string, plural = `${singular}s`,
+): string {
+  const v = n == null || !isFinite(n) ? 0 : n;
+  return `${fmtNumber(v)} ${v === 1 ? singular : plural}`;
+}
+
 /** A change since the prior period as "▲ $1,234" / "▼ 12": an arrow
  *  for the direction, then the size — through fmtMoney for money,
  *  fmtNumber for a count. Zero reads as "▲". Empty string when there

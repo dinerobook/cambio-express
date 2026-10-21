@@ -66,7 +66,7 @@ function Activated({ plan }: { plan: string }) {
         {planLabel} features.
       </p>
       <ButtonLink to="/dashboard" tone="primary">
-        Go to Dashboard →
+        Go to dashboard →
       </ButtonLink>
     </>
   );
@@ -79,7 +79,7 @@ function Pending() {
       <div className={`${styles.badge} ${styles.badgePending}`}>
         <Clock />
       </div>
-      <h1 className={styles.title}>Payment Received</h1>
+      <h1 className={styles.title}>Payment received</h1>
       <p className={styles.lead}>
         We've received your payment and are activating your account.
         This usually takes a few seconds — we'll flip this page
@@ -87,7 +87,7 @@ function Pending() {
       </p>
       <div className={styles.actions}>
         <ButtonLink to="/dashboard" tone="primary">
-          Go to Dashboard →
+          Go to dashboard →
         </ButtonLink>
       </div>
     </>

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useOwnerBilling, type OwnerBillingRow } from "../api/owner";
 import { switchStore } from "../api/switchStore";
 import {
-  Breadcrumbs, Button, Card, Empty, KpiCard, KpiGrid, monoStyle,
+  Button, Card, Empty, KpiCard, KpiGrid, monoStyle,
   PageHeader, PageShell, Pill, Section, Table, TableStates, tdStyle,
   thStyle, type PillTone,
 } from "../components/ui";
@@ -12,6 +12,7 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./OwnerBilling.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/owner/billing — every store's subscription state in one
 // place (B-1).
@@ -101,7 +102,7 @@ export default function OwnerBilling() {
 
   return (
     <PageShell>
-      <Breadcrumbs crumbs={[{ label: "Owner" }, { label: "Billing" }]} />
+      <PageCrumbs />
       <PageHeader
         title="Billing"
         subtitle="Subscription state for every store in your umbrella."

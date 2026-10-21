@@ -9,13 +9,13 @@ import {
 } from "../api/account";
 import { apiErrorMessage } from "../lib/api";
 import {
-  Breadcrumbs,
   Alert, Button, Card, ConfirmDialog, ErrorState, InfoTip, Loading,
   PageHeader, PageShell, Section, space, Table, tdStyle, thStyle, tokens,
   useToast,
 } from "../components/ui";
 import styles from "./AccountSessions.module.css";
 import { formatDate, formatShortDate, parseTimestamp } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/account/sessions — every browser the current user is signed
 // in on. Backed by the refresh-token chain: one row per
@@ -79,7 +79,7 @@ export default function AccountSessions() {
   if (isLoading) {
     return (
       <PageShell>
-        <PageHeader title="Active sessions" />
+        <PageHeader title="Devices" />
         <Loading />
       </PageShell>
     );
@@ -87,7 +87,7 @@ export default function AccountSessions() {
   if (isError || !data) {
     return (
       <PageShell>
-        <PageHeader title="Active sessions" />
+        <PageHeader title="Devices" />
         <ErrorState
           message={
             `Couldn't load sessions. ${apiErrorMessage(error, "")}`.trimEnd()
@@ -104,10 +104,10 @@ export default function AccountSessions() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Account", to: "/settings" }, { label: "Sessions" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Active sessions"
+        title="Devices"
         subtitle={
           `${sessions.length} device${sessions.length === 1 ? "" : "s"}`
         }

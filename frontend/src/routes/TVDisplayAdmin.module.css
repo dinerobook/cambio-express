@@ -11,13 +11,6 @@
 /* .page class retired — TVDisplayAdmin now uses <PageShell>
  * for consistent max-width + padding with the rest of the SPA. */
 
-.title {
-  font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-  color: var(--db-text);
-}
 
 .muted {
   color: var(--db-text-muted);
@@ -162,27 +155,7 @@
   color: var(--db-text);
 }
 
-.flashOk {
-  margin-top: 10px;
-  padding: 10px 14px;
-  background: var(--db-neon-glow-15);
-  border: 1px solid var(--db-neon-dim);
-  border-radius: 8px;
-  color: var(--db-neon);
-  font-size: 13px;
-  font-weight: 600;
-}
 
-.flashErr {
-  margin-top: 10px;
-  padding: 10px 14px;
-  background: var(--db-tone-error-bg);
-  border: 1px solid var(--db-negative);
-  border-radius: 8px;
-  color: var(--db-negative);
-  font-size: 13px;
-  font-weight: 600;
-}
 
 .activePairing {
   margin-top: 14px;

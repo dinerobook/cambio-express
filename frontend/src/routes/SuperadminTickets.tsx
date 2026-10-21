@@ -11,12 +11,14 @@ import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { TicketThread } from "../components/TicketThread";
 import { apiErrorMessage } from "../lib/api";
 import {
-  Alert, AppLink, Breadcrumbs, Button, Card, EmptyState, ErrorState,
+  Alert, AppLink, Button, Card, EmptyState, ErrorState,
   Field, Input, Loading, PageHeader, PageShell, Pager, Pill, Select,
   useToast,
 } from "../components/ui";
 import styles from "./SuperadminTickets.module.css";
 import { formatDateTime } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtCount } from "../lib/formatters";
 
 const CATEGORIES = [
   { value: "", label: "All categories" },
@@ -63,15 +65,12 @@ export default function SuperadminTickets() {
 
   return (
     <PageShell>
-      <Breadcrumbs crumbs={[
-        { label: "Superadmin" },
-        { label: "Support tickets" },
-      ]} />
+      <PageCrumbs />
       <PageHeader
-        title="Support tickets"
+        title="Tickets"
         subtitle={
           tickets.data
-            ? `${tickets.data.total.toLocaleString()} ${tickets.data.total === 1 ? "ticket" : "tickets"}${filters.params.store_id || filters.params.q ? " matching" : " across all stores"}`
+            ? `${fmtCount(tickets.data.total, "ticket")}${filters.params.store_id || filters.params.q ? " matching" : " across all stores"}`
             : "—"
         }
         actions={(

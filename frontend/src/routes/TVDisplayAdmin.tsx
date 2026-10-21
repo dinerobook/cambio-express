@@ -12,12 +12,13 @@ import {
 } from "../api/tvDisplay";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { formatTimestamp } from "../lib/datetime";
-import { AppLink,
+import { Alert, AppLink,
   Button, ButtonLink, Card, ConfirmDialog, CopyField, ErrorState, Field,
-  IconButton, Input, KpiCard, KpiGrid, Loading, PageShell, Section, Select,
+  IconButton, Input, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Section, Select,
   Switch, TabsBar, TabsLink, useToast, EmptyState,
 } from "../components/ui";
 import styles from "./TVDisplayAdmin.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/tv-display — TV Display add-on operator console.
 //
@@ -79,6 +80,8 @@ export default function TVDisplayAdmin() {
   if (isLoading) {
     return (
       <PageShell gap="1.25rem">
+        <PageCrumbs />
+        <PageHeader title="TV display" />
         <Loading />
       </PageShell>
     );
@@ -92,19 +95,21 @@ export default function TVDisplayAdmin() {
     if (status === 409) {
       return (
         <PageShell gap="1.25rem">
-          <h1 className={styles.title}>TV Display</h1>
+          <PageCrumbs />
+          <PageHeader title="TV display" />
           <p className={styles.muted}>
             The TV Display add-on isn't active for this store.{" "}
-            <a href="/admin/subscription" className={styles.link}>
+            <AppLink to="/admin/subscription" className={styles.link}>
               Turn it on from your subscription page.
-            </a>
+            </AppLink>
           </p>
         </PageShell>
       );
     }
     return (
       <PageShell gap="1.25rem">
-        <h1 className={styles.title}>TV Display</h1>
+        <PageCrumbs />
+        <PageHeader title="TV display" />
         <ErrorState
           message={`Couldn't load the TV display. ${apiErrorMessage(error, "")}`.trimEnd()}
           onRetry={() => { void refetch(); }}
@@ -115,10 +120,12 @@ export default function TVDisplayAdmin() {
 
   return (
     <PageShell gap="1.25rem">
+      <PageCrumbs />
+      <PageHeader title="TV display" />
       <TabsBar>
         <TabsLink to="/tv-display/overview">Overview</TabsLink>
         <TabsLink to="/tv-display/content">Content</TabsLink>
-        <TabsLink to="/tv-display/device">Device & Settings</TabsLink>
+        <TabsLink to="/tv-display/device">Device & settings</TabsLink>
       </TabsBar>
       <Outlet />
     </PageShell>
@@ -321,7 +328,8 @@ function PairFireTV({
   revokePending: boolean;
 }) {
   const [code, setCode] = useState("");
-  const [flash, setFlash] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
+  const toast = useToast();
+  const [flash, setFlash] = useState<string | null>(null);
   const [pendingUnpair, setPendingUnpair] = useState<number | null>(null);
   const [unpairBusy, setUnpairBusy] = useState(false);
 
@@ -335,15 +343,15 @@ function PairFireTV({
     try {
       await onClaim(code);
       setCode("");
-      setFlash({
-        kind: "ok",
-        msg: "Fire TV paired. The screen will switch to the rate board within a few seconds.",
+      toast({
+        message: "Fire TV paired. The screen will switch to the rate board within a few seconds.",
+        tone: "success",
       });
     } catch (err) {
       const msg = (err instanceof ApiError && typeof err.body === "object" && err.body !== null
         ? (err.body as { detail?: string }).detail
         : null) ?? "Code not found or expired.";
-      setFlash({ kind: "err", msg });
+      setFlash(msg);
     }
   }
 
@@ -354,9 +362,9 @@ function PairFireTV({
     try {
       await onRevoke(pendingUnpair);
       setPendingUnpair(null);
-      setFlash({
-        kind: "ok",
-        msg: "Fire TV unpaired. The device will stop showing the board on its next refresh.",
+      toast({
+        message: "Fire TV unpaired. The device will stop showing the board on its next refresh.",
+        tone: "success",
       });
     } finally {
       setUnpairBusy(false);
@@ -403,14 +411,8 @@ function PairFireTV({
           </Button>
         </form>
       </div>
-      {flash && (
-        <div className={flash.kind === "ok" ? styles.flashOk : styles.flashErr}>
-          {flash.msg}
-        </div>
-      )}
-      {claimError && !flash && (
-        <div className={styles.flashErr}>{claimError}</div>
-      )}
+      {flash && <Alert tone="error">{flash}</Alert>}
+      {claimError && !flash && <Alert tone="error">{claimError}</Alert>}
       {activePairing && (
         <div className={styles.activePairing}>
           <span className={styles.activeDot} aria-hidden="true" />
@@ -693,7 +695,7 @@ function CountrySections({
                 ))}
               </Select>
             </Field>
-            {createError && <div className={styles.flashErr} style={{ marginTop: 12 }}>{createError}</div>}
+            {createError && <Alert tone="error">{createError}</Alert>}
             <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
               <Button
                 type="submit"

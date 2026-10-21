@@ -18,11 +18,12 @@ import {
   ruleSentence,
 } from "../lib/bankRules";
 import {
-  Breadcrumbs, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
+  Button, ButtonLink, Card, ConfirmDialog, EmptyState,
   ErrorState, IconButton, Input, Loading, Modal, PageHeader, PageShell,
   Pill, RowActions, useToast,
 } from "../components/ui";
 import styles from "./BankRules.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/bank/rules — the store's bank rules, Monarch-style: every
 // rule reads as a sentence ("If description contains X and money
@@ -113,7 +114,7 @@ export default function BankRules() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Finance" }, { label: "Bank rules" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="Bank rules"
@@ -127,7 +128,7 @@ export default function BankRules() {
               P&amp;L categories
             </ButtonLink>
             <Button perm="bank_sync.create" onClick={() => setEditing("new")}>
-              Create rule
+              + New rule
             </Button>
           </div>
         }
@@ -264,7 +265,7 @@ export default function BankRules() {
       <Modal
         open={editing != null}
         onClose={() => setEditing(null)}
-        title={editing === "new" ? "Create rule" : "Edit rule"}
+        title={editing === "new" ? "New rule" : "Edit rule"}
         size="lg"
       >
         {editing != null && (
@@ -289,7 +290,7 @@ export default function BankRules() {
 
       <ConfirmDialog
         open={pendingDelete != null}
-        title="Delete rule"
+        title="Delete this rule?"
         message={
           `Delete rule "${pendingDelete ? ruleSentence(pendingDelete, labels) : ""}"? `
           + "Transactions it already tagged keep their category; only "

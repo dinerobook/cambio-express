@@ -12,6 +12,7 @@ import { canAccess } from "../lib/access";
 import {
   MONTH_NAMES, daysInMonth, monthRangeIso, shiftMonth, storeNow, todayIso,
 } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/daily — the Daily Book landing page. A calendar of the
 // chosen month + a monthly summary strip. Each day cell is a link
@@ -60,8 +61,10 @@ export default function DailyBook() {
   return (
     <PageShell gap="1.5rem">
 
+      <PageCrumbs />
+
       <PageHeader
-        title="MSB Daily book"
+        title="MSB daily book"
         subtitle={`${MONTH_NAMES[month - 1]} ${year}`}
         actions={(
           <PeriodStepper

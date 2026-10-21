@@ -4,12 +4,13 @@ import { TIMECLOCK_STATUS_TONES, usePaystub } from "../api/timeclock";
 import { useStoreInfo } from "../api/account";
 import { formatTimestamp } from "../lib/datetime";
 import {
-  Breadcrumbs, Button, ErrorState, KpiCard, KpiGrid, Loading, PageShell, Pill,
+  Button, ErrorState, KpiCard, KpiGrid, Loading, PageShell, Pill,
 } from "../components/ui";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtHours, fmtMoney2 } from "../lib/formatters";
 import styles from "./TimeClockPaystub.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/admin/timeclock/paystub/:id?from=YYYY-MM-DD&to=YYYY-MM-DD
 //
@@ -72,10 +73,7 @@ export default function TimeClockPaystub() {
 
   return (
     <PageShell maxWidth="48rem">
-      <Breadcrumbs crumbs={[
-        { label: "Team", to: "/admin/timeclock" },
-        { label: "Paystub" },
-      ]} />
+      <PageCrumbs current="Paystub" />
       <div className={styles.printbar}>
         <Button onClick={() => window.print()} tone="primary">
           Print

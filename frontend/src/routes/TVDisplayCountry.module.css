@@ -1,11 +1,5 @@
 /* Page-specific styles for TVDisplayCountry.tsx. */
 
-.backLink {
-  color: var(--db-text-muted);
-  text-decoration: none;
-  font-size: 0.85rem;
-}
-
 .cardH2 {
   margin: 0 0 0.75rem;
   font-size: 1rem;

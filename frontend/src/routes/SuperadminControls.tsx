@@ -2,10 +2,10 @@
 import { useDashboardSummary } from "../api/dashboard";
 import { fmtMoney, fmtNumber } from "../lib/formatters";
 import { AppLink,
-  Breadcrumbs,
   ErrorState, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Section,
 } from "../components/ui";
 import styles from "./SuperadminControls.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/superadmin/controls — Platform hub. KPI tiles fed by the
 // existing /api/v2/dashboard/summary (superadmin-shaped payload),
@@ -36,10 +36,10 @@ export default function SuperadminControls() {
   return (
     <PageShell gap="1.25rem">
 
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Controls" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Platform Controls"
+        title="Controls"
         subtitle="Stores, billing, anomalies, audit log, announcements, reports."
       />
 
@@ -55,7 +55,7 @@ export default function SuperadminControls() {
         <Section title="Overview">
           <KpiGrid minWidth="180px">
             <KpiCard
-              label="Total Stores"
+              label="Total stores"
               value={fmtNumber(d.total_stores)}
               tone="primary"
             />
@@ -129,7 +129,7 @@ export default function SuperadminControls() {
           />
           <QuickLink
             to="/superadmin/audit-log"
-            title="Audit Log"
+            title="Audit log"
             desc="Every platform admin action. Filter by actor / target / action."
           />
           <QuickLink
@@ -139,7 +139,7 @@ export default function SuperadminControls() {
           />
           <QuickLink
             to="/superadmin/reports"
-            title="Platform Reports"
+            title="Platform reports"
             desc="MRR/ARR, churn cohorts, adoption, payouts."
           />
           <QuickLink
@@ -149,11 +149,11 @@ export default function SuperadminControls() {
           />
           <QuickLink
             to="/superadmin/feature-flags"
-            title="Feature Flags"
+            title="Feature flags"
             desc="Platform-wide flags + per-store overrides."
           />
           <ComingSoon
-            title="TV Catalogs"
+            title="TV catalogs"
             desc="Curate the company and bank pickers shown on TV displays."
           />
         </div>

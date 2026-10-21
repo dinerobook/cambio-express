@@ -6,7 +6,7 @@ import {
 } from "../api/transfers";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtCount } from "../lib/formatters";
 import {
   ButtonLink, Card, DataTable, DateInput, Empty, Field, Input,
   PageHeader, PageShell, Pill, Select, type DataColumn,
@@ -15,6 +15,7 @@ import styles from "./Transfers.module.css";
 import { formatTime } from "../lib/datetime";
 import TransferKindPill from "../components/TransferKindPill";
 import { SERVICES, isPayout } from "../lib/transferKinds";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Poll the transfers list this often so two cashiers sharing one
 // employee login on different machines see each other's edits
@@ -99,6 +100,7 @@ export default function Transfers() {
   if (identity?.store_id == null) {
     return (
       <PageShell>
+        <PageCrumbs />
         <PageHeader title="Transfers" />
         <Empty>
           Sign in as a store admin to view this store's transfers.
@@ -114,10 +116,12 @@ export default function Transfers() {
   return (
     <PageShell>
 
+      <PageCrumbs />
+
       <PageHeader
         title="Transfers"
         subtitle={data
-          ? `${data.total.toLocaleString()} ${data.total === 1 ? "transfer" : "transfers"}`
+          ? `${fmtCount(data.total, "transfer")}`
           : "—"}
         actions={(
           <div className={styles.headerActions}>
@@ -126,7 +130,7 @@ export default function Transfers() {
                 {isFetching ? "Syncing…" : `Live · synced ${formatSyncTime(dataUpdatedAt)}`}
               </Pill>
             )}
-            <ButtonLink href="/transfers/new" tone="primary" size="sm"> 
+            <ButtonLink to="/transfers/new" tone="primary" size="sm"> 
               + New transfer
             </ButtonLink>
           </div>

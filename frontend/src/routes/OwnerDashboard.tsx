@@ -7,7 +7,6 @@ import { Line } from "react-chartjs-2";
 
 import { useOwnerDashboard } from "../api/owner";
 import { AppLink,
-  Breadcrumbs,
   Card, ErrorState, KpiCard, KpiGrid, Loading, PageHeader, PageShell,
   Section, TabsBar, TabsButton, Table, tdStyle, thStyle,
   Empty,
@@ -19,6 +18,7 @@ import { chartSeries, moneyChartOptions, seriesFill } from "../lib/chartOptions"
 import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
 import { Delta } from "../components/Delta";
 import styles from "./OwnerDashboard.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip,
@@ -28,8 +28,8 @@ type Period = "today" | "month" | "year";
 
 const PERIODS: Array<{ value: Period; label: string }> = [
   { value: "today", label: "Today" },
-  { value: "month", label: "This Month" },
-  { value: "year",  label: "This Year" },
+  { value: "month", label: "This month" },
+  { value: "year",  label: "This year" },
 ];
 
 
@@ -40,10 +40,10 @@ export default function OwnerDashboard() {
   return (
     <PageShell gap="1.25rem">
 
-      <Breadcrumbs crumbs={[{ label: "Owner dashboard" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Owner Dashboard"
+        title="Owner dashboard"
         actions={(
           <TabsBar>
             {PERIODS.map((p) => (
@@ -71,24 +71,24 @@ export default function OwnerDashboard() {
         <>
           <KpiGrid>
             <KpiCard
-              label="Total Transfers"
-              value={data.agg_transfers.toLocaleString()}
+              label="Total transfers"
+              value={fmtNumber(data.agg_transfers)}
               sub={<Delta value={data.agg_transfers_delta} />}
             />
             <KpiCard
-              label="Total Volume"
+              label="Total volume"
               value={fmtMoney(data.agg_volume)}
               sub={<Delta value={data.agg_volume_delta} money />}
             />
             <KpiCard
-              label="Net Over/Short"
+              label="Net over/Short"
               value={`${data.agg_over_short >= 0 ? "+" : "-"}${fmtMoney(Math.abs(data.agg_over_short))}`}
               sub={<Delta value={data.agg_over_short_delta} money />}
               tone={data.agg_over_short < 0 ? "negative" : "neutral"}
             />
             <KpiCard
               label="Stores"
-              value={data.store_count.toLocaleString()}
+              value={fmtNumber(data.store_count)}
             />
           </KpiGrid>
 
@@ -150,7 +150,7 @@ export default function OwnerDashboard() {
                   {data.company_breakdown.map((c) => (
                     <tr key={c.company}>
                       <td style={tdStyle}>{c.company}</td>
-                      <td style={tdStyleRight}>{c.count.toLocaleString()}</td>
+                      <td style={tdStyleRight}>{fmtNumber(c.count)}</td>
                       <td style={tdStyleRight}>{fmtMoney(c.volume)}</td>
                     </tr>
                   ))}

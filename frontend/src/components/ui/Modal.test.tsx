@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { Modal, ConfirmDialog } from "./Modal";
+import { Modal, ModalActions, ConfirmDialog } from "./Modal";
 
 describe("<Modal>", () => {
   it("renders nothing when open=false", () => {
@@ -198,5 +198,26 @@ describe("<ConfirmDialog>", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     await user.keyboard("{Escape}");
     expect(onCancel).not.toHaveBeenCalled();
+  });
+});
+
+describe("<ModalActions>", () => {
+  it("renders the same row as the Modal actions prop", () => {
+    render(
+      <>
+        <Modal open onClose={() => {}} title="With prop" actions={<button>Prop</button>}>
+          body
+        </Modal>
+        <Modal open onClose={() => {}} title="In a form">
+          <form>
+            <ModalActions><button>Child</button></ModalActions>
+          </form>
+        </Modal>
+      </>,
+    );
+    const viaProp = screen.getByText("Prop").parentElement!;
+    const viaChild = screen.getByText("Child").parentElement!;
+    expect(viaChild.className).toBe(viaProp.className);
+    expect(viaChild.className).not.toBe("");
   });
 });

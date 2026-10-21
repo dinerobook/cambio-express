@@ -14,9 +14,10 @@ import { pageOf, sortRows } from "../lib/pagination";
 import { accountTypeLabel } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Breadcrumbs, ButtonLink, Card, ConfirmDialog, DataTable, PageHeader,
+  ButtonLink, Card, ConfirmDialog, DataTable, PageHeader,
   PageShell, Pill, RowActions, Section, useToast, type DataColumn,
 } from "../components/ui";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/employees — the unified Employees hub (E-2). ONE place
 // manages the person: HR record (payroll basics, personal
@@ -195,13 +196,13 @@ export default function Employees() {
 
   return (
     <PageShell>
-      <Breadcrumbs crumbs={[{ label: "Employees" }]} />
+      <PageCrumbs />
       <PageHeader
         title="Employees"
         subtitle="Everyone who works here — profile, payroll, and login in one place."
         actions={(
-          <ButtonLink href="/employees/new" tone="primary" size="sm">
-            + Add Employee
+          <ButtonLink to="/employees/new" tone="primary" size="sm">
+            + Add employee
           </ButtonLink>
         )}
       />
@@ -214,7 +215,7 @@ export default function Employees() {
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
           emptyTitle="No employees yet"
-          emptyBody='Click "+ Add Employee" to add your first person.'
+          emptyBody='Click "+ Add employee" to add your first person.'
           sort={filters.sort}
           page={{
             page: shown.page, totalPages: shown.totalPages, total: shown.total,
@@ -244,7 +245,7 @@ export default function Employees() {
 
       <ConfirmDialog
         open={confirmRow != null}
-        title="Deactivate employee"
+        title="Deactivate this employee?"
         message={`Deactivate ${confirmRow?.name ?? "this employee"}? They disappear from attribution dropdowns and the time clock; history is kept. A linked login stays active — disable it from the Login section if they should also lose access.`}
         confirmLabel="Deactivate"
         confirmTone="danger"

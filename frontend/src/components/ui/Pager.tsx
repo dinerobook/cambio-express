@@ -4,6 +4,7 @@ import { tokens } from "./tokens";
 import { Button } from "./Button";
 import { PAGE_SIZES, pageRange } from "../../lib/pagination";
 import { Select } from "./Select";
+import { fmtNumber } from "../../lib/formatters";
 
 /** Prev/next pagination footer — the one pager every list uses.
  *
@@ -51,8 +52,8 @@ export function Pager({
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem 1rem", alignItems: "center" }}>
           {counted && (
             <span style={{ color: tokens.textMuted, fontSize: "0.85rem" }}>
-              Showing {first.toLocaleString()}–{last.toLocaleString()} of{" "}
-              {total.toLocaleString()}
+              Showing {fmtNumber(first)}–{fmtNumber(last)} of{" "}
+              {fmtNumber(total)}
             </span>
           )}
           {leading}

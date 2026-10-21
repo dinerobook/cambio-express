@@ -222,7 +222,7 @@ describe("SuperadminControls", () => {
     renderRoute(<SuperadminControls />);
     expect(await screen.findByText("42")).toBeInTheDocument();
     expect(screen.getByText("$1,234")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Audit Log/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Audit log/ })).toBeInTheDocument();
   });
 
   it("offers a retry when the metrics fail", async () => {

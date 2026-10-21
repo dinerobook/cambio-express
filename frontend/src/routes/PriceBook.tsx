@@ -18,12 +18,14 @@ import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import DepartmentsManager from "../components/DepartmentsManager";
 import {
-  Alert, Breadcrumbs, Button, Card, Checkbox, EmptyState, ErrorState,
+  Alert, Button, Card, Checkbox, EmptyState, ErrorState,
   DataTable, Field, InfoTip, Input, Loading, Modal, MoneyInput, PageHeader, PageShell,
   Pill, RowActions, Section, Select, TabsBar, TabsButton, Table,
   tdStyle, thStyle, useToast, type DataColumn,
+  ModalActions,
 } from "../components/ui";
 import styles from "./PriceBook.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/price-book — the item catalog + vendor directory (P2-2).
 // Three tabs on one page: Items (paginated live search over the
@@ -39,7 +41,7 @@ export default function PriceBook() {
   );
   return (
     <PageShell maxWidth="72rem">
-      <Breadcrumbs crumbs={[{ label: "Price book" }]} />
+      <PageCrumbs />
       <PageHeader
         title={
           <>
@@ -418,7 +420,7 @@ function SeedPreview({
           )}
         </>
       )}
-      <div className={styles.modalActions}>
+      <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
           Cancel
         </Button>
@@ -431,7 +433,7 @@ function SeedPreview({
             ? `Add ${preview.new_count} item(s)`
             : "Nothing to add"}
         </Button>
-      </div>
+      </ModalActions>
     </div>
   );
 }
@@ -753,14 +755,14 @@ function ItemForm({
       >
         EBT / SNAP eligible
       </Checkbox>
-      <div className={styles.modalActions}>
+      <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
           Cancel
         </Button>
         <Button type="submit" busy={busy} disabled={busy}>
           {existing ? "Save changes" : "Add item"}
         </Button>
-      </div>
+      </ModalActions>
     </form>
   );
 }
@@ -1020,14 +1022,14 @@ function VendorForm({
           onChange={(e) => setNotes(e.target.value)}
         />
       </Field>
-      <div className={styles.modalActions}>
+      <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
           Cancel
         </Button>
         <Button type="submit" busy={busy} disabled={busy}>
           {existing ? "Save changes" : "Add vendor"}
         </Button>
-      </div>
+      </ModalActions>
     </form>
   );
 }

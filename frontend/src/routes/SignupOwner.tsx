@@ -57,7 +57,7 @@ export default function SignupOwner() {
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
         {error && <Alert tone="error">{error}</Alert>}
 
-        <Field label="Full Name" error={errors.full_name}>
+        <Field label="Full name" error={errors.full_name}>
           <Input
             type="text"
             value={fullName}

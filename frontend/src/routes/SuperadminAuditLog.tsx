@@ -5,10 +5,11 @@ import {
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Breadcrumbs,
   Card, Empty, Input, PageHeader, PageShell,
 } from "../components/ui";
 import { AuditTable, type AuditTableRow } from "../components/AuditTable";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtNumber } from "../lib/formatters";
 
 // Platform-wide superadmin audit log at /app/superadmin/audit-log.
 // Mirrors the legacy /superadmin/reports/audit-log report —
@@ -42,12 +43,12 @@ export default function SuperadminAuditLog() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Audit log" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="Audit log"
         subtitle={data
-          ? `${data.total.toLocaleString()} entries${
+          ? `${fmtNumber(data.total)} entries${
               action ? ` matching "${action}"` : ""
             }`
           : "—"}

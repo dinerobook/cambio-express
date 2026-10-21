@@ -118,13 +118,13 @@ describe("SuperadminFeatureFlags", () => {
     await userEvent.type(screen.getByLabelText(/^Key/), "addon_lottery");
     await userEvent.type(screen.getByLabelText("Label"), "  Lottery  ");
     await userEvent.click(screen.getByRole("checkbox", { name: "Enabled by default" }));
-    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create flag" }));
     await waitFor(() => expect(createFeatureFlag).toHaveBeenCalledWith({
       key: "addon_lottery", label: "Lottery", description: undefined,
       enabled_by_default: false,
     }));
     expect(await screen.findByText('Flag "addon_lottery" created')).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create flag" })).not.toBeInTheDocument();
   });
 
   it("keeps the create form open with the refusal", async () => {
@@ -132,9 +132,9 @@ describe("SuperadminFeatureFlags", () => {
     renderPage();
     await userEvent.click(screen.getByRole("button", { name: "+ New flag" }));
     await userEvent.type(screen.getByLabelText(/^Key/), "bank_sync");
-    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create flag" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Flag already exists.");
-    expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create flag" })).toBeInTheDocument();
   });
 
   it("adds, flips and clears a per-store override", async () => {

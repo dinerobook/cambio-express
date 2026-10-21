@@ -5,13 +5,14 @@ import {
 } from "../api/returnChecks";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   ButtonLink, Card, DataTable, Empty, PageHeader,
   PageShell, Pill, TabsBar, TabsButton, type DataColumn,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./ReturnChecks.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Bounced-check workflow list at /app/return-checks. Filter by
 // status pill, click any row (or the explicit Edit button) to
@@ -62,7 +63,7 @@ const COLUMNS: DataColumn<ReturnCheckRow>[] = [
     key: "edit", header: "", label: "", align: "right",
     render: (r) => (
       <ButtonLink to={`/return-checks/${r.id}/edit`} tone="secondary" size="sm">
-        Edit / Record payment
+        Edit / record payment
       </ButtonLink>
     ),
   },
@@ -87,6 +88,7 @@ export default function ReturnChecks() {
   if (identity?.store_id == null) {
     return (
       <PageShell>
+        <PageCrumbs />
         <PageHeader title="Returned checks" />
         <Empty>Sign in as a store admin to view return checks.</Empty>
       </PageShell>
@@ -96,15 +98,17 @@ export default function ReturnChecks() {
   return (
     <PageShell>
 
+      <PageCrumbs />
+
       <PageHeader
         title="Returned checks"
         subtitle={data
-          ? `${data.total.toLocaleString()} ${
+          ? `${fmtNumber(data.total)} ${
               status || "total"
             } check${data.total === 1 ? "" : "s"}`
           : "—"}
         actions={(
-          <ButtonLink href="/return-checks/new" tone="primary" size="sm">
+          <ButtonLink to="/return-checks/new" tone="primary" size="sm">
             + New return check
           </ButtonLink>
         )}

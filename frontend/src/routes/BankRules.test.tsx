@@ -289,7 +289,7 @@ describe("Bank rule actions", () => {
 describe("Bank rule form", () => {
   async function openCreate() {
     renderPage();
-    await userEvent.click(screen.getByRole("button", { name: "Create rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "+ New rule" }));
     return screen.findByRole("dialog");
   }
 
@@ -401,7 +401,7 @@ describe("Bank rules permissions", () => {
     asRole(["bank_sync.read"]);
     renderPage();
     expect(screen.getByText("Remote deposits")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Create rule" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ New rule" })).not.toBeInTheDocument();
     for (const name of ["Edit", "Apply now", "Enable", "Disable", "Delete"]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
@@ -412,13 +412,13 @@ describe("Bank rules permissions", () => {
     renderPage();
     expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Create rule" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ New rule" })).not.toBeInTheDocument();
   });
 
-  it("create without update: Create rule only", () => {
+  it("create without update: New rule only", () => {
     asRole(["bank_sync.read", "bank_sync.create"]);
     renderPage();
-    expect(screen.getByRole("button", { name: "Create rule" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ New rule" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 });

@@ -19,6 +19,7 @@ import {
   Table,
   useToast,
 } from "../components/ui";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 export default function SuperadminDiscounts() {
   const { data, isLoading, isError, refetch } = useDiscounts();
@@ -41,8 +42,9 @@ export default function SuperadminDiscounts() {
 
   return (
     <PageShell gap="1.25rem">
+      <PageCrumbs />
       <PageHeader
-        title="Discount Codes"
+        title="Discounts"
         subtitle="Stripe coupon codes — toggle visibility, view redemptions"
       />
 
@@ -102,7 +104,7 @@ export default function SuperadminDiscounts() {
                     {row.is_redeemable ? (
                       <Pill tone="accent">Redeemable</Pill>
                     ) : row.is_active ? (
-                      <Pill tone="warning">Capped / Expired</Pill>
+                      <Pill tone="warning">Capped / expired</Pill>
                     ) : (
                       <Pill tone="neutral">Disabled</Pill>
                     )}

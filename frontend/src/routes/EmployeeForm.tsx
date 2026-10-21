@@ -11,7 +11,7 @@ import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { accountTypeLabel } from "../lib/permissions";
 import {
-  Alert, Breadcrumbs, Button, ButtonLink, Card, Checkbox,
+  Alert, Button, ButtonLink, Card, Checkbox,
   ConfirmDialog, DateInput, ErrorState, Field, Input, Loading, MoneyInput,
   PageHeader, PageShell, Pill, Section, Select, TabsBar, TabsButton,
   useToast,
@@ -21,6 +21,7 @@ import {
   resolveEmployeeTab, visibleEmployeeTabs, type EmployeeTabKey,
 } from "./employeeFormTabs";
 import styles from "./EmployeeForm.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/employees/new + /app/employees/:id/edit — the person form
 // of the unified Employees hub (E-2). Split across tabs (E-3) so
@@ -225,7 +226,7 @@ export default function EmployeeForm() {
   if (isEdit && list.isLoading) {
     return (
       <PageShell maxWidth="44rem">
-        <PageHeader title="Edit Employee" />
+        <PageHeader title="Edit employee" />
         <Loading />
       </PageShell>
     );
@@ -233,7 +234,7 @@ export default function EmployeeForm() {
   if (isEdit && (list.isError || (list.data && !existing))) {
     return (
       <PageShell maxWidth="44rem">
-        <PageHeader title="Edit Employee" />
+        <PageHeader title="Edit employee" />
         <ErrorState
           message="Couldn't load this employee."
           onRetry={() => { void list.refetch(); }}
@@ -244,11 +245,8 @@ export default function EmployeeForm() {
 
   return (
     <PageShell maxWidth="44rem">
-      <Breadcrumbs crumbs={[
-        { label: "Employees", to: "/employees" },
-        { label: isEdit ? "Edit Employee" : "Add Employee" },
-      ]} />
-      <PageHeader title={isEdit ? "Edit Employee" : "Add Employee"} />
+      <PageCrumbs current={isEdit ? "Edit employee" : "Add employee"} />
+      <PageHeader title={isEdit ? "Edit employee" : "Add employee"} />
 
       {serverError && <Alert tone="error">{serverError}</Alert>}
 
@@ -475,7 +473,7 @@ export default function EmployeeForm() {
       <ConfirmDialog {...guard.dialogProps} />
       <ConfirmDialog
         open={confirmUnlink}
-        title="Unlink login"
+        title="Unlink this login?"
         message="Detach this login from the employee? The account itself stays active — deactivate it from the login form if they should lose access."
         confirmLabel="Unlink"
         confirmTone="danger"

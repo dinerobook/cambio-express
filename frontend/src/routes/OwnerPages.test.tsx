@@ -65,7 +65,7 @@ describe("OwnerDashboard", () => {
     const calls = mockFetch({ "GET /api/v2/owner/dashboard": { body: DASH } });
     renderRoute(<OwnerDashboard />);
     await screen.findByText("1,234");
-    await userEvent.click(screen.getByRole("tab", { name: "This Year" }));
+    await userEvent.click(screen.getByRole("tab", { name: "This year" }));
     await vi.waitFor(() => expect(
       calls.some((c) => c.path === "/api/v2/owner/dashboard?period=year"),
     ).toBe(true));

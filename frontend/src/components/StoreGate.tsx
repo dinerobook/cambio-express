@@ -10,7 +10,7 @@ import { BRAND_NAME } from "../lib/brand";
 //                    serve: a "Re-subscribe" CTA into Stripe Checkout.
 //   "frozen"       — a superadmin suspended the store. NOT self-serve —
 //                    re-subscribing wouldn't lift it — so we show a
-//                    "contact support" message and only Log out.
+//                    "contact support" message and only Sign out.
 //
 // Rendered by AppShell in place of the normal chrome, so the sidebar /
 // topbar / page content never mount for a gated user.
@@ -83,7 +83,7 @@ export default function StoreGate({ reason, storeName, onSignOut }: StoreGatePro
             </ButtonLink>
           )}
           <Button tone="secondary" onClick={onSignOut}>
-            Log out
+            Sign out
           </Button>
         </div>
       </div>

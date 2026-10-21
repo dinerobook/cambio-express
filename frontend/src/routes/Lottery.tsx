@@ -11,20 +11,22 @@ import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  Alert, Breadcrumbs, Button, Card, ConfirmDialog, DateInput, EmptyState,
+  Alert, Button, Card, ConfirmDialog, DateInput, EmptyState,
   ErrorState,
   Field, InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, PageHeader,
   PageShell, Pill, RowActions, Section, Select, TabsBar, TabsButton,
   Table, tdStyle, thStyle, useToast,
+  ModalActions,
 } from "../components/ui";
 import styles from "./Lottery.module.css";
 import { todayIso } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 export default function Lottery() {
   const [tab, setTab] = useState<"day" | "packs" | "games">("day");
   return (
     <PageShell maxWidth="64rem">
-      <Breadcrumbs crumbs={[{ label: "Lottery" }]} />
+      <PageCrumbs />
       <PageHeader
         title={
           <>
@@ -393,14 +395,14 @@ function ReceivePackModal({
         <Field label="Received on">
           <DateInput value={on} onChange={(e) => setOn(e.target.value)} />
         </Field>
-        <div className={styles.modalActions}>
+        <ModalActions>
           <Button tone="secondary" type="button" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" busy={busy} disabled={busy || !gameId}>
             Receive
           </Button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );
@@ -464,14 +466,14 @@ function ActivatePackModal({
             onChange={(e) => setOpening(e.target.value)}
           />
         </Field>
-        <div className={styles.modalActions}>
+        <ModalActions>
           <Button tone="secondary" type="button" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
             Activate
           </Button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );
@@ -643,14 +645,14 @@ function AddGameModal({
             onChange={(e) => setPerPack(e.target.value)}
           />
         </Field>
-        <div className={styles.modalActions}>
+        <ModalActions>
           <Button tone="secondary" type="button" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
             Add game
           </Button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );

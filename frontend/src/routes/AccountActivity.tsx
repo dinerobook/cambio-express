@@ -1,6 +1,5 @@
 import { useMyActivity } from "../api/account";
 import {
-  Breadcrumbs,
   Button, Card, Field, InfoTip, PageHeader, PageShell,
   Select, space,
 } from "../components/ui";
@@ -8,6 +7,8 @@ import { AuditTable } from "../components/AuditTable";
 import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./AccountActivity.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtCount } from "../lib/formatters";
 
 // /app/account/activity — cross-store per-user audit feed.
 // Mirrors /app/admin/audit-log visually but is scoped to "things
@@ -31,7 +32,7 @@ export default function AccountActivity() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Account", to: "/settings" }, { label: "Activity" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title={
@@ -47,7 +48,7 @@ export default function AccountActivity() {
         <div className={styles.cardHeader}>
           Filters
           <span className={styles.cardHeaderCount}>
-            {data ? `${data.total.toLocaleString()} ${data.total === 1 ? "event" : "events"}` : "—"}
+            {data ? `${fmtCount(data.total, "event")}` : "—"}
           </span>
         </div>
         <div className={styles.filtersRow}>

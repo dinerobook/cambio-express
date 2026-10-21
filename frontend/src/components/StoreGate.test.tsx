@@ -37,10 +37,10 @@ describe("<StoreGate>", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("always offers Log out, which fires onSignOut", async () => {
+  it("always offers Sign out, which fires onSignOut", async () => {
     const user = userEvent.setup();
     const { onSignOut } = renderGate({ reason: "frozen" });
-    await user.click(screen.getByRole("button", { name: /log out/i }));
+    await user.click(screen.getByRole("button", { name: /sign out/i }));
     expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 
@@ -61,7 +61,7 @@ describe("<StoreGate>", () => {
       screen.queryByRole("link", { name: /re-subscribe/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/store admin to re-subscribe/i)).toBeInTheDocument();
-    // Log out is still there — they are not stranded.
-    expect(screen.getByRole("button", { name: /log out/i })).toBeInTheDocument();
+    // Sign out is still there — they are not stranded.
+    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
   });
 });

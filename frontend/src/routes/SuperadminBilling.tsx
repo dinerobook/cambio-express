@@ -11,11 +11,13 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import {
-  Alert, Breadcrumbs, Button, Card, ConfirmDialog, EmptyState,
+  Alert, Button, Card, ConfirmDialog, EmptyState,
   ErrorState, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pill,
   Section, useToast,
 } from "../components/ui";
 import styles from "./SuperadminBilling.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtNumber } from "../lib/formatters";
 
 interface StoreRow {
   store_id: number;
@@ -97,9 +99,9 @@ export default function SuperadminBilling() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Billing" }]} />
+      <PageCrumbs />
       <PageHeader
-        title="Billing Overview"
+        title="Billing"
         subtitle="Trial expirations, cancellations, and retention queue"
       />
 
@@ -271,7 +273,7 @@ export default function SuperadminBilling() {
                     <strong>{dryRun.store_count}</strong> store
                     {dryRun.store_count === 1 ? "" : "s"} would be deleted
                     {" ("}
-                    <strong>{dryRun.total_child_rows.toLocaleString()}</strong>
+                    <strong>{fmtNumber(dryRun.total_child_rows)}</strong>
                     {" "}
                     child row{dryRun.total_child_rows === 1 ? "" : "s"}
                     {")"}
@@ -288,7 +290,7 @@ export default function SuperadminBilling() {
                       <div>
                         <div className={styles.storeName}>{s.name}</div>
                         <div className={styles.storeMeta}>
-                          {s.slug} · {s.row_count.toLocaleString()} rows
+                          {s.slug} · {fmtNumber(s.row_count)} rows
                           {" "}({Object.entries(s.row_counts)
                             .filter(([, n]) => n > 0)
                             .map(([k, n]) => `${k}: ${n}`)
@@ -320,7 +322,7 @@ export default function SuperadminBilling() {
 
       <ConfirmDialog
         open={clearTarget != null}
-        title="Pause retention clock"
+        title="Pause the retention clock?"
         message={
           clearTarget
             ? `Clear the retention timer for "${clearTarget.name}"? The purge cron will leave it alone. This does NOT reactivate the Stripe subscription.`

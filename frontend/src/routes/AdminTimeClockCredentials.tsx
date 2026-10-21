@@ -12,13 +12,13 @@ import { useStoreInfo } from "../api/account";
 import { apiErrorMessage } from "../lib/api";
 import { passkeysSupported, performPasskeyRegister } from "../lib/webauthn";
 import {
-  Breadcrumbs,
   Alert, Card, ConfirmDialog, EmptyState, ErrorState, Loading,
   PageHeader, PageShell, Pill, RowActions, Table, tdStyle, thStyle,
 } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import styles from "./AdminTimeClockCredentials.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/admin/timeclock/credentials — admin enrolls a passkey
 // for each active roster member. Once every cashier is registered
@@ -92,7 +92,7 @@ export default function AdminTimeClockCredentials() {
   if (!canView) {
     return (
       <PageShell maxWidth="56rem">
-        <PageHeader title="Time-clock credentials" />
+        <PageHeader title="Punch credentials" />
         <EmptyState title="Admin or owner only." />
       </PageShell>
     );
@@ -101,10 +101,10 @@ export default function AdminTimeClockCredentials() {
   return (
     <PageShell maxWidth="56rem">
 
-      <Breadcrumbs crumbs={[{ label: "Team" }, { label: "Time-clock credentials" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Time-clock credentials"
+        title="Punch credentials"
         subtitle="Enroll a passkey for each cashier — Windows Hello, Touch ID, Face ID, or a hardware key. Once everyone is registered, flip on Settings → Store → Block time-clock punches without a passkey."
       />
 
@@ -222,7 +222,7 @@ export default function AdminTimeClockCredentials() {
 
       <ConfirmDialog
         open={pendingRemove != null}
-        title="Remove passkey"
+        title="Remove this passkey?"
         message={
           `Remove ${pendingRemove?.employee_name ?? "this cashier"}'s `
           + "registered passkey?  They'll need to re-enroll before "

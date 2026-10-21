@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fmtDelta, fmtHours, fmtMoney, fmtMoney2, fmtNumber } from "./formatters";
+import { fmtCount, fmtDelta, fmtHours, fmtMoney, fmtMoney2, fmtNumber } from "./formatters";
 
 describe("fmtMoney2", () => {
   it("keeps thousands separators (the toFixed(2) bypass lost them)", () => {
@@ -86,5 +86,22 @@ describe("fmtHours", () => {
   it("shows an em dash when there is no figure yet", () => {
     expect(fmtHours(null)).toBe("—");
     expect(fmtHours(undefined)).toBe("—");
+  });
+});
+
+describe("fmtCount", () => {
+  it("agrees the noun with the number", () => {
+    expect(fmtCount(1, "transfer")).toBe("1 transfer");
+    expect(fmtCount(0, "transfer")).toBe("0 transfers");
+    expect(fmtCount(2, "batch", "batches")).toBe("2 batches");
+  });
+
+  it("puts thousands separators in the number", () => {
+    expect(fmtCount(1204, "event")).toBe("1,204 events");
+  });
+
+  it("reads a missing count as zero", () => {
+    expect(fmtCount(null, "store")).toBe("0 stores");
+    expect(fmtCount(undefined, "person", "people")).toBe("0 people");
   });
 });

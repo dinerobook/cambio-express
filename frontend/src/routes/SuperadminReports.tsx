@@ -1,8 +1,9 @@
 import { useSuperadminReports } from "../api/superadmin";
 import ReportCenter from "../components/ReportCenter";
 import {
-  Breadcrumbs, ErrorState, Loading, PageHeader, PageShell } from "../components/ui";
+  ErrorState, Loading, PageHeader, PageShell } from "../components/ui";
 import { ApiError, apiErrorMessage } from "../lib/api";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/superadmin/reports — platform-wide report center index.
 //
@@ -17,7 +18,8 @@ export default function SuperadminReports() {
   if (isLoading) {
     return (
       <PageShell>
-        <PageHeader title="Reports" />
+        <PageCrumbs />
+        <PageHeader title="Platform reports" />
         <Loading />
       </PageShell>
     );
@@ -26,10 +28,8 @@ export default function SuperadminReports() {
     const status = error instanceof ApiError ? error.status : 0;
     return (
       <PageShell>
-
-        <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Reports" }]} />
-
-        <PageHeader title="Reports" />
+        <PageCrumbs />
+        <PageHeader title="Platform reports" />
         <ErrorState
           message={
             status === 403
@@ -44,7 +44,8 @@ export default function SuperadminReports() {
 
   return (
     <PageShell>
-      <ReportCenter categories={data.categories} />
+      <PageCrumbs />
+      <ReportCenter title={"Platform reports"} categories={data.categories} />
     </PageShell>
   );
 }

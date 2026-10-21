@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 
 import { ReportDrilldown } from "../../components/ReportDrilldown";
-import { fmtMoney2 } from "../../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../../lib/formatters";
 
 export default function ReturnedCheckStatus() {
   const isOwner = useLocation().pathname.startsWith("/owner/");
@@ -9,14 +9,14 @@ export default function ReturnedCheckStatus() {
   return (
     <ReportDrilldown
       apiSlug="returned-check-status"
-      title="Returned Check Status"
+      title="Returned check status"
       resultUnit={["status", "statuses"]}
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/returned-check-status.csv`}
       kpis={[
-        { label: "Total Bounces", tone: "primary",
-          value: t => Number(t.count ?? 0).toLocaleString() },
-        { label: "Total Amount",  tone: "neon",
+        { label: "Total bounces", tone: "primary",
+          value: t => fmtNumber(Number(t.count ?? 0)) },
+        { label: "Total amount",  tone: "neon",
           value: t => fmtMoney2(Number(t.amount ?? 0)) },
         { label: "Recovered",     tone: "muted",
           value: t => fmtMoney2(Number(t.recovered ?? 0)) },
@@ -25,7 +25,7 @@ export default function ReturnedCheckStatus() {
       ]}
       columns={[
         { label: "Status",    field: "status" },
-        { label: "Count",     field: r => Number(r.count).toLocaleString(),     align: "right", mono: true },
+        { label: "Count",     field: r => fmtNumber(Number(r.count)),     align: "right", mono: true },
         { label: "Amount",    field: r => fmtMoney2(Number(r.amount)),           align: "right", mono: true },
         { label: "Recovered", field: r => fmtMoney2(Number(r.recovered)),        align: "right", mono: true },
       ]}

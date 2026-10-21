@@ -14,14 +14,15 @@ import { Bar, Line } from "react-chartjs-2";
 
 import { api, downloadCsv, apiErrorMessage } from "../../lib/api";
 import { chartSeries, countChartOptions, moneyChartOptions, seriesFill } from "../../lib/chartOptions";
-import { AppLink,
-  Button, Card, DateInput, EmptyState, ErrorState, KpiCard, KpiGrid,
+import { Button, Card, DateInput, EmptyState, ErrorState, KpiCard, KpiGrid,
   PageHeader, PageShell, TableSkeleton, tdStyle, thStyle, tokens,
 } from "../../components/ui";
 import styles from "./SuperadminBIDrilldown.module.css";
 import {
   formatShortDate, monthStartIso, todayIso,
 } from "../../lib/datetime";
+import { PageCrumbs } from "../../components/PageCrumbs";
+import { fmtCount } from "../../lib/formatters";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -160,7 +161,7 @@ export default function SuperadminBIDrilldown() {
   return (
     <PageShell gap="1.25rem">
       <div>
-        <AppLink to="/superadmin/reports" className={styles.backLink}>← Platform Reports</AppLink>
+        <PageCrumbs current={title} />
         <PageHeader
           title={title}
           actions={(
@@ -221,7 +222,7 @@ export default function SuperadminBIDrilldown() {
       <div className={styles.filterRow}>
         <span className={styles.muted}>{formatShortDate(from)} – {formatShortDate(to)}</span>
         {data && (
-          <span className={styles.muted}>{rows.length.toLocaleString()} {rows.length === 1 ? "row" : "rows"}</span>
+          <span className={styles.muted}>{fmtCount(rows.length, "row")}</span>
         )}
       </div>
 

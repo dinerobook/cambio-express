@@ -10,7 +10,7 @@ import SenderAutocomplete from "../components/SenderAutocomplete";
 import StoreListField from "../components/StoreListField";
 import RecipientSuggestions from "../components/RecipientSuggestions";
 import {
-  Alert, Breadcrumbs, Button, Card, ConfirmDialog, DateInput, ErrorState,
+  Alert, Button, Card, ConfirmDialog, DateInput, ErrorState,
   Field, FormActions, InfoTip, Input, Loading, MoneyInput, PageHeader,
   PageShell, Pill, Section, Select,
   useToast,
@@ -28,6 +28,7 @@ import {
   SERVICES, STATUSES, isPayout, transferWording,
 } from "../lib/transferKinds";
 import styles from "./EditTransfer.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 
 // ── Validation schema ──────────────────────────────────────────
@@ -245,11 +246,7 @@ export default function EditTransfer() {
 
   return (
     <PageShell maxWidth="62rem">
-      <Breadcrumbs crumbs={[
-        { label: "Transfers", to: "/transfers" },
-        { label: `#${transferId}`, to: `/transfers/${transferId}` },
-        { label: "Edit" },
-      ]} />
+      <PageCrumbs via={[{ label: `Transfer #${transferId}`, to: `/transfers/${transferId}` }]} current="Edit" />
       <PageHeader
         title={`Edit transfer #${transferId}`}
         subtitle="Federal tax is recomputed server-side on save."

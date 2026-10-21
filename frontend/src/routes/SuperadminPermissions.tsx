@@ -8,7 +8,6 @@ import { getCurrentIdentity } from "../lib/auth";
 import { useUnsavedChangesGuard } from "../lib/useUnsavedChangesGuard";
 import {
   Alert,
-  Breadcrumbs,
   Button,
   Card,
   Checkbox,
@@ -22,6 +21,7 @@ import {
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import styles from "./SuperadminPermissions.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 interface PermissionMatrix {
   roles: string[];
@@ -131,10 +131,10 @@ export default function SuperadminPermissions() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Permissions" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Role Permissions"
+        title="Permissions"
         subtitle="Configure what each role can do across the platform"
       />
 

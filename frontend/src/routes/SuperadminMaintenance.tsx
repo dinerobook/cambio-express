@@ -4,10 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Breadcrumbs, Button, Card, ErrorState, Field, Input,
+  Alert, Button, Card, ErrorState, Field, Input,
   Loading, PageHeader, PageShell, SectionTitle, Switch, useToast,
 } from "../components/ui";
 import styles from "./SuperadminMaintenance.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 interface MaintenanceState {
   enabled: boolean;
@@ -64,13 +65,10 @@ export default function SuperadminMaintenance() {
 
   return (
     <PageShell maxWidth="48rem" gap="1.25rem">
-      <Breadcrumbs crumbs={[
-        { label: "Platform" },
-        { label: "Maintenance mode" },
-      ]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Maintenance Mode"
+        title="Maintenance"
         subtitle="Put the entire platform into maintenance with a single toggle"
       />
 

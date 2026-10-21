@@ -60,7 +60,7 @@ describe("Employees hub", () => {
     mockFetch(routes());
     renderRoute(<Employees />, { path: "/employees" });
     await screen.findByText("Ana");
-    expect(screen.getByRole("link", { name: /Add Employee/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Add employee/ })).toBeInTheDocument();
     expect(within(row("Ana")).getByRole("button", { name: "Deactivate" })).toBeInTheDocument();
     expect(within(row("Ana")).getByRole("button", { name: "Manage access" })).toBeInTheDocument();
     expect(within(row("Gus")).getByRole("button", { name: "Reactivate" })).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("Employees hub", () => {
     mockFetch(routes());
     renderRoute(<Employees />, { path: "/employees" });
     await screen.findByText("Ana");
-    expect(screen.queryByRole("link", { name: /Add Employee/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Add employee/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create employee record" })).not.toBeInTheDocument();

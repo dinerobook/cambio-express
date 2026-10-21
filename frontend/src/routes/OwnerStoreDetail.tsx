@@ -10,7 +10,7 @@ import { unlinkStore, useOwnerStoreDetail } from "../api/owner";
 import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { AppLink,
-  Breadcrumbs, Button,
+  Button,
   Card, ConfirmDialog, ErrorState, KpiCard, KpiGrid, Loading,
   PageHeader, PageShell, Section, TabsBar, TabsButton, Table, tdStyle,
   thStyle, useToast,
@@ -18,10 +18,11 @@ import { AppLink,
   tdStyleRight, EmptyState,
 } from "../components/ui";
 import { chartSeries, chartTokens, moneyChartOptions, seriesFill } from "../lib/chartOptions";
-import { fmtMoney, fmtMoney2 } from "../lib/formatters";
+import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
 import { Delta } from "../components/Delta";
 import styles from "./OwnerStoreDetail.module.css";
 import { formatShortDate } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip,
@@ -32,8 +33,8 @@ type Period = "today" | "month" | "year";
 
 const PERIODS: Array<{ value: Period; label: string }> = [
   { value: "today", label: "Today" },
-  { value: "month", label: "This Month" },
-  { value: "year",  label: "This Year" },
+  { value: "month", label: "This month" },
+  { value: "year",  label: "This year" },
 ];
 
 
@@ -70,7 +71,7 @@ export default function OwnerStoreDetail() {
       <div>
         <AppLink to="/owner/locations" className={styles.backLink}>← All locations</AppLink>
 
-        <Breadcrumbs crumbs={[{ label: "Locations", to: "/owner/locations" }, { label: "Store detail" }]} />
+        <PageCrumbs under="/owner/locations" current={data?.store.name || "Store"} />
 
         <PageHeader
           title={data?.store.name || "Store"}
@@ -105,7 +106,7 @@ export default function OwnerStoreDetail() {
 
       <ConfirmDialog
         open={confirmUnlink}
-        title="Disconnect store"
+        title="Disconnect this store?"
         message={`Disconnect "${data?.store?.name ?? `store ${sid}`}" from your umbrella? The store keeps all its data but you will no longer see it.`}
         confirmLabel="Disconnect"
         confirmTone="danger"
@@ -127,7 +128,7 @@ export default function OwnerStoreDetail() {
           <KpiGrid minWidth="180px">
             <KpiCard
               label="Transfers"
-              value={data.period_count.toLocaleString()}
+              value={fmtNumber(data.period_count)}
               sub={<Delta value={data.period_count - data.prev_count} suffix=" vs prior" />}
             />
             <KpiCard
@@ -136,7 +137,7 @@ export default function OwnerStoreDetail() {
               sub={<Delta value={data.period_volume - data.prev_volume} money suffix=" vs prior" />}
             />
             <KpiCard label="Fees" value={fmtMoney2(data.period_fees)} />
-            <KpiCard label="Federal Tax" value={fmtMoney2(data.period_tax)} />
+            <KpiCard label="Federal tax" value={fmtMoney2(data.period_tax)} />
             <KpiCard
               label="Over/Short"
               value={`${data.period_over_short >= 0 ? "+" : "-"}${fmtMoney2(Math.abs(data.period_over_short))}`}
@@ -264,7 +265,7 @@ export default function OwnerStoreDetail() {
                     {data.company_rows.map((c) => (
                       <tr key={c.company}>
                         <td style={tdStyle}>{c.company}</td>
-                        <td style={tdStyleRight}>{c.count.toLocaleString()}</td>
+                        <td style={tdStyleRight}>{fmtNumber(c.count)}</td>
                         <td style={tdStyleRight}>{fmtMoney2(c.volume)}</td>
                         <td style={tdStyleRight}>{fmtMoney2(c.fees)}</td>
                         <td style={tdStyleRight}>{fmtMoney2(c.tax)}</td>

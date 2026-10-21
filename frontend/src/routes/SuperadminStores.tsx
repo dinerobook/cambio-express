@@ -13,11 +13,13 @@ import { formatDate } from "../lib/datetime";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Alert, Breadcrumbs, Button, ButtonLink, Checkbox,
+  Alert, Button, ButtonLink, Checkbox,
   Card, DataTable, Empty, Input, PageHeader, PageShell, Pill,
   Select, useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./SuperadminStores.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtCount } from "../lib/formatters";
 
 // Platform-wide stores list at /app/superadmin/stores — superadmin's
 // "what's going on across all customers?" view. Search, sort and
@@ -79,7 +81,7 @@ export default function SuperadminStores() {
   if (identity?.role !== "superadmin") {
     return (
       <PageShell>
-        <PageHeader title="All stores" />
+        <PageHeader title="Stores" />
         <Empty>Superadmin scope required.</Empty>
       </PageShell>
     );
@@ -88,12 +90,12 @@ export default function SuperadminStores() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Stores" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="All stores"
+        title="Stores"
         subtitle={data
-          ? `${data.total.toLocaleString()} store${data.total === 1 ? "" : "s"}${q.length >= 2 ? " match" : ""}`
+          ? `${fmtCount(data.total, "store")}${q.length >= 2 ? " match" : ""}`
           : "—"}
         actions={(
           <Input
@@ -217,7 +219,7 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
     {
       key: "view", header: "", label: "", align: "right",
       render: (r) => (
-        <ButtonLink href={`/superadmin/stores/${r.store_id}/drill`} tone="secondary" size="sm">
+        <ButtonLink to={`/superadmin/stores/${r.store_id}/drill`} tone="secondary" size="sm">
           View
         </ButtonLink>
       ),

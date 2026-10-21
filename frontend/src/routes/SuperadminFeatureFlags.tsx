@@ -34,6 +34,7 @@ import {
   useToast,
 } from "../components/ui";
 import { formatDate } from "../lib/datetime";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 export default function SuperadminFeatureFlags() {
   const { data, isLoading, isError, refetch } = useFeatureFlags();
@@ -43,8 +44,9 @@ export default function SuperadminFeatureFlags() {
 
   return (
     <PageShell gap="1.25rem">
+      <PageCrumbs />
       <PageHeader
-        title="Feature Flags"
+        title="Feature flags"
         subtitle="Platform-wide flags with per-store overrides"
         actions={
           <Button onClick={() => setCreating(true)} disabled={creating}>
@@ -191,7 +193,7 @@ function FlagRow({
           />
           <ConfirmDialog
             open={confirmingDelete}
-            title="Delete feature flag"
+            title="Delete this feature flag?"
             message={`Delete flag "${flag.key}"? This also removes all per-store overrides.`}
             confirmLabel="Delete"
             confirmTone="danger"
@@ -365,7 +367,7 @@ function CreateFlagForm({
           />
         </Field>
         <Field label="Label">
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="My Feature" />
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="My feature" />
         </Field>
         <Field label="Description">
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
@@ -374,8 +376,8 @@ function CreateFlagForm({
           Enabled by default
         </Checkbox>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button type="submit" busy={busy}>Create</Button>
           <Button tone="secondary" onClick={onCancel} type="button">Cancel</Button>
+          <Button type="submit" busy={busy}>Create flag</Button>
         </div>
       </form>
     </Card>

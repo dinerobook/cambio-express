@@ -11,7 +11,6 @@ import StoreListField from "../components/StoreListField";
 import RecipientSuggestions from "../components/RecipientSuggestions";
 import {
   Alert,
-  Breadcrumbs,
   Button,
   Card,
   ConfirmDialog,
@@ -44,6 +43,7 @@ import { getCurrentIdentity } from "../lib/auth";
 import {
   SERVICES, STATUSES, defaultCountry, isPayout, transferWording,
 } from "../lib/transferKinds";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // New transfer form at /app/transfers/new.
 //
@@ -232,10 +232,7 @@ export default function NewTransfer() {
 
   return (
     <PageShell>
-      <Breadcrumbs crumbs={[
-        { label: "Transfers", to: "/transfers" },
-        { label: "New transfer" },
-      ]} />
+      <PageCrumbs current="New transfer" />
       <PageHeader
         title="New transfer"
         subtitle={

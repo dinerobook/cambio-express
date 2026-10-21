@@ -7,14 +7,14 @@ import {
   type BatchSort,
 } from "../api/batches";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtCount } from "../lib/formatters";
 import {
-  Breadcrumbs,
   ButtonLink, Card, DataTable, Empty, PageHeader, PageShell, Pill,
   type DataColumn,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./Batches.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Read-only ACH batches list at /app/batches. Sort by clicking
 // column headers (URL-driven). Variance cell colored red when
@@ -100,13 +100,13 @@ export default function Batches() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "ACH Batches" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="ACH batches"
-        subtitle={data ? `${total.toLocaleString()} ${total === 1 ? "batch" : "batches"}` : "—"}
+        subtitle={data ? `${fmtCount(total, "batch", "batches")}` : "—"}
         actions={(
-          <ButtonLink href="/batches/new" tone="primary" size="sm">
+          <ButtonLink to="/batches/new" tone="primary" size="sm">
             + New batch
           </ButtonLink>
         )}

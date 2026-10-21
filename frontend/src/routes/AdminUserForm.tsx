@@ -13,8 +13,7 @@ import { hasPermission, toggleMatrixCell } from "../lib/permissions";
 import { modulesOffForGrants } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  AppLink, Breadcrumbs,
-  Alert, Button, Card, Checkbox, ConfirmDialog, ErrorState, Field, Input,
+  AppLink, Alert, Button, Card, Checkbox, ConfirmDialog, ErrorState, Field, Input,
   Loading, PageHeader, PageShell, Select, space,
   useToast,
 } from "../components/ui";
@@ -25,6 +24,7 @@ import {
 import { areasGranted, emptyMatrix } from "../lib/roleTemplates";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./AdminUserForm.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // What this person can do — ONE picker. "role" = no overlay: they
 // follow the built-in role of their account type. `saved:<id>` =
@@ -247,7 +247,7 @@ export default function AdminUserForm() {
   if (isEdit && detail.isLoading) {
     return (
       <PageShell maxWidth="36rem">
-        <PageHeader title="Edit User" />
+        <PageHeader title="Edit user" />
         <Loading />
       </PageShell>
     );
@@ -255,7 +255,7 @@ export default function AdminUserForm() {
   if (isEdit && (detail.isError || !detail.data)) {
     return (
       <PageShell maxWidth="36rem">
-        <PageHeader title="Edit User" />
+        <PageHeader title="Edit user" />
         <ErrorState
           message={`Couldn't load this user. ${apiErrorMessage(detail.error, "")}`.trimEnd()}
           onRetry={() => { void detail.refetch(); }}
@@ -269,8 +269,8 @@ export default function AdminUserForm() {
     // so there is no form to show.
     return (
       <PageShell maxWidth="36rem">
-        <Breadcrumbs crumbs={[{ label: "Employees", to: "/employees" }, { label: "Edit User" }]} />
-        <PageHeader title="Edit User" />
+        <PageCrumbs under="/employees" current="Edit login" />
+        <PageHeader title="Edit user" />
         <Alert tone="info">
           {detail.data.user.full_name || detail.data.user.username} has a
           higher account type than yours, so their login and access
@@ -377,7 +377,7 @@ export default function AdminUserForm() {
   return (
     <PageShell maxWidth="36rem">
 
-      <Breadcrumbs crumbs={[{ label: "Employees", to: "/employees" }, { label: isEdit ? "Edit Login" : "Add Login" }]} />
+      <PageCrumbs under="/employees" current={isEdit ? "Edit login" : "Add login"} />
 
       <PageHeader title={isEdit ? "Edit Login & Access" : "Add Login"} />
 
@@ -443,7 +443,7 @@ export default function AdminUserForm() {
             </Field>
           )}
 
-          <Field label="Full Name" error={fieldErrors.full_name}>
+          <Field label="Full name" error={fieldErrors.full_name}>
             <Input
               type="text" maxLength={120}
               placeholder="Employee's full name"

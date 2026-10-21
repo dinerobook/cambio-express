@@ -18,13 +18,14 @@ import {
   unsubscribeBrowser,
 } from "../lib/push";
 import {
-  Breadcrumbs,
   Alert, Button, Card, Checkbox, ErrorState, InfoTip, Loading,
   PageHeader, PageShell, Section, Table, tdStyle, thStyle, tokens,
   useToast,
 } from "../components/ui";
 import styles from "./AccountNotifications.module.css";
 import { BRAND_NAME } from "../lib/brand";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtCount } from "../lib/formatters";
 
 // /app/account/notifications — per-user boolean toggles.
 //
@@ -119,7 +120,7 @@ export default function AccountNotifications() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Account", to: "/settings" }, { label: "Notifications" }]} />
+      <PageCrumbs />
 
       <PageHeader title="Notifications" subtitle="Control which email and push alerts you receive." />
 
@@ -514,7 +515,7 @@ function BrowserPushCard() {
             : "Browser notifications are off on this device."}
           {status.device_count > 0 && (
             <span className={styles.pushDeviceHint}>
-              {" "}({status.device_count} {status.device_count === 1 ? "device" : "devices"} on file)
+              {" "}({fmtCount(status.device_count, "device")} on file)
             </span>
           )}
         </div>

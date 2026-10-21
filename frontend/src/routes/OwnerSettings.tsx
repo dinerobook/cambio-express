@@ -2,12 +2,13 @@
 import { useOwnerLocations } from "../api/owner";
 import { useProfile } from "../api/account";
 import { AppLink,
-  Breadcrumbs, Card, KpiCard, KpiGrid, Loading, PageHeader, PageShell,
+  Card, KpiCard, KpiGrid, Loading, PageHeader, PageShell,
   Pill, SectionTitle,
   ErrorState,
   Empty,
 } from "../components/ui";
 import styles from "./OwnerSettings.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 export default function OwnerSettings() {
   const { data: profile } = useProfile();
@@ -17,9 +18,9 @@ export default function OwnerSettings() {
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[{ label: "Owner settings" }]} />
+      <PageCrumbs />
       <PageHeader
-        title="Owner Settings"
+        title="Owner settings"
         subtitle="Your umbrella profile and linked stores"
       />
 

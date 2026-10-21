@@ -14,11 +14,12 @@ import {
   ACTION_LABELS, RESOURCE_LABELS, groupResources,
 } from "../components/PermissionMatrixTable";
 import {
-  Breadcrumbs, ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState,
+  ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState,
   Loading, PageHeader, PageShell, Pill, RowActions, Section, TabsBar,
   TabsLink, Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
 import styles from "./RolesAccess.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Team → Roles & access. ONE place that says what each kind of
 // person here can do: the two built-in roles (Admin / Employee —
@@ -125,10 +126,7 @@ export default function RolesAccess({
 
   return (
     <PageShell gap="1.25rem">
-      <Breadcrumbs crumbs={[
-        { label: "Team" },
-        { label: "Roles & access" },
-      ]} />
+      <PageCrumbs />
       <PageHeader
         title="Roles & access"
         subtitle="What each role can do here. Give people a role from their login; edit the role and everyone in it changes together."
@@ -307,7 +305,8 @@ export default function RolesAccess({
 
       <ConfirmDialog
         open={confirmDelete != null}
-        title={`Delete "${confirmDelete?.name ?? ""}"`}
+        title={`Delete "${confirmDelete?.name ?? ""}"?`}
+        confirmTone="danger"
         message={
           (confirmDelete?.member_count ?? 0) > 0
             ? `${confirmDelete?.member_count === 1

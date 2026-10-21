@@ -5,7 +5,7 @@ import type {
 import { AppLink,
   Card, KpiCard, KpiGrid, Pill, Section, tokens,
 } from "./ui";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { formatTimestamp } from "../lib/datetime";
 import styles from "./RegisterActivity.module.css";
 
@@ -28,7 +28,7 @@ export function RegisterActivityTiles({
     <KpiGrid>
       <KpiCard
         label="Receipts"
-        value={register.receipts.toLocaleString()}
+        value={fmtNumber(register.receipts)}
         sub={
           <AppLink to="/transactions" className="ds-link"
             style={{ color: tokens.accent }}
@@ -44,7 +44,7 @@ export function RegisterActivityTiles({
       />
       <KpiCard
         label="Voided tickets"
-        value={register.voided_tickets.toLocaleString()}
+        value={fmtNumber(register.voided_tickets)}
         sub={
           register.voided_tickets > 0 ? (
             <AppLink to="/transactions?voided=1" className="ds-link"
@@ -58,7 +58,7 @@ export function RegisterActivityTiles({
       />
       <KpiCard
         label="Refunds"
-        value={register.refunds.toLocaleString()}
+        value={fmtNumber(register.refunds)}
         tone={register.refunds > 0 ? "warning" : "positive"}
       />
       {hasFuel && (

@@ -3,7 +3,6 @@ import {
   type AdminAuditUserOption,
 } from "../api/admin";
 import {
-  Breadcrumbs,
   Button, Card, Field, InfoTip, PageHeader, PageShell,
   Select, space,
 } from "../components/ui";
@@ -11,6 +10,8 @@ import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { AuditTable } from "../components/AuditTable";
 import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
 import styles from "./AdminAuditLog.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtCount } from "../lib/formatters";
 
 // /app/admin/audit-log — merged operator + transfer audit feed
 // for the JWT principal's store. Filters and page live in the URL
@@ -33,7 +34,7 @@ export default function AdminAuditLog() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Finance" }, { label: "Activity log" }]} />
+      <PageCrumbs under="/reports" current="Audit log" />
 
       <PageHeader
         title={
@@ -49,7 +50,7 @@ export default function AdminAuditLog() {
         <div className={styles.cardHeader}>
           Filters
           <span className={styles.cardHeaderCount}>
-            {data ? `${data.total.toLocaleString()} ${data.total === 1 ? "event" : "events"}` : "—"}
+            {data ? `${fmtCount(data.total, "event")}` : "—"}
           </span>
         </div>
         <div className={styles.filtersRow}>

@@ -33,7 +33,7 @@ function renderPage() {
 }
 
 async function fill() {
-  await userEvent.type(screen.getByLabelText("Full Name"), " Rosa Diaz ");
+  await userEvent.type(screen.getByLabelText("Full name"), " Rosa Diaz ");
   await userEvent.type(screen.getByLabelText("Email"), "rosa@chain.com ");
   await userEvent.type(screen.getByLabelText("Password"), "longpass1");
   await userEvent.click(screen.getByRole("button", { name: "Create owner account →" }));
@@ -49,7 +49,7 @@ describe("SignupOwner", () => {
     renderPage();
     const btn = screen.getByRole("button", { name: "Create owner account →" });
     expect(btn).toBeDisabled();
-    await userEvent.type(screen.getByLabelText("Full Name"), "R");
+    await userEvent.type(screen.getByLabelText("Full name"), "R");
     await userEvent.type(screen.getByLabelText("Email"), "r@x.co");
     expect(btn).toBeDisabled();
     await userEvent.type(screen.getByLabelText("Password"), "p");

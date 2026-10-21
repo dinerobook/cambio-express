@@ -15,11 +15,12 @@ import {
   formatDate, formatDateTime,
 } from "../lib/datetime";
 import { AppLink,
-  Alert, Breadcrumbs, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
+  Alert, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
   Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill, Section,
   Select, Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
 import styles from "./PosImport.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 /**
  * Gilbarco register import (P1-9): upload a day's (or a whole
@@ -135,10 +136,7 @@ export default function PosImport() {
 
   return (
     <PageShell maxWidth="64rem">
-      <Breadcrumbs crumbs={[
-        { label: "Store daily book", to: "/store-book" },
-        { label: "Register import" },
-      ]} />
+      <PageCrumbs under="/store-book" current="Register import" />
       <PageHeader
         title={
           <>
@@ -524,7 +522,7 @@ function AgentSection() {
       </Card>
       <ConfirmDialog
         open={revoking !== null}
-        title="Revoke agent key"
+        title="Revoke this agent key?"
         message={
           `Revoke ${revoking?.label ? `"${revoking.label}"` : "this key"}? `
           + "The site agent using it stops uploading journal files until "

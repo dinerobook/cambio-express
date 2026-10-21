@@ -287,22 +287,7 @@ function StoreSwitchChip({
         type="button"
         onClick={() => setOpen(true)}
         title="Switch store"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "0.4rem",
-          padding: "0.3rem 0.8rem",
-          borderRadius: "999px",
-          border: "1px solid var(--db-border-strong)",
-          background: "var(--db-surface-2)",
-          color: "var(--db-text)",
-          cursor: "pointer",
-          fontWeight: 600,
-          maxWidth: "14rem",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
+        className="app-store-chip"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="2" strokeLinecap="round"
@@ -311,7 +296,7 @@ function StoreSwitchChip({
           <path d="M4 9v11h16V9" />
           <path d="M9 20v-6h6v6" />
         </svg>
-        {label}
+        <span className="app-store-chip-label">{label}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="2" strokeLinecap="round"
           strokeLinejoin="round" aria-hidden="true">
@@ -330,6 +315,7 @@ function ReferralBadge({ code }: { code: string }) {
       type="button"
       onClick={() => navigate("/account/referrals")}
       title={`Earn $100 — share your code: ${code}`}
+      aria-label="Referrals: earn $100"
       className="app-referral-badge"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
@@ -337,7 +323,7 @@ function ReferralBadge({ code }: { code: string }) {
         <path d="M2.5 8.5L5 3h14l2.5 5.5L12 21 2.5 8.5z" />
         <path d="M12 3l-2 5.5h4L12 3z" opacity="0.5" />
       </svg>
-      $100
+      <span className="app-referral-badge-amount">$100</span>
     </button>
   );
 }

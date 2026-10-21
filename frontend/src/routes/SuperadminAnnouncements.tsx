@@ -11,7 +11,6 @@ import {
   type CreateAnnouncementBody,
 } from "../api/announcements";
 import {
-  Breadcrumbs,
   Alert, Button, Card, Checkbox, ConfirmDialog, Empty, ErrorState, Field,
   Input, PageHeader, PageShell, Pill, SectionTitle, Select, Table,
   TableStates, Textarea, tdStyle, thStyle,
@@ -24,6 +23,8 @@ import {
   formatDate, formatDateTime, formatShortDate, parseTimestamp, zonedInputToUtcIso,
 } from "../lib/datetime";
 import styles from "./SuperadminAnnouncements.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
+import { fmtNumber, fmtCount } from "../lib/formatters";
 
 // Superadmin-only banner CRUD at /app/superadmin/announcements.
 // Mirrors the legacy /superadmin/controls?tab=announcements panel.
@@ -53,11 +54,11 @@ export default function SuperadminAnnouncements() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Platform" }, { label: "Announcements" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="Announcements"
-        subtitle={data ? `${data.total.toLocaleString()} on file` : "—"}
+        subtitle={data ? `${fmtNumber(data.total)} on file` : "—"}
       />
 
       <CreateForm onCreated={refresh} />
@@ -414,7 +415,7 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
         {err && <span className={styles.rowError}>{err}</span>}
         <ConfirmDialog
           open={confirmingDelete}
-          title="Delete announcement"
+          title="Delete this announcement?"
           message="Delete this announcement permanently? Operators who haven't dismissed it yet will lose the message."
           confirmLabel="Delete"
           confirmTone="danger"
@@ -460,7 +461,7 @@ function AudienceCell({ row }: { row: AnnouncementRow }) {
   return (
     <div>
       <Pill tone="info">
-        {names.length} {names.length === 1 ? "store" : "stores"}
+        {fmtCount(names.length, "store")}
       </Pill>
       <div className={styles.audienceNames}>
         {names.slice(0, 3).join(", ")}

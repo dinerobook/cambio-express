@@ -241,7 +241,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
         )}
         <KpiCard
           label="Clocked in now"
-          value={d.clocked_in.length.toLocaleString()}
+          value={fmtNumber(d.clocked_in.length)}
           sub={
             <AppLink to="/admin/timeclock" className="ds-link" style={{ color: tokens.accent }}>
               {d.clocked_in.length > 0
@@ -252,7 +252,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
           tone={d.clocked_in.length > 0 ? "positive" : "neutral"}
         />
         <KpiCard
-          label="Bank sync"
+          label="Bank accounts"
           value={
             d.stripe_accounts.length > 0
               ? `Stripe · ${d.stripe_accounts.length}`
@@ -416,7 +416,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
         <Section
           title={`Clocked in (${d.clocked_in.length})`}
           actions={
-            <ButtonLink href="/admin/timeclock" tone="secondary" size="sm">
+            <ButtonLink to="/admin/timeclock" tone="secondary" size="sm">
               Time clock
             </ButtonLink>
           }
@@ -470,16 +470,16 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
       {ms && (
       <Section title="Money services">
         <KpiGrid>
-          <KpiCard label="Total transfers" value={d.kpis.total_transfers.toLocaleString()} sub="All time" />
+          <KpiCard label="Total transfers" value={fmtNumber(d.kpis.total_transfers)} sub="All time" />
           <KpiCard
             label="Today's transfers"
-            value={d.kpis.today_transfers.toLocaleString()}
+            value={fmtNumber(d.kpis.today_transfers)}
             sub={formatShortDate(d.today)}
             tone="positive"
           />
           <KpiCard
             label="Unreconciled ACH"
-            value={d.kpis.pending_ach.toLocaleString()}
+            value={fmtNumber(d.kpis.pending_ach)}
             sub={d.kpis.pending_ach > 0 ? "Needs attention" : "All clear"}
             tone={d.kpis.pending_ach > 0 ? "negative" : "positive"}
           />
@@ -557,8 +557,8 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
               marginBottom: space.md,
             }}
           >
-            <span style={{ fontWeight: 600 }}>Recent Transfers</span>
-            <ButtonLink href="/transfers" tone="secondary" size="sm">View all</ButtonLink>
+            <span style={{ fontWeight: 600 }}>Recent transfers</span>
+            <ButtonLink to="/transfers" tone="secondary" size="sm">View all</ButtonLink>
           </header>
           <Table>
             <thead>
@@ -614,8 +614,8 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                 marginBottom: space.md,
               }}
             >
-              <span style={{ fontWeight: 600 }}>Recent ACH Batches</span>
-              <ButtonLink href="/batches" tone="secondary" size="sm">View all</ButtonLink>
+              <span style={{ fontWeight: 600 }}>Recent ACH batches</span>
+              <ButtonLink to="/batches" tone="secondary" size="sm">View all</ButtonLink>
             </header>
             <Table>
               <thead>
@@ -671,8 +671,8 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                 marginBottom: space.md,
               }}
             >
-              <span style={{ fontWeight: 600 }}>Bank Accounts</span>
-              <ButtonLink href="/bank" tone="secondary" size="sm">View all</ButtonLink>
+              <span style={{ fontWeight: 600 }}>Bank accounts</span>
+              <ButtonLink to="/bank" tone="secondary" size="sm">View all</ButtonLink>
             </header>
             {d.stripe_accounts.length === 0 ? (
               <Empty>No bank connected yet.</Empty>
@@ -722,7 +722,7 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
         {ms && (
           <KpiCard
             label="Today's transfers"
-            value={d.totals.count.toLocaleString()}
+            value={fmtNumber(d.totals.count)}
             sub={formatShortDate(d.today)}
           />
         )}
@@ -765,7 +765,7 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
       <Section
         title="Today's transfers"
         actions={
-          <ButtonLink href="/transfers/new" tone="primary" size="sm">
+          <ButtonLink to="/transfers/new" tone="primary" size="sm">
             + New transfer
           </ButtonLink>
         }
@@ -916,7 +916,7 @@ function SuperadminPanel({ d }: { d: SuperadminContextLite & { role: string } })
   return (
     <>
       <KpiGrid>
-        <KpiCard label="Total Stores" value={fmtNumber(d.total_stores)} sub="All time" />
+        <KpiCard label="Total stores" value={fmtNumber(d.total_stores)} sub="All time" />
         <KpiCard label="Active" value={fmtNumber(d.active_stores)} tone="positive" />
         <KpiCard label="Trial" value={fmtNumber(d.trial_stores)} tone="warning" />
         <KpiCard label="Paid" value={fmtNumber(d.paid_stores)} tone="positive" />
@@ -953,7 +953,7 @@ function SuperadminPanel({ d }: { d: SuperadminContextLite & { role: string } })
           <QuickLink to="/superadmin/stores" title="Stores" desc="Browse, edit, impersonate." />
           <QuickLink to="/superadmin/audit-log" title="Audit log" desc="Every platform admin action." />
           <QuickLink to="/superadmin/announcements" title="Announcements" desc="Global banners + push." />
-          <QuickLink to="/superadmin/reports" title="Platform Reports" desc="MRR/ARR, churn, adoption." />
+          <QuickLink to="/superadmin/reports" title="Platform reports" desc="MRR/ARR, churn, adoption." />
         </div>
       </Section>
     </>

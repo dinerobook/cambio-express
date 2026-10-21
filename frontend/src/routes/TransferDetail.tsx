@@ -8,13 +8,14 @@ import { formatDate } from "../lib/datetime";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs, Button,
+  Button,
   ButtonLink, Card, ConfirmDialog, Empty, ErrorState, Loading, PageHeader,
   PageShell, Section, tokens, useToast,
 } from "../components/ui";
 import styles from "./TransferDetail.module.css";
 import TransferKindPill from "../components/TransferKindPill";
 import { isDebitCard, isPayout, transferWording } from "../lib/transferKinds";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Single-transfer detail page. Backed by /api/v2/transfers/{id}
 // — same shape as a row in the list, so the read-only detail
@@ -89,7 +90,7 @@ export default function TransferDetail() {
 
   return (
     <PageShell maxWidth="52rem" gap="1rem">
-      <Breadcrumbs crumbs={[{ label: "Transfers", to: "/transfers" }, { label: `Transfer #${id}` }]} />
+      <PageCrumbs current={`Transfer #${id}`} />
 
 
       <PageHeader
@@ -105,7 +106,7 @@ export default function TransferDetail() {
         )}
         actions={(
           <>
-            <ButtonLink href={`/transfers/${t.id}/edit`} tone="secondary" size="sm">
+            <ButtonLink to={`/transfers/${t.id}/edit`} tone="secondary" size="sm">
               Edit
             </ButtonLink>
             <Button

@@ -89,6 +89,17 @@ Non-negotiables:
   UI on `identity.role` — a custom access role can grant or
   withhold any right. `access.test.ts` fails when a route in
   `App.tsx` has no table entry.
+- **One name per page, sentence case, trail from the sidebar — see
+  [UI-STANDARDS §7b](docs/design-system/UI-STANDARDS.md).** Every
+  label is sentence case ("Edit employee", not "Edit Employee"). A
+  sidebar page is titled exactly its `NAV` label, a report page its
+  report-center card. Every shell page renders `<PageCrumbs />`
+  (built from `NAV`, never a hand-typed `<Breadcrumbs>`). Popup
+  button rows are `<ModalActions>` / `Modal actions`; destructive
+  confirms ask a question and use `confirmTone="danger"`; counts go
+  through `fmtCount` / `fmtNumber`. `lib/consistencyGuards.test.ts`
+  enforces all of it. **Any app-wide consistency rule you set goes
+  into UI-STANDARDS.md (and here when binding) in the same PR.**
 - **Dark by default; light is opt-in.** ``data-theme`` flips
   between ``"dark"`` (default) and ``"light"`` (per-user
   preference, stored on ``User.theme_preference``). The light
@@ -120,6 +131,7 @@ Non-negotiables:
   `frontend/src/components/ui/index.tsx` — `PageShell`,
   `PageHeader`, `Section`, `Card`, `Field`, `Input`, `Select`,
   `Textarea`, `Button`, `ButtonLink`, `Alert`, `Pill`, `Pager`,
+  `ModalActions`,
   `Table`, `EmptyState`, `ErrorState`, `KpiCard`, `KpiGrid`,
   `FormActions`, `RowActions`. Reach for these before writing
   inline styles.

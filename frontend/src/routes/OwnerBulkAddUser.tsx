@@ -7,13 +7,13 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Breadcrumbs,
   Alert, Button, Card, Checkbox, Empty, ErrorState, Field, InfoTip,
   Input, Loading, PageHeader, PageShell, Section,
 } from "../components/ui";
 import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import styles from "./OwnerBulkAddUser.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/owner/bulk-add-user — owner-side helper to create one
 // login at many of their linked stores at once. Useful for a
@@ -49,7 +49,7 @@ export default function OwnerBulkAddUser() {
                     && identity.role !== "superadmin")) {
     return (
       <PageShell>
-        <PageHeader title="Bulk add user" />
+        <PageHeader title="Add user to stores" />
         <Empty>This page is owner-only.</Empty>
       </PageShell>
     );
@@ -84,10 +84,10 @@ export default function OwnerBulkAddUser() {
   return (
     <PageShell maxWidth="56rem">
 
-      <Breadcrumbs crumbs={[{ label: "Owner" }, { label: "Bulk add user" }]} />
+      <PageCrumbs />
 
       <PageHeader
-        title="Bulk add user"
+        title="Add user to stores"
         subtitle={
           "Create the same login at every store you select. They "
           + "sign in with their email or phone, and pick which store "

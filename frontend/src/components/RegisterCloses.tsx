@@ -12,6 +12,7 @@ import {
   Field,
   InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, RowActions, Section,
   Table, Textarea, tdStyle, thStyle, useToast,
+  ModalActions,
 } from "./ui";
 import styles from "./RegisterCloses.module.css";
 
@@ -397,14 +398,14 @@ function CloseForm({
           onChange={(e) => setNotes(e.target.value)}
         />
       </Field>
-      <div className={styles.modalActions}>
+      <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
           Cancel
         </Button>
         <Button type="submit" busy={busy} disabled={busy}>
           {existing ? "Save changes" : "Add close"}
         </Button>
-      </div>
+      </ModalActions>
     </form>
   );
 }

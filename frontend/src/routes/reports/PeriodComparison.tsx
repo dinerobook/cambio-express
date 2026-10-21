@@ -13,14 +13,14 @@ export default function PeriodComparison() {
   return (
     <ReportDrilldown
       apiSlug="period-comparison"
-      title="Period vs Prior Period"
+      title="Period comparison"
       resultUnit={["metric", "metrics"]}
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/period-comparison.csv`}
       kpis={[
-        { label: "Current Period", tone: "primary",
+        { label: "Current period", tone: "primary",
           value: t => (t.current_label as string) || "—" },
-        { label: "Prior Period",   tone: "muted",
+        { label: "Prior period",   tone: "muted",
           value: t => (t.prior_label as string) || "—" },
       ]}
       columns={[

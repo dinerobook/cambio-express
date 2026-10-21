@@ -19,7 +19,7 @@ import {
 import { BankCategoryOptions } from "../components/BankCategoryOptions";
 import { BankRuleForm } from "../components/BankRuleForm";
 import {
-  AppLink, Breadcrumbs, Button, ButtonLink,
+  AppLink, Button, ButtonLink,
   Card, Checkbox, DataTable, DateInput, Empty, Field, Input, KpiCard, KpiGrid,
   Modal, monoStyle, PageHeader, PageShell, Select, useToast,
   type DataColumn, type DataTableProps,
@@ -31,11 +31,12 @@ import { suggestRuleFor } from "../lib/bankRuleSuggest";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { hasPermission } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   formatDate, formatDateTime,
 } from "../lib/datetime";
 import styles from "./BankTransactions.module.css";
+import { PageCrumbs } from "../components/PageCrumbs";
 
 // Bank transactions at /app/bank-transactions. Filters: account,
 // sign, uncategorized-only, free-text search. Each row's category
@@ -103,14 +104,14 @@ export default function BankTransactions() {
   return (
     <PageShell>
 
-      <Breadcrumbs crumbs={[{ label: "Finance" }, { label: "Bank transactions" }]} />
+      <PageCrumbs />
 
       <PageHeader
         title="Bank transactions"
         subtitle={
           txns.data
-            ? `${txns.data.total.toLocaleString()} transactions · ` +
-              `${txns.data.uncategorized_count.toLocaleString()} uncategorized`
+            ? `${fmtNumber(txns.data.total)} transactions · ` +
+              `${fmtNumber(txns.data.uncategorized_count)} uncategorized`
             : "—"
         }
         actions={

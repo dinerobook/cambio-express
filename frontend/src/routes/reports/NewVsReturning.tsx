@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 
 import { ReportDrilldown } from "../../components/ReportDrilldown";
-import { fmtMoney2 } from "../../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../../lib/formatters";
 
 export default function NewVsReturning() {
   const isOwner = useLocation().pathname.startsWith("/owner/");
@@ -9,25 +9,25 @@ export default function NewVsReturning() {
   return (
     <ReportDrilldown
       apiSlug="new-vs-returning"
-      title="New vs Returning Senders"
+      title="New vs. returning senders"
       resultUnit={["bucket", "buckets"]}
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/new-vs-returning.csv`}
       kpis={[
-        { label: "Total Senders", tone: "primary",
-          value: t => (Number(t.customers ?? 0)).toLocaleString() },
+        { label: "Total senders", tone: "primary",
+          value: t => fmtNumber(Number(t.customers ?? 0)) },
         { label: "New",           tone: "neon",
-          value: t => (Number(t.new_count ?? 0)).toLocaleString() },
+          value: t => fmtNumber(Number(t.new_count ?? 0)) },
         { label: "Returning",     tone: "muted",
-          value: t => (Number(t.returning_count ?? 0)).toLocaleString() },
-        { label: "Total Sent",    tone: "muted",
+          value: t => fmtNumber(Number(t.returning_count ?? 0)) },
+        { label: "Total sent",    tone: "muted",
           value: t => fmtMoney2(Number(t.sent ?? 0)) },
       ]}
       columns={[
         { label: "Bucket",     field: "bucket" },
-        { label: "Customers",  field: r => Number(r.customers).toLocaleString(), align: "right", mono: true },
-        { label: "Transfers",  field: r => Number(r.txns).toLocaleString(),      align: "right", mono: true },
-        { label: "Total Sent", field: r => fmtMoney2(Number(r.sent)),             align: "right", mono: true },
+        { label: "Customers",  field: r => fmtNumber(Number(r.customers)), align: "right", mono: true },
+        { label: "Transfers",  field: r => fmtNumber(Number(r.txns)),      align: "right", mono: true },
+        { label: "Total sent", field: r => fmtMoney2(Number(r.sent)),             align: "right", mono: true },
       ]}
     />
   );
