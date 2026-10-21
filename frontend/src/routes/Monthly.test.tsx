@@ -154,6 +154,26 @@ describe("Monthly P&L", () => {
     expect(net).toHaveTextContent("▲ $214 vs Feb");
   });
 
+  it("lists over/short under Income, from the daily book", () => {
+    useMonthly.mockReturnValue(ok({
+      report: {
+        ...report, over_short: 37.25, daily_fed: ["taxable_sales", "over_short"],
+        total_income: 1092.75,
+      },
+      labels: {},
+    }));
+    renderPage();
+    const row = lineRow("Over / short");
+    expect(row).toHaveTextContent("$37.25");
+    expect(within(row).getByText("Daily book")).toBeInTheDocument();
+    const income = screen.getByRole("heading", { name: "Income" })
+      .closest("section")!;
+    expect(within(income).getByText("Over / short")).toBeInTheDocument();
+    const expenses = screen.getByRole("heading", { name: "Expenses" })
+      .closest("section")!;
+    expect(within(expenses).queryByText("Over / short")).not.toBeInTheDocument();
+  });
+
   it("shows the store's own names for its lines", () => {
     useMonthly.mockReturnValue(ok({
       report, labels: { other_expense_1: "Bank Fee", boost_mobile: "Top-ups" },

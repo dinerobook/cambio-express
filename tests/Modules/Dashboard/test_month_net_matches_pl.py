@@ -1,8 +1,7 @@
 """The admin dashboard's "Net income (month)" KPI is the store's
 Monthly P&L net — the same number /monthly shows — not the legacy
 ``MonthlyFinancial.net_income`` property (which drops
-``bank_charges_total`` and the profit distribution and ADDS
-over/short)."""
+``bank_charges_total`` and the profit distribution)."""
 from tests._app import db, db_session
 from tests.conftest import login_admin
 
@@ -28,8 +27,8 @@ def test_dashboard_month_net_matches_monthly_pl(client, test_store_id):
     )
     assert monthly.status_code == 200, monthly.get_data(as_text=True)
     pl_net = monthly.get_json()["report"]["net_profit"]
-    # 1000 income − (100 bank + 50 over/short + 200 distributed)
-    assert pl_net == 650.0
+    # 1000 income + 50 over − (100 bank + 200 distributed)
+    assert pl_net == 750.0
     summary = client.get("/api/v2/dashboard/summary", headers=h).get_json()
     assert summary["kpis"]["net_income_month"] == pl_net
 

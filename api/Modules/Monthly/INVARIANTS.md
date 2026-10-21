@@ -111,8 +111,8 @@ irs_payroll_tax, texas_workforce, other_taxes,
 accounting_charges,
 other_expense_1, other_expense_2, other_expense_3,
 other_expense_4, other_expense_5,
-over_short, borrowed_money_return, profit_distributed,
-cash_carry_forward
+over_short (also daily-fed, 2b), borrowed_money_return,
+profit_distributed, cash_carry_forward
 ```
 
 Plus `notes` (text, separate handling — popped from the payload
@@ -161,6 +161,7 @@ stands. `DAILY_FED_FIELDS` in `daily_feed.py`:
 | `boost_mobile` | MSB `boost_mobile` (retired box) |
 | `return_check_hold_fees` | MSB `return_check_hold_fees` |
 | `rebates_commissions` | MSB `rebates_commissions` |
+| `over_short` | MSB `over_short` (the day's derived drawer reconciliation; positive = over) — **income** |
 
 The read side lists them (with every Category 2 / 2c line, once the
 month has a day entered) in `MonthlyRow.daily_fed`; the SPA renders
@@ -201,13 +202,33 @@ would count the same money twice.
 
 | Field | Source | Lock semantics |
 |---|---|---|
-| `return_check_gl` | `Owners.Services.return_check_monthly_pl` (signed) | Always overwritten on save |
+| `return_check_gl` | `Owners.Services.return_check_monthly_pl` (signed) | Always the live figure on read; overwritten on save |
 | **bank-fed lines** — `bank_charges_total` plus any column a `pl_*` bank category maps to (`credit_card_fees`, `money_order_rent`, `emaginenet_tech`, `irs_payroll_tax`, `texas_workforce`, `other_taxes`, `accounting_charges`, `other_expense_1..5`, `mt_commission_in_bank`, `rebates_commissions`, `other_income_1..3`) | `BankSync.Services.bank_pl_sums_for_month` | **Conditionally locked, per column, per month** — see below |
 
 `return_check_gl` uses EXPENSE convention: positive value means net
 loss for the month, negative means net gain. The OPPOSITE convention
 appears in the owner dashboard — see `Owners/Services/return_checks.py`
 docstring.
+
+### Returned check gain/loss — paying a check back is NOT a gain
+
+A bounced check is money the store is owed. When the customer pays
+back its face amount the store gets its own money back, so that is
+$0 on the P&L. The line moves only on:
+
+- **fees collected** — the part of a payback above the check's face
+  amount (paybacks pay the face amount first, then the returned-check
+  fee), in the month it was paid (`fee_income`);
+- **write-offs** — a check marked loss or fraud, for the face amount
+  still unpaid, in the month it was marked (`writeoff_total`).
+
+`net_gl = fees − write-offs`; `return_check_gl = −net_gl`. The cash
+paid back (`recoveries`) is reported on the owner dashboard and the
+Returned checks report, never counted as profit. Until 2026-10-21 the
+whole payback counted as a gain (a $11,579.75 full payback showed as
+an $11,579.75 profit). Months saved under that rule still store the
+wrong figure, which is why the read path ALWAYS uses the live
+workflow figure for this line, never the stored one.
 
 **Bank-fed lines are the conditional-lock family.** The map from
 bank category slug to column is `BANK_PL_CATEGORIES` in
@@ -254,7 +275,8 @@ read-only with a "from bank" hint and omits them from the PUT.
 in either daily book is enough for the month to show, and a day
 entered or a transaction tagged after the last save shows without a
 re-save. Precedence per line: bank feed → daily books (2, 2b, 2c) →
-the return-check workflow (when it has a figure) → the stored value.
+the return-check workflow (always, for `return_check_gl`) → the
+stored value.
 
 - **Pure read.** For a month nobody has saved, the summary carries
   an unsaved placeholder row that is never added to the session;
@@ -304,6 +326,7 @@ total_income = taxable_sales + non_taxable
              + check_cashing_fees + return_check_hold_fees
              + rebates_commissions + mt_commission_in_bank
              + other_income_1 + other_income_2 + other_income_3
+             + over_short                     # an over adds, a short subtracts
              + money_order_fees                          # 2c, live
 ```
 
@@ -319,7 +342,7 @@ total_expenses = cash_purchases + check_purchases
                + accounting_charges + return_check_gl
                + other_expense_1 + other_expense_2 + other_expense_3
                + other_expense_4 + other_expense_5
-               + over_short + borrowed_money_return + profit_distributed
+               + borrowed_money_return + profit_distributed
 ```
 
 `MonthlySummary.net_profit`:
@@ -328,16 +351,19 @@ total_expenses = cash_purchases + check_purchases
 net_profit = total_income - total_expenses
 ```
 
-**Note**: `over_short`, `borrowed_money_return`, and
-`profit_distributed` sit in the EXPENSE bucket above. They're
-operator-editable adjustments that reduce net profit when positive.
-This is the legacy template's bucketing — don't move them.
+**Note**: `borrowed_money_return` and `profit_distributed` sit in
+the EXPENSE bucket above — operator-editable adjustments that reduce
+net profit when positive (legacy bucketing). `over_short` is INCOME
+(owner's rule, 2026-10-21: a store always runs over, and an over is
+its money), fed from the daily book (2b). Before that date it sat in
+the expense bucket; the owner P&L roll-up now shows
+`net = revenue + over_short − purchases − expenses`.
 
 The legacy `MonthlyFinancial.total_revenue` / `total_purchases` /
 `total_expenses` / `net_income` `@property`s on the model use a
 DIFFERENT bucketing (purchases as their own line; `bank_charges_210`
 + `bank_charges_230` instead of `bank_charges_total`; `over_short`
-ADDED to net_income instead of subtracted). These properties are
+ADDED to net_income, which now agrees with the DTO). These properties are
 preserved for the old Jinja template + the BI report; the React
 SPA reads the `MonthlySummary` shape above. **If you touch one, the
 other still has consumers.**
@@ -398,11 +424,17 @@ The monthly P&L reads from:
   is one row in that map — the column must already be in
   `EDITABLE_MONTHLY_FIELDS` and `INCOME_FIELDS` / `EXPENSE_FIELDS`.
   See `BankSync/INVARIANTS.md`.
+- **Readers of the live summary**: the owner P&L roll-up, the admin
+  dashboard's month net and the tax pack's `monthly_pl_<year>.csv`
+  (`Admin/Services/tax_pack.py`) all call `summarize_monthly`, so
+  they match the page line for line. Never read the stored
+  `MonthlyFinancial` row for a figure a person sees.
 - **ReturnChecks** (via `api/Modules/Owners/Services/`):
   `return_check_gl` = `-(period_aggregates['net_gl'])` for the
-  month. The sign flip converts the owner-dashboard convention
-  (positive = gain) to the P&L convention (positive = expense /
-  loss).
+  month, where `net_gl` = fees collected − write-offs (see
+  "Returned check gain/loss"). The sign flip converts the
+  owner-dashboard convention (positive = gain) to the P&L convention
+  (positive = expense / loss).
 
 The monthly P&L feeds:
 
@@ -458,11 +490,10 @@ Things that need a design discussion FIRST:
   depend on the names being stable across the read path.
 - Adding audit coverage (mirror the DailyBook pattern — don't
   invent a new one).
-- Moving `over_short` / `borrowed_money_return` /
-  `profit_distributed` out of the EXPENSE bucket on the
-  service-layer DTO without coordinating the change with the
-  legacy `MonthlyFinancial.net_income` @property and the BI
-  report consumers.
+- Moving `over_short` back to expenses, or `borrowed_money_return`
+  / `profit_distributed` out of the EXPENSE bucket, without
+  coordinating with the owner P&L roll-up, the legacy
+  `MonthlyFinancial.net_income` @property and the BI report.
 
 
 ## Test surface

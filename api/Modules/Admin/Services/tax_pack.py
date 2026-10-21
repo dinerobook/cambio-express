@@ -5,8 +5,9 @@ calendar year of store data into a single ZIP containing:
 
   * ``transfers_<year>.csv``     — full ledger including
                                     canceled / rejected rows.
-  * ``monthly_pl_<year>.csv``    — one row per month from the
-                                    ``MonthlyFinancial`` table.
+  * ``monthly_pl_<year>.csv``    — one row per month, the live
+                                    Monthly P&L (daily books + bank
+                                    + return checks + typed lines).
   * ``daily_summary_<year>.csv`` — one row per ``DailyReport``.
   * ``customers_<year>.csv``     — per-customer totals.
   * ``README.txt``               — plain-text key for the accountant.
@@ -25,7 +26,6 @@ from sqlalchemy.orm import Session
 
 from api.Modules.Customers.Models import Customer
 from api.Modules.DailyBook.Models import DailyReport
-from api.Modules.Monthly.Models import MonthlyFinancial
 from api.Modules.Tenancy.Models import Store, User
 from api.Modules.Transfers.Models import Transfer
 from api.Core.Clock import utc_now
@@ -92,47 +92,40 @@ def _transfers_csv(db: Session, store_id: int, year: int) -> str:
 
 
 def _monthly_pl_csv(db: Session, store_id: int, year: int) -> str:
-    """Per-month roll-up of MonthlyFinancial. Discovers columns
-    dynamically so any future P&L line auto-appears in the export."""
-    rows = {
-        r.month: r for r in
-        db.query(MonthlyFinancial)
-          .filter_by(store_id=store_id, year=year)
-          .all()
-    }
-    sample = next(iter(rows.values()), None)
-    if sample is None:
-        money_cols = ["taxable_sales", "non_taxable", "over_short"]
-    else:
-        # Stored as integer cents; export the DollarView twin
-        # (``taxable_sales``) so the CSV is in dollars.
-        money_cols = [
-            c.name.removesuffix("_cents")
-            for c in MonthlyFinancial.__table__.columns
-            if c.name not in (
-                "id", "store_id", "year", "month",
-                "notes", "updated_at",
-            )
-        ]
+    """One row per month, built by the same live summary the Monthly
+    P&L page reads (``summarize_monthly``): the daily books, the bank
+    feed and the return-check workflow, then what was typed. A month
+    nobody saved still exports its figures; a month with nothing in
+    it exports zeros. Columns carry the store's own line names."""
+    from api.Modules.Monthly.Services import (
+        EXPENSE_FIELDS, INCOME_FIELDS, summarize_monthly,
+    )
+    from api.Modules.Monthly.Services.labels import (
+        line_label, resolved_line_labels,
+    )
+    labels = resolved_line_labels(db, store_id)
     headers = (
         ["Month"]
-        + [c.replace("_", " ").title() for c in money_cols]
-        + ["Net Income"]
+        + [line_label(labels, f) for f in INCOME_FIELDS]
+        + ["Total Income"]
+        + [line_label(labels, f) for f in EXPENSE_FIELDS]
+        + ["Total Expenses", "Net Profit",
+           line_label(labels, "cash_carry_forward")]
     )
 
     def _row(m: int) -> list[object]:
-        r = rows.get(m)
-        if r:
-            values = [getattr(r, c, 0.0) or 0.0 for c in money_cols]
-            net = float(getattr(r, "net_income", 0.0) or 0.0)
+        s = summarize_monthly(db, store_id, year, m)
+        if s is None:
+            values = [0.0] * (len(headers) - 1)
         else:
-            values = [0.0] * len(money_cols)
-            net = 0.0
-        return (
-            [f"{year}-{m:02d}"]
-            + [f"{v:.2f}" for v in values]
-            + [f"{net:.2f}"]
-        )
+            values = (
+                [s.value(f) for f in INCOME_FIELDS]
+                + [s.total_income]
+                + [s.value(f) for f in EXPENSE_FIELDS]
+                + [s.total_expenses, s.net_profit,
+                   s.value("cash_carry_forward")]
+            )
+        return [f"{year}-{m:02d}"] + [f"{v:.2f}" for v in values]
 
     return build_csv(headers, (_row(m) for m in range(1, 13)))
 
@@ -248,9 +241,10 @@ def _readme(store: Store, year: int) -> str:
         f"      isolate revenue-bearing transfers.\n"
         f"\n"
         f"  monthly_pl_{year}.csv\n"
-        f"      Month-by-month profit & loss roll-up matching the\n"
-        f"      Monthly P&L page. Net Income column is income minus\n"
-        f"      expenses for the month.\n"
+        f"      Month-by-month profit & loss matching the Monthly P&L\n"
+        f"      page line for line: built from the daily books, bank\n"
+        f"      feed and returned checks, plus what was typed. Net\n"
+        f"      Profit is Total Income minus Total Expenses.\n"
         f"\n"
         f"  daily_summary_{year}.csv\n"
         f"      One row per closed daily book — receipts, disbursements,\n"

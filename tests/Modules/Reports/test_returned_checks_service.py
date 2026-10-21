@@ -54,7 +54,7 @@ def test_returns_rows_and_totals_tuple():
         assert isinstance(rows, list)
         assert isinstance(totals, dict)
         assert set(totals) == {
-            "count", "amount", "recovered", "loss_fraud", "net_gl",
+            "count", "amount", "recovered", "fees", "loss_fraud", "net_gl",
         }
 
 
@@ -134,7 +134,8 @@ def test_recovered_counts_payments_on_pending_rows():
         pending = next(r for r in rows if r["status_key"] == "pending")
         assert pending["recovered"] == 30.0
         assert totals["recovered"] == 30.0
-        assert totals["net_gl"] == 30.0
+        # Paying back part of the face amount is not a gain.
+        assert totals["net_gl"] == 0.0
 
 
 def test_recovered_includes_bounce_fee_payments():
@@ -214,8 +215,10 @@ def test_loss_fraud_combined_in_totals():
         assert totals["loss_fraud"] == 150.0
 
 
-def test_net_gl_is_recovered_minus_loss_fraud():
-    """net_gl is the headline P&L line: recoveries beat write-offs."""
+def test_net_gl_is_fees_minus_loss_fraud():
+    """net_gl: fees collected above the face amount minus the unpaid
+    face amount of write-offs. A full payback of the face amount is
+    the store's own money back — not a gain."""
     from tests._app import db
     from api.Modules.Reports.Services import returned_check_status
     with db_session():
@@ -225,7 +228,7 @@ def test_net_gl_is_recovered_minus_loss_fraud():
         rc = _add_rc(db.session, s.id,
                      bounced_on=date(2026, 5, 5),
                      status="recovered", amount=200.0)
-        _add_payment(db.session, rc.id, amount=200.0,
+        _add_payment(db.session, rc.id, amount=215.0,   # 200 face + 15 fee
                      paid_on=date(2026, 5, 10))
         _add_rc(db.session, s.id,
                 bounced_on=date(2026, 5, 6),
@@ -234,9 +237,10 @@ def test_net_gl_is_recovered_minus_loss_fraud():
             db.session, [s.id],
             date(2026, 5, 1), date(2026, 5, 31),
         )
-        assert totals["recovered"] == 200.0
+        assert totals["recovered"] == 215.0
+        assert totals["fees"] == 15.0
         assert totals["loss_fraud"] == 80.0
-        assert totals["net_gl"] == 120.0
+        assert totals["net_gl"] == -65.0       # 15 − 80
 
 
 def test_count_amount_totals_sum_all_buckets():
@@ -333,4 +337,4 @@ def test_writeoff_nets_out_partial_recoveries():
         )
         assert totals["recovered"] == 400.0
         assert totals["loss_fraud"] == 600.0   # 1000 − 400, not 1000
-        assert totals["net_gl"] == -200.0      # 400 − 600
+        assert totals["net_gl"] == -600.0      # no fees − 600

@@ -50,9 +50,10 @@ function buildMonthOptions(logged: YearMonth[]): YearMonth[] {
   );
 }
 
-// Over/short, borrowed money and profit distributed count in total
-// expenses (legacy P&L convention), so the Expenses statement lists
-// them last. Cash carry forward is in neither total: it is a KPI.
+// Borrowed money and profit distributed count in total expenses
+// (legacy P&L convention), so the Expenses statement lists them last.
+// Over/short is income (an over is the store's money). Cash carry
+// forward is in neither total: it is a KPI.
 const INCOME_LINES = MONTHLY_LINES.filter((l) => l.section === "Income");
 const EXPENSE_LINES = MONTHLY_LINES.filter(
   (l) => l.section === "Expenses"

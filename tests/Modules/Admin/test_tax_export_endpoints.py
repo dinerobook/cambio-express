@@ -470,3 +470,38 @@ def test_tax_pack_filename_and_readme(client, test_store_id):
     with zipfile.ZipFile(io.BytesIO(resp.get_data())) as zf:
         readme = zf.read("README.txt").decode()
     assert name in readme and "Year:   2024" in readme
+
+
+def test_tax_pack_monthly_pl_is_the_live_pl(client, test_store_id):
+    """The monthly CSV matches the Monthly P&L page: a month nobody
+    saved still exports what the daily book says, the store's own
+    line names head the columns, and the totals are the page's."""
+    from api.Modules.DailyBook.Models import DailyReport
+    from api.Modules.Monthly.Models import MonthlyLineLabel
+    from api.Modules.Monthly.Services import summarize_monthly
+    with db_session():
+        db.session.add(DailyReport(
+            store_id=test_store_id, report_date=date(2024, 6, 3),
+            taxable_sales_cents=50000, check_cashing_fees_cents=2500,
+            cash_purchases_cents=10000, over_short_cents=300,
+        ))
+        db.session.add(MonthlyLineLabel(
+            store_id=test_store_id, field="taxable_sales", label="Store sales",
+        ))
+        db.session.commit()
+        pl = summarize_monthly(db.session, test_store_id, 2024, 6)
+    token = _login(client, test_store_id)
+    rows = _zip_csv(client, token, 2024, "monthly_pl")
+    header, june = rows[0], rows[6]
+    col = {h: i for i, h in enumerate(header)}
+    assert june[0] == "2024-06"
+    assert "Taxable sales" not in col
+    assert float(june[col["Store sales"]]) == 500.0
+    assert float(june[col["Check cashing fees"]]) == 25.0
+    assert float(june[col["Over / short"]]) == 3.0
+    assert float(june[col["Cash purchases"]]) == 100.0
+    assert float(june[col["Total Income"]]) == pl.total_income == 528.0
+    assert float(june[col["Total Expenses"]]) == pl.total_expenses == 100.0
+    assert float(june[col["Net Profit"]]) == pl.net_profit == 428.0
+    # Months with nothing in them are zeros.
+    assert all(float(v) == 0.0 for v in rows[5][1:])
