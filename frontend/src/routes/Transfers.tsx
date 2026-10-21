@@ -8,9 +8,8 @@ import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  ButtonLink, Card, DateInput, Empty, Field, Input,
-  PageHeader, PageShell, Pager, Pill, Select, Table, TableStates,
-  tdStyle, thStyle,
+  ButtonLink, Card, DataTable, DateInput, Empty, Field, Input,
+  PageHeader, PageShell, Pill, Select, type DataColumn,
 } from "../components/ui";
 import styles from "./Transfers.module.css";
 import { formatTime } from "../lib/datetime";
@@ -35,7 +34,6 @@ const POLL_INTERVAL_MS = 20_000;
 // The actual API call is `useTransfers` from src/api/transfers —
 // same controller as the dashboard's recent-transfers card, just
 // with full filters + pagination wired up.
-const PAGE_SIZE = 50;
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -65,7 +63,11 @@ export default function Transfers() {
     status: "",
     service: "",
     paid_by: "",
+  }, {
+    pageSizeKey: "transfers",
+    defaultSort: { key: "date", direction: "desc" },
   });
+  const navigate = useNavigate();
   const { params, page, setParam, setPage, draft } = filters;
   const q = params.q;
   const dateFrom = params.date_from;
@@ -79,7 +81,8 @@ export default function Transfers() {
   // from the next poll). draft.q !== undefined means a pending edit.
   const isTypingQuery = draft.q !== undefined && draft.q !== q;
   const apiQuery = useTransfers({
-    page, perPage: PAGE_SIZE,
+    page, perPage: filters.perPage,
+    sort: filters.sort?.key, dir: filters.sort?.direction,
     q: q.length >= 2 ? q : undefined,
     date_from: dateFrom || undefined,
     date_to:   dateTo || undefined,
@@ -114,7 +117,7 @@ export default function Transfers() {
       <PageHeader
         title="Transfers"
         subtitle={data
-          ? `${data.total.toLocaleString()} total · page ${data.page} of ${data.total_pages || 1}`
+          ? `${data.total.toLocaleString()} ${data.total === 1 ? "transfer" : "transfers"}`
           : "—"}
         actions={(
           <div className={styles.headerActions}>
@@ -143,22 +146,28 @@ export default function Transfers() {
       />
 
       <Card>
-        <TableStates
-          isLoading={isLoading} isError={isError} error={error}
-          isEmpty={!data || data.rows.length === 0}
-          onRetry={() => { void refetch(); }}
+        <DataTable
+          columns={TRANSFER_COLUMNS}
+          rows={data?.rows}
+          rowKey={(r) => r.id}
+          onRowClick={(r) => navigate(`/transfers/${r.id}`)}
+          rowLabel={(r) => `Open transfer from ${r.sender_name}`}
           emptyTitle="No transfers match these filters."
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => { void refetch(); }}
+          page={data && {
+            page: data.page,
+            totalPages: data.total_pages,
+            total: data.total,
+            onPage: setPage,
+            perPage: filters.perPage,
+            onPerPage: filters.setPerPage,
+          }}
+          sort={filters.sort}
         />
-        {data && data.rows.length > 0 && <TransfersTable rows={data.rows} />}
       </Card>
-
-      {data && data.total_pages > 1 && (
-        <Pager
-          page={data.page}
-          totalPages={data.total_pages}
-          onPage={setPage}
-        />
-      )}
     </PageShell>
   );
 }
@@ -236,60 +245,30 @@ function FilterBar({
   );
 }
 
-function TransfersTable({ rows }: { rows: TransferRow[] }) {
-  const navigate = useNavigate();
-  return (
-    <Table>
-      <thead>
-        <tr>
-          {["Date", "Company", "Sender", "Recipient", "Country", "Confirmation #", "Status", "Total"]
-            .map((h, i, a) => (
-              <th
-                key={h}
-                style={{ ...thStyle, textAlign: i === a.length - 1 ? "right" : "left" }}
-              >
-                {h}
-              </th>
-            ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr
-            key={r.id}
-            className={styles.row}
-            style={{ cursor: "pointer" }}
-            onClick={() => navigate(`/transfers/${r.id}`)}
-          >
-            <td style={tdStyle}>
-              <span className={styles.monoMuted}>{r.send_date}</span>
-            </td>
-            <td style={tdStyle}>{r.company}</td>
-            <td style={tdStyle}>{r.sender_name}</td>
-            <td style={tdStyle}>{r.recipient_name || "—"}</td>
-            <td style={tdStyle}>{r.country || "—"}</td>
-            <td style={tdStyle}>
-              <span className={styles.monoMuted}>{r.confirm_number || "—"}</span>
-            </td>
-            <td style={tdStyle}>{r.status}</td>
-            <td style={{ ...tdStyle, textAlign: "right" }}>
-              <span className={styles.kindAmount}>
-                <TransferKindPill
-                  serviceType={r.service_type}
-                  paymentMethod={r.payment_method}
-                />
-                {/* A payout is cash going out: shown as a negative. */}
-                <span className={styles.mono}>
-                  {fmtMoney2(isPayout(r.service_type) ? -r.total_collected : r.total_collected)}
-                </span>
-              </span>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
-}
+const TRANSFER_COLUMNS: DataColumn<TransferRow>[] = [
+  { key: "date", header: "Date", sortKey: "date", sortFirst: "desc",
+    render: (r) => <span className={styles.monoMuted}>{r.send_date}</span> },
+  { key: "company", header: "Company", sortKey: "company", render: (r) => r.company },
+  { key: "sender", header: "Sender", sortKey: "sender", render: (r) => r.sender_name },
+  { key: "recipient", header: "Recipient", sortKey: "recipient", render: (r) => r.recipient_name || "—" },
+  { key: "country", header: "Country", sortKey: "country", render: (r) => r.country || "—" },
+  { key: "confirm", header: "Confirmation #", sortKey: "confirm",
+    render: (r) => <span className={styles.monoMuted}>{r.confirm_number || "—"}</span> },
+  { key: "status", header: "Status", sortKey: "status", render: (r) => r.status },
+  { key: "total", header: "Total", align: "right", sortKey: "total", sortFirst: "desc",
+    render: (r) => (
+      <span className={styles.kindAmount}>
+        <TransferKindPill
+          serviceType={r.service_type}
+          paymentMethod={r.payment_method}
+        />
+        {/* A payout is cash going out: shown as a negative. */}
+        <span className={styles.mono}>
+          {fmtMoney2(isPayout(r.service_type) ? -r.total_collected : r.total_collected)}
+        </span>
+      </span>
+    ) },
+];
 
 
 // Format the TanStack Query `dataUpdatedAt` timestamp for the

@@ -78,6 +78,8 @@ function money(label: string) {
 describe("PriceBook", () => {
   beforeEach(() => {
     useItems.mockReset();
+    localStorage.removeItem("db.page_size.price-book");
+    setCurrentIdentity(TEST_ADMIN);
     useItems.mockReturnValue(listOf([ITEM]));
     createItem.mockReset();
     createItem.mockResolvedValue({ item: ITEM });
@@ -187,5 +189,33 @@ describe("PriceBook", () => {
     expect(screen.queryByRole("button", { name: "+ Add item" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(screen.queryByRole("columnheader", { name: "Actions" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit Cola 12oz" })).toBeNull();
+  });
+
+  it("asks for name A→Z, 50 a page, and sorts by a header", async () => {
+    renderPage();
+    expect(useItems).toHaveBeenLastCalledWith(expect.objectContaining({
+      sort: "name", dir: "asc", page: 1, perPage: 50,
+    }));
+    await userEvent.click(screen.getByRole("button", { name: /^Price/ }));
+    expect(useItems).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: "price", dir: "desc", page: 1 }),
+    );
+  });
+
+  it("pages a long price book with the shared pager", async () => {
+    useItems.mockReturnValue({ ...listOf([ITEM]), data: { rows: [ITEM], total: 400, page: 1, total_pages: 8 } });
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect(useItems).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+    await userEvent.selectOptions(screen.getByLabelText("Rows per page"), "100");
+    expect(useItems).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, perPage: 100 }));
+  });
+
+  it("opens the item editor from its row, by keyboard too", async () => {
+    renderPage();
+    screen.getByRole("button", { name: "Edit Cola 12oz" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(money("Retail price")).toHaveValue("1.99");
   });
 });

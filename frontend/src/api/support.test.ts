@@ -24,5 +24,7 @@ describe("allTicketsQueryString", () => {
     })).toBe("?status=open&category=bug&store_id=7&page=3");
     expect(allTicketsQueryString({ store_id: "12" })).toBe("?store_id=12");
     expect(allTicketsQueryString({ page: 1 })).toBe("");
+    expect(allTicketsQueryString({ perPage: 50 })).toBe("");
+    expect(allTicketsQueryString({ page: 2, perPage: 25 })).toBe("?page=2&per_page=25");
   });
 });

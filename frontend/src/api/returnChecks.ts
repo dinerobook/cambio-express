@@ -30,17 +30,31 @@ export interface ReturnCheckRow {
   payment_count: number;
 }
 
-export function useReturnChecks(status: string = "") {
+export interface ReturnCheckList {
+  rows: ReturnCheckRow[];
+  total: number;
+  page: number;
+  total_pages: number;
+}
+
+export function useReturnChecks({
+  status = "", sort = "bounced", dir = "desc", page = 1, perPage = 50,
+}: {
+  status?: string; sort?: string; dir?: "asc" | "desc";
+  page?: number; perPage?: number;
+} = {}) {
   const identity = getCurrentIdentity();
-  return useQuery<{ rows: ReturnCheckRow[] }>({
+  return useQuery<ReturnCheckList>({
     enabled: identity?.store_id != null,
-    queryKey: ["return-checks", "list", identity?.store_id, status],
+    queryKey: ["return-checks", "list", identity?.store_id, status, sort, dir, page, perPage],
     queryFn: () => {
-      const qs = status ? `?status=${encodeURIComponent(status)}` : "";
-      return api<{ rows: ReturnCheckRow[] }>(
-        `/api/v2/return-checks${qs}`,
-      );
+      const qs = new URLSearchParams({
+        sort, dir, page: String(page), per_page: String(perPage),
+      });
+      if (status) qs.set("status", status);
+      return api<ReturnCheckList>(`/api/v2/return-checks?${qs.toString()}`);
     },
+    placeholderData: (prev) => prev,
   });
 }
 

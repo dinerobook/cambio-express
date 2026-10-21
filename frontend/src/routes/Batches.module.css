@@ -1,42 +1,5 @@
 /* Page-specific styles for Batches.tsx. */
 
-.sortBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  width: 100%;
-  padding: 0.75rem 0.9rem;
-  background: none;
-  border: 0;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  user-select: none;
-}
-
-.sortBtn:hover {
-  color: var(--db-text);
-}
-
-.row {
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-
-.row:hover {
-  background: var(--db-surface);
-}
-
-.row:focus-visible {
-  outline: 2px solid var(--db-accent);
-  outline-offset: -2px;
-}
-
-.cellLink {
-  color: inherit;
-  text-decoration: none;
-}
-
 .mono {
   font-family: var(--db-font-mono);
 }

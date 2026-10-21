@@ -7,8 +7,9 @@ in two bulk queries so we don't N+1 across rows.
 from typing import Any
 
 from sqlalchemy import case, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 
+from api.Core.Sorting import order_by_slug
 from api.Modules.Batches.Models import ACHBatch
 from api.Modules.Transfers.Models import PAYMENT_DEBIT_CARD, Transfer
 
@@ -30,19 +31,21 @@ def list_batches_for_store(
 ) -> list[ACHBatch]:
     """All ACH batches for a store, sorted. Empty `sort` falls
     back to the default (`ach_date desc`, then `id desc`)."""
+    return batches_query(db, store_id, sort=sort, direction=direction).all()
+
+
+def batches_query(
+    db: Session, store_id: int,
+    *, sort: str = "", direction: str = "desc",
+) -> "Query[ACHBatch]":
+    """The store's batches as a sorted query, for paging. Empty or
+    unknown ``sort`` = ``ach_date desc`` then ``id desc``."""
     q = db.query(ACHBatch).filter(ACHBatch.store_id == store_id)
-    col = SORT_COLUMNS.get(sort)
-    if col is not None:
-        q = q.order_by(
-            col.asc() if direction == "asc" else col.desc(),
-            ACHBatch.id.desc(),
-        )
-    else:
-        q = q.order_by(
-            ACHBatch.ach_date.desc(),
-            ACHBatch.id.desc(),
-        )
-    return q.all()
+    return order_by_slug(
+        q, SORT_COLUMNS, sort, direction,
+        default=(ACHBatch.ach_date.desc(), ACHBatch.id.desc()),
+        tiebreak=(ACHBatch.id.desc(),),
+    )
 
 
 def sum_transfer_totals_for_batch_refs(

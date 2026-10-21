@@ -24,9 +24,14 @@ class ReturnCheckRow(BaseModel):
 
 
 class ReturnCheckListResponse(BaseModel):
+    """Every check, or one page when the list is asked for a
+    ``page``; the envelope fields are filled either way."""
     model_config = ConfigDict(extra="forbid")
 
     rows: list[ReturnCheckRow]
+    total: int = 0
+    page: int = 1
+    total_pages: int = 1
 
 
 class ReturnCheckResponse(BaseModel):

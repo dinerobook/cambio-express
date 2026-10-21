@@ -47,7 +47,10 @@ const PRIORITY_TONES: Record<string, "negative" | "warning" | "info" | "neutral"
 // box is debounced 300 ms with the 2-char minimum every table search
 // in the SPA uses (CLAUDE.md "Table search UX").
 export default function SuperadminTickets() {
-  const filters = useUrlFilterState({ q: "", status: "", category: "", store_id: "" });
+  const filters = useUrlFilterState(
+    { q: "", status: "", category: "", store_id: "" },
+    { pageSizeKey: "superadmin-tickets" },
+  );
   const stores = useSuperadminStores();
   const tickets = useAllTickets({
     q: filters.params.q,
@@ -55,6 +58,7 @@ export default function SuperadminTickets() {
     category: filters.params.category,
     store_id: filters.params.store_id,
     page: filters.page,
+    perPage: filters.perPage,
   });
 
   return (
@@ -124,11 +128,15 @@ export default function SuperadminTickets() {
         <TicketCard key={t.id} ticket={t} />
       ))}
 
-      {tickets.data && tickets.data.total_pages > 1 && (
+      {tickets.data && tickets.data.tickets.length > 0 && (
         <Pager
           page={tickets.data.page}
           totalPages={tickets.data.total_pages}
           onPage={filters.setPage}
+          total={tickets.data.total}
+          pageRows={tickets.data.tickets.length}
+          perPage={filters.perPage}
+          onPerPage={filters.setPerPage}
         />
       )}
     </PageShell>

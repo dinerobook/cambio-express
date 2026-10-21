@@ -15,12 +15,6 @@
   font-weight: 400;
 }
 
-.cardHeaderPage {
-  margin-left: auto;
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-  font-weight: 400;
-}
 
 .filtersRow {
   display: flex;

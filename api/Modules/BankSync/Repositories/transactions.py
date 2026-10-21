@@ -12,7 +12,17 @@ from typing import Any, Iterable, Literal
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from api.Core.Sorting import order_by_slug
 from api.Modules.BankSync.Models import BankTransaction
+
+# Column slugs the list can sort by (``?sort=`` on /bank/transactions).
+# Anything else falls back to newest posting first.
+SORT_COLUMNS: dict[str, Any] = {
+    "posted":      BankTransaction.posted_at,
+    "description": BankTransaction.description,
+    "category":    BankTransaction.category_slug,
+    "amount":      BankTransaction.amount_cents,
+}
 
 
 @dataclass
@@ -26,6 +36,8 @@ class BankTransactionFilters:
     sign: Literal["", "credit", "debit"] = ""
     q: str = ""  # ILIKE on description
     uncategorized_only: bool = False
+    sort_slug: str = ""
+    sort_dir: Literal["asc", "desc"] = "desc"
 
     @classmethod
     def from_query(cls, args: Any) -> "BankTransactionFilters":
@@ -63,6 +75,11 @@ class BankTransactionFilters:
             uncategorized_only=str(
                 args.get("uncategorized_only") or ""
             ).lower() in ("1", "true", "yes"),
+            sort_slug=(args.get("sort") or "").strip(),
+            sort_dir=(
+                "asc" if (args.get("dir") or "").strip().lower() == "asc"
+                else "desc"
+            ),
         )
 
 
@@ -100,7 +117,11 @@ def list_transactions(
     if f.q:
         q = q.filter(BankTransaction.description.ilike(f"%{f.q}%"))
 
-    q = q.order_by(BankTransaction.posted_at.desc(), BankTransaction.id.desc())
+    newest = (BankTransaction.posted_at.desc(), BankTransaction.id.desc())
+    q = order_by_slug(
+        q, SORT_COLUMNS, filters.sort_slug, filters.sort_dir,
+        default=newest, tiebreak=newest,
+    )
 
     total = q.count()
     if total == 0:

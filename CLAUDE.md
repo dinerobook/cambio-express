@@ -425,7 +425,9 @@ a monthly P&L edit needs the monthly ones.
     minimum**, any filter change resets to page 1, selects + date
     pickers apply immediately. The list endpoint takes the filters as
     query params and returns the `api.Core.Pagination` envelope.
-    Reference: `frontend/src/routes/Transfers.tsx`.
+    Reference: `frontend/src/routes/Transfers.tsx`. The table itself
+    is the kit `<DataTable>` (row count, rows per page, server sort,
+    keyboard rows, phone cards) — see "Lists" in UI-STANDARDS §7.
 15. **Rate limiting** — every auth route, password-reset route, and
     webhook ingest endpoint is bucketed by slowapi on the FastAPI
     side. The Flask-Limiter twin is gone — Flask has no remaining

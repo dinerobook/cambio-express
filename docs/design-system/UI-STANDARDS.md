@@ -201,7 +201,9 @@ Known shared components, and what they own:
 | `BulkResultsCard` + `useStoreSelection` (owner bulk actions) | a per-store Store / Status / Notes results table with its own status → pill map, or a hand-rolled "Select all / N of M selected" store picker |
 | `describeAppliedRule` (`lib/bankRules`) | your own "N tagged, N booked, N skipped (day locked)" toast text |
 | `MoneyInput` | `<input type="number">` + your own cents parsing |
-| `Table`, `TableStates` | a `<table>` plus hand-rolled loading/empty/error |
+| `DataTable` (+ `useUrlFilterState({ pageSizeKey, defaultSort })`) | any list page's `<table>`, header row, loading / empty / error states, clickable `<tr onClick>`, sort buttons, or `<Pager>` wiring — see "Lists" in §7 |
+| `pageOf` / `sortRows` (`lib/pagination`) | slicing or sorting a whole list in the browser by hand |
+| `Table`, `TableStates` | small tables inside a form or box (receipt lines, the daily-book boxes) — not list pages |
 | `PermissionMatrixTable` | a per-route permission grid |
 | `RowActions` | inline row buttons (it handles the mobile sheet) |
 | `TabsBar` / `TabsLink` / `TabsButton` | a hand-built tab strip |
@@ -249,6 +251,42 @@ needed if the kit had been checked first.
   links.
 - Tables: kit `<Table>`; the permission matrix uses the shared
   matrix component, not a per-route copy.
+- **Lists.** Every list page is a `<DataTable>`, so every list in
+  the app behaves the same:
+  - **Row count, always.** `page={{ page, totalPages, total, onPage,
+    perPage, onPerPage }}` renders the shared `<Pager>`: "Showing
+    a–b of N" even on one page, Prev / Next only when there is more
+    than one, and the 25 / 50 / 100 rows-per-page picker once the
+    list is longer than 25.
+  - **Paging state in the URL.** `useUrlFilterState(defaults,
+    { pageSizeKey: "<list>" })` keeps `page` (and filters) in the URL
+    and remembers rows per page per list (`db.page_size.<list>` in
+    local storage, guarded). Changing filters or rows per page goes
+    back to page 1. Never keep the page in `useState`.
+  - **Sort on the server.** A column with `sortKey` becomes a sort
+    button (`aria-sort`, flips on a second click, `sortFirst: "desc"`
+    for dates and money). `defaultSort` puts `sort` / `dir` in the
+    URL; the endpoint takes them and maps the slug through a
+    whitelist with `api.Core.Sorting.order_by_slug` (unknown slug =
+    the default order, `dir` validated by `SORT_DIR_PATTERN`). A
+    list the server sends whole for other reasons (a store's
+    employees, read by pickers too) sorts and pages with `sortRows`
+    / `pageOf` instead.
+  - **Paged endpoints stay backwards compatible.** Adding paging to
+    an endpoint other pages already read: `page` optional — no
+    `page`, every row plus `total`; with it, the `api.Core.Pagination`
+    envelope. Feeds merged from two tables page with
+    `paginate_merged`, never "newest 500 then slice".
+  - **Rows open by keyboard.** `onRowClick` + `rowLabel` make the row
+    a button (Enter / Space). A button or link inside the row keeps
+    its own job. `expandedRow` opens a panel under the row (a
+    ticket's conversation). Only give a row `onRowClick` when the
+    viewer may open what it leads to.
+  - **Pinned header, phone cards.** The header stays put while the
+    list scrolls; under 36rem each row becomes a card of
+    "label  value" lines (`label` on a column whose header is not
+    plain text, `""` to hide it). Do not wrap a DataTable in an
+    `overflowX: auto` div.
 - A permission that is one on/off switch rather than an area (e.g.
   "Lock / unlock days") is a single-switch resource: listed in
   `RESOURCE_ACTIONS` (`lib/permissions.ts`) and the server's

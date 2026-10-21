@@ -1,7 +1,21 @@
 """ReturnChecks — Repositories."""
-from sqlalchemy.orm import Session
+from typing import Any
 
+from sqlalchemy.orm import Query, Session
+
+from api.Core.Sorting import order_by_slug
 from api.Modules.ReturnChecks.Models import ReturnCheck, ReturnCheckPayment
+
+# Column slugs the list sorts by (``?sort=``); anything else = newest
+# bounce first.
+SORT_COLUMNS: dict[str, Any] = {
+    "bounced":  ReturnCheck.bounced_on,
+    "customer": ReturnCheck.customer_name,
+    "check":    ReturnCheck.check_number,
+    "bank":     ReturnCheck.payer_bank,
+    "amount":   ReturnCheck.amount_cents,
+    "status":   ReturnCheck.status,
+}
 
 
 def list_return_checks(
@@ -10,13 +24,22 @@ def list_return_checks(
 ) -> list[ReturnCheck]:
     """Bounced checks for one store, newest-first by bounced_on.
     Optional status filter — empty returns all."""
+    return return_checks_query(db, store_id, status=status).all()
+
+
+def return_checks_query(
+    db: Session, store_id: int,
+    *, status: str = "", sort: str = "", direction: str = "desc",
+) -> Query:
+    """The store's bounced checks as a sorted query, for paging."""
     q = db.query(ReturnCheck).filter_by(store_id=store_id)
     if status:
         q = q.filter_by(status=status)
-    return q.order_by(
-        ReturnCheck.bounced_on.desc(),
-        ReturnCheck.id.desc(),
-    ).all()
+    return order_by_slug(
+        q, SORT_COLUMNS, sort, direction,
+        default=(ReturnCheck.bounced_on.desc(), ReturnCheck.id.desc()),
+        tiebreak=(ReturnCheck.id.desc(),),
+    )
 
 
 def find_return_check(
@@ -74,4 +97,5 @@ def find_payment(
 
 __all__ = [
     "find_payment", "find_return_check", "list_payments", "list_return_checks",
+    "return_checks_query",
 ]

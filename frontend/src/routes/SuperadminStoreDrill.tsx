@@ -19,11 +19,12 @@ import { startImpersonation } from "../lib/impersonation";
 import {
   Alert, Breadcrumbs, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
   ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
-  PageHeader, PageShell, Pager, Pill, Section, SectionTitle, Select,
-  Switch, Table, TableStates, tdStyle, Textarea, thStyle, useToast,
+  PageHeader, PageShell, Pill, Section, SectionTitle, Select,
+  Switch, Table, tdStyle, Textarea, thStyle, useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import { AuditTable } from "../components/AuditTable";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
@@ -1123,10 +1124,17 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
 // "who changed this" is answered from the store page. Rows written
 // during an impersonation carry "(via superadmin …)" in the actor.
 function StoreActivitySection({ storeId }: { storeId: number }) {
-  const [page, setPage] = useState(1);
-  const [target, setTarget] = useState("");
-  const [action, setAction] = useState("");
-  const log = useStoreAuditLog(storeId, { page, target, action });
+  // Filters and page in the URL, like every list: refresh and Back
+  // keep the superadmin where they were.
+  const filters = useUrlFilterState(
+    { activity_target: "", activity_action: "" },
+    { pageSizeKey: "store-activity" },
+  );
+  const target = filters.params.activity_target;
+  const action = filters.params.activity_action;
+  const log = useStoreAuditLog(storeId, {
+    page: filters.page, target, action, perPage: filters.perPage,
+  });
 
   return (
     <Section title="Activity">
@@ -1136,7 +1144,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
             <Select
               aria-label="Activity target"
               value={target}
-              onChange={(e) => { setTarget(e.target.value); setPage(1); }}
+              onChange={(e) => filters.setParam("activity_target", e.target.value)}
             >
               {AUDIT_TARGET_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -1147,7 +1155,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
             <Select
               aria-label="Activity action"
               value={action}
-              onChange={(e) => { setAction(e.target.value); setPage(1); }}
+              onChange={(e) => filters.setParam("activity_action", e.target.value)}
             >
               {AUDIT_ACTION_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -1158,23 +1166,18 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
             {log.data ? `${log.data.total.toLocaleString()} ${log.data.total === 1 ? "event" : "events"}` : ""}
           </span>
         </div>
-        <TableStates
+        <AuditTable
+          rows={log.data?.rows}
           isLoading={log.isLoading} isError={log.isError} error={log.error}
-          isEmpty={!log.data || log.data.rows.length === 0}
           onRetry={() => { void log.refetch(); }}
           errorMessage="Could not load this store's activity."
           emptyTitle="No activity matches these filters."
+          page={log.data && {
+            page: log.data.page, totalPages: log.data.total_pages, total: log.data.total,
+            onPage: filters.setPage,
+            perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
         />
-        {log.data && log.data.rows.length > 0 && (
-          <>
-            <AuditTable rows={log.data.rows} />
-            <Pager
-              page={log.data.page}
-              totalPages={log.data.total_pages}
-              onPage={setPage}
-            />
-          </>
-        )}
       </Card>
     </Section>
   );

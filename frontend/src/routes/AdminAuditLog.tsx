@@ -1,5 +1,3 @@
-import { useSearchParams } from "react-router-dom";
-
 import {
   useAdminAuditLog,
   type AdminAuditUserOption,
@@ -7,34 +5,28 @@ import {
 import {
   Breadcrumbs,
   Button, Card, Field, InfoTip, PageHeader, PageShell,
-  Pager, Select, space, TableStates,
+  Select, space,
 } from "../components/ui";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { AuditTable } from "../components/AuditTable";
 import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
 import styles from "./AdminAuditLog.module.css";
 
 // /app/admin/audit-log — merged operator + transfer audit feed
-// for the JWT principal's store. Filters live in the URL so the
-// page is shareable; per_page is the legacy 50.
+// for the JWT principal's store. Filters and page live in the URL
+// so the page is shareable; rows per page is the viewer's choice.
 
 export default function AdminAuditLog() {
-  const [sp, setSP] = useSearchParams();
-  const page   = Number(sp.get("page") ?? 1) || 1;
-  const target = sp.get("target") ?? "";
-  const action = sp.get("action") ?? "";
-  const user   = sp.get("user")   ?? "";
+  const filters = useUrlFilterState(
+    { target: "", action: "", user: "" },
+    { pageSizeKey: "admin-audit-log" },
+  );
+  const { target, action, user } = filters.params;
+  const { page, setParam, perPage } = filters;
 
   const { data, isLoading, isError, error, refetch } = useAdminAuditLog(
-    page, target, action, user,
+    page, target, action, user, perPage,
   );
-
-  function setParam(key: string, value: string) {
-    const next = new URLSearchParams(sp);
-    if (value) next.set(key, value);
-    else       next.delete(key);
-    if (key !== "page") next.delete("page");
-    setSP(next, { replace: true });
-  }
 
   const hasFilters = !!(target || action || user);
 
@@ -99,10 +91,7 @@ export default function AdminAuditLog() {
             <Button
               tone="secondary"
               size="sm"
-              onClick={() => {
-                const next = new URLSearchParams();
-                setSP(next, { replace: true });
-              }}
+              onClick={filters.reset}
             >
               Clear
             </Button>
@@ -111,31 +100,18 @@ export default function AdminAuditLog() {
       </Card>
 
       <Card>
-        <div className={styles.cardHeader}>
-          Recent activity
-          {data && (
-            <span className={styles.cardHeaderPage}>
-              Page {data.page} of {data.total_pages}
-            </span>
-          )}
-        </div>
-
-        <TableStates
+        <div className={styles.cardHeader}>Recent activity</div>
+        <AuditTable
+          rows={data?.rows}
           isLoading={isLoading} isError={isError} error={error}
-          isEmpty={!data || data.rows.length === 0}
           onRetry={() => { void refetch(); }}
           emptyTitle="No activity matches these filters."
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage, onPerPage: filters.setPerPage,
+          }}
         />
-        {data && data.rows.length > 0 && (
-          <>
-            <AuditTable rows={data.rows} />
-            <Pager
-              page={data.page}
-              totalPages={data.total_pages}
-              onPage={(p) => setParam("page", String(p))}
-            />
-          </>
-        )}
       </Card>
 
     </PageShell>

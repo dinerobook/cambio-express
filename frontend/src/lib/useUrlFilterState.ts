@@ -54,6 +54,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { DEFAULT_PAGE_SIZE, readPageSize, writePageSize } from "./pagination";
+
 interface Options {
   /** Debounce window for `debounced()` updates. Defaults to 300ms. */
   debounceMs?: number;
@@ -61,6 +63,20 @@ interface Options {
    *  Strings shorter than this still clear (length 0). Defaults to 2,
    *  matching the CLAUDE.md table-search-UX invariant. */
   minLength?: number;
+  /** Remember this list's rows-per-page choice under this name
+   *  (per viewer, in browser storage). Without it ``perPage`` is the
+   *  default 50 and ``setPerPage`` only lasts for the visit. */
+  pageSizeKey?: string;
+  /** Turns on column sorting from the URL's ``sort`` + ``dir``;
+   *  this is the order when the URL names none. */
+  defaultSort?: SortState;
+}
+
+export type SortDirection = "asc" | "desc";
+
+export interface SortState {
+  key: string;
+  direction: SortDirection;
 }
 
 export interface UrlFilterState<TKeys extends string> {
@@ -81,13 +97,26 @@ export interface UrlFilterState<TKeys extends string> {
   setPage: (next: number) => void;
   /** Clear every filter (and reset page). */
   reset: () => void;
+  /** Rows per page — one of ``PAGE_SIZES``. */
+  perPage: number;
+  /** Change rows per page; returns to page 1. */
+  setPerPage: (next: number) => void;
+  /** Current sort + a setter that writes it to the URL and returns
+   *  to page 1 — the shape ``<DataTable sort>`` takes. Undefined
+   *  unless ``defaultSort`` was given. */
+  sort?: SortState & {
+    onSort: (key: string, direction: SortDirection) => void;
+  };
 }
 
 export function useUrlFilterState<TKeys extends string>(
   defaults: Record<TKeys, string>,
   options: Options = {},
 ): UrlFilterState<TKeys> {
-  const { debounceMs = 300, minLength = 2 } = options;
+  const { debounceMs = 300, minLength = 2, pageSizeKey, defaultSort } = options;
+  const [perPage, setPerPageState] = useState<number>(
+    () => (pageSizeKey ? readPageSize(pageSizeKey) : DEFAULT_PAGE_SIZE),
+  );
   const [sp, setSP] = useSearchParams();
   const keys = Object.keys(defaults) as TKeys[];
 
@@ -140,5 +169,30 @@ export function useUrlFilterState<TKeys extends string>(
     setDraft({});
   }
 
-  return { params, draft, page, setParam, debounced, setPage, reset };
+  function setPerPage(next: number) {
+    setPerPageState(next);
+    if (pageSizeKey) writePageSize(pageSizeKey, next);
+    const np = new URLSearchParams(sp);
+    np.delete("page");
+    setSP(np, { replace: true });
+  }
+
+  const urlDir = sp.get("dir");
+  const sort = defaultSort && {
+    key: sp.get("sort") || defaultSort.key,
+    direction: (urlDir === "asc" || urlDir === "desc"
+      ? urlDir : defaultSort.direction) as SortDirection,
+    onSort: (key: string, direction: SortDirection) => {
+      const np = new URLSearchParams(sp);
+      np.set("sort", key);
+      np.set("dir", direction);
+      np.delete("page");
+      setSP(np, { replace: true });
+    },
+  };
+
+  return {
+    params, draft, page, setParam, debounced, setPage, reset,
+    perPage, setPerPage, sort,
+  };
 }

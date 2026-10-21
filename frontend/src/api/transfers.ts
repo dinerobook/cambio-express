@@ -283,6 +283,10 @@ interface TransfersPageOptions extends TransferFilters {
    *  tab is hidden, so we don't burn bandwidth in a background
    *  tab). Omit to disable polling. */
   pollMs?: number;
+  /** Column slug (the API's ``SORT_COLUMNS``) and direction;
+   *  default newest first. */
+  sort?: string;
+  dir?: "asc" | "desc";
 }
 
 // Hook: paginated transfer list with filters. Powers the
@@ -291,6 +295,7 @@ interface TransfersPageOptions extends TransferFilters {
 // TanStack Query caches them independently.
 export function useTransfers({
   page, perPage, q, date_from, date_to, status, service, paid_by, pollMs,
+  sort = "date", dir = "desc",
 }: TransfersPageOptions) {
   const identity = getCurrentIdentity();
   const storeId = identity?.store_id;
@@ -302,15 +307,15 @@ export function useTransfers({
     queryKey: [
       "transfers", "list", storeId, page, perPage,
       q ?? "", date_from ?? "", date_to ?? "", status ?? "",
-      service ?? "", paid_by ?? "",
+      service ?? "", paid_by ?? "", sort, dir,
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
         store_ids: String(storeId),
         page: String(page),
         per_page: String(perPage),
-        sort: "send_date",
-        dir: "desc",
+        sort,
+        dir,
       });
       if (q) params.set("q", q);
       if (date_from) params.set("date_from", date_from);

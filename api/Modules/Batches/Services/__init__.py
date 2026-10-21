@@ -4,6 +4,7 @@ from api.Modules.Batches.Services.batches import (
     BatchCredit,
     credits_for_store,
     list_store_batches,
+    page_store_batches,
     summarize_batch,
 )
 from api.Modules.Batches.Services.write import (
@@ -25,6 +26,7 @@ __all__ = [
     "create_batch",
     "find_batch",
     "list_store_batches",
+    "page_store_batches",
     "summarize_batch",
     "update_batch",
 ]

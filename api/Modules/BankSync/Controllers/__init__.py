@@ -180,6 +180,8 @@ def list_transactions_route(
     sign: str = Query("", pattern="^(|credit|debit)$"),
     q: str = Query(""),
     uncategorized_only: bool = Query(False),
+    sort: str = Query("", description="posted, description, category or amount; empty = newest first."),
+    dir: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     per_page: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -192,6 +194,7 @@ def list_transactions_route(
         "account_id": account_id, "category_slug": category_slug,
         "sign": sign, "q": q,
         "uncategorized_only": "1" if uncategorized_only else "",
+        "sort": sort, "dir": dir,
     })
     page_obj = list_transactions_page(
         db, [sid], filters, page=page, per_page=per_page,

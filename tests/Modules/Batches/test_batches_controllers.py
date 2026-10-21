@@ -188,6 +188,63 @@ def test_list_supports_sort_by_ach_amount(client, test_store_id):
     assert refs == ["B-S1", "B-S2"]
 
 
+def test_list_without_page_still_returns_every_batch(client, test_store_id):
+    """The legacy shape: no ``page`` → every batch, envelope filled."""
+    with db_session():
+        for i in range(60):
+            _seed_batch(test_store_id, batch_ref=f"B-ALL{i:02d}")
+    token = _login(client, test_store_id)
+    body = client.get(
+        "/api/v2/batches", headers={"Authorization": f"Bearer {token}"},
+    ).get_json()
+    assert len(body["rows"]) == 60
+    assert body["total"] == 60
+    assert body["total_pages"] == 1
+
+
+def test_list_pages_after_sorting_every_batch(client, test_store_id):
+    with db_session():
+        for i in range(5):
+            _seed_batch(test_store_id, ach_amount=100.0 * (i + 1),
+                        batch_ref=f"B-P{i}", ach_date_=date(2026, 3, 1 + i))
+    token = _login(client, test_store_id)
+    h = {"Authorization": f"Bearer {token}"}
+    body = client.get(
+        "/api/v2/batches?page=2&per_page=2&sort=ach_amount&direction=asc",
+        headers=h,
+    ).get_json()
+    assert [r["batch_ref"] for r in body["rows"]] == ["B-P2", "B-P3"]
+    assert body["total"] == 5
+    assert body["page"] == 2
+    assert body["total_pages"] == 3
+    # Default order is newest ACH date first.
+    first = client.get("/api/v2/batches?page=1&per_page=2", headers=h).get_json()
+    assert [r["batch_ref"] for r in first["rows"]] == ["B-P4", "B-P3"]
+
+
+def test_list_page_keeps_totals_and_credits(client, test_store_id):
+    """A paged row carries the same variance as the full list."""
+    with db_session():
+        _seed_batch(test_store_id, ach_amount=1000.0, batch_ref="B-V1",
+                    ach_date_=date(2026, 4, 1))
+        _seed_transfer(test_store_id, batch_ref="B-V1", send_amount=500.0,
+                       federal_tax=5.0)
+    token = _login(client, test_store_id)
+    h = {"Authorization": f"Bearer {token}"}
+    full = client.get("/api/v2/batches", headers=h).get_json()["rows"]
+    paged = client.get("/api/v2/batches?page=1", headers=h).get_json()["rows"]
+    assert paged == full
+
+
+def test_list_rejects_page_size_over_200(client, test_store_id):
+    token = _login(client, test_store_id)
+    resp = client.get(
+        "/api/v2/batches?page=1&per_page=201",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+
+
 def test_list_rejects_bad_direction(client, test_store_id):
     token = _login(client, test_store_id)
     resp = client.get(

@@ -1,10 +1,10 @@
 import { useState } from "react";
 
-import { useItemMovement } from "../api/posimport";
+import { useItemMovement, type ItemMovement as ItemMovementData } from "../api/posimport";
 import {
-  Breadcrumbs, Card, EmptyState, ErrorState, DateInput, Field, InfoTip, Input,
-  KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pager, Pill,
-  Section, Table, tdStyle, thStyle, tokens,
+  Breadcrumbs, Card, DataTable, DateInput, Field, InfoTip, Input,
+  KpiCard, KpiGrid, PageHeader, PageShell, Pill,
+  Section, tokens, type DataColumn,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { fmtMoney2 } from "../lib/formatters";
@@ -15,18 +15,35 @@ import { daysAgoIso } from "../lib/datetime";
 // data. Top sellers first. Populates as business days book
 // (automatically once the site agent + mapping are in place).
 
+type MovementRow = ItemMovementData["rows"][number];
+
+const MONO = { fontFamily: tokens.fontMono };
+
+const COLUMNS: DataColumn<MovementRow>[] = [
+  { key: "code", header: "Scan code", render: (r) => <span style={MONO}>{r.pos_code}</span> },
+  { key: "item", header: "Item", render: (r) => r.description || "—" },
+  { key: "qty", header: "Qty", align: "right", render: (r) => <span style={MONO}>{r.quantity.toLocaleString()}</span> },
+  { key: "dollars", header: "Dollars", align: "right", render: (r) => <span style={MONO}>{fmtMoney2(r.amount)}</span> },
+  { key: "avg", header: "Avg price", align: "right", render: (r) => <span style={MONO}>{fmtMoney2(r.avg_price)}</span> },
+  {
+    key: "flags", header: "", label: "",
+    render: (r) => (!r.in_price_book ? <Pill tone="warning">not in price book</Pill> : null),
+  },
+];
+
 export default function ItemMovement() {
   const [defaults] = useState(() => ({
     start: daysAgoIso(6), end: daysAgoIso(0),
   }));
   const filters = useUrlFilterState({
     q: "", start: defaults.start, end: defaults.end,
-  });
+  }, { pageSizeKey: "item-movement" });
   const movement = useItemMovement({
     start: filters.params.start,
     end: filters.params.end,
     q: filters.params.q,
     page: filters.page,
+    perPage: filters.perPage,
   });
   const data = movement.data;
 
@@ -71,87 +88,44 @@ export default function ItemMovement() {
         </div>
       </div>
 
-      {movement.isLoading && <Loading />}
-      {movement.isError && (
-        <ErrorState
-          message="Could not load item movement."
-          onRetry={() => { void movement.refetch(); }}
-        />
-      )}
-
       {data && (
-        <>
-          <KpiGrid>
-            <KpiCard
-              label="Items sold"
-              value={data.total.toLocaleString()}
-              sub={`${data.start} → ${data.end}`}
-            />
-            <KpiCard
-              label="Units"
-              value={data.total_quantity.toLocaleString()}
-            />
-            <KpiCard
-              label="Dollars"
-              value={fmtMoney2(data.total_amount)}
-              tone="positive"
-            />
-          </KpiGrid>
-
-          {data.rows.length === 0 ? (
-            <EmptyState
-              title="No movement in this range"
-              body="Data appears here as business days are booked from your register journals. Check the range, or set up the site agent under POS import."
-            />
-          ) : (
-            <Section title="Items">
-              <Card>
-                <div style={{ overflowX: "auto" }}>
-                  <Table>
-                    <thead>
-                      <tr>
-                        {["Scan code", "Item", "Qty", "Dollars",
-                          "Avg price", ""].map((h) => (
-                          <th key={h} style={thStyle}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.rows.map((r) => (
-                        <tr key={r.pos_code}>
-                          <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                            {r.pos_code}
-                          </td>
-                          <td style={tdStyle}>{r.description || "—"}</td>
-                          <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                            {r.quantity.toLocaleString()}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                            {fmtMoney2(r.amount)}
-                          </td>
-                          <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                            {fmtMoney2(r.avg_price)}
-                          </td>
-                          <td style={tdStyle}>
-                            {!r.in_price_book && (
-                              <Pill tone="warning">not in price book</Pill>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-                <Pager
-                  page={data.page}
-                  totalPages={data.total_pages}
-                  onPage={(p) => filters.setPage(p)}
-                />
-              </Card>
-            </Section>
-          )}
-        </>
+        <KpiGrid>
+          <KpiCard
+            label="Items sold"
+            value={data.total.toLocaleString()}
+            sub={`${data.start} → ${data.end}`}
+          />
+          <KpiCard
+            label="Units"
+            value={data.total_quantity.toLocaleString()}
+          />
+          <KpiCard
+            label="Dollars"
+            value={fmtMoney2(data.total_amount)}
+            tone="positive"
+          />
+        </KpiGrid>
       )}
+
+      <Section title="Items">
+        <Card>
+          <DataTable
+            columns={COLUMNS}
+            rows={data?.rows}
+            rowKey={(r) => r.pos_code}
+            isLoading={movement.isLoading} isError={movement.isError} error={movement.error}
+            onRetry={() => { void movement.refetch(); }}
+            errorMessage="Could not load item movement."
+            emptyTitle="No movement in this range"
+            emptyBody="Data appears here as business days are booked from your register journals. Check the range, or set up the site agent under POS import."
+            page={data && {
+              page: data.page, totalPages: data.total_pages, total: data.total,
+              onPage: filters.setPage,
+              perPage: filters.perPage, onPerPage: filters.setPerPage,
+            }}
+          />
+        </Card>
+      </Section>
     </PageShell>
   );
 }

@@ -327,3 +327,85 @@ def test_legacy_admin_audit_log_preserves_query_string(
     location = resp.headers["Location"]
     assert "action=lock" in location
     assert "page=2" in location
+
+
+# ── full history (no newest-500 cap) ────────────────────────
+
+
+def _bulk_seed(store_id, n_op, n_tx, base):
+    """Interleave ``n_op`` operator rows and ``n_tx`` transfer rows,
+    one minute apart, newest first. Returns the expected summary
+    order newest → oldest."""
+    from api.Modules.Audit.Models import OperatorAuditLog, TransferAudit
+    rows, order = [], []
+    for i in range(n_op + n_tx):
+        ts = base - timedelta(minutes=i)
+        if i % 10 == 9 and n_tx > 0:
+            n_tx -= 1
+            rows.append(TransferAudit(
+                store_id=store_id, transfer_id=i, action="create",
+                employee_name="Cashier", summary=f"row {i}", created_at=ts,
+            ))
+        else:
+            rows.append(OperatorAuditLog(
+                store_id=store_id, action="update", target_type="batch",
+                target_id=str(i), target_label=f"row {i}",
+                user_name="Tester", user_role="admin",
+                summary=f"row {i}", created_at=ts,
+            ))
+        order.append(f"row {i}")
+    db.session.add_all(rows); db.session.commit()
+    return order
+
+
+def test_audit_log_pages_past_the_old_500_cap(client, test_store_id):
+    """Older entries used to vanish once a feed held more than 500
+    rows of one kind. Every row is now reachable, exactly once, in
+    newest-first order, whatever the page size."""
+    with db_session():
+        expected = _bulk_seed(test_store_id, 560, 60, datetime.utcnow())
+    token = _login(client, test_store_id)
+    h = {"Authorization": f"Bearer {token}"}
+    first = client.get("/api/v2/admin/audit-log?per_page=200", headers=h).get_json()
+    assert first["total"] == 620
+    assert first["per_page"] == 200
+    assert first["total_pages"] == 4
+    seen = []
+    for page in range(1, 5):
+        body = client.get(
+            f"/api/v2/admin/audit-log?per_page=200&page={page}", headers=h,
+        ).get_json()
+        seen.extend(r["summary"] for r in body["rows"])
+    assert seen == expected
+
+
+def test_audit_log_default_page_size_is_still_50(client, test_store_id):
+    with db_session():
+        _bulk_seed(test_store_id, 60, 0, datetime.utcnow())
+    token = _login(client, test_store_id)
+    body = client.get(
+        "/api/v2/admin/audit-log?page=2",
+        headers={"Authorization": f"Bearer {token}"},
+    ).get_json()
+    assert body["per_page"] == 50
+    assert len(body["rows"]) == 10
+
+
+def test_audit_log_rejects_page_size_outside_1_to_200(client, test_store_id):
+    token = _login(client, test_store_id)
+    h = {"Authorization": f"Bearer {token}"}
+    assert client.get("/api/v2/admin/audit-log?per_page=201", headers=h).status_code == 422
+    assert client.get("/api/v2/admin/audit-log?per_page=0", headers=h).status_code == 422
+
+
+def test_audit_log_csv_exports_every_row(client, test_store_id):
+    with db_session():
+        _bulk_seed(test_store_id, 530, 0, datetime.utcnow())
+    token = _login(client, test_store_id)
+    resp = client.get(
+        "/api/v2/admin/audit-log.csv",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    # header + 530 rows
+    assert len(resp.data.decode().strip().splitlines()) == 531

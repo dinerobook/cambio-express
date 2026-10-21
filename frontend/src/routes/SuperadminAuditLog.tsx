@@ -6,7 +6,7 @@ import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
   Breadcrumbs,
-  Card, Empty, Input, PageHeader, PageShell, Pager, TableStates,
+  Card, Empty, Input, PageHeader, PageShell,
 } from "../components/ui";
 import { AuditTable, type AuditTableRow } from "../components/AuditTable";
 
@@ -21,11 +21,13 @@ import { AuditTable, type AuditTableRow } from "../components/AuditTable";
 
 export default function SuperadminAuditLog() {
   const identity = getCurrentIdentity();
-  const filters = useUrlFilterState({ action: "" });
+  const filters = useUrlFilterState(
+    { action: "" }, { pageSizeKey: "superadmin-audit-log" },
+  );
   const action = filters.params.action.trim();
 
   const { data, isLoading, isError, error, refetch } = useSuperadminAuditLog(
-    filters.page, action,
+    filters.page, action, filters.perPage,
   );
 
   if (identity?.role !== "superadmin") {
@@ -61,22 +63,17 @@ export default function SuperadminAuditLog() {
       />
 
       <Card>
-        <TableStates
+        <AuditTable
+          rows={data?.rows.map(toAuditTableRow)}
           isLoading={isLoading} isError={isError} error={error}
-          isEmpty={!data || data.rows.length === 0}
           onRetry={() => { void refetch(); }}
           emptyTitle="No audit entries match."
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
         />
-        {data && data.rows.length > 0 && (
-          <>
-            <AuditTable rows={data.rows.map(toAuditTableRow)} />
-            <Pager
-              page={data.page}
-              totalPages={data.total_pages}
-              onPage={filters.setPage}
-            />
-          </>
-        )}
       </Card>
     </PageShell>
   );

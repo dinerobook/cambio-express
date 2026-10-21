@@ -520,3 +520,25 @@ def test_invoice_vendor_change_without_clash_and_no_op_pair(
     assert resp.status_code == 200, resp.text
     assert resp.json()["invoice"]["vendor_name"] == "Vendor Two"
     assert resp.json()["invoice"]["invoice_number"] == "200"
+
+
+def test_invoice_list_sorts_by_column(client, test_store_id):
+    h = _admin(client, test_store_id)
+    vendor = _mk_vendor(client, h)
+    for number, day, subtotal in [("B-2", "2026-08-01", 50.0), ("A-1", "2026-08-03", 900.0), ("C-3", "2026-08-02", 10.0)]:
+        resp = client.post("/api/v2/catalog/invoices", headers=h, json={
+            "vendor_id": vendor["id"], "invoice_number": number,
+            "invoice_date": day, "subtotal": subtotal,
+        })
+        assert resp.status_code == 201, resp.text
+
+    def numbers(qs):
+        resp = client.get(f"/api/v2/catalog/invoices?{qs}", headers=h)
+        assert resp.status_code == 200, resp.text
+        return [r["invoice_number"] for r in resp.json()["rows"]]
+
+    assert numbers("") == ["A-1", "C-3", "B-2"]                  # newest date first
+    assert numbers("sort=number&dir=asc") == ["A-1", "B-2", "C-3"]
+    assert numbers("sort=total&dir=desc") == ["A-1", "B-2", "C-3"]
+    assert numbers("sort=date&dir=asc&per_page=2") == ["B-2", "C-3"]
+    assert client.get("/api/v2/catalog/invoices?dir=up", headers=h).status_code == 422

@@ -19,9 +19,9 @@ import { useUrlFilterState } from "../lib/useUrlFilterState";
 import DepartmentsManager from "../components/DepartmentsManager";
 import {
   Alert, Breadcrumbs, Button, Card, Checkbox, EmptyState, ErrorState,
-  Field, InfoTip, Input, Loading, Modal, MoneyInput, PageHeader, PageShell, Pager,
+  DataTable, Field, InfoTip, Input, Loading, Modal, MoneyInput, PageHeader, PageShell,
   Pill, RowActions, Section, Select, TabsBar, TabsButton, Table,
-  tdStyle, thStyle, useToast,
+  tdStyle, thStyle, useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./PriceBook.module.css";
 
@@ -81,6 +81,9 @@ function ItemsTab() {
   // (CLAUDE.md "Table search UX") — same wiring as Transfers.
   const filters = useUrlFilterState({
     q: "", department_id: "", vendor_id: "", inactive: "",
+  }, {
+    pageSizeKey: "price-book",
+    defaultSort: { key: "name", direction: "asc" },
   });
   const items = useItems({
     q: filters.params.q,
@@ -88,6 +91,9 @@ function ItemsTab() {
     departmentId: filters.params.department_id,
     vendorId: filters.params.vendor_id,
     includeInactive: filters.params.inactive === "1",
+    sort: filters.sort?.key,
+    dir: filters.sort?.direction,
+    perPage: filters.perPage,
   });
   const departments = useDepartments();
   const vendors = useVendors();
@@ -111,6 +117,58 @@ function ItemsTab() {
   }
 
   const data = items.data;
+  const columns: DataColumn<PriceBookItem>[] = [
+    {
+      key: "code", header: "Scan code", sortKey: "code",
+      render: (i) => (
+        <>
+          <span className={styles.posCode}>{i.pos_code}</span>
+          {i.pos_code_format === "plu" && (
+            <>
+              {" "}
+              <Pill tone="neutral">PLU</Pill>
+            </>
+          )}
+        </>
+      ),
+    },
+    { key: "name", header: "Item", sortKey: "name", render: (i) => i.name },
+    { key: "department", header: "Department", render: (i) => i.department_name || "—" },
+    { key: "vendor", header: "Vendor", render: (i) => i.vendor_name || "—" },
+    {
+      key: "price", header: "Price", align: "right", sortKey: "price", sortFirst: "desc",
+      render: (i) => fmtMoney2(i.price),
+    },
+    {
+      key: "cost", header: "Cost", align: "right", sortKey: "cost", sortFirst: "desc",
+      render: (i) => (i.cost > 0 ? fmtMoney2(i.cost) : "—"),
+    },
+    { key: "tax", header: "Tax", render: (i) => (i.is_taxable ? "Taxable" : "—") },
+    {
+      key: "status", header: "Status",
+      render: (i) => (
+        <Pill tone={i.is_active ? "accent" : "neutral"}>
+          {i.is_active ? "active" : "inactive"}
+        </Pill>
+      ),
+    },
+    ...(canManage ? [{
+      key: "actions", header: "", label: "", align: "right" as const,
+      render: (i: PriceBookItem) => (
+        <RowActions
+          title={i.name}
+          actions={[
+            { label: "Edit", tone: "primary", onClick: () => setEditing(i) },
+            {
+              label: i.is_active ? "Deactivate" : "Reactivate",
+              tone: i.is_active ? "warning" : "primary",
+              onClick: () => toggleActive(i),
+            },
+          ]}
+        />
+      ),
+    }] : []),
+  ];
   return (
     <Section
       title="Items"
@@ -187,102 +245,37 @@ function ItemsTab() {
           </Select>
         </Field>
       </div>
-      {items.isLoading && <Loading />}
-      {items.isError && (
-        <ErrorState
-          message="Could not load the price book."
+      <Card>
+        <DataTable
+          columns={columns}
+          rows={data?.rows}
+          rowKey={(i) => i.id}
+          onRowClick={canManage ? setEditing : undefined}
+          rowLabel={(i) => `Edit ${i.name}`}
+          isLoading={items.isLoading}
+          isError={items.isError}
+          error={items.error}
+          errorMessage="Could not load the price book."
           onRetry={() => { void items.refetch(); }}
-        />
-      )}
-      {data && data.rows.length === 0 && (
-        <EmptyState
-          title={
+          emptyTitle={
             filters.params.q || filters.params.department_id
             || filters.params.vendor_id
               ? "No items match"
               : "No items yet"
           }
-          body={
+          emptyBody={
             canManage
               ? 'Add items by hand with "+ Add item" — or click "Seed from register" to build the whole price book from the journal data your register agent uploads.'
               : "The price book is empty."
           }
+          sort={filters.sort}
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
         />
-      )}
-      {data && data.rows.length > 0 && (
-        <>
-          <Card>
-            <div style={{ overflowX: "auto" }}>
-              <Table>
-                <thead>
-                  <tr>
-                    {["Scan code", "Item", "Department", "Vendor", "Price",
-                      "Cost", "Tax", "Status",
-                      ...(canManage ? ["Actions"] : [])].map((h) => (
-                      <th key={h} style={thStyle}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.rows.map((i) => (
-                    <tr key={i.id}>
-                      <td style={tdStyle}>
-                        <span className={styles.posCode}>{i.pos_code}</span>
-                        {i.pos_code_format === "plu" && (
-                          <>
-                            {" "}
-                            <Pill tone="neutral">PLU</Pill>
-                          </>
-                        )}
-                      </td>
-                      <td style={tdStyle}>{i.name}</td>
-                      <td style={tdStyle}>{i.department_name || "—"}</td>
-                      <td style={tdStyle}>{i.vendor_name || "—"}</td>
-                      <td style={tdStyle}>{fmtMoney2(i.price)}</td>
-                      <td style={tdStyle}>
-                        {i.cost > 0 ? fmtMoney2(i.cost) : "—"}
-                      </td>
-                      <td style={tdStyle}>{i.is_taxable ? "Taxable" : "—"}</td>
-                      <td style={tdStyle}>
-                        <Pill tone={i.is_active ? "accent" : "neutral"}>
-                          {i.is_active ? "active" : "inactive"}
-                        </Pill>
-                      </td>
-                      {canManage && (
-                        <td style={tdStyle}>
-                          <RowActions
-                            title={i.name}
-                            actions={[
-                              {
-                                label: "Edit",
-                                tone: "primary",
-                                onClick: () => setEditing(i),
-                              },
-                              {
-                                label: i.is_active
-                                  ? "Deactivate" : "Reactivate",
-                                tone: i.is_active ? "warning" : "primary",
-                                onClick: () => toggleActive(i),
-                              },
-                            ]}
-                          />
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-          </Card>
-          {data.total_pages > 1 && (
-            <Pager
-              page={data.page}
-              totalPages={data.total_pages}
-              onPage={filters.setPage}
-            />
-          )}
-        </>
-      )}
+      </Card>
       <ItemModal
         open={adding || editing != null}
         existing={editing}

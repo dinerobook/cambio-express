@@ -717,3 +717,59 @@ def test_editing_pending_amount_above_paid_stays_pending(
     assert _pay(client, token, rid, 30.0).status_code == 201
     resp = _edit_amount(client, token, rid, 80.0)
     assert resp.get_json()["return_check"]["status"] == "pending"
+
+
+# ── paging + sort ───────────────────────────────────────────
+
+
+def _list(client, token, qs=""):
+    resp = client.get(
+        f"/api/v2/return-checks{qs}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, resp.get_json()
+    return resp.get_json()
+
+
+def test_list_without_page_returns_every_check(client, test_store_id):
+    from datetime import timedelta
+    with db_session():
+        for i in range(55):
+            _seed_rc(test_store_id, customer_name=f"C{i:02d}",
+                     bounced_on_=date(2026, 1, 1) + timedelta(days=i))
+    token = _login(client, test_store_id)
+    body = _list(client, token)
+    assert len(body["rows"]) == 55
+    assert body["total"] == 55
+    # Newest bounce first, as before.
+    assert body["rows"][0]["customer_name"] == "C54"
+
+
+def test_list_pages_and_sorts_on_the_server(client, test_store_id):
+    with db_session():
+        for name, amt in [("Ana", 300.0), ("Bea", 100.0), ("Cy", 200.0)]:
+            _seed_rc(test_store_id, customer_name=name, amount=amt)
+    token = _login(client, test_store_id)
+    body = _list(client, token, "?page=2&per_page=2&sort=amount&dir=asc")
+    assert [r["customer_name"] for r in body["rows"]] == ["Ana"]
+    assert (body["total"], body["page"], body["total_pages"]) == (3, 2, 2)
+    by_name = _list(client, token, "?page=1&sort=customer&dir=desc")
+    assert [r["customer_name"] for r in by_name["rows"]] == ["Cy", "Bea", "Ana"]
+
+
+def test_list_page_respects_status_filter(client, test_store_id):
+    with db_session():
+        _seed_rc(test_store_id, customer_name="Open", status="pending")
+        _seed_rc(test_store_id, customer_name="Done", status="recovered")
+    token = _login(client, test_store_id)
+    body = _list(client, token, "?status=recovered&page=1")
+    assert [r["customer_name"] for r in body["rows"]] == ["Done"]
+    assert body["total"] == 1
+
+
+def test_list_rejects_bad_paging_and_direction(client, test_store_id):
+    token = _login(client, test_store_id)
+    h = {"Authorization": f"Bearer {token}"}
+    assert client.get("/api/v2/return-checks?page=0", headers=h).status_code == 422
+    assert client.get("/api/v2/return-checks?page=1&per_page=500", headers=h).status_code == 422
+    assert client.get("/api/v2/return-checks?dir=up", headers=h).status_code == 422

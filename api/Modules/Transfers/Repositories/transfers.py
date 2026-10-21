@@ -13,9 +13,10 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Iterable, Literal
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from api.Core.Sorting import order_by_slug
 from api.Modules.Transfers.Models import PAYMENT_DEBIT_CARD, Transfer
 
 
@@ -33,6 +34,13 @@ SORT_COLUMNS: dict[str, Any] = {
     "confirm":   Transfer.confirm_number,
     "batch":     Transfer.batch_id,
     "status":    Transfer.status,
+    # What the customer handed over (send + fee + federal tax) — the
+    # list's Total column. NULL parts count as zero, as on the model.
+    "total": (
+        func.coalesce(Transfer.send_amount_cents, 0)
+        + func.coalesce(Transfer.fee_cents, 0)
+        + func.coalesce(Transfer.federal_tax_cents, 0)
+    ),
 }
 
 
@@ -147,13 +155,12 @@ def list_with_filters(
         ))
 
     # Sort — whitelisted col + direction; fall back to "newest first".
-    sort_col = SORT_COLUMNS.get(f.sort_slug)
-    if sort_col is not None:
-        order = sort_col.asc() if f.sort_dir == "asc" else sort_col.desc()
-        # Tie-break on created_at so equal-key rows have a stable order.
-        q = q.order_by(order, Transfer.created_at.desc())
-    else:
-        q = q.order_by(Transfer.send_date.desc(), Transfer.created_at.desc())
+    # Tie-break on created_at so equal-key rows have a stable order.
+    q = order_by_slug(
+        q, SORT_COLUMNS, f.sort_slug, f.sort_dir,
+        default=(Transfer.send_date.desc(), Transfer.created_at.desc()),
+        tiebreak=(Transfer.created_at.desc(),),
+    )
 
     total = q.count()
     if total == 0:

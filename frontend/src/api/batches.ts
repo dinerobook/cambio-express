@@ -27,9 +27,7 @@ export const BATCH_STATUS_TONES: Record<string, PillTone> = {
  *  (Transfers INVARIANTS "Debit card sends"). */
 export type BatchRow = components["schemas"]["BatchRow"];
 
-export interface BatchListResponse {
-  rows: BatchRow[];
-}
+export type BatchListResponse = components["schemas"]["BatchListResponse"];
 
 export type BatchSort =
   | "ach_date" | "company" | "batch_ref" | "ach_amount" | "status" | "";
@@ -104,19 +102,24 @@ export function useBatchTransfers(batchId: number | undefined) {
   });
 }
 
-export function useBatches(sort: BatchSort = "", direction: BatchDir = "desc") {
+export function useBatches({
+  sort = "", direction = "desc", page = 1, perPage = 50,
+}: { sort?: BatchSort; direction?: BatchDir; page?: number; perPage?: number } = {}) {
   const identity = getCurrentIdentity();
   const enabled = identity?.store_id != null;
   return useQuery<BatchListResponse>({
     enabled,
-    queryKey: ["batches", "list", identity?.store_id, sort, direction],
+    queryKey: ["batches", "list", identity?.store_id, sort, direction, page, perPage],
     queryFn: () => {
       const params = new URLSearchParams();
       if (sort) params.set("sort", sort);
       params.set("direction", direction);
+      params.set("page", String(page));
+      params.set("per_page", String(perPage));
       return api<BatchListResponse>(
         `/api/v2/batches?${params.toString()}`,
       );
     },
+    placeholderData: (prev) => prev,
   });
 }

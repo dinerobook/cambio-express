@@ -1,4 +1,4 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import {
   RETURN_CHECK_STATUS_TONES, useReturnChecks, type ReturnCheckRow,
@@ -7,10 +7,10 @@ import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  ButtonLink, Card, Empty, PageHeader,
-  PageShell, Pill, Table as KitTable, TableStates, TabsBar, TabsButton, tdStyle,
-  thStyle,
+  ButtonLink, Card, DataTable, Empty, PageHeader,
+  PageShell, Pill, TabsBar, TabsButton, type DataColumn,
 } from "../components/ui";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./ReturnChecks.module.css";
 
 // Bounced-check workflow list at /app/return-checks. Filter by
@@ -27,18 +27,62 @@ const STATUSES: Array<{ slug: string; label: string }> = [
   { slug: "fraud",     label: "Fraud"     },
 ];
 
+const COLUMNS: DataColumn<ReturnCheckRow>[] = [
+  {
+    key: "bounced", header: "Bounced", sortKey: "bounced", sortFirst: "desc",
+    render: (r) => <span className={styles.monoMuted}>{formatDate(r.bounced_on)}</span>,
+  },
+  { key: "customer", header: "Customer", sortKey: "customer", render: (r) => r.customer_name },
+  {
+    key: "check", header: "Check #", sortKey: "check",
+    render: (r) => <span className={styles.mono}>{r.check_number || "—"}</span>,
+  },
+  { key: "bank", header: "Bank", sortKey: "bank", render: (r) => r.payer_bank || "—" },
+  {
+    key: "amount", header: "Amount", align: "right", sortKey: "amount", sortFirst: "desc",
+    render: (r) => <span className={styles.mono}>{fmtMoney2(r.amount)}</span>,
+  },
+  {
+    key: "recovered", header: "Recovered", align: "right",
+    render: (r) => (
+      <span>
+        <span className={r.recovered_total >= r.amount + r.return_check_fee ? styles.recoveredFull : styles.mono}>
+          {fmtMoney2(r.recovered_total)}
+        </span>
+        {r.payment_count > 0 && (
+          <span className={styles.paymentCount}>({r.payment_count})</span>
+        )}
+      </span>
+    ),
+  },
+  { key: "status", header: "Status", sortKey: "status", render: (r) => <StatusPill status={r.status} /> },
+  {
+    // The explicit, discoverable action; the whole row opens the
+    // same page for a cashier who taps any cell.
+    key: "edit", header: "", label: "", align: "right",
+    render: (r) => (
+      <ButtonLink to={`/return-checks/${r.id}/edit`} tone="secondary" size="sm">
+        Edit / Record payment
+      </ButtonLink>
+    ),
+  },
+];
+
 export default function ReturnChecks() {
   const identity = getCurrentIdentity();
-  const [sp, setSP] = useSearchParams();
-  const status = sp.get("status") ?? "";
-  const { data, isLoading, isError, error, refetch } = useReturnChecks(status);
-
-  function setStatus(next: string) {
-    const params = new URLSearchParams(sp);
-    if (next) params.set("status", next);
-    else params.delete("status");
-    setSP(params, { replace: true });
-  }
+  const navigate = useNavigate();
+  const filters = useUrlFilterState({ status: "" }, {
+    pageSizeKey: "return-checks",
+    defaultSort: { key: "bounced", direction: "desc" },
+  });
+  const status = filters.params.status;
+  const { data, isLoading, isError, error, refetch } = useReturnChecks({
+    status,
+    sort: filters.sort?.key,
+    dir: filters.sort?.direction,
+    page: filters.page,
+    perPage: filters.perPage,
+  });
 
   if (identity?.store_id == null) {
     return (
@@ -55,9 +99,9 @@ export default function ReturnChecks() {
       <PageHeader
         title="Returned checks"
         subtitle={data
-          ? `${data.rows.length.toLocaleString()} ${
+          ? `${data.total.toLocaleString()} ${
               status || "total"
-            } check${data.rows.length === 1 ? "" : "s"}`
+            } check${data.total === 1 ? "" : "s"}`
           : "—"}
         actions={(
           <ButtonLink href="/return-checks/new" tone="primary" size="sm">
@@ -71,7 +115,7 @@ export default function ReturnChecks() {
           <TabsButton
             key={s.slug}
             active={status === s.slug}
-            onClick={() => setStatus(s.slug)}
+            onClick={() => filters.setParam("status", s.slug)}
           >
             {s.label}
           </TabsButton>
@@ -79,95 +123,24 @@ export default function ReturnChecks() {
       </TabsBar>
 
       <Card>
-        <div style={{ overflowX: "auto" }}>
-        <TableStates
+        <DataTable
+          columns={COLUMNS}
+          rows={data?.rows}
+          rowKey={(r) => r.id}
+          onRowClick={(r) => navigate(`/return-checks/${r.id}/edit`)}
+          rowLabel={(r) => `Open return check from ${r.customer_name}`}
           isLoading={isLoading} isError={isError} error={error}
-          isEmpty={!data || data.rows.length === 0}
           onRetry={() => { void refetch(); }}
           emptyTitle={`No return checks ${status ? `with status ${status}` : "yet"}.`}
+          sort={filters.sort}
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
         />
-        {data && data.rows.length > 0 && <Table rows={data.rows} />}
-        </div>
       </Card>
     </PageShell>
-  );
-}
-
-function Table({ rows }: { rows: ReturnCheckRow[] }) {
-  const navigate = useNavigate();
-  return (
-    <KitTable>
-        <thead>
-          <tr>
-            <th style={thStyle}>Bounced</th>
-            <th style={thStyle}>Customer</th>
-            <th style={thStyle}>Check #</th>
-            <th style={thStyle}>Bank</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Amount</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Recovered</th>
-            <th style={thStyle}>Status</th>
-            <th style={{ ...thStyle, textAlign: "right" }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            // Whole-row click navigates to edit so a cashier can
-            // tap any cell. The explicit Edit button on the right
-            // is the discoverable, keyboard-reachable affordance;
-            // this just makes the rest of the row not feel inert.
-            // Hover is a CSS class (honors prefers-reduced-motion)
-            // rather than JS style mutation.
-            const open = () => navigate(`/return-checks/${r.id}/edit`);
-            return (
-              <tr
-                key={r.id}
-                className={styles.row}
-                onClick={open}
-              >
-                <td style={tdStyle}>
-                  <span className={styles.monoMuted}>{formatDate(r.bounced_on)}</span>
-                </td>
-                <td style={tdStyle}>{r.customer_name}</td>
-                <td style={tdStyle}>
-                  <span className={styles.mono}>{r.check_number || "—"}</span>
-                </td>
-                <td style={tdStyle}>{r.payer_bank || "—"}</td>
-                <td style={{ ...tdStyle, textAlign: "right" }}>
-                  <span className={styles.mono}>{fmtMoney2(r.amount)}</span>
-                </td>
-                <td style={{ ...tdStyle, textAlign: "right" }}>
-                  <span className={r.recovered_total >= r.amount + r.return_check_fee ? styles.recoveredFull : styles.mono}>
-                    {fmtMoney2(r.recovered_total)}
-                  </span>
-                  {r.payment_count > 0 && (
-                    <span className={styles.paymentCount}>
-                      ({r.payment_count})
-                    </span>
-                  )}
-                </td>
-                <td style={tdStyle}>
-                  <StatusPill status={r.status} />
-                </td>
-                <td
-                  style={{ ...tdStyle, textAlign: "right" }}
-                  // Stop the row-click from firing when the user
-                  // taps the explicit button — otherwise we
-                  // navigate twice and React-Router warns.
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <ButtonLink
-                    to={`/return-checks/${r.id}/edit`}
-                    tone="secondary"
-                    size="sm"
-                  >
-                    Edit / Record payment
-                  </ButtonLink>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-    </KitTable>
   );
 }
 

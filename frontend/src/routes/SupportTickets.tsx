@@ -6,11 +6,11 @@ import { createTicket, TICKET_STATUS_TONES, useMyTickets, type TicketRow } from 
 import { TicketThread } from "../components/TicketThread";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Alert, Breadcrumbs, Button, Card, EmptyState, ErrorState, Field,
-  Input, Loading, PageHeader, PageShell, Pill, Section, Select,
-  Table, tdStyle, Textarea, thStyle,
-  useToast,
+  Alert, Breadcrumbs, Button, Card, DataTable, Field,
+  Input, PageHeader, PageShell, Pill, Section, Select,
+  Textarea, useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./SupportTickets.module.css";
 import { formatDateTime } from "../lib/datetime";
@@ -22,7 +22,35 @@ const CATEGORIES = [
   { value: "feedback", label: "General feedback" },
 ];
 
-
+const COLUMNS: DataColumn<TicketRow>[] = [
+  {
+    key: "subject", header: "Subject",
+    render: (t) => (t.unread_count > 0 ? (
+      <span className={styles.unreadSubject}>
+        {t.subject}
+        <span
+          className={styles.unreadBadge}
+          title={`${t.unread_count} new ${t.unread_count === 1 ? "reply" : "replies"}`}
+        >
+          {t.unread_count}
+        </span>
+      </span>
+    ) : t.subject),
+  },
+  {
+    key: "category", header: "Category",
+    render: (t) => CATEGORIES.find((c) => c.value === t.category)?.label ?? t.category,
+  },
+  {
+    key: "status", header: "Status",
+    render: (t) => (
+      <Pill tone={TICKET_STATUS_TONES[t.status] ?? "neutral"}>
+        {t.status.replace("_", " ")}
+      </Pill>
+    ),
+  },
+  { key: "created", header: "Created", render: (t) => formatDateTime(t.created_at) },
+];
 
 export default function SupportTickets() {
   const identity = getCurrentIdentity();
@@ -33,7 +61,10 @@ export default function SupportTickets() {
 }
 
 function SupportTicketsInner() {
-  const tickets = useMyTickets();
+  const filters = useUrlFilterState({}, { pageSizeKey: "support-tickets" });
+  const tickets = useMyTickets({ page: filters.page, perPage: filters.perPage });
+  // The ticket whose conversation is open under its row.
+  const [openId, setOpenId] = useState<number | null>(null);
   const qc = useQueryClient();
   const toast = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -126,82 +157,35 @@ function SupportTicketsInner() {
         </Card>
       )}
 
-      {tickets.isLoading && <Loading />}
-      {tickets.isError && (
-        <ErrorState
-          message="Could not load tickets."
-          onRetry={() => { void tickets.refetch(); }}
-        />
-      )}
-
-      {tickets.data && tickets.data.tickets.length === 0 && !showForm && (
-        <EmptyState title="No tickets yet" body='Click "+ New ticket" to submit your first one.' />
-      )}
-
-      {tickets.data && tickets.data.tickets.length > 0 && (
+      {/* While the new-ticket form is open an empty list says nothing. */}
+      {!(showForm && tickets.data?.tickets.length === 0) && (
         <Card>
-          <div style={{ overflowX: "auto" }}>
-            <Table>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Subject</th>
-                  <th style={thStyle}>Category</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tickets.data.tickets.map((t) => (
-                  <TicketRowView key={t.id} ticket={t} />
-                ))}
-              </tbody>
-            </Table>
-          </div>
+          <DataTable
+            columns={COLUMNS}
+            rows={tickets.data?.tickets}
+            rowKey={(t) => t.id}
+            onRowClick={(t) => setOpenId((cur) => (cur === t.id ? null : t.id))}
+            rowLabel={(t) => `Open ticket ${t.subject}`}
+            expandedRow={(t) => (t.id === openId
+              ? <TicketThread ticket={t} viewerKind="user" />
+              : null)}
+            isLoading={tickets.isLoading}
+            isError={tickets.isError}
+            error={tickets.error}
+            errorMessage="Could not load tickets."
+            onRetry={() => { void tickets.refetch(); }}
+            emptyTitle="No tickets yet"
+            emptyBody='Click "+ New ticket" to submit your first one.'
+            page={tickets.data && {
+              page: tickets.data.page,
+              totalPages: tickets.data.total_pages,
+              total: tickets.data.total,
+              onPage: filters.setPage,
+              perPage: filters.perPage, onPerPage: filters.setPerPage,
+            }}
+          />
         </Card>
       )}
     </PageShell>
   );
 }
-
-function TicketRowView({ ticket: t }: { ticket: TicketRow }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <>
-      <tr
-        onClick={() => setExpanded((v) => !v)}
-        className={styles.clickableRow}
-      >
-        <td style={tdStyle}>
-          {t.unread_count > 0 ? (
-            <span className={styles.unreadSubject}>
-              {t.subject}
-              <span
-                className={styles.unreadBadge}
-                title={`${t.unread_count} new ${t.unread_count === 1 ? "reply" : "replies"}`}
-              >
-                {t.unread_count}
-              </span>
-            </span>
-          ) : (
-            t.subject
-          )}
-        </td>
-        <td style={tdStyle}>{CATEGORIES.find((c) => c.value === t.category)?.label ?? t.category}</td>
-        <td style={tdStyle}>
-          <Pill tone={TICKET_STATUS_TONES[t.status] ?? "neutral"}>
-            {t.status.replace("_", " ")}
-          </Pill>
-        </td>
-        <td style={tdStyle}>{formatDateTime(t.created_at)}</td>
-      </tr>
-      {expanded && (
-        <tr>
-          <td colSpan={4} className={styles.expandedBody}>
-            <TicketThread ticket={t} viewerKind="user" />
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-

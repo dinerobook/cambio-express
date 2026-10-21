@@ -255,3 +255,31 @@ def test_activity_pagination_caps_per_page_at_50(
     assert len(p2["rows"]) == 10
     assert p1["total"] == 60
     assert p1["total_pages"] == 2
+
+
+def test_activity_pages_past_the_old_500_cap(client, test_store_id, test_admin_id):
+    """Every row the person wrote is reachable, newest first, with
+    the page size they pick (1–200)."""
+    from datetime import timedelta
+    from api.Modules.Audit.Models import OperatorAuditLog
+    base = datetime.utcnow()
+    with db_session():
+        db.session.add_all([
+            OperatorAuditLog(
+                store_id=test_store_id, user_id=test_admin_id,
+                action="update", target_type="batch", target_id=str(i),
+                target_label="t", summary=f"mine {i}",
+                user_name="Test User", user_role="admin",
+                created_at=base - timedelta(minutes=i),
+            )
+            for i in range(540)
+        ])
+        db.session.commit()
+    token = login_admin(client, test_store_id)
+    h = {"Authorization": f"Bearer {token}"}
+    body = client.get("/api/v2/auth/activity?per_page=100&page=6", headers=h).get_json()
+    mine = [r for r in body["rows"] if r["summary"].startswith("mine ")]
+    assert body["total"] >= 540
+    assert body["per_page"] == 100
+    assert mine and mine[-1]["summary"] == "mine 539"
+    assert client.get("/api/v2/auth/activity?per_page=201", headers=h).status_code == 422

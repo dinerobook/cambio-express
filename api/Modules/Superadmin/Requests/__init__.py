@@ -68,10 +68,14 @@ class SuperadminStoreRow(BaseModel):
 
 
 class SuperadminStoreListResponse(BaseModel):
+    """Every store, or one page when the list is asked for a
+    ``page``; the envelope fields are filled either way."""
     model_config = ConfigDict(extra="forbid")
 
     rows: list[SuperadminStoreRow]
     total: int
+    page: int = 1
+    total_pages: int = 1
 
 
 class SuperadminAuditRow(BaseModel):

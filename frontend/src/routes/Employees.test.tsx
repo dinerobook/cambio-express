@@ -159,4 +159,34 @@ describe("Employees hub", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Ana")).toBeInTheDocument();
   });
+
+  it("sorts by name first and by any column header, kept in the URL", async () => {
+    mockFetch(routes());
+    renderRoute(<Employees />, { path: "/employees" });
+    await screen.findByText("Ana");
+    const names = () => screen.getAllByRole("row").slice(1, 4)
+      .map((r) => within(r).getAllByRole("cell")[0].textContent);
+    expect(names()).toEqual(["Ana", "Gus", "Olga Owner"]);
+    await userEvent.click(screen.getByRole("button", { name: /^Rate/ }));
+    expect(names()).toEqual(["Ana", "Olga Owner", "Gus"]);
+    await userEvent.click(screen.getByRole("button", { name: /^Name/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Name/ }));
+    expect(names()).toEqual(["Olga Owner", "Gus", "Ana"]);
+  });
+
+  it("pages a long roster with the shared pager", async () => {
+    localStorage.removeItem("db.page_size.employees");
+    const many = Array.from({ length: 60 }, (_, i) => ({
+      ...GONE, id: 100 + i, name: `Person ${String(i).padStart(2, "0")}`,
+    }));
+    mockFetch(routes({
+      "GET /api/v2/admin/employees": { body: { rows: many, login_only: [] } },
+    }));
+    renderRoute(<Employees />, { path: "/employees" });
+    expect(await screen.findByText("Showing 1–50 of 60")).toBeInTheDocument();
+    expect(screen.queryByText("Person 55")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect(screen.getByText("Person 55")).toBeInTheDocument();
+    expect(screen.getByText("Showing 51–60 of 60")).toBeInTheDocument();
+  });
 });

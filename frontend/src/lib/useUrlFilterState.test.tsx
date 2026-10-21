@@ -185,4 +185,94 @@ describe("useUrlFilterState", () => {
     });
     expect(result.current.params.q).toBe("a");
   });
+
+  describe("rows per page", () => {
+    beforeEach(() => window.localStorage.clear());
+
+    it("defaults to 50", () => {
+      const { result } = renderHook(
+        () => useUrlFilterState({ q: "" }, { pageSizeKey: "things" }),
+        { wrapper: wrapper("/") },
+      );
+      expect(result.current.perPage).toBe(50);
+    });
+
+    it("remembers the choice per list and returns to page 1", () => {
+      const { result } = renderHook(
+        () => useUrlFilterState({ q: "" }, { pageSizeKey: "things" }),
+        { wrapper: wrapper("/?page=4") },
+      );
+      act(() => result.current.setPerPage(100));
+      expect(result.current.perPage).toBe(100);
+      expect(result.current.page).toBe(1);
+      expect(window.localStorage.getItem("db.page_size.things")).toBe("100");
+
+      const other = renderHook(
+        () => useUrlFilterState({ q: "" }, { pageSizeKey: "others" }),
+        { wrapper: wrapper("/") },
+      );
+      expect(other.result.current.perPage).toBe(50);
+      const again = renderHook(
+        () => useUrlFilterState({ q: "" }, { pageSizeKey: "things" }),
+        { wrapper: wrapper("/") },
+      );
+      expect(again.result.current.perPage).toBe(100);
+    });
+
+    it("ignores a stored value that is not a choice", () => {
+      window.localStorage.setItem("db.page_size.things", "7");
+      const { result } = renderHook(
+        () => useUrlFilterState({ q: "" }, { pageSizeKey: "things" }),
+        { wrapper: wrapper("/") },
+      );
+      expect(result.current.perPage).toBe(50);
+    });
+
+    it("still works when browser storage is blocked", () => {
+      const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new Error("blocked");
+      });
+      const { result } = renderHook(
+        () => useUrlFilterState({ q: "" }, { pageSizeKey: "things" }),
+        { wrapper: wrapper("/") },
+      );
+      expect(result.current.perPage).toBe(50);
+      act(() => result.current.setPerPage(25));
+      expect(result.current.perPage).toBe(25);
+      get.mockRestore();
+      set.mockRestore();
+    });
+  });
+
+  describe("sort", () => {
+    it("is off unless a default sort is given", () => {
+      const { result } = renderHook(
+        () => useUrlFilterState({ q: "" }),
+        { wrapper: wrapper("/?sort=name") },
+      );
+      expect(result.current.sort).toBeUndefined();
+    });
+
+    it("reads the URL, falling back to the default", () => {
+      const { result } = renderHook(
+        () => useUrlFilterState({ q: "" }, { defaultSort: { key: "date", direction: "desc" } }),
+        { wrapper: wrapper("/?sort=name&dir=bogus") },
+      );
+      expect(result.current.sort).toMatchObject({ key: "name", direction: "desc" });
+    });
+
+    it("writes sort and direction together and returns to page 1", () => {
+      const { result } = renderHook(
+        () => useUrlFilterState({ q: "" }, { defaultSort: { key: "date", direction: "desc" } }),
+        { wrapper: wrapper("/?q=ab&page=3") },
+      );
+      act(() => result.current.sort!.onSort("amount", "asc"));
+      expect(result.current.sort).toMatchObject({ key: "amount", direction: "asc" });
+      expect(result.current.page).toBe(1);
+      expect(result.current.params.q).toBe("ab");
+    });
+  });
 });

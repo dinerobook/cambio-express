@@ -21,7 +21,7 @@ vi.mock("../api/batches", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/batches")>();
   return {
     ...real,
-    useBatches: (s: string, d: string) => useBatches(s, d),
+    useBatches: (o: unknown) => useBatches(o),
   };
 });
 
@@ -79,7 +79,8 @@ describe("Batches list", () => {
   beforeEach(() => {
     useBatches.mockReset();
     useBatches.mockReturnValue({
-      data: { rows }, isLoading: false, isError: false, refetch: vi.fn(),
+      data: { rows, total: 3, page: 1, total_pages: 1 },
+      isLoading: false, isError: false, refetch: vi.fn(),
     });
   });
 
@@ -149,14 +150,42 @@ describe("Batches list", () => {
 
   it("sorts through the header buttons and the URL, toggling direction", async () => {
     renderPage();
-    expect(useBatches).toHaveBeenLastCalledWith("", "desc");
-    await userEvent.click(screen.getByRole("button", { name: "ACH amount" }));
-    expect(useBatches).toHaveBeenLastCalledWith("ach_amount", "asc");
-    expect(screen.getByTestId("loc")).toHaveTextContent("?sort=ach_amount&dir=asc");
+    expect(useBatches).toHaveBeenLastCalledWith(
+      { sort: "ach_date", direction: "desc", page: 1, perPage: 50 });
+    // Money starts largest first, then flips.
     await userEvent.click(screen.getByRole("button", { name: /^ACH amount/ }));
-    expect(useBatches).toHaveBeenLastCalledWith("ach_amount", "desc");
+    expect(useBatches).toHaveBeenLastCalledWith(
+      { sort: "ach_amount", direction: "desc", page: 1, perPage: 50 });
+    expect(screen.getByTestId("loc")).toHaveTextContent("?sort=ach_amount&dir=desc");
+    await userEvent.click(screen.getByRole("button", { name: /^ACH amount/ }));
+    expect(useBatches).toHaveBeenLastCalledWith(
+      { sort: "ach_amount", direction: "asc", page: 1, perPage: 50 });
     expect(screen.getByRole("columnheader", { name: /ACH amount/ }))
-      .toHaveAttribute("aria-sort", "descending");
+      .toHaveAttribute("aria-sort", "ascending");
+    // Text columns start A→Z.
+    await userEvent.click(screen.getByRole("button", { name: /^Company/ }));
+    expect(useBatches).toHaveBeenLastCalledWith(
+      { sort: "company", direction: "asc", page: 1, perPage: 50 });
+  });
+
+  it("pages through batches and keeps the page in the URL", async () => {
+    useBatches.mockReturnValue({
+      data: { rows, total: 120, page: 1, total_pages: 3 },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage("/batches?page=1");
+    expect(screen.getByText("Showing 1–3 of 120")).toBeInTheDocument();
+    expect(screen.getByText("120 batches")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect(screen.getByTestId("loc")).toHaveTextContent("page=2");
+    expect(useBatches.mock.lastCall![0]).toMatchObject({ page: 2 });
+  });
+
+  it("opens a batch from the keyboard", async () => {
+    renderPage();
+    screen.getByLabelText("Open batch REF-1").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByTestId("loc")).toHaveTextContent("/batches/1/edit");
   });
 
   it("opens the batch's edit page when its row is clicked", async () => {

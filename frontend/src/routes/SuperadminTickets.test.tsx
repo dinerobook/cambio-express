@@ -58,6 +58,7 @@ function lastFilters() {
 }
 
 beforeEach(() => {
+  localStorage.removeItem("db.page_size.superadmin-tickets");
   window.localStorage.setItem("db.identity", JSON.stringify({
     user_id: 1, username: "superadmin", full_name: "Platform Admin",
     role: "superadmin", store_id: null, permissions: [],
@@ -112,6 +113,15 @@ describe("<SuperadminTickets> filters", () => {
     renderAt();
     await userEvent.click(screen.getByRole("button", { name: /next/i }));
     await waitFor(() => expect(lastFilters().page).toBe(2));
+  });
+
+  it("shows how many tickets there are and offers rows per page", async () => {
+    renderAt("/superadmin/tickets?page=2");
+    expect(screen.getByText(/of 120$/)).toBeInTheDocument();
+    expect(lastFilters()).toMatchObject({ perPage: 50 });
+    await userEvent.selectOptions(screen.getByLabelText("Rows per page"), "25");
+    await waitFor(() => expect(lastFilters()).toMatchObject({ perPage: 25, page: 1 }));
+    expect(localStorage.getItem("db.page_size.superadmin-tickets")).toBe("25");
   });
 
   it("filters restore from the URL", () => {

@@ -85,7 +85,53 @@ describe("Transfers list", () => {
     const ana = screen.getByText("Ana Ruiz").closest("tr")!;
     expect(ana).toHaveTextContent("$53.50");
     expect(within(ana).getAllByText("—").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("2 total · page 1 of 1")).toBeInTheDocument();
+    expect(screen.getByText("2 transfers")).toBeInTheDocument();
+    expect(screen.getByText("Showing 1–2 of 2")).toBeInTheDocument();
+  });
+
+  it("opens a transfer from the keyboard too", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    screen.getByRole("button", { name: "Open transfer from Maria Lopez" }).focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText("detail page")).toBeInTheDocument();
+  });
+
+  it("sorts newest first by default and by a clicked column", async () => {
+    const user = userEvent.setup();
+    renderPage("/transfers?page=2");
+    expect(lastArgs()).toMatchObject({ sort: "date", dir: "desc" });
+    await user.click(screen.getByRole("button", { name: /Sender/ }));
+    await waitFor(() => expect(lastArgs()).toMatchObject({ sort: "sender", dir: "asc" }));
+    expect(screen.getByTestId("search").textContent).not.toContain("page=2");
+    await user.click(screen.getByRole("button", { name: /Sender/ }));
+    await waitFor(() => expect(lastArgs()).toMatchObject({ sort: "sender", dir: "desc" }));
+    // Money starts largest first.
+    await user.click(screen.getByRole("button", { name: /Total/ }));
+    await waitFor(() => expect(lastArgs()).toMatchObject({ sort: "total", dir: "desc" }));
+  });
+
+  it("changes rows per page and asks the API for that many", async () => {
+    window.localStorage.removeItem("db.page_size.transfers");
+    useTransfers.mockReturnValue(result({
+      data: { rows, total: 120, page: 1, per_page: 50, total_pages: 3, page_amount: 0 },
+    }));
+    renderPage();
+    expect(lastArgs().perPage).toBe(50);
+    await userEvent.setup().selectOptions(screen.getByLabelText("Rows per page"), "100");
+    await waitFor(() => expect(lastArgs().perPage).toBe(100));
+    window.localStorage.removeItem("db.page_size.transfers");
+  });
+
+  it("pages through the list and keeps the page in the URL", async () => {
+    useTransfers.mockReturnValue(result({
+      data: { rows, total: 52, page: 1, per_page: 50, total_pages: 2, page_amount: 0 },
+    }));
+    renderPage();
+    expect(screen.getByText("Showing 1–2 of 52")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: /Next/ }));
+    await waitFor(() =>
+      expect(screen.getByTestId("search").textContent).toContain("page=2"));
   });
 
   it("opens a transfer when its row is clicked", async () => {

@@ -16,25 +16,23 @@ import { roleTone } from "../api/roles";
 import { apiErrorMessage } from "../lib/api";
 import { startImpersonation } from "../lib/impersonation";
 import { formatDate } from "../lib/datetime";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
   Alert,
   Breadcrumbs,
   Button,
   Card,
   ConfirmDialog,
+  DataTable,
   Field,
   Input,
-  Pager,
   PageHeader,
   PageShell,
   Pill,
   RowActions,
   Select,
-  Table,
-  TableStates,
-  tdStyle,
-  thStyle,
   useToast,
+  type DataColumn,
 } from "../components/ui";
 import styles from "./SuperadminUsers.module.css";
 
@@ -53,10 +51,16 @@ const ROLES = [
 export default function SuperadminUsers() {
   const qc = useQueryClient();
   const toast = useToast();
-  const [q, setQ] = useState("");
-  const [role, setRole] = useState("");
-  const [storeFilter, setStoreFilter] = useState<number | undefined>();
-  const [page, setPage] = useState(1);
+  // Filters and page live in the URL (shareable, back/forward
+  // restore them); the search box applies as you type (300ms
+  // debounce, 2-char minimum), the selects at once.
+  const filters = useUrlFilterState(
+    { q: "", role: "", store_id: "" },
+    { pageSizeKey: "superadmin-users" },
+  );
+  const q = filters.params.q.trim();
+  const role = filters.params.role;
+  const storeFilter = filters.params.store_id ? Number(filters.params.store_id) : undefined;
   const stores = useSuperadminStores();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +77,10 @@ export default function SuperadminUsers() {
   const [newRole, setNewRole] = useState("");
 
   const { data, isLoading, isError, error: fetchError, refetch } =
-    useSuperadminUsers({ q: q || undefined, role: role || undefined, store_id: storeFilter, page });
+    useSuperadminUsers({
+      q: q.length >= 2 ? q : undefined, role: role || undefined,
+      store_id: storeFilter, page: filters.page, perPage: filters.perPage,
+    });
 
   function refresh() {
     qc.invalidateQueries({ queryKey: ["superadmin", "users"] });
@@ -146,25 +153,25 @@ export default function SuperadminUsers() {
           <div className={styles.filterRow}>
             <Input
               type="search"
-              value={q}
+              value={filters.draft.q ?? filters.params.q}
               placeholder="Search name, email, username…"
-              onChange={(e) => { setQ(e.target.value); setPage(1); }}
+              aria-label="Search users"
+              onChange={(e) => filters.debounced("q", e.target.value)}
               className={styles.searchInput}
             />
             <Select
               value={role}
-              onChange={(e) => { setRole(e.target.value); setPage(1); }}
+              aria-label="Role"
+              onChange={(e) => filters.setParam("role", e.target.value)}
             >
               {ROLES.map((r) => (
                 <option key={r.value} value={r.value}>{r.label}</option>
               ))}
             </Select>
             <Select
-              value={storeFilter ?? ""}
-              onChange={(e) => {
-                setStoreFilter(e.target.value ? Number(e.target.value) : undefined);
-                setPage(1);
-              }}
+              value={filters.params.store_id}
+              aria-label="Store"
+              onChange={(e) => filters.setParam("store_id", e.target.value)}
             >
               <option value="">All stores</option>
               {(stores.data?.rows ?? []).map((s) => (
@@ -205,53 +212,28 @@ export default function SuperadminUsers() {
       )}
 
       <Card>
-        <TableStates
+        <DataTable
+          columns={userColumns({
+            busyId,
+            onAction: (u, action) =>
+              setConfirmAction({ userId: u.id, username: u.username, action }),
+            onChangeRole: (u) => {
+              setRoleChange({ userId: u.id, username: u.username, currentRole: u.role });
+              setNewRole("");
+            },
+          })}
+          rows={data?.rows}
+          rowKey={(u) => u.id}
           isLoading={isLoading} isError={isError} error={fetchError}
-          isEmpty={!data || data.rows.length === 0}
           onRetry={() => { void refetch(); }}
           emptyTitle="No users match these filters."
-          rows={8} cols={6}
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
         />
-        {data && data.rows.length > 0 && (
-          <Table>
-            <thead>
-              <tr>
-                <th style={thStyle}>User</th>
-                <th style={thStyle}>Role</th>
-                <th style={thStyle}>Store</th>
-                <th style={thStyle}>Status</th>
-                <th style={thStyle}>2FA</th>
-                <th style={thStyle}>Last login</th>
-                <th style={{ ...thStyle, textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((u) => (
-                <UserRow
-                  key={u.id}
-                  user={u}
-                  busyId={busyId}
-                  onAction={(action) =>
-                    setConfirmAction({ userId: u.id, username: u.username, action })
-                  }
-                  onChangeRole={() => {
-                    setRoleChange({ userId: u.id, username: u.username, currentRole: u.role });
-                    setNewRole("");
-                  }}
-                />
-              ))}
-            </tbody>
-          </Table>
-        )}
       </Card>
-
-      {data && data.total_pages > 1 && (
-        <Pager
-          page={data.page}
-          totalPages={data.total_pages}
-          onPage={setPage}
-        />
-      )}
 
       <ConfirmDialog
         open={confirmAction != null}
@@ -324,99 +306,98 @@ export default function SuperadminUsers() {
 }
 
 
-function UserRow({
-  user: u,
-  busyId,
-  onAction,
-  onChangeRole,
-}: {
-  user: SuperadminUserRow;
+function userColumns({ busyId, onAction, onChangeRole }: {
   busyId: number | null;
-  onAction: (action: UserAction) => void;
-  onChangeRole: () => void;
-}) {
-  const isSuperadmin = u.role === "superadmin";
-  return (
-    <tr>
-      <td style={tdStyle}>
-        <div className={styles.userName}>{u.full_name || u.username}</div>
-        <div className={styles.userMeta}>
-          {u.username}
-          {u.email ? ` · ${u.email}` : ""}
+  onAction: (user: SuperadminUserRow, action: UserAction) => void;
+  onChangeRole: (user: SuperadminUserRow) => void;
+}): DataColumn<SuperadminUserRow>[] {
+  return [
+    {
+      key: "user", header: "User",
+      render: (u) => (
+        <div>
+          <div className={styles.userName}>{u.full_name || u.username}</div>
+          <div className={styles.userMeta}>
+            {u.username}
+            {u.email ? ` · ${u.email}` : ""}
+          </div>
         </div>
-      </td>
-      <td style={tdStyle}>
-        <RolePill role={u.role} />
-      </td>
-      <td style={tdStyle}>
-        {u.store_name ? (
-          <span>{u.store_name}</span>
-        ) : (
-          <span className={styles.monoMuted}>—</span>
-        )}
-      </td>
-      <td style={tdStyle}>
+      ),
+    },
+    { key: "role", header: "Role", render: (u) => <RolePill role={u.role} /> },
+    {
+      key: "store", header: "Store",
+      render: (u) => (u.store_name
+        ? <span>{u.store_name}</span>
+        : <span className={styles.monoMuted}>—</span>),
+    },
+    {
+      key: "status", header: "Status",
+      render: (u) => (
         <Pill tone={u.is_active ? "accent" : "neutral"}>
           {u.is_active ? "Active" : "Inactive"}
         </Pill>
-      </td>
-      <td style={tdStyle}>
-        {u.has_2fa ? (
-          <Pill tone="success">Enrolled</Pill>
-        ) : (
-          <span className={styles.monoMuted}>—</span>
-        )}
-      </td>
-      <td style={tdStyle}>
+      ),
+    },
+    {
+      key: "2fa", header: "2FA",
+      render: (u) => (u.has_2fa
+        ? <Pill tone="success">Enrolled</Pill>
+        : <span className={styles.monoMuted}>—</span>),
+    },
+    {
+      key: "last", header: "Last login",
+      render: (u) => (
         <span className={styles.monoMuted}>
           {u.last_login_at ? formatDate(u.last_login_at) : "Never"}
         </span>
-      </td>
-      <td style={{ ...tdStyle, textAlign: "right" }}>
-        {!isSuperadmin && (
-          <RowActions
-            actions={[
-              {
-                label: "Change role",
-                onClick: onChangeRole,
-                disabled: busyId === u.id,
-              },
-              {
-                label: u.is_active ? "Disable" : "Enable",
-                onClick: () => onAction("toggle"),
-                disabled: busyId === u.id,
-              },
-              {
-                label: "Reset password",
-                onClick: () => onAction("resetpw"),
-                disabled: busyId === u.id,
-              },
-              ...(u.has_2fa ? [{
-                label: "Reset 2FA",
-                onClick: () => onAction("reset2fa"),
-                disabled: busyId === u.id,
-              }] : []),
-              {
-                label: "View as (read-only)",
-                onClick: () => onAction("view"),
-                disabled: busyId === u.id,
-              },
-              {
-                label: "Impersonate",
-                onClick: () => onAction("impersonate"),
-                disabled: busyId === u.id,
-              },
-              {
-                label: "Revoke sessions",
-                onClick: () => onAction("revokesessions"),
-                disabled: busyId === u.id,
-              },
-            ]}
-          />
-        )}
-      </td>
-    </tr>
-  );
+      ),
+    },
+    {
+      key: "actions", header: "Actions", label: "", align: "right",
+      render: (u) => (u.role === "superadmin" ? null : (
+        <RowActions
+          actions={[
+            {
+              label: "Change role",
+              onClick: () => onChangeRole(u),
+              disabled: busyId === u.id,
+            },
+            {
+              label: u.is_active ? "Disable" : "Enable",
+              onClick: () => onAction(u, "toggle"),
+              disabled: busyId === u.id,
+            },
+            {
+              label: "Reset password",
+              onClick: () => onAction(u, "resetpw"),
+              disabled: busyId === u.id,
+            },
+            ...(u.has_2fa ? [{
+              label: "Reset 2FA",
+              onClick: () => onAction(u, "reset2fa"),
+              disabled: busyId === u.id,
+            }] : []),
+            {
+              label: "View as (read-only)",
+              onClick: () => onAction(u, "view"),
+              disabled: busyId === u.id,
+            },
+            {
+              label: "Impersonate",
+              onClick: () => onAction(u, "impersonate"),
+              disabled: busyId === u.id,
+            },
+            {
+              label: "Revoke sessions",
+              onClick: () => onAction(u, "revokesessions"),
+              disabled: busyId === u.id,
+            },
+          ]}
+        />
+      )),
+    },
+  ];
 }
 
 
