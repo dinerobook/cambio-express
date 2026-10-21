@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import StoreBookDay from "./StoreBookDay";
+import styles from "./StoreBookDay.module.css";
 import { ToastProvider } from "../components/ui";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
@@ -105,5 +106,36 @@ describe("Store daily book lock button", () => {
     useStoreBookDay.mockReturnValue(LOCKED);
     renderPage();
     expect(screen.queryByRole("button", { name: "Unlock" })).not.toBeInTheDocument();
+  });
+});
+
+// The header's actions sit flush right, so the day stepper's place is
+// set by the lock button after it. "Lock day" and "Unlock" differ in
+// width; the button keeps one width for both so locking or unlocking
+// never slides the arrows sideways.
+describe("Store daily book day stepper position", () => {
+  it("gives Lock day and Unlock the same fixed width", () => {
+    useStoreBookDay.mockReturnValue(OPEN);
+    const { unmount } = renderPage();
+    const lock = screen.getByRole("button", { name: "Lock day" });
+    expect(lock).toHaveClass(styles.lockBtn);
+    expect(getComputedStyle(lock).minWidth).toBe("6.5rem");
+    unmount();
+
+    useStoreBookDay.mockReturnValue(LOCKED);
+    renderPage();
+    const unlock = screen.getByRole("button", { name: "Unlock" });
+    expect(unlock).toHaveClass(styles.lockBtn);
+    expect(getComputedStyle(unlock).minWidth).toBe("6.5rem");
+  });
+
+  it("keeps the stepper before the lock button", () => {
+    useStoreBookDay.mockReturnValue(LOCKED);
+    renderPage();
+    const stepper = screen.getByRole("button", { name: "Previous day" }).parentElement!;
+    const unlock = screen.getByRole("button", { name: "Unlock" });
+    expect(stepper.parentElement).toHaveClass(styles.dayNav);
+    expect(stepper.compareDocumentPosition(unlock) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
   });
 });
