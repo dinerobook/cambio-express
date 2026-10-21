@@ -402,6 +402,18 @@ impact ÷ effort. Numbers are an estimate.
 > Render dashboard or vendor-portal actions. Owner of each ops
 > item lives in [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 
+- [ ] **Bank matching switched on** (ops, not urgent — owner
+      2026-10-21) — PR #980 shipped "Bank matched to daily book"
+      behind the per-store flag `bank_matching` (off). Turn it on
+      for the owner's store first on Platform → Feature flags, check
+      the Bank page's Daily book column and "Match now", then other
+      stores. See BankSync `INVARIANTS.md` → "Matching".
+- [ ] **Stripe bank webhook event** (ops, not urgent — owner
+      2026-10-21) — add `financial_connections.account.refreshed_transactions`
+      to the Stripe webhook endpoint so new bank transactions sync
+      on their own. Until then, bank rows only arrive through the
+      Sync button (there is no scheduled bank sync; a daily cron
+      was left out on purpose).
 - [ ] **SMTP configured** (ops) — set `SMTP_HOST` / `SMTP_USER` /
       `SMTP_PASS` (optionally `SMTP_PORT` / `SMTP_FROM`) on Render
       → Environment so `/forgot-password` actually emails. Gmail +
