@@ -11,12 +11,12 @@ import { fmtMoney2 } from "../lib/formatters";
 import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Breadcrumbs, ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState, Field,
-  InfoTip, Input, Loading, PageHeader, PageShell, Pager, Pill,
-  RowActions, Section, Select, Table, tdStyle, thStyle, useToast,
+  Breadcrumbs, ButtonLink, Card, ConfirmDialog, DataTable, Field,
+  InfoTip, Input, PageHeader, PageShell, Pill,
+  RowActions, Section, Select, useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./PurchaseInvoices.module.css";
-import { todayIso } from "../lib/datetime";
+import { formatDate, todayIso } from "../lib/datetime";
 
 // /app/purchase-invoices — vendor invoice log (P3-2). Key each
 // paper invoice, optionally line-by-line with price-book links so
@@ -27,12 +27,18 @@ export default function PurchaseInvoices() {
   const canManage = hasPermission("catalog", "update");
   // 300ms debounce + 2-char minimum via the shared URL-filter hook
   // (CLAUDE.md "Table search UX").
-  const filters = useUrlFilterState({ q: "", vendor_id: "", status: "" });
+  const filters = useUrlFilterState({ q: "", vendor_id: "", status: "" }, {
+    pageSizeKey: "purchase-invoices",
+    defaultSort: { key: "date", direction: "desc" },
+  });
   const invoices = useInvoices({
     q: filters.params.q,
     page: filters.page,
     vendorId: filters.params.vendor_id,
     status: filters.params.status,
+    sort: filters.sort?.key,
+    dir: filters.sort?.direction,
+    perPage: filters.perPage,
   });
   const vendors = useVendors();
   const qc = useQueryClient();
@@ -82,6 +88,61 @@ export default function PurchaseInvoices() {
   }
 
   const data = invoices.data;
+  const columns: DataColumn<InvoiceRow>[] = [
+    {
+      key: "number", header: "Invoice #", sortKey: "number",
+      render: (inv) => <span className={styles.mono}>{inv.invoice_number}</span>,
+    },
+    { key: "vendor", header: "Vendor", render: (inv) => inv.vendor_name },
+    {
+      key: "date", header: "Date", sortKey: "date", sortFirst: "desc",
+      render: (inv) => formatDate(inv.invoice_date),
+    },
+    {
+      key: "due", header: "Due", sortKey: "due", sortFirst: "desc",
+      render: (inv) => (inv.due_date ? formatDate(inv.due_date) : "—"),
+    },
+    {
+      key: "total", header: "Total", align: "right", sortKey: "total", sortFirst: "desc",
+      render: (inv) => <span className={styles.mono}>{fmtMoney2(inv.total)}</span>,
+    },
+    { key: "lines", header: "Lines", align: "right", render: (inv) => inv.line_count },
+    {
+      key: "status", header: "Status", sortKey: "status",
+      render: (inv) => (
+        <Pill tone={inv.status === "paid" ? "success" : "warning"}>
+          {inv.status === "paid"
+            ? `paid ${inv.paid_on ? formatDate(inv.paid_on) : ""}`.trim()
+            : "open"}
+        </Pill>
+      ),
+    },
+    ...(canManage ? [{
+      key: "actions", header: "", label: "", align: "right" as const,
+      render: (inv: InvoiceRow) => (
+        <RowActions
+          title={inv.invoice_number}
+          actions={[
+            {
+              label: "Edit",
+              tone: "primary",
+              onClick: () => navigate(`/purchase-invoices/${inv.id}`),
+            },
+            {
+              label: inv.status === "paid" ? "Reopen" : "Mark paid",
+              tone: "primary",
+              onClick: () => togglePaid(inv),
+            },
+            {
+              label: "Delete",
+              tone: "warning",
+              onClick: () => setPendingRemove(inv),
+            },
+          ]}
+        />
+      ),
+    }] : []),
+  ];
   return (
     <PageShell maxWidth="72rem">
       <Breadcrumbs crumbs={[{ label: "Purchases" }]} />
@@ -135,106 +196,37 @@ export default function PurchaseInvoices() {
             </Select>
           </Field>
         </div>
-        {invoices.isLoading && <Loading />}
-        {invoices.isError && (
-          <ErrorState
-            message="Could not load invoices."
+        <Card>
+          <DataTable
+            columns={columns}
+            rows={data?.rows}
+            rowKey={(inv) => inv.id}
+            onRowClick={canManage ? (inv) => navigate(`/purchase-invoices/${inv.id}`) : undefined}
+            rowLabel={(inv) => `Open invoice ${inv.invoice_number}`}
+            isLoading={invoices.isLoading}
+            isError={invoices.isError}
+            error={invoices.error}
+            errorMessage="Could not load invoices."
             onRetry={() => { void invoices.refetch(); }}
-          />
-        )}
-        {data && data.rows.length === 0 && (
-          <EmptyState
-            title={
+            emptyTitle={
               filters.params.q || filters.params.vendor_id
               || filters.params.status
                 ? "No invoices match"
                 : "No invoices yet"
             }
-            body={
+            emptyBody={
               canManage
                 ? 'Key your first vendor invoice with "+ Add invoice".'
                 : "No invoices on file."
             }
+            sort={filters.sort}
+            page={data && {
+              page: data.page, totalPages: data.total_pages, total: data.total,
+              onPage: filters.setPage,
+              perPage: filters.perPage, onPerPage: filters.setPerPage,
+            }}
           />
-        )}
-        {data && data.rows.length > 0 && (
-          <>
-            <Card>
-              <div style={{ overflowX: "auto" }}>
-                <Table>
-                  <thead>
-                    <tr>
-                      {["Invoice #", "Vendor", "Date", "Due", "Total",
-                        "Lines", "Status",
-                        ...(canManage ? ["Actions"] : [])].map((h) => (
-                        <th key={h} style={thStyle}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.rows.map((inv) => (
-                      <tr key={inv.id}>
-                        <td style={tdStyle}>
-                          <span className={styles.mono}>
-                            {inv.invoice_number}
-                          </span>
-                        </td>
-                        <td style={tdStyle}>{inv.vendor_name}</td>
-                        <td style={tdStyle}>{inv.invoice_date}</td>
-                        <td style={tdStyle}>{inv.due_date ?? "—"}</td>
-                        <td style={tdStyle}>{fmtMoney2(inv.total)}</td>
-                        <td style={tdStyle}>{inv.line_count}</td>
-                        <td style={tdStyle}>
-                          <Pill
-                            tone={inv.status === "paid"
-                              ? "success" : "warning"}
-                          >
-                            {inv.status === "paid"
-                              ? `paid ${inv.paid_on ?? ""}`.trim()
-                              : "open"}
-                          </Pill>
-                        </td>
-                        {canManage && (
-                          <td style={tdStyle}>
-                            <RowActions
-                              title={inv.invoice_number}
-                              actions={[
-                                {
-                                  label: "Edit",
-                                  tone: "primary",
-                                  onClick: () =>
-                                    navigate(`/purchase-invoices/${inv.id}`),
-                                },
-                                {
-                                  label: inv.status === "paid"
-                                    ? "Reopen" : "Mark paid",
-                                  tone: "primary",
-                                  onClick: () => togglePaid(inv),
-                                },
-                                {
-                                  label: "Delete",
-                                  tone: "warning",
-                                  onClick: () => setPendingRemove(inv),
-                                },
-                              ]}
-                            />
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
-            </Card>
-            {data.total_pages > 1 && (
-              <Pager
-                page={data.page}
-                totalPages={data.total_pages}
-                onPage={filters.setPage}
-              />
-            )}
-          </>
-        )}
+        </Card>
       </Section>
 
       <ConfirmDialog

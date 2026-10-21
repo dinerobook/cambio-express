@@ -328,3 +328,29 @@ def test_get_by_id_returns_none_outside_scope(test_store_id):
         tid = _seed_transfer(sid2, send_amount=100.0)
         t = get_by_id_in_stores(db.session, tid, [test_store_id])
     assert t is None
+
+
+def test_list_sorts_by_total_collected(test_store_id):
+    """The list's Total column sorts on send + fee + federal tax, so
+    a big fee can outrank a slightly bigger send."""
+    from tests._app import db
+    from api.Modules.Transfers.Repositories import (
+        TransferFilters, list_with_filters,
+    )
+    with db_session():
+        _seed_transfer(test_store_id, send_amount=100.0, fee=50.0,
+                       federal_tax=1.0, confirm_number="X-151")
+        _seed_transfer(test_store_id, send_amount=120.0, fee=2.0,
+                       federal_tax=1.2, confirm_number="X-123")
+        _seed_transfer(test_store_id, send_amount=10.0, fee=0.0,
+                       federal_tax=0.0, confirm_number="X-10")
+        rows, _ = list_with_filters(
+            db.session, [test_store_id],
+            TransferFilters(sort_slug="total", sort_dir="desc"),
+        )
+        asc, _ = list_with_filters(
+            db.session, [test_store_id],
+            TransferFilters(sort_slug="total", sort_dir="asc"),
+        )
+    assert [r.confirm_number for r in rows] == ["X-151", "X-123", "X-10"]
+    assert [r.confirm_number for r in asc] == ["X-10", "X-123", "X-151"]

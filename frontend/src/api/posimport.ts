@@ -120,15 +120,17 @@ export type ItemMovement =
   components["schemas"]["ItemMovementResponse"];
 
 export function useItemMovement(params: {
-  start: string; end: string; q: string; page: number;
+  start: string; end: string; q: string; page: number; perPage?: number;
 }) {
   return useQuery<ItemMovement>({
     enabled: Boolean(params.start && params.end),
     queryKey: ["posimport", "item-movement", params],
+    placeholderData: (prev) => prev,
     queryFn: () => {
       const p = new URLSearchParams({
         start: params.start, end: params.end,
         page: String(params.page),
+        per_page: String(params.perPage ?? 50),
       });
       if (params.q) p.set("q", params.q);
       return api<ItemMovement>(
@@ -161,11 +163,13 @@ export function useTransactions(params: {
   registerId?: string;
   voidedOnly?: boolean;
   page?: number;
+  perPage?: number;
 }) {
   const qs = new URLSearchParams({
     start: params.start,
     end: params.end,
     page: String(params.page ?? 1),
+    per_page: String(params.perPage ?? 50),
   });
   if (params.q) qs.set("q", params.q);
   if (params.kind) qs.set("kind", params.kind);
@@ -178,6 +182,7 @@ export function useTransactions(params: {
     queryFn: () => api<PosTransactionListResponse>(
       `/api/v2/posimport/transactions?${qs.toString()}`,
     ),
+    placeholderData: (prev) => prev,
   });
 }
 

@@ -89,6 +89,9 @@ export interface BankTransactionFilters {
   sign?: "" | "credit" | "debit";
   q?: string;
   uncategorized_only?: boolean;
+  /** posted | description | category | amount; default newest first. */
+  sort?: string;
+  dir?: "asc" | "desc";
   page?: number;
   per_page?: number;
 }
@@ -131,6 +134,8 @@ export function useBankTransactions(filters: BankTransactionFilters) {
       if (filters.sign)               p.set("sign",          filters.sign);
       if (filters.q)                  p.set("q",             filters.q);
       if (filters.uncategorized_only) p.set("uncategorized_only", "true");
+      if (filters.sort)               p.set("sort",     filters.sort);
+      if (filters.dir)                p.set("dir",      filters.dir);
       if (filters.page)               p.set("page",     String(filters.page));
       if (filters.per_page)           p.set("per_page", String(filters.per_page));
       const qs = p.toString();

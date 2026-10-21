@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams, paginate, pagination_dep
+from api.Core.Sorting import SORT_DIR_PATTERN
 from api.Modules.Audit.Services import record_superadmin_action
 from api.Modules.Auth.Controllers import (
     clear_access_token_cookie, get_principal, set_access_token_cookie,
@@ -1096,6 +1097,7 @@ def store_audit_log_route(
     target: str = Query("", max_length=40),
     action: str = Query("", max_length=40),
     page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> dict[str, Any]:
@@ -1112,7 +1114,7 @@ def store_audit_log_route(
     payload = list_audit_rows(
         db, store_id=store_id,
         target_filter=target.strip(), action_filter=action.strip(),
-        page=page,
+        page=page, per_page=per_page,
     )
     return {
         "rows": payload["rows"],
@@ -1287,32 +1289,49 @@ def system_health_route(
 
 @router.get("/stores", response_model=SuperadminStoreListResponse)
 def list_stores_route(
+    q: str = Query("", max_length=200, description="Search name, slug or email."),
+    sort: str = Query("", description="name, plan, status or created; empty = newest first."),
+    dir: str = Query("desc", pattern=SORT_DIR_PATTERN),
+    page: int | None = Query(
+        None, ge=1,
+        description="1-based page. Omit for every store (pickers use this).",
+    ),
+    per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> SuperadminStoreListResponse:
     _require_superadmin(claims)
-    from api.Modules.Superadmin.Repositories import list_all_stores_newest_first
-    stores = list_all_stores_newest_first(db)
-    rows = [
-        SuperadminStoreRow(
-            store_id=s.id,
-            name=s.name or "",
-            slug=s.slug or "",
-            email=s.email or "",
-            phone=s.phone or "",
-            plan=s.plan or "trial",
-            billing_cycle=s.billing_cycle or "",
-            is_active=bool(s.is_active),
-            created_at=_iso(s.created_at),
-            trial_ends_at=_iso(s.trial_ends_at),
-            grace_ends_at=_iso(s.grace_ends_at),
-            data_retention_until=_iso(s.data_retention_until),
-            stripe_customer_id=s.stripe_customer_id or "",
-            stripe_subscription_id=s.stripe_subscription_id or "",
-        )
-        for s in stores
-    ]
-    return SuperadminStoreListResponse(rows=rows, total=len(rows))
+    from api.Modules.Superadmin.Repositories import stores_query
+    query = stores_query(db, q=q, sort=sort, direction=dir)
+    if page is None:
+        rows = [_store_row(s) for s in query.all()]
+        return SuperadminStoreListResponse(rows=rows, total=len(rows))
+    payload = paginate(
+        query, PaginationParams(page=page, per_page=per_page), adapter=_store_row,
+    )
+    return SuperadminStoreListResponse(
+        rows=payload["rows"], total=payload["total"],
+        page=payload["page"], total_pages=payload["total_pages"],
+    )
+
+
+def _store_row(s: Any) -> SuperadminStoreRow:
+    return SuperadminStoreRow(
+        store_id=s.id,
+        name=s.name or "",
+        slug=s.slug or "",
+        email=s.email or "",
+        phone=s.phone or "",
+        plan=s.plan or "trial",
+        billing_cycle=s.billing_cycle or "",
+        is_active=bool(s.is_active),
+        created_at=_iso(s.created_at),
+        trial_ends_at=_iso(s.trial_ends_at),
+        grace_ends_at=_iso(s.grace_ends_at),
+        data_retention_until=_iso(s.data_retention_until),
+        stripe_customer_id=s.stripe_customer_id or "",
+        stripe_subscription_id=s.stripe_subscription_id or "",
+    )
 
 
 @router.get("/stores/{store_id}", response_model=SuperadminStoreDetailResponse)

@@ -20,6 +20,8 @@ Pure read; no commits.
 from sqlalchemy.orm import Session
 from typing import Any
 
+from api.Core.Pagination import PaginationParams, paginate_merged
+
 PER_PAGE = 50
 
 
@@ -28,8 +30,10 @@ def list_my_activity(
     target_filter: str = "",
     action_filter: str = "",
     page: int = 1,
+    per_page: int = PER_PAGE,
 ) -> dict[str, Any]:
-    """Return a page of audit rows authored by `user_id`."""
+    """Return a page of audit rows authored by `user_id`, paged over
+    every row of both feeds (``paginate_merged``, no 500 cap)."""
     from api.Modules.Audit.Models import OperatorAuditLog, TransferAudit
     from api.Modules.Tenancy.Models import Store
 
@@ -46,12 +50,15 @@ def list_my_activity(
         op_q = op_q.filter_by(action=action_filter)
         tx_q = tx_q.filter_by(action=action_filter)
 
-    op_rows: list[Any] = (
-        op_q.order_by(OperatorAuditLog.created_at.desc()).limit(500).all()
+    page_rows_raw, total, page, total_pages = paginate_merged(
+        [
+            ("operator", op_q, OperatorAuditLog.created_at),
+            ("transfer", tx_q, TransferAudit.created_at),
+        ],
+        PaginationParams(page=page, per_page=per_page),
     )
-    tx_rows: list[Any] = (
-        tx_q.order_by(TransferAudit.created_at.desc()).limit(500).all()
-    )
+    op_rows = [r for tag, r in page_rows_raw if tag == "operator"]
+    tx_rows = [r for tag, r in page_rows_raw if tag == "transfer"]
 
     store_ids = (
         {r.store_id for r in op_rows if r.store_id}
@@ -95,18 +102,13 @@ def list_my_activity(
             "store_id":     int(r.store_id) if r.store_id else 0,
             "store_name":   _store_name(int(r.store_id) if r.store_id else None),
         })
-    merged.sort(key=lambda x: x["ts"], reverse=True)
-
-    total = len(merged)
-    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
-    page = max(1, min(page, total_pages))
-    start = (page - 1) * PER_PAGE
-    page_rows = merged[start:start + PER_PAGE]
+    # Already one page; restore newest-first across the two feeds.
+    page_rows = sorted(merged, key=lambda x: x["ts"], reverse=True)
 
     return {
         "rows":         page_rows,
         "total":        total,
         "page":         page,
-        "per_page":     PER_PAGE,
+        "per_page":     per_page,
         "total_pages":  total_pages,
     }

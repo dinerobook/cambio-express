@@ -22,8 +22,10 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from api.Core.Money import to_dollars
+from api.Core.Pagination import PaginationParams, paginate
 from api.Modules.Batches.Models import ACHBatch
 from api.Modules.Batches.Repositories import (
+    batches_query,
     credit_totals_for_batch_refs,
     company_batch_sequence,
     list_batches_for_store,
@@ -115,6 +117,31 @@ def list_store_batches(
     rows = list_batches_for_store(
         db, store_id, sort=sort, direction=direction,
     )
+    return _summaries(db, store_id, rows)
+
+
+def page_store_batches(
+    db: Session, store_id: int, pagination: PaginationParams,
+    *, sort: str = "", direction: str = "desc",
+) -> tuple[list[BatchSummary], int, int]:
+    """One page of the store's batches, sorted across every page
+    before slicing. Returns ``(summaries, total, total_pages)``.
+    Credits are worked out over the whole store, so a batch on page
+    two still sees the credit its predecessor on page one passes on."""
+    payload = paginate(
+        batches_query(db, store_id, sort=sort, direction=direction),
+        pagination,
+    )
+    return (
+        _summaries(db, store_id, payload["rows"]),
+        int(payload["total"]),
+        int(payload["total_pages"]),
+    )
+
+
+def _summaries(
+    db: Session, store_id: int, rows: list[ACHBatch],
+) -> list[BatchSummary]:
     refs = [r.batch_ref for r in rows if r.batch_ref]
     totals = sum_transfer_totals_for_batch_refs(db, store_id, refs)
     counts = transfer_count_by_batch_ref(db, store_id, refs)

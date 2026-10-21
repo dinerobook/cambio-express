@@ -670,3 +670,31 @@ def test_bulk_permissions_no_op_when_values_already_match(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert "employee" not in check.get_json()["has_overrides"]
+
+
+def test_owner_activity_reaches_rows_past_the_old_500_cap(client):
+    """The feed used to read only the newest 500 rows of each kind,
+    so older activity vanished past page 10. Every row now counts
+    and the last page holds the oldest one."""
+    from datetime import datetime, timedelta
+    from api.Modules.Audit.Models import OperatorAuditLog
+    base = datetime.utcnow()
+    with db_session():
+        owner_id, _, pw = _make_owner()
+        sid = _link_store(owner_id, name="Busy Store", slug="busy-store")
+        db.session.add_all([
+            OperatorAuditLog(
+                store_id=sid, user_name="Alice", user_role="admin",
+                target_type="user", action="update",
+                summary=f"event {i}", created_at=base - timedelta(minutes=i),
+            )
+            for i in range(560)
+        ])
+        db.session.commit()
+    token = _login_owner(client, "boss-oup@x.com", pw)
+    h = {"Authorization": f"Bearer {token}"}
+    body = client.get("/api/v2/owner/activity?per_page=200&page=3", headers=h).get_json()
+    assert body["total"] == 560
+    assert body["total_pages"] == 3
+    assert len(body["rows"]) == 160
+    assert body["rows"][-1]["summary"] == "event 559"

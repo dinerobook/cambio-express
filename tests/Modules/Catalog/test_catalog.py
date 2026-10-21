@@ -471,3 +471,25 @@ def test_employee_cannot_update_existing_catalog_rows(
     assert emp.get("/api/v2/catalog/vendors", headers=eh).status_code == 200
     unchanged = client.get("/api/v2/catalog/items", headers=h).json()
     assert unchanged["rows"][0]["price"] == 2.99
+
+
+def test_items_sort_by_column_and_page(client, test_store_id):
+    h = _admin(client, test_store_id)
+    for code, name, price in [("300", "Chips", 1.50), ("100", "Banana", 0.25), ("200", "Apple", 3.00)]:
+        resp = client.post("/api/v2/catalog/items", headers=h, json={
+            "pos_code": code, "name": name, "price": price,
+        })
+        assert resp.status_code == 201, resp.text
+
+    def names(qs):
+        resp = client.get(f"/api/v2/catalog/items?{qs}", headers=h)
+        assert resp.status_code == 200, resp.text
+        return [r["name"] for r in resp.json()["rows"]]
+
+    assert names("") == ["Apple", "Banana", "Chips"]              # default name A→Z
+    assert names("sort=price&dir=desc") == ["Apple", "Chips", "Banana"]
+    assert names("sort=code&dir=asc") == ["Banana", "Apple", "Chips"]
+    assert names("sort=bogus") == ["Apple", "Banana", "Chips"]   # unknown = default
+    assert names("sort=name&dir=desc&per_page=2") == ["Chips", "Banana"]
+    assert names("sort=name&dir=desc&per_page=2&page=2") == ["Apple"]
+    assert client.get("/api/v2/catalog/items?dir=sideways", headers=h).status_code == 422

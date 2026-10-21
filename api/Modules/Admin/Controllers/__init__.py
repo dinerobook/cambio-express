@@ -1004,6 +1004,7 @@ def get_admin_audit_log_route(
     action: str = Query("", max_length=40),
     user:   str = Query("", max_length=20),
     page:   int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> AdminAuditLogResponse:
@@ -1011,7 +1012,8 @@ def get_admin_audit_log_route(
     store. Powers /app/admin/audit-log. Filters mirror the legacy
     Flask page exactly: target=transfer|daily_report|batch,
     action=create|update|delete|lock|unlock|status_changed,
-    user=<id>. `page` is 1-based; per-page is the legacy 50."""
+    user=<id>. `page` is 1-based; `per_page` defaults to the legacy 50.
+    Pages run over every row (no newest-500 cap)."""
     require_permission(claims, "reports", "read")
     store_id = resolve_store_scope(claims)
     payload = list_audit_rows(
@@ -1019,7 +1021,7 @@ def get_admin_audit_log_route(
         target_filter=target.strip(),
         action_filter=action.strip(),
         user_filter=user.strip(),
-        page=page,
+        page=page, per_page=per_page,
     )
     return AdminAuditLogResponse(
         rows=[AdminAuditRow(**r) for r in payload["rows"]],
@@ -1059,8 +1061,8 @@ def export_admin_audit_log_csv_route(
     from api.Core.Csv import build_csv
 
     store_id = resolve_store_scope(claims)
-    # Walk pagination to assemble the full filtered set —
-    # ``list_audit_rows`` caps at 50 / page.
+    # Walk pagination to assemble the full filtered set, in the
+    # largest pages ``list_audit_rows`` serves.
     page = 1
     all_rows: list[dict[str, Any]] = []
     while True:
@@ -1069,7 +1071,7 @@ def export_admin_audit_log_csv_route(
             target_filter=target.strip(),
             action_filter=action.strip(),
             user_filter=user.strip(),
-            page=page,
+            page=page, per_page=200,
         )
         all_rows.extend(payload["rows"])
         if page >= int(payload["total_pages"] or 1):

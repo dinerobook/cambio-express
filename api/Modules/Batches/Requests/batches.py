@@ -37,9 +37,14 @@ class BatchRow(BaseModel):
 
 
 class BatchListResponse(BaseModel):
+    """Every batch, or one page of them when the list is asked for a
+    ``page``; the envelope fields are filled either way."""
     model_config = ConfigDict(extra="forbid")
 
     rows: list[BatchRow] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    total_pages: int = 1
 
 
 class BatchResponse(BaseModel):

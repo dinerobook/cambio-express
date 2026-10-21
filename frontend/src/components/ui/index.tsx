@@ -72,6 +72,10 @@ export { ErrorState } from "./ErrorState";
 export { Loading } from "./Loading";
 export { Pager } from "./Pager";
 export {
+  DataTable, type DataColumn, type DataTablePage, type DataTableProps,
+  type DataTableSort,
+} from "./DataTable";
+export {
   PeriodStepper, type PeriodStepperVariant, type PeriodUnit,
 } from "./PeriodStepper";
 export { Pill, type PillTone } from "./Pill";

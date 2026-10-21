@@ -891,7 +891,8 @@ def owner_activity_route(
     claims: dict[str, Any] = Depends(get_principal),
 ):
     """Activity stream across all stores in the owner's umbrella.
-    Merges OperatorAuditLog + TransferAudit, newest first. Paginated."""
+    Merges OperatorAuditLog + TransferAudit, newest first, paged over
+    every row (``paginate_merged``)."""
     require_permission(claims, "reports", "read")
     user = _require_owner_principal(db, claims)
     sids = owner_store_ids(db, user)
@@ -928,8 +929,16 @@ def owner_activity_route(
             | TransferAudit.action.ilike(like)
         )
 
-    oal_rows = oal_q.order_by(OperatorAuditLog.created_at.desc()).limit(500).all()
-    ta_rows = ta_q.order_by(TransferAudit.created_at.desc()).limit(500).all()
+    from api.Core.Pagination import paginate_merged
+    page_raw, total, page, total_pages = paginate_merged(
+        [
+            ("audit", oal_q, OperatorAuditLog.created_at),
+            ("transfer", ta_q, TransferAudit.created_at),
+        ],
+        pagination,
+    )
+    oal_rows = [r for tag, r in page_raw if tag == "audit"]
+    ta_rows = [r for tag, r in page_raw if tag == "transfer"]
 
     merged: list[dict] = []
     for r in oal_rows:
@@ -960,8 +969,10 @@ def owner_activity_route(
         })
 
     merged.sort(key=lambda x: x["created_at"], reverse=True)
-    from api.Core.Pagination import paginate_list
-    return paginate_list(merged, pagination)
+    return {
+        "rows": merged, "total": total, "page": page,
+        "total_pages": total_pages,
+    }
 
 
 # ── Bulk permission push ───────────────────────────────────

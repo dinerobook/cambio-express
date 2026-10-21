@@ -1914,13 +1914,29 @@
       },
       "BatchListResponse": {
         "additionalProperties": false,
+        "description": "Every batch, or one page of them when the list is asked for a\n``page``; the envelope fields are filled either way.",
         "properties": {
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/BatchRow"
             },
             "title": "Rows",
             "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "default": 1,
+            "title": "Total Pages",
+            "type": "integer"
           }
         },
         "title": "BatchListResponse",
@@ -11332,13 +11348,29 @@
       },
       "ReturnCheckListResponse": {
         "additionalProperties": false,
+        "description": "Every check, or one page when the list is asked for a\n``page``; the envelope fields are filled either way.",
         "properties": {
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/ReturnCheckRow"
             },
             "title": "Rows",
             "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "default": 1,
+            "title": "Total Pages",
+            "type": "integer"
           }
         },
         "required": [
@@ -14208,7 +14240,13 @@
       },
       "SuperadminStoreListResponse": {
         "additionalProperties": false,
+        "description": "Every store, or one page when the list is asked for a\n``page``; the envelope fields are filled either way.",
         "properties": {
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/SuperadminStoreRow"
@@ -14218,6 +14256,11 @@
           },
           "total": {
             "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "default": 1,
+            "title": "Total Pages",
             "type": "integer"
           }
         },
@@ -16842,7 +16885,7 @@
     },
     "/admin/audit-log": {
       "get": {
-        "description": "Merged operator + transfer audit feed for the principal's\nstore. Powers /app/admin/audit-log. Filters mirror the legacy\nFlask page exactly: target=transfer|daily_report|batch,\naction=create|update|delete|lock|unlock|status_changed,\nuser=<id>. `page` is 1-based; per-page is the legacy 50.",
+        "description": "Merged operator + transfer audit feed for the principal's\nstore. Powers /app/admin/audit-log. Filters mirror the legacy\nFlask page exactly: target=transfer|daily_report|batch,\naction=create|update|delete|lock|unlock|status_changed,\nuser=<id>. `page` is 1-based; `per_page` defaults to the legacy 50.\nPages run over every row (no newest-500 cap).",
         "operationId": "get_admin_audit_log_route_admin_audit_log_get",
         "parameters": [
           {
@@ -16886,6 +16929,18 @@
               "default": 1,
               "minimum": 1,
               "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
               "type": "integer"
             }
           },
@@ -21144,6 +21199,18 @@
             }
           },
           {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -24456,6 +24523,29 @@
             }
           },
           {
+            "description": "posted, description, category or amount; empty = newest first.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "posted, description, category or amount; empty = newest first.",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dir",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "pattern": "^(asc|desc)$",
+              "title": "Dir",
+              "type": "string"
+            }
+          },
+          {
             "in": "query",
             "name": "page",
             "required": false,
@@ -24727,6 +24817,37 @@
               "pattern": "^(asc|desc)$",
               "title": "Direction",
               "type": "string"
+            }
+          },
+          {
+            "description": "1-based page. Omit for every batch (the legacy shape).",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1-based page. Omit for every batch (the legacy shape).",
+              "title": "Page"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
             }
           },
           {
@@ -25316,6 +25437,29 @@
             }
           },
           {
+            "description": "number, date, due, status or total; empty = newest first.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "number, date, due, status or total; empty = newest first.",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dir",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "pattern": "^(asc|desc)$",
+              "title": "Dir",
+              "type": "string"
+            }
+          },
+          {
             "description": "1-based page number",
             "in": "query",
             "name": "page",
@@ -25766,6 +25910,29 @@
               "default": false,
               "title": "Include Inactive",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "name, code, price or cost; empty = name A\u2192Z.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "name, code, price or cost; empty = name A\u2192Z.",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dir",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "pattern": "^(asc|desc)$",
+              "title": "Dir",
+              "type": "string"
             }
           },
           {
@@ -30221,7 +30388,7 @@
     },
     "/owner/activity": {
       "get": {
-        "description": "Activity stream across all stores in the owner's umbrella.\nMerges OperatorAuditLog + TransferAudit, newest first. Paginated.",
+        "description": "Activity stream across all stores in the owner's umbrella.\nMerges OperatorAuditLog + TransferAudit, newest first, paged over\nevery row (``paginate_merged``).",
         "operationId": "owner_activity_route_owner_activity_get",
         "parameters": [
           {
@@ -35764,6 +35931,60 @@
             }
           },
           {
+            "description": "bounced, customer, check, bank, amount or status; empty = newest bounce first.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "bounced, customer, check, bank, amount or status; empty = newest bounce first.",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dir",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "pattern": "^(asc|desc)$",
+              "title": "Dir",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-based page. Omit for every check (the legacy shape).",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1-based page. Omit for every check (the legacy shape).",
+              "title": "Page"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -38478,6 +38699,73 @@
         "operationId": "list_stores_route_superadmin_stores_get",
         "parameters": [
           {
+            "description": "Search name, slug or email.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Search name, slug or email.",
+              "maxLength": 200,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "name, plan, status or created; empty = newest first.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "name, plan, status or created; empty = newest first.",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dir",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "pattern": "^(asc|desc)$",
+              "title": "Dir",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-based page. Omit for every store (pickers use this).",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1-based page. Omit for every store (pickers use this).",
+              "title": "Page"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -38817,6 +39105,18 @@
               "default": 1,
               "minimum": 1,
               "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
               "type": "integer"
             }
           },
@@ -40912,6 +41212,37 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "description": "1-based page. Omit for every ticket (the legacy shape).",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "1-based page. Omit for every ticket (the legacy shape).",
+              "title": "Page"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
             }
           },
           {

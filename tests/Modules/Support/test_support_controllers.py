@@ -147,3 +147,65 @@ class TestUpdateTicket:
     def test_non_admin_cannot_update(self, client):
         resp = client.put("/api/v2/tickets/1", json={"status": "closed"})
         assert resp.status_code in (401, 403)
+
+
+class TestListMyTicketsPaging:
+    """The store's own list pages when asked for a ``page``; without
+    one it keeps returning every ticket (the legacy shape)."""
+
+    def _file(self, client, headers, n):
+        for i in range(n):
+            resp = client.post("/api/v2/tickets", headers=headers, json={
+                "category": "question", "subject": f"Paged {i:02d}", "body": "x",
+            })
+            assert resp.status_code == 201
+
+    def test_without_page_returns_every_ticket(self, client, admin_headers):
+        self._file(client, admin_headers, 30)
+        data = client.get("/api/v2/tickets", headers=admin_headers).json()
+        assert len(data["tickets"]) == data["total"] >= 30
+
+    def test_pages_newest_first(self, client, admin_headers):
+        self._file(client, admin_headers, 30)
+        first = client.get(
+            "/api/v2/tickets?page=1&per_page=25", headers=admin_headers,
+        ).json()
+        assert first["total"] == 30
+        assert first["total_pages"] == 2
+        assert len(first["tickets"]) == 25
+        assert first["tickets"][0]["subject"] == "Paged 29"
+        second = client.get(
+            "/api/v2/tickets?page=2&per_page=25", headers=admin_headers,
+        ).json()
+        assert [t["subject"] for t in second["tickets"]][-1] == "Paged 00"
+        assert len(second["tickets"]) == 5
+
+    def test_paging_stays_inside_the_store(self, client, admin_headers, sa_headers):
+        self._file(client, admin_headers, 2)
+        from api.Modules.Tenancy.Models import Store, User
+        from api.Modules.Support.Models import SupportTicket
+        with db_session():
+            someone = db.session.query(User).first()
+            other = Store(name="Other", slug="other-tickets")
+            db.session.add(other)
+            db.session.flush()
+            db.session.add(SupportTicket(
+                store_id=other.id, user_id=someone.id,
+                category="bug", subject="Not yours",
+                body="x", status="open", submitted_by="someone",
+            ))
+            db.session.commit()
+        data = client.get("/api/v2/tickets?page=1", headers=admin_headers).json()
+        assert "Not yours" not in [t["subject"] for t in data["tickets"]]
+
+    def test_rejects_bad_paging(self, client, admin_headers):
+        assert client.get("/api/v2/tickets?page=0", headers=admin_headers).status_code == 422
+        assert client.get(
+            "/api/v2/tickets?page=1&per_page=500", headers=admin_headers,
+        ).status_code == 422
+
+    def test_platform_staff_page_through_the_queue(self, client, admin_headers, sa_headers):
+        self._file(client, admin_headers, 30)
+        data = client.get("/api/v2/tickets?page=2&per_page=25", headers=sa_headers).json()
+        assert data["page"] == 2
+        assert data["total"] >= 30

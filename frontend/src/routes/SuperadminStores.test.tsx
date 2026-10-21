@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SuperadminStores from "./SuperadminStores";
@@ -11,14 +11,16 @@ import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 import type { SuperadminStoreRow } from "../api/superadmin";
 
-// The platform-wide store list. Pinned: superadmin-only, client
-// search over name / slug / email, ErrorState with retry, and the
+// The platform-wide store list. Pinned: superadmin-only, server
+// search over name / slug / email (the mock filters like the server
+// does), sort and paging in the URL, ErrorState with retry, and the
 // bulk action sends exactly the selected store ids.
 
 const bulkStoreAction = vi.fn();
 const refetch = vi.fn();
+const pageHook = vi.fn();
 let state: {
-  data?: { rows: SuperadminStoreRow[]; total: number };
+  data?: { rows: SuperadminStoreRow[]; total: number; page?: number; total_pages?: number };
   isLoading: boolean; isError: boolean; error?: unknown;
 };
 
@@ -26,7 +28,20 @@ vi.mock("../api/superadmin", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/superadmin")>();
   return {
     ...real,
-    useSuperadminStores: () => ({ ...state, refetch }),
+    useSuperadminStoresPage: (o: { q: string }) => {
+      pageHook(o);
+      if (!state.data) return { ...state, refetch };
+      const needle = o.q.toLowerCase();
+      const rows = state.data.rows.filter((r) => !needle
+        || r.name.toLowerCase().includes(needle)
+        || r.slug.toLowerCase().includes(needle)
+        || r.email.toLowerCase().includes(needle));
+      return {
+        ...state,
+        data: { page: 1, total_pages: 1, ...state.data, rows, total: needle ? rows.length : state.data.total },
+        refetch,
+      };
+    },
     bulkStoreAction: (...a: unknown[]) => bulkStoreAction(...a),
   };
 });
@@ -41,13 +56,18 @@ function store(id: number, name: string, over: Partial<SuperadminStoreRow> = {})
   };
 }
 
-function renderPage() {
+function LocationProbe() {
+  return <div data-testid="search">{useLocation().search}</div>;
+}
+
+function renderPage(path = "/superadmin/stores") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[path]}>
           <SuperadminStores />
+          <LocationProbe />
         </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
@@ -60,6 +80,8 @@ describe("SuperadminStores", () => {
     bulkStoreAction.mockReset();
     bulkStoreAction.mockResolvedValue({ count: 2 });
     refetch.mockReset();
+    pageHook.mockReset();
+    localStorage.removeItem("db.page_size.superadmin-stores");
     state = {
       data: {
         rows: [
@@ -88,18 +110,53 @@ describe("SuperadminStores", () => {
     const bravo = screen.getByText("Bravo").closest("tr")!;
     expect(within(bravo).getByText("Inactive")).toBeInTheDocument();
     expect(bravo).toHaveTextContent("Purge");
-    expect(screen.getByText("3 of 3")).toBeInTheDocument();
+    expect(screen.getByText("3 stores")).toBeInTheDocument();
+    expect(screen.getByText("Showing 1–3 of 3")).toBeInTheDocument();
   });
 
-  it("filters by name, slug or email as you type", async () => {
+  it("asks the server for newest stores first, 50 a page", () => {
+    renderPage();
+    expect(pageHook).toHaveBeenLastCalledWith({
+      q: "", sort: "created", dir: "desc", page: 1, perPage: 50,
+    });
+  });
+
+  it("searches on the server as you type, after two characters", async () => {
     renderPage();
     await userEvent.type(screen.getByPlaceholderText(/Search name/), "brav");
-    expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Alpha")).not.toBeInTheDocument());
+    expect(pageHook).toHaveBeenLastCalledWith(expect.objectContaining({ q: "brav", page: 1 }));
     expect(screen.getByText("Bravo")).toBeInTheDocument();
-    expect(screen.getByText("1 of 3")).toBeInTheDocument();
+    expect(screen.getByText("1 store match")).toBeInTheDocument();
+    expect(screen.getByTestId("search")).toHaveTextContent("q=brav");
     await userEvent.clear(screen.getByPlaceholderText(/Search name/));
     await userEvent.type(screen.getByPlaceholderText(/Search name/), "zzz");
-    expect(screen.getByText("No stores match these filters.")).toBeInTheDocument();
+    expect(await screen.findByText("No stores match these filters.")).toBeInTheDocument();
+  });
+
+  it("reads the search from a shared link", () => {
+    renderPage("/superadmin/stores?q=charlie");
+    expect(pageHook).toHaveBeenLastCalledWith(expect.objectContaining({ q: "charlie" }));
+    expect(screen.getByText("Charlie")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
+  });
+
+  it("sorts by a column header and keeps it in the URL", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /^Store/ }));
+    expect(pageHook).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: "name", dir: "asc", page: 1 }),
+    );
+    expect(screen.getByTestId("search")).toHaveTextContent("sort=name");
+  });
+
+  it("pages through a long list and offers rows per page", async () => {
+    state.data = { ...state.data!, total: 120, page: 1, total_pages: 3 };
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect(pageHook).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+    await userEvent.selectOptions(screen.getByLabelText("Rows per page"), "100");
+    expect(pageHook).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, perPage: 100 }));
   });
 
   it("shows ErrorState with a working Retry", async () => {
@@ -140,6 +197,7 @@ describe("SuperadminStores", () => {
     renderPage();
     await userEvent.click(screen.getByLabelText("Select Alpha"));
     await userEvent.type(screen.getByPlaceholderText(/Search name/), "charlie");
+    await waitFor(() => expect(screen.queryByText("Alpha")).not.toBeInTheDocument());
     expect(screen.getByLabelText("Select Charlie")).not.toBeChecked();
     expect(screen.getByLabelText("Select all stores")).not.toBeChecked();
   });
@@ -148,6 +206,7 @@ describe("SuperadminStores", () => {
     renderPage();
     await userEvent.click(screen.getByLabelText("Select Alpha"));
     await userEvent.type(screen.getByPlaceholderText(/Search name/), "charlie");
+    await waitFor(() => expect(screen.queryByText("Alpha")).not.toBeInTheDocument());
     expect(screen.queryByText(/selected$/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByLabelText("Select all stores"));
     expect(screen.getByLabelText("Select Charlie")).toBeChecked();

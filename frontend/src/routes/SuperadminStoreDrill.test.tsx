@@ -211,9 +211,9 @@ describe("<SuperadminStoreDrill> activity", () => {
     renderPage();
     await screen.findByText("Maria Lopez");
     expect(screen.getByText("cashier (via superadmin Platform Admin)")).toBeInTheDocument();
-    expect(useStoreAuditLog).toHaveBeenLastCalledWith(7, { page: 1, target: "", action: "" });
+    expect(useStoreAuditLog).toHaveBeenLastCalledWith(7, { page: 1, target: "", action: "", perPage: 50 });
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Activity action" }), "lock");
-    await waitFor(() => expect(useStoreAuditLog).toHaveBeenLastCalledWith(7, { page: 1, target: "", action: "lock" }));
+    await waitFor(() => expect(useStoreAuditLog).toHaveBeenLastCalledWith(7, { page: 1, target: "", action: "lock", perPage: 50 }));
   });
 });
 

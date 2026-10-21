@@ -25,12 +25,14 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.Pagination import PaginationParams, paginate
+from api.Core.Sorting import SORT_DIR_PATTERN
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.ReturnChecks.Repositories import (
     find_return_check,
     list_payments,
-    list_return_checks,
+    return_checks_query,
 )
 from api.Modules.ReturnChecks.Requests import (
     ReturnCheckListResponse,
@@ -154,6 +156,13 @@ def _parse_payload(body: ReturnCheckWriteRequest) -> ReturnCheckWriteInput:
 @router.get("", response_model=ReturnCheckListResponse)
 def list_route(
     status: str = Query("", description="Optional filter: pending, recovered, loss, fraud"),
+    sort: str = Query("", description="bounced, customer, check, bank, amount or status; empty = newest bounce first."),
+    dir: str = Query("desc", pattern=SORT_DIR_PATTERN),
+    page: int | None = Query(
+        None, ge=1,
+        description="1-based page. Omit for every check (the legacy shape).",
+    ),
+    per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckListResponse:
@@ -164,8 +173,21 @@ def list_route(
             detail="JWT does not carry a store scope.",
         )
     require_permission(claims, "return_checks", "read")
-    rows = list_return_checks(db, int(sid), status=status)
-    return ReturnCheckListResponse(rows=[_row(r) for r in rows])
+    query = return_checks_query(
+        db, int(sid), status=status, sort=sort, direction=dir,
+    )
+    if page is None:
+        rows = query.all()
+        return ReturnCheckListResponse(
+            rows=[_row(r) for r in rows], total=len(rows),
+        )
+    payload = paginate(
+        query, PaginationParams(page=page, per_page=per_page), adapter=_row,
+    )
+    return ReturnCheckListResponse(
+        rows=payload["rows"], total=payload["total"],
+        page=payload["page"], total_pages=payload["total_pages"],
+    )
 
 
 @router.get("/{rc_id}", response_model=ReturnCheckResponse)

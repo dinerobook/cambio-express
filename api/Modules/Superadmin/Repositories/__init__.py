@@ -20,6 +20,7 @@ from api.Modules.Superadmin.Repositories.stores import (
     get_store_by_slug,
     list_all_stores,
     list_all_stores_newest_first,
+    stores_query,
     list_stores_by_ids,
 )
 from api.Modules.Superadmin.Repositories.users import (
@@ -41,6 +42,7 @@ __all__ = [
     "list_active_admins_for_store",
     "list_all_stores",
     "list_all_stores_newest_first",
+    "stores_query",
     "list_discount_codes",
     "list_stores_by_ids",
     "list_users_in_store",

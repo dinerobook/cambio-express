@@ -31,6 +31,7 @@ from api.Core.Audit import audit_operator
 from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams, paginate, pagination_dep
+from api.Core.Sorting import SORT_DIR_PATTERN
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import (
     require_permission,
@@ -199,6 +200,8 @@ def list_items_route(
     department_id: int | None = Query(None, ge=1),
     vendor_id: int | None = Query(None, ge=1),
     include_inactive: bool = Query(False),
+    sort: str = Query("", description="name, code, price or cost; empty = name A→Z."),
+    dir: str = Query("asc", pattern=SORT_DIR_PATTERN),
     pagination: PaginationParams = Depends(pagination_dep),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -208,6 +211,7 @@ def list_items_route(
     query = items_query(
         db, sid, q=q, department_id=department_id,
         vendor_id=vendor_id, include_inactive=include_inactive,
+        sort=sort, direction=dir,
     )
     payload = paginate(query, pagination, adapter=_item_row)
     return ItemListResponse(
@@ -329,6 +333,8 @@ def list_invoices_route(
     q: str = Query("", max_length=60),
     vendor_id: int | None = Query(None, ge=1),
     status: str | None = Query(None, pattern="^(open|paid)$"),
+    sort: str = Query("", description="number, date, due, status or total; empty = newest first."),
+    dir: str = Query("desc", pattern=SORT_DIR_PATTERN),
     pagination: PaginationParams = Depends(pagination_dep),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -336,7 +342,10 @@ def list_invoices_route(
     sid = resolve_store_scope(claims)
     require_permission(claims, "catalog", "read")
     payload = paginate(
-        invoices_query(db, sid, vendor_id=vendor_id, status=status, q=q),
+        invoices_query(
+            db, sid, vendor_id=vendor_id, status=status, q=q,
+            sort=sort, direction=dir,
+        ),
         pagination,
         adapter=_invoice_row,
     )

@@ -11,6 +11,8 @@ in lockstep or the response validator will trip.
 from sqlalchemy.orm import Session
 from typing import Any
 
+from api.Core.Pagination import PaginationParams, paginate_merged
+
 PER_PAGE = 50
 
 
@@ -20,14 +22,13 @@ def list_audit_rows(
     user_filter:   str = "",
     action_filter: str = "",
     page: int = 1,
+    per_page: int = PER_PAGE,
 ) -> dict[str, Any]:
     """Return a page of merged audit rows for the store, plus the
     user-filter roster + the resolved page number. Pure read; no
-    commit. Mirrors the legacy `admin_audit_log` route's logic:
-        1) pull OperatorAuditLog + TransferAudit (cap at 500 each)
-        2) apply target/action/user filters
-        3) merge + sort by timestamp desc
-        4) paginate
+    commit. OperatorAuditLog + TransferAudit are filtered, then
+    paged as one newest-first feed over EVERY row
+    (``paginate_merged``) — there is no "newest 500" cap.
     """
     from api.Modules.Audit.Models import OperatorAuditLog, TransferAudit
     from api.Modules.Tenancy.Models import User
@@ -57,12 +58,15 @@ def list_audit_rows(
         op_q = op_q.filter_by(action=action_filter)
         tx_q = tx_q.filter_by(action=action_filter)
 
-    op_rows: list[Any] = (
-        op_q.order_by(OperatorAuditLog.created_at.desc()).limit(500).all()
+    page_rows_raw, total, page, total_pages = paginate_merged(
+        [
+            ("operator", op_q, OperatorAuditLog.created_at),
+            ("transfer", tx_q, TransferAudit.created_at),
+        ],
+        PaginationParams(page=page, per_page=per_page),
     )
-    tx_rows: list[Any] = (
-        tx_q.order_by(TransferAudit.created_at.desc()).limit(500).all()
-    )
+    op_rows = [r for tag, r in page_rows_raw if tag == "operator"]
+    tx_rows = [r for tag, r in page_rows_raw if tag == "transfer"]
 
     user_ids = (
         {r.user_id for r in op_rows if r.user_id}
@@ -107,13 +111,8 @@ def list_audit_rows(
             "summary":      r.summary or "",
             "source":       "transfer",
         })
-    merged.sort(key=lambda x: x["ts"], reverse=True)
-
-    total = len(merged)
-    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
-    page = max(1, min(page, total_pages))
-    start = (page - 1) * PER_PAGE
-    page_rows = merged[start:start + PER_PAGE]
+    # Already one page; restore newest-first across the two feeds.
+    page_rows = sorted(merged, key=lambda x: x["ts"], reverse=True)
 
     store_users_raw = (
         db.query(User).filter_by(store_id=store_id)
@@ -132,7 +131,7 @@ def list_audit_rows(
         "rows":         page_rows,
         "total":        total,
         "page":         page,
-        "per_page":     PER_PAGE,
+        "per_page":     per_page,
         "total_pages":  total_pages,
         "store_users":  store_users,
     }

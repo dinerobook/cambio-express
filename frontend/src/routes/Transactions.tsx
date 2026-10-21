@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { useTransactions } from "../api/posimport";
+import { useTransactions, type PosTransactionRow } from "../api/posimport";
 import { AppLink,
-  Breadcrumbs, Card, Checkbox, EmptyState, ErrorState, DateInput, Field, InfoTip,
-  Input, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pager, Pill,
-  Section, Select, Table, tdStyle, thStyle, tokens,
+  Breadcrumbs, Card, Checkbox, DataTable, DateInput, Field, InfoTip,
+  Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill,
+  Section, Select, tokens, type DataColumn,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { fmtMoney2 } from "../lib/formatters";
@@ -31,12 +32,47 @@ const KINDS = [
   { value: "other", label: "Other" },
 ];
 
+const MONO = { fontFamily: tokens.fontMono };
+
+const COLUMNS: DataColumn<PosTransactionRow>[] = [
+  {
+    key: "time", header: "Time",
+    render: (t) => (t.receipt_at ? formatTimestamp(t.receipt_at) : t.business_date),
+  },
+  {
+    key: "ticket", header: "Ticket",
+    render: (t) => (
+      <AppLink to={`/transactions/${t.id}`} className="ds-link" style={MONO}>
+        {t.transaction_no || `#${t.id}`}
+      </AppLink>
+    ),
+  },
+  { key: "register", header: "Register", render: (t) => t.register_id || "—" },
+  { key: "cashier", header: "Cashier", render: (t) => t.cashier_id || "—" },
+  { key: "items", header: "Items", align: "right", render: (t) => <span style={MONO}>{t.item_count}</span> },
+  { key: "tax", header: "Tax", align: "right", render: (t) => <span style={MONO}>{fmtMoney2(t.tax)}</span> },
+  { key: "total", header: "Total", align: "right", render: (t) => <span style={MONO}>{fmtMoney2(t.grand_total)}</span> },
+  {
+    key: "flags", header: "", label: "",
+    render: (t) => (
+      <div className={styles.flags}>
+        {t.kind && t.kind !== "sale" && <Pill tone="neutral">{t.kind}</Pill>}
+        {t.has_voided_line && <Pill tone="warning">voided item</Pill>}
+        {t.training_mode && <Pill tone="neutral">training</Pill>}
+        {t.offline && <Pill tone="warning">offline</Pill>}
+        {t.suspended && <Pill tone="warning">suspended</Pill>}
+      </div>
+    ),
+  },
+];
+
 export default function Transactions() {
+  const navigate = useNavigate();
   const [defaults] = useState(() => ({ start: daysAgoIso(6), end: daysAgoIso(0) }));
   const filters = useUrlFilterState({
     q: "", kind: "", voided: "",
     start: defaults.start, end: defaults.end,
-  });
+  }, { pageSizeKey: "pos-transactions" });
   const list = useTransactions({
     start: filters.params.start,
     end: filters.params.end,
@@ -44,6 +80,7 @@ export default function Transactions() {
     kind: filters.params.kind,
     voidedOnly: filters.params.voided === "1",
     page: filters.page,
+    perPage: filters.perPage,
   });
   const data = list.data;
 
@@ -104,106 +141,47 @@ export default function Transactions() {
         </div>
       </div>
 
-      {list.isLoading && <Loading />}
-      {list.isError && (
-        <ErrorState
-          message="Could not load transactions."
-          onRetry={() => { void list.refetch(); }}
-        />
-      )}
-
       {data && (
-        <>
-          <KpiGrid>
-            <KpiCard
-              label="Tickets"
-              value={data.total.toLocaleString()}
-              sub={`${filters.params.start} → ${filters.params.end}`}
-            />
-            <KpiCard
-              label="Total rung"
-              value={fmtMoney2(data.total_grand)}
-              tone="positive"
-            />
-            <KpiCard
-              label="With a voided item"
-              value={data.voided_count.toLocaleString()}
-              tone={data.voided_count > 0 ? "warning" : "positive"}
-            />
-          </KpiGrid>
-
-          {data.rows.length === 0 ? (
-            <EmptyState
-              title="No transactions in this range"
-              body="Tickets appear as business days are booked from your register journals. Check the range, or set up the site agent under Register import."
-            />
-          ) : (
-            <Section title="Tickets">
-              <Card>
-                <Table>
-                  <thead>
-                    <tr>
-                      {["Time", "Ticket", "Register", "Cashier", "Items",
-                        "Tax", "Total", ""].map((h) => (
-                        <th key={h} style={thStyle}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.rows.map((t) => (
-                      <tr key={t.id}>
-                        <td style={tdStyle}>
-                          {t.receipt_at
-                            ? formatTimestamp(t.receipt_at)
-                            : t.business_date}
-                        </td>
-                        <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                          <AppLink to={`/transactions/${t.id}`} className="ds-link">
-                            {t.transaction_no || `#${t.id}`}
-                          </AppLink>
-                        </td>
-                        <td style={tdStyle}>{t.register_id || "—"}</td>
-                        <td style={tdStyle}>{t.cashier_id || "—"}</td>
-                        <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                          {t.item_count}
-                        </td>
-                        <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                          {fmtMoney2(t.tax)}
-                        </td>
-                        <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
-                          {fmtMoney2(t.grand_total)}
-                        </td>
-                        <td style={tdStyle}>
-                          <div className={styles.flags}>
-                            {t.kind && t.kind !== "sale" && (
-                              <Pill tone="neutral">{t.kind}</Pill>
-                            )}
-                            {t.has_voided_line && (
-                              <Pill tone="warning">voided item</Pill>
-                            )}
-                            {t.training_mode && (
-                              <Pill tone="neutral">training</Pill>
-                            )}
-                            {t.offline && <Pill tone="warning">offline</Pill>}
-                            {t.suspended && (
-                              <Pill tone="warning">suspended</Pill>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-                <Pager
-                  page={data.page}
-                  totalPages={data.total_pages}
-                  onPage={(p) => filters.setPage(p)}
-                />
-              </Card>
-            </Section>
-          )}
-        </>
+        <KpiGrid>
+          <KpiCard
+            label="Tickets"
+            value={data.total.toLocaleString()}
+            sub={`${filters.params.start} → ${filters.params.end}`}
+          />
+          <KpiCard
+            label="Total rung"
+            value={fmtMoney2(data.total_grand)}
+            tone="positive"
+          />
+          <KpiCard
+            label="With a voided item"
+            value={data.voided_count.toLocaleString()}
+            tone={data.voided_count > 0 ? "warning" : "positive"}
+          />
+        </KpiGrid>
       )}
+
+      <Section title="Tickets">
+        <Card>
+          <DataTable
+            columns={COLUMNS}
+            rows={data?.rows}
+            rowKey={(t) => t.id}
+            onRowClick={(t) => navigate(`/transactions/${t.id}`)}
+            rowLabel={(t) => `Open ticket ${t.transaction_no || t.id}`}
+            isLoading={list.isLoading} isError={list.isError} error={list.error}
+            onRetry={() => { void list.refetch(); }}
+            errorMessage="Could not load transactions."
+            emptyTitle="No transactions in this range"
+            emptyBody="Tickets appear as business days are booked from your register journals. Check the range, or set up the site agent under Register import."
+            page={data && {
+              page: data.page, totalPages: data.total_pages, total: data.total,
+              onPage: filters.setPage,
+              perPage: filters.perPage, onPerPage: filters.setPerPage,
+            }}
+          />
+        </Card>
+      </Section>
     </PageShell>
   );
 }

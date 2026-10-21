@@ -11,7 +11,7 @@ describe("<AuditTable>", () => {
   it("renders actor, action, target and summary per row", () => {
     render(
       <AuditTable
-
+        emptyTitle="No activity."
         rows={[{
           ts: "2026-10-08T14:00:00", user_name: "cashier (via superadmin Platform Admin)",
           user_role: "employee", action: "update", target_type: "transfer",
@@ -36,7 +36,15 @@ describe("<AuditTable>", () => {
   });
 
   it("defaults the second column to Actor", () => {
-    render(<AuditTable rows={[]} />);
+    render(
+      <AuditTable
+        emptyTitle="No activity."
+        rows={[{
+          ts: "2026-10-08T14:00:00", user_name: "a", user_role: "", action: "update",
+          target_type: "batch", target_id: "1", target_label: "", summary: "", source: "operator",
+        }]}
+      />,
+    );
     expect(screen.getByRole("columnheader", { name: "Actor" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Store" })).toBeNull();
   });
@@ -46,6 +54,7 @@ describe("<AuditTable>", () => {
   it("who='store' shows the store in place of the actor", () => {
     render(
       <AuditTable
+        emptyTitle="No activity."
         who="store"
         rows={[{
           ts: "2026-10-08T14:00:00", store_name: "Plaza Fiesta",
@@ -66,5 +75,23 @@ describe("<AuditTable>", () => {
     expect(screen.getByText("sent $100")).toBeInTheDocument();
     // Missing store / summary render a dash, not an empty cell.
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("shows the empty state, the error with retry, and the pager", async () => {
+    const { rerender } = render(<AuditTable emptyTitle="No activity." rows={[]} />);
+    expect(screen.getByText("No activity.")).toBeInTheDocument();
+    rerender(<AuditTable emptyTitle="No activity." rows={undefined} isError error={new Error("x")} onRetry={() => {}} />);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    rerender(
+      <AuditTable
+        emptyTitle="No activity."
+        rows={[{
+          ts: "2026-10-08T14:00:00", user_name: "a", user_role: "", action: "update",
+          target_type: "batch", target_id: "1", target_label: "", summary: "", source: "operator",
+        }]}
+        page={{ page: 3, totalPages: 3, total: 101, onPage: () => {} }}
+      />,
+    );
+    expect(screen.getByText("Showing 101–101 of 101")).toBeInTheDocument();
   });
 });

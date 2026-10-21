@@ -2,12 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatTimestamp } from "../lib/datetime";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
-import {
-  Breadcrumbs, Card, EmptyState, ErrorState, Input, Loading, PageHeader, PageShell,
-  Pager, Pill, Table,
-} from "../components/ui";
+import { Breadcrumbs, Card, Input, PageHeader, PageShell } from "../components/ui";
+import { AuditTable, type AuditTableRow } from "../components/AuditTable";
 
 interface ActivityRow {
   type: string;
@@ -29,23 +26,26 @@ interface ActivityResponse {
   total_pages: number;
 }
 
-function useOwnerActivity(q: string, page: number) {
+function useOwnerActivity(q: string, page: number, perPage: number) {
   const identity = getCurrentIdentity();
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("page", String(page));
+  params.set("per_page", String(perPage));
   return useQuery<ActivityResponse>({
     // The server admits the superadmin too, for support.
     enabled: identity?.role === "owner" || identity?.role === "superadmin",
-    queryKey: ["owner-activity", q, page],
+    queryKey: ["owner-activity", q, page, perPage],
     queryFn: () => api<ActivityResponse>(`/api/v2/owner/activity?${params}`),
+    placeholderData: (prev) => prev,
   });
 }
 
 export default function OwnerActivity() {
-  const filters = useUrlFilterState({ q: "" });
-  const { data, isLoading, isError, refetch } = useOwnerActivity(filters.params.q, filters.page);
-  const setPage = filters.setPage;
+  const filters = useUrlFilterState({ q: "" }, { pageSizeKey: "owner-activity" });
+  const { data, isLoading, isError, error, refetch } = useOwnerActivity(
+    filters.params.q, filters.page, filters.perPage,
+  );
 
   return (
     <PageShell gap="1.25rem">
@@ -57,80 +57,48 @@ export default function OwnerActivity() {
 
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Input
-          style={{ width: "20rem" }}
+          type="search"
+          aria-label="Search"
+          style={{ width: "20rem", maxWidth: "100%" }}
           placeholder="Search by user, action, or summary…"
           value={filters.draft.q ?? filters.params.q}
           onChange={(e) => filters.debounced("q", e.target.value)}
         />
       </div>
 
-      {isLoading && <Loading />}
-      {isError && (
-        <ErrorState
-          message="Could not load activity."
+      <Card>
+        <AuditTable
+          who="both"
+          rows={data?.rows.map(toAuditTableRow)}
+          isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
+          errorMessage="Could not load activity."
+          emptyTitle="No activity"
+          emptyBody="No matching events found."
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
         />
-      )}
-
-      {data && data.rows.length === 0 && (
-        <EmptyState title="No activity" body="No matching events found." />
-      )}
-
-      {data && data.rows.length > 0 && (
-        <Card>
-          <Table>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Store</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r, i) => (
-                <tr key={i}>
-                  <td style={{ whiteSpace: "nowrap", fontFamily: "var(--db-font-mono)", fontSize: "0.8rem" }}>
-                    {r.created_at ? formatTimestamp(r.created_at) : "—"}
-                  </td>
-                  <td>
-                    <Pill tone="neutral">{r.store_name || `#${r.store_id}`}</Pill>
-                  </td>
-                  <td style={{ fontWeight: 500 }}>
-                    {r.user_name || "—"}
-                    {r.user_role && (
-                      <span style={{ color: "var(--db-text-muted)", fontSize: "0.8rem", marginLeft: "0.25rem" }}>
-                        ({r.user_role})
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <Pill tone={r.type === "transfer" ? "accent" : "neutral"}>
-                      {r.action}
-                    </Pill>
-                  </td>
-                  <td style={{ maxWidth: "20rem", overflow: "hidden", textOverflow: "ellipsis", fontSize: "0.85rem" }}>
-                    {r.summary || r.target_label || "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          {data.total_pages > 1 && (
-            <Pager
-              page={data.page}
-              totalPages={data.total_pages}
-              onPage={setPage}
-              leading={
-                <span style={{ fontSize: "0.85rem", color: "var(--db-text-muted)" }}>
-                  {data.total} events
-                </span>
-              }
-            />
-          )}
-        </Card>
-      )}
+      </Card>
     </PageShell>
   );
+}
+
+/** The owner feed's rows in the shared audit table's shape. */
+function toAuditTableRow(r: ActivityRow): AuditTableRow {
+  return {
+    ts: r.created_at,
+    store_name: r.store_name || `#${r.store_id}`,
+    user_name: r.user_name,
+    user_role: r.user_role,
+    action: r.action,
+    target_type: r.target_type,
+    target_id: r.target_label,
+    target_label: r.target_type === "transfer" && r.target_label
+      ? `Transfer #${r.target_label}` : r.target_label,
+    summary: r.summary,
+    source: r.type,
+  };
 }

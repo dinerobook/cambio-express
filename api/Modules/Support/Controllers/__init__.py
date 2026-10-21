@@ -146,6 +146,11 @@ def create_ticket(
 @router.get("", response_model=TicketListResponse)
 def list_my_tickets(
     status: str | None = Query(None),
+    page: int | None = Query(
+        None, ge=1,
+        description="1-based page. Omit for every ticket (the legacy shape).",
+    ),
+    per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> TicketListResponse:
@@ -156,7 +161,8 @@ def list_my_tickets(
         # default page — the SPA's queue page passes those itself.
         return list_all_tickets(
             status=status, category=None, q="", store_id=None,
-            pagination=PaginationParams(), db=db, claims=claims,
+            pagination=PaginationParams(page=page or 1, per_page=per_page),
+            db=db, claims=claims,
         )
     sid = resolve_store_scope(claims)
     q = db.query(SupportTicket).filter(
@@ -164,13 +170,24 @@ def list_my_tickets(
     )
     if status:
         q = q.filter(SupportTicket.status == status)
-    q = q.order_by(SupportTicket.created_at.desc())
-    rows = q.all()
+    q = q.order_by(SupportTicket.created_at.desc(), SupportTicket.id.desc())
     from api.Modules.Support.Services import unread_message_counts
+    if page is None:
+        rows = q.all()
+        unread = unread_message_counts(db, [t.id for t in rows], "user")
+        return TicketListResponse(
+            tickets=[_to_row(t, unread=unread.get(t.id, 0)) for t in rows],
+            total=len(rows),
+        )
+    paged = paginate(q, PaginationParams(page=page, per_page=per_page))
+    rows = paged["rows"]
     unread = unread_message_counts(db, [t.id for t in rows], "user")
     return TicketListResponse(
         tickets=[_to_row(t, unread=unread.get(t.id, 0)) for t in rows],
-        total=len(rows),
+        total=paged["total"],
+        page=paged["page"],
+        per_page=per_page,
+        total_pages=paged["total_pages"],
     )
 
 

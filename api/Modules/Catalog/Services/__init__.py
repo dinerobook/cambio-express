@@ -13,6 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Query, Session
 
 from api.Core.Money import to_cents
+from api.Core.Sorting import order_by_slug
 from api.Modules.Catalog.Models import (
     INVOICE_STATUSES,
     PriceBookItem,
@@ -110,6 +111,15 @@ def update_vendor(
 
 # ── Price-book items ───────────────────────────────────────
 
+# Column slugs the price book sorts by (``?sort=``); anything else =
+# name A→Z.
+ITEM_SORT_COLUMNS: dict[str, Any] = {
+    "name":  PriceBookItem.name,
+    "code":  PriceBookItem.pos_code,
+    "price": PriceBookItem.price_cents,
+    "cost":  PriceBookItem.cost_cents,
+}
+
 
 def items_query(
     db: Session,
@@ -119,6 +129,8 @@ def items_query(
     department_id: int | None = None,
     vendor_id: int | None = None,
     include_inactive: bool = False,
+    sort: str = "",
+    direction: str = "asc",
 ) -> Query:
     """Filtered item query for the shared ``paginate()`` helper.
     Search matches name substring OR scan-code prefix — the two
@@ -139,7 +151,11 @@ def items_query(
         query = query.filter(PriceBookItem.vendor_id == vendor_id)
     if not include_inactive:
         query = query.filter(PriceBookItem.is_active.is_(True))
-    return query.order_by(PriceBookItem.name, PriceBookItem.id)
+    return order_by_slug(
+        query, ITEM_SORT_COLUMNS, sort, direction,
+        default=(PriceBookItem.name, PriceBookItem.id),
+        tiebreak=(PriceBookItem.id,),
+    )
 
 
 def _pos_code_taken(
@@ -288,6 +304,19 @@ def update_item(
 
 # ── Purchase invoices ──────────────────────────────────────
 
+# Column slugs the invoice log sorts by (``?sort=``); anything else =
+# newest invoice date first.
+INVOICE_SORT_COLUMNS: dict[str, Any] = {
+    "number": PurchaseInvoice.invoice_number,
+    "date":   PurchaseInvoice.invoice_date,
+    "due":    PurchaseInvoice.due_date,
+    "status": PurchaseInvoice.status,
+    "total":  (
+        PurchaseInvoice.subtotal_cents + PurchaseInvoice.tax_cents
+        + PurchaseInvoice.other_cents
+    ),
+}
+
 
 def invoices_query(
     db: Session,
@@ -296,9 +325,11 @@ def invoices_query(
     vendor_id: int | None = None,
     status: str | None = None,
     q: str = "",
+    sort: str = "",
+    direction: str = "desc",
 ) -> Query:
     """Filtered invoice query for the shared ``paginate()`` helper,
-    newest invoice date first."""
+    newest invoice date first unless ``sort`` names a column."""
     query = (
         db.query(PurchaseInvoice)
           .filter(PurchaseInvoice.store_id == store_id)
@@ -312,8 +343,10 @@ def invoices_query(
         query = query.filter(
             PurchaseInvoice.invoice_number.ilike(f"%{needle}%")
         )
-    return query.order_by(
-        PurchaseInvoice.invoice_date.desc(), PurchaseInvoice.id.desc(),
+    return order_by_slug(
+        query, INVOICE_SORT_COLUMNS, sort, direction,
+        default=(PurchaseInvoice.invoice_date.desc(), PurchaseInvoice.id.desc()),
+        tiebreak=(PurchaseInvoice.id.desc(),),
     )
 
 

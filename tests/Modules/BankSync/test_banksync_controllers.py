@@ -202,6 +202,63 @@ def test_list_pagination(client, test_store_id):
     assert len(body["rows"]) == 2
 
 
+def _seed_three(store_id):
+    from datetime import timedelta
+    a = _seed_account(store_id)
+    base = datetime(2026, 10, 1, 12)
+    _seed_txn(store_id, a, description="Bravo", amount_cents=500,
+              posted_at=base, stripe_transaction_id="s1")
+    _seed_txn(store_id, a, description="alpha", amount_cents=-900,
+              posted_at=base + timedelta(days=1), stripe_transaction_id="s2")
+    _seed_txn(store_id, a, description="Charlie", amount_cents=100,
+              posted_at=base + timedelta(days=2), stripe_transaction_id="s3")
+
+
+def _descriptions(client, token, qs):
+    resp = client.get(
+        f"/api/v2/bank/transactions?{qs}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    return [r["description"] for r in resp.get_json()["rows"]]
+
+
+def test_list_sorts_newest_first_by_default(client, test_store_id):
+    with db_session():
+        _seed_three(test_store_id)
+    token = _login(client, test_store_id)
+    assert _descriptions(client, token, "") == ["Charlie", "alpha", "Bravo"]
+    # An unknown sort slug is ignored, not an error.
+    assert _descriptions(client, token, "sort=bogus") == ["Charlie", "alpha", "Bravo"]
+
+
+def test_list_sorts_by_amount_and_date(client, test_store_id):
+    with db_session():
+        _seed_three(test_store_id)
+    token = _login(client, test_store_id)
+    assert _descriptions(client, token, "sort=amount&dir=desc") == ["Bravo", "Charlie", "alpha"]
+    assert _descriptions(client, token, "sort=amount&dir=asc") == ["alpha", "Charlie", "Bravo"]
+    assert _descriptions(client, token, "sort=posted&dir=asc") == ["Bravo", "alpha", "Charlie"]
+
+
+def test_list_sort_applies_before_paging(client, test_store_id):
+    """Sorting runs on the server across every page, not just the
+    rows already on screen."""
+    with db_session():
+        _seed_three(test_store_id)
+    token = _login(client, test_store_id)
+    assert _descriptions(client, token, "sort=amount&dir=asc&per_page=1&page=3") == ["Bravo"]
+
+
+def test_list_rejects_a_bad_sort_direction(client, test_store_id):
+    token = _login(client, test_store_id)
+    resp = client.get(
+        "/api/v2/bank/transactions?sort=amount&dir=sideways",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+
+
 # ── Cross-tenant safety ─────────────────────────────────────
 
 

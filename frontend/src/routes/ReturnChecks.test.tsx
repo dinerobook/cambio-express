@@ -16,7 +16,7 @@ const useReturnChecks = vi.fn();
 
 vi.mock("../api/returnChecks", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/returnChecks")>();
-  return { ...real, useReturnChecks: (s: string) => useReturnChecks(s) };
+  return { ...real, useReturnChecks: (o: unknown) => useReturnChecks(o) };
 });
 
 const rows = [
@@ -59,7 +59,7 @@ describe("ReturnChecks list", () => {
   beforeEach(() => {
     useReturnChecks.mockReset();
     useReturnChecks.mockReturnValue({
-      data: { rows }, isLoading: false, isError: false, refetch: vi.fn(),
+      data: { rows, total: 2, page: 1, total_pages: 1 }, isLoading: false, isError: false, refetch: vi.fn(),
     });
   });
 
@@ -77,29 +77,72 @@ describe("ReturnChecks list", () => {
 
   it("filters by status through the tab strip and the URL", async () => {
     renderPage();
-    expect(useReturnChecks).toHaveBeenLastCalledWith("");
+    expect(useReturnChecks).toHaveBeenLastCalledWith(expect.objectContaining({ status: "" }));
     const tabs = screen.getByRole("tablist");
     expect(within(tabs).getByRole("tab", { name: "All" }))
       .toHaveAttribute("aria-selected", "true");
     await userEvent.click(within(tabs).getByRole("tab", { name: "Fraud" }));
-    expect(useReturnChecks).toHaveBeenLastCalledWith("fraud");
+    expect(useReturnChecks).toHaveBeenLastCalledWith(expect.objectContaining({ status: "fraud" }));
     expect(screen.getByTestId("search")).toHaveTextContent("?status=fraud");
     expect(within(tabs).getByRole("tab", { name: "Fraud" }))
       .toHaveAttribute("aria-selected", "true");
     await userEvent.click(within(tabs).getByRole("tab", { name: "All" }));
-    expect(useReturnChecks).toHaveBeenLastCalledWith("");
+    expect(useReturnChecks).toHaveBeenLastCalledWith(expect.objectContaining({ status: "" }));
     expect(screen.getByTestId("search")).toHaveTextContent(/^$/);
   });
 
   it("reads the filter from a shared link", () => {
     renderPage("/return-checks?status=loss");
-    expect(useReturnChecks).toHaveBeenLastCalledWith("loss");
+    expect(useReturnChecks).toHaveBeenLastCalledWith(expect.objectContaining({ status: "loss" }));
   });
 
   it("opens the check when its row is clicked", async () => {
     renderPage();
     await userEvent.click(screen.getByText("Ana Ruiz"));
     expect(screen.getByText("edit page")).toBeInTheDocument();
+  });
+
+  it("asks for newest bounced first, 50 rows, page 1 by default", () => {
+    renderPage();
+    expect(useReturnChecks).toHaveBeenLastCalledWith({
+      status: "", sort: "bounced", dir: "desc", page: 1, perPage: 50,
+    });
+    expect(screen.getByText("Showing 1–2 of 2")).toBeInTheDocument();
+  });
+
+  it("sorts by a column header and keeps it in the URL", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /Amount/ }));
+    expect(useReturnChecks).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: "amount", dir: "desc" }),
+    );
+    expect(screen.getByTestId("search")).toHaveTextContent("sort=amount");
+  });
+
+  it("pages through a long list", async () => {
+    useReturnChecks.mockReturnValue({
+      data: { rows, total: 120, page: 1, total_pages: 3 },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect(useReturnChecks).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+  });
+
+  it("opens a check from the keyboard", async () => {
+    renderPage();
+    screen.getByRole("button", { name: "Open return check from Luis Mora" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByText("edit page")).toBeInTheDocument();
+  });
+
+  it("shows the error with a retry instead of an empty list", () => {
+    useReturnChecks.mockReturnValue({
+      data: undefined, isLoading: false, isError: true,
+      error: new Error("boom"), refetch: vi.fn(),
+    });
+    renderPage();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
 
   it("asks a storeless login to sign in as a store admin", () => {

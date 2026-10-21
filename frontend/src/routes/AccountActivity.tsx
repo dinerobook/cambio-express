@@ -1,12 +1,12 @@
-import { useSearchParams } from "react-router-dom";
-
 import { useMyActivity } from "../api/account";
 import {
   Breadcrumbs,
   Button, Card, Field, InfoTip, PageHeader, PageShell,
-  Pager, Select, space, TableStates,
+  Select, space,
 } from "../components/ui";
 import { AuditTable } from "../components/AuditTable";
+import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./AccountActivity.module.css";
 
 // /app/account/activity — cross-store per-user audit feed.
@@ -15,22 +15,16 @@ import styles from "./AccountActivity.module.css";
 // store cashier or an owner who works behind the counter).
 
 export default function AccountActivity() {
-  const [sp, setSP] = useSearchParams();
-  const page   = Number(sp.get("page") ?? 1) || 1;
-  const target = sp.get("target") ?? "";
-  const action = sp.get("action") ?? "";
+  const filters = useUrlFilterState(
+    { target: "", action: "" },
+    { pageSizeKey: "my-activity" },
+  );
+  const { target, action } = filters.params;
+  const { page, setParam, perPage } = filters;
 
   const { data, isLoading, isError, error, refetch } = useMyActivity({
-    target, action, page,
+    target, action, page, perPage,
   });
-
-  function setParam(key: string, value: string) {
-    const next = new URLSearchParams(sp);
-    if (value) next.set(key, value);
-    else       next.delete(key);
-    if (key !== "page") next.delete("page");
-    setSP(next, { replace: true });
-  }
 
   const hasFilters = !!(target || action);
 
@@ -62,10 +56,9 @@ export default function AccountActivity() {
               value={target}
               onChange={(e) => setParam("target", e.target.value)}
             >
-              <option value="">All</option>
-              <option value="transfer">Transfer</option>
-              <option value="daily_report">Daily Report</option>
-              <option value="batch">ACH Batch</option>
+              {AUDIT_TARGET_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </Select>
           </Field>
           <Field label="Action" style={{ minWidth: "10rem" }}>
@@ -73,20 +66,16 @@ export default function AccountActivity() {
               value={action}
               onChange={(e) => setParam("action", e.target.value)}
             >
-              <option value="">All</option>
-              <option value="create">Create</option>
-              <option value="update">Update</option>
-              <option value="delete">Delete</option>
-              <option value="lock">Lock</option>
-              <option value="unlock">Unlock</option>
-              <option value="status_changed">Status changed</option>
+              {AUDIT_ACTION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </Select>
           </Field>
           {hasFilters && (
             <Button
               tone="secondary"
               size="sm"
-              onClick={() => setSP(new URLSearchParams(), { replace: true })}
+              onClick={filters.reset}
             >
               Clear
             </Button>
@@ -95,31 +84,19 @@ export default function AccountActivity() {
       </Card>
 
       <Card>
-        <div className={styles.cardHeader}>
-          Recent activity
-          {data && (
-            <span className={styles.cardHeaderPage}>
-              Page {data.page} of {data.total_pages}
-            </span>
-          )}
-        </div>
-
-        <TableStates
+        <div className={styles.cardHeader}>Recent activity</div>
+        <AuditTable
+          who="store"
+          rows={data?.rows}
           isLoading={isLoading} isError={isError} error={error}
-          isEmpty={!data || data.rows.length === 0}
           onRetry={() => { void refetch(); }}
           emptyTitle="Nothing here yet — once you log a transfer, lock a daily book, or save a batch you'll see it."
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage, onPerPage: filters.setPerPage,
+          }}
         />
-        {data && data.rows.length > 0 && (
-          <>
-            <AuditTable rows={data.rows} who="store" />
-            <Pager
-              page={data.page}
-              totalPages={data.total_pages}
-              onPage={(p) => setParam("page", String(p))}
-            />
-          </>
-        )}
       </Card>
 
     </PageShell>

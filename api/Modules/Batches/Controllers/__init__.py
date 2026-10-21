@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.Pagination import PaginationParams
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.Batches.Models import Transfer
@@ -29,6 +30,7 @@ from api.Modules.Batches.Services import (
     create_batch,
     find_batch,
     list_store_batches,
+    page_store_batches,
     summarize_batch,
     update_batch,
 )
@@ -78,6 +80,11 @@ def list_route(
     direction: str = Query(
         "desc", pattern="^(asc|desc)$",
     ),
+    page: int | None = Query(
+        None, ge=1,
+        description="1-based page. Omit for every batch (the legacy shape).",
+    ),
+    per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> BatchListResponse:
@@ -94,10 +101,21 @@ def list_route(
                 "store admin or owner to view batches."
             ),
         )
-    rows = list_store_batches(
-        db, int(store_id), sort=sort, direction=direction,
+    if page is None:
+        rows = list_store_batches(
+            db, int(store_id), sort=sort, direction=direction,
+        )
+        return BatchListResponse(
+            rows=[_row(r) for r in rows], total=len(rows),
+        )
+    summaries, total, total_pages = page_store_batches(
+        db, int(store_id), PaginationParams(page=page, per_page=per_page),
+        sort=sort, direction=direction,
     )
-    return BatchListResponse(rows=[_row(r) for r in rows])
+    return BatchListResponse(
+        rows=[_row(r) for r in summaries],
+        total=total, page=page, total_pages=total_pages,
+    )
 
 
 def _require_admin_scope(claims: dict[str, Any]) -> int:

@@ -39,12 +39,14 @@ export interface AdminAuditLogResponse {
 
 export function useAdminAuditLog(
   page: number, target: string, action: string, user: string,
+  perPage = 50,
 ) {
   return useQuery<AdminAuditLogResponse>({
-    queryKey: ["admin", "audit-log", page, target, action, user],
+    queryKey: ["admin", "audit-log", page, target, action, user, perPage],
     queryFn: () => {
       const p = new URLSearchParams();
       p.set("page", String(page));
+      p.set("per_page", String(perPage));
       if (target) p.set("target", target);
       if (action) p.set("action", action);
       if (user)   p.set("user", user);
@@ -52,6 +54,7 @@ export function useAdminAuditLog(
         `/api/v2/admin/audit-log?${p.toString()}`,
       );
     },
+    placeholderData: (prev) => prev,
   });
 }
 

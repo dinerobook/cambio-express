@@ -1,0 +1,122 @@
+/* DataTable — the shared list table. Hover tint comes from the
+ * wrapping <Table>; this adds the clickable-row and sort-header
+ * treatments that list pages used to copy into their own modules. */
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: -2px;
+}
+
+/* The panel under an opened row (``expandedRow``). */
+.panel {
+  padding: 0.75rem 0.9rem 1rem;
+  background: var(--db-surface-2);
+  border-bottom: 1px solid var(--db-border);
+}
+
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  user-select: none;
+  transition: color 120ms ease;
+}
+
+.sortBtn:hover {
+  color: var(--db-text);
+}
+
+.sortBtn:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: -2px;
+}
+
+.arrow {
+  opacity: 0.4;
+}
+
+.arrowActive {
+  color: var(--db-accent);
+}
+
+/* Pinned header: the table scrolls inside a box no taller than
+ * ~70% of the screen, so the sticky <th> (thStyle) has a scroll
+ * container to stick to. The kit <Table>'s own wrapper is that box. */
+.root > div {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Phone view: each row is a card of "label  value" lines. Inline
+ * th/td styles come from the kit tokens, hence !important. */
+@media (max-width: 36rem) {
+  .root > div {
+    max-height: none;
+    overflow: visible !important;
+  }
+
+  .root table,
+  .root tbody,
+  .root tr,
+  .root td {
+    display: block;
+    width: 100%;
+  }
+
+  .root thead {
+    display: none;
+  }
+
+  .root tbody > tr {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--db-border);
+  }
+
+  .root tbody > tr > td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.2rem 0.25rem !important;
+    border-bottom: 0 !important;
+    text-align: right !important;
+    overflow-wrap: anywhere;
+  }
+
+  .root tbody > tr > td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    max-width: 45%;
+    text-align: left;
+    color: var(--db-text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .root tbody > tr.panelRow > td {
+    display: block;
+    text-align: left !important;
+  }
+
+  .root tbody > tr > td[data-label=""]::before {
+    content: none;
+  }
+
+  .root tfoot {
+    display: block;
+  }
+}

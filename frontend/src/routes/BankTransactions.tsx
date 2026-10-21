@@ -1,6 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
 
 import {
   categorizeTransaction,
@@ -21,10 +20,11 @@ import { BankCategoryOptions } from "../components/BankCategoryOptions";
 import { BankRuleForm } from "../components/BankRuleForm";
 import {
   AppLink, Breadcrumbs, Button, ButtonLink,
-  Card, Checkbox, DateInput, Empty, Field, Input, KpiCard, KpiGrid,
-  Modal, monoStyle, PageHeader, PageShell, Pager, Select, Table, TableStates,
-  tdStyle, thStyle, useToast,
+  Card, Checkbox, DataTable, DateInput, Empty, Field, Input, KpiCard, KpiGrid,
+  Modal, monoStyle, PageHeader, PageShell, Select, useToast,
+  type DataColumn, type DataTableProps,
 } from "../components/ui";
+import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { apiErrorMessage } from "../lib/api";
 import { describeAppliedRule } from "../lib/bankRules";
 import { suggestRuleFor } from "../lib/bankRuleSuggest";
@@ -52,8 +52,6 @@ import styles from "./BankTransactions.module.css";
 // — so a booked row offers "Change day". The server remembers the
 // choice on the row, so re-tagging does not walk it back.
 
-const PER_PAGE = 50;
-
 export default function BankTransactions() {
   const identity = getCurrentIdentity();
   const accounts = useBankAccounts();
@@ -61,39 +59,35 @@ export default function BankTransactions() {
   const qc = useQueryClient();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
-  const [sp, setSP] = useSearchParams();
   const [syncing, setSyncing] = useState(false);
   const [ruleFor, setRuleFor] = useState<BankTransactionRow | null>(null);
 
-  const filters: BankTransactionFilters = useMemo(() => ({
-    posted_from:        sp.get("posted_from") ?? "",
-    posted_to:          sp.get("posted_to")   ?? "",
-    account_id:         sp.get("account_id")  ?? "",
-    category_slug:      sp.get("category_slug") ?? "",
-    sign:               (sp.get("sign") as "" | "credit" | "debit") ?? "",
-    q:                  sp.get("q")           ?? "",
-    uncategorized_only: sp.get("uncategorized_only") === "1",
-    page:               Number(sp.get("page") ?? 1),
-    per_page:           PER_PAGE,
-  }), [sp]);
+  // Filters, page, sort in the URL; search as you type (300ms, two
+  // characters) like every list — CLAUDE.md "Table search UX".
+  const url = useUrlFilterState({
+    posted_from: "", posted_to: "", account_id: "", category_slug: "",
+    sign: "", q: "", uncategorized_only: "",
+  }, {
+    pageSizeKey: "bank-transactions",
+    defaultSort: { key: "posted", direction: "desc" },
+  });
+  const { params, setParam } = url;
+
+  const filters: BankTransactionFilters = {
+    posted_from:        params.posted_from,
+    posted_to:          params.posted_to,
+    account_id:         params.account_id,
+    category_slug:      params.category_slug,
+    sign:               params.sign as "" | "credit" | "debit",
+    q:                  params.q.length >= 2 ? params.q : "",
+    uncategorized_only: params.uncategorized_only === "1",
+    sort:               url.sort?.key,
+    dir:                url.sort?.direction,
+    page:               url.page,
+    per_page:           url.perPage,
+  };
 
   const txns = useBankTransactions(filters);
-  const [qDraft, setQDraft] = useState(filters.q ?? "");
-
-  function setParam(key: string, value: string) {
-    const next = new URLSearchParams(sp);
-    if (value) next.set(key, value);
-    else       next.delete(key);
-    next.delete("page");
-    setSP(next, { replace: true });
-  }
-
-  function setPage(page: number) {
-    const next = new URLSearchParams(sp);
-    if (page > 1) next.set("page", String(page));
-    else          next.delete("page");
-    setSP(next, { replace: true });
-  }
 
   if (identity?.store_id == null) {
     return (
@@ -104,8 +98,6 @@ export default function BankTransactions() {
     );
   }
 
-  const totalPages = txns.data?.total_pages ?? 1;
-  const page       = txns.data?.page        ?? 1;
   const groups     = categories.data?.groups;
 
   return (
@@ -164,16 +156,9 @@ export default function BankTransactions() {
           <Field label="Search">
             <Input
               type="search"
-              value={qDraft}
+              value={url.draft.q ?? params.q}
               placeholder="Description…"
-              onChange={(e) => setQDraft(e.target.value)}
-              onBlur={() => setParam("q", qDraft.trim())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  setParam("q", qDraft.trim());
-                }
-              }}
+              onChange={(e) => url.debounced("q", e.target.value)}
             />
           </Field>
           <Field label="Account">
@@ -230,34 +215,30 @@ export default function BankTransactions() {
           </Field>
         </div>
 
-        <TableStates
+        <TxnTable
+          rows={txns.data?.rows}
+          groups={groups}
+          onMakeRule={setRuleFor}
           isLoading={txns.isLoading} isError={txns.isError} error={txns.error}
-          isEmpty={!txns.data || txns.data.rows.length === 0}
           onRetry={() => { void txns.refetch(); }}
-          emptyTitle="No transactions match these filters."
-        />
-        {txns.data && txns.data.rows.length > 0 && (
-          <>
-            <TxnTable
-              rows={txns.data.rows}
-              groups={groups}
-              onMakeRule={setRuleFor}
-            />
-            <Pager
-              page={page}
-              totalPages={totalPages}
-              onPage={setPage}
-              leading={
-                <span className={styles.pagerLead}>
-                  Page total:{" "}
-                  <span style={monoStyle}>
-                    {fmtMoney2(txns.data.page_total_cents / 100)}
-                  </span>
+          sort={url.sort}
+          page={txns.data && {
+            page: txns.data.page,
+            totalPages: txns.data.total_pages,
+            total: txns.data.total,
+            onPage: url.setPage,
+            perPage: url.perPage,
+            onPerPage: url.setPerPage,
+            leading: (
+              <span className={styles.pagerLead}>
+                Page total:{" "}
+                <span style={monoStyle}>
+                  {fmtMoney2(txns.data.page_total_cents / 100)}
                 </span>
-              }
-            />
-          </>
-        )}
+              </span>
+            ),
+          }}
+        />
       </Card>
 
       <Modal
@@ -298,71 +279,73 @@ export default function BankTransactions() {
 }
 
 function TxnTable({
-  rows, groups, onMakeRule,
+  rows, groups, onMakeRule, ...table
 }: {
-  rows: BankTransactionRow[];
+  rows: BankTransactionRow[] | undefined;
   groups: BankCategoryGroup[] | undefined;
   onMakeRule: (row: BankTransactionRow) => void;
-}) {
+} & Pick<
+  DataTableProps<BankTransactionRow>,
+  "isLoading" | "isError" | "error" | "onRetry" | "sort" | "page"
+>) {
   const qc = useQueryClient();
   const identity = getCurrentIdentity();
   const labels = useMemo(() => categoryLabels(groups), [groups]);
   const bookable = useMemo(() => dailyBookSlugs(groups), [groups]);
-  function refresh() {
-    qc.invalidateQueries({
-      queryKey: ["bank", "transactions", identity?.store_id],
-    });
-  }
+  const columns = useMemo<DataColumn<BankTransactionRow>[]>(() => {
+    function refresh() {
+      void qc.invalidateQueries({
+        queryKey: ["bank", "transactions", identity?.store_id],
+      });
+    }
+    return [
+      {
+        key: "posted", header: "Posted", sortKey: "posted", sortFirst: "desc",
+        render: (r) => <span className={styles.dateCell}>{formatDate(r.posted_at)}</span>,
+      },
+      {
+        key: "description", header: "Description", sortKey: "description",
+        render: (r) => r.description || "—",
+      },
+      {
+        key: "account", header: "Account",
+        render: (r) => (
+          <span className={styles.accountCell}>
+            {r.account_label || `Account ${r.account_id}`}
+          </span>
+        ),
+      },
+      {
+        key: "category", header: "Category", sortKey: "category",
+        render: (r) => (
+          <CategoryCell
+            row={r}
+            groups={groups}
+            labels={labels}
+            bookable={bookable}
+            onChanged={refresh}
+            onMakeRule={() => onMakeRule(r)}
+          />
+        ),
+      },
+      {
+        key: "amount", header: "Amount", align: "right", sortKey: "amount", sortFirst: "desc",
+        render: (r) => (
+          <span className={r.amount_cents > 0 ? styles.amountPos : styles.amountNeutral}>
+            {r.amount_cents > 0 ? "+" : ""}{fmtMoney2(r.amount)}
+          </span>
+        ),
+      },
+    ];
+  }, [qc, identity?.store_id, groups, labels, bookable, onMakeRule]);
   return (
-    <Table>
-      <thead>
-        <tr>
-          {[
-            ["Posted",      "left"],
-            ["Description", "left"],
-            ["Account",     "left"],
-            ["Category",    "left"],
-            ["Amount",      "right"],
-          ].map(([label, align], i) => (
-            <th key={i} style={{ ...thStyle, textAlign: align as "left" | "right" }}>
-              {label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.id}>
-            <td style={tdStyle}>
-              <span className={styles.dateCell}>
-                {formatDate(r.posted_at)}
-              </span>
-            </td>
-            <td style={tdStyle}>{r.description || "—"}</td>
-            <td style={tdStyle}>
-              <span className={styles.accountCell}>
-                {r.account_label || `Account ${r.account_id}`}
-              </span>
-            </td>
-            <td style={tdStyle}>
-              <CategoryCell
-                row={r}
-                groups={groups}
-                labels={labels}
-                bookable={bookable}
-                onChanged={refresh}
-                onMakeRule={() => onMakeRule(r)}
-              />
-            </td>
-            <td style={{ ...tdStyle, textAlign: "right" }}>
-              <span className={r.amount_cents > 0 ? styles.amountPos : styles.amountNeutral}>
-                {r.amount_cents > 0 ? "+" : ""}{fmtMoney2(r.amount)}
-              </span>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
+    <DataTable
+      {...table}
+      columns={columns}
+      rows={rows}
+      rowKey={(r) => r.id}
+      emptyTitle="No transactions match these filters."
+    />
   );
 }
 

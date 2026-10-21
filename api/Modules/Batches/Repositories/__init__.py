@@ -1,5 +1,6 @@
 """Batches — Repositories. SQL helpers for ACHBatch."""
 from api.Modules.Batches.Repositories.batches import (
+    batches_query,
     credit_totals_for_batch_refs,
     company_batch_sequence,
     list_batches_for_store,
@@ -8,6 +9,7 @@ from api.Modules.Batches.Repositories.batches import (
 )
 
 __all__ = [
+    "batches_query",
     "credit_totals_for_batch_refs",
     "company_batch_sequence",
     "list_batches_for_store",

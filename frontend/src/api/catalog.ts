@@ -31,8 +31,14 @@ export function useItems(params: {
   departmentId: string;
   vendorId: string;
   includeInactive: boolean;
+  sort?: string;
+  dir?: string;
+  perPage?: number;
 }) {
   const qs = new URLSearchParams({ page: String(params.page) });
+  if (params.perPage) qs.set("per_page", String(params.perPage));
+  if (params.sort) qs.set("sort", params.sort);
+  if (params.dir) qs.set("dir", params.dir);
   if (params.q) qs.set("q", params.q);
   if (params.departmentId) qs.set("department_id", params.departmentId);
   if (params.vendorId) qs.set("vendor_id", params.vendorId);
@@ -40,6 +46,7 @@ export function useItems(params: {
   return useQuery<ItemList>({
     queryKey: ["catalog", "items", params],
     queryFn: () => api<ItemList>(`/api/v2/catalog/items?${qs}`),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -86,14 +93,21 @@ export function useInvoices(params: {
   page: number;
   vendorId: string;
   status: string;
+  sort?: string;
+  dir?: string;
+  perPage?: number;
 }) {
   const qs = new URLSearchParams({ page: String(params.page) });
+  if (params.perPage) qs.set("per_page", String(params.perPage));
+  if (params.sort) qs.set("sort", params.sort);
+  if (params.dir) qs.set("dir", params.dir);
   if (params.q) qs.set("q", params.q);
   if (params.vendorId) qs.set("vendor_id", params.vendorId);
   if (params.status) qs.set("status", params.status);
   return useQuery<InvoiceList>({
     queryKey: ["catalog", "invoices", params],
     queryFn: () => api<InvoiceList>(`/api/v2/catalog/invoices?${qs}`),
+    placeholderData: (prev) => prev,
   });
 }
 

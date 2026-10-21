@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { api, apiErrorMessage } from "../lib/api";
+import { api } from "../lib/api";
 import { EMAIL_EVENT_TONES } from "../api/superadmin";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -8,9 +8,8 @@ import {
   formatDate, formatTimestamp,
 } from "../lib/datetime";
 import {
-  Breadcrumbs, Card, EmptyState, ErrorState, Input,
-  Loading, Pager, PageHeader, PageShell, Pill, Section,
-  Select, Table, tdStyle, thStyle,
+  Breadcrumbs, Card, DataTable, Input, PageHeader, PageShell, Pill,
+  Section, Select, type DataColumn,
 } from "../components/ui";
 import styles from "./SuperadminEmailLog.module.css";
 
@@ -48,28 +47,61 @@ const EVENT_TYPES = [
   { value: "email.clicked", label: "Clicked" },
 ];
 
-function useEmailLog(opts: { q?: string; event_type?: string; page?: number }) {
+const COLUMNS: DataColumn<EmailEventRow>[] = [
+  { key: "to", header: "Recipient", render: (e) => e.to_addr },
+  {
+    key: "event", header: "Event",
+    render: (e) => (
+      <Pill tone={EMAIL_EVENT_TONES[e.event_type] ?? "neutral"}>
+        {e.event_type.replace("email.", "")}
+      </Pill>
+    ),
+  },
+  {
+    key: "bounce", header: "Bounce",
+    render: (e) => (e.bounce_type
+      ? <Pill tone="negative">{e.bounce_type}</Pill>
+      : <span className={styles.monoMuted}>—</span>),
+  },
+  {
+    key: "message", header: "Message ID",
+    render: (e) => (
+      <span className={styles.monoMuted}>
+        {e.message_id ? e.message_id.slice(0, 16) + "…" : "—"}
+      </span>
+    ),
+  },
+  {
+    key: "time", header: "Time",
+    render: (e) => <span className={styles.monoMuted}>{formatTimestamp(e.created_at)}</span>,
+  },
+];
+
+function useEmailLog(opts: { q?: string; event_type?: string; page?: number; perPage?: number }) {
   const identity = getCurrentIdentity();
   const params = new URLSearchParams();
   if (opts.q) params.set("q", opts.q);
   if (opts.event_type) params.set("event_type", opts.event_type);
   if (opts.page && opts.page > 1) params.set("page", String(opts.page));
+  if (opts.perPage) params.set("per_page", String(opts.perPage));
   const qs = params.toString() ? `?${params}` : "";
   return useQuery<EmailLogData>({
     enabled: identity?.role === "superadmin",
-    queryKey: ["superadmin", "email-log", opts.q, opts.event_type, opts.page],
+    queryKey: ["superadmin", "email-log", opts.q, opts.event_type, opts.page, opts.perPage],
     queryFn: () => api<EmailLogData>(`/api/v2/superadmin/email-log${qs}`),
+    placeholderData: (prev) => prev,
   });
 }
 
 export default function SuperadminEmailLog() {
   // Filters live in the URL; the search box applies as you type
   // (300ms debounce, 2-char minimum), the event type at once.
-  const filters = useUrlFilterState({ q: "", event_type: "" });
+  const filters = useUrlFilterState({ q: "", event_type: "" }, { pageSizeKey: "email-log" });
   const q = filters.params.q.trim();
   const eventType = filters.params.event_type;
   const { data, isLoading, isError, error, refetch } = useEmailLog({
-    q: q || undefined, event_type: eventType || undefined, page: filters.page,
+    q: q || undefined, event_type: eventType || undefined,
+    page: filters.page, perPage: filters.perPage,
   });
 
   return (
@@ -84,11 +116,13 @@ export default function SuperadminEmailLog() {
               type="search"
               value={filters.draft.q ?? filters.params.q}
               placeholder="Search email address…"
+              aria-label="Search email address"
               onChange={(e) => filters.debounced("q", e.target.value)}
               className={styles.searchInput}
             />
             <Select
               value={eventType}
+              aria-label="Event"
               onChange={(e) => filters.setParam("event_type", e.target.value)}
             >
               {EVENT_TYPES.map((t) => (
@@ -99,67 +133,24 @@ export default function SuperadminEmailLog() {
         )}
       />
 
-      {isLoading && <Loading />}
-      {isError && (
-        <ErrorState
-          message={apiErrorMessage(error, "Could not load email log")}
+      <Card>
+        <DataTable
+          columns={COLUMNS}
+          rows={data?.rows}
+          rowKey={(e) => e.id}
+          isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
+          emptyTitle="No email events match the filters."
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
         />
-      )}
+      </Card>
 
       {data && (
         <>
-          <Card>
-            {data.rows.length === 0 && !isLoading ? (
-              <EmptyState title="No email events match the filters." />
-            ) : (
-              <Table>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Recipient</th>
-                    <th style={thStyle}>Event</th>
-                    <th style={thStyle}>Bounce</th>
-                    <th style={thStyle}>Message ID</th>
-                    <th style={thStyle}>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.rows.map((e) => (
-                    <tr key={e.id}>
-                      <td style={tdStyle}>{e.to_addr}</td>
-                      <td style={tdStyle}>
-                        <Pill tone={EMAIL_EVENT_TONES[e.event_type] ?? "neutral"}>
-                          {e.event_type.replace("email.", "")}
-                        </Pill>
-                      </td>
-                      <td style={tdStyle}>
-                        {e.bounce_type ? (
-                          <Pill tone="negative">{e.bounce_type}</Pill>
-                        ) : (
-                          <span className={styles.monoMuted}>—</span>
-                        )}
-                      </td>
-                      <td style={tdStyle}>
-                        <span className={styles.monoMuted}>
-                          {e.message_id ? e.message_id.slice(0, 16) + "…" : "—"}
-                        </span>
-                      </td>
-                      <td style={tdStyle}>
-                        <span className={styles.monoMuted}>
-                          {formatTimestamp(e.created_at)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </Card>
-
-          {data.total_pages > 1 && (
-            <Pager page={data.page} totalPages={data.total_pages} onPage={filters.setPage} />
-          )}
-
           {data.suppressed.length > 0 && (
             <Section title={`Suppressed addresses (${data.suppressed.length})`}>
               <Card>

@@ -19,13 +19,14 @@ import type { InvoiceList, InvoiceRow } from "../api/catalog";
 const updateInvoice = vi.fn();
 const deleteInvoice = vi.fn();
 const refetch = vi.fn();
+const invoicesHook = vi.fn();
 let state: { data?: InvoiceList; isLoading: boolean; isError: boolean };
 
 vi.mock("../api/catalog", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/catalog")>();
   return {
     ...real,
-    useInvoices: () => ({ ...state, refetch }),
+    useInvoices: (p: unknown) => { invoicesHook(p); return { ...state, refetch }; },
     useVendors: () => ({ data: { vendors: [{ id: 3, name: "McLane" }] } }),
     updateInvoice: (...a: unknown[]) => updateInvoice(...a),
     deleteInvoice: (...a: unknown[]) => deleteInvoice(...a),
@@ -66,6 +67,9 @@ describe("PurchaseInvoices", () => {
     deleteInvoice.mockReset();
     deleteInvoice.mockResolvedValue({});
     refetch.mockReset();
+    invoicesHook.mockReset();
+    localStorage.removeItem("db.page_size.purchase-invoices");
+    setCurrentIdentity(TEST_ADMIN);
     state = {
       data: {
         rows: [inv(1, "INV-100"), inv(2, "INV-200", { status: "paid", paid_on: "2026-10-05" })],
@@ -80,7 +84,7 @@ describe("PurchaseInvoices", () => {
     const open = rowOf("INV-100");
     expect(open).toHaveTextContent("$1,234.50");
     expect(within(open).getByText("open")).toBeInTheDocument();
-    expect(within(rowOf("INV-200")).getByText("paid 2026-10-05")).toBeInTheDocument();
+    expect(within(rowOf("INV-200")).getByText("paid Oct 5, 2026")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "+ Add invoice" })).toBeInTheDocument();
   });
 
@@ -141,5 +145,38 @@ describe("PurchaseInvoices", () => {
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(deleteInvoice).toHaveBeenCalledWith(1));
+  });
+
+  it("asks for newest invoices first, 50 a page, and sorts by a header", async () => {
+    renderPage();
+    expect(invoicesHook).toHaveBeenLastCalledWith(expect.objectContaining({
+      sort: "date", dir: "desc", page: 1, perPage: 50,
+    }));
+    await userEvent.click(screen.getByRole("button", { name: /^Total/ }));
+    expect(invoicesHook).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: "total", dir: "desc", page: 1 }),
+    );
+  });
+
+  it("pages a long log with the shared pager", async () => {
+    state.data = { ...state.data!, total: 140, total_pages: 3 };
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect(invoicesHook).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+    await userEvent.selectOptions(screen.getByLabelText("Rows per page"), "25");
+    expect(invoicesHook).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, perPage: 25 }));
+  });
+
+  it("opens an invoice by its row, from the keyboard too", async () => {
+    renderPage();
+    screen.getByRole("button", { name: "Open invoice INV-200" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByText("invoice form")).toBeInTheDocument();
+  });
+
+  it("a reader's rows do not open the edit form", () => {
+    setCurrentIdentity({ ...TEST_ADMIN, role: "employee", permissions: ["catalog.read"] });
+    renderPage();
+    expect(screen.queryByRole("button", { name: "Open invoice INV-100" })).not.toBeInTheDocument();
   });
 });

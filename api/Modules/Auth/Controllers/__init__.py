@@ -1318,6 +1318,7 @@ def get_my_activity_route(
     target: str = Query("", max_length=40),
     action: str = Query("", max_length=40),
     page:   int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> MyActivityResponse:
@@ -1339,7 +1340,7 @@ def get_my_activity_route(
         db, user_id=int(sub),
         target_filter=target.strip(),
         action_filter=action.strip(),
-        page=page,
+        page=page, per_page=per_page,
     )
     return MyActivityResponse(
         rows=[MyActivityRow(**r) for r in payload["rows"]],

@@ -32,8 +32,9 @@ generic across modules.
 """
 from __future__ import annotations
 
+from datetime import datetime
 from math import ceil
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Sequence, TypeVar
 
 from fastapi import Query
 from sqlalchemy.orm import Query as SAQuery
@@ -143,3 +144,40 @@ def paginate_list(
     if extras:
         payload.update(extras)
     return payload
+
+
+def paginate_merged(
+    sources: Sequence[tuple[str, SAQuery, Any]],
+    pagination: PaginationParams,
+) -> tuple[list[tuple[str, Any]], int, int, int]:
+    """One newest-first page across several queries, as if they were
+    one table (the operator + transfer audit feeds are two tables).
+
+    ``sources`` is ``(tag, query, created_at_column)`` per table.
+    Every row counts toward ``total`` — no "newest 500" cap — and
+    the page is exact: each source is read only down to the end of
+    the requested page (``page * per_page`` rows), merged by
+    timestamp, then sliced. The page is clamped into range, matching
+    the audit feeds' legacy behaviour.
+
+    Returns ``(rows, total, page, total_pages)`` where each row is
+    ``(tag, orm_row)`` so the caller adapts only the rows it shows.
+    """
+    total = sum(q.count() for _, q, _ in sources)
+    per_page = pagination.per_page
+    total_pages = max(1, ceil(total / per_page)) if total else 1
+    page = max(1, min(pagination.page, total_pages))
+    depth = page * per_page
+    merged: list[tuple[str, Any]] = []
+    for tag, q, col in sources:
+        merged.extend(
+            (tag, r) for r in q.order_by(col.desc(), col.class_.id.desc())
+                              .limit(depth).all()
+        )
+    # Stable sort: ties keep source order, then id desc within a
+    # source, so a row never shows on two pages or on none.
+    merged.sort(
+        key=lambda tr: tr[1].created_at or datetime.min, reverse=True,
+    )
+    start = (page - 1) * per_page
+    return merged[start:start + per_page], total, page, total_pages

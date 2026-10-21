@@ -52,4 +52,33 @@ describe("<Pager>", () => {
     );
     expect(screen.getByText("Total: $99")).toBeInTheDocument();
   });
+
+  it("says which rows are showing, even on a single page", () => {
+    render(<Pager page={1} totalPages={1} onPage={() => {}} total={12} pageRows={12} />);
+    expect(screen.getByText("Showing 1–12 of 12")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Next/ })).not.toBeInTheDocument();
+  });
+
+  it("counts a short last page from the end", () => {
+    render(<Pager page={3} totalPages={3} onPage={() => {}} total={105} pageRows={5} />);
+    expect(screen.getByText("Showing 101–105 of 105")).toBeInTheDocument();
+  });
+
+  it("hides the rows-per-page picker for a list of 25 or fewer", () => {
+    render(
+      <Pager page={1} totalPages={1} onPage={() => {}} total={20} pageRows={20}
+        perPage={50} onPerPage={() => {}} />,
+    );
+    expect(screen.queryByLabelText("Rows per page")).not.toBeInTheDocument();
+  });
+
+  it("changes rows per page", async () => {
+    const onPerPage = vi.fn();
+    render(
+      <Pager page={1} totalPages={1} onPage={() => {}} total={40} pageRows={40}
+        perPage={50} onPerPage={onPerPage} />,
+    );
+    await userEvent.setup().selectOptions(screen.getByLabelText("Rows per page"), "25");
+    expect(onPerPage).toHaveBeenCalledWith(25);
+  });
 });

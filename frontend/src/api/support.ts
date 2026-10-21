@@ -60,13 +60,17 @@ export function useTicketsUnread() {
   });
 }
 
-export function useMyTickets(status?: string) {
+/** The store's own tickets, one page at a time, newest first. */
+export function useMyTickets(opts: { page: number; perPage: number }) {
   const identity = getCurrentIdentity();
-  const qs = status ? `?status=${status}` : "";
+  const qs = new URLSearchParams({
+    page: String(opts.page), per_page: String(opts.perPage),
+  });
   return useQuery<TicketListResponse>({
     enabled: identity != null,
-    queryKey: ["tickets", "mine", status],
-    queryFn: () => api<TicketListResponse>(`/api/v2/tickets${qs}`),
+    queryKey: ["tickets", "mine", opts.page, opts.perPage],
+    queryFn: () => api<TicketListResponse>(`/api/v2/tickets?${qs}`),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -79,6 +83,8 @@ export interface AllTicketsFilters {
   q?: string;
   store_id?: string | number;
   page?: number;
+  /** Rows per page; the server's default (50) is left out. */
+  perPage?: number;
 }
 
 /** The query string for `GET /tickets/all`. Pure so it is testable:
@@ -92,6 +98,7 @@ export function allTicketsQueryString(f: AllTicketsFilters): string {
   if (q.length >= 2) params.set("q", q);
   if (f.store_id) params.set("store_id", String(f.store_id));
   if (f.page && f.page > 1) params.set("page", String(f.page));
+  if (f.perPage && f.perPage !== 50) params.set("per_page", String(f.perPage));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }

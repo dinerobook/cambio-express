@@ -5,8 +5,8 @@ import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  Breadcrumbs, Card, EmptyState, ErrorState, Input, Loading, PageHeader, PageShell,
-  Pager, Pill, Table,
+  Breadcrumbs, Card, DataTable, Input, PageHeader, PageShell, Pill,
+  type DataColumn,
 } from "../components/ui";
 
 interface UserRow {
@@ -26,24 +26,45 @@ interface UsersResponse {
   total_pages: number;
 }
 
-function useOwnerUsers(storeId: number | null, q: string, page: number) {
+function useOwnerUsers(storeId: number | null, q: string, page: number, perPage: number) {
   const identity = getCurrentIdentity();
   const params = new URLSearchParams();
   if (storeId) params.set("store_id", String(storeId));
   if (q) params.set("q", q);
   params.set("page", String(page));
+  params.set("per_page", String(perPage));
   return useQuery<UsersResponse>({
     // The server admits the superadmin too, for support.
     enabled: identity?.role === "owner" || identity?.role === "superadmin",
-    queryKey: ["owner-users", storeId, q, page],
+    queryKey: ["owner-users", storeId, q, page, perPage],
     queryFn: () => api<UsersResponse>(`/api/v2/owner/users?${params}`),
+    placeholderData: (prev) => prev,
   });
 }
 
+const COLUMNS: DataColumn<UserRow>[] = [
+  { key: "name", header: "Name", render: (u) => <strong>{u.full_name || "—"}</strong> },
+  {
+    key: "username", header: "Username",
+    render: (u) => <span style={{ fontFamily: "var(--db-font-mono)", fontSize: "0.85rem" }}>{u.username}</span>,
+  },
+  { key: "role", header: "Role", render: (u) => <Pill tone={roleTone(u.role)}>{u.role}</Pill> },
+  { key: "store", header: "Store", render: (u) => u.store_name },
+  {
+    key: "status", header: "Status",
+    render: (u) => (
+      <Pill tone={u.is_active ? "accent" : "neutral"}>
+        {u.is_active ? "Active" : "Inactive"}
+      </Pill>
+    ),
+  },
+];
+
 export default function OwnerUsers() {
-  const filters = useUrlFilterState({ q: "" });
-  const { data, isLoading, isError, refetch } = useOwnerUsers(null, filters.params.q, filters.page);
-  const setPage = filters.setPage;
+  const filters = useUrlFilterState({ q: "" }, { pageSizeKey: "owner-users" });
+  const { data, isLoading, isError, error, refetch } = useOwnerUsers(
+    null, filters.params.q, filters.page, filters.perPage,
+  );
 
   return (
     <PageShell gap="1.25rem">
@@ -58,73 +79,32 @@ export default function OwnerUsers() {
 
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Input
-          style={{ width: "16rem" }}
+          type="search"
+          aria-label="Search"
+          style={{ width: "16rem", maxWidth: "100%" }}
           placeholder="Search by name or username…"
           value={filters.draft.q ?? filters.params.q}
           onChange={(e) => filters.debounced("q", e.target.value)}
         />
       </div>
 
-      {isLoading && <Loading />}
-      {isError && (
-        <ErrorState
-          message="Could not load users."
+      <Card>
+        <DataTable
+          columns={COLUMNS}
+          rows={data?.rows}
+          rowKey={(u) => u.id}
+          isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
+          errorMessage="Could not load users."
+          emptyTitle="No users found"
+          emptyBody="No matching users across your stores."
+          page={data && {
+            page: data.page, totalPages: data.total_pages, total: data.total,
+            onPage: filters.setPage,
+            perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
         />
-      )}
-
-      {data && data.rows.length === 0 && (
-        <EmptyState title="No users found" body="No matching users across your stores." />
-      )}
-
-      {data && data.rows.length > 0 && (
-        <Card>
-          <Table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Username</th>
-                <th>Role</th>
-                <th>Store</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((u) => (
-                <tr key={u.id}>
-                  <td style={{ fontWeight: 500 }}>{u.full_name || "—"}</td>
-                  <td style={{ fontFamily: "var(--db-font-mono)", fontSize: "0.85rem" }}>
-                    {u.username}
-                  </td>
-                  <td>
-                    <Pill tone={roleTone(u.role)}>
-                      {u.role}
-                    </Pill>
-                  </td>
-                  <td>{u.store_name}</td>
-                  <td>
-                    <Pill tone={u.is_active ? "accent" : "neutral"}>
-                      {u.is_active ? "Active" : "Inactive"}
-                    </Pill>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          {data.total_pages > 1 && (
-            <Pager
-              page={data.page}
-              totalPages={data.total_pages}
-              onPage={setPage}
-              leading={
-                <span style={{ fontSize: "0.85rem", color: "var(--db-text-muted)" }}>
-                  {data.total} users
-                </span>
-              }
-            />
-          )}
-        </Card>
-      )}
+      </Card>
     </PageShell>
   );
 }

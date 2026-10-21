@@ -30,14 +30,6 @@
   font-size: 0.85rem;
 }
 
-.row {
-  transition: background 120ms ease;
-}
-
-.row:hover {
-  background: var(--db-surface);
-}
-
 .cellLink {
   color: inherit;
   text-decoration: none;

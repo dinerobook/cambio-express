@@ -461,3 +461,94 @@ def test_legacy_new_post_redirects_301(_superadmin_flask_client):
     )
     assert resp.status_code == 301
     assert resp.headers["Location"].endswith("/app/superadmin/stores/new")
+
+
+# ── List: search, sort, paging ──────────────────────────────
+
+
+def _seed_stores(n):
+    from datetime import timedelta
+    from api.Core.Clock import utc_now
+    from api.Modules.Tenancy.Models import Store
+    with db_session():
+        for i in range(n):
+            db.session.add(Store(
+                name=f"Paged {i:02d}", slug=f"paged-{i:02d}",
+                email=f"paged{i:02d}@example.com",
+                created_at=utc_now() - timedelta(days=i),
+            ))
+        db.session.commit()
+
+
+def test_list_requires_superadmin(client, test_store_id):
+    assert client.get("/api/v2/superadmin/stores").status_code == 401
+    token = _login_admin(client, test_store_id)
+    resp = client.get(
+        "/api/v2/superadmin/stores?page=1",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 403
+
+
+def test_list_without_page_returns_every_store(client):
+    _seed_stores(60)
+    token = _login_superadmin(client)
+    body = client.get(
+        "/api/v2/superadmin/stores",
+        headers={"Authorization": f"Bearer {token}"},
+    ).get_json()
+    assert len(body["rows"]) == body["total"]
+    assert body["total"] >= 60
+
+
+def test_list_pages_newest_first(client):
+    _seed_stores(60)
+    token = _login_superadmin(client)
+    h = {"Authorization": f"Bearer {token}"}
+    first = client.get(
+        "/api/v2/superadmin/stores?page=1&per_page=25&q=paged", headers=h,
+    ).get_json()
+    assert first["total"] == 60
+    assert first["total_pages"] == 3
+    assert [r["slug"] for r in first["rows"][:2]] == ["paged-00", "paged-01"]
+    last = client.get(
+        "/api/v2/superadmin/stores?page=3&per_page=25&q=paged", headers=h,
+    ).get_json()
+    assert len(last["rows"]) == 10
+    assert last["rows"][-1]["slug"] == "paged-59"
+
+
+def test_list_searches_name_slug_and_email(client):
+    _seed_stores(3)
+    token = _login_superadmin(client)
+    h = {"Authorization": f"Bearer {token}"}
+    by_email = client.get(
+        "/api/v2/superadmin/stores?page=1&q=PAGED01@EXAMPLE", headers=h,
+    ).get_json()
+    assert [r["slug"] for r in by_email["rows"]] == ["paged-01"]
+    none = client.get(
+        "/api/v2/superadmin/stores?page=1&q=zzz-nothing", headers=h,
+    ).get_json()
+    assert none["rows"] == [] and none["total"] == 0
+
+
+def test_list_sorts_by_name(client):
+    _seed_stores(3)
+    token = _login_superadmin(client)
+    h = {"Authorization": f"Bearer {token}"}
+    asc = client.get(
+        "/api/v2/superadmin/stores?page=1&q=paged&sort=name&dir=asc", headers=h,
+    ).get_json()
+    assert [r["name"] for r in asc["rows"]] == ["Paged 00", "Paged 01", "Paged 02"]
+    desc = client.get(
+        "/api/v2/superadmin/stores?page=1&q=paged&sort=name&dir=desc", headers=h,
+    ).get_json()
+    assert [r["name"] for r in desc["rows"]] == ["Paged 02", "Paged 01", "Paged 00"]
+
+
+def test_list_rejects_bad_paging(client):
+    token = _login_superadmin(client)
+    h = {"Authorization": f"Bearer {token}"}
+    assert client.get("/api/v2/superadmin/stores?page=0", headers=h).status_code == 422
+    assert client.get("/api/v2/superadmin/stores?page=1&per_page=500", headers=h).status_code == 422
+    assert client.get("/api/v2/superadmin/stores?dir=up", headers=h).status_code == 422

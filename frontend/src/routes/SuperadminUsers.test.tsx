@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SuperadminUsers from "./SuperadminUsers";
@@ -61,13 +61,18 @@ function user(id: number, username: string, over: Partial<SuperadminUserRow> = {
   };
 }
 
-function renderPage() {
+function LocationProbe() {
+  return <div data-testid="search">{useLocation().search}</div>;
+}
+
+function renderPage(at = "/superadmin/users") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[at]}>
           <SuperadminUsers />
+          <LocationProbe />
         </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
@@ -87,6 +92,7 @@ describe("SuperadminUsers", () => {
     startImpersonation.mockReset();
     useSuperadminUsers.mockReset();
     refetch.mockReset();
+    localStorage.removeItem("db.page_size.superadmin-users");
     state = {
       data: {
         rows: [
@@ -111,12 +117,46 @@ describe("SuperadminUsers", () => {
   });
 
   it("passes the filters to the query and resets to page 1", async () => {
-    renderPage();
+    renderPage("/superadmin/users?page=3");
+    expect(useSuperadminUsers).toHaveBeenLastCalledWith(expect.objectContaining({ page: 3 }));
     await userEvent.selectOptions(screen.getByDisplayValue("All roles"), "owner");
     await userEvent.selectOptions(screen.getByDisplayValue("All stores"), "4");
     expect(useSuperadminUsers).toHaveBeenLastCalledWith({
-      q: undefined, role: "owner", store_id: 4, page: 1,
+      q: undefined, role: "owner", store_id: 4, page: 1, perPage: 50,
     });
+    expect(screen.getByTestId("search")).toHaveTextContent("role=owner");
+    expect(screen.getByTestId("search")).toHaveTextContent("store_id=4");
+  });
+
+  it("searches as you type after two characters, not per keystroke", async () => {
+    renderPage();
+    const box = screen.getByRole("searchbox", { name: "Search users" });
+    await userEvent.type(box, "a");
+    await new Promise((r) => setTimeout(r, 400));
+    expect(useSuperadminUsers).toHaveBeenLastCalledWith(expect.objectContaining({ q: undefined }));
+    await userEvent.type(box, "na");
+    await waitFor(() => expect(useSuperadminUsers)
+      .toHaveBeenLastCalledWith(expect.objectContaining({ q: "ana", page: 1 })));
+  });
+
+  it("restores the filters from a shared link", () => {
+    renderPage("/superadmin/users?q=luis&role=employee&store_id=4");
+    expect(useSuperadminUsers).toHaveBeenLastCalledWith(expect.objectContaining({
+      q: "luis", role: "employee", store_id: 4,
+    }));
+    expect(screen.getByRole("searchbox", { name: "Search users" })).toHaveValue("luis");
+  });
+
+  it("pages with the shared pager and rows per page", async () => {
+    state.data = { ...state.data!, total: 300, total_pages: 6 };
+    renderPage();
+    expect(screen.getByText(/of 300$/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect(useSuperadminUsers).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+    await userEvent.selectOptions(screen.getByLabelText("Rows per page"), "100");
+    expect(useSuperadminUsers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, perPage: 100 }),
+    );
   });
 
   it("shows ErrorState with a working Retry", async () => {

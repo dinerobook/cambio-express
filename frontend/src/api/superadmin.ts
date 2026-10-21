@@ -102,6 +102,8 @@ export interface SuperadminStoreRow {
 export interface SuperadminStoreListResponse {
   rows: SuperadminStoreRow[];
   total: number;
+  page?: number;
+  total_pages?: number;
 }
 
 export function useSuperadminStores() {
@@ -111,6 +113,27 @@ export function useSuperadminStores() {
     queryKey: ["superadmin", "stores", identity?.user_id],
     queryFn: () =>
       api<SuperadminStoreListResponse>("/api/v2/superadmin/stores"),
+  });
+}
+
+/** One page of the platform stores list: server search over name /
+ *  slug / email, sort and paging. Pickers that need every store keep
+ *  ``useSuperadminStores``. */
+export function useSuperadminStoresPage(opts: {
+  q: string; sort?: string; dir?: string; page: number; perPage: number;
+}) {
+  const identity = getCurrentIdentity();
+  const { q, sort = "", dir = "desc", page, perPage } = opts;
+  return useQuery<SuperadminStoreListResponse>({
+    enabled: identity?.role === "superadmin",
+    queryKey: ["superadmin", "stores", identity?.user_id, "page", q, sort, dir, page, perPage],
+    queryFn: () => {
+      const qs = new URLSearchParams({
+        q, sort, dir, page: String(page), per_page: String(perPage),
+      });
+      return api<SuperadminStoreListResponse>(`/api/v2/superadmin/stores?${qs}`);
+    },
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -319,7 +342,7 @@ interface SuperadminUserListResponse {
 }
 
 export function useSuperadminUsers(opts: {
-  q?: string; role?: string; store_id?: number; page?: number;
+  q?: string; role?: string; store_id?: number; page?: number; perPage?: number;
 }) {
   const identity = getCurrentIdentity();
   const params = new URLSearchParams();
@@ -327,12 +350,14 @@ export function useSuperadminUsers(opts: {
   if (opts.role) params.set("role", opts.role);
   if (opts.store_id) params.set("store_id", String(opts.store_id));
   if (opts.page && opts.page > 1) params.set("page", String(opts.page));
+  if (opts.perPage) params.set("per_page", String(opts.perPage));
   const qs = params.toString() ? `?${params}` : "";
   return useQuery<SuperadminUserListResponse>({
     enabled: identity?.role === "superadmin",
-    queryKey: ["superadmin", "users", opts.q, opts.role, opts.store_id, opts.page],
+    queryKey: ["superadmin", "users", opts.q, opts.role, opts.store_id, opts.page, opts.perPage],
     queryFn: () =>
       api<SuperadminUserListResponse>(`/api/v2/superadmin/users${qs}`),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -486,17 +511,19 @@ export interface StoreAuditLogResponse {
  *  /app/admin/audit-log), read from the superadmin store page. */
 export function useStoreAuditLog(
   storeId: number | undefined,
-  opts: { page?: number; target?: string; action?: string } = {},
+  opts: { page?: number; target?: string; action?: string; perPage?: number } = {},
 ) {
   const page = opts.page ?? 1;
+  const perPage = opts.perPage ?? 50;
   const target = opts.target ?? "";
   const action = opts.action ?? "";
   return useQuery<StoreAuditLogResponse>({
     enabled: storeId != null,
-    queryKey: ["superadmin", "store-audit-log", storeId, page, target, action],
+    queryKey: ["superadmin", "store-audit-log", storeId, page, target, action, perPage],
     queryFn: () => {
       const p = new URLSearchParams();
       p.set("page", String(page));
+      p.set("per_page", String(perPage));
       if (target) p.set("target", target);
       if (action) p.set("action", action);
       return api<StoreAuditLogResponse>(

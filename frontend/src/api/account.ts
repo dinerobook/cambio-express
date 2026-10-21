@@ -658,6 +658,7 @@ export interface ActivityFilters {
   target?: string;
   action?: string;
   page?:   number;
+  perPage?: number;
 }
 
 export function useMyActivity(filters: ActivityFilters = {}) {
@@ -665,12 +666,14 @@ export function useMyActivity(filters: ActivityFilters = {}) {
   if (filters.target) qs.set("target", filters.target);
   if (filters.action) qs.set("action", filters.action);
   if (filters.page && filters.page > 1) qs.set("page", String(filters.page));
+  if (filters.perPage) qs.set("per_page", String(filters.perPage));
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   return useQuery<MyActivityResponse>({
     queryKey: ["account", "activity", filters.target ?? "",
-               filters.action ?? "", filters.page ?? 1],
+               filters.action ?? "", filters.page ?? 1, filters.perPage ?? 50],
     queryFn: () =>
       api<MyActivityResponse>(`/api/v2/auth/activity${suffix}`),
+    placeholderData: (prev) => prev,
   });
 }
 

@@ -63,7 +63,8 @@ export interface paths {
          *     store. Powers /app/admin/audit-log. Filters mirror the legacy
          *     Flask page exactly: target=transfer|daily_report|batch,
          *     action=create|update|delete|lock|unlock|status_changed,
-         *     user=<id>. `page` is 1-based; per-page is the legacy 50.
+         *     user=<id>. `page` is 1-based; `per_page` defaults to the legacy 50.
+         *     Pages run over every row (no newest-500 cap).
          */
         get: operations["get_admin_audit_log_route_admin_audit_log_get"];
         put?: never;
@@ -3411,7 +3412,8 @@ export interface paths {
         /**
          * Owner Activity Route
          * @description Activity stream across all stores in the owner's umbrella.
-         *     Merges OperatorAuditLog + TransferAudit, newest first. Paginated.
+         *     Merges OperatorAuditLog + TransferAudit, newest first, paged over
+         *     every row (``paginate_merged``).
          */
         get: operations["owner_activity_route_owner_activity_get"];
         put?: never;
@@ -7550,10 +7552,29 @@ export interface components {
             /** Total Collected */
             total_collected: number;
         };
-        /** BatchListResponse */
+        /**
+         * BatchListResponse
+         * @description Every batch, or one page of them when the list is asked for a
+         *     ``page``; the envelope fields are filled either way.
+         */
         BatchListResponse: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
             /** Rows */
             rows?: components["schemas"]["BatchRow"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Total Pages
+             * @default 1
+             */
+            total_pages: number;
         };
         /**
          * BatchResponse
@@ -11802,10 +11823,29 @@ export interface components {
             /** Role */
             role: string;
         };
-        /** ReturnCheckListResponse */
+        /**
+         * ReturnCheckListResponse
+         * @description Every check, or one page when the list is asked for a
+         *     ``page``; the envelope fields are filled either way.
+         */
         ReturnCheckListResponse: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
             /** Rows */
             rows: components["schemas"]["ReturnCheckRow"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Total Pages
+             * @default 1
+             */
+            total_pages: number;
         };
         /**
          * ReturnCheckPaymentResponse
@@ -13201,12 +13241,26 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
-        /** SuperadminStoreListResponse */
+        /**
+         * SuperadminStoreListResponse
+         * @description Every store, or one page when the list is asked for a
+         *     ``page``; the envelope fields are filled either way.
+         */
         SuperadminStoreListResponse: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
             /** Rows */
             rows: components["schemas"]["SuperadminStoreRow"][];
             /** Total */
             total: number;
+            /**
+             * Total Pages
+             * @default 1
+             */
+            total_pages: number;
         };
         /**
          * SuperadminStoreRow
@@ -14544,6 +14598,7 @@ export interface operations {
                 action?: string;
                 user?: string;
                 page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -16545,6 +16600,7 @@ export interface operations {
                 target?: string;
                 action?: string;
                 page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -18316,6 +18372,9 @@ export interface operations {
                 sign?: string;
                 q?: string;
                 uncategorized_only?: boolean;
+                /** @description posted, description, category or amount; empty = newest first. */
+                sort?: string;
+                dir?: string;
                 page?: number;
                 per_page?: number;
             };
@@ -18429,6 +18488,9 @@ export interface operations {
                 /** @description Column slug to sort by (ach_date, company, batch_ref, ach_amount, status). Empty falls back to ach_date desc. */
                 sort?: string;
                 direction?: string;
+                /** @description 1-based page. Omit for every batch (the legacy shape). */
+                page?: number | null;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -18704,6 +18766,9 @@ export interface operations {
                 q?: string;
                 vendor_id?: number | null;
                 status?: string | null;
+                /** @description number, date, due, status or total; empty = newest first. */
+                sort?: string;
+                dir?: string;
                 /** @description 1-based page number */
                 page?: number;
                 /** @description Rows per page (1 to 200) */
@@ -18894,6 +18959,9 @@ export interface operations {
                 department_id?: number | null;
                 vendor_id?: number | null;
                 include_inactive?: boolean;
+                /** @description name, code, price or cost; empty = name A→Z. */
+                sort?: string;
+                dir?: string;
                 /** @description 1-based page number */
                 page?: number;
                 /** @description Rows per page (1 to 200) */
@@ -23169,6 +23237,12 @@ export interface operations {
             query?: {
                 /** @description Optional filter: pending, recovered, loss, fraud */
                 status?: string;
+                /** @description bounced, customer, check, bank, amount or status; empty = newest bounce first. */
+                sort?: string;
+                dir?: string;
+                /** @description 1-based page. Omit for every check (the legacy shape). */
+                page?: number | null;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -24419,7 +24493,16 @@ export interface operations {
     };
     list_stores_route_superadmin_stores_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Search name, slug or email. */
+                q?: string;
+                /** @description name, plan, status or created; empty = newest first. */
+                sort?: string;
+                dir?: string;
+                /** @description 1-based page. Omit for every store (pickers use this). */
+                page?: number | null;
+                per_page?: number;
+            };
             header?: {
                 authorization?: string | null;
             };
@@ -24567,6 +24650,7 @@ export interface operations {
                 target?: string;
                 action?: string;
                 page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -25515,6 +25599,9 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
+                /** @description 1-based page. Omit for every ticket (the legacy shape). */
+                page?: number | null;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;

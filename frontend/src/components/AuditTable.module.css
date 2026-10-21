@@ -11,7 +11,12 @@
   font-size: 0.85rem;
 }
 
+.targetLabel {
+  display: block;
+}
+
 .detailCell {
+  display: block;
   font-size: 0.9rem;
   max-width: 30rem;
 }
