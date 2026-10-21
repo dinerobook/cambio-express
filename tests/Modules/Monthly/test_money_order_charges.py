@@ -187,7 +187,8 @@ def test_pl_takes_count_times_charge_off_the_fees(client, test_store_id, admin):
     assert r["money_order_count"] == 17
     assert r["money_order_charges"] == round(charges, 2)
     assert r["money_order_fees"] == round(fees - charges, 2)
-    assert r["total_income"] == round(fees - charges, 2)
+    # The days' drawer over/short is income too (fed from the book).
+    assert r["total_income"] == round(fees - charges + r["over_short"], 2)
 
 
 def test_no_count_or_no_charge_leaves_the_fees_whole(client, test_store_id, admin):

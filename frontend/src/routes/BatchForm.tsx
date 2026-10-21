@@ -11,10 +11,9 @@ import {
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Button, Card, Checkbox, ConfirmDialog, DateInput, ErrorState, Field,
-  FormActions,
-  Input, KpiCard, KpiGrid, Loading, MoneyInput, PageHeader, PageShell,
-  Section, Select, Textarea, useToast,
+  Alert, Button, Card, Checkbox, DateInput, ErrorState,
+  Field, FormActions, Input, KpiCard, KpiGrid, Loading, MoneyInput,
+  PageHeader, PageShell, Section, Select, Textarea, useToast,
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
 import { useTransferChoices } from "../api/transfers";
@@ -125,7 +124,7 @@ export default function BatchForm() {
         message: isEdit ? "Batch updated." : "Batch created.",
         tone: "success",
       });
-      navigate(`/batches`, { replace: true });
+      guard.proceed(() => navigate(`/batches`, { replace: true }));
       void result;
     } catch (err) {
       if (err instanceof ApiError) {
@@ -242,7 +241,7 @@ export default function BatchForm() {
 
         {error && <Alert tone="error">{error}</Alert>}
 
-        <FormActions>
+        <FormActions guard={guard}>
           <Button
             type="button"
             tone="secondary"
@@ -259,8 +258,6 @@ export default function BatchForm() {
           </Button>
         </FormActions>
       </form>
-
-      <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
   );
 }

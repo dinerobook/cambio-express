@@ -110,6 +110,8 @@ export const MONTHLY_LINES: MonthlyLine[] = [
   line("other_income_1",         "Other income 1",         "Income"),
   line("other_income_2",         "Other income 2",         "Income"),
   line("other_income_3",         "Other income 3",         "Income"),
+  // An over is the store's money; a short (negative) takes it back.
+  line("over_short",             "Over / short",           "Income"),
 
   line("cash_purchases",      "Cash purchases",   "Expenses", false),
   line("check_purchases",     "Check purchases",  "Expenses", false),
@@ -132,7 +134,6 @@ export const MONTHLY_LINES: MonthlyLine[] = [
   line("other_expense_4",     "Other expense 4",  "Expenses"),
   line("other_expense_5",     "Other expense 5",  "Expenses"),
 
-  line("over_short",            "Over / short",          "Cash flow"),
   line("borrowed_money_return", "Borrowed money return", "Cash flow"),
   line("profit_distributed",    "Profit distributed",    "Cash flow"),
   line("cash_carry_forward",    "Cash carry forward",    "Cash flow"),

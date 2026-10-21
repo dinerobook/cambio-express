@@ -96,9 +96,9 @@ export default function Dashboard() {
 
   const title =
     identity?.role === "superadmin"
-      ? "Platform Dashboard"
+      ? "Platform dashboard"
       : identity?.role === "employee"
-        ? "My Dashboard"
+        ? "My dashboard"
         : "Dashboard";
 
   return (

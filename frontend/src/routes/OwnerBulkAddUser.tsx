@@ -7,9 +7,10 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Button, Card, Checkbox, Empty, ErrorState, Field, InfoTip,
-  Input, Loading, PageHeader, PageShell, Section,
+  Alert, Button, Card, Checkbox, Empty, ErrorState, Field, FormActions,
+  InfoTip, Input, Loading, PageHeader, PageShell, Section,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import styles from "./OwnerBulkAddUser.module.css";
@@ -45,6 +46,11 @@ export default function OwnerBulkAddUser() {
     selected: storeIds, isSelected, toggle: toggleStore, toggleAll, allSelected,
   } = useStoreSelection(allStoreIds);
 
+  const { dirty, markSaved } = useDirtyBaseline({ email, phone, password, fullName });
+  const guard = useUnsavedGuard(dirty && !busy, {
+    message: "You have a user you haven't created yet. Leave without creating?",
+  });
+
   if (!identity || (identity.role !== "owner"
                     && identity.role !== "superadmin")) {
     return (
@@ -72,6 +78,7 @@ export default function OwnerBulkAddUser() {
       // reuse it. Username + full name stay so the operator can
       // iterate on a partial-success result.
       setPassword("");
+      markSaved();
     } catch (e2) {
       setErr(
         apiErrorMessage(e2, "Could not create users."),
@@ -195,7 +202,7 @@ export default function OwnerBulkAddUser() {
 
             {err && <Alert tone="error">{err}</Alert>}
 
-            <div className={styles.actions}>
+            <FormActions guard={guard}>
               <Button
                 type="submit"
                 busy={busy}
@@ -210,7 +217,7 @@ export default function OwnerBulkAddUser() {
                   ? "Creating…"
                   : `Create user at ${storeIds.length} store${storeIds.length === 1 ? "" : "s"}`}
               </Button>
-            </div>
+            </FormActions>
           </Card>
         </form>
       )}

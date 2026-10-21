@@ -249,7 +249,7 @@ export default function AdminSubscription() {
                 onClick={() => handleToggle(a)}
               >
                 {a.status === "coming_soon"
-                  ? "Notify Me"
+                  ? "Notify me"
                   : a.is_active
                     ? "Remove"
                     : "Add"}

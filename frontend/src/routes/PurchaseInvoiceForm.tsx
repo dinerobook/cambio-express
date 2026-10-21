@@ -10,10 +10,11 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  Alert, Button, Card, Checkbox, DateInput, ErrorState,
-  Field, InfoTip, Input, Loading, MoneyInput, PageHeader, PageShell, Section,
+  Alert, Button, Card, Checkbox, DateInput, ErrorState, Field, FormActions,
+  InfoTip, Input, Loading, MoneyInput, PageHeader, PageShell, Section,
   Select, Textarea, useToast,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./PurchaseInvoices.module.css";
 import { todayIso } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
@@ -123,6 +124,13 @@ function InvoiceForm({
   const [updateCosts, setUpdateCosts] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { dirty } = useDirtyBaseline({
+    vendorId, number, invoiceDate, dueDate, subtotal, tax, other,
+    status, paidOn, notes, lines, updateCosts,
+  });
+  const guard = useUnsavedGuard(dirty && !busy, {
+    message: "You have unsaved edits on this invoice. Leave without saving?",
+  });
 
   function patchLine(index: number, patch: Partial<LineDraft>) {
     setLines((prev) =>
@@ -211,7 +219,7 @@ function InvoiceForm({
           : "Invoice saved.",
         tone: "success",
       });
-      navigate("/purchase-invoices");
+      guard.proceed(() => navigate("/purchase-invoices"));
     } catch (err) {
       setError(apiErrorMessage(err, "Could not save."));
     } finally {
@@ -399,17 +407,17 @@ function InvoiceForm({
             </Checkbox>
           </Section>
         </Card>
-        <div className={styles.formActions}>
+        <FormActions guard={guard}>
           <Button
             tone="secondary" type="button"
-            onClick={() => navigate("/purchase-invoices")}
+            onClick={() => guard.confirmLeave(() => navigate("/purchase-invoices"))}
           >
             Cancel
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
             {invoiceId == null ? "Add invoice" : "Save changes"}
           </Button>
-        </div>
+        </FormActions>
       </form>
     </PageShell>
   );

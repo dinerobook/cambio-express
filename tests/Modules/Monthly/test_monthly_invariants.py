@@ -166,9 +166,10 @@ def test_total_income_pinned_to_documented_formula(client, test_store_id):
 
 
 def test_total_expenses_pinned_to_documented_formula(client, test_store_id):
-    """total_expenses sums the documented 19 expense + adjustment
-    fields. over_short, borrowed_money_return, profit_distributed
-    are all in the expense bucket (legacy P&L convention)."""
+    """total_expenses sums the documented expense + adjustment
+    fields. borrowed_money_return and profit_distributed are in the
+    expense bucket (legacy P&L convention); over_short is NOT — an
+    over is the store's money, so it is income."""
     expenses = {
         # Operator-editable expenses
         "credit_card_fees":         1.0,
@@ -184,7 +185,6 @@ def test_total_expenses_pinned_to_documented_formula(client, test_store_id):
         "other_expense_4":       1024.0,
         "other_expense_5":       2048.0,
         # End-of-month adjustments (bucketed as expenses)
-        "over_short":            4096.0,
         "borrowed_money_return": 8192.0,
         "profit_distributed":   16384.0,
         # bank_charges_total is in the schema; honored because no
@@ -210,9 +210,10 @@ def test_net_profit_is_income_minus_expenses(client, test_store_id):
     resp = _put_monthly(client, test_store_id, 2026, 12, body)
     assert resp.status_code == 200
     r = resp.get_json()["report"]
-    assert r["total_income"]   == 1500.0
-    assert r["total_expenses"] ==   85.0
-    assert r["net_profit"]     == 1415.0
+    # An over of $10 is income (owner's rule, 2026-10-21).
+    assert r["total_income"]   == 1510.0
+    assert r["total_expenses"] ==   75.0
+    assert r["net_profit"]     == 1435.0
 
 
 # ── 3. Daily-derived auto-fill sweep ────────────────────────

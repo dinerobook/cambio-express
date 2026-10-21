@@ -72,6 +72,21 @@ describe("sentence case", () => {
     expect(
       offending(/<(?:Button|ButtonLink)\b[^>]*>\s*([A-Z+][^<{]*?)\s*<\//g, routeFiles),
     ).toEqual([]);
+    // the same for a label picked by a ternary: {busy ? "Saving…" : "Save changes"}
+    const picked: string[] = [];
+    for (const [path, src] of routeFiles) {
+      for (const m of src.matchAll(/<(?:Button|ButtonLink)\b[^>]*>\s*\{([^{}]*(?:\([^{}]*\))?[^{}]*)\}\s*<\//g)) {
+        for (const lit of m[1].matchAll(/"([^"]+)"/g)) {
+          if (titleCased(lit[1]).length) picked.push(`${path}: "${lit[1]}"`);
+        }
+      }
+    }
+    expect(picked).toEqual([]);
+  });
+
+  it("titles the dashboards in sentence case", () => {
+    expect(offending(/(?:\?|:)\s*"([A-Z][a-z]+ [A-Za-z]+)"\s*(?::|;)/g,
+      routeFiles.filter(([p]) => p.endsWith("/Dashboard.tsx")))).toEqual([]);
   });
 });
 

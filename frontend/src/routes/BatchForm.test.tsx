@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import BatchForm from "./BatchForm";
+import { renderRouteWithGuard } from "../test/renderRoute";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { todayIso } from "../lib/datetime";
@@ -270,5 +271,23 @@ describe("BatchForm", () => {
     renderForm("/batches/new");
     expect(screen.getByText(/No money transfer companies are switched on/))
       .toBeInTheDocument();
+  });
+
+  it("asks before leaving an edited batch; a saved batch leaves without asking", async () => {
+    useBatch.mockReturnValue({ data: { batch: existing }, isLoading: false });
+    updateBatch.mockResolvedValue({ batch: existing });
+    const user = userEvent.setup();
+    renderRouteWithGuard(<BatchForm />, { path: "/batches/:id/edit", at: "/batches/7/edit" });
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await user.selectOptions(screen.getByLabelText("Status"), "Returned");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(await screen.findByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText("Status")).toHaveValue("Returned");
+
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Navigated to /batches")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
   });
 });

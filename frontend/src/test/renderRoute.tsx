@@ -6,8 +6,11 @@
 import type { ReactElement } from "react";
 import { render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import {
+  createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes,
+} from "react-router-dom";
 
+import { UnsavedChangesHost } from "../components/UnsavedChangesHost";
 import { ToastProvider } from "../components/ui/Toast";
 import { setCurrentIdentity, type IdentityClaims } from "../lib/auth";
 import { Elsewhere } from "./Elsewhere";
@@ -47,4 +50,44 @@ export function signInAs(
       (p) => !without.includes(p),
     ),
   });
+}
+
+/** Like renderRoute, but on a data router with the app's
+ *  <UnsavedChangesHost>, the way main.tsx + App mount pages — so a
+ *  test can leave the page (`router.navigate("/elsewhere")`, the
+ *  sidebar's path) and see the unsaved-changes prompt. */
+export function renderRouteWithGuard(
+  element: ReactElement,
+  { path = "/", at = path, from }: {
+    path?: string; at?: string;
+    /** A page in history before `at`, so the back button has somewhere to go. */
+    from?: string;
+  } = {},
+) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const router = createMemoryRouter(
+    [{
+      path: "*",
+      element: (
+        <>
+          <Routes>
+            <Route path={path} element={element} />
+            <Route path="*" element={<Elsewhere />} />
+          </Routes>
+          <UnsavedChangesHost />
+        </>
+      ),
+    }],
+    { initialEntries: from ? [from, at] : [at] },
+  );
+  const result = render(
+    <QueryClientProvider client={qc}>
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  return { ...result, router };
 }

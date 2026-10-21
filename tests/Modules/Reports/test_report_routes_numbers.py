@@ -245,7 +245,10 @@ def test_returned_check_status(client, test_store_id):
     assert totals["amount"] == pytest.approx(500.0)
     assert totals["recovered"] == pytest.approx(150.0)
     assert totals["loss_fraud"] == pytest.approx(150.0)  # 200 written off − 50 paid back
-    assert totals["net_gl"] == pytest.approx(0.0)
+    # Paybacks within the face amount are not a gain: only the 150
+    # write-off moves the net.
+    assert totals["fees"] == pytest.approx(0.0)
+    assert totals["net_gl"] == pytest.approx(-150.0)
 
 
 def test_bank_transactions_breakdown(client, test_store_id):

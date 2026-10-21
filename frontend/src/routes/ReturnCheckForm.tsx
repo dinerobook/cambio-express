@@ -134,7 +134,7 @@ export default function ReturnCheckForm() {
         message: isEdit ? "Return check updated." : "Return check recorded.",
         tone: "success",
       });
-      navigate("/return-checks", { replace: true });
+      guard.proceed(() => navigate("/return-checks", { replace: true }));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -357,12 +357,7 @@ export default function ReturnCheckForm() {
 
         {error && <Alert tone="error">{error}</Alert>}
 
-        <FormActions>
-          {isDirty && (
-            <span className={styles.unsavedNote}>
-              <Pill tone="warning" dot>Unsaved changes</Pill>
-            </span>
-          )}
+        <FormActions guard={guard}>
           <Button type="button" tone="secondary" onClick={onCancel}>
             Cancel
           </Button>
@@ -374,8 +369,6 @@ export default function ReturnCheckForm() {
           </Button>
         </FormActions>
       </form>
-
-      <ConfirmDialog {...guard.dialogProps} />
 
       <ConfirmDialog
         open={pendingTransition != null}

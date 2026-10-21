@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import MonthlyCategories from "./MonthlyCategories";
+import { renderRouteWithGuard } from "../test/renderRoute";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
@@ -157,5 +158,24 @@ describe("MonthlyCategories", () => {
     renderPage();
     expect(screen.getByText(/Sign in as a store admin/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save names" })).not.toBeInTheDocument();
+  });
+
+  it("shows Unsaved changes while a name is typed and clears it once saved", async () => {
+    renderPage();
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await userEvent.type(screen.getByLabelText("Name for Other expense 1"), "Bank Fee");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save names" }));
+    expect(await screen.findByText("Category names saved.")).toBeInTheDocument();
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+  });
+
+  it("asks before the sidebar takes an unsaved name away", async () => {
+    const { router } = renderRouteWithGuard(<MonthlyCategories />, { path: "/monthly/categories" });
+    await userEvent.type(screen.getByLabelText("Name for Other expense 1"), "Bank Fee");
+    act(() => { void router.navigate("/monthly"); });
+    expect(await screen.findByText(
+      "You have unsaved P&L line names. Leave without saving?",
+    )).toBeInTheDocument();
   });
 });

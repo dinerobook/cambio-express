@@ -13,8 +13,8 @@ import { hasPermission, toggleMatrixCell } from "../lib/permissions";
 import { modulesOffForGrants } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  AppLink, Alert, Button, Card, Checkbox, ConfirmDialog, ErrorState, Field, Input,
-  Loading, PageHeader, PageShell, Select, space,
+  Alert, AppLink, Button, Card, Checkbox, ErrorState, Field,
+  FormActions, Input, Loading, PageHeader, PageShell, Select, space,
   useToast,
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
@@ -349,11 +349,11 @@ export default function AdminUserForm() {
         message: isEdit ? "Login updated." : "Login created.",
         tone: "success",
       });
-      navigate(
+      guard.proceed(() => navigate(
         linkEmployeeId
           ? `/employees/${linkEmployeeId}/edit`
           : "/employees",
-      );
+      ));
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         const detailBody = (err.body as {
@@ -626,10 +626,7 @@ export default function AdminUserForm() {
             </Field>
           )}
 
-          <div style={{ marginTop: space.sm, display: "flex", gap: "0.6rem" }}>
-            <Button type="submit" busy={busy} disabled={busy}>
-              {busy ? "Saving…" : (isEdit ? "Save Changes" : "Create User")}
-            </Button>
+          <FormActions guard={guard}>
             <Button
               type="button"
               tone="secondary"
@@ -642,11 +639,12 @@ export default function AdminUserForm() {
             >
               Cancel
             </Button>
-          </div>
+            <Button type="submit" busy={busy} disabled={busy}>
+              {busy ? "Saving…" : (isEdit ? "Save changes" : "Create user")}
+            </Button>
+          </FormActions>
         </form>
       </Card>
-
-      <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
   );
 }

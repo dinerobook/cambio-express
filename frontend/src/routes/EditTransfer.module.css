@@ -14,12 +14,6 @@
 
 /* "Unsaved changes" pill in the form action bar — pushed left so
  * Cancel / Save stay right-aligned. */
-.unsavedNote {
-  margin-right: auto;
-  display: inline-flex;
-  align-items: center;
-}
-
 .fieldError {
   display: block;
   margin-top: 0.3rem;

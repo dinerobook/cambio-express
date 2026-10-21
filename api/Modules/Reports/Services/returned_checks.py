@@ -5,7 +5,10 @@ Each bucket exposes count + total amount + total recovered — the
 sum of installment payments received so far, for EVERY status:
 a still-pending check with money already paid back (principal
 and/or the bounce fee) must show those dollars, not $0. Plus a
-derived net G/L line: `recovered - (loss + fraud)`.
+derived net G/L line: fees collected minus the unpaid face amount
+of losses + fraud. Paying back the face amount is the store's own
+money coming back, not a gain (Monthly INVARIANTS.md "Returned
+check gain/loss").
 
 Pure DB read — no commits, no side-effects.
 """
@@ -29,8 +32,8 @@ def returned_check_status(
         `status_key`, `count`, `amount`, `recovered`. Empty
         buckets are skipped so the template doesn't render
         zero-value cards.
-      - totals: `count`, `amount`, `recovered`, `loss_fraud`,
-        `net_gl` (recovered - loss_fraud).
+      - totals: `count`, `amount`, `recovered`, `fees`,
+        `loss_fraud`, `net_gl` (fees - loss_fraud).
     """
     from api.Modules.ReturnChecks.Models import RETURN_CHECK_STATUSES, ReturnCheck
 
@@ -48,6 +51,7 @@ def returned_check_status(
         for s in RETURN_CHECK_STATUSES
     }
     loss_fraud_net = 0.0
+    fees = 0.0
     for rc in rows_q:
         b = buckets.setdefault(
             str(rc.status),
@@ -61,6 +65,9 @@ def returned_check_status(
         # hid partial and even full paybacks on pending rows.
         recovered = float(rc.recovered_total or 0)
         b["recovered"] += recovered
+        # Paybacks pay the face amount first; only what lands above
+        # it (the bounce fee) is profit.
+        fees += max(0.0, recovered - float(rc.amount or 0))
         if rc.status in ("loss", "fraud"):
             # Net the write-off of anything already paid back —
             # counting the full face amount would double-count the
@@ -92,7 +99,8 @@ def returned_check_status(
         # net G/L can differ from the monthly P&L's Return Check
         # (G/L) line, which books recoveries by paid_on and losses by
         # status_changed_on.
+        "fees":       round(fees, 2),
         "loss_fraud": loss_fraud_net,
     }
-    totals["net_gl"] = totals["recovered"] - totals["loss_fraud"]
+    totals["net_gl"] = round(fees - loss_fraud_net, 2)
     return rows, totals

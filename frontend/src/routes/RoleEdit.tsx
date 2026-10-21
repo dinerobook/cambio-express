@@ -17,7 +17,7 @@ import {
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
-  Alert, Button, Card, ConfirmDialog, ErrorState, Field,
+  Alert, Button, Card, ConfirmDialog, ErrorState, Field, FormActions,
   Input, Loading, PageHeader, PageShell, Select, useToast,
 } from "../components/ui";
 import styles from "./RoleEdit.module.css";
@@ -215,7 +215,7 @@ export default function RoleEdit() {
       void qc.invalidateQueries({ queryKey: ["admin", "roles"] });
       void qc.invalidateQueries({ queryKey: ["admin", "users"] });
       setBaseline(JSON.stringify(draft));
-      backToList();
+      guard.proceed(backToList);
     } catch (err) {
       setError(apiErrorMessage(err, "Could not save."));
     } finally {
@@ -398,7 +398,7 @@ export default function RoleEdit() {
                 )}
 
                 {!readOnly && (
-                  <div className={styles.actions}>
+                  <FormActions guard={guard}>
                     <Button
                       tone="secondary" type="button"
                       onClick={() => guard.confirmLeave(backToList)}
@@ -412,7 +412,7 @@ export default function RoleEdit() {
                     >
                       {isNew ? "Create role" : "Save role"}
                     </Button>
-                  </div>
+                  </FormActions>
                 )}
                 {builtinKey && canEditBuiltin
                   && builtin.data?.has_overrides.includes(builtinKey) && (
@@ -445,7 +445,6 @@ export default function RoleEdit() {
         onConfirm={() => { void save(); }}
         onCancel={() => setPending(null)}
       />
-      <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
   );
 }

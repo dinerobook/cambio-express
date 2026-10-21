@@ -18,10 +18,11 @@ import {
   unsubscribeBrowser,
 } from "../lib/push";
 import {
-  Alert, Button, Card, Checkbox, ErrorState, InfoTip, Loading,
+  Alert, Button, Card, Checkbox, ErrorState, FormActions, InfoTip, Loading,
   PageHeader, PageShell, Section, Table, tdStyle, thStyle, tokens,
   useToast,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./AccountNotifications.module.css";
 import { BRAND_NAME } from "../lib/brand";
 import { PageCrumbs } from "../components/PageCrumbs";
@@ -66,6 +67,14 @@ export default function AccountNotifications() {
     });
   }, [data]);
 
+  // The draft is empty until the GET hydrates it; that is the baseline.
+  const { dirty, markSaved } = useDirtyBaseline(
+    draft, Object.keys(draft).length > 0,
+  );
+  const guard = useUnsavedGuard(dirty && !busy, {
+    message: "You have unsaved notification preferences. Leave without saving?",
+  });
+
   function set<K extends keyof NotificationsUpdateBody>(
     key: K, value: NotificationsUpdateBody[K],
   ) {
@@ -79,6 +88,7 @@ export default function AccountNotifications() {
     setServerError(null);
     try {
       await updateNotifications(draft);
+      markSaved();
       toast({ message: "Notification preferences saved.", tone: "success" });
       queryClient.invalidateQueries({ queryKey: ["account", "notifications"] });
     } catch (err) {
@@ -259,11 +269,11 @@ export default function AccountNotifications() {
                 </PrefKindRow>
               )}
 
-              <div style={{ marginTop: "1.25rem" }}>
+              <FormActions guard={guard}>
                 <Button type="submit" busy={busy} disabled={busy}>
                   {busy ? "Saving…" : "Save preferences"}
                 </Button>
-              </div>
+              </FormActions>
             </form>
           </Card>
         </Section>

@@ -6,9 +6,12 @@ import {
   useUpdateTVDisplayCountry,
   type TVDisplayBankRow,
 } from "../api/tvDisplay";
-import { Button, ButtonLink, Card, Checkbox, ErrorState, Field, Input,
-  Loading, PageHeader, PageShell, Table, tdStyle, thStyle, useToast,
+import {
+  Button, ButtonLink, Card, Checkbox, ErrorState, Field,
+  FormActions, Input, Loading, PageHeader, PageShell, Table, tdStyle,
+  thStyle, useToast,
 } from "../components/ui";
+import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import styles from "./TVDisplayCountry.module.css";
@@ -36,6 +39,9 @@ export default function TVDisplayCountry() {
   const [bankDeletes, setBankDeletes] = useState<Set<number>>(new Set());
   const [newBankNames, setNewBankNames] = useState<string[]>([""]);
   const [rateGrid, setRateGrid] = useState<Record<string, string>>({});
+  // Set in the hydrate effect, so the dirty baseline is the loaded
+  // country rather than the empty first render.
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -57,7 +63,16 @@ export default function TVDisplayCountry() {
       });
     }
     setRateGrid(grid);
+    setHydrated(true);
   }, [data]);
+
+  const { dirty } = useDirtyBaseline({
+    countryName, countryCode, companiesText, bankNames, bankSorts,
+    bankDeletes: Array.from(bankDeletes), newBankNames, rateGrid,
+  }, hydrated);
+  const guard = useUnsavedGuard(dirty && !save.isPending, {
+    message: "You have unsaved edits on this country. Leave without saving?",
+  });
 
   const companies = useMemo(
     () => companiesText.split(",").map((s) => s.trim()).filter(Boolean),
@@ -121,7 +136,7 @@ export default function TVDisplayCountry() {
       return;
     }
     toast({ message: "Country saved.", tone: "success" });
-    navigate("/tv-display");
+    guard.proceed(() => navigate("/tv-display"));
   }
 
   function setRate(bankId: number, idx: number, value: string) {
@@ -247,7 +262,8 @@ export default function TVDisplayCountry() {
           ))}
         </Card>
 
-        <div className={styles.actions}>
+        <FormActions guard={guard}>
+          <ButtonLink to="/tv-display" tone="secondary">Cancel</ButtonLink>
           <Button
             type="submit"
             perm="settings.update"
@@ -256,8 +272,7 @@ export default function TVDisplayCountry() {
           >
             {save.isPending ? "Saving…" : "Save changes"}
           </Button>
-          <ButtonLink to="/tv-display" tone="secondary">Cancel</ButtonLink>
-        </div>
+        </FormActions>
       </form>
     </PageShell>
   );

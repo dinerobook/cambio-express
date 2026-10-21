@@ -10,10 +10,9 @@ import SenderAutocomplete from "../components/SenderAutocomplete";
 import StoreListField from "../components/StoreListField";
 import RecipientSuggestions from "../components/RecipientSuggestions";
 import {
-  Alert, Button, Card, ConfirmDialog, DateInput, ErrorState,
-  Field, FormActions, InfoTip, Input, Loading, MoneyInput, PageHeader,
-  PageShell, Pill, Section, Select,
-  useToast,
+  Alert, Button, Card, DateInput, ErrorState, Field,
+  FormActions, InfoTip, Input, Loading, MoneyInput, PageHeader, PageShell,
+  Pill, Section, Select, useToast,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
@@ -198,7 +197,7 @@ export default function EditTransfer() {
         internal_notes: stored?.internal_notes ?? "",
       });
       toast({ message: "Transfer updated.", tone: "success" });
-      navigate(`/transfers/${result.transfer.id}`, { replace: true });
+      guard.proceed(() => navigate(`/transfers/${result.transfer.id}`, { replace: true }));
     } catch (err) {
       setError("root", {
         message: apiErrorMessage(err, "Could not save the changes. Please try again."),
@@ -492,12 +491,7 @@ export default function EditTransfer() {
 
         {errors.root && <Alert tone="error">{errors.root.message}</Alert>}
 
-        <FormActions>
-          {isDirty && (
-            <span className={styles.unsavedNote}>
-              <Pill tone="warning" dot>Unsaved changes</Pill>
-            </span>
-          )}
+        <FormActions guard={guard}>
           <Button
             type="button"
             tone="secondary"
@@ -511,8 +505,6 @@ export default function EditTransfer() {
           </Button>
         </FormActions>
       </form>
-
-      <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
   );
 }

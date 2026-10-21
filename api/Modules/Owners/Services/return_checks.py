@@ -4,10 +4,14 @@ Five read-side aggregates the owner dashboard + monthly P&L share:
 
   - `writeoff_total(...)`  : sum unrecovered balance of closed
                               checks (loss / fraud) in a window.
-  - `period_aggregates(...)`: recoveries (by payment date) +
-                              losses + fraud + still-pending
-                              balance for a window. Used by KPI
-                              cards.
+  - `fee_income(...)`       : the part of each payback above the
+                              check's face amount (the bounce
+                              fee) in a window — the only profit
+                              a payback makes.
+  - `period_aggregates(...)`: recoveries (cash back, by payment
+                              date) + fee income + losses + fraud
+                              + still-pending balance for a
+                              window. Used by KPI cards.
   - `aging_buckets(db, store_ids)`: pending balance sliced into
                               0–30 / 31–60 / 61–90 / 90+ buckets.
   - `monthly_series(db, store_ids)`: 12-month recoveries vs
@@ -18,17 +22,26 @@ Five read-side aggregates the owner dashboard + monthly P&L share:
                               `period_aggregates['net_gl']` so
                               loss-positive (expense convention).
 
-Per CLAUDE.md, recoveries are measured at the PAYMENT level (a
-$300 installment in April + $400 in May → split across months);
-losses/fraud are measured at the parent level on
-`status_changed_on` (single closing event), summed against the
-REMAINING balance (parent.amount − payments already received) so
-partial recoveries before write-off don't double-count.
+The gain/loss rule (Monthly INVARIANTS.md, "Returned check
+gain/loss"): a bounced check is money the store is owed, not a loss
+yet, so paying back its face amount returns the store's own money
+and is NOT profit. The P&L moves only on:
+
+  - fee income — the part of a payback above the face amount (the
+    returned-check fee), measured at the PAYMENT level so a fee paid
+    in May lands on May;
+  - write-offs — losses/fraud at the parent level on
+    `status_changed_on` (single closing event), summed against the
+    REMAINING face amount (parent.amount − payments already
+    received).
+
+Cash recovered (`recoveries`) is still reported, as a cash figure
+for the owner dashboard, never as profit.
 """
 from calendar import monthrange
 from datetime import date
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from typing import Any
 
@@ -90,22 +103,76 @@ def writeoff_total(
     return total
 
 
+def fee_income(
+    db: Session, store_ids: list[int], start: date, end: date,
+) -> float:
+    """Fee dollars collected in ``[start, end]``: for every payback
+    in the window, the part that lands above its check's face
+    amount once the check's earlier paybacks are counted (a payback
+    pays the face amount first, then the fee). Paying back the face
+    amount is the store getting its own money back — not profit.
+    """
+    if not store_ids:
+        return 0.0
+    ReturnCheck, ReturnCheckPayment = _models()
+    # Checks with a payback in the window; every payback of those
+    # checks is needed, earlier ones too, to know where the face
+    # amount ran out.
+    in_window = (
+        select(ReturnCheckPayment.return_check_id)
+          .join(ReturnCheck, ReturnCheckPayment.return_check_id == ReturnCheck.id)
+          .where(
+              ReturnCheck.store_id.in_(store_ids),
+              ReturnCheckPayment.paid_on >= start,
+              ReturnCheckPayment.paid_on <= end,
+          )
+    )
+    rows = (
+        db.query(
+            ReturnCheckPayment.return_check_id,
+            ReturnCheck.amount_cents,
+            ReturnCheckPayment.amount_cents,
+            ReturnCheckPayment.paid_on,
+        )
+        .join(ReturnCheck, ReturnCheckPayment.return_check_id == ReturnCheck.id)
+        .filter(ReturnCheckPayment.return_check_id.in_(in_window))
+        .order_by(
+            ReturnCheckPayment.return_check_id,
+            ReturnCheckPayment.paid_on,
+            ReturnCheckPayment.id,
+        )
+        .all()
+    )
+    fee_cents = 0
+    paid_so_far: dict[int, int] = {}
+    for rc_id, face, paid, paid_on in rows:
+        before = paid_so_far.get(rc_id, 0)
+        after = before + int(paid or 0)
+        paid_so_far[rc_id] = after
+        if start <= paid_on <= end:
+            face = int(face or 0)
+            fee_cents += max(0, after - face) - max(0, before - face)
+    return fee_cents / 100.0
+
+
 def period_aggregates(
     db: Session, store_ids: list[int], start: date, end: date,
 ) -> dict[str, Any]:
-    """Sum recoveries (by payment date) and losses+fraud (by parent
-    status-change date), plus the still-pending balance.
+    """Sum recoveries (cash back, by payment date), fee income and
+    losses+fraud (by parent status-change date), plus the
+    still-pending balance.
 
-    Returns gain-positive `net_gl` (used by the owner dashboard);
-    `monthly_pl` flips the sign for the P&L expense column.
+    `net_gl` is gain-positive — fee income minus write-offs, never
+    the cash recovered (see the module docstring); `monthly_pl`
+    flips the sign for the P&L expense column.
 
     Empty `store_ids` returns all-zero dict — caller doesn't need
     to short-circuit.
     """
     if not store_ids:
         return {
-            "recoveries": 0.0, "losses": 0.0, "fraud": 0.0,
-            "net_gl": 0.0, "pending": 0.0, "pending_count": 0,
+            "recoveries": 0.0, "fee_income": 0.0, "losses": 0.0,
+            "fraud": 0.0, "net_gl": 0.0, "pending": 0.0, "pending_count": 0,
         }
     ReturnCheck, ReturnCheckPayment = _models()
 
@@ -126,6 +193,7 @@ def period_aggregates(
           .scalar() or 0.0
     )
 
+    fees = fee_income(db, store_ids, start, end)
     loss = writeoff_total(db, store_ids, start, end, "loss")
     fraud = writeoff_total(db, store_ids, start, end, "fraud")
 
@@ -166,9 +234,10 @@ def period_aggregates(
 
     return {
         "recoveries":   float(rec),
+        "fee_income":   fees,
         "losses":       float(loss),
         "fraud":        float(fraud),
-        "net_gl":       float(rec) - float(loss) - float(fraud),
+        "net_gl":       round(fees - float(loss) - float(fraud), 2),
         "pending":      pending,
         "pending_count": pending_count,
     }
@@ -263,8 +332,11 @@ def monthly_pl(
     expense column on monthly_report (which subtracts from net
     income).
 
-      positive  → net loss for the month (losses + fraud > recoveries)
-      negative  → net gain for the month (recoveries > losses + fraud)
+      positive  → net loss for the month (write-offs > fees collected)
+      negative  → net gain for the month (fees collected > write-offs)
+
+    Paying back a check's face amount is NOT a gain (module
+    docstring).
 
     Note: `period_aggregates['net_gl']` uses the OPPOSITE
     convention (positive = gain) because that's what the owner

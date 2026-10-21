@@ -94,4 +94,20 @@ describe("OwnerBulkAddUser", () => {
     expect(await screen.findByText("Password is too common.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Results" })).not.toBeInTheDocument();
   });
+
+  it("shows Unsaved changes on a typed user, clears it once created", async () => {
+    const user = userEvent.setup();
+    bulkAddUser.mockResolvedValue({
+      created: 1, skipped: 0, rejected: 0,
+      results: [{ store_id: 1, store_name: "Downtown", status: "created", detail: "" }],
+    });
+    renderPage();
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    await fillForm(user);
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Select all" }));
+    await user.click(screen.getByRole("button", { name: "Create user at 2 stores" }));
+    await screen.findByRole("heading", { name: "Results" });
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+  });
 });

@@ -16,7 +16,7 @@ Three families, each with its own rule:
   payroll, check cashing fees). The operator never types these.
 * ``DAILY_FED_FIELDS`` — operator-editable lines the daily books can
   also fill (sales, bill payment and top-up fees, hold fees,
-  rebates). The daily books win for a line only when they have a
+  rebates, the drawer's over/short). The daily books win for a line only when they have a
   non-zero figure for it this month; otherwise the typed value
   stands, exactly like the bank feed. Presence IS the lock.
 * ``DAILY_EXTRA_INCOME`` — income the daily book records that has no
@@ -86,6 +86,10 @@ DAILY_FED_FIELDS: dict[str, tuple[Source, ...]] = {
     "boost_mobile":           (("msb", "boost_mobile"),),
     "return_check_hold_fees": (("msb", "return_check_hold_fees"),),
     "rebates_commissions":    (("msb", "rebates_commissions"),),
+    # The day's cash-drawer reconciliation (DailyReport.over_short,
+    # derived on every save): positive = over, which is the store's
+    # money; a short takes it back. Income on the P&L.
+    "over_short":             (("msb", "over_short"),),
 }
 
 # Money transfer fees are deliberately NOT here: the companies pay the

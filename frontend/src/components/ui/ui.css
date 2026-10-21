@@ -212,6 +212,45 @@
   gap: 1rem;
 }
 
+/* ── Form actions bar (kit <FormActions>) ─────────────────────
+ * The Save / Cancel row at the bottom of every form. With an
+ * unsaved-changes guard it pins to the bottom of the window while
+ * the form is dirty (UI-STANDARDS "Unsaved changes"), so the
+ * "Unsaved changes" pill and Save stay in reach on long forms —
+ * the bar the daily book has always had. */
+.ds-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--db-border);
+}
+
+.ds-form-actions--between {
+  justify-content: space-between;
+}
+
+.ds-form-actions--sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  background: var(--db-surface);
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+/* Status (pill or note) takes the left edge; buttons stay right. */
+.ds-form-actions__status {
+  flex: 1 1 12rem;
+  min-width: 0;
+  color: var(--db-text-muted);
+  font-size: 0.85rem;
+  animation: ds-fade-in var(--ds-dur-base) var(--ds-ease) both;
+}
+
 /* ── Content fade-in: smooth reveal when data arrives ──────── */
 
 /* Loading spinner (kit <Loading>). */

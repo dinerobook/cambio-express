@@ -70,14 +70,16 @@ class ReturnCheck(Base):
                    instead, the FULL ``amount`` becomes the loss
                    (recovered_amount is reset).
 
-    P&L formula for a given month (locked field on monthly_report):
+    P&L formula for a given month (the Returned check gain/loss
+    line, Owners/Services/return_checks.py):
 
-        Σ recovered_amount where status='recovered'
-                                AND status_changed_on in the month
-      − Σ amount             where status in ('loss','fraud')
+        Σ fee part of paybacks  paid_on in the month (what a payback
+                                adds above the check's face amount)
+      − Σ unpaid face amount    status in ('loss','fraud')
                                 AND status_changed_on in the month
 
-    Positive = net gain (recoveries beat write-offs); negative = net
+    Paying back the face amount is the store getting its own money
+    back, so it is NOT a gain. Positive = net gain; negative = net
     loss. Pending balance does NOT enter the P&L — it's a separate
     KPI on the list page and owner dashboard.
     """

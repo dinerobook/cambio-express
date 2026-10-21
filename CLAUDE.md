@@ -78,6 +78,23 @@ Non-negotiables:
   (active=accent, inactive=neutral, pending=warning,
   failed=negative). When a new pattern is needed, add it to that file
   in the same PR.
+- **Unsaved changes — one guard on every form — see
+  [UI-STANDARDS.md §2 "Unsaved changes"](docs/design-system/UI-STANDARDS.md).**
+  A form that stores typed data through a Save button uses
+  `useUnsavedGuard` (+ `useDirtyBaseline` for useState forms) and
+  `<FormActions guard={guard}>`: the "Unsaved changes" pill and a
+  bar pinned to the window bottom while dirty, the "Leave without
+  saving?" prompt on sidebar / breadcrumb / back / Cancel (one router
+  blocker, `components/UnsavedChangesHost.tsx` — it needs the data
+  router in `main.tsx`; keep `createBrowserRouter`), and the
+  browser's prompt on refresh / close. Navigate after a save with
+  `guard.proceed(...)`. Never write your own `beforeunload`, pill or
+  leave dialog.
+- **Write app-wide consistency changes down.** A PR that makes
+  something consistent across the software adds the rule to
+  `docs/design-system/UI-STANDARDS.md` (and a bullet here when every
+  change must respect it) in the same PR, naming the shared
+  component and what it replaces (UI-STANDARDS §9).
 - **No access, no control — see
   [UI-STANDARDS.md §8](docs/design-system/UI-STANDARDS.md).** A
   person who cannot open a page must not see the tab, link,

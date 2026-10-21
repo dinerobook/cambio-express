@@ -21,6 +21,19 @@ describe("source guards", () => {
     expect(Object.keys(sources).length).toBeGreaterThan(100);
   });
 
+  it("guards unsaved edits through the one shared guard", () => {
+    // UI-STANDARDS §2 "Unsaved changes": useUnsavedGuard owns the
+    // browser prompt, <FormActions guard> the pill and the leave
+    // dialog, UnsavedChangesHost the router blocker.
+    expect(
+      offenders(/["']beforeunload["']/, ["/useUnsavedGuard.ts"]),
+    ).toEqual([]);
+    expect(
+      offenders(/>\s*Unsaved (changes|edits)/i, ["/FormActions.tsx"]),
+    ).toEqual([]);
+    expect(offenders(/\buseBlocker\(/, ["/UnsavedChangesHost.tsx"])).toEqual([]);
+  });
+
   it("never derives a calendar day from the UTC clock", () => {
     // `toISOString().slice(0, 10)` names the UTC day: tomorrow for a
     // US store after ~7pm. Use todayIso / toIsoDate / daysAgoIso.

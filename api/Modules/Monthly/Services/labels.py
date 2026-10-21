@@ -83,6 +83,25 @@ MONTHLY_LINE_DEFAULTS: dict[str, str] = {
     "other_expense_5":        "Other expense 5",
 }
 
+# The lines a store cannot rename — the daily-book, workflow and
+# cash-flow lines. Exports (the tax pack's monthly CSV) need a name
+# for every line the P&L shows, so they live next to the defaults.
+FIXED_LINE_LABELS: dict[str, str] = {
+    "money_order_fees":      "Money order fees",
+    "check_cashing_fees":    "Check cashing fees",
+    "over_short":            "Over / short",
+    "cash_purchases":        "Cash purchases",
+    "check_purchases":       "Check purchases",
+    "cash_expenses":         "Cash expenses",
+    "check_expenses":        "Check expenses",
+    "cash_payroll":          "Cash payroll",
+    "check_payroll":         "Check payroll",
+    "return_check_gl":       "Returned check gain/loss",
+    "borrowed_money_return": "Borrowed money return",
+    "profit_distributed":    "Profit distributed",
+    "cash_carry_forward":    "Cash carry forward",
+}
+
 # Which half of the P&L each line sits in. Drives the settings
 # page's grouping; the income / expense arithmetic itself lives in
 # `Services/monthly.py` (INCOME_FIELDS / EXPENSE_FIELDS) and is NOT
@@ -153,7 +172,11 @@ def line_label(labels: dict[str, str], field: str) -> str:
     """One line's label out of a map from either function above,
     falling back to the shipped default and then to the raw field
     name. Pure — pass the map in rather than querying per line."""
-    return labels.get(field) or MONTHLY_LINE_DEFAULTS.get(field, field)
+    return (
+        labels.get(field)
+        or MONTHLY_LINE_DEFAULTS.get(field)
+        or FIXED_LINE_LABELS.get(field, field)
+    )
 
 
 class UnknownMonthlyLineError(ValueError):

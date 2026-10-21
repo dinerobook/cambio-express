@@ -10,25 +10,9 @@ import SenderAutocomplete from "../components/SenderAutocomplete";
 import StoreListField from "../components/StoreListField";
 import RecipientSuggestions from "../components/RecipientSuggestions";
 import {
-  Alert,
-  Button,
-  Card,
-  ConfirmDialog,
-  DateInput,
-  Field,
-  FormActions,
-  InfoTip,
-  Input,
-  MoneyInput,
-  PageHeader,
-  PageShell,
-  Pill,
-  Section,
-  Select,
-  tokens,
-  useToast,
-  Empty,
-  ErrorState,
+  Alert, Button, Card, DateInput, Empty, ErrorState, Field,
+  FormActions, InfoTip, Input, MoneyInput, PageHeader, PageShell, Pill,
+  Section, Select, tokens, useToast,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { getOpenStatus, todayIso } from "../lib/datetime";
@@ -211,7 +195,7 @@ export default function NewTransfer() {
     try {
       const result = await createTransfer(values, saveKey);
       toast({ message: "Transfer saved.", tone: "success" });
-      navigate(`/transfers/${result.transfer.id}`, { replace: true });
+      guard.proceed(() => navigate(`/transfers/${result.transfer.id}`, { replace: true }));
     } catch (err) {
       setError("root", {
         message: apiErrorMessage(err, "Could not save the transfer. Please try again."),
@@ -506,7 +490,7 @@ export default function NewTransfer() {
           <Alert tone="error">{errors.root.message}</Alert>
         )}
 
-        <FormActions>
+        <FormActions guard={guard}>
           <Button
             type="button"
             tone="secondary"
@@ -520,8 +504,6 @@ export default function NewTransfer() {
           </Button>
         </FormActions>
       </form>
-
-      <ConfirmDialog {...guard.dialogProps} />
     </PageShell>
   );
 }

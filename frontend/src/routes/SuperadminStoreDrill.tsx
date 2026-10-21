@@ -17,12 +17,13 @@ import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
 import {
-  Alert, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
-  ErrorState, Field, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
+  Alert, Button, ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState,
+  Field, FormActions, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
   PageHeader, PageShell, Pill, Section, SectionTitle, Select,
   Switch, Table, tdStyle, Textarea, thStyle, useToast,
   ModalActions,
 } from "../components/ui";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import { AuditTable } from "../components/AuditTable";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -768,6 +769,9 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
   const isDirty = data && draft
     ? JSON.stringify(data.matrix) !== JSON.stringify(draft.matrix)
     : false;
+  const guard = useUnsavedGuard(isDirty && !busy, {
+    message: `You have unsaved permission changes for ${storeName}. Leave without saving?`,
+  });
 
   function toggle(role: string, resource: string, action: string) {
     if (!draft) return;
@@ -853,14 +857,14 @@ function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeN
         </div>
       ))}
       {isDirty && (
-        <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+        <FormActions guard={guard}>
           <Button tone="secondary" onClick={() => { if (data) setDraft(structuredClone(data)); }} disabled={busy}>
             Discard
           </Button>
           <Button onClick={() => { void save(); }} busy={busy}>
             Save permissions
           </Button>
-        </div>
+        </FormActions>
       )}
       <ConfirmDialog
         open={resetting != null}

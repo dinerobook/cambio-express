@@ -20,6 +20,8 @@ from api.Modules.Monthly.Services.daily_feed import (
     months_with_daily_entries,
 )
 from api.Modules.Monthly.Services.monthly import (
+    EXPENSE_FIELDS,
+    INCOME_FIELDS,
     MonthlySummary,
     summarize_monthly,
 )
@@ -48,5 +50,7 @@ __all__ = [
     "resolved_line_labels",
     "set_line_labels",
     "summarize_monthly",
+    "INCOME_FIELDS",
+    "EXPENSE_FIELDS",
     "update_monthly",
 ]

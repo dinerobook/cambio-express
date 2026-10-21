@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { logout } from "./auth";
 import { clearVisits } from "./recency";
+import { withoutUnsavedPrompt } from "./useUnsavedGuard";
 
 /** The one way to sign out from inside the app.
  *
@@ -19,7 +20,9 @@ import { clearVisits } from "./recency";
  *
  *  It always lands on /login, even when the server can't be
  *  reached: a sign-out that strands the person in the app is worse
- *  than one whose server half is finished by the next 401. */
+ *  than one whose server half is finished by the next 401. For the
+ *  same reason an unsaved form does not hold the navigation: the
+ *  session is already gone, so "Keep editing" could not save. */
 export function useSignOut(): () => Promise<void> {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -30,7 +33,7 @@ export function useSignOut(): () => Promise<void> {
     } catch {
       /* the local half is done; never strand the person here */
     } finally {
-      navigate("/login", { replace: true });
+      withoutUnsavedPrompt(() => navigate("/login", { replace: true }));
       queryClient.clear();
     }
   }, [navigate, queryClient]);

@@ -193,15 +193,15 @@ def owner_pl_rollup_route(
     for s in stores:
         # The store's own Monthly P&L (same buckets, same live bank
         # feed), so each row's net is the net its admin sees on
-        # /monthly. Purchases and over/short are broken out of the
-        # expense bucket for display: net = revenue - purchases -
-        # expenses - over_short.
+        # /monthly. Over/short is broken out of the income bucket and
+        # purchases out of the expense bucket for display:
+        # net = revenue + over_short - purchases - expenses.
         pl = summarize_monthly(db, int(s.id), y, m)
         if pl is not None:
-            rev = pl.total_income
-            pur = pl.total_purchases
             os_ = pl.value("over_short")
-            exp = round(pl.total_expenses - pur - os_, 2)
+            rev = round(pl.total_income - os_, 2)
+            pur = pl.total_purchases
+            exp = round(pl.total_expenses - pur, 2)
             net = pl.net_profit
             has_pl = True
         else:

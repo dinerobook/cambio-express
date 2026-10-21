@@ -11,8 +11,8 @@ import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { accountTypeLabel } from "../lib/permissions";
 import {
-  Alert, Button, ButtonLink, Card, Checkbox,
-  ConfirmDialog, DateInput, ErrorState, Field, Input, Loading, MoneyInput,
+  Alert, Button, ButtonLink, Card, Checkbox, ConfirmDialog, DateInput,
+  ErrorState, Field, FormActions, Input, Loading, MoneyInput,
   PageHeader, PageShell, Pill, Section, Select, TabsBar, TabsButton,
   useToast,
 } from "../components/ui";
@@ -183,7 +183,7 @@ export default function EmployeeForm() {
         toast({ message: "Employee created.", tone: "success" });
       }
       refresh();
-      navigate("/employees");
+      guard.proceed(() => navigate("/employees"));
     } catch (err) {
       setServerError(
         apiErrorMessage(err, "Could not save the employee."),
@@ -451,10 +451,10 @@ export default function EmployeeForm() {
           </Card>
         )}
 
-        <div className={styles.actionRow}>
-          <Button type="submit" busy={busy} disabled={busy}>
-            {busy ? "Saving…" : (isEdit ? "Save Changes" : "Create Employee")}
-          </Button>
+        <FormActions
+          guard={guard}
+          note="Save changes stores every tab at once."
+        >
           <Button
             type="button" tone="secondary"
             onClick={() => guard.confirmLeave(() => navigate("/employees"))}
@@ -462,15 +462,11 @@ export default function EmployeeForm() {
           >
             Cancel
           </Button>
-        </div>
-        {isDirty && (
-          <p className={styles.note}>
-            Unsaved edits — Save Changes stores every tab at once.
-          </p>
-        )}
+          <Button type="submit" busy={busy} disabled={busy}>
+            {busy ? "Saving…" : (isEdit ? "Save changes" : "Create employee")}
+          </Button>
+        </FormActions>
       </form>
-
-      <ConfirmDialog {...guard.dialogProps} />
       <ConfirmDialog
         open={confirmUnlink}
         title="Unlink this login?"
