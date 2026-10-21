@@ -196,6 +196,7 @@ export default function StoreBookDay() {
             {canDo("day_lock.update") && (
               <Button
                 tone={locked ? "primary" : "secondary"} size="sm"
+                className={styles.lockBtn}
                 busy={busy}
                 perm="day_close.update"
                 onClick={() => {

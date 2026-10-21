@@ -41,6 +41,29 @@
   justify-content: flex-end;
 }
 
+/* Desktop: three tracks, the outer two always equal, so the day
+ * stepper sits dead centre whatever the sides hold. With a plain
+ * space-between row the stepper slid left whenever the right side
+ * grew (a "Saved 3:41 PM" or "Locked · …" pill, Lock → Unlock),
+ * and the arrows moved under the cursor while stepping through days.
+ * From 78rem the widest right side (Over/Short + "Locked · Dec 31,
+ * 12:45 PM" + Unlock, ~24rem) fits half the row beside the stepper,
+ * so nothing wraps; if it ever did, a side wraps inside its own track
+ * and the stepper still doesn't move sideways. Narrower windows keep
+ * the wrapping row below, which never overflows. */
+@media (min-width: 78rem) {
+  .toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .toolbarLead {
+    justify-self: start;
+  }
+  .toolbarTrail {
+    justify-self: end;
+  }
+}
+
 /* The day label between the toolbar stepper's chevrons. The
    stepper itself (buttons, calendar shortcut, ← / → keys) is the
    kit's PeriodStepper. */

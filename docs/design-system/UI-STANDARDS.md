@@ -108,6 +108,14 @@ status pills drop under it. Any card that puts a name beside an amount
 follows the same rule: the amount `white-space: nowrap`, the name
 column allowed to shrink (`min-width: 0`) and wrap.
 
+A period stepper never moves while you step. Its place must not depend
+on anything that changes as the day changes (a Saved or Locked pill,
+Lock ↔ Unlock). In a toolbar with things on both sides it sits in the
+middle of a `minmax(0, 1fr) auto minmax(0, 1fr)` grid (the MSB daily
+book toolbar from 78rem up); in a flush-right header the button after
+it keeps one width for every label (the store daily book's lock
+button).
+
 ## 4. Formatting
 
 | Value | Formatter (`lib/formatters.ts`, `lib/datetime.ts`) | Never |
