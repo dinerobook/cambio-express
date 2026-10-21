@@ -122,3 +122,64 @@ class BankRuleToggleRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool
+
+
+class BankRuleTemplateRow(BaseModel):
+    """One rule template (BankRuleTemplate). ``target_label`` is the
+    category's name as the reader sees it: the store's own name for
+    a P&L line on the store route, the shipped name for the
+    superadmin."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    name: str
+    enabled: bool
+    desc_match_type: str = ""
+    desc_match_value: str = ""
+    sign_filter: str = ""
+    amount_min_cents: int | None = None
+    amount_max_cents: int | None = None
+    target_kind: str
+    target_label: str = ""
+    auto_post: bool = True
+    post_date_offset_days: int = 0
+    updated_at: str = ""  # ISO datetime
+
+
+class BankRuleTemplateListResponse(BaseModel):
+    """Templates by name. The store route lists only the enabled
+    ones whose category the store has."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[BankRuleTemplateRow] = Field(default_factory=list)
+    total: int
+
+
+class BankRuleTemplateWriteRequest(BaseModel):
+    """Superadmin POST / PUT body for a rule template. Same condition
+    fields as ``BankRuleWriteRequest`` minus what is per-store (the
+    account, the priority, apply-to-existing); ``name`` is what
+    stores read in the list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., min_length=1, max_length=120)
+    enabled: bool = True
+    desc_match_type: str = Field(
+        "", pattern="^(|contains|starts_with|ends_with|equals|regex)$",
+    )
+    desc_match_value: str = Field("", max_length=500)
+    sign_filter: str = Field("", pattern="^(|credit|debit)$")
+    amount_min_cents: int | None = Field(None, ge=0)
+    amount_max_cents: int | None = Field(None, ge=0)
+    target_kind: str = Field(..., min_length=1, max_length=40)
+    auto_post: bool = True
+    post_date_offset_days: int = Field(0, ge=-31, le=31)
+
+
+class BankRuleTemplateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    template: BankRuleTemplateRow

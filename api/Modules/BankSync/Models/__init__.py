@@ -7,6 +7,8 @@ Three classes that back the Stripe Financial Connections integration:
 * ``BankTransaction``   — cached transactions pulled from Stripe;
                           idempotent on ``stripe_transaction_id``.
 * ``BankRule``          — operator-managed auto-categorization rule.
+* ``BankRuleTemplate``  — a platform-wide rule the superadmin writes
+                          and every store can copy into its own rules.
 """
 from __future__ import annotations
 
@@ -176,9 +178,53 @@ class BankRule(Base):
                                   onupdate=datetime.utcnow)
 
 
+class BankRuleTemplate(Base):
+    """A rule the superadmin writes once for every store — "Intermex
+    commission deposit", "Remote deposit fee" — and a store copies
+    into its own ``BankRule`` list from the rules page.
+
+    Platform-wide (no ``store_id``) and never applied by itself: a
+    template only becomes automation when a store uses it, which
+    creates an ordinary store rule with these conditions. So editing
+    or deleting a template never changes a store's rules, and a
+    store can still change its copy (add its account, adjust the
+    words). The fields mirror ``BankRule`` minus what is per-store
+    (account, priority, match counters).
+
+    ``target_kind`` must be a category every store has — a daily-book
+    kind, a shipped P&L line, or a fixed non-posting tag; never a
+    blank P&L slot (it only means something once a store names it)
+    or a per-account bank charge. See BankSync INVARIANTS.md
+    "Rule templates".
+    """
+
+    __tablename__ = "bank_rule_template"
+    id                    = Column(Integer, primary_key=True)
+    name                  = Column(String(120), nullable=False)
+    # Shown to stores: False hides it from the rules page without
+    # deleting it.
+    enabled               = Column(Boolean, nullable=False, default=True)
+    desc_match_type       = Column(String(20), nullable=False, default="")
+    desc_match_value      = Column(String(500), nullable=False, default="")
+    sign_filter           = Column(String(10), nullable=False, default="")
+    amount_min_cents      = Column(Integer, nullable=True)
+    amount_max_cents      = Column(Integer, nullable=True)
+    target_kind           = Column(String(40), nullable=False)
+    auto_post             = Column(Boolean, nullable=False, default=True)
+    post_date_offset_days = Column(Integer, nullable=False, default=0)
+    created_by            = Column(Integer, ForeignKey("tenancy_user.id"),
+                                    nullable=True)
+    created_at            = Column(DateTime, default=datetime.utcnow)
+    updated_at            = Column(DateTime, default=datetime.utcnow,
+                                    onupdate=datetime.utcnow)
+
+
 # Re-export Store for existing
 # ``from api.Modules.BankSync.Models import Store`` call sites.
 from api.Modules.Tenancy.Models import Store  # noqa: E402
 
 
-__all__ = ["BankRule", "BankTransaction", "Store", "StripeBankAccount"]
+__all__ = [
+    "BankRule", "BankRuleTemplate", "BankTransaction", "Store",
+    "StripeBankAccount",
+]

@@ -17,6 +17,8 @@ from api.Modules.BankSync.Services.categories import (
     bank_category_label,
     is_daily_book_kind,
     is_valid_bank_category,
+    is_valid_template_category,
+    template_category_groups,
     monthly_field_for,
 )
 from api.Modules.BankSync.Services.categorize import (
@@ -95,6 +97,8 @@ __all__ = [
     "is_bank_charge_slug",
     "is_daily_book_kind",
     "is_valid_bank_category",
+    "is_valid_template_category",
+    "template_category_groups",
     "list_transactions_page",
     "match_builtin_bank_rule",
     "migrate_generic_bank_charge_per_account",

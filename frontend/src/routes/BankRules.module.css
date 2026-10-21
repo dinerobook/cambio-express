@@ -76,48 +76,6 @@
   min-width: 0;
 }
 
-.clauseRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.chipGroup {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.kw {
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-}
-
-.arrow {
-  color: var(--db-accent);
-  font-weight: 700;
-}
-
-.chip {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 0.45rem;
-  background: var(--db-fill-neutral);
-  border: 1px solid var(--db-border);
-  font-family: var(--db-font-mono);
-  font-size: 0.82rem;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-
-.chipTarget {
-  font-family: var(--db-font-body);
-  font-weight: 600;
-  border-color: var(--db-neon-glow-15);
-}
-
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -135,6 +93,13 @@
   white-space: nowrap;
 }
 
+.templatesTitle {
+  margin: 0;
+  font-family: var(--db-font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 @media (max-width: 40rem) {
   .rule {
     grid-template-columns: auto minmax(0, 1fr);
@@ -147,4 +112,9 @@
     max-width: none;
     width: 100%;
   }
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--db-text-muted);
 }

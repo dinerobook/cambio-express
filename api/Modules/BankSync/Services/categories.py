@@ -334,6 +334,42 @@ def is_valid_bank_category(
     return _is_alias_of_connected_bank_charge(db, slug, store_id)
 
 
+def template_category_groups(
+    db: Session,
+) -> list[tuple[str, list[tuple[str, str]]]]:
+    """The categories a rule TEMPLATE may target: the ones every
+    store has. That is the store-less catalogue minus
+
+    * the blank P&L slots (`other_income_*` / `other_expense_*`) —
+      each store decides what its slot means, so a template cannot;
+    * the per-account bank charges (`bank_charge_*`) — they name one
+      store's account.
+
+    P&L lines carry their shipped default names here; a store sees
+    its own name for the same line when it uses the template.
+    """
+    from api.Modules.Monthly.Services.labels import NAMEABLE_SLOT_FIELDS
+    out: list[tuple[str, list[tuple[str, str]]]] = []
+    for label, options in bank_category_groups(db, None):
+        kept = [
+            (slug, opt)
+            for slug, opt in options
+            if BANK_PL_CATEGORIES.get(slug) not in NAMEABLE_SLOT_FIELDS
+            and not is_bank_charge_family(slug)
+        ]
+        out.append((label, kept))
+    return out
+
+
+def is_valid_template_category(db: Session, slug: str | None) -> bool:
+    """True iff ``template_category_groups`` offers ``slug``."""
+    return bool(slug) and any(
+        slug == offered
+        for _group, options in template_category_groups(db)
+        for offered, _label in options
+    )
+
+
 def _is_alias_of_connected_bank_charge(
     db: Session, slug: str, store_id: int,
 ) -> bool:

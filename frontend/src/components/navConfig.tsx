@@ -315,6 +315,7 @@ export const NAV: NavGroup[] = [
       { to: "/superadmin/permissions",   label: "Permissions",   icon: iconShield(),      desc: "Default role permission matrix." },
       { to: "/superadmin/feature-flags", label: "Feature flags", icon: iconToggle(),      desc: "Per-store and global toggles." },
       { to: "/superadmin/discounts",     label: "Discounts",     icon: iconBadge(),       desc: "Promo codes and credits." },
+      { to: "/superadmin/bank-rule-templates", label: "Rule templates", icon: iconRules(), desc: "Bank rules every store can use." },
       { to: "/superadmin/maintenance",   label: "Maintenance",   icon: iconMaintenance(), desc: "Maintenance mode and banners." },
       { to: "/superadmin/health",        label: "Health",        icon: iconHealth(),      desc: "System status checks." },
     ],

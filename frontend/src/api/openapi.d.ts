@@ -2045,6 +2045,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bank/rule-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Store Templates Route
+         * @description The templates this store can use: enabled ones whose category
+         *     it has, each labelled with the store's own name for it.
+         */
+        get: operations["list_store_templates_route_bank_rule_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bank/rules": {
         parameters: {
             query?: never;
@@ -4799,6 +4820,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/superadmin/bank-rule-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates Route */
+        get: operations["list_templates_route_superadmin_bank_rule_templates_get"];
+        put?: never;
+        /** Create Template Route */
+        post: operations["create_template_route_superadmin_bank_rule_templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/superadmin/bank-rule-templates/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Template Categories Route
+         * @description The categories a template may target — the ones every store
+         *     has (``template_category_groups``).
+         */
+        get: operations["template_categories_route_superadmin_bank_rule_templates_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/superadmin/bank-rule-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Template Route */
+        put: operations["update_template_route_superadmin_bank_rule_templates__template_id__put"];
+        post?: never;
+        /**
+         * Delete Template Route
+         * @description Deletes the template only. Rules stores already made from it
+         *     are their own rows and stay.
+         */
+        delete: operations["delete_template_route_superadmin_bank_rule_templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/superadmin/billing-overview": {
         parameters: {
             query?: never;
@@ -7304,6 +7386,124 @@ export interface components {
             post_date_offset_days: number;
             /** Priority */
             priority: number;
+            /**
+             * Sign Filter
+             * @default
+             */
+            sign_filter: string;
+            /** Target Kind */
+            target_kind: string;
+        };
+        /**
+         * BankRuleTemplateListResponse
+         * @description Templates by name. The store route lists only the enabled
+         *     ones whose category the store has.
+         */
+        BankRuleTemplateListResponse: {
+            /** Rows */
+            rows?: components["schemas"]["BankRuleTemplateRow"][];
+            /** Total */
+            total: number;
+        };
+        /** BankRuleTemplateResponse */
+        BankRuleTemplateResponse: {
+            template: components["schemas"]["BankRuleTemplateRow"];
+        };
+        /**
+         * BankRuleTemplateRow
+         * @description One rule template (BankRuleTemplate). ``target_label`` is the
+         *     category's name as the reader sees it: the store's own name for
+         *     a P&L line on the store route, the shipped name for the
+         *     superadmin.
+         */
+        BankRuleTemplateRow: {
+            /** Amount Max Cents */
+            amount_max_cents?: number | null;
+            /** Amount Min Cents */
+            amount_min_cents?: number | null;
+            /**
+             * Auto Post
+             * @default true
+             */
+            auto_post: boolean;
+            /**
+             * Desc Match Type
+             * @default
+             */
+            desc_match_type: string;
+            /**
+             * Desc Match Value
+             * @default
+             */
+            desc_match_value: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Post Date Offset Days
+             * @default 0
+             */
+            post_date_offset_days: number;
+            /**
+             * Sign Filter
+             * @default
+             */
+            sign_filter: string;
+            /** Target Kind */
+            target_kind: string;
+            /**
+             * Target Label
+             * @default
+             */
+            target_label: string;
+            /**
+             * Updated At
+             * @default
+             */
+            updated_at: string;
+        };
+        /**
+         * BankRuleTemplateWriteRequest
+         * @description Superadmin POST / PUT body for a rule template. Same condition
+         *     fields as ``BankRuleWriteRequest`` minus what is per-store (the
+         *     account, the priority, apply-to-existing); ``name`` is what
+         *     stores read in the list.
+         */
+        BankRuleTemplateWriteRequest: {
+            /** Amount Max Cents */
+            amount_max_cents?: number | null;
+            /** Amount Min Cents */
+            amount_min_cents?: number | null;
+            /**
+             * Auto Post
+             * @default true
+             */
+            auto_post: boolean;
+            /**
+             * Desc Match Type
+             * @default
+             */
+            desc_match_type: string;
+            /**
+             * Desc Match Value
+             * @default
+             */
+            desc_match_value: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Post Date Offset Days
+             * @default 0
+             */
+            post_date_offset_days: number;
             /**
              * Sign Filter
              * @default
@@ -18074,6 +18274,39 @@ export interface operations {
             };
         };
     };
+    list_store_templates_route_bank_rule_templates_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankRuleTemplateListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_rules_route_bank_rules_get: {
         parameters: {
             query?: {
@@ -23849,6 +24082,181 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SuperadminAuditListResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_route_superadmin_bank_rule_templates_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankRuleTemplateListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_template_route_superadmin_bank_rule_templates_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankRuleTemplateWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankRuleTemplateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    template_categories_route_superadmin_bank_rule_templates_categories_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankCategoriesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_template_route_superadmin_bank_rule_templates__template_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankRuleTemplateWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankRuleTemplateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_template_route_superadmin_bank_rule_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

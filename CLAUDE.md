@@ -680,6 +680,14 @@ rows, and NEVER book a daily-book line. Every new entry needs a
 positive + a negative (wrong account) matcher test — see
 `tests/Modules/BankSync/test_builtin_rules_service.py`.
 
+### Rule templates (superadmin-written, store-adopted)
+`bank_rule_template` rows are rules the superadmin writes once on
+Platform → Rule templates; every store sees the shown ones on its
+Bank rules page and "Use" saves an ordinary store rule from it. A
+template targets only categories every store has, never applies
+by itself, and editing or deleting one never touches a store's
+rules. See BankSync `INVARIANTS.md` → "Rule templates".
+
 ## Module map (api/Modules)
 Every domain owns four layers: `Models`, `Repositories`,
 `Services`, `Controllers`. Controllers register on the FastAPI

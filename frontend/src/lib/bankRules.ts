@@ -7,6 +7,8 @@ import {
   MATCH_TYPE_OPTIONS,
   type BankRuleApplyReport,
   type BankRuleRow,
+  type BankRuleTemplateRow,
+  type BankRuleTemplateWriteBody,
   type BankRuleWriteBody,
 } from "../api/bankSync";
 import { fmtMoney2 } from "./formatters";
@@ -104,10 +106,58 @@ export function bodyFromFormValues(v: BankRuleFormValues): BankRuleWriteBody {
   };
 }
 
+/** A store rule's form values from a template: the conditions and
+ *  the category, the template's name as the rule's name, no account
+ *  (the store adds its own). Saving is an ordinary rule create. */
+export function formValuesFromTemplate(t: BankRuleTemplateRow): BankRuleFormValues {
+  return {
+    ...EMPTY_RULE_FORM,
+    desc_match_type: t.desc_match_type || "contains",
+    desc_match_value: t.desc_match_value ?? "",
+    sign_filter: t.sign_filter ?? "",
+    amount_min: t.amount_min_cents != null ? t.amount_min_cents / 100 : 0,
+    amount_max: t.amount_max_cents != null ? t.amount_max_cents / 100 : 0,
+    target_kind: t.target_kind,
+    auto_post: t.auto_post ?? true,
+    post_date_offset_days: t.post_date_offset_days ?? 0,
+    description: t.name,
+  };
+}
+
+/** Superadmin: a template row in the rule form (its name in the
+ *  name field, "enabled" = shown to stores). */
+export function formValuesFromTemplateRow(t: BankRuleTemplateRow): BankRuleFormValues {
+  return { ...formValuesFromTemplate(t), enabled: t.enabled, apply_to_existing: false };
+}
+
+/** The template write body from the rule form's values. */
+export function templateBodyFromFormValues(v: BankRuleFormValues): BankRuleTemplateWriteBody {
+  const { enabled, desc_match_type, desc_match_value, sign_filter,
+    amount_min_cents, amount_max_cents, target_kind, auto_post,
+    post_date_offset_days, description } = bodyFromFormValues(v);
+  return {
+    name: description, enabled, desc_match_type, desc_match_value,
+    sign_filter, amount_min_cents, amount_max_cents, target_kind,
+    auto_post, post_date_offset_days,
+  };
+}
+
+/** The fields a rule's sentence reads — a store rule or a template
+ *  (which has no account). */
+interface RuleConditionFields {
+  desc_match_type?: string;
+  desc_match_value?: string;
+  sign_filter?: string;
+  amount_min_cents?: number | null;
+  amount_max_cents?: number | null;
+  account_filter_id?: number | null;
+  account_filter_label?: string;
+}
+
 /** The conditions of a rule as chip groups: one group per
  *  condition, each group a run of tokens ("description", "contains",
  *  "REMOTE DEPOSIT"). */
-export function conditionChips(r: BankRuleRow): string[][] {
+export function conditionChips(r: RuleConditionFields): string[][] {
   const out: string[][] = [];
   if (r.desc_match_type && r.desc_match_value) {
     const op = MATCH_TYPE_OPTIONS.find((o) => o.value === r.desc_match_type)?.label
@@ -131,7 +181,10 @@ export function conditionChips(r: BankRuleRow): string[][] {
 }
 
 /** Plain-text form of the sentence — for search and confirm copy. */
-export function ruleSentence(r: BankRuleRow, labels: Map<string, string>): string {
+export function ruleSentence(
+  r: RuleConditionFields & { description?: string; target_kind: string },
+  labels: Map<string, string>,
+): string {
   const conds = conditionChips(r).map((c) => c.join(" ")).join(" and ");
   const target = labels.get(r.target_kind) ?? r.target_kind;
   return `${r.description ? r.description + ": " : ""}if ${conds} → ${target}`;

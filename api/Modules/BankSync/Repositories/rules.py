@@ -8,7 +8,9 @@ from typing import Iterable
 
 from sqlalchemy.orm import Session
 
-from api.Modules.BankSync.Models import BankRule, StripeBankAccount
+from api.Modules.BankSync.Models import (
+    BankRule, BankRuleTemplate, StripeBankAccount,
+)
 
 
 def list_rules(
@@ -51,3 +53,18 @@ def find_account_in_store(
           )
           .first()
     )
+
+
+def list_rule_templates(
+    db: Session, *, enabled_only: bool = False,
+) -> list[BankRuleTemplate]:
+    """Every rule template by name (id tie-break). ``enabled_only``
+    is the store's view: a disabled template is hidden from it."""
+    q = db.query(BankRuleTemplate)
+    if enabled_only:
+        q = q.filter(BankRuleTemplate.enabled.is_(True))
+    return q.order_by(BankRuleTemplate.name.asc(), BankRuleTemplate.id.asc()).all()
+
+
+def get_rule_template(db: Session, template_id: int) -> BankRuleTemplate | None:
+    return db.get(BankRuleTemplate, template_id)

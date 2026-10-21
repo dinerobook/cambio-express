@@ -193,6 +193,41 @@ decides matches; `Services/applier.py` applies them.
   The SPA once sent `exact` for a backend that only knew `equals`.
 
 
+## Rule templates — rules the platform writes for every store
+
+`bank_rule_template` holds rules the SUPERADMIN writes once
+("Intermex commission deposit", a wire fee, any transaction type,
+not only commission). Owner's ask, 2026-10-21.
+
+- **Only the superadmin writes them**:
+  `/superadmin/bank-rule-templates` (list, categories, create,
+  update, delete), each write audited through `audit_superadmin`
+  (`create/update/delete_bank_rule_template`). The SPA page is
+  Platform → Rule templates (`SuperadminBankRuleTemplates.tsx`),
+  built on the stores' own `BankRuleForm` in template mode.
+- **A template targets only a category every store has**
+  (`template_category_groups`): the store-less groups minus the
+  nameable `other_income_*` / `other_expense_*` slots (a store's
+  own, maybe unnamed) and minus the `bank_charge*` family (one per
+  store account). Anything else is a 422 on `target_kind`. The
+  conditions go through the same `validate_rule_conditions` as a
+  store rule. A template has no account filter: accounts are a
+  store's.
+- **A store lists only enabled templates whose category it has**
+  (`GET /bank/rule-templates`, `bank_sync.read`), each under the
+  store's own name for the line. "Enabled" on a template means
+  "shown to stores".
+- **A template is never applied by itself.** "Use" on the store's
+  Bank rules page opens the rule form prefilled; saving is an
+  ordinary `POST /bank/rules` (`bank_sync.create`), so the store
+  can add its account first and the rule is the store's own row.
+  Editing or deleting a template never touches a rule a store
+  already made from it. There is no link column on `bank_rule`.
+- This is separate from `BUILTIN_BANK_RULES` (code-level, fire
+  automatically after operator rules). A template only fires once
+  a store has saved its copy.
+
+
 ## Audit
 
 Every mutating endpoint writes an operator-audit row through
@@ -227,7 +262,8 @@ summary; the slug and whether a line was booked go in.
 
 ```bash
 pytest tests/Modules/BankSync/ tests/Modules/Monthly/ tests/test_monthly_locked_fields.py -q
-cd frontend && npx vitest run src/lib/bankRules.test.ts src/lib/bankRuleSuggest.test.ts
+cd frontend && npx vitest run src/lib/bankRules.test.ts src/lib/bankRuleSuggest.test.ts \
+  src/routes/BankRules.test.tsx src/routes/SuperadminBankRuleTemplates.test.tsx
 ```
 
 `test_bank_to_books.py` covers the booking roll-up, the locked-day

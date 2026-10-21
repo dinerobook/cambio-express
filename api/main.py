@@ -52,6 +52,18 @@ def _register_routers(app: FastAPI) -> None:
     # bank-sync, bank-rules, and per-account UI all share this prefix).
     from api.Modules.BankSync.Controllers import router as banksync_router
     app.include_router(banksync_router, prefix="/bank", tags=["bank"])
+    # Rule templates: the store reads them under /bank, the
+    # superadmin writes them under /superadmin (so the platform
+    # route contracts cover them).
+    from api.Modules.BankSync.Controllers.templates import (
+        router as bank_templates_router,
+        superadmin_router as bank_templates_superadmin_router,
+    )
+    app.include_router(bank_templates_router, prefix="/bank", tags=["bank"])
+    app.include_router(
+        bank_templates_superadmin_router,
+        prefix="/superadmin/bank-rule-templates", tags=["superadmin"],
+    )
 
     from api.Modules.Auth.Controllers import router as auth_router
     app.include_router(auth_router, prefix="/auth", tags=["auth"])

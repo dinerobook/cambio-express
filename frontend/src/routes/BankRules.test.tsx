@@ -20,6 +20,9 @@ import { TEST_ADMIN } from "../test/setup";
 //     what "apply to existing" did, including locked-day skips.
 //   - Delete asks first, and a refusal is reported, not swallowed.
 //   - Every control is gated on its own bank_sync.* right.
+//   - Rule templates (superadmin-written) are listed under the
+//     store's names; "Use" opens the same form prefilled and saving
+//     is an ordinary rule create.
 
 const createRule = vi.fn();
 const updateRule = vi.fn();
@@ -29,6 +32,7 @@ const toggleRule = vi.fn();
 const deleteRule = vi.fn();
 const refetch = vi.fn();
 const useBankRules = vi.fn();
+const useRuleTemplates = vi.fn();
 
 vi.mock("../api/bankSync", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/bankSync")>();
@@ -41,6 +45,7 @@ vi.mock("../api/bankSync", async (importOriginal) => {
     toggleRule: (...a: unknown[]) => toggleRule(...a),
     deleteRule: (...a: unknown[]) => deleteRule(...a),
     useBankRules: (...a: unknown[]) => useBankRules(...a),
+    useRuleTemplates: (...a: unknown[]) => useRuleTemplates(...a),
     useBankAccounts: () => ({
       data: { rows: [{ id: 7, label: "MSB ••0230" }] },
       isLoading: false, isError: false,
@@ -51,6 +56,10 @@ vi.mock("../api/bankSync", async (importOriginal) => {
           {
             label: "Daily book", posts_to_daily: true,
             options: [{ slug: "check_deposit", label: "Check deposit" }],
+          },
+          {
+            label: "Monthly P&L", posts_to_daily: false,
+            options: [{ slug: "pl_mt_commission_in_bank", label: "Money transfer commission in bank" }],
           },
           {
             label: "Other", posts_to_daily: false,
@@ -90,6 +99,21 @@ function setRules(rows: unknown[], extra: Record<string, unknown> = {}) {
   });
 }
 
+const commissionTemplate = {
+  id: 9, name: "Intermex commission deposit", enabled: true,
+  desc_match_type: "contains", desc_match_value: "INTERMEX COMM",
+  sign_filter: "credit", amount_min_cents: null, amount_max_cents: null,
+  target_kind: "pl_mt_commission_in_bank",
+  target_label: "Remittance commissions",
+  auto_post: false, post_date_offset_days: 0, updated_at: "",
+};
+
+function setTemplates(rows: unknown[]) {
+  useRuleTemplates.mockReturnValue({
+    data: { rows, total: rows.length }, isLoading: false, isError: false,
+  });
+}
+
 function renderPage() {
   return render(
     <ToastProvider>
@@ -117,8 +141,9 @@ function asRole(permissions: string[]) {
 beforeEach(() => {
   for (const fn of [
     createRule, updateRule, applyRule, reorderRules, toggleRule, deleteRule,
-    refetch, useBankRules,
+    refetch, useBankRules, useRuleTemplates,
   ]) fn.mockReset();
+  setTemplates([]);
   refetch.mockResolvedValue({});
   reorderRules.mockResolvedValue({ rows: [], total: 0 });
   toggleRule.mockResolvedValue({});
@@ -420,5 +445,53 @@ describe("Bank rules permissions", () => {
     renderPage();
     expect(screen.getByRole("button", { name: "+ New rule" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+});
+
+
+describe("Rule templates", () => {
+  it("shows no Templates card when there are none", () => {
+    renderPage();
+    expect(screen.queryByRole("heading", { name: "Templates" })).not.toBeInTheDocument();
+  });
+
+  it("lists each template as a sentence under the store's name for its category", () => {
+    setTemplates([commissionTemplate]);
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Templates" })).toBeInTheDocument();
+    const row = screen.getByText("Intermex commission deposit").closest("li")!;
+    expect(within(row).getByText("“INTERMEX COMM”")).toBeInTheDocument();
+    expect(within(row).getByText("money in")).toBeInTheDocument();
+    expect(within(row).getByText("Remittance commissions")).toBeInTheDocument();
+  });
+
+  it("Use opens the rule form prefilled and saves an ordinary rule", async () => {
+    setTemplates([commissionTemplate]);
+    createRule.mockResolvedValue({ rule: ruleOne, applied: { tagged: 2, booked: 0, locked_skipped: 0 } });
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Use template Intermex commission deposit" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("New rule from template")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Description match text")).toHaveValue("INTERMEX COMM");
+    expect(within(dialog).getByLabelText("Rule name (optional)")).toHaveValue("Intermex commission deposit");
+    // The store can add its own account before saving.
+    await userEvent.selectOptions(within(dialog).getByLabelText("Account"), "7");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create rule" }));
+    await waitFor(() => expect(createRule).toHaveBeenCalledTimes(1));
+    expect(createRule.mock.calls[0][0]).toMatchObject({
+      desc_match_type: "contains", desc_match_value: "INTERMEX COMM",
+      sign_filter: "credit", target_kind: "pl_mt_commission_in_bank",
+      auto_post: false, account_filter_id: 7,
+      description: "Intermex commission deposit", apply_to_existing: true,
+    });
+    expect(await screen.findByText("Rule created. 2 tagged.")).toBeInTheDocument();
+  });
+
+  it("hides Use from someone who cannot create rules", () => {
+    setTemplates([commissionTemplate]);
+    asRole(["bank_sync.read", "bank_sync.update"]);
+    renderPage();
+    expect(screen.getByText("Intermex commission deposit")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Use template/ })).not.toBeInTheDocument();
   });
 });
