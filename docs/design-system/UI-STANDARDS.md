@@ -280,6 +280,8 @@ Known shared components, and what they own:
 | `pageOf` / `sortRows` (`lib/pagination`) | slicing or sorting a whole list in the browser by hand |
 | `Table`, `TableStates` | small tables inside a form or box (receipt lines, the daily-book boxes) — not list pages |
 | `PermissionMatrixTable` | a per-route permission grid |
+| `RolePermissionsEditor` (`components/RolePermissionsEditor.tsx`) | a page that loads, edits, saves or resets a set of roles' grids — Platform → Permissions, an owner's store permissions and the superadmin store page all render it; give it the endpoint and it brings the grouped grid, the "All" column, "Customized" / "View only" labels, the unsaved-changes bar, a save of only the roles that changed, and the confirmed "Reset to defaults" |
+| `RolePill` (`components/RolePill.tsx`), `roleLabel` (`api/roles.ts`) | `<Pill tone={roleTone(r)}>{r}</Pill>` (it printed "owner" in lower case), a page-local `{ admin: "Admin", … }` map or an inline role-name ternary |
 | `RowActions` | inline row buttons (it handles the mobile sheet) |
 | `TabsBar` / `TabsLink` / `TabsButton` | a hand-built tab strip |
 | `ConfirmDialog` | `window.confirm` |
@@ -435,6 +437,9 @@ fails on each rule below.
     via={[{ label: "Monthly P&L", to: "/monthly" }]} current="Edit" />`.
 
   The trail replaces "← Back to …" links at the top of a page.
+- **One name per role.** A built-in role is named by `roleLabel()`
+  (`api/roles.ts`) and shown as `<RolePill>` on every screen — "Admin", "Employee", "Owner",
+  "Superadmin", "Support"; never a page-local map.
 - **Wording.** "Sign in" / "Sign out", never "Log in" / "Log out". The
   page's create button reads "+ New <thing>" (a record you start) or
   "+ Add <thing>" (something you put on a list), and the submit

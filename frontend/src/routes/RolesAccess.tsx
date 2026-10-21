@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAdminUsers, type AdminUserRow } from "../api/admin";
 import {
   deleteAccessRole, useAccessRoles, useBuiltinRoles,
-  type AccessRole, type PermMatrix,
+  type AccessRole, type PermMatrix, roleLabel,
 } from "../api/roles";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { actionsFor, hasPermission } from "../lib/permissions";
@@ -34,9 +34,10 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // "who can delete transfers?" is one look rather than N role
 // pages. Editing a role happens on its own page (RoleEdit).
 
+// The built-in roles a store edits here, named once in api/roles.
 const BUILTIN_LABELS: Record<string, string> = {
-  admin: "Admin",
-  employee: "Employee",
+  admin: roleLabel("admin"),
+  employee: roleLabel("employee"),
 };
 
 interface RoleColumn {

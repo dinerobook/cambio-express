@@ -12,7 +12,7 @@ import {
   useSuperadminUsers,
   type SuperadminUserRow,
 } from "../api/superadmin";
-import { roleTone } from "../api/roles";
+import { RolePill } from "../components/RolePill";
 import { apiErrorMessage } from "../lib/api";
 import { startImpersonation } from "../lib/impersonation";
 import { formatDate } from "../lib/datetime";
@@ -401,10 +401,6 @@ function userColumns({ busyId, onAction, onChangeRole }: {
   ];
 }
 
-
-function RolePill({ role }: { role: string }) {
-  return <Pill tone={roleTone(role)}>{role}</Pill>;
-}
 
 /** Inline create form for a store-less "support" platform login —
  *  tickets-only role, password sign-in with a 7-day login window.

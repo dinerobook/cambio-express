@@ -16,10 +16,10 @@ import styles from "./PermissionMatrixTable.module.css";
 export const RESOURCE_LABELS: Record<string, string> = {
   transfers: "Money transfers",
   customers: "Customers",
-  daily_book: "MSB Daily book",
+  daily_book: "MSB daily book",
   monthly: "Monthly P&L",
   batches: "ACH batches",
-  bank_sync: "Bank sync",
+  bank_sync: "Bank accounts",
   reports: "Reports",
   settings: "Settings",
   // Both rows live under the sidebar's Team menu; the labels say

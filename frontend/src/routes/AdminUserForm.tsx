@@ -19,7 +19,7 @@ import {
 } from "../components/ui";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
-  assignAccessRole, useAccessRoles, useBuiltinRoles,
+  assignAccessRole, roleLabel, useAccessRoles, useBuiltinRoles,
 } from "../api/roles";
 import { areasGranted, emptyMatrix } from "../lib/roleTemplates";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
@@ -504,7 +504,7 @@ export default function AdminUserForm() {
                         ? accessRoles.data?.roles.find(
                             (r) => r.id === savedRoleId(draft.access),
                           )?.name
-                        : draft.role === "admin" ? "Admin" : "Employee"
+                        : roleLabel(draft.role === "admin" ? "admin" : "employee")
                     }
                     to={
                       savedRoleId(draft.access) != null
@@ -556,7 +556,7 @@ export default function AdminUserForm() {
           <Field
             label="Module access"
             error={fieldErrors.module_access}
-            hint="Which of the store's modules this user sees. Restricting hides modules from their navigation; it cannot add one the store has off. The MSB Daily book is not a module — take it away under Access above."
+            hint="Which of the store's modules this user sees. Restricting hides modules from their navigation; it cannot add one the store has off. The MSB daily book is not a module — take it away under Access above."
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
               <Checkbox

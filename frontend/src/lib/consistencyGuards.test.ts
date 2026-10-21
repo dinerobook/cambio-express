@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { NAV } from "../components/navConfig";
+import { RESOURCE_LABELS } from "../components/PermissionMatrixTable";
+import matrixCss from "../components/PermissionMatrixTable.module.css?raw";
 import shellCss from "../styles.css?raw";
 import shellSrc from "../components/AppShell.tsx?raw";
 
@@ -203,6 +205,35 @@ describe("popups and forms", () => {
   it("calls signing out Sign out", () => {
     expect(
       routeFiles.filter(([, src]) => />\s*Log out\s*</.test(src)).map(([p]) => p),
+    ).toEqual([]);
+  });
+});
+
+describe("permission editors", () => {
+  it("edits role grids only through RolePermissionsEditor", () => {
+    // Three pages once carried their own copy of the load / toggle /
+    // save / reset loop, and they had drifted (no reset confirm on
+    // one, every role re-sent as an override on another).
+    expect(
+      routeFiles
+        .filter(([p]) => !p.endsWith("/RolePermissionsEditor.tsx"))
+        .filter(([, src]) => /\/permissions(\/reset)?["`],\s*\{\s*method/.test(src))
+        .map(([p]) => p),
+    ).toEqual([]);
+  });
+
+  it("names permission areas in sentence case, as the sidebar does", () => {
+    expect(Object.values(RESOURCE_LABELS).filter((l) => titleCased(l).length)).toEqual([]);
+    // CSS capitalize turned "Money transfers" back into "Money Transfers".
+    expect(matrixCss).not.toMatch(/text-transform:\s*capitalize/);
+  });
+
+  it("names roles through roleLabel and RolePill", () => {
+    expect(
+      routeFiles
+        .filter(([p]) => !p.endsWith("/RolePill.tsx"))
+        .filter(([, src]) => /\badmin:\s*"Admin"|=== "admin" \? "Admin"|roleTone\(/.test(src))
+        .map(([p]) => p),
     ).toEqual([]);
   });
 });

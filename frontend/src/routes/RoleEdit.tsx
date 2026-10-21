@@ -6,7 +6,7 @@ import { useAdminUserPermissions, useAdminUsers } from "../api/admin";
 import {
   assignAccessRole, createAccessRole, fetchRoleMembers, resetBuiltinRole,
   saveBuiltinRole, updateAccessRole, useAccessRoles, useBuiltinRoles,
-  type PermMatrix,
+  type PermMatrix, roleLabel,
 } from "../api/roles";
 import { apiErrorMessage } from "../lib/api";
 import { refreshToken } from "../lib/auth";
@@ -35,9 +35,10 @@ import { fmtCount } from "../lib/formatters";
 //   - "employee" / "admin" — a built-in role: the store's defaults
 //     for that account type. A store admin may edit Employee only.
 
+// The built-in roles a store edits here, named once in api/roles.
 const BUILTIN_NAMES: Record<string, string> = {
-  admin: "Admin",
-  employee: "Employee",
+  admin: roleLabel("admin"),
+  employee: roleLabel("employee"),
 };
 
 type Template = "blank" | "employee" | "hr" | "bookkeeper";

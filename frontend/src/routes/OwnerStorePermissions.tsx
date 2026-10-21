@@ -1,118 +1,16 @@
-import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, apiErrorMessage } from "../lib/api";
-import { roleTone } from "../api/roles";
-import { toggleMatrixCell } from "../lib/permissions";
-import { useUnsavedGuard } from "../lib/useUnsavedGuard";
-import {
-  Alert, Button, Card, ErrorState, FormActions, Loading,
-  PageHeader, PageShell, Pill, SectionTitle, useToast,
-} from "../components/ui";
-import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
-import styles from "./StorePermissions.module.css";
+import { PageHeader, PageShell } from "../components/ui";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { RolePermissionsEditor } from "../components/RolePermissionsEditor";
 
-interface PermissionMatrix {
-  store_id: number;
-  roles: string[];
-  editable_roles: string[];
-  resources: string[];
-  actions: string[];
-  matrix: Record<string, Record<string, Record<string, boolean>>>;
-  has_overrides: string[];
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin",
-  employee: "Employee",
-};
-
+// An owner's view of one store's role grid. The server names the
+// roles the owner may change (`editable_roles`); the rest show
+// locked. Grid, save, reset and the unsaved bar are the shared
+// RolePermissionsEditor's.
 export default function OwnerStorePermissions() {
   const { storeId } = useParams<{ storeId: string }>();
   const sid = Number(storeId);
-  const qc = useQueryClient();
-  const toast = useToast();
-
-  const { data, isLoading, isError, error, refetch } = useQuery<PermissionMatrix>({
-    queryKey: ["owner-store-permissions", sid],
-    queryFn: () => api<PermissionMatrix>(`/api/v2/owner/store/${sid}/permissions`),
-  });
-
-  const [draft, setDraft] = useState<PermissionMatrix | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (data) setDraft(structuredClone(data)); // eslint-disable-line react-hooks/set-state-in-effect -- hydrate local editable draft from server data
-  }, [data]);
-
-  const isDirty = data && draft
-    ? JSON.stringify(data.matrix) !== JSON.stringify(draft.matrix)
-    : false;
-  // Warn on tab-close / refresh while the permission matrix has unsaved
-  // toggles (the page saves in place — no navigating Cancel to guard).
-  const guard = useUnsavedGuard(Boolean(isDirty) && !busy, {
-    message: "You have unsaved permission changes. Leave without saving?",
-  });
-
-  function toggle(role: string, resource: string, action: string) {
-    if (!draft || !draft.editable_roles.includes(role)) return;
-    setDraft((prev) => {
-      if (!prev) return prev;
-      const next = structuredClone(prev);
-      next.matrix[role][resource] = toggleMatrixCell(next.matrix[role][resource], action, resource);
-      return next;
-    });
-  }
-
-  function reset() {
-    if (data) setDraft(structuredClone(data));
-  }
-
-  async function save() {
-    if (!data || !draft) return;
-    setBusy(true);
-    setSaveError(null);
-    const editableMatrix: Record<string, Record<string, Record<string, boolean>>> = {};
-    for (const role of draft.roles) {
-      if (!draft.editable_roles.includes(role)) continue;
-      editableMatrix[role] = draft.matrix[role];
-    }
-    try {
-      const result = await api<PermissionMatrix>(`/api/v2/owner/store/${sid}/permissions`, {
-        method: "PUT",
-        json: { matrix: editableMatrix },
-      });
-      setDraft(structuredClone(result));
-      qc.setQueryData(["owner-store-permissions", sid], result);
-      toast({ message: "Permissions updated.", tone: "success" });
-    } catch (err) {
-      setSaveError(apiErrorMessage(err, "Could not save."));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function resetToGlobal(role: string) {
-    setBusy(true);
-    setSaveError(null);
-    try {
-      const result = await api<PermissionMatrix>(`/api/v2/owner/store/${sid}/permissions/reset`, {
-        method: "POST",
-        json: { role },
-      });
-      setDraft(structuredClone(result));
-      qc.setQueryData(["owner-store-permissions", sid], result);
-      toast({ message: `${ROLE_LABELS[role] ?? role} permissions reset to defaults.`, tone: "success" });
-    } catch (err) {
-      setSaveError(apiErrorMessage(err, "Could not reset."));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <PageShell gap="1.25rem">
       <PageCrumbs under="/owner/locations" via={[{ label: `Store ${sid}`, to: `/owner/store/${sid}` }]} current="Permissions" />
@@ -120,54 +18,10 @@ export default function OwnerStorePermissions() {
         title="Store permissions"
         subtitle="Customize what each role can do in this store"
       />
-
-      {isLoading && <Loading />}
-      {isError && (
-        <ErrorState
-          message={apiErrorMessage(error, "Could not load")}
-          onRetry={() => { void refetch(); }}
-        />
-      )}
-      {saveError && <Alert tone="error">{saveError}</Alert>}
-
-      {draft && draft.roles.map((role) => {
-        const canEdit = draft.editable_roles.includes(role);
-        const hasOverride = draft.has_overrides.includes(role);
-        return (
-          <Card key={role}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-              <SectionTitle>
-                <Pill tone={roleTone(role)}>
-                  {ROLE_LABELS[role] ?? role}
-                </Pill>
-                {hasOverride && <span className={styles.overrideBadge}>customized</span>}
-              </SectionTitle>
-              {canEdit && hasOverride && (
-                <Button tone="secondary" size="sm" onClick={() => { void resetToGlobal(role); }} disabled={busy}>
-                  Reset to defaults
-                </Button>
-              )}
-            </div>
-            <PermissionMatrixTable
-              resources={draft.resources}
-              actions={draft.actions}
-              checked={(resource, action) => draft.matrix[role][resource][action]}
-              onToggle={(resource, action) => toggle(role, resource, action)}
-              disabled={!canEdit}
-              ariaContext={role}
-            />
-          </Card>
-        );
-      })}
-
-      {draft && (
-        <FormActions guard={guard}>
-          <Button tone="secondary" onClick={reset} disabled={!isDirty || busy}>Reset</Button>
-          <Button onClick={() => { void save(); }} busy={busy} disabled={!isDirty || busy}>
-            {busy ? "Saving…" : "Save permissions"}
-          </Button>
-        </FormActions>
-      )}
+      <RolePermissionsEditor
+        endpoint={`/api/v2/owner/store/${sid}/permissions`}
+        queryKey={["owner-store-permissions", sid]}
+      />
     </PageShell>
   );
 }

@@ -1,0 +1,24 @@
+/* The grid itself is PermissionMatrixTable's; this file only lays
+ * out each role's card header. */
+
+.roleHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.customized,
+.locked {
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+.customized {
+  color: var(--db-accent);
+}
+
+.locked {
+  color: var(--db-text-muted);
+}
