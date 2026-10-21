@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { actionsFor, toggleMatrixCell } from "./permissions";
+import { accountTypeLabel, actionsFor, toggleMatrixCell } from "./permissions";
 
 describe("toggleMatrixCell", () => {
   const none = { create: false, read: false, update: false, delete: false };
@@ -52,5 +52,14 @@ describe("single-switch resources", () => {
     expect(toggleMatrixCell(none, "update", "daily_book")).toEqual(
       { ...none, read: true, update: true },
     );
+  });
+});
+
+describe("accountTypeLabel", () => {
+  it("names a store admin Admin, like every other screen", () => {
+    expect(accountTypeLabel("admin")).toBe("Admin");
+    expect(accountTypeLabel("owner")).toBe("Owner");
+    expect(accountTypeLabel("employee")).toBe("Employee");
+    expect(accountTypeLabel(null)).toBe("Employee");
   });
 });

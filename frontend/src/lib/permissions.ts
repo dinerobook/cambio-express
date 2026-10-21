@@ -1,5 +1,6 @@
 import { getCurrentIdentity } from "./auth";
 import { hasPermissionWith } from "./access";
+import { roleLabel } from "../api/roles";
 
 /**
  * Check if the current user has a specific granular permission.
@@ -60,11 +61,11 @@ export function toggleMatrixCell(
   return next;
 }
 
-/** Human label for a login's account type. "owner" is the
- *  signup account that owns the store; it is shown but never
- *  managed from the team pages (the rank rule). */
+/** Human label for a login's account type, named by `roleLabel`
+ *  like everywhere else (a store admin is "Admin" — owner,
+ *  2026-10-21). "owner" is the signup account that owns the store;
+ *  it is shown but never managed from the team pages (the rank
+ *  rule). Anything else is an employee login. */
 export function accountTypeLabel(role: string | null | undefined): string {
-  if (role === "owner") return "Owner";
-  if (role === "admin") return "Super Admin";
-  return "Employee";
+  return roleLabel(role === "owner" || role === "admin" ? role : "employee");
 }

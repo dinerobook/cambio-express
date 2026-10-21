@@ -232,7 +232,7 @@ describe("permission editors", () => {
     expect(
       routeFiles
         .filter(([p]) => !p.endsWith("/RolePill.tsx"))
-        .filter(([, src]) => /\badmin:\s*"Admin"|=== "admin" \? "Admin"|roleTone\(/.test(src))
+        .filter(([, src]) => /\badmin:\s*"Admin"|=== "admin" \? "Admin"|roleTone\(|"Super Admin"|return "(Owner|Admin|Employee)";/.test(src))
         .map(([p]) => p),
     ).toEqual([]);
   });

@@ -439,7 +439,9 @@ fails on each rule below.
   The trail replaces "← Back to …" links at the top of a page.
 - **One name per role.** A built-in role is named by `roleLabel()`
   (`api/roles.ts`) and shown as `<RolePill>` on every screen — "Admin", "Employee", "Owner",
-  "Superadmin", "Support"; never a page-local map.
+  "Superadmin", "Support"; never a page-local map. A store admin is
+  "Admin", never "Super Admin" (owner, 2026-10-21) — "Superadmin" is
+  only the platform role.
 - **Wording.** "Sign in" / "Sign out", never "Log in" / "Log out". The
   page's create button reads "+ New <thing>" (a record you start) or
   "+ Add <thing>" (something you put on a list), and the submit
