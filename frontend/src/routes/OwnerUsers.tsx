@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { roleTone } from "../api/roles";
+import { RolePill } from "../components/RolePill";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -49,7 +49,7 @@ const COLUMNS: DataColumn<UserRow>[] = [
     key: "username", header: "Username",
     render: (u) => <span style={{ fontFamily: "var(--db-font-mono)", fontSize: "0.85rem" }}>{u.username}</span>,
   },
-  { key: "role", header: "Role", render: (u) => <Pill tone={roleTone(u.role)}>{u.role}</Pill> },
+  { key: "role", header: "Role", render: (u) => <RolePill role={u.role} /> },
   { key: "store", header: "Store", render: (u) => u.store_name },
   {
     key: "status", header: "Status",

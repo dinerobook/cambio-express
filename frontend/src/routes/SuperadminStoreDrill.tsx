@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, apiErrorMessage } from "../lib/api";
-import { toggleMatrixCell } from "../lib/permissions";
 import { fmtMoney2, fmtCount, fmtNumber } from "../lib/formatters";
 import {
   compStore, creditStore, emailStore, endComp, extendTrial, freezeStore,
@@ -12,19 +11,17 @@ import {
   type ImpersonationMode, type StoreFeatureRow,
 } from "../api/superadmin";
 import { planTone } from "../api/billing";
-import { roleTone } from "../api/roles";
+import { RolePill } from "../components/RolePill";
 import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
 import { startImpersonation } from "../lib/impersonation";
 import {
   Alert, Button, ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState,
-  Field, FormActions, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
-  PageHeader, PageShell, Pill, Section, SectionTitle, Select,
+  Field, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput,
+  PageHeader, PageShell, Pill, Section, Select,
   Switch, Table, tdStyle, Textarea, thStyle, useToast,
   ModalActions,
 } from "../components/ui";
-import { useUnsavedGuard } from "../lib/useUnsavedGuard";
-import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import { AuditTable } from "../components/AuditTable";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
@@ -32,6 +29,7 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
 import styles from "./SuperadminStoreDrill.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { RolePermissionsEditor } from "../components/RolePermissionsEditor";
 
 interface StoreInfo {
   id: number; name: string; slug: string; email: string;
@@ -362,7 +360,7 @@ export default function SuperadminStoreDrill() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
-                        <Pill tone={roleTone(u.role)}>{u.role}</Pill>
+                        <RolePill role={u.role} />
                         {!u.is_active && <Pill tone="neutral">Inactive</Pill>}
                         {u.is_active && (
                           <>
@@ -455,7 +453,7 @@ export default function SuperadminStoreDrill() {
           <StoreActivitySection storeId={data.store.id} />
 
           <Section title="Permissions">
-            <StorePermissionsPanel storeId={data.store.id} storeName={data.store.name} />
+            <StorePermissionsPanel storeId={data.store.id} />
           </Section>
         </>
       )}
@@ -740,144 +738,22 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-interface PermMatrix {
-  store_id: number;
-  store_name: string;
-  roles: string[];
-  editable_roles: string[];
-  resources: string[];
-  actions: string[];
-  matrix: Record<string, Record<string, Record<string, boolean>>>;
-  has_overrides: string[];
-}
-
-function StorePermissionsPanel({ storeId, storeName }: { storeId: number; storeName: string }) {
-  const qc = useQueryClient();
-  const toast = useToast();
-  const toastApiError = useApiErrorToast();
-  const { data, isLoading } = useQuery<PermMatrix>({
-    queryKey: ["superadmin", "store-permissions", storeId],
-    queryFn: () => api<PermMatrix>(`/api/v2/superadmin/stores/${storeId}/permissions`),
-  });
-  const [draft, setDraft] = useState<PermMatrix | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (data) setDraft(structuredClone(data)); // eslint-disable-line react-hooks/set-state-in-effect -- hydrate local editable draft from server-fetched permissions
-  }, [data]);
-
-  const isDirty = data && draft
-    ? JSON.stringify(data.matrix) !== JSON.stringify(draft.matrix)
-    : false;
-  const guard = useUnsavedGuard(isDirty && !busy, {
-    message: `You have unsaved permission changes for ${storeName}. Leave without saving?`,
-  });
-
-  function toggle(role: string, resource: string, action: string) {
-    if (!draft) return;
-    setDraft((prev) => {
-      if (!prev) return prev;
-      const next = structuredClone(prev);
-      next.matrix[role][resource] = toggleMatrixCell(next.matrix[role][resource], action, resource);
-      return next;
-    });
-  }
-
-  async function save() {
-    if (!data || !draft) return;
-    setBusy(true);
-    const editableMatrix: Record<string, Record<string, Record<string, boolean>>> = {};
-    for (const role of draft.editable_roles) {
-      editableMatrix[role] = draft.matrix[role];
-    }
-    try {
-      const result = await api<PermMatrix>(`/api/v2/superadmin/stores/${storeId}/permissions`, {
-        method: "PUT", json: { matrix: editableMatrix },
-      });
-      setDraft(structuredClone(result));
-      qc.setQueryData(["superadmin", "store-permissions", storeId], result);
-      toast({ message: `Permissions updated for ${storeName}.`, tone: "success" });
-    } catch (err) {
-      toastApiError(err, "Failed to save.");
-    } finally { setBusy(false); }
-  }
-
-  // Reset wipes the store's customised grid for the role: ask first.
-  const [resetting, setResetting] = useState<string | null>(null);
-  const [resetError, setResetError] = useState<string | null>(null);
-
-  async function resetRole(role: string) {
-    setBusy(true);
-    setResetError(null);
-    try {
-      const result = await api<PermMatrix>(`/api/v2/superadmin/stores/${storeId}/permissions/reset`, {
-        method: "POST", json: { role },
-      });
-      setDraft(structuredClone(result));
-      qc.setQueryData(["superadmin", "store-permissions", storeId], result);
-      toast({ message: `${role} permissions reset to global defaults.`, tone: "success" });
-      setResetting(null);
-    } catch (err) {
-      setResetError(apiErrorMessage(err, "Failed to reset."));
-    } finally { setBusy(false); }
-  }
-
-  if (isLoading || !draft) return <Card><Loading /></Card>;
-
+// One store's role grid, from the superadmin side: only the roles
+// the platform lets a store change are shown. The shared
+// RolePermissionsEditor owns the grid, save, reset and unsaved bar.
+function StorePermissionsPanel({ storeId }: { storeId: number }) {
   return (
-    <Card>
-      <p style={{ fontSize: "0.85rem", color: "var(--db-text-muted)", margin: "0 0 1rem" }}>
-        Per-store permission overrides. Changes take effect immediately (affected users are logged out).
-      </p>
-      {draft.editable_roles.map((role) => (
-        <div key={role} style={{ marginBottom: "1.25rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <SectionTitle>
-              <Pill tone={roleTone(role)}>{role}</Pill>
-              {draft.has_overrides.includes(role) && (
-                <span style={{ fontSize: "0.75rem", color: "var(--db-text-muted)", marginLeft: "0.5rem" }}>customized</span>
-              )}
-            </SectionTitle>
-            {draft.has_overrides.includes(role) && (
-              <Button
-                size="sm" tone="secondary" disabled={busy}
-                onClick={() => { setResetError(null); setResetting(role); }}
-              >
-                Reset to defaults
-              </Button>
-            )}
-          </div>
-          <PermissionMatrixTable
-            resources={draft.resources}
-            actions={draft.actions}
-            checked={(resource, action) => draft.matrix[role][resource][action]}
-            onToggle={(resource, action) => toggle(role, resource, action)}
-            ariaContext={role}
-          />
-        </div>
-      ))}
-      {isDirty && (
-        <FormActions guard={guard}>
-          <Button tone="secondary" onClick={() => { if (data) setDraft(structuredClone(data)); }} disabled={busy}>
-            Discard
-          </Button>
-          <Button onClick={() => { void save(); }} busy={busy}>
-            Save permissions
-          </Button>
-        </FormActions>
-      )}
-      <ConfirmDialog
-        open={resetting != null}
-        title={`Reset ${resetting ?? ""} permissions?`}
-        message={`${storeName}'s custom ${resetting ?? ""} permissions are replaced with the global defaults. People with that role are signed out.`}
-        confirmLabel="Reset to defaults"
-        confirmTone="danger"
-        busy={busy}
-        error={resetError}
-        onConfirm={() => { if (resetting) void resetRole(resetting); }}
-        onCancel={() => setResetting(null)}
-      />
-    </Card>
+    <RolePermissionsEditor
+      endpoint={`/api/v2/superadmin/stores/${storeId}/permissions`}
+      queryKey={["superadmin", "store-permissions", storeId]}
+      hideLockedRoles
+      intro={
+        <p className={styles.permIntro}>
+          This store's own permission changes. A save takes effect at
+          once and signs out the people whose role changed.
+        </p>
+      }
+    />
   );
 }
 

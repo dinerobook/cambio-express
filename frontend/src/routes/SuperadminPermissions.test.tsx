@@ -53,13 +53,13 @@ describe("Superadmin permissions", () => {
     });
   });
 
-  it("Reset discards the unsaved toggles", async () => {
+  it("Discard changes drops the unsaved toggles", async () => {
     mockFetch(routes());
     renderRoute(<SuperadminPermissions />);
     const box = await screen.findByLabelText("Create — Money transfers (employee)");
     await userEvent.click(box);
     expect(box).toBeChecked();
-    await userEvent.click(screen.getByRole("button", { name: "Reset" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(screen.getByLabelText("Create — Money transfers (employee)")).not.toBeChecked();
   });
 

@@ -21,6 +21,20 @@ export function roleTone(role: string): PillTone {
   return ROLE_TONES[role] ?? "neutral";
 }
 
+/** The one display name per built-in role, on every screen
+ *  (UI-STANDARDS §7b). Unknown roles show as stored. */
+export const ROLE_LABELS: Record<string, string> = {
+  admin:      "Admin",
+  employee:   "Employee",
+  owner:      "Owner",
+  superadmin: "Superadmin",
+  support:    "Support",
+};
+
+export function roleLabel(role: string): string {
+  return ROLE_LABELS[role] ?? role;
+}
+
 // Named access roles (R-3). Hand-written types: the roles routes
 // return plain dicts rather than Pydantic response models, so
 // there is nothing in openapi.d.ts to import.

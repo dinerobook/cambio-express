@@ -75,7 +75,8 @@ const fetchRoleMembers = vi.fn();
 const updateAccessRole = vi.fn();
 const saveBuiltinRole = vi.fn();
 
-vi.mock("../api/roles", () => ({
+vi.mock("../api/roles", async (importOriginal) => ({
+  roleLabel: (await importOriginal<typeof import("../api/roles")>()).roleLabel,
   useAccessRoles: () => ({
     data: rolesResponse, isLoading: false, isError: false, isSuccess: true,
   }),

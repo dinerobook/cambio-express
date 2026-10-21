@@ -114,7 +114,9 @@ Non-negotiables:
   (built from `NAV`, never a hand-typed `<Breadcrumbs>`). Popup
   button rows are `<ModalActions>` / `Modal actions`; destructive
   confirms ask a question and use `confirmTone="danger"`; counts go
-  through `fmtCount` / `fmtNumber`. `lib/consistencyGuards.test.ts`
+  through `fmtCount` / `fmtNumber`; a role shows as `<RolePill>` /
+  `roleLabel()`, and every page that edits roles' permission grids
+  renders `<RolePermissionsEditor>`. `lib/consistencyGuards.test.ts`
   enforces all of it. **Any app-wide consistency rule you set goes
   into UI-STANDARDS.md (and here when binding) in the same PR.**
 - **Dark by default; light is opt-in.** ``data-theme`` flips

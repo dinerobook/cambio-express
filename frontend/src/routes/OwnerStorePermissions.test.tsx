@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -95,7 +95,7 @@ describe("OwnerStorePermissions", () => {
         },
       },
     ));
-    expect(await screen.findByText("Permissions updated.")).toBeInTheDocument();
+    expect(await screen.findByText("1 permission updated.")).toBeInTheDocument();
     expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
   });
 
@@ -112,12 +112,12 @@ describe("OwnerStorePermissions", () => {
     expect(cell("Create", "employee")).toBeChecked();
   });
 
-  it("Reset discards the local draft", async () => {
+  it("Discard changes drops the local draft", async () => {
     api.mockResolvedValue(matrix());
     renderPage();
     await waitFor(() => expect(cell("Create", "employee")).toBeEnabled());
     await userEvent.click(cell("Create", "employee"));
-    await userEvent.click(screen.getByRole("button", { name: "Reset" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(cell("Create", "employee")).not.toBeChecked();
   });
 
@@ -126,10 +126,45 @@ describe("OwnerStorePermissions", () => {
       opts?.method === "POST" ? matrix() : matrix(["employee"]));
     renderPage();
     await userEvent.click(await screen.findByRole("button", { name: "Reset to defaults" }));
+    const dialog = await screen.findByRole("dialog", { name: "Reset employee permissions?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Reset to defaults" }));
     await waitFor(() => expect(api).toHaveBeenCalledWith(
       "/api/v2/owner/store/7/permissions/reset",
       { method: "POST", json: { role: "employee" } },
     ));
-    expect(await screen.findByText("Employee permissions reset to defaults.")).toBeInTheDocument();
+    expect(await screen.findByText("Employee permissions reset to the defaults.")).toBeInTheDocument();
+    expect(screen.queryByText("Customized")).not.toBeInTheDocument();
+  });
+
+  it("asks before a reset and resets nothing on Cancel", async () => {
+    api.mockResolvedValue(matrix(["employee"]));
+    renderPage();
+    expect(await screen.findByText("Customized")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+    const dialog = await screen.findByRole("dialog", { name: "Reset employee permissions?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(api).not.toHaveBeenCalledWith(
+      "/api/v2/owner/store/7/permissions/reset", expect.anything(),
+    );
+  });
+
+  it("shows a refused reset inside the popup", async () => {
+    api.mockImplementation(async (_url: string, opts?: { method?: string }) => {
+      if (opts?.method === "POST") throw new ApiError(403, "Not your store.", null);
+      return matrix(["employee"]);
+    });
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: "Reset to defaults" }));
+    const dialog = await screen.findByRole("dialog", { name: "Reset employee permissions?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Reset to defaults" }));
+    expect(await within(dialog).findByText("Not your store.")).toBeInTheDocument();
+  });
+
+  it("offers no reset on a role the owner cannot change", async () => {
+    api.mockResolvedValue(matrix(["admin"]));
+    renderPage();
+    expect(await screen.findByText("Customized")).toBeInTheDocument();
+    expect(screen.getByText("View only")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset to defaults" })).not.toBeInTheDocument();
   });
 });
