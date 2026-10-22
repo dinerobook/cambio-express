@@ -16,8 +16,7 @@ reviewable PR.
 2. Run `pytest tests/ -x -q`. If anything fails before sweep starts,
    abort:
    > "Baseline tests are red; refusing to sweep."
-3. Read `/home/user/cambio-express/.claude/AGENTS.md` and
-   `/home/user/cambio-express/CLAUDE.md` in full.
+3. Read `.claude/AGENTS.md` and the root `CLAUDE.md` in full.
 4. Create a fresh branch: `git checkout -b claude/sweep-$(date +%Y%m%d-%H%M)`.
 
 ## Sweep
@@ -36,7 +35,8 @@ Wait for both. Then run sequentially:
 
 After all three agents have run:
 1. `pytest tests/ -x -q` — must pass.
-2. `python3 -m py_compile app.py` — must succeed.
+2. `python -m mypy` (and the SPA checks in `.claude/AGENTS.md` when
+   `frontend/` changed) — must be clean.
 3. `git diff --stat` — diff budget is < 600 lines net total across
    all three agents combined. If over budget, revert the largest
    single agent's changes (typically test-writer) and re-gate.
@@ -60,7 +60,7 @@ If gate passes:
    - tests: <test-writer summary or "skipped">
 
    Diff: <-N / +M> lines net
-   Suite: <290 → 295 tests, all passing>
+   Suite: <before → after test count, all passing>
    ```
 3. Push the branch.
 4. Open a PR against `main` titled
@@ -71,13 +71,13 @@ If gate passes:
 
 ## What this command will NOT do
 
-- Will not edit templates, CSS, or anything visual.
+- Will not edit email templates, CSS, or anything visual.
 - Will not edit `requirements.txt`.
-- Will not edit `_ADDED_COLUMNS`, `_STORE_OWNED_MODELS`, or any DB
+- Will not edit `_STORE_OWNED_MODELS`, Alembic revisions, or any DB
   schema.
-- Will not delete public routes, models, or templates.
+- Will not delete routes, models, or pages.
 - Will not skip or delete tests to make a sweep pass.
-- Will not push to `main` directly.
+- Will not push to `main` directly, and will not merge.
 
 If you find something that needs one of the above, write it into
 the PR body under "Deferred — needs human review" instead of

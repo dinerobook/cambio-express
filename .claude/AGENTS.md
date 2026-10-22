@@ -1,108 +1,65 @@
-# Agent Team — Shared Rules
+# Agent team — shared rules
 
-This file is read by every subagent in `.claude/agents/` and every slash
-command in `.claude/commands/`. It captures the **non-negotiable
-invariants** from `/CLAUDE.md` in a form optimized for agents doing
-unattended sweeps. If something in `CLAUDE.md` contradicts this file,
-`CLAUDE.md` wins — update this file, don't drift.
+Read by every subagent in `.claude/agents/` and every command in
+`.claude/commands/`. It does **not** repeat the project rules — those
+live in the `CLAUDE.md` files and drift when copied. Before any edit:
 
-## Hard rules — never violate
+1. Read the repo-root `CLAUDE.md` (the invariants and "What NOT to do").
+2. Read the `CLAUDE.md` of the folder you are editing: `api/CLAUDE.md`
+   for backend code, `frontend/CLAUDE.md` for the SPA,
+   `alembic/CLAUDE.md` for schema, and `api/Modules/<X>/CLAUDE.md` +
+   `INVARIANTS.md` for Auth, BankSync, DailyBook, Monthly, Transfers and
+   Customers. Interactive sessions load these automatically; a subagent
+   should read them explicitly.
 
-1. **DB API.** Use `db.session.get(Model, id)`. Never `Model.query.get(id)`.
-2. **No column drops.** Never delete a column or table from a running
-   DB. Schema changes are Alembic revisions
-   (`alembic revision --autogenerate -m "..."`) — `_ADDED_COLUMNS`
-   and `app.py` no longer exist (Flask + the boot-time column patcher
-   were removed in PR #550).
-3. **Per-store models go in `STORE_OWNED_MODELS`.** If you add a new
-   model that has a `store_id` foreign key, it MUST be added to
-   `STORE_OWNED_MODELS` in
-   `api/Modules/Billing/Services/retention.py` (both the name list
-   and the `_store_owned_models()` resolver) so retention purge
-   cascades correctly. Anything that FKs to a per-store row but
-   isn't itself store-keyed (e.g. user-scoped auth rows) goes in the
-   explicit pre-walk in `_purge_user_scoped_rows`.
-4. **Superadmin mutations call `record_audit()`.** Any route under
-   `/superadmin/*` that mutates state must record an audit entry.
-5. **Stripe checkout keeps `allow_promotion_codes=True`.** Discount
-   redemption depends on it.
-6. **2FA finalization.** Password-flow login must NEVER set
-   `session["user_id"]` directly for a role that `_needs_totp()` returns
-   True for. Use `_finalize_2fa_login(user)` after a TOTP/recovery code
-   succeeds. Passkey flow is the only carve-out (see CLAUDE.md §13).
-7. **Trial-exempt routes.** New routes that must remain reachable when
-   `Store.plan == "inactive"` go in `_TRIAL_EXEMPT`.
-8. **Money math.** `Transfer.total_collected = send_amount + fee +
-   federal_tax`. `ACHBatch.transfers_total = Σ(send_amount +
-   federal_tax)`. Fee is store revenue, federal_tax leaves with the ACH.
-9. **Customer upsert.** Only `find_or_upsert_customer()` creates or
-   mutates `Customer` rows from the transfer form. Don't bypass it.
-10. **Password reset tokens.** Store `sha256(raw)` in
-    `PasswordResetToken.token_hash`. Never log the raw token on the
-    success path.
-
-## Design system — visual changes
-
-- **Dark only.** No light mode. `data-theme="dark"` is unconditional.
-- **One saturated color.** Neon green `#3fff00` is the only brand
-  accent. Don't introduce another. Jewel tones (`--db-co-*`) and state
-  tokens (`--db-info/warning/negative`) are the second layer.
-- **Tokens, not hex.** Use `--db-*` from `static/design-tokens.css`.
-  If you need a new color, add a token there with a comment.
-- **Semantic tokens for surfaces.** `--surface`, `--surface-2`,
-  `--surface-sticky`, `--text`, `--text-muted`, `--border`,
-  `--border-strong`. These flip in dark mode. Fixed brand tokens
-  (`--navy`, `--gold`, `--white`, `--gray*`, `--cream`) do NOT flip —
-  only use them for color that should stay constant.
-- **Three fonts only.** Space Grotesk (display), Inter (body),
-  JetBrains Mono (money/dates/IDs). No others.
-- **Reuse before rolling.** Check `docs/design-system/project/ui_kits/`
-  and `static/content.css` for existing classes (`.card`, `.stat-card`,
-  `.section-box`, `.quick-link-card`, `.sb-*`, `.mt-table`,
-  `.sticky-save-bar`) before writing new CSS.
-- **Live-search standard.** Every paginated table uses the debounced
-  AJAX pattern: 300ms debounce, 2-char min, AbortController,
-  `history.replaceState`, `?partial=1` route branch returning JSON.
-  Reference: `templates/transfers.html` + `templates/_transfers_table.html`.
+Where the code lives: routes in `api/Modules/<X>/Controllers/`,
+business logic in `Services/`, queries in `Repositories/`, shared
+helpers in `api/Core/`, the SPA in `frontend/src/` (kit in
+`frontend/src/components/ui/`, API clients in `frontend/src/api/`).
+There is no `app.py` and no Jinja page templates.
 
 ## Style — when editing code
 
-- Don't add features, refactors, or abstractions beyond what the task
-  requires. Three similar lines is better than a premature abstraction.
-- Default to no comments. Only add one when the WHY is non-obvious
-  (hidden constraint, subtle invariant, workaround for a specific bug).
-- Don't explain WHAT the code does — names should do that.
+- Don't add features, refactors or abstractions beyond what the task
+  requires. Three similar lines beat a premature abstraction; two
+  copies of the same thing is where extraction starts (and every
+  caller moves onto the helper in the same change).
+- Follow the surrounding code's naming, comment density and idiom.
+  Comments explain WHY, not WHAT.
 - No backwards-compat shims for deletes (`# removed` markers, unused
-  re-exports, renamed `_var` placeholders). Delete it cleanly.
-- No new error handling for impossible states. Validate at system
-  boundaries (user input, external APIs), trust internal callers.
+  re-exports, renamed `_var` placeholders). Delete cleanly.
+- No error handling for impossible states. Validate at system
+  boundaries (request bodies, webhooks, external APIs); trust internal
+  callers.
 
 ## Test floor
 
-- `pytest tests/` must stay green on every commit.
-- New routes must have a test. Use fixtures in `tests/conftest.py`
-  (in-memory SQLite, seeded superadmin, one trial store).
-- Never delete or skip tests to make a sweep pass — fix the code or
-  flag the test as a real regression and stop.
+- Before declaring success, all of these pass:
+  ```bash
+  pytest tests/ -x -q
+  python -m mypy
+  cd frontend && npm run lint -- --max-warnings 0 && npm run build && npx vitest run
+  ```
+  (only the SPA line when `frontend/` changed; delete `frontend/dist`).
+- New routes get tests for grant / deny / success / failure. Use the
+  fixtures in `tests/conftest.py` (in-memory SQLite, seeded superadmin,
+  one trial store) and the helpers there (`login_admin`,
+  `make_employee_client`, …).
+- Never delete, skip or quarantine a test to make a sweep pass — fix the
+  code, or flag the test as a real regression and stop.
 
-## Sweep etiquette (autonomous runs)
+## Sweep etiquette (unattended runs)
 
-These rules apply specifically to unattended `/sweep` runs from the
-Routines scheduler:
-
-- **One PR per sweep run.** Don't fan out multiple PRs from one run.
-- **Scope is narrow.** A sweep should touch one concern (dedup, OR
-  simplify, OR tests) — not a grand restructure.
-- **Stop on red.** If `pytest -x` fails after edits, revert the edits
-  and report the failure. Don't push broken code.
-- **No design drift.** Don't introduce new tokens, fonts, components,
-  or color values during a sweep. UI work needs a human in the loop.
-- **No schema changes.** Don't add columns or tables in a sweep.
-  Schema work needs a human in the loop.
-- **No new dependencies.** Don't add to `requirements.txt` in a sweep.
-- **No deletions of public routes / templates / models.** Renames,
-  moves, and outright removals need a human review — flag in the PR
-  body, don't execute.
-- **Diff budget.** Aim for a sweep PR diff of < 400 lines net. If the
-  cleanup you found is bigger, summarize it in the PR description as
-  "deferred — too large for unattended sweep" and don't apply it.
+- **One PR per sweep run**, one concern (dedup OR simplify OR tests).
+- **Stop on red.** If the checks above fail after edits, revert and
+  report. Don't push broken code.
+- **No design drift.** No new tokens, fonts, components or colors. UI
+  work needs a human in the loop.
+- **No schema changes** (columns, tables, migrations).
+- **No new dependencies** (`requirements.txt`, `package.json`).
+- **No deletions of routes, models or pages.** Flag them in the PR body
+  under "Deferred — needs human review".
+- **Never push to `main`; never merge.** The owner approves merges.
+- **Diff budget.** Aim for < 400 lines net per sweep PR. Bigger finds go
+  in the PR description as "deferred — too large for an unattended
+  sweep".

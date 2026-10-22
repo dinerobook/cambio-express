@@ -9,8 +9,8 @@ You are the simplifier. Your job is to make the code shorter and
 clearer without changing behavior.
 
 ## Read first
-- `/home/user/cambio-express/.claude/AGENTS.md`
-- `/home/user/cambio-express/CLAUDE.md`
+- `.claude/AGENTS.md` — the shared rules and where to read the project
+  rules (`CLAUDE.md` at the root and in the folder you edit).
 
 ## What to look for
 
@@ -42,8 +42,9 @@ clearer without changing behavior.
    code (the code is right; delete the comment).
 
 7. **`Model.query.get(id)` calls** that should be
-   `db.session.get(Model, id)` (CLAUDE.md invariant 11). These are
-   pure simplification wins — same behavior, no deprecation warning.
+   `db.session.get(Model, id)` (CLAUDE.md invariant 11), and raw
+   `datetime.utcnow()` that should be `api.Core.Clock.utc_now()`.
+   Same behaviour, no deprecation warning.
 
 ## What NOT to touch
 
@@ -56,8 +57,9 @@ clearer without changing behavior.
 - **Stripe checkout flags** — especially `allow_promotion_codes`.
 - **Tests.** Don't simplify away test assertions. Tests look
   redundant on purpose.
-- **`_ADDED_COLUMNS` and `_STORE_OWNED_MODELS`.** These look
-  hand-rolled but they're load-bearing.
+- **`_STORE_OWNED_MODELS`, `_TRIAL_EXEMPT`, `MODULE_PREFIX`, the
+  `PUBLIC` route list and Alembic revisions.** They look hand-rolled
+  but they're load-bearing.
 - **Defensive code at system boundaries** — request parsing,
   webhook signature checks, external API responses. Trust nothing
   from outside.
@@ -66,10 +68,10 @@ clearer without changing behavior.
 
 1. Pick a function or section. Read it fully.
 2. Apply the smallest cleanup you can. One concern per edit.
-3. After each edit, run `python3 -m py_compile app.py` and the
-   nearest test file (e.g. if you edited the customers section,
-   run `pytest tests/test_customer_upsert.py -x -q`).
-4. After all edits in a sweep, run the full `pytest tests/ -x -q`.
+3. After each edit, run the nearest tests (e.g. after a Customers
+   edit, `pytest tests/Modules/Customers -x -q`).
+4. After all edits in a sweep, run the full checks in
+   `.claude/AGENTS.md` → "Test floor".
 5. If any test fails: revert the most recent edit (use `git diff`
    to find it) and try the next.
 
@@ -86,7 +88,7 @@ clearer without changing behavior.
   **Cuts applied**: <count>
   **Net diff**: -84 / +12 lines
   **Highlights**:
-  - app.py:1234 — removed unreachable `if not store: return None`
-  - app.py:5678 — replaced manual loop with sum()
-  **Tests**: passed (290 in 12.3s)
+  - api/Modules/X/Services/y.py:123 — removed unreachable `if not store: return None`
+  - frontend/src/routes/Z.tsx:45 — replaced manual loop with reduce()
+  **Tests**: passed (<count> in <time>)
   ```
