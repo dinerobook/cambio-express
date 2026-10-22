@@ -1,0 +1,51 @@
+{% extends "emails/_base.html" %}
+{% from "emails/_base.html" import cta %}
+{% block title %}New sign-in to your account{% endblock %}
+
+{% block content %}
+<h1 style="font-family:'Space Grotesk','Inter','Segoe UI',Arial,sans-serif;font-size:22px;font-weight:700;color:#0a0a0a;margin:0 0 8px;letter-spacing:-0.02em;">
+  New sign-in to your account
+</h1>
+<p style="margin:0 0 18px;color:#6b7280;font-size:13.5px;">
+  {{ username }}
+</p>
+
+<p style="margin:0 0 14px;">
+  Hi{% if name %} {{ name }}{% endif %},
+</p>
+<p style="margin:0 0 16px;">
+  Your account was just signed in to from a device it hasn't used before.
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+  {% for label, value in [("Device", device), ("Address", ip), ("When", when)] %}
+  <tr>
+    <td style="padding:12px 16px;{% if not loop.last %}border-bottom:1px solid #e5e7eb;{% endif %}font-size:13px;color:#6b7280;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">
+      {{ label }}
+    </td>
+    <td align="right" style="padding:12px 16px;{% if not loop.last %}border-bottom:1px solid #e5e7eb;{% endif %}font-family:'JetBrains Mono','Menlo','Consolas',monospace;font-size:14px;font-weight:600;color:#0a0a0a;">
+      {{ value }}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+<p style="margin:0 0 16px;">
+  If this was you, there is nothing to do. If it wasn't, sign that
+  device out and change your password.
+</p>
+
+{{ cta(devices_url, "Review my devices") }}
+
+<p style="margin:22px 0 6px;color:#6b7280;font-size:13.5px;">
+  Or paste this into your browser:<br/>
+  <a href="{{ devices_url }}" style="color:#0a0a0a;word-break:break-all;">{{ devices_url }}</a>
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<p style="margin:0 0 8px;font-size:11.5px;color:#9ca3af;">
+  Don't want these alerts? Turn them off on your
+  <a href="{{ notifications_url }}" style="color:#6b7280;">notifications page</a>.
+</p>
+{% endblock %}

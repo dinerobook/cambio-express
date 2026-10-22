@@ -8588,6 +8588,16 @@
             "title": "Notify Locked Day Digest Push",
             "type": "boolean"
           },
+          "notify_new_sign_in": {
+            "default": false,
+            "title": "Notify New Sign In",
+            "type": "boolean"
+          },
+          "notify_new_sign_in_push": {
+            "default": false,
+            "title": "Notify New Sign In Push",
+            "type": "boolean"
+          },
           "notify_store_offline": {
             "default": false,
             "title": "Notify Store Offline",
@@ -8743,6 +8753,28 @@
               }
             ],
             "title": "Notify Locked Day Digest Push"
+          },
+          "notify_new_sign_in": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notify New Sign In"
+          },
+          "notify_new_sign_in_push": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notify New Sign In Push"
           },
           "notify_store_offline": {
             "anyOf": [

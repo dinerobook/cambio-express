@@ -40,6 +40,7 @@ const PREFS = {
   notify_high_variance: false, notify_high_variance_push: false,
   notify_store_offline: false, notify_store_offline_push: false,
   notify_ticket_updates: true, notify_ticket_updates_push: false,
+  notify_new_sign_in: true, notify_new_sign_in_push: true,
   ticket_updates_applies: true, trial_toggle_applies: true,
   locked_day_digest_applies: true, daily_summary_applies: true,
   high_variance_applies: true, store_offline_applies: true,
@@ -98,6 +99,32 @@ describe("AccountNotifications", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save preferences" }));
     expect(await screen.findByText("Push is off for this store.")).toBeInTheDocument();
     expect(announcementEmail()).toBeChecked();
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+  });
+
+  it("the new sign-in alert loads from the server and saves when switched off", async () => {
+    renderPage();
+    const email = screen.getByRole("checkbox", { name: "Email — New sign-in alert" });
+    const push = screen.getByRole("checkbox", { name: "Push — New sign-in alert" });
+    expect(email).toBeChecked();
+    expect(push).toBeChecked();
+    await userEvent.click(email);
+    await userEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+    await waitFor(() => expect(updateNotifications).toHaveBeenCalledWith(
+      expect.objectContaining({ notify_new_sign_in: false, notify_new_sign_in_push: true }),
+    ));
+  });
+
+  it("an alert never switched on shows off and can be switched on", async () => {
+    useNotifications.mockReturnValue({
+      data: { ...PREFS, notify_new_sign_in: false, notify_new_sign_in_push: false },
+      isLoading: false, isError: false, error: null, refetch,
+    });
+    renderPage();
+    const email = screen.getByRole("checkbox", { name: "Email — New sign-in alert" });
+    expect(email).not.toBeChecked();
+    expect(email).toBeEnabled();
+    await userEvent.click(email);
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
   });
 

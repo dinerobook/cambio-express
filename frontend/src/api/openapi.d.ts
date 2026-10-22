@@ -10905,6 +10905,16 @@ export interface components {
             /** Notify Locked Day Digest Push */
             notify_locked_day_digest_push: boolean;
             /**
+             * Notify New Sign In
+             * @default false
+             */
+            notify_new_sign_in: boolean;
+            /**
+             * Notify New Sign In Push
+             * @default false
+             */
+            notify_new_sign_in_push: boolean;
+            /**
              * Notify Store Offline
              * @default false
              */
@@ -10965,6 +10975,10 @@ export interface components {
             notify_locked_day_digest?: boolean | null;
             /** Notify Locked Day Digest Push */
             notify_locked_day_digest_push?: boolean | null;
+            /** Notify New Sign In */
+            notify_new_sign_in?: boolean | null;
+            /** Notify New Sign In Push */
+            notify_new_sign_in_push?: boolean | null;
             /** Notify Store Offline */
             notify_store_offline?: boolean | null;
             /** Notify Store Offline Push */

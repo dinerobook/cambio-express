@@ -351,18 +351,29 @@ def _client_user_agent(request: Request | None) -> str:
 
 
 def _client_ip_address(request: Request | None) -> str:
-    """Best-effort client IP. Prefers the proxy-forwarded chain
-    header set by Render's edge, falls back to the direct socket
-    peer. Capped at 45 chars (IPv6 + zone-id)."""
+    """The address shown on Account → Devices and in the new sign-in
+    alert. Same rule as the rate limiter (``client_ip``): the entry
+    Render's proxy appended, never one the client wrote into
+    X-Forwarded-For itself. Capped at 45 chars (IPv6 + zone-id)."""
     if request is None:
         return ""
-    fwd = request.headers.get("x-forwarded-for", "")
-    if fwd:
-        # X-Forwarded-For is a comma-separated chain
-        # (client, proxy1, proxy2). The client is the leftmost.
-        return fwd.split(",", 1)[0].strip()[:45]
-    client = request.client
-    return (client.host if client else "")[:45]
+    from api.Core.RateLimit import client_ip
+    return client_ip(request)[:45]
+
+
+def _alert_if_new_device(user_id: int, session_id: str) -> None:
+    """Queue the new sign-in alert. Never lets a failure reach the
+    sign-in: the person is already authenticated by now."""
+    try:
+        from api.Core.Jobs import enqueue
+        from api.Modules.Notifications.Services.new_sign_in import (
+            send_new_sign_in_alert,
+        )
+        enqueue(send_new_sign_in_alert, int(user_id), str(session_id))
+    except Exception:
+        _logging.getLogger(__name__).exception(
+            "new-sign-in alert failed for user_id=%s", user_id,
+        )
 
 
 def _to_login_response(
@@ -435,6 +446,7 @@ def _to_login_response(
             response, issued.jti,
             max_age_seconds=_refresh_ttl,
         )
+        _alert_if_new_device(result.user_id, issued.session_id)
     elif response is not None:
         _set_access_token_cookie(response, access_token)
 
@@ -1096,6 +1108,8 @@ def update_notifications_route(
         notify_store_offline_push=body.notify_store_offline_push,
         notify_ticket_updates=body.notify_ticket_updates,
         notify_ticket_updates_push=body.notify_ticket_updates_push,
+        notify_new_sign_in=body.notify_new_sign_in,
+        notify_new_sign_in_push=body.notify_new_sign_in_push,
     )
     db.commit()
     return NotificationsResponse(**get_notifications_payload(db, user))
@@ -1123,6 +1137,9 @@ def export_my_data_route(
         raise HTTPException(status_code=404, detail="User not found")
 
     from api.Core.Clock import iso_or_none as _iso
+    from api.Modules.Notifications.Services.new_sign_in import (
+        wants_new_sign_in,
+    )
 
     profile = {
         "user_id": user.id,
@@ -1147,6 +1164,7 @@ def export_my_data_route(
         "notify_daily_summary": bool(getattr(user, "notify_daily_summary", True)),
         "notify_high_variance": bool(getattr(user, "notify_high_variance", False)),
         "notify_store_offline": bool(getattr(user, "notify_store_offline", False)),
+        "notify_new_sign_in": wants_new_sign_in(user, "email"),
     }
 
     sessions = []
