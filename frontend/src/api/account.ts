@@ -325,46 +325,8 @@ export async function updateProfile(
 }
 
 
-export interface NotificationsResponse {
-  notify_trial_reminders:        boolean;
-  notify_announcement_email:     boolean;
-  notify_locked_day_digest:      boolean;
-  notify_daily_summary:          boolean;
-  notify_trial_reminders_push:   boolean;
-  notify_announcement_push:      boolean;
-  notify_locked_day_digest_push: boolean;
-  notify_daily_summary_push:     boolean;
-  notify_high_variance:          boolean;
-  notify_high_variance_push:     boolean;
-  notify_store_offline:          boolean;
-  notify_store_offline_push:     boolean;
-  notify_ticket_updates:         boolean;
-  notify_ticket_updates_push:    boolean;
-  ticket_updates_applies:        boolean;
-  trial_toggle_applies:          boolean;
-  locked_day_digest_applies:     boolean;
-  daily_summary_applies:         boolean;
-  high_variance_applies:         boolean;
-  store_offline_applies:         boolean;
-  role:                          string;
-}
-
-export interface NotificationsUpdateBody {
-  notify_trial_reminders?:        boolean;
-  notify_announcement_email?:     boolean;
-  notify_locked_day_digest?:      boolean;
-  notify_daily_summary?:          boolean;
-  notify_trial_reminders_push?:   boolean;
-  notify_announcement_push?:      boolean;
-  notify_locked_day_digest_push?: boolean;
-  notify_daily_summary_push?:     boolean;
-  notify_high_variance?:          boolean;
-  notify_high_variance_push?:     boolean;
-  notify_store_offline?:          boolean;
-  notify_store_offline_push?:     boolean;
-  notify_ticket_updates?:         boolean;
-  notify_ticket_updates_push?:    boolean;
-}
+export type NotificationsResponse = components["schemas"]["NotificationsResponse"];
+export type NotificationsUpdateBody = components["schemas"]["NotificationsUpdateRequest"];
 
 export function useNotifications() {
   return useQuery<NotificationsResponse>({

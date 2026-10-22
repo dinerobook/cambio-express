@@ -64,6 +64,8 @@ export default function AccountNotifications() {
       notify_store_offline_push:     data.notify_store_offline_push,
       notify_ticket_updates:         data.notify_ticket_updates,
       notify_ticket_updates_push:    data.notify_ticket_updates_push,
+      notify_new_sign_in:            data.notify_new_sign_in,
+      notify_new_sign_in_push:       data.notify_new_sign_in_push,
     });
   }, [data]);
 
@@ -239,6 +241,19 @@ export default function AccountNotifications() {
                 keep checking the ticket page for an answer.
               </PrefKindRow>
 
+              <PrefKindRow
+                title="New sign-in alert"
+                disabled={busy}
+                emailChecked={draft.notify_new_sign_in ?? false}
+                emailOnChange={(v) => set("notify_new_sign_in", v)}
+                pushChecked={draft.notify_new_sign_in_push ?? false}
+                pushOnChange={(v) => set("notify_new_sign_in_push", v)}
+              >
+                A notification when someone signs in to your account
+                from a device it hasn't used before, with a link to
+                sign that device out. Off until you switch it on.
+              </PrefKindRow>
+
               {data.high_variance_applies && (
                 <PrefKindRow
                   title="High over/short alert"
@@ -327,6 +342,11 @@ export default function AccountNotifications() {
                 <Row
                   channel="Email + push"
                   what="Support-ticket updates (reply or status change on your ticket)"
+                  control="Toggle above."
+                />
+                <Row
+                  channel="Email + push"
+                  what="New sign-in alert (a device your account hasn't used before)"
                   control="Toggle above."
                 />
                 <Row

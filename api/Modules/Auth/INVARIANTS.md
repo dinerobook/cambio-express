@@ -585,6 +585,29 @@ a **store-scoped admin token** for the selected store. Rules:
   simply stays on the base owner token (owner overview).
 
 
+### New sign-in alert — every full sign-in, never in the way
+
+`_to_login_response` (the one place every full sign-in mints its
+refresh chain: password, cross-store, TOTP, recovery code, enrolment
+confirm) calls `_alert_if_new_device` after the commit. It enqueues
+`Notifications.Services.new_sign_in.send_new_sign_in_alert` and
+swallows every failure: the person is already signed in, and an
+alert must never turn into a failed sign-in. Signup, store switching,
+refresh and "Sign in as" do not alert (same device or no history).
+
+- "New device" = no earlier refresh row on the account with the same
+  browser + platform ("Chrome on Windows"), never the raw User-Agent
+  (a browser update is not a new device). The first sign-in ever
+  never alerts.
+- `User.notify_new_sign_in` / `_push` are nullable: NULL = never
+  chosen = off. The owner chose (2026-10-22) that nobody gets the
+  alert until they switch it on themselves on the Notifications page;
+  don't turn it on for a role by default without asking.
+- The address recorded on the refresh row (shown on Account → Devices
+  and in the alert) comes from `_client_ip_address`, which uses the
+  rate limiter's `client_ip`: the entry Render's proxy appended to
+  X-Forwarded-For, never one the client wrote.
+
 ## TOTP enrollment + verification
 
 For roles where `needs_totp(user)` is True:

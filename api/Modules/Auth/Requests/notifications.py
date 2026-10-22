@@ -42,6 +42,10 @@ class NotificationsResponse(BaseModel):
     # changed).  Applies to every role — anyone can file a ticket.
     notify_ticket_updates:          bool = True
     notify_ticket_updates_push:     bool = True
+    # New sign-in alert (a device this account has not used before).
+    # Every role; off until the person switches it on.
+    notify_new_sign_in:             bool = False
+    notify_new_sign_in_push:        bool = False
     trial_toggle_applies:          bool
     locked_day_digest_applies:     bool
     daily_summary_applies:         bool
@@ -71,3 +75,5 @@ class NotificationsUpdateRequest(BaseModel):
     notify_store_offline_push:     Optional[bool] = None
     notify_ticket_updates:         Optional[bool] = None
     notify_ticket_updates_push:    Optional[bool] = None
+    notify_new_sign_in:            Optional[bool] = None
+    notify_new_sign_in_push:       Optional[bool] = None

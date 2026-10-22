@@ -314,6 +314,11 @@ class User(Base):
     notify_high_variance_push      = Column(Boolean, default=False)
     notify_store_offline           = Column(Boolean, default=False)
     notify_store_offline_push      = Column(Boolean, default=False)
+    # New sign-in alert: someone signed in from a device this account
+    # has not used before. Off until the person switches it on; NULL =
+    # never chosen = off (``new_sign_in.wants_new_sign_in``).
+    notify_new_sign_in             = Column(Boolean, nullable=True)
+    notify_new_sign_in_push        = Column(Boolean, nullable=True)
     # Deliverability suppression — stamped when Resend reports a hard
     # bounce on this user's email. ``_send_email()`` skips suppressed
     # recipients.

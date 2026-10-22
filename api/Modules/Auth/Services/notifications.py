@@ -10,6 +10,7 @@ from typing import Any, Optional
 from sqlalchemy.orm import Session
 
 from api.Modules.Auth.Models import User
+from api.Modules.Notifications.Services.new_sign_in import wants_new_sign_in
 
 
 def trial_toggle_applies(db: Session, user: User) -> bool:
@@ -71,6 +72,10 @@ def get_notifications_payload(db: Session, user: User) -> dict[str, Any]:
             getattr(user, "notify_ticket_updates_push", True),
         ),
         "ticket_updates_applies":     True,
+        # New sign-in alert: every role can switch it on; off until
+        # they do.
+        "notify_new_sign_in":         wants_new_sign_in(user, "email"),
+        "notify_new_sign_in_push":    wants_new_sign_in(user, "push"),
         "trial_toggle_applies":      trial_toggle_applies(db, user),
         "locked_day_digest_applies": locked_day_digest_applies(user),
         "daily_summary_applies":     daily_summary_applies(user),
@@ -108,6 +113,8 @@ def update_notifications(
     notify_store_offline_push:     Optional[bool] = None,
     notify_ticket_updates:         Optional[bool] = None,
     notify_ticket_updates_push:    Optional[bool] = None,
+    notify_new_sign_in:            Optional[bool] = None,
+    notify_new_sign_in_push:       Optional[bool] = None,
 ) -> None:
     """Apply changes. None = don't touch. Caller commits.
 
@@ -142,4 +149,8 @@ def update_notifications(
         setattr(user, "notify_ticket_updates", bool(notify_ticket_updates))
     if notify_ticket_updates_push is not None:
         setattr(user, "notify_ticket_updates_push", bool(notify_ticket_updates_push))
+    if notify_new_sign_in is not None:
+        setattr(user, "notify_new_sign_in", bool(notify_new_sign_in))
+    if notify_new_sign_in_push is not None:
+        setattr(user, "notify_new_sign_in_push", bool(notify_new_sign_in_push))
     db.flush()
