@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
+import type { components } from "./openapi";
 
 export const TICKET_STATUS_TONES: Record<string, PillTone> = {
   open: "accent",
@@ -11,28 +12,7 @@ export const TICKET_STATUS_TONES: Record<string, PillTone> = {
   closed: "neutral",
 };
 
-export interface TicketRow {
-  id: number;
-  store_id: number;
-  user_id: number;
-  submitted_by: string;
-  category: string;
-  priority: string | null;
-  subject: string;
-  body: string;
-  status: string;
-  admin_reply: string | null;
-  replied_at: string | null;
-  replied_by: string | null;
-  created_at: string;
-  updated_at: string;
-  closed_at: string | null;
-  store_name: string | null;
-  assigned_to_user_id: number | null;
-  assigned_to_name: string | null;
-  /** Replies from the other side this viewer hasn't opened yet. */
-  unread_count: number;
-}
+export type TicketRow = components["schemas"]["TicketRow"];
 
 interface TicketListResponse {
   tickets: TicketRow[];

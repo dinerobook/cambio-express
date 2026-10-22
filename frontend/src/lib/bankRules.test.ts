@@ -83,14 +83,14 @@ describe("form values ↔ API body", () => {
 
 describe("describeAppliedRule", () => {
   it("reads every part of the apply report, leading space included", () => {
-    expect(describeAppliedRule({ tagged: 5, booked: 3, locked_skipped: 1 }))
+    expect(describeAppliedRule({ tagged: 5, booked: 3, locked_skipped: 1, matched: 0 }))
       .toBe(" 5 tagged, 3 booked on the daily book, 1 skipped (day locked).");
   });
 
   it("leaves out zero booked / skipped but always says how many were tagged", () => {
-    expect(describeAppliedRule({ tagged: 2, booked: 0, locked_skipped: 0 }))
+    expect(describeAppliedRule({ tagged: 2, booked: 0, locked_skipped: 0, matched: 0 }))
       .toBe(" 2 tagged.");
-    expect(describeAppliedRule({ tagged: 0, booked: 0, locked_skipped: 4 }))
+    expect(describeAppliedRule({ tagged: 0, booked: 0, locked_skipped: 4, matched: 0 }))
       .toBe(" 0 tagged, 4 skipped (day locked).");
   });
 

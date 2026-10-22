@@ -73,20 +73,7 @@ export async function updateBatch(
   );
 }
 
-export interface BatchLinkedTransferRow {
-  id: number;
-  send_date: string;
-  company: string;
-  sender_name: string;
-  recipient_name: string;
-  country: string;
-  confirm_number: string;
-  send_amount: number;
-  fee: number;
-  federal_tax: number;
-  total_collected: number;
-  status: string;
-}
+export type BatchLinkedTransferRow = components["schemas"]["BatchLinkedTransferRow"];
 
 export function useBatches({
   sort = "", direction = "desc", page = 1, perPage = 50,

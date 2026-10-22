@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
+import type { components } from "./openapi";
 
 /** Return-check status → Pill tone (UI-STANDARDS §3). */
 export const RETURN_CHECK_STATUS_TONES: Record<string, PillTone> = {
@@ -14,21 +15,7 @@ export const RETURN_CHECK_STATUS_TONES: Record<string, PillTone> = {
   fraud:     "negative",
 };
 
-export interface ReturnCheckRow {
-  id: number;
-  bounced_on: string;
-  customer_name: string;
-  company_name: string;
-  check_number: string;
-  payer_bank: string;
-  amount: number;
-  return_check_fee: number;
-  status: string;
-  status_changed_on: string;
-  notes: string;
-  recovered_total: number;
-  payment_count: number;
-}
+export type ReturnCheckRow = components["schemas"]["ReturnCheckRow"];
 
 export interface ReturnCheckList {
   rows: ReturnCheckRow[];
@@ -127,14 +114,7 @@ export async function reopenReturnCheck(
   );
 }
 
-export interface ReturnCheckPaymentRow {
-  id: number;
-  return_check_id: number;
-  amount: number;
-  paid_on: string;
-  method: string;
-  notes: string;
-}
+export type ReturnCheckPaymentRow = components["schemas"]["ReturnCheckPaymentRow"];
 
 export function useReturnCheckPayments(rcId: number | undefined) {
   const identity = getCurrentIdentity();

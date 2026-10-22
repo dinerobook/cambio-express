@@ -10,44 +10,9 @@ import { api, ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { components } from "./openapi";
 
-export interface BankAccountRow {
-  id: number;
-  institution_name: string;
-  display_name: string;
-  nickname: string;
-  last4: string;
-  label: string;
-  category: string;
-  subcategory: string;
-  currency: string;
-  last_balance_cents: number;
-  last_balance: number;
-  last_balance_as_of: string;
-  enabled: boolean;
-  connected_at: string;
-  disconnected_at: string;
-}
+export type BankAccountRow = components["schemas"]["BankAccountRow"];
 
-export interface BankRuleRow {
-  id: number;
-  enabled: boolean;
-  priority: number;
-  desc_match_type: string;
-  desc_match_value: string;
-  sign_filter: string;
-  amount_min_cents: number | null;
-  amount_max_cents: number | null;
-  account_filter_id: number | null;
-  account_filter_label: string;
-  target_kind: string;
-  auto_post: boolean;
-  /** Days to shift the booked day from the bank's posting date.
-   *  0 = the bank's date; negative books earlier. */
-  post_date_offset_days: number;
-  description: string;
-  match_count: number;
-  last_matched_at: string;
-}
+export type BankRuleRow = components["schemas"]["BankRuleRow"];
 
 export interface BankTransactionRow {
   id: number;
@@ -181,7 +146,7 @@ export function useBankTransactions(filters: BankTransactionFilters) {
 // per-store bank-charge tags. The SPA used to hard-code a list here
 // that had drifted from what the server accepted — never again.
 
-export interface BankCategoryOption { slug: string; label: string }
+export type BankCategoryOption = components["schemas"]["BankCategoryOption"];
 export interface BankCategoryGroup {
   label: string;
   /** True for the group whose slugs book a daily-book line. */
@@ -364,18 +329,9 @@ export interface BankRuleWriteBody {
   apply_to_existing?: boolean;
 }
 
-export interface BankRuleApplyReport {
-  tagged: number;
-  booked: number;
-  locked_skipped: number;
-  /** Linked to an entry already on the daily book instead of booked. */
-  matched?: number;
-}
+export type BankRuleApplyReport = components["schemas"]["BankRuleApplyReport"];
 
-export interface BankRuleResponse {
-  rule: BankRuleRow;
-  applied: BankRuleApplyReport | null;
-}
+export type BankRuleResponse = components["schemas"]["BankRuleResponse"];
 
 export async function createRule(
   body: BankRuleWriteBody,
@@ -499,27 +455,13 @@ export async function deleteRuleTemplate(id: number): Promise<void> {
 // Replaces the legacy /bank/stripe/* Flask form-POST endpoints
 // that went away in PR #550.
 
-export interface BankConnectResponse {
-  clientSecret: string;
-  sessionId: string;
-  publishableKey: string;
-}
+export type BankConnectResponse = components["schemas"]["BankConnectResponse"];
 
-export interface BankConnectCompleteResponse {
-  accounts_added: number;
-  accounts_total: number;
-}
+export type BankConnectCompleteResponse = components["schemas"]["BankConnectCompleteResponse"];
 
-export interface BankRefreshResponse {
-  accounts_refreshed: number;
-  error: string;
-}
+export type BankRefreshResponse = components["schemas"]["BankRefreshResponse"];
 
-export interface BankSyncTransactionsResponse {
-  new_rows: number;
-  total_seen: number;
-  error: string;
-}
+export type BankSyncTransactionsResponse = components["schemas"]["BankSyncTransactionsResponse"];
 
 export async function startStripeConnect(): Promise<BankConnectResponse> {
   return api<BankConnectResponse>("/api/v2/bank/connect", {

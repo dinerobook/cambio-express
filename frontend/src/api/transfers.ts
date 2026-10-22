@@ -21,34 +21,9 @@ export const TRANSFER_STATUS_TONES: Record<string, PillTone> = {
   Returned:  "negative",
 };
 
-export interface TransferRow {
-  id: number;
-  send_date: string;
-  company: string;
-  service_type: string;
-  /** "cash" or "debit_card" (paid on the company's card terminal). */
-  payment_method: string;
-  sender_name: string;
-  recipient_name: string;
-  country: string;
-  confirm_number: string;
-  send_amount: number;
-  fee: number;
-  federal_tax: number;
-  total_collected: number;
-  status: string;
-  batch_id: string;
-  employee_name: string;
-}
+export type TransferRow = components["schemas"]["TransferRow"];
 
-export interface TransferListResponse {
-  rows: TransferRow[];
-  total: number;
-  page: number;
-  per_page: number;
-  total_pages: number;
-  page_amount: number;
-}
+export type TransferListResponse = components["schemas"]["TransferListResponse"];
 
 interface RecentTransfersOptions {
   // How many rows to show on the dashboard card. Defaults to 10
@@ -91,9 +66,7 @@ export function useRecentTransfers({ limit = 10 }: RecentTransfersOptions = {}) 
  *  the whole row, so the form must send back what it read). */
 export type TransferDetail = components["schemas"]["TransferDetail"];
 
-export interface TransferResponse {
-  transfer: TransferDetail;
-}
+export type TransferResponse = components["schemas"]["TransferResponse"];
 
 export interface CreateTransferBody {
   send_date: string;
@@ -342,43 +315,11 @@ export function useTransfers({
 
 // ── Receipt ─────────────────────────────────────────────────
 
-export interface ReceiptStore {
-  name:             string;
-  address:          string;
-  phone:            string;
-  email:            string;
-  receipt_logo_url: string;
-  receipt_footer:   string;
-  receipt_tax_id:   string;
-}
+export type ReceiptStore = components["schemas"]["ReceiptStore"];
 
-export interface ReceiptTransfer {
-  id:                   number;
-  send_date:            string;
-  created_at:           string;
-  company:              string;
-  service_type:         string;
-  payment_method:       string;
-  sender_name:          string;
-  sender_phone:         string;
-  sender_phone_country: string;
-  sender_address:       string;
-  recipient_name:       string;
-  recipient_phone:      string;
-  country:              string;
-  confirm_number:       string;
-  send_amount:          number;
-  fee:                  number;
-  federal_tax:          number;
-  total_collected:      number;
-  status:               string;
-  employee_name:        string;
-}
+export type ReceiptTransfer = components["schemas"]["ReceiptTransfer"];
 
-export interface TransferReceiptResponse {
-  store:    ReceiptStore;
-  transfer: ReceiptTransfer;
-}
+export type TransferReceiptResponse = components["schemas"]["TransferReceiptResponse"];
 
 export function useTransferReceipt(transferId: number) {
   const identity = getCurrentIdentity();

@@ -7,54 +7,20 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { components } from "./openapi";
 
-export interface AggregatedTotals {
-  count: number;
-  sent: number;
-  fees: number;
-  tax: number;
-}
+export type AggregatedTotals = components["schemas"]["AggregatedTotals"];
 
-export interface AggregatedRowBase {
-  count: number;
-  sent: number;
-  fees: number;
-  tax: number;
-  avg: number;
-}
-
-// Each report adds its own identity column on top of the
-// AggregatedRowBase numeric envelope.
-export interface CompanyRow      extends AggregatedRowBase { company: string; }
-export interface ServiceTypeRow  extends AggregatedRowBase { service_type: string; }
-export interface CountryRow      extends AggregatedRowBase { country: string; }
-export interface RecipientRow    extends AggregatedRowBase { recipient: string; }
-
-export interface ReportEnvelope<R> {
-  rows: R[];
-  totals: AggregatedTotals;
-}
+// Each report row is the aggregated numbers plus its own identity
+// column (company / service type / country / recipient).
+export type CompanyRow = components["schemas"]["CompanyRow"];
+export type ServiceTypeRow = components["schemas"]["ServiceTypeRow"];
+export type CountryRow = components["schemas"]["CountryRow"];
+export type RecipientRow = components["schemas"]["RecipientRow"];
 
 // ── Report-center index ─────────────────────────────────────
 
-export interface ReportListRow {
-  key: string;
-  label: string;
-  description: string;
-  url: string | null;
-  status: string;  // "ready" | "coming_soon"
-}
-
-export interface ReportListCategory {
-  key: string;
-  label: string;
-  icon: string;  // inline stroke SVG
-  reports: ReportListRow[];
-}
-
-export interface ReportListResponse {
-  categories: ReportListCategory[];
-}
+export type ReportListResponse = components["schemas"]["ReportListResponse"];
 
 export function useReportList(collection: "msb" | "store" = "msb") {
   const identity = getCurrentIdentity();

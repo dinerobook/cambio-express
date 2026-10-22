@@ -19,72 +19,9 @@ import type { components } from "./openapi";
 // to hydrate every input, plus derived totals + lock state.
 // Line-item-derived fields (cash_purchases, checks_deposit, etc.)
 // are read-only in the UI; they roll up from the line-item tables.
-export interface DailyReportRow {
-  id: number;
-  store_id: number;
-  report_date: string;
-  // Sales
-  taxable_sales: number;
-  non_taxable: number;
-  sales_tax: number;
-  // Receipts — operator-editable
-  bill_payment_charge: number;
-  phone_recargas: number;
-  boost_mobile: number;
-  money_transfer: number;
-  money_order: number;
-  money_order_fees: number;
-  check_cashing_fees: number;
-  return_check_hold_fees: number;
-  forward_balance: number;
-  /** What the chain WOULD carry, recomputed server-side on every
-   *  read (M-1). Shown beside an override so a diverged chain is
-   *  visible. null on the first logged day — nothing to carry. */
-  forward_balance_carry: number | null;
-  /** True when the operator has pinned this day's opening cash. */
-  forward_balance_overridden: boolean;
-  /** True when forward_balance is auto-carried from the prior logged
-   *  day (drops + safe) and the editor renders it read-only. False
-   *  only on the store's first logged day (operator-seeded). */
-  forward_balance_auto: boolean;
-  from_bank: number;
-  rebates_commissions: number;
-  // Receipts — line-item derived (read-only)
-  return_check_paid_back: number;
-  other_cash_in: number;
-  // Disbursements — operator-editable
-  cash_deposit: number;
-  safe_balance: number;
-  payroll_expense: number;
-  payroll_check: number;
-  // Disbursements — line-item derived (read-only)
-  cash_purchases: number;
-  cash_expense: number;
-  check_purchases: number;
-  check_expense: number;
-  outside_cash_drops: number;
-  checks_deposit: number;
-  other_cash_out: number;
-  // Held checks — line-item derived (read-only). `checks_held` is in
-  // the Out total like a check deposit; `held_checks_deposited` is in
-  // NO total (the cash left on the day of the hold).
-  checks_held: number;
-  held_checks_deposited: number;
-  // Other
-  over_short: number;
-  locked: boolean;
-  notes: string;
-  /** ISO datetime when the report was locked, "" otherwise. */
-  locked_at: string;
-  // Derived
-  total_receipts: number;
-  total_disbursements: number;
-  net: number;
-}
+export type DailyReportRow = components["schemas"]["DailyReportRow"];
 
-export interface DailyReportResponse {
-  report: DailyReportRow;
-}
+export type DailyReportResponse = components["schemas"]["DailyReportResponse"];
 
 export interface DailyReportUpdateBody {
   taxable_sales?: number;
@@ -334,12 +271,6 @@ export interface TransferCompanyTotals {
   total: number;
 }
 
-export interface TransfersSummary {
-  companies: string[];
-  by_company: TransferCompanyTotals[];
-  grand_total: number;
-}
-
 
 // ── Editable per-company MT breakdown ────────────────────────
 
@@ -392,15 +323,7 @@ export interface MTBreakdown {
   money_order_companies: string[];
 }
 
-export interface MTBreakdownWriteRow {
-  company: string;
-  amount: number;
-  fees: number;
-  federal_tax: number;
-  commission: number;
-  debit_card?: number;
-  payouts?: number;
-}
+export type MTBreakdownWriteRow = components["schemas"]["MTBreakdownWriteRow"];
 
 // Hook: per-company saved + auto values for the editor's Money
 // Transfers tab. Each row carries BOTH saved (operator's last
