@@ -1,8 +1,9 @@
 """Unit tests for Notifications.Services.trial_reminders (PR 65)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from api.Modules.Tenancy.Models import Store, StoreOwnerLink, User
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_store(db, *, slug, plan="trial", trial_ends_at=None,
@@ -40,7 +41,7 @@ def test_due_excludes_paid_plans():
     with db_session():
         db.session.query(Store).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         # Paid plan: never reminded.
         _add_store(db.session, slug="paid-co", plan="basic",
                    trial_ends_at=now + timedelta(days=2))
@@ -57,7 +58,7 @@ def test_due_excludes_already_reminded_stores():
     with db_session():
         db.session.query(Store).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         _add_store(
             db.session, slug="already-reminded",
             trial_ends_at=now + timedelta(days=2),
@@ -75,7 +76,7 @@ def test_due_excludes_stores_outside_threshold():
     with db_session():
         db.session.query(Store).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         _add_store(
             db.session, slug="not-yet-due",
             trial_ends_at=now + timedelta(days=10),
@@ -92,7 +93,7 @@ def test_due_includes_stores_in_threshold():
     with db_session():
         db.session.query(Store).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         s = _add_store(
             db.session, slug="due-tomorrow",
             trial_ends_at=now + timedelta(days=2),
@@ -111,7 +112,7 @@ def test_due_defaults_now_when_omitted():
     with db_session():
         db.session.query(Store).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         s = _add_store(
             db.session, slug="due-default-now-co",
             trial_ends_at=now + timedelta(days=2),
@@ -130,7 +131,7 @@ def test_due_excludes_no_trial_end_set():
     with db_session():
         db.session.query(Store).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         _add_store(db.session, slug="no-end-set",
                    trial_ends_at=None)
         assert stores_due_for_reminder(db.session, now) == []
@@ -339,7 +340,7 @@ def test_run_sends_email_and_stamps_dedup_flag(monkeypatch):
         db.session.query(Store).delete()
         db.session.query(User).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         s = _add_store(
             db.session, slug="run-due-co",
             trial_ends_at=now + timedelta(days=2),
@@ -377,7 +378,7 @@ def test_run_is_idempotent_on_second_call(monkeypatch):
         db.session.query(Store).delete()
         db.session.query(User).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         s = _add_store(
             db.session, slug="run-idempotent-co",
             trial_ends_at=now + timedelta(days=2),
@@ -413,7 +414,7 @@ def test_run_skips_stores_outside_the_window(monkeypatch):
         db.session.query(Store).delete()
         db.session.query(User).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         s = _add_store(
             db.session, slug="run-not-due-co",
             trial_ends_at=now + timedelta(days=10),
@@ -450,7 +451,7 @@ def test_run_skips_paid_stores(monkeypatch):
         db.session.query(Store).delete()
         db.session.query(User).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         s = _add_store(
             db.session, slug="run-paid-co", plan="basic",
             trial_ends_at=now + timedelta(days=2),
@@ -485,7 +486,7 @@ def test_run_does_not_stamp_store_with_no_eligible_recipients(monkeypatch):
         db.session.query(Store).delete()
         db.session.query(User).delete()
         db.session.commit()
-        now = datetime.utcnow()
+        now = utc_now()
         s = _add_store(
             db.session, slug="run-no-recipients-co",
             trial_ends_at=now + timedelta(days=2),

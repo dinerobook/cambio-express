@@ -2,12 +2,12 @@
 merged operator + transfer feed the store's admin sees, scoped to
 that store only.
 """
-from datetime import datetime
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_admin, login_superadmin
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def sa_headers(sa_token):
 
 def _mk_store():
     from api.Modules.Tenancy.Models import Store
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     with db_session():
         s = Store(name="Activity Store", slug=f"act-{stamp}", plan="trial")
         db.session.add(s)

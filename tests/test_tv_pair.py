@@ -15,7 +15,7 @@ These tests pin the security-relevant invariants:
   - failure modes return indistinguishable responses (no oracle for
     brute force).
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from api.Modules.TVDisplay.Models import TVDisplay, TVPairing, TVPendingPair
 from api.Modules.TVDisplay.Services.pair_code import (
@@ -24,6 +24,7 @@ from api.Modules.TVDisplay.Services.pair_code import (
 )
 from api.Modules.Tenancy.Models import Store, User
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 # ── Helpers ────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ def test_init_persists_pending_pair_row(client):
         assert pending is not None
         assert pending.device_token == body["device_token"]
         assert pending.claimed_at is None
-        assert pending.expires_at > datetime.utcnow()
+        assert pending.expires_at > utc_now()
 
 
 def test_init_accepts_optional_device_label(client):
@@ -144,7 +145,7 @@ def test_status_expired_when_pending_row_aged_out(client):
     body = _init(client)
     with db_session():
         p = db.session.query(TVPendingPair).filter_by(code=body["code"]).first()
-        p.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        p.expires_at = utc_now() - timedelta(seconds=1)
         db.session.commit()
     resp = client.get("/api/tv-pair/status",
                        query_string={"token": body["device_token"]})
@@ -374,13 +375,13 @@ def test_device_url_bumps_last_seen_at(client, test_store_id):
     with db_session():
         db.session.query(TVPairing).filter_by(
             device_token=body["device_token"]
-        ).update({"last_seen_at": datetime.utcnow() - timedelta(minutes=5)})
+        ).update({"last_seen_at": utc_now() - timedelta(minutes=5)})
         db.session.commit()
     client.get("/tv/device/" + body["device_token"])
     with db_session():
         after = db.session.query(TVPairing).filter_by(
             device_token=body["device_token"]).first().last_seen_at
-        assert after > (datetime.utcnow() - timedelta(minutes=1))
+        assert after > (utc_now() - timedelta(minutes=1))
 
 
 def test_legacy_public_url_still_works_for_tablets(client, test_store_id):

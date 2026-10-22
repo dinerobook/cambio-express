@@ -9,12 +9,13 @@ already ended, an explicit end date is accepted, reviving an
 inactive store clears its retention timer, and moving a store's
 plan off "inactive" through the edit form does the same.
 """
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_superadmin
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -29,11 +30,11 @@ def sa_headers(sa_token):
 
 def _mk_store(**overrides):
     from api.Modules.Tenancy.Models import Store
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     fields = dict(
         name="Trial Store", slug=f"trial-{stamp}", plan="trial",
-        trial_ends_at=datetime.utcnow() + timedelta(days=3),
-        grace_ends_at=datetime.utcnow() + timedelta(days=7),
+        trial_ends_at=utc_now() + timedelta(days=3),
+        grace_ends_at=utc_now() + timedelta(days=7),
     )
     fields.update(overrides)
     with db_session():
@@ -65,7 +66,7 @@ def _extend(client, sa_headers, sid, **body):
 
 class TestExtendTrial:
     def test_running_trial_extends_from_its_end(self, client, sa_headers):
-        end = datetime.utcnow() + timedelta(days=3)
+        end = utc_now() + timedelta(days=3)
         sid = _mk_store(trial_ends_at=end)
         resp = _extend(client, sa_headers, sid, days=14)
         assert resp.status_code == 200, resp.text
@@ -75,13 +76,13 @@ class TestExtendTrial:
 
     def test_expired_trial_extends_from_today(self, client, sa_headers):
         sid = _mk_store(
-            trial_ends_at=datetime.utcnow() - timedelta(days=60),
-            grace_ends_at=datetime.utcnow() - timedelta(days=56),
+            trial_ends_at=utc_now() - timedelta(days=60),
+            grace_ends_at=utc_now() - timedelta(days=56),
         )
         resp = _extend(client, sa_headers, sid, days=14)
         assert resp.status_code == 200, resp.text
         after = _store(sid)
-        expected = datetime.utcnow() + timedelta(days=14)
+        expected = utc_now() + timedelta(days=14)
         assert abs((after["trial_ends_at"] - expected).total_seconds()) < 5
         # The grace window follows the new end, so the store is
         # really usable again rather than still "expired".
@@ -113,7 +114,7 @@ class TestExtendTrial:
         assert _extend(client, sa_headers, sid, days="soon").status_code == 422
 
     def test_default_is_fourteen_days(self, client, sa_headers):
-        end = datetime.utcnow() + timedelta(days=1)
+        end = utc_now() + timedelta(days=1)
         sid = _mk_store(trial_ends_at=end)
         resp = _extend(client, sa_headers, sid)
         assert resp.status_code == 200, resp.text
@@ -125,11 +126,11 @@ class TestExtendTrial:
     ):
         sid = _mk_store(
             plan="inactive",
-            trial_ends_at=datetime.utcnow() - timedelta(days=200),
-            grace_ends_at=datetime.utcnow() - timedelta(days=196),
-            data_retention_until=datetime.utcnow() + timedelta(days=10),
-            canceled_at=datetime.utcnow() - timedelta(days=190),
-            trial_reminder_sent_at=datetime.utcnow() - timedelta(days=205),
+            trial_ends_at=utc_now() - timedelta(days=200),
+            grace_ends_at=utc_now() - timedelta(days=196),
+            data_retention_until=utc_now() + timedelta(days=10),
+            canceled_at=utc_now() - timedelta(days=190),
+            trial_reminder_sent_at=utc_now() - timedelta(days=205),
         )
         resp = _extend(client, sa_headers, sid, days=30)
         assert resp.status_code == 200, resp.text
@@ -151,14 +152,14 @@ class TestExtendTrial:
 class TestBulkExtendTrial:
     def test_bulk_uses_the_same_arithmetic(self, client, sa_headers):
         expired = _mk_store(
-            trial_ends_at=datetime.utcnow() - timedelta(days=30),
-            grace_ends_at=datetime.utcnow() - timedelta(days=26),
+            trial_ends_at=utc_now() - timedelta(days=30),
+            grace_ends_at=utc_now() - timedelta(days=26),
         )
         inactive = _mk_store(
             plan="inactive",
-            trial_ends_at=datetime.utcnow() - timedelta(days=90),
+            trial_ends_at=utc_now() - timedelta(days=90),
             grace_ends_at=None,
-            data_retention_until=datetime.utcnow() + timedelta(days=30),
+            data_retention_until=utc_now() + timedelta(days=30),
         )
         resp = client.post(
             "/api/v2/superadmin/bulk-action", headers=sa_headers,
@@ -166,7 +167,7 @@ class TestBulkExtendTrial:
                   "days": 10},
         )
         assert resp.status_code == 200, resp.text
-        expected = datetime.utcnow() + timedelta(days=10)
+        expected = utc_now() + timedelta(days=10)
         for sid in (expired, inactive):
             after = _store(sid)
             assert abs((after["trial_ends_at"] - expected).total_seconds()) < 5
@@ -186,8 +187,8 @@ class TestPlanEdits:
     def test_moving_off_inactive_clears_retention(self, client, sa_headers):
         sid = _mk_store(
             plan="inactive", trial_ends_at=None, grace_ends_at=None,
-            data_retention_until=datetime.utcnow() + timedelta(days=5),
-            canceled_at=datetime.utcnow() - timedelta(days=175),
+            data_retention_until=utc_now() + timedelta(days=5),
+            canceled_at=utc_now() - timedelta(days=175),
         )
         resp = client.patch(
             f"/api/v2/superadmin/stores/{sid}", headers=sa_headers,
@@ -204,8 +205,8 @@ class TestPlanEdits:
     ):
         sid = _mk_store(
             plan="basic",
-            trial_ends_at=datetime.utcnow() - timedelta(days=40),
-            grace_ends_at=datetime.utcnow() - timedelta(days=36),
+            trial_ends_at=utc_now() - timedelta(days=40),
+            grace_ends_at=utc_now() - timedelta(days=36),
         )
         resp = client.patch(
             f"/api/v2/superadmin/stores/{sid}", headers=sa_headers,
@@ -214,7 +215,7 @@ class TestPlanEdits:
         assert resp.status_code == 200, resp.text
         after = _store(sid)
         assert after["plan"] == "trial"
-        assert after["trial_ends_at"] > datetime.utcnow() + timedelta(days=13)
+        assert after["trial_ends_at"] > utc_now() + timedelta(days=13)
         assert after["grace_ends_at"] > after["trial_ends_at"]
         from api.Modules.Billing.Services.trial import get_trial_status
         from api.Modules.Tenancy.Models import Store
@@ -222,7 +223,7 @@ class TestPlanEdits:
             assert get_trial_status(db.session.get(Store, sid)) == "active"
 
     def test_plan_trial_keeps_a_running_window(self, client, sa_headers):
-        end = datetime.utcnow() + timedelta(days=5)
+        end = utc_now() + timedelta(days=5)
         sid = _mk_store(plan="basic", trial_ends_at=end)
         resp = client.patch(
             f"/api/v2/superadmin/stores/{sid}", headers=sa_headers,

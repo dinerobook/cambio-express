@@ -15,14 +15,13 @@ Three classes that back the Stripe Financial Connections integration:
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Index, Integer,
     String, UniqueConstraint,
 )
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class StripeBankAccount(Base):
@@ -48,7 +47,7 @@ class StripeBankAccount(Base):
     currency             = Column(String(8), default="usd")
     last_balance_cents   = Column(BigInteger, default=0)
     last_balance_as_of   = Column(DateTime, nullable=True)
-    connected_at         = Column(DateTime, default=datetime.utcnow)
+    connected_at         = Column(DateTime, default=utc_now)
     disconnected_at      = Column(DateTime, nullable=True)
     enabled              = Column(Boolean, default=True)
     # Operator-set nickname. When non-empty the transactions list +
@@ -122,7 +121,7 @@ class BankTransaction(Base):
     # row written before the feature. Restore clears both.
     dismissed_at             = Column(DateTime, nullable=True)
     dismissed_by             = Column(Integer, nullable=True)
-    created_at               = Column(DateTime, default=datetime.utcnow)
+    created_at               = Column(DateTime, default=utc_now)
     __table_args__ = (
         Index("ix_bank_transaction_store_posted",
               "store_id", "posted_at"),
@@ -181,9 +180,9 @@ class BankRule(Base):
     description         = Column(String(200), default="")  # operator note
     match_count         = Column(Integer, default=0)
     last_matched_at     = Column(DateTime, nullable=True)
-    created_at          = Column(DateTime, default=datetime.utcnow)
-    updated_at          = Column(DateTime, default=datetime.utcnow,
-                                  onupdate=datetime.utcnow)
+    created_at          = Column(DateTime, default=utc_now)
+    updated_at          = Column(DateTime, default=utc_now,
+                                  onupdate=utc_now)
 
 
 class BankRuleTemplate(Base):
@@ -222,9 +221,9 @@ class BankRuleTemplate(Base):
     post_date_offset_days = Column(Integer, nullable=False, default=0)
     created_by            = Column(Integer, ForeignKey("tenancy_user.id"),
                                     nullable=True)
-    created_at            = Column(DateTime, default=datetime.utcnow)
-    updated_at            = Column(DateTime, default=datetime.utcnow,
-                                    onupdate=datetime.utcnow)
+    created_at            = Column(DateTime, default=utc_now)
+    updated_at            = Column(DateTime, default=utc_now,
+                                    onupdate=utc_now)
 
 
 class BankDailyMatch(Base):
@@ -262,7 +261,7 @@ class BankDailyMatch(Base):
     method              = Column(String(12), nullable=False, default="auto")
     created_by          = Column(Integer, ForeignKey("tenancy_user.id"),
                                  nullable=True)
-    created_at          = Column(DateTime, default=datetime.utcnow)
+    created_at          = Column(DateTime, default=utc_now)
     __table_args__ = (
         UniqueConstraint(
             "bank_transaction_id", "daily_line_item_id",

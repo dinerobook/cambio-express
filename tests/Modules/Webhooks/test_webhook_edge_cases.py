@@ -7,7 +7,6 @@ import hmac
 import json
 import os
 import time
-from datetime import datetime
 
 import pytest
 
@@ -17,6 +16,7 @@ from api.Modules.Webhooks.Services import (
     apply_resend_side_effects, verify_resend_signature,
 )
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 STRIPE_SECRET = "whsec_test_secret"  # conftest default
 
@@ -103,7 +103,7 @@ def _resend_secret():
 
 
 def _resend_headers(key, body, ts=None, svix_id="msg_edge"):
-    ts = ts or str(int(datetime.utcnow().timestamp()))
+    ts = ts or str(int(utc_now().timestamp()))
     sig = base64.b64encode(hmac.new(
         key, f"{svix_id}.{ts}.".encode() + body, hashlib.sha256).digest()).decode()
     return {"svix-id": svix_id, "svix-timestamp": ts,
@@ -156,7 +156,7 @@ def test_resend_non_dict_bounce_field_is_ignored(client):
 def test_resend_stale_timestamp_rejected_by_route(client):
     key = _resend_secret()
     body = json.dumps({"type": "email.sent", "data": {"to": ["a@b.com"]}}).encode()
-    stale = str(int(datetime.utcnow().timestamp()) - 3600)
+    stale = str(int(utc_now().timestamp()) - 3600)
     resp = client.post("/api/v2/webhooks/resend", data=body,
                        content_type="application/json",
                        headers=_resend_headers(key, body, ts=stale))
@@ -176,7 +176,7 @@ def test_resend_stale_timestamp_rejected_by_route(client):
     ("whsec_" + base64.b64encode(b"k").decode(), None, "v1,wrong"),
 ])
 def test_verify_resend_signature_rejects_malformed_inputs(secret, ts, sig):
-    ts = ts or str(int(datetime.utcnow().timestamp()))
+    ts = ts or str(int(utc_now().timestamp()))
     assert verify_resend_signature(secret, "id", ts, sig, b"{}") is False
 
 

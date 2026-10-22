@@ -1,6 +1,7 @@
 """Unit tests for Billing.Services.trial (PR 47)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import MagicMock
+from api.Core.Clock import utc_now
 
 
 def _store(*, plan="trial", trial_ends_at=None, grace_ends_at=None):
@@ -47,8 +48,8 @@ def test_trial_with_no_end_date_is_exempt():
 def test_active_trial_with_lots_of_time():
     from api.Modules.Billing.Services import get_trial_status
     s = _store(
-        trial_ends_at=datetime.utcnow() + timedelta(days=5),
-        grace_ends_at=datetime.utcnow() + timedelta(days=9),
+        trial_ends_at=utc_now() + timedelta(days=5),
+        grace_ends_at=utc_now() + timedelta(days=9),
     )
     assert get_trial_status(s) == "active"
 
@@ -57,8 +58,8 @@ def test_expiring_soon_when_within_threshold():
     """≤ 3 days remaining → 'expiring_soon' (legacy threshold)."""
     from api.Modules.Billing.Services import get_trial_status
     s = _store(
-        trial_ends_at=datetime.utcnow() + timedelta(days=2),
-        grace_ends_at=datetime.utcnow() + timedelta(days=6),
+        trial_ends_at=utc_now() + timedelta(days=2),
+        grace_ends_at=utc_now() + timedelta(days=6),
     )
     assert get_trial_status(s) == "expiring_soon"
 
@@ -66,8 +67,8 @@ def test_expiring_soon_when_within_threshold():
 def test_grace_after_trial_ends_but_before_grace_ends():
     from api.Modules.Billing.Services import get_trial_status
     s = _store(
-        trial_ends_at=datetime.utcnow() - timedelta(days=1),
-        grace_ends_at=datetime.utcnow() + timedelta(days=2),
+        trial_ends_at=utc_now() - timedelta(days=1),
+        grace_ends_at=utc_now() + timedelta(days=2),
     )
     assert get_trial_status(s) == "grace"
 
@@ -75,8 +76,8 @@ def test_grace_after_trial_ends_but_before_grace_ends():
 def test_expired_when_grace_window_elapsed():
     from api.Modules.Billing.Services import get_trial_status
     s = _store(
-        trial_ends_at=datetime.utcnow() - timedelta(days=10),
-        grace_ends_at=datetime.utcnow() - timedelta(days=2),
+        trial_ends_at=utc_now() - timedelta(days=10),
+        grace_ends_at=utc_now() - timedelta(days=2),
     )
     assert get_trial_status(s) == "expired"
 
@@ -87,7 +88,7 @@ def test_grace_when_no_grace_end_set():
     that never got a grace window)."""
     from api.Modules.Billing.Services import get_trial_status
     s = _store(
-        trial_ends_at=datetime.utcnow() - timedelta(days=1),
+        trial_ends_at=utc_now() - timedelta(days=1),
         grace_ends_at=None,
     )
     # Past trial_ends_at + no grace cap → "grace"

@@ -1,8 +1,8 @@
 """Unit tests for Auth.Services.totp (PR 41)."""
-from datetime import datetime
 
 import pyotp
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _seed_user(role="employee", *, totp_secret=None, totp_enrolled_at=None):
@@ -10,7 +10,7 @@ def _seed_user(role="employee", *, totp_secret=None, totp_enrolled_at=None):
     from tests._app import db
     s = db.session.query(Store).filter_by(slug="test-store").first()
     u = User(
-        store_id=s.id, username=f"u-{role}-{datetime.utcnow().timestamp()}@x.com",
+        store_id=s.id, username=f"u-{role}-{utc_now().timestamp()}@x.com",
         role=role,
         totp_secret=totp_secret,
         totp_enrolled_at=totp_enrolled_at,
@@ -52,7 +52,7 @@ def test_is_enrolled_requires_secret_and_timestamp():
         secret = pyotp.random_base32()
         u_done = _seed_user(
             role="superadmin", totp_secret=secret,
-            totp_enrolled_at=datetime.utcnow(),
+            totp_enrolled_at=utc_now(),
         )
         u_started = _seed_user(role="superadmin", totp_secret=secret)
         u_blank = _seed_user(role="superadmin")

@@ -1,6 +1,7 @@
 """Unit tests for Announcements.Services.visibility (PR 55)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tests._app import db_session
+from api.Core.Clock import utc_now
 
 
 def _add_announcement(db_session, **kwargs):
@@ -48,7 +49,7 @@ def test_filters_future_starts_at():
     from tests._app import db
     from api.Modules.Announcements.Services import active_announcements
     with db_session():
-        future = datetime.utcnow() + timedelta(days=1)
+        future = utc_now() + timedelta(days=1)
         a = _add_announcement(
             db.session, message="not yet", starts_at=future,
         )
@@ -60,7 +61,7 @@ def test_includes_past_starts_at():
     from tests._app import db
     from api.Modules.Announcements.Services import active_announcements
     with db_session():
-        past = datetime.utcnow() - timedelta(hours=1)
+        past = utc_now() - timedelta(hours=1)
         a = _add_announcement(
             db.session, message="started", starts_at=past,
         )
@@ -72,7 +73,7 @@ def test_filters_expired_rows():
     from tests._app import db
     from api.Modules.Announcements.Services import active_announcements
     with db_session():
-        past = datetime.utcnow() - timedelta(hours=1)
+        past = utc_now() - timedelta(hours=1)
         a = _add_announcement(
             db.session, message="expired", expires_at=past,
         )
@@ -84,7 +85,7 @@ def test_includes_future_expires_at():
     from tests._app import db
     from api.Modules.Announcements.Services import active_announcements
     with db_session():
-        future = datetime.utcnow() + timedelta(days=1)
+        future = utc_now() + timedelta(days=1)
         a = _add_announcement(
             db.session, message="not yet expired", expires_at=future,
         )
@@ -99,8 +100,8 @@ def test_includes_full_window_open():
         a = _add_announcement(
             db.session,
             message="in window",
-            starts_at=datetime.utcnow() - timedelta(hours=1),
-            expires_at=datetime.utcnow() + timedelta(hours=1),
+            starts_at=utc_now() - timedelta(hours=1),
+            expires_at=utc_now() + timedelta(hours=1),
         )
         assert a in active_announcements(db.session)
 
@@ -111,7 +112,7 @@ def test_orders_newest_first():
     from api.Modules.Announcements.Services import active_announcements
     with db_session():
         # Emulate ordering by inserting two rows; created_at defaults
-        # to utcnow() which is monotonically increasing within the
+        # to utc_now() which is monotonically increasing within the
         # test (microsecond resolution is enough).
         a1 = _add_announcement(db.session, message="first")
         a2 = _add_announcement(db.session, message="second")

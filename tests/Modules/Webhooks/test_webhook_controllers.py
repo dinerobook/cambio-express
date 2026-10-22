@@ -22,11 +22,11 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import datetime
 from unittest.mock import patch
 
 from api.Modules.Webhooks.Models import WebhookEvent
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 # ── Stripe: /webhooks/stripe ────────────────────────────────────
@@ -141,7 +141,7 @@ def _resend_secret_bytes():
 
 
 def _sign_resend(body, svix_id="msg_ctrl", ts=None):
-    ts = ts or str(int(datetime.utcnow().timestamp()))
+    ts = ts or str(int(utc_now().timestamp()))
     signed = f"{svix_id}.{ts}.".encode() + body
     sig = base64.b64encode(
         hmac.new(_resend_secret_bytes(), signed, hashlib.sha256).digest()
@@ -177,7 +177,7 @@ def test_resend_missing_secret_env_rejects_even_well_formed_signature(client):
         "/api/v2/webhooks/resend", data=body,
         content_type="application/json",
         headers={"svix-id": "x", "svix-timestamp":
-                 str(int(datetime.utcnow().timestamp())),
+                 str(int(utc_now().timestamp())),
                  "svix-signature": "v1,whatever"},
     )
     assert resp.status_code == 400

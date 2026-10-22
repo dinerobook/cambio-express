@@ -1,9 +1,10 @@
 """Unit tests for DailyBook.Services.locks (PR 81)."""
-from datetime import date, datetime
+from datetime import date
 
 from api.Modules.DailyBook.Models import DailyReport
 from api.Modules.Tenancy.Models import Store
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_store(db, *, slug="locks-store"):
@@ -64,7 +65,7 @@ def test_is_locked_returns_true_when_report_locked():
         d = date(2026, 5, 1)
         _add_report(
             db.session, s.id, report_date=d,
-            locked_at=datetime.utcnow(),
+            locked_at=utc_now(),
         )
         assert is_daily_report_locked(db.session, s.id, d) is True
 
@@ -83,7 +84,7 @@ def test_is_locked_filters_by_store_and_date():
         # Lock on store 1 / date 1.
         _add_report(
             db.session, s1.id, report_date=d1,
-            locked_at=datetime.utcnow(),
+            locked_at=utc_now(),
         )
         # Same date, different store → not locked.
         assert is_daily_report_locked(db.session, s2.id, d1) is False

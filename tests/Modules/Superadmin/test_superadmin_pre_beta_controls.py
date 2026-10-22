@@ -8,12 +8,13 @@ Each new control gets: happy path, auth gate, 404, and a
 side-effect / audit assertion. The shared `sa_token` / `sa_headers`
 fixture pattern matches `test_superadmin_tier2.py`.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_superadmin
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -36,7 +37,7 @@ class TestRevokeUserSessions:
         from api.Modules.Auth.Models import RefreshToken
         from api.Modules.Tenancy.Models import User
         u = User(
-            username=f"revoke-target-{store_id}-{datetime.utcnow().timestamp()}@test.com",
+            username=f"revoke-target-{store_id}-{utc_now().timestamp()}@test.com",
             password_hash="x", role="admin",
             full_name="x",
             email=f"revoke-target-{store_id}@test.com",
@@ -49,7 +50,7 @@ class TestRevokeUserSessions:
             rt = RefreshToken(
                 jti=f"jti-revoke-{u.id}-{i}",
                 user_id=u.id,
-                expires_at=datetime.utcnow() + timedelta(days=14),
+                expires_at=utc_now() + timedelta(days=14),
             )
             db.session.add(rt)
             db.session.flush()
@@ -84,7 +85,7 @@ class TestRevokeUserSessions:
             user_id, token_ids = self._seed_user_with_refresh_tokens(
                 test_store_id, count=2,
             )
-            old_revoke_time = datetime.utcnow() - timedelta(days=2)
+            old_revoke_time = utc_now() - timedelta(days=2)
             already_revoked = db.session.get(RefreshToken, token_ids[0])
             already_revoked.revoked_at = old_revoke_time
             db.session.commit()
@@ -183,7 +184,7 @@ class TestRetentionDryRun:
             s = Store(
                 name="DryRun-Doomed", slug="dryrun-doomed",
                 plan="inactive", email="doomed@test.com",
-                data_retention_until=datetime.utcnow() - timedelta(days=1),
+                data_retention_until=utc_now() - timedelta(days=1),
             )
             db.session.add(s); db.session.flush()
             db.session.add(User(
@@ -220,7 +221,7 @@ class TestRetentionDryRun:
             s = Store(
                 name="DryRun-Preserve", slug="dryrun-preserve",
                 plan="inactive", email="preserve@test.com",
-                data_retention_until=datetime.utcnow() - timedelta(days=1),
+                data_retention_until=utc_now() - timedelta(days=1),
             )
             db.session.add(s); db.session.commit()
             sid = s.id
@@ -246,8 +247,8 @@ class TestClearRetention:
         s = Store(
             name="ClearMe", slug="clear-me",
             plan="inactive", email="clear-me@test.com",
-            canceled_at=datetime.utcnow() - timedelta(days=10),
-            data_retention_until=datetime.utcnow() + timedelta(days=170),
+            canceled_at=utc_now() - timedelta(days=10),
+            data_retention_until=utc_now() + timedelta(days=170),
         )
         db.session.add(s)
         db.session.commit()

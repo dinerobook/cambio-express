@@ -25,14 +25,13 @@ working unchanged.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, Integer, LargeBinary,
     String, UniqueConstraint,
 )
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class TVDisplay(Base):
@@ -58,8 +57,8 @@ class TVDisplay(Base):
     # admin theme_preference (the operator likes dark mode in their
     # office, the TV needs the high-contrast light board).
     theme           = Column(String(16), default="light")
-    last_updated_at = Column(DateTime, default=datetime.utcnow)
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    last_updated_at = Column(DateTime, default=utc_now)
+    created_at      = Column(DateTime, default=utc_now)
     # DEPRECATED — left in the schema only because CLAUDE.md
     # forbids dropping columns from a running DB. The pair-code
     # state lives in TVPendingPair now (TV-initiated flow). These
@@ -107,8 +106,8 @@ class TVDisplayRate(Base):
     # column list is a free-form list per country, not a global table.
     mt_company  = Column(String(80), nullable=False)
     rate        = Column(Float, nullable=False)
-    updated_at  = Column(DateTime, default=datetime.utcnow,
-                          onupdate=datetime.utcnow)
+    updated_at  = Column(DateTime, default=utc_now,
+                          onupdate=utc_now)
     __table_args__ = (
         UniqueConstraint("bank_id", "mt_company",
                           name="uq_tvrate_bank_company"),
@@ -137,10 +136,10 @@ class TVPairing(Base):
     # Free-form label the app may submit ("Fire TV — Counter 1").
     # Empty string until the operator names it from the admin UI.
     device_label  = Column(String(80), default="")
-    paired_at     = Column(DateTime, default=datetime.utcnow)
+    paired_at     = Column(DateTime, default=utc_now)
     # Bumped on every successful /tv/device/<token> render so the
     # admin UI can show "last seen 2 min ago".
-    last_seen_at  = Column(DateTime, default=datetime.utcnow)
+    last_seen_at  = Column(DateTime, default=utc_now)
     # Set when superseded by a new pairing or manually revoked. A row
     # with revoked_at IS NOT NULL serves 404 on its device URL.
     revoked_at    = Column(DateTime, nullable=True)
@@ -183,7 +182,7 @@ class TVPendingPair(Base):
     # Free-form label the app may submit ("Fire TV — Stick 4K Max"),
     # carried over to TVPairing.device_label on claim.
     device_label  = Column(String(80), default="")
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=utc_now)
     expires_at    = Column(DateTime, nullable=False)
     # Set on successful admin claim. Once set, this row is "spent"
     # and the Fire TV polls find the resulting TVPairing instead.
@@ -225,7 +224,7 @@ class TVCompanyCatalog(Base):
     logo_url     = Column(String(255), default="")
     sort_order   = Column(Integer, default=0)
     is_active    = Column(Boolean, default=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=utc_now)
 
 
 class TVBankCatalog(Base):
@@ -247,7 +246,7 @@ class TVBankCatalog(Base):
     logo_url     = Column(String(255), default="")
     sort_order   = Column(Integer, default=0)
     is_active    = Column(Boolean, default=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=utc_now)
 
 
 class TVCatalogLogo(Base):
@@ -285,8 +284,8 @@ class TVCatalogLogo(Base):
     mime_type    = Column(String(40), nullable=False)
     blob         = Column(LargeBinary, nullable=False)
     file_size    = Column(Integer, default=0)
-    updated_at   = Column(DateTime, default=datetime.utcnow,
-                           onupdate=datetime.utcnow)
+    updated_at   = Column(DateTime, default=utc_now,
+                           onupdate=utc_now)
     __table_args__ = (
         UniqueConstraint("catalog_type", "slug",
                           name="uq_tv_catalog_logo_type_slug"),

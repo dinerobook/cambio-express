@@ -1,7 +1,8 @@
 """Unit tests for DailyBook.Services.mt_breakdown — per-company
 Money Transfer breakdown read + bulk-replace flows."""
-from datetime import date, datetime
+from datetime import date
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_summary(db, *, store_id, report_date, company, amount=0.0,
@@ -244,7 +245,7 @@ def test_replace_refuses_locked_day(test_store_id):
         # Pre-lock the day
         r = DailyReport(
             store_id=test_store_id, report_date=today,
-            locked_at=datetime.utcnow(),
+            locked_at=utc_now(),
         )
         db.session.add(r); db.session.commit()
 

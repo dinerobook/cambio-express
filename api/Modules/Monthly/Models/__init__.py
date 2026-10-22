@@ -10,8 +10,6 @@
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     BigInteger, Column, DateTime, ForeignKey, Integer, String, Text,
     UniqueConstraint,
@@ -19,6 +17,7 @@ from sqlalchemy import (
 
 from api.Core.Database import Base
 from api.Core.Money import DollarView, to_dollars
+from api.Core.Clock import utc_now
 
 
 class MonthlyFinancial(Base):
@@ -72,7 +71,7 @@ class MonthlyFinancial(Base):
     profit_distributed_cents = Column(BigInteger, default=0)
     cash_carry_forward_cents = Column(BigInteger, default=0)
     notes                 = Column(Text, default="")
-    updated_at            = Column(DateTime, default=datetime.utcnow)
+    updated_at            = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("store_id", "year", "month"),)
 
     # Money is stored as INTEGER CENTS (P0-3; see api/Core/Money.py
@@ -210,8 +209,8 @@ class MonthlyLineLabel(Base):
     # RENAMEABLE_MONTHLY_FIELDS before it is written.
     field      = Column(String(40), nullable=False)
     label      = Column(String(60), nullable=False, default="")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 __all__ = ["MonthlyFinancial", "MonthlyLineLabel"]

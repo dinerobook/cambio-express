@@ -3,8 +3,9 @@
 Mounts at /api/v2/announcements/*. Superadmin-scoped CRUD over the
 global banner the legacy /superadmin/controls page already manages.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login_admin(client, store_id):
@@ -137,7 +138,7 @@ def test_list_returns_newest_first(client):
 
 def test_list_marks_expired_as_not_visible(client):
     with db_session():
-        past = datetime.utcnow() - timedelta(days=1)
+        past = utc_now() - timedelta(days=1)
         _seed(message="dead", expires_at=past)
     token = _login_superadmin(client)
     body = client.get(
@@ -269,7 +270,7 @@ def test_active_is_open_to_any_role(client, test_store_id):
 
 def test_active_omits_expired_rows(client, test_store_id):
     with db_session():
-        past = datetime.utcnow() - timedelta(days=1)
+        past = utc_now() - timedelta(days=1)
         _seed(message="dead", expires_at=past)
         _seed(message="alive")
     token = _login_admin(client, test_store_id)
@@ -287,7 +288,7 @@ def test_active_omits_scheduled_future_rows(client, test_store_id):
     but must NOT appear in /active until its time arrives — same
     contract as the visibility helper."""
     with db_session():
-        future = datetime.utcnow() + timedelta(hours=4)
+        future = utc_now() + timedelta(hours=4)
         _seed(message="not-yet", starts_at=future)
         _seed(message="live-now")
     token = _login_admin(client, test_store_id)
@@ -379,7 +380,7 @@ def test_create_expires_days_measured_from_start_at(client):
     a = resp.get_json()["announcement"]
     # expires_at is ISO; parse + verify it's ~5 days from now (2 + 3)
     exp = datetime.fromisoformat(a["expires_at"])
-    diff_days = (exp - datetime.utcnow()).total_seconds() / 86400
+    diff_days = (exp - utc_now()).total_seconds() / 86400
     assert 4.9 < diff_days < 5.1
 
 

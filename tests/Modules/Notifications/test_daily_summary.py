@@ -21,6 +21,7 @@ from api.Modules.Notifications.Services import daily_summary as ds
 from api.Modules.Tenancy.Models import Store, StoreEmployee, User
 from api.Modules.Transfers.Models import Transfer
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _seed_store(slug: str, *, name: str | None = None) -> int:
@@ -221,7 +222,7 @@ def test_recipients_skip_bounced_addresses():
     with db_session():
         sid = _seed_store("ds-rec-bounce")
         _seed_user(sid, "admin", "ds_bounced",
-                   email_bounced_at=datetime.utcnow())
+                   email_bounced_at=utc_now())
         store = db.session.get(Store, sid)
         recipients = ds.eligible_recipients(db.session, store)
     assert recipients == []

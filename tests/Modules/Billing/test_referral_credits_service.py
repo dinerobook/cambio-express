@@ -7,6 +7,7 @@ the live SDK.
 from unittest.mock import MagicMock
 
 import pytest
+from api.Core.Clock import utc_now
 
 
 def _referee_store(
@@ -90,10 +91,9 @@ def test_no_op_for_organic_signup():
 
 def test_no_op_when_already_credited():
     """Idempotent: webhook retries should not re-credit."""
-    from datetime import datetime
     from api.Modules.Billing.Services import apply_pending_referral_credits
     db = MagicMock()
-    s = _referee_store(referee_credit_applied_at=datetime.utcnow())
+    s = _referee_store(referee_credit_applied_at=utc_now())
     apply_pending_referral_credits(db, s)
     assert db.add.call_count == 0
 

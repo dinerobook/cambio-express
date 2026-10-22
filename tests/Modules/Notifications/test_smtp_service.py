@@ -1,10 +1,11 @@
 """Unit tests for Notifications.Services.smtp (PR 82)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from api.Modules.Tenancy.Models import User
 from api.Modules.Webhooks.Models import EmailEvent
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_user(db, *, email, store_id=1, bounced=False):
@@ -14,7 +15,7 @@ def _add_user(db, *, email, store_id=1, bounced=False):
         full_name="x", email=email, store_id=store_id,
     )
     if bounced:
-        u.email_bounced_at = datetime.utcnow()
+        u.email_bounced_at = utc_now()
     db.add(u); db.flush()
     return u
 
@@ -253,7 +254,7 @@ def test_send_html_alternative_attached_when_provided(monkeypatch):
 def test_reset_last_attempt_clears_state():
     from api.Modules.Notifications.Services import smtp as smtp_svc
     smtp_svc.last_attempt.update({
-        "status": "sent", "error": "", "when": datetime.utcnow(),
+        "status": "sent", "error": "", "when": utc_now(),
         "last_to_domain": "x.com", "last_subject": "S",
     })
     smtp_svc.reset_last_attempt()
@@ -309,7 +310,7 @@ def test_health_aggregates_recent_events():
         db.session.query(EmailEvent).delete()
         db.session.commit()
         # Within the 7-day window
-        recent = datetime.utcnow() - timedelta(days=2)
+        recent = utc_now() - timedelta(days=2)
         for evt in ("email.delivered", "email.delivered",
                     "email.bounced"):
             e = EmailEvent(
@@ -320,7 +321,7 @@ def test_health_aggregates_recent_events():
         # Outside the 7-day window — should NOT count.
         old = EmailEvent(
             event_type="email.delivered",
-            message_id="m_old", created_at=datetime.utcnow()
+            message_id="m_old", created_at=utc_now()
                 - timedelta(days=14),
         )
         db.session.add(old)

@@ -23,14 +23,13 @@ in ``api/Modules/Tenancy/Models``.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     Column, DateTime, ForeignKey, Index, Integer, LargeBinary, String,
     UniqueConstraint,
 )
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class PasswordResetToken(Base):
@@ -46,7 +45,7 @@ class PasswordResetToken(Base):
     id         = Column(Integer, primary_key=True)
     user_id    = Column(Integer, ForeignKey("tenancy_user.id"), nullable=False)
     token_hash = Column(String(128), unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     expires_at = Column(DateTime, nullable=False)
     used_at    = Column(DateTime, nullable=True)
 
@@ -65,7 +64,7 @@ class RecoveryCode(Base):
     id         = Column(Integer, primary_key=True)
     user_id    = Column(Integer, ForeignKey("tenancy_user.id"), nullable=False)
     code_hash  = Column(String(128), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     used_at    = Column(DateTime, nullable=True)
     __table_args__ = (
         UniqueConstraint("user_id", "code_hash",
@@ -103,7 +102,7 @@ class Passkey(Base):
     name           = Column(String(120), default="")
     aaguid         = Column(String(36), default="")
     transports     = Column(String(120), default="")
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=utc_now)
     last_used_at   = Column(DateTime, nullable=True)
 
 
@@ -117,7 +116,7 @@ class LoginEvent(Base):
     user_id = Column(Integer, ForeignKey("tenancy_user.id"),
                       nullable=False, index=True)
     role    = Column(String(20), default="", index=True)
-    at      = Column(DateTime, default=datetime.utcnow,
+    at      = Column(DateTime, default=utc_now,
                       nullable=False, index=True)
     method  = Column(String(20), default="")  # password / passkey / totp
     # Covering composite for the DAU/MAU aggregator. The query is
@@ -169,7 +168,7 @@ class RefreshToken(Base):
     # rendering on the sessions panel.
     user_agent      = Column(String(255), nullable=True)
     ip_address      = Column(String(45), nullable=True)
-    created_at      = Column(DateTime, default=datetime.utcnow,
+    created_at      = Column(DateTime, default=utc_now,
                               nullable=False)
     expires_at      = Column(DateTime, nullable=False)
     # NULL until the token is revoked (rotation, logout, or

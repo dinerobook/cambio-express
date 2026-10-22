@@ -3,8 +3,9 @@
 The Service + Controller layers (PRs 15-16) compose these into the
 /bank/transactions and /bank/rules endpoints.
 """
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _seed_account(store_id, *, nickname="", display_name="",
@@ -38,7 +39,7 @@ def _seed_txn(store_id, account_id, *, amount_cents=-100,
         amount_cents=amount_cents,
         description=description,
         category_slug=category_slug,
-        posted_at=posted_at or datetime.utcnow(),
+        posted_at=posted_at or utc_now(),
         status="posted",
     )
     db.session.add(t); db.session.commit()
@@ -144,8 +145,8 @@ def test_list_transactions_orders_by_posted_at_desc(test_store_id):
     )
     with db_session():
         a = _seed_account(test_store_id)
-        old = datetime.utcnow() - timedelta(days=2)
-        new = datetime.utcnow()
+        old = utc_now() - timedelta(days=2)
+        new = utc_now()
         _seed_txn(test_store_id, a, description="OLD", posted_at=old)
         _seed_txn(test_store_id, a, description="NEW", posted_at=new)
         rows, total = list_transactions(

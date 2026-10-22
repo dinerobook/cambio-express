@@ -7,8 +7,9 @@ session (no HTTP, no Flask). Coverage axis: each helper individually,
 then a couple of cross-helper scenarios that mirror the real
 `/api/customers/search` and upsert call sites.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _seed_customer(store_id, *, full_name, phone_country="+1",
@@ -211,8 +212,8 @@ def test_search_by_substring_orders_by_updated_at_desc(test_store_id):
         # machines makes both rows tie otherwise.
         old = db.session.get(Customer, cid_old)
         new = db.session.get(Customer, cid_new)
-        old.updated_at = datetime.utcnow() - timedelta(days=2)
-        new.updated_at = datetime.utcnow()
+        old.updated_at = utc_now() - timedelta(days=2)
+        new.updated_at = utc_now()
         db.session.commit()
         rows = search_by_substring(db.session, [test_store_id], "match")
     assert [c.full_name for c in rows] == ["Match New", "Match Old"]

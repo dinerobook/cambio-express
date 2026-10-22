@@ -12,12 +12,13 @@ OFF the company's total:
 `DailyReport.money_transfer` (and so over/short) is the cash figure.
 See INVARIANTS.md "Debit card and payouts".
 """
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_admin, login_employee
+from api.Core.Clock import utc_now
 
 DAY = date.today() - timedelta(days=3)
 
@@ -227,7 +228,7 @@ def test_put_on_a_locked_day_is_refused(client, test_store_id, admin):
     from api.Modules.DailyBook.Models import DailyReport
     with db_session():
         db.session.add(DailyReport(store_id=test_store_id, report_date=DAY,
-                                   locked_at=datetime.utcnow()))
+                                   locked_at=utc_now()))
         db.session.commit()
     resp = client.put(_url(test_store_id), headers=admin, json={
         "rows": [{**INTERMEX, "payouts": 100.0}],

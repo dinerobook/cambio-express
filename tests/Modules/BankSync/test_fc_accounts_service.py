@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from api.Modules.BankSync.Models import StripeBankAccount
 from api.Modules.Tenancy.Models import Store
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_store(db, *, slug="fc-acct-store"):
@@ -169,7 +170,7 @@ def test_upsert_clears_disconnected_at_on_re_enable():
         row = upsert_fc_account(db.session, s.id, api)
         # Mark as disconnected.
         row.enabled = False
-        row.disconnected_at = datetime.utcnow()
+        row.disconnected_at = utc_now()
         db.session.commit()
         # Reconnect via second upsert.
         upsert_fc_account(db.session, s.id, api)

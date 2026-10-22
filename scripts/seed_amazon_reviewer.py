@@ -32,12 +32,13 @@ import argparse
 import os
 import secrets
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
 from api.Core.Database import SessionLocal
 from api.Core.Observability import init_logging, init_sentry
+from api.Core.Clock import utc_now
 
 
 # Sample rate matrices for the seeded display. Two countries with
@@ -134,8 +135,8 @@ def run(
             name=_REVIEWER_STORE_NAME, slug=_REVIEWER_SLUG,
             email=_REVIEWER_USERNAME,
             plan="basic",
-            trial_ends_at=datetime.utcnow() + timedelta(days=3650),
-            grace_ends_at=datetime.utcnow() + timedelta(days=3650),
+            trial_ends_at=utc_now() + timedelta(days=3650),
+            grace_ends_at=utc_now() + timedelta(days=3650),
             is_active=True,
         )
         session.add(store)
@@ -241,7 +242,7 @@ def run(
                     session.add(TVDisplayRate(
                         bank_id=b.id, mt_company=company, rate=rate))
                     seeded_counts["rates"] += 1
-        display.last_updated_at = datetime.utcnow()
+        display.last_updated_at = utc_now()
         session.commit()
 
     return {

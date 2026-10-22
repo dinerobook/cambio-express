@@ -4,9 +4,10 @@ Pure SQL helpers — no permission checks, no audit, no commits.
 These tests verify the query shape: correct filters, correct
 ordering, correct empty-input handling.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _make_owner(username: str = "test-owner@x.com"):
@@ -35,13 +36,13 @@ class TestConnectCodes:
         with db_session():
             older = OwnerConnectCode(
                 owner_id=owner_id, code="OLD12345",
-                created_at=datetime.utcnow() - timedelta(days=5),
-                expires_at=datetime.utcnow() + timedelta(days=7),
+                created_at=utc_now() - timedelta(days=5),
+                expires_at=utc_now() + timedelta(days=7),
             )
             newer = OwnerConnectCode(
                 owner_id=owner_id, code="NEW12345",
-                created_at=datetime.utcnow(),
-                expires_at=datetime.utcnow() + timedelta(days=7),
+                created_at=utc_now(),
+                expires_at=utc_now() + timedelta(days=7),
             )
             db.session.add_all([older, newer])
             db.session.commit()
@@ -61,8 +62,8 @@ class TestConnectCodes:
         with db_session():
             code = OwnerConnectCode(
                 owner_id=owner_a, code="ISO12345",
-                created_at=datetime.utcnow(),
-                expires_at=datetime.utcnow() + timedelta(days=7),
+                created_at=utc_now(),
+                expires_at=utc_now() + timedelta(days=7),
             )
             db.session.add(code)
             db.session.commit()

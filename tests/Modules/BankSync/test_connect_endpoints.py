@@ -15,6 +15,7 @@ isolation are the actual contracts under test.
 from unittest.mock import patch, MagicMock
 
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login(client, store_id):
@@ -31,7 +32,6 @@ def _login(client, store_id):
 
 def _seed_account(store_id, *, stripe_id="fcacc_seed", last4="9000",
                   disconnected=False):
-    from datetime import datetime
     from api.Modules.BankSync.Models import StripeBankAccount
     a = StripeBankAccount(
         store_id=store_id,
@@ -40,7 +40,7 @@ def _seed_account(store_id, *, stripe_id="fcacc_seed", last4="9000",
         display_name="Test Checking",
         last4=last4,
         enabled=not disconnected,
-        disconnected_at=datetime.utcnow() if disconnected else None,
+        disconnected_at=utc_now() if disconnected else None,
     )
     db.session.add(a); db.session.commit()
     return a.id

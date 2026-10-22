@@ -1,4 +1,5 @@
 import os
+from api.Core.Clock import utc_now
 # Set test database BEFORE importing app so SQLAlchemy uses it
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci")
@@ -15,7 +16,7 @@ os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_secret")
 os.environ["RATELIMIT_ENABLED"] = "0"
 
 import pytest
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 # Speed up the test suite by downgrading password hashing to a
 # single PBKDF2 iteration. Production uses the default scrypt cost
@@ -283,7 +284,7 @@ def seed_test_data():
         sa = User(username="superadmin", full_name="Platform Owner",
                   role="superadmin", store_id=None,
                   totp_secret=SUPERADMIN_TOTP_SECRET,
-                  totp_enrolled_at=datetime.utcnow())
+                  totp_enrolled_at=utc_now())
         sa.set_password("super2025!")
         db.session.add(sa)
     if not db.session.query(Store).filter_by(slug="test-store").first():
@@ -291,9 +292,9 @@ def seed_test_data():
                   email="admin@test.com", plan="trial")
         # trial columns added in Task 2 — set them if available
         if hasattr(Store, "trial_ends_at"):
-            s.trial_ends_at = datetime.utcnow() + timedelta(days=7)
+            s.trial_ends_at = utc_now() + timedelta(days=7)
         if hasattr(Store, "grace_ends_at"):
-            s.grace_ends_at = datetime.utcnow() + timedelta(days=11)
+            s.grace_ends_at = utc_now() + timedelta(days=11)
         db.session.add(s)
         db.session.flush()
         a = User(store_id=s.id, username="admin@test.com",

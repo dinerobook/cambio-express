@@ -3,13 +3,14 @@ from datetime import date, datetime, timedelta
 
 from api.Modules.Tenancy.Models import Store
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_store(db, *, slug, plan="trial",
                created_at=None, trial_ends_at=None):
     s = Store(name=slug, slug=slug, plan=plan,
               email=f"{slug}@example.com",
-              created_at=created_at or datetime.utcnow(),
+              created_at=created_at or utc_now(),
               trial_ends_at=trial_ends_at)
     db.add(s); db.flush()
     return s
@@ -136,7 +137,7 @@ def test_trial_expiry_timing_buckets_by_age():
     with db_session():
         db.session.query(Store).delete()
         db.session.commit()
-        today = datetime.utcnow()
+        today = utc_now()
         _add_store(db.session, slug="tet-3day", plan="trial",
                    created_at=today - timedelta(days=3))
         _add_store(db.session, slug="tet-10day", plan="trial",
@@ -161,7 +162,7 @@ def test_trial_expiry_timing_expired_bucket():
     with db_session():
         db.session.query(Store).delete()
         db.session.commit()
-        today = datetime.utcnow()
+        today = utc_now()
         _add_store(db.session, slug="tet-expired", plan="trial",
                    created_at=today - timedelta(days=30),
                    trial_ends_at=today - timedelta(days=5))
@@ -179,7 +180,7 @@ def test_trial_expiry_timing_skips_empty_buckets():
         db.session.query(Store).delete()
         db.session.commit()
         _add_store(db.session, slug="tet-only-1", plan="trial",
-                   created_at=datetime.utcnow() - timedelta(days=3))
+                   created_at=utc_now() - timedelta(days=3))
         rows, _ = trial_expiry_timing(
             db.session, date(2026, 5, 1), date(2030, 12, 31),
         )

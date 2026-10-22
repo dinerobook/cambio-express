@@ -7,12 +7,12 @@ customer was Feature flags → pick the flag → add an override by
 store, with nothing on the store's own page saying which modules
 it had.
 """
-from datetime import datetime
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_superadmin
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ def _flags_seeded():
 
 def _mk_store(business_type="cstore"):
     from api.Modules.Tenancy.Models import Store
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     with db_session():
         s = Store(name="Features Store", slug=f"feat-{stamp}",
                   plan="trial", business_type=business_type)

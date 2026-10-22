@@ -1,7 +1,7 @@
 """Unit tests for BankSync.Services.applier (PR 71)."""
-from datetime import datetime
 from unittest.mock import MagicMock
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _store_with_account(db, *, slug="applier-store", last4="0210"):
@@ -33,7 +33,7 @@ def _add_uncategorized_txn(db, store_id, account_id,
         stripe_bank_account_id=account_id,
         stripe_transaction_id=f"txn_applier_{_TXN_COUNTER[0]}",
         amount_cents=amount_cents,
-        posted_at=datetime.utcnow(),
+        posted_at=utc_now(),
         description=description,
         category_slug="",
     )

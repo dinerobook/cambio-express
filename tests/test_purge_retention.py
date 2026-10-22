@@ -12,8 +12,9 @@ Purge rules:
 - Superadmin platform-level data (audit log, discount codes, feature flags,
   announcements) is not scoped to a store and must never be purged here.
 """
-from datetime import datetime, timedelta, date
+from datetime import timedelta, date
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _make_inactive_store_due(slug="expiring-store", days_past=1):
@@ -21,8 +22,8 @@ def _make_inactive_store_due(slug="expiring-store", days_past=1):
     from tests._app import db
     s = Store(name=slug, slug=slug, email=f"{slug}@test.com",
               plan="inactive",
-              canceled_at=datetime.utcnow() - timedelta(days=181),
-              data_retention_until=datetime.utcnow() - timedelta(days=days_past))
+              canceled_at=utc_now() - timedelta(days=181),
+              data_retention_until=utc_now() - timedelta(days=days_past))
     db.session.add(s); db.session.flush()
     return s
 
@@ -32,8 +33,8 @@ def _make_inactive_store_future(slug="still-within-window", days_future=90):
     from tests._app import db
     s = Store(name=slug, slug=slug, email=f"{slug}@test.com",
               plan="inactive",
-              canceled_at=datetime.utcnow(),
-              data_retention_until=datetime.utcnow() + timedelta(days=days_future))
+              canceled_at=utc_now(),
+              data_retention_until=utc_now() + timedelta(days=days_future))
     db.session.add(s); db.session.flush()
     return s
 
@@ -76,7 +77,7 @@ def test_purge_skips_active_store_even_with_past_retention(client):
     with db_session():
         s = Store(name="Paying Store", slug="paying-store",
                   email="p@test.com", plan="pro",
-                  data_retention_until=datetime.utcnow() - timedelta(days=10))
+                  data_retention_until=utc_now() - timedelta(days=10))
         db.session.add(s); db.session.commit()
         sid = s.id
         purged = purge_expired_stores()

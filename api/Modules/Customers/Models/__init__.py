@@ -9,7 +9,6 @@ imports keep working.
 """
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -18,6 +17,7 @@ from sqlalchemy import (
 )
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class Customer(Base):
@@ -38,8 +38,8 @@ class Customer(Base):
     address       = Column(String(255), default="")
     phone_country = Column(String(8),  default="+1")
     phone_number  = Column(String(40), default="")
-    created_at    = Column(DateTime, default=datetime.utcnow)
-    updated_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=utc_now)
+    updated_at    = Column(DateTime, default=utc_now)
     __table_args__ = (
         UniqueConstraint("store_id", "phone_country", "phone_number",
                           name="uq_customer_store_phone"),

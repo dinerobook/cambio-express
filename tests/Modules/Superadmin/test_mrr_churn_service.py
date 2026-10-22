@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 from api.Modules.Tenancy.Models import Store
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_store(db, *, slug, plan="basic", billing_cycle="monthly",
@@ -10,7 +11,7 @@ def _add_store(db, *, slug, plan="basic", billing_cycle="monthly",
     s = Store(name=slug, slug=slug, plan=plan,
               billing_cycle=billing_cycle,
               email=f"{slug}@example.com",
-              created_at=created_at or datetime.utcnow(),
+              created_at=created_at or utc_now(),
               canceled_at=canceled_at)
     db.add(s); db.flush()
     return s

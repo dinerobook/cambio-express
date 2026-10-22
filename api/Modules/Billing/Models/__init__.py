@@ -18,14 +18,13 @@ existing ``from api.Modules.Billing.Models import Store`` call sites.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     Boolean, Column, DateTime, ForeignKey, Integer, String, Text,
     UniqueConstraint,
 )
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class ReferralCode(Base):
@@ -50,7 +49,7 @@ class ReferralCode(Base):
     reward_referee_cents  = Column(Integer, default=5000)   # $50
     is_active             = Column(Boolean, default=True)
     redeemed_count        = Column(Integer, default=0)
-    created_at            = Column(DateTime, default=datetime.utcnow)
+    created_at            = Column(DateTime, default=utc_now)
 
 
 class ReferralRedemption(Base):
@@ -64,7 +63,7 @@ class ReferralRedemption(Base):
     referral_code_id        = Column(Integer, ForeignKey("billing_referral_code.id"), nullable=False)
     referee_store_id        = Column(Integer, ForeignKey("tenancy_store.id"),
                                       unique=True, nullable=False)
-    redeemed_at             = Column(DateTime, default=datetime.utcnow)
+    redeemed_at             = Column(DateTime, default=utc_now)
     self_credit_applied_at  = Column(DateTime, nullable=True)
     referee_credit_applied_at = Column(DateTime, nullable=True)
     stripe_self_txn_id      = Column(String(60), default="")
@@ -95,7 +94,7 @@ class DiscountCode(Base):
     stripe_coupon_id          = Column(String(60), default="")
     stripe_promotion_code_id  = Column(String(60), default="")
     is_active                 = Column(Boolean, default=True)
-    created_at                = Column(DateTime, default=datetime.utcnow)
+    created_at                = Column(DateTime, default=utc_now)
     created_by                = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
 
     @property
@@ -121,7 +120,7 @@ class FeatureFlag(Base):
     label              = Column(String(120), default="")
     description        = Column(Text, default="")
     enabled_by_default = Column(Boolean, default=True)
-    created_at         = Column(DateTime, default=datetime.utcnow)
+    created_at         = Column(DateTime, default=utc_now)
 
 
 class StoreFeatureOverride(Base):
@@ -132,7 +131,7 @@ class StoreFeatureOverride(Base):
     store_id   = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False)
     flag_key   = Column(String(60), nullable=False)
     enabled    = Column(Boolean, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=utc_now)
     updated_by = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
     __table_args__ = (UniqueConstraint("store_id", "flag_key"),)
 

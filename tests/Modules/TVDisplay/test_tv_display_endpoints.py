@@ -6,6 +6,7 @@ role must be admin or employee, and the store must have the
 `tv_display` add-on active.
 """
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login_admin(client, store_id):
@@ -176,7 +177,7 @@ def test_overview_active_pairing_surfaces_newest_unrevoked(client, test_store_id
     """Most-recent unrevoked TVPairing should populate active_pairing."""
     from api.Modules.TVDisplay.Models import TVPairing
     from tests._app import db
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     _enable_tv_addon(test_store_id)
     display_id, _ = _seed_country(test_store_id)
     with db_session():
@@ -184,14 +185,14 @@ def test_overview_active_pairing_surfaces_newest_unrevoked(client, test_store_id
         db.session.add(TVPairing(
             display_id=display_id, device_token="aaaa",
             device_label="Old Counter",
-            paired_at=datetime.utcnow() - timedelta(days=3),
-            revoked_at=datetime.utcnow() - timedelta(days=1),
+            paired_at=utc_now() - timedelta(days=3),
+            revoked_at=utc_now() - timedelta(days=1),
         ))
         # Active newer pairing — this is what the SPA shows.
         db.session.add(TVPairing(
             display_id=display_id, device_token="bbbb",
             device_label="Counter 1",
-            paired_at=datetime.utcnow() - timedelta(hours=2),
+            paired_at=utc_now() - timedelta(hours=2),
         ))
         db.session.commit()
     token = _login_admin(client, test_store_id)
@@ -605,7 +606,6 @@ def test_revoke_pairing_404_for_other_store(client, test_store_id):
     from api.Modules.TVDisplay.Models import TVDisplay, TVPairing
     from api.Modules.Tenancy.Models import Store
     from tests._app import db
-    from datetime import datetime
     import secrets
     _enable_tv_addon(test_store_id)
     with db_session():
@@ -616,8 +616,8 @@ def test_revoke_pairing_404_for_other_store(client, test_store_id):
                       public_token=secrets.token_urlsafe(24))
         db.session.add(d); db.session.flush()
         p = TVPairing(display_id=d.id, device_token="t",
-                      device_label="x", paired_at=datetime.utcnow(),
-                      last_seen_at=datetime.utcnow())
+                      device_label="x", paired_at=utc_now(),
+                      last_seen_at=utc_now())
         db.session.add(p); db.session.commit()
         sibling_pairing_id = p.id
     token = _login_admin(client, test_store_id)
@@ -632,7 +632,6 @@ def test_revoke_pairing_404_for_other_store(client, test_store_id):
 def test_revoke_pairing_marks_revoked_at(client, test_store_id):
     from api.Modules.TVDisplay.Models import TVDisplay, TVPairing
     from tests._app import db
-    from datetime import datetime
     import secrets
     _enable_tv_addon(test_store_id)
     with db_session():
@@ -641,8 +640,8 @@ def test_revoke_pairing_marks_revoked_at(client, test_store_id):
         db.session.add(d); db.session.flush()
         p = TVPairing(display_id=d.id, device_token="ttt",
                       device_label="Counter",
-                      paired_at=datetime.utcnow(),
-                      last_seen_at=datetime.utcnow())
+                      paired_at=utc_now(),
+                      last_seen_at=utc_now())
         db.session.add(p); db.session.commit()
         pairing_id = p.id
     token = _login_admin(client, test_store_id)

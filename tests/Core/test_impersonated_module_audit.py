@@ -8,12 +8,12 @@ private ``_audit`` that called ``record_operator_action`` with the
 plain claims, so support's writes there read as the customer's own.
 They now go through ``audit_operator`` like the rest of the app.
 """
-from datetime import datetime
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_admin, login_superadmin
+from api.Core.Clock import utc_now
 
 
 def _h(token):
@@ -22,7 +22,7 @@ def _h(token):
 
 def _mk_admin(store_id):
     from api.Modules.Tenancy.Models import User
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     with db_session():
         u = User(
             username=f"imp-audit-{stamp}@test.com", role="admin",

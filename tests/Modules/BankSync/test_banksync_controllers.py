@@ -7,6 +7,7 @@ mirroring the ReturnChecks / Batches / Monthly test pattern.
 """
 from datetime import datetime
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login(client, store_id):
@@ -49,7 +50,7 @@ def _seed_txn(store_id, account_id, *, amount_cents=-100,
         amount_cents=amount_cents,
         description=description,
         category_slug=category_slug,
-        posted_at=posted_at or datetime.utcnow(),
+        posted_at=posted_at or utc_now(),
         status="posted",
     )
     db.session.add(t); db.session.commit()

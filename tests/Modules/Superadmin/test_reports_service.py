@@ -9,6 +9,7 @@ from datetime import date, datetime, timedelta
 
 from api.Modules.Tenancy.Models import Store, User
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 _USER_COUNTER = 0
@@ -18,7 +19,7 @@ def _add_store(db, *, slug, plan="trial",
                created_at=None):
     s = Store(name=slug, slug=slug, plan=plan,
               email=f"{slug}@example.com",
-              created_at=created_at or datetime.utcnow())
+              created_at=created_at or utc_now())
     db.add(s); db.flush()
     return s
 

@@ -8,14 +8,13 @@ the punch is captured separately for audit.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer,
     LargeBinary, String, Time,
 )
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class TimeClockEntry(Base):
@@ -38,7 +37,7 @@ class TimeClockEntry(Base):
     # terminal and ends on a back-office laptop.
     clock_out_user_id   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
     # UTC timestamps; SPA formats per ``Store.timezone``.
-    clock_in_at         = Column(DateTime, nullable=False, default=datetime.utcnow)
+    clock_in_at         = Column(DateTime, nullable=False, default=utc_now)
     clock_out_at        = Column(DateTime, nullable=True)
     # Denormalized so payroll rollups don't have to subtract on
     # every row. Computed at clock-out.
@@ -118,7 +117,7 @@ class StoreEmployeePasskey(Base):
     # Display name the admin assigns at registration time
     # ("Maria's iPhone", "Punch terminal Touch ID", etc.).
     name                  = Column(String(120), default="")
-    registered_at         = Column(DateTime, default=datetime.utcnow)
+    registered_at         = Column(DateTime, default=utc_now)
     last_used_at          = Column(DateTime, nullable=True)
     # User session that walked the cashier through registration —
     # for the admin audit-trail view.
@@ -162,7 +161,7 @@ class TimeClockShift(Base):
     start_time        = Column(Time, nullable=False)
     end_time          = Column(Time, nullable=False)
     notes             = Column(String(500), default="")
-    created_at        = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at        = Column(DateTime, default=utc_now, nullable=False)
     created_by_user_id = Column(
         Integer, ForeignKey("tenancy_user.id"), nullable=True,
     )

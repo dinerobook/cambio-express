@@ -1,6 +1,7 @@
 """Unit tests for DailyBook.Services (read-side)."""
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _seed_report(store_id, report_date, **kwargs):
@@ -51,7 +52,7 @@ def test_summarize_report_locked_state(test_store_id):
     with db_session():
         _seed_report(
             test_store_id, today, taxable_sales=10.0,
-            locked_at=datetime.utcnow(),
+            locked_at=utc_now(),
         )
         s = summarize_report(db.session, test_store_id, today)
     assert s.locked is True

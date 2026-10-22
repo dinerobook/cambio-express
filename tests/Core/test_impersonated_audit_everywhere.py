@@ -9,7 +9,6 @@ now go through ``api.Core.Audit.audit_operator`` (``actor=`` for
 routes that already loaded the user) or, for TimeClock's explicit
 punch user, ``operator_display_name``.
 """
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -17,6 +16,7 @@ import pytest
 from tests._app import db, db_session
 from tests.conftest import login_admin, login_superadmin, owner_token_for
 from tests.Modules.Transfers.test_transfers_controllers import _seed_transfer
+from api.Core.Clock import utc_now
 
 
 def _h(token):
@@ -25,7 +25,7 @@ def _h(token):
 
 def _mk_user(store_id, role="admin"):
     from api.Modules.Tenancy.Models import User
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     with db_session():
         u = User(
             username=f"imp-every-{stamp}@test.com", role=role,

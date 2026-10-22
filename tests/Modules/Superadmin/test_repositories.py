@@ -3,9 +3,10 @@
 Pure SQL helpers — no permission checks, no audit, no commits.
 Verifies query shape: filters, ordering, edge cases.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 class TestStoresRepository:
@@ -22,11 +23,11 @@ class TestStoresRepository:
         with db_session():
             older = Store(
                 name="OlderStore", slug="older-store",
-                created_at=datetime.utcnow() - timedelta(days=10),
+                created_at=utc_now() - timedelta(days=10),
             )
             newer = Store(
                 name="NewerStore", slug="newer-store",
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             )
             db.session.add_all([older, newer])
             db.session.commit()
@@ -184,12 +185,12 @@ class TestWebhooksRepository:
             db.session.add(EmailEvent(
                 to_addr="findme@x.com",
                 event_type="delivered",
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ))
             db.session.add(EmailEvent(
                 to_addr="other@x.com",
                 event_type="delivered",
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ))
             db.session.commit()
 
@@ -205,12 +206,12 @@ class TestWebhooksRepository:
             db.session.add(EmailEvent(
                 to_addr="t@x.com",
                 event_type="bounced",
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ))
             db.session.add(EmailEvent(
                 to_addr="t2@x.com",
                 event_type="delivered",
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ))
             db.session.commit()
 

@@ -5,6 +5,7 @@ from api.Modules.Auth.Models import LoginEvent
 from api.Modules.Tenancy.Models import User
 from api.Modules.Webhooks.Models import WebhookEvent
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_user(db, *, role="admin", username):
@@ -27,7 +28,7 @@ def _add_login(db, user_id, *, at, role="admin"):
 def _add_webhook(db, *, status="ok",
                  received_at=None, event_type="charge.succeeded"):
     w = WebhookEvent(
-        received_at=received_at or datetime.utcnow(),
+        received_at=received_at or utc_now(),
         source="stripe",
         event_type=event_type,
         status=status,

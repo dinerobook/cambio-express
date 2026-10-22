@@ -4,8 +4,9 @@ Read-only list + activation toggle. Stripe coupon mint stays on the
 legacy site, so these endpoints never touch Stripe — that's why
 the tests don't need to monkeypatch the SDK.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login_admin(client, store_id):
@@ -35,7 +36,7 @@ def _seed_code(**overrides):
     from tests._app import db
     with db_session():
         d = DiscountCode(
-            code=overrides.pop("code", f"TEST{datetime.utcnow().timestamp()}"),
+            code=overrides.pop("code", f"TEST{utc_now().timestamp()}"),
             label=overrides.pop("label", "Test promo"),
             percent_off=overrides.pop("percent_off", 20),
             amount_off_cents=overrides.pop("amount_off_cents", None),
@@ -90,11 +91,11 @@ def test_list_discounts_returns_newest_first(client):
     with db_session():
         old = DiscountCode(
             code="OLDONE", percent_off=10, duration="once",
-            created_at=datetime.utcnow() - timedelta(days=2),
+            created_at=utc_now() - timedelta(days=2),
         )
         new = DiscountCode(
             code="NEWONE", percent_off=15, duration="once",
-            created_at=datetime.utcnow(),
+            created_at=utc_now(),
         )
         db.session.add_all([old, new]); db.session.commit()
 
@@ -159,7 +160,7 @@ def test_is_redeemable_false_when_inactive(client):
 def test_is_redeemable_false_when_expired(client):
     _seed_code(
         code="EXP1", is_active=True,
-        expires_at=datetime.utcnow() - timedelta(days=1),
+        expires_at=utc_now() - timedelta(days=1),
     )
     token = _login_superadmin(client)
     body = client.get(

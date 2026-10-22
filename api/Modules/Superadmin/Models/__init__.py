@@ -4,7 +4,6 @@ PlatformSetting stores global key-value configuration (maintenance
 mode, platform-wide banners, etc.) that superadmin can toggle
 without a code deploy.
 """
-from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Integer, String, Text
 
@@ -23,7 +22,7 @@ class PlatformSetting(Base):
     id        = Column(Integer, primary_key=True)
     key       = Column(String(60), unique=True, nullable=False, index=True)
     value     = Column(Text, default="")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 def get_setting(db, key: str, default: str = "") -> str:

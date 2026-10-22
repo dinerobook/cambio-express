@@ -15,13 +15,12 @@ the ``d2e8b4f6a1c3`` migration.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     Column, DateTime, ForeignKey, Integer, String, Text,
 )
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class SupportTicket(Base):
@@ -51,9 +50,9 @@ class SupportTicket(Base):
     # opposite-side message counts as unread.
     user_last_seen_at  = Column(DateTime, nullable=True)
     staff_last_seen_at = Column(DateTime, nullable=True)
-    created_at  = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at  = Column(DateTime, default=datetime.utcnow,
-                          onupdate=datetime.utcnow, nullable=False)
+    created_at  = Column(DateTime, default=utc_now, nullable=False)
+    updated_at  = Column(DateTime, default=utc_now,
+                          onupdate=utc_now, nullable=False)
     closed_at   = Column(DateTime, nullable=True)
 
 
@@ -79,7 +78,7 @@ class SupportMessage(Base):
     author_name    = Column(String(120), nullable=False, default="")
     author_kind    = Column(String(10), nullable=False, default="user")
     body           = Column(Text, nullable=False)
-    created_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at     = Column(DateTime, default=utc_now, nullable=False)
 
 
 __all__ = ["SupportMessage", "SupportTicket"]

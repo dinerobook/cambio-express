@@ -1,7 +1,7 @@
 """Tests for the TimeClock Repositories."""
-from datetime import datetime
 
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 class TestEmployeesRepository:
@@ -94,21 +94,21 @@ class TestHistoryRepository:
                     user_name="x", user_role="admin",
                     action="edit", target_type="time_clock_entry",
                     target_id="42", target_label="", summary="",
-                    created_at=datetime.utcnow(),
+                    created_at=utc_now(),
                 ),
                 OperatorAuditLog(
                     store_id=test_store_id, user_id=None,
                     user_name="x", user_role="admin",
                     action="edit", target_type="other_thing",
                     target_id="42", target_label="", summary="",
-                    created_at=datetime.utcnow(),
+                    created_at=utc_now(),
                 ),
                 OperatorAuditLog(
                     store_id=test_store_id, user_id=None,
                     user_name="x", user_role="admin",
                     action="edit", target_type="time_clock_entry",
                     target_id="99", target_label="", summary="",
-                    created_at=datetime.utcnow(),
+                    created_at=utc_now(),
                 ),
             ])
             db.session.commit()
@@ -128,7 +128,7 @@ class TestHistoryRepository:
                     action=f"edit-{i}",
                     target_type="time_clock_entry",
                     target_id="55", target_label="", summary="",
-                    created_at=datetime.utcnow(),
+                    created_at=utc_now(),
                 ))
             db.session.commit()
             rows = list_entry_history(db.session, test_store_id, 55)

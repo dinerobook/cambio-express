@@ -1,22 +1,17 @@
 """Canonical UTC timestamp for the application.
 
-Every runtime call site that needs "now in UTC" should use
-``utc_now()`` instead of ``datetime.utcnow()``.
+Every call site that needs "now in UTC" — ORM column defaults,
+services, scripts and tests — uses ``utc_now()``; nothing calls
+``datetime.utcnow()`` (deprecated since Python 3.12).
+``tests/Core/test_one_copy_helpers.py`` holds the line. Alembic
+revisions are the one exception: they never import application code.
 
-``datetime.utcnow()`` is deprecated in Python 3.12 (PEP 615) because
-it returns a *naive* datetime that callers silently compare against
-timezone-aware values — a class of bug that's hard to catch in
-review.  This helper centralizes the call so a future migration to
-``datetime.now(timezone.utc)`` (timezone-aware) only touches one
-line.
-
-For now we still return a **naive** datetime because the ORM column
-defaults (``Column(DateTime, default=datetime.utcnow)``) and every
-stored value in the DB are naive UTC.  Mixing aware + naive in
-comparisons would raise ``TypeError`` at runtime.  When the DB layer
-is ready for aware timestamps, flip the implementation here.
+It returns a **naive** UTC datetime because every stored value in the
+DB is naive UTC, and mixing aware with naive raises ``TypeError`` in
+comparisons. When the DB layer is ready for aware timestamps, flip the
+implementation here.
 """
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -25,7 +20,7 @@ from fastapi import HTTPException
 
 def utc_now() -> datetime:
     """Return the current UTC time as a naive datetime."""
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 # Canonical IANA timezone list — the dropdown options for both the

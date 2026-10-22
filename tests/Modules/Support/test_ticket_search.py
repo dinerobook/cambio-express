@@ -1,12 +1,12 @@
 """Platform ticket list: search, store filter and paging for the
 superadmin tickets page (``GET /tickets/all``).
 """
-from datetime import datetime
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_admin, login_superadmin
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def sa_headers(client):
 
 def _mk_store(name):
     from api.Modules.Tenancy.Models import Store
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     with db_session():
         s = Store(name=name, slug=f"tk-{stamp}", plan="trial")
         db.session.add(s)
@@ -33,7 +33,7 @@ def _mk_ticket(store_id, subject, *, submitted_by="someone", status="open"):
             store_id=store_id, user_id=uid, submitted_by=submitted_by,
             subject=subject, body="body", category="question",
             status=status, priority="P3",
-            created_at=datetime.utcnow(),
+            created_at=utc_now(),
         )
         db.session.add(t)
         db.session.commit()

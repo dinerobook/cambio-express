@@ -6,9 +6,10 @@ test_commit_service.py. These cover the endpoint wiring: auth, store
 scoping, the locked-day guard, date validation, and the audit row.
 """
 import base64
-from datetime import date, datetime
+from datetime import date
 
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login_admin_token(client_, store_id):
@@ -129,7 +130,7 @@ def test_commit_rejects_locked_day(client, test_store_id, monkeypatch):
     with db_session():
         db.session.add(DailyReport(
             store_id=test_store_id, report_date=day,
-            locked_at=datetime.utcnow(),
+            locked_at=utc_now(),
         ))
         db.session.commit()
     _patch_parse(monkeypatch, _fake_report([(100.0, 5.0, 1.0)]))
