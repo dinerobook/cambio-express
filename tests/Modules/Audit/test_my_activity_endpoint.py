@@ -8,6 +8,7 @@ from datetime import datetime
 
 from tests._app import db, db_session
 from tests.conftest import login_admin
+from api.Core.Clock import utc_now
 
 
 def _seed_op_log(*, user_id: int, store_id: int,
@@ -19,7 +20,7 @@ def _seed_op_log(*, user_id: int, store_id: int,
         action=action, target_type=target_type, target_id="1",
         target_label="Test target", summary=summary,
         user_name="Test User", user_role="admin",
-        created_at=created_at or datetime.utcnow(),
+        created_at=created_at or utc_now(),
     )
     db.session.add(row); db.session.commit()
     return row.id
@@ -33,7 +34,7 @@ def _seed_tx_audit(*, user_id: int, store_id: int,
     row = TransferAudit(
         store_id=store_id, transfer_id=transfer_id, user_id=user_id,
         action=action, summary=summary,
-        created_at=created_at or datetime.utcnow(),
+        created_at=created_at or utc_now(),
     )
     db.session.add(row); db.session.commit()
     return row.id
@@ -210,8 +211,8 @@ def test_activity_ordered_newest_first(
     client, test_store_id, test_admin_id,
 ):
     from datetime import timedelta
-    old = datetime.utcnow() - timedelta(days=5)
-    new = datetime.utcnow()
+    old = utc_now() - timedelta(days=5)
+    new = utc_now()
     with db_session():
         _seed_op_log(
             user_id=test_admin_id, store_id=test_store_id,
@@ -262,7 +263,7 @@ def test_activity_pages_past_the_old_500_cap(client, test_store_id, test_admin_i
     the page size they pick (1–200)."""
     from datetime import timedelta
     from api.Modules.Audit.Models import OperatorAuditLog
-    base = datetime.utcnow()
+    base = utc_now()
     with db_session():
         db.session.add_all([
             OperatorAuditLog(

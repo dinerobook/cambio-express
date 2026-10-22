@@ -10,6 +10,9 @@ shared versions:
   ``{field, message}``. Had ~12 inline ``strptime`` copies.
 * ``resolve_period`` (Core/Clock.py) — a report's ``from`` / ``to``.
   Had 3 copies (report endpoints, CSV export, superadmin reports).
+* ``utc_now`` (Core/Clock.py) — "now in UTC". ``datetime.utcnow`` was
+  called directly in ~280 places, including every model's column
+  defaults (2026-10-22).
 """
 from __future__ import annotations
 
@@ -48,6 +51,31 @@ def test_no_controller_parses_a_day_by_hand():
         if ".strptime(" in _src(p) and p.relative_to(ROOT).as_posix() not in allow
     ]
     assert offenders == [], "use parse_iso_day / resolve_period from api.Core.Clock"
+
+
+def test_nothing_calls_utcnow_directly():
+    # Alembic revisions never import application code, so they keep
+    # their own clock; Clock.py is the helper itself.
+    offenders = [
+        p.relative_to(ROOT).as_posix()
+        for top in ("api", "tests", "scripts")
+        for p in sorted((ROOT / top).rglob("*.py"))
+        if p.name != "test_one_copy_helpers.py"
+        and p != ROOT / "api" / "Core" / "Clock.py"
+        and "utcnow" in _src(p)
+    ]
+    assert offenders == [], "use utc_now() from api.Core.Clock"
+
+
+def test_utc_now_is_naive_utc():
+    from datetime import datetime, timezone
+
+    from api.Core.Clock import utc_now
+
+    now = utc_now()
+    assert now.tzinfo is None
+    real = datetime.now(timezone.utc).replace(tzinfo=None)
+    assert abs((real - now).total_seconds()) < 5
 
 
 def test_daily_book_checks_the_path_store_in_one_place():

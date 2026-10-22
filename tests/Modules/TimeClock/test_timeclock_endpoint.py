@@ -8,6 +8,7 @@
 from datetime import date, datetime, timedelta
 
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 # ── Helpers ─────────────────────────────────────────────────
@@ -182,7 +183,7 @@ def test_clock_out_closes_open_entry_and_computes_hours(
     # Backdate clock_in so the elapsed delta is deterministic.
     with db_session():
         entry = db.session.get(TimeClockEntry, entry_id)
-        entry.clock_in_at = datetime.utcnow() - timedelta(minutes=90)
+        entry.clock_in_at = utc_now() - timedelta(minutes=90)
         db.session.commit()
 
     resp_out = client.post(
@@ -302,7 +303,7 @@ def test_status_isolated_per_store(client, test_store_id):
         db.session.add(TimeClockEntry(
             store_id=other_store_id,
             store_employee_id=other_emp,
-            clock_in_at=datetime.utcnow(),
+            clock_in_at=utc_now(),
         ))
         db.session.commit()
     token = _login(client, test_store_id)
@@ -450,8 +451,8 @@ def test_admin_entries_isolated_per_store(client, test_store_id):
         other_emp = _seed_employee(other_store_id, name="Far Punch")
         db.session.add(TimeClockEntry(
             store_id=other_store_id, store_employee_id=other_emp,
-            clock_in_at=datetime.utcnow() - timedelta(hours=1),
-            clock_out_at=datetime.utcnow(),
+            clock_in_at=utc_now() - timedelta(hours=1),
+            clock_out_at=utc_now(),
             hours_worked=1.0,
         ))
         db.session.commit()
@@ -1618,7 +1619,7 @@ def test_break_stop_accumulates_minutes(client, test_store_id):
         from tests._app import db as _db
         sess = _db.session
         entry = open_entry_for(sess, test_store_id, emp_id)
-        entry.break_started_at = datetime.utcnow() - timedelta(minutes=15)
+        entry.break_started_at = utc_now() - timedelta(minutes=15)
         sess.commit()
     resp = client.post(
         "/api/v2/timeclock/break/stop",
@@ -1667,7 +1668,7 @@ def test_clock_out_subtracts_break_minutes_from_hours(
     # Manually backdate clock_in_at AND seed a 30-min break.
     with db_session():
         entry = db.session.get(TimeClockEntry, entry_id)
-        entry.clock_in_at  = datetime.utcnow() - timedelta(minutes=90)
+        entry.clock_in_at  = utc_now() - timedelta(minutes=90)
         entry.break_minutes = 30.0
         db.session.commit()
     resp_out = client.post(
@@ -1699,8 +1700,8 @@ def test_clock_out_auto_ends_open_break(client, test_store_id):
     # Backdate clock_in 2 hours, set break_started_at 30 min ago.
     with db_session():
         entry = db.session.get(TimeClockEntry, entry_id)
-        entry.clock_in_at = datetime.utcnow() - timedelta(hours=2)
-        entry.break_started_at = datetime.utcnow() - timedelta(minutes=30)
+        entry.clock_in_at = utc_now() - timedelta(hours=2)
+        entry.break_started_at = utc_now() - timedelta(minutes=30)
         db.session.commit()
     resp_out = client.post(
         "/api/v2/timeclock/clock-out",

@@ -4,13 +4,14 @@ from charging it meanwhile.
 Before: the plan field on the edit form set ``plan`` but any Stripe
 subscription kept billing, and nothing marked the store as comped.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_superadmin
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -25,11 +26,11 @@ def sa_headers(sa_token):
 
 def _mk_store(**overrides):
     from api.Modules.Tenancy.Models import Store
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     fields = dict(
         name="Comp Store", slug=f"comp-{stamp}", plan="trial",
-        trial_ends_at=datetime.utcnow() + timedelta(days=3),
-        grace_ends_at=datetime.utcnow() + timedelta(days=7),
+        trial_ends_at=utc_now() + timedelta(days=3),
+        grace_ends_at=utc_now() + timedelta(days=7),
     )
     fields.update(overrides)
     with db_session():
@@ -97,8 +98,8 @@ class TestComp:
     ):
         sid = _mk_store(
             plan="inactive",
-            data_retention_until=datetime.utcnow() + timedelta(days=9),
-            canceled_at=datetime.utcnow() - timedelta(days=171),
+            data_retention_until=utc_now() + timedelta(days=9),
+            canceled_at=utc_now() - timedelta(days=171),
         )
         assert _comp(client, sa_headers, sid, plan="basic").status_code == 200
         after = _store(sid)
@@ -170,7 +171,7 @@ class TestEndComp:
         from api.Modules.Billing.Services.webhook import derive_plan_from_price
         plan, cycle = derive_plan_from_price("price_basic_m")
         sid = _mk_store(plan="pro", billing_cycle="comp",
-                        comped_at=datetime.utcnow(), comp_reason="x",
+                        comped_at=utc_now(), comp_reason="x",
                         stripe_subscription_id="sub_123",
                         trial_ends_at=None, grace_ends_at=None)
         resp = self._end(client, sa_headers, sid)
@@ -186,7 +187,7 @@ class TestEndComp:
         self, client, sa_headers,
     ):
         sid = _mk_store(plan="pro", billing_cycle="comp",
-                        comped_at=datetime.utcnow(), comp_reason="x",
+                        comped_at=utc_now(), comp_reason="x",
                         trial_ends_at=None, grace_ends_at=None)
         resp = self._end(client, sa_headers, sid)
         assert resp.status_code == 200, resp.text
@@ -207,7 +208,7 @@ class TestStripeEventsRespectAComp:
     def test_subscription_deleted_keeps_a_comped_store_on_its_plan(self):
         from api.Modules.Billing.Services.webhook import handle_stripe_event
         sid = _mk_store(plan="pro", billing_cycle="comp",
-                        comped_at=datetime.utcnow(), comp_reason="x",
+                        comped_at=utc_now(), comp_reason="x",
                         stripe_subscription_id="sub_gone",
                         trial_ends_at=None, grace_ends_at=None)
         with db_session():
@@ -225,7 +226,7 @@ class TestStripeEventsRespectAComp:
         _stub_stripe(monkeypatch, price_id="price_basic_m")
         from api.Modules.Billing.Services.webhook import handle_stripe_event
         sid = _mk_store(plan="pro", billing_cycle="comp",
-                        comped_at=datetime.utcnow(), comp_reason="x",
+                        comped_at=utc_now(), comp_reason="x",
                         trial_ends_at=None, grace_ends_at=None)
         with db_session():
             handle_stripe_event(db.session, {
@@ -242,7 +243,7 @@ class TestStripeEventsRespectAComp:
 
 def test_drill_shows_the_comp(client, sa_headers):
     sid = _mk_store(plan="pro", billing_cycle="comp",
-                    comped_at=datetime.utcnow(), comp_reason="beta partner",
+                    comped_at=utc_now(), comp_reason="beta partner",
                     trial_ends_at=None, grace_ends_at=None)
     resp = client.get(f"/api/v2/superadmin/stores/{sid}/drill", headers=sa_headers)
     assert resp.status_code == 200

@@ -1,6 +1,7 @@
 """Unit tests for BankSync.Services — list_transactions_page."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _seed_account(store_id, *, last4="0000"):
@@ -30,7 +31,7 @@ def _seed_txn(store_id, account_id, *, amount_cents=-100,
         amount_cents=amount_cents,
         description=description,
         category_slug=category_slug,
-        posted_at=posted_at or datetime.utcnow(),
+        posted_at=posted_at or utc_now(),
         status="posted",
     )
     db.session.add(t); db.session.commit()
@@ -103,7 +104,7 @@ def test_page_total_cents_only_visible_rows(test_store_id):
                 test_store_id, a, amount_cents=cents,
                 description=str(cents),
                 stripe_transaction_id=f"t{i}",
-                posted_at=datetime.utcnow() + timedelta(seconds=i),
+                posted_at=utc_now() + timedelta(seconds=i),
             )
         page = list_transactions_page(
             db.session, [test_store_id], BankTransactionFilters(),

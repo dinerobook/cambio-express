@@ -8,8 +8,9 @@
 Mirrors the legacy /owner/connect/* + /owner/unlink/<id> form
 handlers — JSON envelopes the SPA can render directly.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _make_owner(*, username="boss-cc@x.com", password="ownerpass1!"):
@@ -151,7 +152,7 @@ def test_list_excludes_other_owners_codes(client):
         db.session.add(other); db.session.commit()
         db.session.add(OwnerConnectCode(
             owner_id=other.id, code="OTHER999",
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
         ))
         db.session.commit()
     token = _login_owner(client, "boss-cc@x.com", pw)
@@ -170,7 +171,7 @@ def test_list_marks_expired(client):
         owner_id, _, pw = _make_owner()
         db.session.add(OwnerConnectCode(
             owner_id=owner_id, code="EXPIRED1",
-            expires_at=datetime.utcnow() - timedelta(days=1),
+            expires_at=utc_now() - timedelta(days=1),
         ))
         db.session.commit()
     token = _login_owner(client, "boss-cc@x.com", pw)
@@ -192,7 +193,7 @@ def test_revoke_marks_code_revoked(client):
         owner_id, _, pw = _make_owner()
         c = OwnerConnectCode(
             owner_id=owner_id, code="REVME001",
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
         )
         db.session.add(c); db.session.commit()
         cid = c.id
@@ -218,7 +219,7 @@ def test_revoke_404_for_other_owners_code(client):
         db.session.add(other); db.session.commit()
         c = OwnerConnectCode(
             owner_id=other.id, code="OTHERREV",
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
         )
         db.session.add(c); db.session.commit()
         cid = c.id
@@ -237,8 +238,8 @@ def test_revoke_409_when_already_redeemed(client):
         owner_id, _, pw = _make_owner()
         c = OwnerConnectCode(
             owner_id=owner_id, code="USED0001",
-            expires_at=datetime.utcnow() + timedelta(days=7),
-            used_at=datetime.utcnow(),
+            expires_at=utc_now() + timedelta(days=7),
+            used_at=utc_now(),
         )
         db.session.add(c); db.session.commit()
         cid = c.id
@@ -364,7 +365,7 @@ def test_revoke_records_owner_audit_once(client):
         owner_id, _, pw = _make_owner()
         c = OwnerConnectCode(
             owner_id=owner_id, code="AUDITREV",
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
         )
         db.session.add(c); db.session.commit()
         cid = c.id

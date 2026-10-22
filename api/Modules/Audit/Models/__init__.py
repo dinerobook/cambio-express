@@ -17,12 +17,11 @@ model-extraction work. ``app.py`` re-exports the names so every
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class OperatorAuditLog(Base):
@@ -49,7 +48,7 @@ class OperatorAuditLog(Base):
     target_label = Column(String(160), default="")
     action       = Column(String(30),  nullable=False)
     summary      = Column(Text, default="")
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=utc_now)
     user         = relationship("User", foreign_keys=[user_id])
 
 
@@ -74,7 +73,7 @@ class TransferAudit(Base):
     employee_name  = Column(String(120), default="")
     action         = Column(String(30), nullable=False)   # created | updated | status_changed
     summary        = Column(String(500), default="")
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=utc_now)
     user           = relationship("User", foreign_keys=[user_id])
 
 
@@ -89,7 +88,7 @@ class SuperadminAuditLog(Base):
     target_type = Column(String(30), default="")       # "store" | "discount" | "feature"
     target_id   = Column(String(60), default="")
     details     = Column(Text, default="")             # free-form, usually short JSON/text
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=utc_now)
 
 
 class OwnerAuditLog(Base):
@@ -117,7 +116,7 @@ class OwnerAuditLog(Base):
     target_type  = Column(String(30), default="")
     target_id    = Column(String(60), default="")
     details      = Column(Text, default="")
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=utc_now)
     owner        = relationship("User", foreign_keys=[owner_id])
 
 

@@ -17,12 +17,13 @@ The fix routes every mutation through `_audit_and_commit(...)` so the
 audit row and the state change commit together. If any route regresses
 to the commit-then-audit form, the corresponding test here goes red.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_superadmin
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -41,7 +42,7 @@ def _seed_user(store_id, *, role="admin", email="", with_2fa=False):
     Opens its own committed transaction so the row is visible to the
     request under test (which runs in a separate session)."""
     from api.Modules.Tenancy.Models import User
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     with db_session():
         u = User(
             username=f"audit-target-{store_id}-{stamp}@test.com",
@@ -53,7 +54,7 @@ def _seed_user(store_id, *, role="admin", email="", with_2fa=False):
         u.set_password("targetpass123!")
         if with_2fa:
             u.totp_secret = "JBSWY3DPEHPK3PXP"
-            u.totp_enrolled_at = datetime.utcnow()
+            u.totp_enrolled_at = utc_now()
         db.session.add(u)
         db.session.commit()
         return u.id

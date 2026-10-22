@@ -272,7 +272,7 @@ def test_put_rejects_locked_report(client, test_store_id):
     from api.Modules.DailyBook.Models import DailyReport
     from tests._app import db
     today = date.today()
-    from datetime import datetime as _dt
+    from api.Core.Clock import utc_now
     with db_session():
         _seed_report(test_store_id, today, taxable_sales=5.0)
         r = (
@@ -280,7 +280,7 @@ def test_put_rejects_locked_report(client, test_store_id):
               .filter_by(store_id=test_store_id, report_date=today)
               .first()
         )
-        r.locked_at = _dt.utcnow()
+        r.locked_at = utc_now()
         db.session.commit()
 
     token = _login_admin_token(client, test_store_id)

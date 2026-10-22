@@ -1,10 +1,11 @@
 """Unit tests for Superadmin.Services.dashboard (PR 75)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from api.Modules.Billing.Models import ReferralCode
 from api.Modules.Tenancy.Models import Store
 from api.Modules.Transfers.Models import Transfer
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 # ── compute_mrr ───────────────────────────────────────────
@@ -128,7 +129,7 @@ def test_dashboard_context_excludes_canceled_transfers_from_volume():
         s = Store(name="dash-vol", slug="dash-vol", plan="basic",
                   email="dash-vol@test.com")
         db.session.add(s); db.session.flush()
-        recent = datetime.utcnow() - timedelta(days=5)
+        recent = utc_now() - timedelta(days=5)
         # Sent → counts; Canceled / Rejected → excluded.
         for amt, status in [(100.0, "Sent"),
                             (200.0, "Canceled"),

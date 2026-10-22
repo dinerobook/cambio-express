@@ -9,6 +9,7 @@ surface:
   POST /api/v2/owner/bulk-permissions
 """
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 # ── Helpers ─────────────────────────────────────────────────
@@ -676,9 +677,9 @@ def test_owner_activity_reaches_rows_past_the_old_500_cap(client):
     """The feed used to read only the newest 500 rows of each kind,
     so older activity vanished past page 10. Every row now counts
     and the last page holds the oldest one."""
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     from api.Modules.Audit.Models import OperatorAuditLog
-    base = datetime.utcnow()
+    base = utc_now()
     with db_session():
         owner_id, _, pw = _make_owner()
         sid = _link_store(owner_id, name="Busy Store", slug="busy-store")

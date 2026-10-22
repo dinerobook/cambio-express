@@ -5,7 +5,7 @@ The HTTP integration tests in ``test_sessions_endpoint.py`` cover
 auth gating + JWT-claim plumbing. This file pins the chain-walk
 logic in isolation.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from api.Modules.Auth.Models import RefreshToken
 from api.Modules.Auth.Services.refresh import issue, rotate
@@ -17,6 +17,7 @@ from api.Modules.Auth.Services.sessions import (
 )
 from api.Modules.Tenancy.Models import User
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _seed_user(username: str = "sess-user@test.com") -> int:
@@ -136,7 +137,7 @@ def test_list_skips_expired_sessions():
             db.session.query(RefreshToken)
               .filter_by(jti=a.jti).one()
         )
-        row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        row.expires_at = utc_now() - timedelta(seconds=1)
         db.session.commit()
         sessions = list_active_sessions(db.session, user_id=uid)
     assert sessions == []
@@ -150,13 +151,13 @@ def test_list_legacy_rows_collapse_to_one_session():
         uid = _seed_user("sess-list-legacy@test.com")
         legacy_a = RefreshToken(
             jti="leg-a", user_id=uid,
-            created_at=datetime.utcnow() - timedelta(hours=2),
-            expires_at=datetime.utcnow() + timedelta(days=10),
+            created_at=utc_now() - timedelta(hours=2),
+            expires_at=utc_now() + timedelta(days=10),
         )
         legacy_b = RefreshToken(
             jti="leg-b", user_id=uid,
-            created_at=datetime.utcnow() - timedelta(hours=1),
-            expires_at=datetime.utcnow() + timedelta(days=10),
+            created_at=utc_now() - timedelta(hours=1),
+            expires_at=utc_now() + timedelta(days=10),
         )
         db.session.add_all([legacy_a, legacy_b])
         db.session.commit()
@@ -237,13 +238,13 @@ def test_revoke_session_handles_legacy_bucket():
         uid = _seed_user("sess-rev-legacy@test.com")
         a = RefreshToken(
             jti="rev-leg-a", user_id=uid,
-            created_at=datetime.utcnow(),
-            expires_at=datetime.utcnow() + timedelta(days=10),
+            created_at=utc_now(),
+            expires_at=utc_now() + timedelta(days=10),
         )
         b = RefreshToken(
             jti="rev-leg-b", user_id=uid,
-            created_at=datetime.utcnow(),
-            expires_at=datetime.utcnow() + timedelta(days=10),
+            created_at=utc_now(),
+            expires_at=utc_now() + timedelta(days=10),
         )
         db.session.add_all([a, b])
         db.session.commit()

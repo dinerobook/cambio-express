@@ -8,6 +8,7 @@ from api.Modules.Auth.Models import Passkey
 from api.Modules.BankSync.Models import StripeBankAccount
 from api.Modules.Tenancy.Models import Store, StoreOwnerLink, User
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 _USER_COUNTER = 0
@@ -18,7 +19,7 @@ def _add_store(db, *, slug, plan="basic", addons="",
                created_at=None):
     s = Store(name=slug, slug=slug, plan=plan, addons=addons,
               email=f"{slug}@example.com",
-              created_at=created_at or datetime.utcnow())
+              created_at=created_at or utc_now())
     db.add(s); db.flush()
     return s
 

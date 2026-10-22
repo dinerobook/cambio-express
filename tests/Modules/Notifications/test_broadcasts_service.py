@@ -1,8 +1,8 @@
 """Unit tests for Notifications.Services.broadcasts (PR 66)."""
-from datetime import datetime
 
 from api.Modules.Tenancy.Models import User
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _add_user(db, *, store_id=1, role="admin",
@@ -172,7 +172,7 @@ def test_recipients_excludes_bounced_addresses():
             db.session,
             username="bounced@test.com",
             email="bounced@test.com",
-            email_bounced_at=datetime.utcnow(),
+            email_bounced_at=utc_now(),
         )
         assert broadcast_eligible_recipients(db.session) == []
 

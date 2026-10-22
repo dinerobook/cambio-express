@@ -13,6 +13,7 @@ from datetime import date, timedelta
 
 from tests._app import db, db_session
 from tests.conftest import login_admin
+from api.Core.Clock import utc_now
 
 
 def _headers(token):
@@ -105,7 +106,6 @@ def test_purchases_block_and_open_invoices(client, test_store_id):
 
 def test_clocked_in_lists_open_shifts_only(client, test_store_id):
     _set_type(test_store_id, "cstore")
-    from datetime import datetime
     from api.Modules.Tenancy.Models import StoreEmployee
     from api.Modules.TimeClock.Models import TimeClockEntry
     with db_session():
@@ -115,12 +115,12 @@ def test_clocked_in_lists_open_shifts_only(client, test_store_id):
         db.session.flush()
         db.session.add(TimeClockEntry(
             store_id=test_store_id, store_employee_id=on.id,
-            clock_in_at=datetime.utcnow(),
+            clock_in_at=utc_now(),
         ))
         db.session.add(TimeClockEntry(
             store_id=test_store_id, store_employee_id=off.id,
-            clock_in_at=datetime.utcnow(),
-            clock_out_at=datetime.utcnow(),
+            clock_in_at=utc_now(),
+            clock_out_at=utc_now(),
         ))
         db.session.commit()
 

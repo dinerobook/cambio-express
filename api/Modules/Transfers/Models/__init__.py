@@ -9,8 +9,6 @@ the Transfers services' existing import surface.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     BigInteger, Column, Date, DateTime, ForeignKey, Index, Integer, String,
 )
@@ -20,6 +18,7 @@ from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
 from api.Core.Money import to_cents, to_dollars
+from api.Core.Clock import utc_now
 
 # The service type of a payout: the store hands cash to a recipient
 # for the company instead of taking cash in. Lives here (not in
@@ -93,8 +92,8 @@ class Transfer(Base):
     # later deactivated, renamed, or deleted.
     employee_id    = Column(Integer, ForeignKey("tenancy_store_employee.id"), nullable=True)
     employee_name  = Column(String(120), default="")
-    created_at     = Column(DateTime, default=datetime.utcnow)
-    updated_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=utc_now)
+    updated_at     = Column(DateTime, default=utc_now)
     # Idempotency key the New Transfer form sends once per form
     # (``Idempotency-Key`` header). A repeat create with the same
     # key in the same store returns this row instead of logging a

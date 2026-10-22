@@ -17,10 +17,10 @@ even with the per-test `db.drop_all()` / `db.create_all()` cycle
 in conftest, and that's how PR #347's first CI run flaked the
 unrelated `test_line_items_delete_round_trip` setup.
 """
-from datetime import datetime
 
 import pyotp
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _make_enrolled_superadmin(*, slug="ts2fa"):
@@ -34,7 +34,7 @@ def _make_enrolled_superadmin(*, slug="ts2fa"):
     user = User(
         store_id=None, username=username,
         full_name="Test Super", role="superadmin",
-        totp_secret=secret, totp_enrolled_at=datetime.utcnow(),
+        totp_secret=secret, totp_enrolled_at=utc_now(),
     )
     user.set_password("super2025!")
     db.session.add(user); db.session.commit()

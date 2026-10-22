@@ -11,8 +11,6 @@ the API contract and the page layout), and a migration.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer,
     String, Text, UniqueConstraint,
@@ -21,6 +19,7 @@ from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
 from api.Core.Money import DollarView
+from api.Core.Clock import utc_now
 
 
 # Every money field on the sheet, grouped the way the page renders
@@ -294,7 +293,7 @@ class StoreDailyEntry(Base):
     fuel_gallons           = Column(Float, nullable=False, default=0.0)
 
     notes      = Column(Text, nullable=False, default="")
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=utc_now)
     # Lock, mirroring the MSB daily book: a locked day rejects
     # operator writes until an admin unlocks it. POS imports are
     # deliberately NOT blocked by the lock — see the Services
@@ -347,7 +346,7 @@ class StoreDailyEntryOriginal(Base):
     amount_cents = Column(BigInteger, nullable=False, default=0)
     # Where it came from — "gilbarco" today; a second POS later.
     source       = Column(String(20), nullable=False, default="")
-    imported_at  = Column(DateTime, default=datetime.utcnow)
+    imported_at  = Column(DateTime, default=utc_now)
 
     __table_args__ = (
         UniqueConstraint("entry_id", "field_key"),

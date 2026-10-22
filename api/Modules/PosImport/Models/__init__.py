@@ -11,8 +11,6 @@ review is a hard gate, not a silent default.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey,
     Integer, LargeBinary, String, UniqueConstraint,
@@ -20,6 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class PosMerchandiseMap(Base):
@@ -30,7 +29,7 @@ class PosMerchandiseMap(Base):
     department_id     = Column(
         Integer, ForeignKey("retail_department.id"), nullable=False,
     )
-    created_at        = Column(DateTime, default=datetime.utcnow)
+    created_at        = Column(DateTime, default=utc_now)
     __table_args__ = (
         UniqueConstraint("store_id", "merchandise_code"),
     )
@@ -51,7 +50,7 @@ class PosAgentCredential(Base):
     store_id     = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
     key_hash     = Column(String(64), unique=True, nullable=False)
     label        = Column(String(80), nullable=False, default="")
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=utc_now)
     revoked_at   = Column(DateTime, nullable=True)
     last_used_at = Column(DateTime, nullable=True)
 
@@ -71,7 +70,7 @@ class PosJournalFile(Base):
     event_kind    = Column(String(16), nullable=False, default="")
     parse_error   = Column(String(255), nullable=False, default="")
     content_gz    = Column(LargeBinary, nullable=False)
-    received_at   = Column(DateTime, default=datetime.utcnow)
+    received_at   = Column(DateTime, default=utc_now)
     __table_args__ = (
         UniqueConstraint("store_id", "filename"),
     )

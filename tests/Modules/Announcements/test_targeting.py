@@ -11,10 +11,11 @@ Covers the store-scoped announcement feature end-to-end:
 * /active endpoint — scopes banners to the viewer's store.
 * retention purge — deleting a store drops its AnnouncementStore rows.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from tests._app import db, db_session
 from tests.conftest import login_superadmin
+from api.Core.Clock import utc_now
 
 
 def _make_store(slug):
@@ -258,7 +259,7 @@ def test_purge_removes_announcement_store_rows():
         s = Store(
             name="Purge-Target", slug="purge-target-ann",
             plan="inactive", email="purge-ann@test.com",
-            data_retention_until=datetime.utcnow() - timedelta(days=1),
+            data_retention_until=utc_now() - timedelta(days=1),
         )
         db.session.add(s)
         db.session.flush()

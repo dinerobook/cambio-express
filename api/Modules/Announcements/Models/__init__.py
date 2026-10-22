@@ -8,14 +8,13 @@ Two classes:
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     Boolean, Column, DateTime, ForeignKey, Integer, String, Text,
     UniqueConstraint,
 )
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class Announcement(Base):
@@ -33,7 +32,7 @@ class Announcement(Base):
     is_active  = Column(Boolean, default=True)
     starts_at  = Column(DateTime, nullable=True)
     expires_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     created_by = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
     # Broadcast-email flags. ``broadcast_requested`` is set when the
     # superadmin ticks the "Also email all users" checkbox at create
@@ -84,7 +83,7 @@ class PushSubscription(Base):
     p256dh     = Column(String(200), nullable=False)
     auth       = Column(String(80), nullable=False)
     user_agent = Column(String(255), default="")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("user_id", "endpoint"),)
 
 

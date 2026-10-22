@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from api.Modules.Auth.Models import PasswordResetToken
 from api.Modules.Tenancy.Models import Store, User
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 _USER_COUNTER = 0
@@ -48,7 +49,7 @@ def _add_store(db, *, slug, plan="basic", is_active=True,
               canceled_at=canceled_at,
               data_retention_until=data_retention_until,
               email=f"{slug}@example.com",
-              created_at=created_at or datetime.utcnow())
+              created_at=created_at or utc_now())
     db.add(s); db.flush()
     return s
 
@@ -64,7 +65,7 @@ def test_password_resets_classifies_used_expired_open():
         db.session.query(PasswordResetToken).delete()
         db.session.commit()
         u = _add_user(db.session, role="admin")
-        now = datetime.utcnow()
+        now = utc_now()
         # Used.
         _add_token(db.session, u.id,
                    created_at=datetime(2026, 5, 5),
@@ -101,7 +102,7 @@ def test_password_resets_handles_deleted_user():
             user_id=99999,
             token_hash="orphan-hash",
             created_at=datetime(2026, 5, 5),
-            expires_at=datetime.utcnow() + timedelta(hours=1),
+            expires_at=utc_now() + timedelta(hours=1),
         )
         db.session.add(t)
         db.session.commit()
@@ -118,7 +119,7 @@ def test_password_resets_window_filter():
         db.session.query(PasswordResetToken).delete()
         db.session.commit()
         u = _add_user(db.session, role="admin")
-        now = datetime.utcnow() + timedelta(hours=1)
+        now = utc_now() + timedelta(hours=1)
         _add_token(db.session, u.id,
                    created_at=datetime(2026, 4, 30),
                    expires_at=now)
@@ -187,7 +188,7 @@ def test_retention_queue_only_includes_stores_with_until_set():
         _add_store(db.session, slug="rq-no-until", plan="basic",
                    data_retention_until=None)
         _add_store(db.session, slug="rq-pending", plan="inactive",
-                   data_retention_until=datetime.utcnow()
+                   data_retention_until=utc_now()
                        + timedelta(days=30))
         rows, _ = retention_queue(
             db.session, date(2026, 5, 1), date(2026, 5, 31),
@@ -205,7 +206,7 @@ def test_retention_queue_ready_to_purge_when_days_negative():
         db.session.query(Store).delete()
         db.session.commit()
         _add_store(db.session, slug="rq-ready", plan="inactive",
-                   data_retention_until=datetime.utcnow()
+                   data_retention_until=utc_now()
                        - timedelta(days=5))
         rows, totals = retention_queue(
             db.session, date(2026, 5, 1), date(2026, 5, 31),

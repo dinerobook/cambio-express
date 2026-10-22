@@ -5,8 +5,9 @@ Powers /app/admin/audit-log. Mirrors the legacy Jinja
 target / action / user query params, page is 1-based, per_page
 is 50.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login(client_, store_id):
@@ -32,7 +33,7 @@ def _seed_op_row(store_id, *, action="lock", target_type="daily_report",
         target_label="Test target", user_id=user_id,
         user_name="Tester", user_role="admin",
         summary="seeded by tests",
-        created_at=ts or datetime.utcnow(),
+        created_at=ts or utc_now(),
     )
     db.session.add(row); db.session.commit()
     return row.id
@@ -48,7 +49,7 @@ def _seed_tx_row(store_id, *, action="create", user_id=None,
         action=action, user_id=user_id,
         employee_name="Test Cashier",
         summary="Created transfer #1",
-        created_at=ts or datetime.utcnow(),
+        created_at=ts or utc_now(),
     )
     db.session.add(row); db.session.commit()
     return row.id
@@ -122,7 +123,7 @@ def test_audit_log_merges_op_and_tx_feeds(
 def test_audit_log_orders_newest_first(
     client, test_store_id,
 ):
-    base = datetime.utcnow()
+    base = utc_now()
     with db_session():
         _seed_op_row(test_store_id, action="lock", ts=base - timedelta(days=2))
         _seed_op_row(test_store_id, action="unlock", ts=base)
@@ -234,7 +235,7 @@ def test_audit_log_paginates_at_50_per_page(
         for i in range(51):
             _seed_op_row(
                 test_store_id, action="lock",
-                ts=datetime.utcnow() - timedelta(seconds=i),
+                ts=utc_now() - timedelta(seconds=i),
             )
     token = _login(client, test_store_id)
     p1 = client.get(
@@ -363,7 +364,7 @@ def test_audit_log_pages_past_the_old_500_cap(client, test_store_id):
     rows of one kind. Every row is now reachable, exactly once, in
     newest-first order, whatever the page size."""
     with db_session():
-        expected = _bulk_seed(test_store_id, 560, 60, datetime.utcnow())
+        expected = _bulk_seed(test_store_id, 560, 60, utc_now())
     token = _login(client, test_store_id)
     h = {"Authorization": f"Bearer {token}"}
     first = client.get("/api/v2/admin/audit-log?per_page=200", headers=h).get_json()
@@ -381,7 +382,7 @@ def test_audit_log_pages_past_the_old_500_cap(client, test_store_id):
 
 def test_audit_log_default_page_size_is_still_50(client, test_store_id):
     with db_session():
-        _bulk_seed(test_store_id, 60, 0, datetime.utcnow())
+        _bulk_seed(test_store_id, 60, 0, utc_now())
     token = _login(client, test_store_id)
     body = client.get(
         "/api/v2/admin/audit-log?page=2",
@@ -400,7 +401,7 @@ def test_audit_log_rejects_page_size_outside_1_to_200(client, test_store_id):
 
 def test_audit_log_csv_exports_every_row(client, test_store_id):
     with db_session():
-        _bulk_seed(test_store_id, 530, 0, datetime.utcnow())
+        _bulk_seed(test_store_id, 530, 0, utc_now())
     token = _login(client, test_store_id)
     resp = client.get(
         "/api/v2/admin/audit-log.csv",

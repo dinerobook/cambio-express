@@ -16,12 +16,13 @@ DailyBook/INVARIANTS.md "Settlements"):
     included,
   * read / create / update permissions gate the routes.
 """
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_admin, login_employee
+from api.Core.Clock import utc_now
 
 
 DAY1 = date.today() - timedelta(days=4)
@@ -89,7 +90,7 @@ def _lock(sid, d):
         if r is None:
             r = DailyReport(store_id=sid, report_date=d)
             db.session.add(r)
-        r.locked_at = datetime.utcnow()
+        r.locked_at = utc_now()
         db.session.commit()
 
 

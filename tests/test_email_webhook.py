@@ -17,7 +17,7 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from api.Modules.Tenancy.Models import Store, User
 from api.Modules.Webhooks.Models import EmailEvent
@@ -27,6 +27,7 @@ from api.Modules.Notifications.Services.smtp import (
     send_email as _smtp_send_email,
 )
 from tests._app import db, purge_expired_stores, db_session
+from api.Core.Clock import utc_now
 
 
 def _send_email(to_addr, subject, body, html=None):
@@ -46,7 +47,7 @@ def _secret_bytes():
 
 
 def _sign(body, svix_id="msg_1", ts=None):
-    ts = ts or str(int(datetime.utcnow().timestamp()))
+    ts = ts or str(int(utc_now().timestamp()))
     signed = f"{svix_id}.{ts}.".encode() + body
     sig = base64.b64encode(
         hmac.new(_secret_bytes(), signed, hashlib.sha256).digest()
@@ -90,7 +91,7 @@ def test_signature_rejected_when_body_tampered(client):
 def test_signature_rejected_when_timestamp_stale(client):
     _set_webhook_secret()
     body = _webhook_body("email.delivered")
-    stale_ts = str(int(datetime.utcnow().timestamp()) - 3600)  # 1hr old
+    stale_ts = str(int(utc_now().timestamp()) - 3600)  # 1hr old
     h = _sign(body, svix_id="x", ts=stale_ts)
     assert _verify_resend_signature(
         os.environ["RESEND_WEBHOOK_SECRET"],
@@ -101,7 +102,7 @@ def test_signature_rejected_when_secret_missing(client):
     body = _webhook_body("email.delivered")
     h = _sign.__wrapped__ if hasattr(_sign, "__wrapped__") else None  # noqa
     assert _verify_resend_signature(
-        "", "x", str(int(datetime.utcnow().timestamp())), "v1,whatever",
+        "", "x", str(int(utc_now().timestamp())), "v1,whatever",
         body) is False
 
 
@@ -132,7 +133,7 @@ def test_webhook_rejects_bad_signature(client):
     resp = client.post("/api/v2/webhooks/resend", data=body,
                         content_type="application/json",
                         headers={"svix-id": "m", "svix-timestamp":
-                                 str(int(datetime.utcnow().timestamp())),
+                                 str(int(utc_now().timestamp())),
                                  "svix-signature": "v1,wrong"})
     assert resp.status_code == 400
 
@@ -249,7 +250,7 @@ def test_send_email_skips_suppressed_user(client, test_admin_id):
     with db_session():
         u = db.session.get(User, test_admin_id)
         u.email = "bounced@test.com"
-        u.email_bounced_at = datetime.utcnow()
+        u.email_bounced_at = utc_now()
         db.session.commit()
     with db_session():
         ok = _send_email("bounced@test.com", "hi", "body")
@@ -268,7 +269,7 @@ def test_send_email_skips_suppressed_case_insensitive(client, test_admin_id):
     with db_session():
         u = db.session.get(User, test_admin_id)
         u.email = "bounced@test.com"
-        u.email_bounced_at = datetime.utcnow()
+        u.email_bounced_at = utc_now()
         db.session.commit()
     with db_session():
         ok = _send_email("BOUNCED@Test.COM", "hi", "body")
@@ -303,7 +304,7 @@ def test_purge_nulls_out_email_event_user_id(client):
     with db_session():
         s = Store(name="Doomed", slug="doomed-ee", plan="inactive",
                   is_active=False,
-                  data_retention_until=datetime.utcnow() - timedelta(days=1))
+                  data_retention_until=utc_now() - timedelta(days=1))
         db.session.add(s); db.session.flush()
         u = User(store_id=s.id, username="doomed@x",
                  full_name="Doomed", role="admin")

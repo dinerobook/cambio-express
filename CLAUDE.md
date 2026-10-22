@@ -170,7 +170,7 @@ files that count as part of a module are listed in `frontend/CLAUDE.md`.
   could exist).
 - ❌ Hand-write a store-scope 403, a `strptime` date parse or a report
   period in a controller (`resolve_store_scope`, `parse_iso_day`,
-  `resolve_period`).
+  `resolve_period`), or call `datetime.utcnow()` (use `utc_now()`).
 - ❌ Commit without `pytest tests/`, `python -m mypy` and the SPA checks
   clean.
 - ❌ Leak the raw password-reset token to the DB or logs.

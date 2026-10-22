@@ -5,12 +5,13 @@ test_purge_retention.py` suite (12 tests, still passing). This
 file adds Service-level smoke tests + the small structural
 checks that prove the registry hasn't drifted.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from api.Modules.Customers.Models import Customer
 from api.Modules.Tenancy.Models import Store, User
 from api.Modules.Transfers.Models import Transfer
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 # ── registry shape ─────────────────────────────────────────
@@ -79,7 +80,7 @@ def test_purge_skips_inactive_store_with_future_retention():
             name="Future-Retention", slug="future-retention",
             plan="inactive",
             email="future-retention@test.com",
-            data_retention_until=datetime.utcnow()
+            data_retention_until=utc_now()
                 + timedelta(days=30),
         )
         db.session.add(s); db.session.commit()
@@ -100,7 +101,7 @@ def test_purge_deletes_expired_store_and_cascades_owned_rows():
             name="Expired-Co", slug="expired-co",
             plan="inactive",
             email="expired-co@test.com",
-            data_retention_until=datetime.utcnow()
+            data_retention_until=utc_now()
                 - timedelta(days=1),
         )
         db.session.add(s); db.session.flush()
@@ -119,7 +120,7 @@ def test_purge_deletes_expired_store_and_cascades_owned_rows():
         ))
         db.session.add(Transfer(
             store_id=s.id,
-            send_date=datetime.utcnow().date(),
+            send_date=utc_now().date(),
             company="Intermex", sender_name="x",
             send_amount=100.0, fee=0.0, federal_tax=0.0,
             status="Sent",
@@ -148,7 +149,7 @@ def test_purge_skips_active_paid_stores():
             name="Active-Paid", slug="active-paid",
             plan="basic",  # paid, not inactive
             email="active-paid@test.com",
-            data_retention_until=datetime.utcnow()
+            data_retention_until=utc_now()
                 - timedelta(days=999),  # ridiculously past
         )
         db.session.add(s); db.session.commit()
@@ -183,7 +184,7 @@ def test_purge_sweeps_user_scoped_child_tables():
         s = Store(
             name="FK-Cluster", slug="fk-cluster",
             plan="inactive", email="fk-cluster@test.com",
-            data_retention_until=datetime.utcnow() - timedelta(days=1),
+            data_retention_until=utc_now() - timedelta(days=1),
         )
         db.session.add(s); db.session.flush()
         u = User(
@@ -198,11 +199,11 @@ def test_purge_sweeps_user_scoped_child_tables():
         db.session.add(RecoveryCode(user_id=u.id, code_hash="h"))
         db.session.add(PasswordResetToken(
             user_id=u.id, token_hash="t",
-            expires_at=datetime.utcnow() + timedelta(hours=1),
+            expires_at=utc_now() + timedelta(hours=1),
         ))
         db.session.add(RefreshToken(
             jti="j", user_id=u.id,
-            expires_at=datetime.utcnow() + timedelta(days=14),
+            expires_at=utc_now() + timedelta(days=14),
         ))
         db.session.add(Passkey(
             user_id=u.id, credential_id=b"cred", public_key=b"key",
@@ -269,7 +270,7 @@ def test_purge_succeeds_with_foreign_keys_enforced():
         s = Store(
             name="Roles-Co", slug="roles-co", plan="inactive",
             email="roles-co@test.com",
-            data_retention_until=datetime.utcnow() - timedelta(days=1),
+            data_retention_until=utc_now() - timedelta(days=1),
         )
         db.session.add(s); db.session.flush()
         role = StoreRole(store_id=s.id, name="Shift lead")
@@ -290,8 +291,8 @@ def test_purge_succeeds_with_foreign_keys_enforced():
         db.session.add_all([admin, owner]); db.session.flush()
         code = OwnerConnectCode(
             owner_id=owner.id, code="RLS12345",
-            expires_at=datetime.utcnow() + timedelta(days=7),
-            used_at=datetime.utcnow(),
+            expires_at=utc_now() + timedelta(days=7),
+            used_at=utc_now(),
             used_by_user_id=admin.id, used_by_store_id=s.id,
         )
         db.session.add(code)

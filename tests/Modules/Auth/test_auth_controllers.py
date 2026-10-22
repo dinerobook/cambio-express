@@ -2,6 +2,7 @@
 from fastapi.testclient import TestClient
 from tests._app import db, db_session
 import pytest
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -1189,7 +1190,7 @@ def test_reset_password_rejects_expired_token(client, test_store_id):  # noqa: A
     from api.Modules.Auth.Models import PasswordResetToken
     from tests._app import db
     from api.Modules.Auth.Services import issue_password_reset_token
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     with db_session():
         issued = issue_password_reset_token(db.session, "admin@test.com")
         db.session.commit()
@@ -1200,7 +1201,7 @@ def test_reset_password_rejects_expired_token(client, test_store_id):  # noqa: A
               .filter_by(user_id=issued.user.id, used_at=None)
               .first()
         )
-        row.expires_at = datetime.utcnow() - timedelta(hours=1)
+        row.expires_at = utc_now() - timedelta(hours=1)
         db.session.commit()
 
     resp = client.post(

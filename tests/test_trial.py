@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _store(plan="trial", trial_ends_at=None, grace_ends_at=None):
@@ -23,14 +24,14 @@ def test_no_trial_dates_is_exempt():
 def test_basic_plan_is_exempt():
     from api.Modules.Billing.Services import get_trial_status
     assert get_trial_status(_store(plan="basic",
-        trial_ends_at=datetime.utcnow() - timedelta(days=1),
-        grace_ends_at=datetime.utcnow() + timedelta(days=3))) == "exempt"
+        trial_ends_at=utc_now() - timedelta(days=1),
+        grace_ends_at=utc_now() + timedelta(days=3))) == "exempt"
 
 def test_pro_plan_is_exempt():
     from api.Modules.Billing.Services import get_trial_status
     assert get_trial_status(_store(plan="pro",
-        trial_ends_at=datetime.utcnow() - timedelta(days=1),
-        grace_ends_at=datetime.utcnow() + timedelta(days=3))) == "exempt"
+        trial_ends_at=utc_now() - timedelta(days=1),
+        grace_ends_at=utc_now() + timedelta(days=3))) == "exempt"
 
 def test_inactive_plan_is_expired():
     from api.Modules.Billing.Services import get_trial_status
@@ -39,36 +40,36 @@ def test_inactive_plan_is_expired():
 def test_active_trial_with_days_remaining():
     from api.Modules.Billing.Services import get_trial_status
     s = _store(plan="trial",
-               trial_ends_at=datetime.utcnow() + timedelta(days=7),
-               grace_ends_at=datetime.utcnow() + timedelta(days=11))
+               trial_ends_at=utc_now() + timedelta(days=7),
+               grace_ends_at=utc_now() + timedelta(days=11))
     assert get_trial_status(s) == "active"
 
 def test_expiring_soon_within_3_days():
     from api.Modules.Billing.Services import get_trial_status
     s = _store(plan="trial",
-               trial_ends_at=datetime.utcnow() + timedelta(hours=36),
-               grace_ends_at=datetime.utcnow() + timedelta(days=4))
+               trial_ends_at=utc_now() + timedelta(hours=36),
+               grace_ends_at=utc_now() + timedelta(days=4))
     assert get_trial_status(s) == "expiring_soon"
 
 def test_grace_after_trial_end():
     from api.Modules.Billing.Services import get_trial_status
     s = _store(plan="trial",
-               trial_ends_at=datetime.utcnow() - timedelta(hours=12),
-               grace_ends_at=datetime.utcnow() + timedelta(days=3))
+               trial_ends_at=utc_now() - timedelta(hours=12),
+               grace_ends_at=utc_now() + timedelta(days=3))
     assert get_trial_status(s) == "grace"
 
 def test_expired_after_grace_end():
     from api.Modules.Billing.Services import get_trial_status
     s = _store(plan="trial",
-               trial_ends_at=datetime.utcnow() - timedelta(days=5),
-               grace_ends_at=datetime.utcnow() - timedelta(days=1))
+               trial_ends_at=utc_now() - timedelta(days=5),
+               grace_ends_at=utc_now() - timedelta(days=1))
     assert get_trial_status(s) == "expired"
 
 def test_trial_set_but_no_grace_date():
     from api.Modules.Billing.Services import get_trial_status
     # grace_ends_at=None should not crash
     s = _store(plan="trial",
-               trial_ends_at=datetime.utcnow() + timedelta(days=7),
+               trial_ends_at=utc_now() + timedelta(days=7),
                grace_ends_at=None)
     assert get_trial_status(s) == "active"
 
@@ -79,8 +80,8 @@ def test_expired_store_redirected_to_subscribe(client):
     with db_session():
         s = Store(name="Expired Co", slug="expired-co",
                   email="expired@test.com", plan="trial",
-                  trial_ends_at=datetime.utcnow() - timedelta(days=5),
-                  grace_ends_at=datetime.utcnow() - timedelta(days=1))
+                  trial_ends_at=utc_now() - timedelta(days=5),
+                  grace_ends_at=utc_now() - timedelta(days=1))
         db.session.add(s)
         db.session.flush()
         u = User(store_id=s.id, username="expired@test.com",
@@ -118,8 +119,8 @@ def test_subscribe_is_accessible_when_expired(client):
     with db_session():
         s = Store(name="Exp2 Co", slug="exp2-co",
                   email="exp2@test.com", plan="trial",
-                  trial_ends_at=datetime.utcnow() - timedelta(days=5),
-                  grace_ends_at=datetime.utcnow() - timedelta(days=1))
+                  trial_ends_at=utc_now() - timedelta(days=5),
+                  grace_ends_at=utc_now() - timedelta(days=1))
         db.session.add(s)
         db.session.flush()
         u = User(store_id=s.id, username="exp2@test.com",

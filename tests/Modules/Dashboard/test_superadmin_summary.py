@@ -10,6 +10,7 @@ adapts the legacy keys to the SPA-facing shape; this file pins
 the contract so the next refactor doesn't regress.
 """
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login_superadmin(client):
@@ -110,7 +111,7 @@ def test_summary_exposes_retention_queue_and_cancellations(client):
 def test_summary_retention_queue_counts_pending_purge(client):
     """A store whose ``data_retention_until`` is in the future
     contributes to ``retention_queue``."""
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     from api.Modules.Tenancy.Models import Store
     token = _login_superadmin(client)
     baseline = client.get(
@@ -121,7 +122,7 @@ def test_summary_retention_queue_counts_pending_purge(client):
         db.session.add(Store(
             name="Retention Pending", slug="retention-pending",
             email="rp@example.com", plan="inactive",
-            data_retention_until=datetime.utcnow() + timedelta(days=90),
+            data_retention_until=utc_now() + timedelta(days=90),
         ))
         db.session.commit()
     after = client.get(

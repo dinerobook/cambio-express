@@ -20,8 +20,6 @@ store, how owners link multiple stores together.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer,
     String, Text, UniqueConstraint,
@@ -31,6 +29,7 @@ from api.Core.PasswordHash import check_password_hash, generate_password_hash
 from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 # What kind of business a Store is — drives which product modules
@@ -72,7 +71,7 @@ class Store(Base):
     bank_sync_count_today  = Column(Integer, default=0)
     bank_sync_count_date   = Column(Date, nullable=True)
     is_active     = Column(Boolean, default=True)
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=utc_now)
     trial_ends_at = Column(DateTime, nullable=True)
     grace_ends_at = Column(DateTime, nullable=True)
     addons        = Column(String(255), default="")
@@ -238,7 +237,7 @@ class User(Base):
     password_hash = Column(String(200), nullable=False)
     role          = Column(String(20), default="employee")
     full_name     = Column(String(120), default="")
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=utc_now)
     is_active     = Column(Boolean, default=True)
     # TOTP-based 2FA. Mandatory for superadmin (see _needs_totp_enroll /
     # _totp_is_enrolled); other roles ignore these columns today. The
@@ -382,7 +381,7 @@ class StoreEmployee(Base):
     store_id   = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
     name       = Column(String(120), nullable=False)
     is_active  = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     # Pay rate in USD/hour for the paystub computation. Default
     # 0.0 means "rate not configured" — the paystub view shows
     # the gross-pay column as a dash and the admin sets the
@@ -416,7 +415,7 @@ class StoreOwnerLink(Base):
     id        = Column(Integer, primary_key=True)
     owner_id  = Column(Integer, ForeignKey("tenancy_user.id"), nullable=False)
     store_id  = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
-    linked_at = Column(DateTime, default=datetime.utcnow)
+    linked_at = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("owner_id", "store_id"),)
 
 
@@ -440,7 +439,7 @@ class OwnerConnectCode(Base):
     id               = Column(Integer, primary_key=True)
     owner_id         = Column(Integer, ForeignKey("tenancy_user.id"), nullable=False)
     code             = Column(String(8), unique=True, nullable=False)
-    created_at       = Column(DateTime, default=datetime.utcnow)
+    created_at       = Column(DateTime, default=utc_now)
     expires_at       = Column(DateTime, nullable=False)
     used_at          = Column(DateTime, nullable=True)
     used_by_user_id  = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
@@ -492,8 +491,8 @@ class StoreRole(Base):
     # ALTER to defer with). The value is who created the role, not
     # a relationship anything traverses.
     created_by = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("store_id", "name"),)
 
     permissions = relationship(

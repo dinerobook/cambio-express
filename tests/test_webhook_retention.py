@@ -9,9 +9,10 @@
 """
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 # Resolved at call time (not import time) — CI passes different price IDs
 # than conftest, and the webhook reads the env var live.
@@ -47,12 +48,12 @@ def test_deleted_starts_180_day_retention(client):
     from tests._app import db
     with db_session():
         sid = _seed(plan="pro", stripe_subscription_id="sub_xyz")
-    before = datetime.utcnow()
+    before = utc_now()
     resp = _post(client, {
         "type": "customer.subscription.deleted",
         "data": {"object": {"id": "sub_xyz"}},
     })
-    after = datetime.utcnow()
+    after = utc_now()
     assert resp.status_code == 200
     with db_session():
         s = db.session.get(Store, sid)
@@ -90,8 +91,8 @@ def test_checkout_completed_clears_retention_timer(client):
     """Returning customer: clear canceled_at + data_retention_until."""
     from api.Modules.Tenancy.Models import Store
     from tests._app import db
-    past_cancel = datetime.utcnow() - timedelta(days=30)
-    retain_until = datetime.utcnow() + timedelta(days=150)
+    past_cancel = utc_now() - timedelta(days=30)
+    retain_until = utc_now() + timedelta(days=150)
     with db_session():
         sid = _seed(plan="inactive",
                     canceled_at=past_cancel,

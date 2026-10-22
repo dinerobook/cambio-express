@@ -11,11 +11,10 @@ Two classes log inbound webhook deliveries:
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 
 from api.Core.Database import Base
+from api.Core.Clock import utc_now
 
 
 class WebhookEvent(Base):
@@ -27,7 +26,7 @@ class WebhookEvent(Base):
 
     __tablename__ = "platform_webhook_event"
     id           = Column(Integer, primary_key=True)
-    received_at  = Column(DateTime, default=datetime.utcnow,
+    received_at  = Column(DateTime, default=utc_now,
                            nullable=False, index=True)
     source       = Column(String(20), default="stripe", nullable=False)
     event_id     = Column(String(80), default="")          # stripe evt_...
@@ -77,7 +76,7 @@ class EmailEvent(Base):
     # events.
     bounce_type  = Column(String(16), default="")
     payload      = Column(Text, default="")
-    created_at   = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at   = Column(DateTime, default=utc_now, index=True)
 
 
 __all__ = ["EmailEvent", "WebhookEvent"]

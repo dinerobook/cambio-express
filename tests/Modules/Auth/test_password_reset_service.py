@@ -1,8 +1,9 @@
 """Unit tests for Auth.Services.password_reset (PR 37)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _seed_user(store_id, *, username, role="admin", is_active=True):
@@ -200,7 +201,7 @@ def test_verify_rejects_expired_token(test_store_id):
             db.session.query(PasswordResetToken)
               .filter_by(user_id=result.user.id).first()
         )
-        row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        row.expires_at = utc_now() - timedelta(seconds=1)
         db.session.commit()
         assert verify_password_reset_token(
             db.session, result.raw_token,

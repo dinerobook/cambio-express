@@ -19,7 +19,6 @@ Five classes that own the per-day close-out book:
 """
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -29,6 +28,7 @@ from sqlalchemy import (
 
 from api.Core.Database import Base
 from api.Core.Money import DollarView, to_dollars
+from api.Core.Clock import utc_now
 
 
 class DailyReport(Base):
@@ -86,7 +86,7 @@ class DailyReport(Base):
     held_checks_deposited_cents = Column(BigInteger, nullable=True, default=0)
     over_short_cents      = Column(BigInteger, default=0)
     notes                 = Column(Text, default="")
-    updated_at            = Column(DateTime, default=datetime.utcnow)
+    updated_at            = Column(DateTime, default=utc_now)
     # Lock state. When ``locked_at`` is not None every write to this
     # report (and its line items — drops, check deposits,
     # DailyLineItem rows) is rejected server-side. The user has to
@@ -218,7 +218,7 @@ class DailyDrop(Base):
     amount      = DollarView("amount_cents")
     note        = Column(String(120), default="")
     created_by  = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=utc_now)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -249,7 +249,7 @@ class CheckDeposit(Base):
     amount       = DollarView("amount_cents")
     note         = Column(String(120), default="")
     created_by   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=utc_now)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -308,7 +308,7 @@ class DailyLineItem(Base):
     settle_by   = Column(Date, nullable=True)
     settles_item_id = Column(Integer, nullable=True)
     created_by  = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    created_at  = Column(DateTime, default=utc_now)
 
     def to_dict(self) -> dict[str, Any]:
         return {

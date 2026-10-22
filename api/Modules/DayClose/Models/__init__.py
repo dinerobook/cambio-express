@@ -29,8 +29,6 @@ columns in this module, ever.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer,
     String, UniqueConstraint,
@@ -39,6 +37,7 @@ from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
 from api.Core.Money import DollarView, to_cents, to_dollars
+from api.Core.Clock import utc_now
 
 
 class Department(Base):
@@ -58,7 +57,7 @@ class Department(Base):
     # Deactivate instead of delete — historical sales lines keep
     # their FK when a department is retired.
     is_active  = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("store_id", "name"),)
 
     parent = relationship("Department", remote_side=[id])
@@ -97,7 +96,7 @@ class RegisterClose(Base):
     # only — imported closes stay editable like any other.
     source     = Column(String(20), nullable=False, default="manual")
     created_by = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     __table_args__ = (
         UniqueConstraint(
             "store_id", "report_date", "register_label", "shift_label",

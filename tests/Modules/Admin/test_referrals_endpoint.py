@@ -5,6 +5,7 @@ paid admin's first visit; trial admins get a 409 the SPA renders
 as an upsell card. Mirrors the legacy admin_referrals route.
 """
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login(client_, store_id):
@@ -137,7 +138,6 @@ def test_referrals_includes_redemption_history(
 ):
     """A redemption with self_credit_applied_at populated should
     surface in the history with self_credit_applied=True."""
-    from datetime import datetime
     from api.Modules.Billing.Models import ReferralCode, ReferralRedemption
     from api.Modules.Tenancy.Models import Store
     from tests._app import db
@@ -159,8 +159,8 @@ def test_referrals_includes_redemption_history(
         red = ReferralRedemption(
             referral_code_id=rc.id,
             referee_store_id=ref_store.id,
-            redeemed_at=datetime.utcnow(),
-            self_credit_applied_at=datetime.utcnow(),
+            redeemed_at=utc_now(),
+            self_credit_applied_at=utc_now(),
             stripe_self_txn_id="cust_bal_txn_test",
         )
         db.session.add(red); db.session.commit()

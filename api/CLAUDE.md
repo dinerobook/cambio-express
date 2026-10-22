@@ -207,7 +207,7 @@ Retail modules (`DayClose`, `StoreBook`, `Lottery`, `PosImport`,
 | `Audit` | `audit_operator`, `audit_superadmin`, `@audit_action` — claims-aware wrappers around the recorder Services |
 | `Boot` | `init_db()`, `warn_default_seed_passwords()`, `warn_default_signing_secret()` — called from the `api/main.py` lifespan |
 | `Bootstrap` | Alembic upgrade, index safety-net, legacy backfills |
-| `Clock` | `utc_now()` (the one UTC timestamp); `store_local_today`; `parse_iso_day` (a `YYYY-MM-DD` value or a 422 naming the field — never hand-write `strptime` in a controller); `resolve_period` (a report's `from`/`to`). `tests/Core/test_one_copy_helpers.py` holds the line |
+| `Clock` | `utc_now()` (the one UTC timestamp — never call `datetime.utcnow()`, model column defaults included; Alembic revisions are the exception); `store_local_today`; `parse_iso_day` (a `YYYY-MM-DD` value or a 422 naming the field — never hand-write `strptime` in a controller); `resolve_period` (a report's `from`/`to`). `tests/Core/test_one_copy_helpers.py` holds the line |
 | `Config` | Pydantic-settings env loader |
 | `Csv` | `build_csv(headers, rows)` |
 | `Database` | SQLAlchemy engine + `SessionLocal` + `get_db` dependency |

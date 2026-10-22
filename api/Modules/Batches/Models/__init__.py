@@ -9,7 +9,6 @@ sites keep working.
 """
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -20,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from api.Core.Database import Base
 from api.Core.Money import to_cents, to_dollars
+from api.Core.Clock import utc_now
 
 
 class ACHBatch(Base):
@@ -35,7 +35,7 @@ class ACHBatch(Base):
     status         = Column(String(30), default="Pending")
     reconciled     = Column(Boolean, default=False)
     notes          = Column(String(255), default="")
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("store_id", "batch_ref"),)
 
     @property

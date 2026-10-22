@@ -22,8 +22,6 @@ columns in this module, ever.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey,
     Integer, String, UniqueConstraint,
@@ -32,6 +30,7 @@ from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
 from api.Core.Money import DollarView
+from api.Core.Clock import utc_now
 
 # POSCode formats we accept — matches the NAXML vocabulary the
 # Gilbarco ingest already parses, so warm-started items round-trip.
@@ -53,7 +52,7 @@ class Vendor(Base):
     # Deactivate instead of delete — items + future purchase
     # invoices keep their FK when a vendor relationship ends.
     is_active      = Column(Boolean, default=True, nullable=False)
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("store_id", "name"),)
 
 
@@ -95,9 +94,9 @@ class PriceBookItem(Base):
     # Provenance: "manual" or an import source like "gilbarco".
     # Display only — imported items stay editable like any other.
     source          = Column(String(20), nullable=False, default="manual")
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    created_at      = Column(DateTime, default=utc_now)
     updated_at      = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow,
+        DateTime, default=utc_now, onupdate=utc_now,
     )
     __table_args__ = (UniqueConstraint("store_id", "pos_code"),)
 
@@ -135,9 +134,9 @@ class PurchaseInvoice(Base):
     paid_on  = Column(Date, nullable=True)
     notes      = Column(String(500), nullable=False, default="")
     created_by = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow,
+        DateTime, default=utc_now, onupdate=utc_now,
     )
     __table_args__ = (
         UniqueConstraint("store_id", "vendor_id", "invoice_number"),

@@ -29,8 +29,6 @@ columns in this module, ever.
 """
 from __future__ import annotations
 
-from datetime import datetime
-
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer,
     String, UniqueConstraint,
@@ -39,6 +37,7 @@ from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
 from api.Core.Money import DollarView
+from api.Core.Clock import utc_now
 
 
 # Pack lifecycle. Not a DB enum so a future state ("stolen",
@@ -60,7 +59,7 @@ class LotteryGame(Base):
     # Deactivate instead of delete when the state retires a game —
     # historical packs/counts keep their FK.
     is_active          = Column(Boolean, default=True, nullable=False)
-    created_at         = Column(DateTime, default=datetime.utcnow)
+    created_at         = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("store_id", "game_number"),)
 
     packs = relationship("LotteryPack", backref="game")
@@ -85,7 +84,7 @@ class LotteryPack(Base):
     # pack; non-zero when a partially-sold pack moves stores/bins.
     opening_ticket = Column(Integer, nullable=False, default=0)
     created_by   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    created_at   = Column(DateTime, default=utc_now)
     __table_args__ = (UniqueConstraint("store_id", "game_id", "pack_number"),)
 
     counts = relationship(
@@ -108,7 +107,7 @@ class LotteryDayCount(Base):
     pack_id        = Column(Integer, ForeignKey("retail_lottery_pack.id"), nullable=False, index=True)
     closing_ticket = Column(Integer, nullable=False)
     created_by     = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
-    created_at     = Column(DateTime, default=datetime.utcnow)
+    created_at     = Column(DateTime, default=utc_now)
     __table_args__ = (
         UniqueConstraint("store_id", "report_date", "pack_id"),
     )

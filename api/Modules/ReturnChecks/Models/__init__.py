@@ -16,7 +16,7 @@ Status constants ``RETURN_CHECK_STATUSES`` and
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
 from sqlalchemy import (
     BigInteger, Column, Date, DateTime, ForeignKey, Integer, String, Text,
@@ -25,6 +25,7 @@ from sqlalchemy.orm import relationship
 
 from api.Core.Database import Base
 from api.Core.Money import to_cents, to_dollars
+from api.Core.Clock import utc_now
 
 
 # Status values for ``ReturnCheck.status``. Kept as module-level
@@ -107,9 +108,9 @@ class ReturnCheck(Base):
     status_changed_on = Column(Date,      nullable=True)
     notes           = Column(Text,        default="")
     created_by      = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
-    created_at      = Column(DateTime, default=datetime.utcnow)
-    updated_at      = Column(DateTime, default=datetime.utcnow,
-                              onupdate=datetime.utcnow)
+    created_at      = Column(DateTime, default=utc_now)
+    updated_at      = Column(DateTime, default=utc_now,
+                              onupdate=utc_now)
 
     payments = relationship(
         "ReturnCheckPayment",
@@ -222,7 +223,7 @@ class ReturnCheckPayment(Base):
         self.amount_cents = to_cents(dollars)  # type: ignore[assignment]
     created_by         = Column(Integer, ForeignKey("tenancy_user.id"),
                                  nullable=True)
-    created_at         = Column(DateTime, default=datetime.utcnow)
+    created_at         = Column(DateTime, default=utc_now)
 
 
 __all__ = [

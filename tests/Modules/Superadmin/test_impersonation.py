@@ -8,13 +8,13 @@ pin the whole loop: the cookie is set, the token says who is behind
 it, the shell can see it, every operator action records the
 superadmin, and the superadmin can step back out.
 """
-from datetime import datetime
 
 import jwt
 import pytest
 
 from tests._app import db, db_session
 from tests.conftest import login_superadmin
+from api.Core.Clock import utc_now
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def sa_headers(sa_token):
 
 def _mk_user(store_id, *, role="admin", active=True):
     from api.Modules.Tenancy.Models import User
-    stamp = datetime.utcnow().timestamp()
+    stamp = utc_now().timestamp()
     with db_session():
         u = User(
             username=f"imp-{role}-{store_id}-{stamp}@test.com",

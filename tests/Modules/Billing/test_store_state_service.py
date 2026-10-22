@@ -1,6 +1,7 @@
 """Unit tests for Billing.Services.store_state (PR 48)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import MagicMock
+from api.Core.Clock import utc_now
 
 
 def _store(*, plan="trial", addons=None, data_retention_until=None):
@@ -86,7 +87,7 @@ def test_data_retention_days_left_none_for_no_timer():
 def test_data_retention_days_left_future_returns_days():
     from api.Modules.Billing.Services import data_retention_days_left
     s = _store(
-        data_retention_until=datetime.utcnow() + timedelta(days=30),
+        data_retention_until=utc_now() + timedelta(days=30),
     )
     days = data_retention_days_left(s)
     # Allow ±1 for clock skew during the test
@@ -99,6 +100,6 @@ def test_data_retention_days_left_past_returns_zero():
     'Cancelled, data purges in N days' and N must be ≥ 0."""
     from api.Modules.Billing.Services import data_retention_days_left
     s = _store(
-        data_retention_until=datetime.utcnow() - timedelta(days=5),
+        data_retention_until=utc_now() - timedelta(days=5),
     )
     assert data_retention_days_left(s) == 0

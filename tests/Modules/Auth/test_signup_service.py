@@ -1,8 +1,9 @@
 """Unit tests for Auth.Services.signup (PR 39)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 # ── create_store_and_owner ──────────────────────────────────
@@ -77,7 +78,7 @@ def test_signup_sets_trial_window_defaults():
         )
         db.session.commit()
         # Trial ends roughly 7 days from now (allow 1-min skew)
-        delta = result.store.trial_ends_at - datetime.utcnow()
+        delta = result.store.trial_ends_at - utc_now()
         assert timedelta(days=6, hours=23) < delta <= timedelta(days=7, minutes=1)
         # Grace ends 4 days after trial
         gap = result.store.grace_ends_at - result.store.trial_ends_at
@@ -96,7 +97,7 @@ def test_signup_respects_custom_trial_window():
             trial_days=14, grace_days=7,
         )
         db.session.commit()
-        delta = result.store.trial_ends_at - datetime.utcnow()
+        delta = result.store.trial_ends_at - utc_now()
         assert timedelta(days=13, hours=23) < delta <= timedelta(days=14, minutes=1)
         assert (result.store.grace_ends_at - result.store.trial_ends_at) == timedelta(days=7)
 

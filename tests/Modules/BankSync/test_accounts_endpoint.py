@@ -3,8 +3,8 @@
 After SPA-29 the endpoint derives `store_id` from the JWT
 principal — explicit `store_ids` query params are gone.
 """
-from datetime import datetime
 from tests._app import db, db_session
+from api.Core.Clock import utc_now
 
 
 def _login(client, store_id):
@@ -33,7 +33,7 @@ def _seed_account(store_id, *, last4="0000", nickname="",
         last4=last4,
         enabled=enabled,
         last_balance_cents=12345,
-        last_balance_as_of=datetime.utcnow(),
+        last_balance_as_of=utc_now(),
     )
     db.session.add(a); db.session.commit()
     return a.id
