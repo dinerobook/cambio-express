@@ -52,17 +52,7 @@ export async function previewReferral(
   }
 }
 
-export interface SignupResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  user_id: number;
-  username: string;
-  full_name: string;
-  role: string;
-  store_id: number | null;
-  permissions: string[];
-}
+export type SignupResponse = components["schemas"]["SignupResponse"];
 
 export async function signup(body: SignupBody): Promise<SignupResponse> {
   return api<SignupResponse>(
@@ -92,13 +82,7 @@ export interface StoreLookup {
   slug: string;
 }
 
-export interface TotpEnrollStartResponse {
-  qr_svg:        string;
-  secret:        string;
-  secret_chunks: string;
-  username:      string;
-  issuer:        string;
-}
+export type TotpEnrollStartResponse = components["schemas"]["TotpEnrollStartResponse"];
 
 export async function totpEnrollStart(
   pending_token: string,
@@ -153,61 +137,15 @@ export function useTaxExportYears() {
   });
 }
 
-export interface StoreInfoRow {
-  id: number;
-  name: string;
-  slug: string;
-  email: string;
-  phone: string;
-  address: string;
-  plan: string;
-  federal_tax_rate: number;
-  sales_tax_rate: number;
-  is_active: boolean;
-  receipt_logo_url: string;
-  receipt_footer:   string;
-  receipt_tax_id:   string;
-  timezone:         string;
-  timezone_choices: string[];
-  store_hours:      StoreHourEntry[];
-  enforce_business_hours: boolean;
-  timeclock_require_passkey: boolean;
-  timeclock_geofence_lat:       number | null;
-  timeclock_geofence_lng:       number | null;
-  timeclock_geofence_radius_m:  number;
-  timeclock_require_geofence:   boolean;
-  timeclock_late_minutes_threshold: number;
-  legal_name:       string;
-  ein:              string;
-  business_address: string;
-  mt_companies:     MTCompanyEntry[];
-  /** The transfer form's countries, in order (Settings → Money
-   *  services). */
-  transfer_countries: string[];
-}
+export type StoreInfoRow = components["schemas"]["StoreInfoRow"];
 
 /** One money-transfer company on the store roster. `enabled: false`
  *  hides it from the daily book + transfer form without deleting
  *  the name (historical data keeps referencing it). `money_orders:
  *  false` leaves it off the daily book's Money orders tab only. */
-export interface MTCompanyEntry {
-  name:    string;
-  enabled: boolean;
-  /** Sells money orders: listed on the daily book's Money orders
-   *  tab. Every company starts with it on. */
-  money_orders: boolean;
-  /** What the company charges the store per money order, in
-   *  dollars. The Monthly P&L takes count × charge off the money
-   *  order fees. Omitted on a save keeps the saved value. */
-  money_order_charge?: number | null;
-}
+export type MTCompanyEntry = components["schemas"]["MTCompanyEntry"];
 
-export interface StoreHourEntry {
-  day:    number;
-  open:   string;
-  close:  string;
-  closed: boolean;
-}
+export type StoreHourEntry = components["schemas"]["StoreHourEntry"];
 
 export interface StoreInfoUpdateBody {
   name?: string;
@@ -239,19 +177,7 @@ export interface StoreInfoUpdateBody {
 // design-system default; light is opt-in.
 export type ThemePreference = "dark" | "light";
 
-export interface ProfileResponse {
-  user_id:           number;
-  username:          string;
-  role:              string;
-  full_name:         string;
-  email:             string;
-  phone:             string;
-  timezone:          string;
-  theme_preference:  ThemePreference;
-  created_at:        string;
-  last_login_at:     string;
-  timezone_choices:  string[];
-}
+export type ProfileResponse = components["schemas"]["ProfileResponse"];
 
 export interface ProfileUpdateBody {
   full_name?:        string;
@@ -346,12 +272,7 @@ export async function updateNotifications(
 
 // ── Push subscriptions ────────────────────────────────────
 
-export interface PushStatusResponse {
-  enabled:      boolean;
-  public_key:   string;
-  subscribed:   boolean;
-  device_count: number;
-}
+export type PushStatusResponse = components["schemas"]["PushStatusResponse"];
 
 export function usePushStatus() {
   return useQuery<PushStatusResponse>({
@@ -379,10 +300,7 @@ export function unsubscribePush(
 }
 
 
-export interface StoreInfoResponse {
-  store: StoreInfoRow;
-  referral_code: string | null;
-}
+export type StoreInfoResponse = components["schemas"]["StoreInfoResponse"];
 
 export function useStoreInfo() {
   const identity = getCurrentIdentity();
@@ -597,23 +515,11 @@ export function useMyActivity(filters: ActivityFilters = {}) {
 
 // ── Active sessions / devices ───────────────────────────────
 
-export interface ActiveSessionRow {
-  session_id:   string;
-  user_agent:   string;
-  ip_address:   string;
-  started_at:   string;
-  last_used_at: string;
-  expires_at:   string;
-  is_current:   boolean;
-}
+export type ActiveSessionRow = components["schemas"]["ActiveSessionRow"];
 
-export interface ActiveSessionsResponse {
-  sessions: ActiveSessionRow[];
-}
+export type ActiveSessionsResponse = components["schemas"]["ActiveSessionsResponse"];
 
-export interface SessionRevokeResponse {
-  revoked: number;
-}
+export type SessionRevokeResponse = components["schemas"]["SessionRevokeResponse"];
 
 export function useActiveSessions() {
   return useQuery<ActiveSessionsResponse>({

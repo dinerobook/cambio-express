@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import type { PillTone } from "../components/ui";
+import type { components } from "./openapi";
 
 /** Store.plan → Pill tone (UI-STANDARDS §3). A paying plan is live
  *  state (accent); a trial is expiring by definition (warning); an
@@ -86,9 +87,7 @@ export async function fetchSubscriptionSummary(): Promise<SubscriptionSummary> {
   return api<SubscriptionSummary>("/api/v2/admin/subscription");
 }
 
-export interface AddonToggleResponse {
-  is_active: boolean;
-}
+export type AddonToggleResponse = components["schemas"]["AddonToggleResponse"];
 
 export async function toggleAddon(
   addonKey: string,

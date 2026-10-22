@@ -13,35 +13,11 @@ import type { components } from "./openapi";
 export type TVDisplayCountryUpdateRequest =
   components["schemas"]["TVDisplayCountryUpdateRequest"];
 
-export interface TVDisplayCountryStat {
-  id: number;
-  country_code: string;
-  country_name: string;
-  sort_order: number;
-  mt_companies: string;
-  bank_count: number;
-  rate_count: number;
-}
+export type TVDisplayCountryStat = components["schemas"]["TVDisplayCountryStat"];
 
-export interface TVPairingSummary {
-  id: number;
-  device_label: string;
-  paired_at: string;
-  last_seen_at: string;
-}
+export type TVPairingSummary = components["schemas"]["TVPairingSummary"];
 
-export interface TVDisplayOverviewResponse {
-  display_id: number;
-  title: string;
-  subtitle: string;
-  orientation: string;
-  theme: string;
-  public_token: string;
-  public_url: string;
-  last_updated_at: string;
-  countries: TVDisplayCountryStat[];
-  active_pairing: TVPairingSummary | null;
-}
+export type TVDisplayOverviewResponse = components["schemas"]["TVDisplayOverviewResponse"];
 
 export function useTVDisplayOverview() {
   return useQuery<TVDisplayOverviewResponse>({
@@ -66,10 +42,7 @@ export function useSaveTVDisplaySettings() {
   });
 }
 
-export interface TVDisplayRegenerateTokenResponse {
-  public_token: string;
-  public_url: string;
-}
+export type TVDisplayRegenerateTokenResponse = components["schemas"]["TVDisplayRegenerateTokenResponse"];
 
 export function useRegenerateTVDisplayToken() {
   const qc = useQueryClient();
@@ -143,21 +116,9 @@ export function useDeleteTVDisplayCountry() {
 
 // ── Country detail (banks + rate matrix) ───────────────────
 
-export interface TVDisplayBankRow {
-  id: number;
-  bank_name: string;
-  sort_order: number;
-  rates: Record<string, number>;
-}
+export type TVDisplayBankRow = components["schemas"]["TVDisplayBankRow"];
 
-export interface TVDisplayCountryDetailResponse {
-  id: number;
-  country_code: string;
-  country_name: string;
-  sort_order: number;
-  mt_companies: string[];
-  banks: TVDisplayBankRow[];
-}
+export type TVDisplayCountryDetailResponse = components["schemas"]["TVDisplayCountryDetailResponse"];
 
 export function useTVDisplayCountryDetail(countryId: number) {
   return useQuery<TVDisplayCountryDetailResponse>({

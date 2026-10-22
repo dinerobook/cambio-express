@@ -201,6 +201,10 @@ Both files are checked in. Consume them with
 import type { components } from "./openapi";
 type AnnouncementRow = components["schemas"]["AnnouncementRow"];
 ```
-New code uses this instead of hand-written interfaces; the
-`src/api/*.ts` files that still hand-write types migrate on touch
-(`announcements.ts` is the canonical example).
+Never hand-write an interface the server already describes:
+`src/api/generatedTypes.test.ts` fails when an `export interface` in
+`src/api/` shares its name with a generated schema. The few kept by
+hand (fields Pydantic defaults make optional, a narrower literal union)
+are listed there with their reason. Shapes the server has no schema
+for (`dict` responses) still migrate on touch, by giving the route a
+response model. `announcements.ts` is the canonical example.

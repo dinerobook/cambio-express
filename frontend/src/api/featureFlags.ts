@@ -1,17 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { components } from "./openapi";
 
 // ── Feature Flags ───────────────────────────────────────────
 
-export interface FeatureFlagRow {
-  id: number;
-  key: string;
-  label: string;
-  description: string;
-  enabled_by_default: boolean;
-  created_at: string;
-}
+export type FeatureFlagRow = components["schemas"]["FeatureFlagRow"];
 
 interface FeatureFlagListResponse {
   rows: FeatureFlagRow[];
@@ -57,14 +51,7 @@ export async function deleteFeatureFlag(key: string): Promise<void> {
 
 // ── Store Overrides ─────────────────────────────────────────
 
-export interface StoreOverrideRow {
-  store_id: number;
-  store_slug: string;
-  store_name: string;
-  flag_key: string;
-  enabled: boolean;
-  updated_at: string;
-}
+export type StoreOverrideRow = components["schemas"]["StoreOverrideRow"];
 
 interface StoreOverrideListResponse {
   rows: StoreOverrideRow[];
@@ -108,24 +95,7 @@ export async function clearStoreOverride(
 
 // ── Discounts ───────────────────────────────────────────────
 
-export interface DiscountCodeRow {
-  id: number;
-  code: string;
-  label: string;
-  percent_off: number | null;
-  amount_off_cents: number | null;
-  value_label: string;
-  duration: string;
-  duration_in_months: number | null;
-  max_redemptions: number | null;
-  redeemed_count: number;
-  expires_at: string;
-  is_active: boolean;
-  is_redeemable: boolean;
-  stripe_coupon_id: string;
-  stripe_promotion_code_id: string;
-  created_at: string;
-}
+export type DiscountCodeRow = components["schemas"]["DiscountCodeRow"];
 
 interface DiscountCodeListResponse {
   rows: DiscountCodeRow[];

@@ -12,28 +12,11 @@ import type { components } from "./openapi";
 
 export type OwnerPeriod = "today" | "month" | "year";
 
-export interface OwnerStoreCompanyChip {
-  company: string;
-  count: number;
-  volume: number;
-}
+export type OwnerStoreCompanyChip = components["schemas"]["OwnerStoreCompanyChip"];
 
-export interface OwnerStoreRow {
-  store_id: number;
-  store_name: string;
-  store_slug: string;
-  transfer_count: number;
-  volume: number;
-  over_short: number;
-  report_count: number;
-  companies: OwnerStoreCompanyChip[];
-}
+export type OwnerStoreRow = components["schemas"]["OwnerStoreRow"];
 
-export interface OwnerLocationsResponse {
-  rows: OwnerStoreRow[];
-  total: number;
-  matched: number;
-}
+export type OwnerLocationsResponse = components["schemas"]["OwnerLocationsResponse"];
 
 export function useOwnerLocations(period: OwnerPeriod = "month", q = "") {
   const identity = getCurrentIdentity();
@@ -55,51 +38,15 @@ export function useOwnerLocations(period: OwnerPeriod = "month", q = "") {
 }
 
 
-export interface OwnerPLRollupRow {
-  store_id: number;
-  store_name: string;
-  store_slug: string;
-  has_pl: boolean;
-  revenue: number;
-  purchases: number;
-  expenses: number;
-  over_short: number;
-  net: number;
-}
+export type OwnerPLRollupRow = components["schemas"]["OwnerPLRollupRow"];
 
-export interface OwnerPLRollupTotals {
-  revenue: number;
-  purchases: number;
-  expenses: number;
-  over_short: number;
-  net: number;
-}
+export type OwnerPLRollupTotals = components["schemas"]["OwnerPLRollupTotals"];
 
-export interface OwnerPLRollupResponse {
-  year: number;
-  month: number;
-  rows: OwnerPLRollupRow[];
-  totals: OwnerPLRollupTotals;
-  year_choices: number[];
-}
+export type OwnerPLRollupResponse = components["schemas"]["OwnerPLRollupResponse"];
 
-export interface OwnerConnectCodeRow {
-  id:                  number;
-  code:                string;
-  created_at:          string;
-  expires_at:          string;
-  used_at:             string;
-  used_by_store_name:  string;
-  revoked_at:          string;
-  is_redeemed:         boolean;
-  is_revoked:          boolean;
-  is_expired:          boolean;
-}
+export type OwnerConnectCodeRow = components["schemas"]["OwnerConnectCodeRow"];
 
-export interface OwnerConnectCodeListResponse {
-  rows:  OwnerConnectCodeRow[];
-  total: number;
-}
+export type OwnerConnectCodeListResponse = components["schemas"]["OwnerConnectCodeListResponse"];
 
 export function useOwnerConnectCodes() {
   const identity = getCurrentIdentity();
@@ -266,19 +213,9 @@ export interface OwnerBulkAddUserBody {
   store_ids: number[];
 }
 
-export interface OwnerBulkAddUserResultRow {
-  store_id:   number;
-  store_name: string;
-  status:     "created" | "skipped" | "rejected";
-  detail:     string;
-}
+export type OwnerBulkAddUserResultRow = components["schemas"]["OwnerBulkAddUserResultRow"];
 
-export interface OwnerBulkAddUserResponse {
-  created:  number;
-  skipped:  number;
-  rejected: number;
-  results:  OwnerBulkAddUserResultRow[];
-}
+export type OwnerBulkAddUserResponse = components["schemas"]["OwnerBulkAddUserResponse"];
 
 export async function bulkAddUser(
   body: OwnerBulkAddUserBody,
@@ -313,18 +250,9 @@ export interface OwnerCrossStoreDefaultsBody {
   address?:                   string;
 }
 
-export interface OwnerCrossStoreResultRow {
-  store_id:   number;
-  store_name: string;
-  status:     "updated" | "rejected";
-  detail:     string;
-}
+export type OwnerCrossStoreResultRow = components["schemas"]["OwnerCrossStoreResultRow"];
 
-export interface OwnerCrossStoreResponse {
-  updated:  number;
-  rejected: number;
-  results:  OwnerCrossStoreResultRow[];
-}
+export type OwnerCrossStoreResponse = components["schemas"]["OwnerCrossStoreResponse"];
 
 export async function applyCrossStoreDefaults(
   body: OwnerCrossStoreDefaultsBody,

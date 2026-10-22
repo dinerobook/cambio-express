@@ -2,40 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { components } from "./openapi";
 
 // Per-store admin endpoints — distinct from `account.ts` (store-info,
 // team, passkeys) and `superadmin.ts` (platform-wide). New admin
 // Controllers belong here too.
 
-export interface AdminAuditRow {
-  ts:           string;
-  user_name:    string;
-  user_role:    string;
-  action:       string;
-  target_type:  string;
-  target_id:    string;
-  target_label: string;
-  summary:      string;
-  source:       string;
-}
+export type AdminAuditRow = components["schemas"]["AdminAuditRow"];
 
-export interface AdminAuditUserOption {
-  id:    number;
-  label: string;
-  role:  string;
-}
+export type AdminAuditUserOption = components["schemas"]["AdminAuditUserOption"];
 
-export interface AdminAuditLogResponse {
-  rows:           AdminAuditRow[];
-  total:          number;
-  page:           number;
-  per_page:       number;
-  total_pages:    number;
-  store_users:    AdminAuditUserOption[];
-  target_filter:  string;
-  action_filter:  string;
-  user_filter:    string;
-}
+export type AdminAuditLogResponse = components["schemas"]["AdminAuditLogResponse"];
 
 export function useAdminAuditLog(
   page: number, target: string, action: string, user: string,
@@ -59,24 +36,9 @@ export function useAdminAuditLog(
 }
 
 
-export interface ReferralRedemptionRow {
-  redeemed_at:            string;
-  referee_store_id:       number;
-  self_credit_applied:    boolean;
-  referee_credit_applied: boolean;
-  stripe_self_txn_id:     string;
-}
+export type ReferralRedemptionRow = components["schemas"]["ReferralRedemptionRow"];
 
-export interface ReferralCodeResponse {
-  code:                  string;
-  is_active:             boolean;
-  reward_self_cents:     number;
-  reward_referee_cents:  number;
-  redeemed_count:        number;
-  credits_earned_cents:  number;
-  share_url:             string;
-  redemptions:           ReferralRedemptionRow[];
-}
+export type ReferralCodeResponse = components["schemas"]["ReferralCodeResponse"];
 
 export function useReferralCode() {
   return useQuery<ReferralCodeResponse>({
@@ -88,39 +50,11 @@ export function useReferralCode() {
 
 // ── Per-store user management ──────────────────────────────
 
-export interface AdminUserRow {
-  id:         number;
-  username:   string;
-  full_name:  string;
-  role:       string;
-  is_active:  boolean;
-  created_at: string;
-  // null = every module the store has; a list restricts this
-  // user's visible modules (U-3).
-  module_access: string[] | null;
-  // R-1: true when the user carries a custom-access permission
-  // overlay instead of pure role permissions.
-  has_custom_permissions: boolean;
-  // R-3: the saved access role this user follows, if any. The
-  // roster shows the role's NAME rather than a generic
-  // "Custom access" pill.
-  store_role_id?: number | null;
-  store_role_name?: string;
-  // Rank rule: false when this account outranks the viewer (the
-  // owner's login seen by an admin). The form goes read-only.
-  can_manage?: boolean;
-}
+export type AdminUserRow = components["schemas"]["AdminUserRow"];
 
-export interface AdminUserListResponse {
-  rows: AdminUserRow[];
-  // Account types the viewer may hand out (at or below their own
-  // rank) — the picker offers only these.
-  assignable_roles?: string[];
-}
+export type AdminUserListResponse = components["schemas"]["AdminUserListResponse"];
 
-export interface AdminUserDetailResponse {
-  user: AdminUserRow;
-}
+export type AdminUserDetailResponse = components["schemas"]["AdminUserDetailResponse"];
 
 export interface AdminUserCreateBody {
   // Identity (L-2): the person signs in with their email or phone.

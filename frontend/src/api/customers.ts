@@ -9,6 +9,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { components } from "./openapi";
 
 export interface CustomerRow {
   id: number;
@@ -54,11 +55,7 @@ export function useCustomerSearch(q: string) {
 
 // ── Merge ────────────────────────────────────────────────────
 
-export interface CustomerMergeResponse {
-  winner_id:           number;
-  loser_id:            number;
-  transfers_repointed: number;
-}
+export type CustomerMergeResponse = components["schemas"]["CustomerMergeResponse"];
 
 /** Merge ``loser_id`` into ``winner_id``. All Transfers pointing
  *  at the loser get re-pointed at the winner, then the loser row

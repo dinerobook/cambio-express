@@ -10,6 +10,7 @@ import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { AdminAuditRow } from "./admin";
 import type { PillTone } from "../components/ui";
+import type { components } from "./openapi";
 
 /** Resend email event → Pill tone for the superadmin email log.
  *  Delivered / opened / clicked are completed outcomes (success),
@@ -24,32 +25,7 @@ export const EMAIL_EVENT_TONES: Record<string, PillTone> = {
   "email.complained":       "negative",
 };
 
-// Detail row used by the create/edit form. Superset of the list-
-// view row: includes address + federal_tax_rate which the table
-// doesn't show but the form binds against.
-export interface SuperadminStoreDetail {
-  store_id: number;
-  name: string;
-  slug: string;
-  email: string;
-  phone: string;
-  address: string;
-  plan: string;
-  business_type: string;
-  billing_cycle: string;
-  is_active: boolean;
-  federal_tax_rate: number;
-  created_at: string;
-  trial_ends_at: string;
-  grace_ends_at: string;
-  data_retention_until: string;
-  stripe_customer_id: string;
-  stripe_subscription_id: string;
-}
-
-export interface SuperadminStoreDetailResponse {
-  store: SuperadminStoreDetail;
-}
+export type SuperadminStoreDetailResponse = components["schemas"]["SuperadminStoreDetailResponse"];
 
 // POST body — mirrors the legacy form. `plan` defaults to "trial"
 // server-side if omitted, but we always send it to avoid relying
@@ -82,29 +58,9 @@ export interface SuperadminStoreUpdateBody {
   federal_tax_rate?: number;
 }
 
-export interface SuperadminStoreRow {
-  store_id: number;
-  name: string;
-  slug: string;
-  email: string;
-  phone: string;
-  plan: string;
-  billing_cycle: string;
-  is_active: boolean;
-  created_at: string;
-  trial_ends_at: string;
-  grace_ends_at: string;
-  data_retention_until: string;
-  stripe_customer_id: string;
-  stripe_subscription_id: string;
-}
+export type SuperadminStoreRow = components["schemas"]["SuperadminStoreRow"];
 
-export interface SuperadminStoreListResponse {
-  rows: SuperadminStoreRow[];
-  total: number;
-  page?: number;
-  total_pages?: number;
-}
+export type SuperadminStoreListResponse = components["schemas"]["SuperadminStoreListResponse"];
 
 export function useSuperadminStores() {
   const identity = getCurrentIdentity();
@@ -138,24 +94,9 @@ export function useSuperadminStoresPage(opts: {
 }
 
 
-export interface SuperadminAuditRow {
-  id: number;
-  admin_id: number | null;
-  admin_name: string;
-  action: string;
-  target_type: string;
-  target_id: string;
-  details: string;
-  created_at: string;
-}
+export type SuperadminAuditRow = components["schemas"]["SuperadminAuditRow"];
 
-export interface SuperadminAuditListResponse {
-  rows: SuperadminAuditRow[];
-  total: number;
-  page: number;
-  per_page: number;
-  total_pages: number;
-}
+export type SuperadminAuditListResponse = components["schemas"]["SuperadminAuditListResponse"];
 
 // Single-store detail (used by the edit-form prefill). Disabled
 // when storeId is null/undefined so the create-form path skips
@@ -217,24 +158,11 @@ export function useSuperadminAuditLog(
 
 // ── Report center ───────────────────────────────────────────
 
-export interface SuperadminReportRow {
-  key: string;
-  label: string;
-  description: string;
-  url: string | null;
-  status: string;  // "ready" | "coming_soon"
-}
+export type SuperadminReportRow = components["schemas"]["SuperadminReportRow"];
 
-export interface SuperadminReportCategory {
-  key: string;
-  label: string;
-  icon: string;  // inline stroke SVG
-  reports: SuperadminReportRow[];
-}
+export type SuperadminReportCategory = components["schemas"]["SuperadminReportCategory"];
 
-export interface SuperadminReportListResponse {
-  categories: SuperadminReportCategory[];
-}
+export type SuperadminReportListResponse = components["schemas"]["SuperadminReportListResponse"];
 
 export function useSuperadminReports() {
   const identity = getCurrentIdentity();
@@ -667,17 +595,9 @@ export async function bulkStoreAction(
 
 // ── Owner links (U-5b concierge onboarding) ────────────────
 
-export interface SuperadminOwnerLinkRow {
-  owner_id:  number;
-  username:  string;
-  full_name: string;
-  is_active: boolean;
-  linked_at: string;
-}
+export type SuperadminOwnerLinkRow = components["schemas"]["SuperadminOwnerLinkRow"];
 
-export interface SuperadminOwnerLinkListResponse {
-  rows: SuperadminOwnerLinkRow[];
-}
+export type SuperadminOwnerLinkListResponse = components["schemas"]["SuperadminOwnerLinkListResponse"];
 
 export function useStoreOwnerLinks(storeId: number | undefined) {
   return useQuery<SuperadminOwnerLinkListResponse>({

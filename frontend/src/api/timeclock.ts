@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import type { PillTone } from "../components/ui";
+import type { components } from "./openapi";
 
 export type TimeClockStatus = "pending" | "approved" | "rejected";
 
@@ -46,9 +47,7 @@ export interface TimeClockStatusResponse {
   open_entries: TimeClockEntryRow[];
 }
 
-export interface TimeClockPunchResponse {
-  entry: TimeClockEntryRow;
-}
+export type TimeClockPunchResponse = components["schemas"]["TimeClockPunchResponse"];
 
 export interface TimeClockEntryList {
   rows:                   TimeClockEntryRow[];
@@ -175,18 +174,9 @@ export function adminDeleteEntry(id: number): Promise<void> {
   });
 }
 
-export interface TimeClockHistoryRow {
-  id:         number;
-  at:         string;     // ISO-8601 UTC
-  actor:      string;
-  actor_role: string;
-  action:     string;
-  summary:    string;
-}
+export type TimeClockHistoryRow = components["schemas"]["TimeClockHistoryRow"];
 
-export interface TimeClockHistoryResponse {
-  rows: TimeClockHistoryRow[];
-}
+export type TimeClockHistoryResponse = components["schemas"]["TimeClockHistoryResponse"];
 
 export function useTimeClockHistory(entryId: number | null) {
   return useQuery<TimeClockHistoryResponse>({
@@ -202,23 +192,11 @@ export function useTimeClockHistory(entryId: number | null) {
 
 // ── Passkey-required punch (v2 anti-buddy-punching) ─────────
 
-export interface TimeClockCredentialRow {
-  store_employee_id: number;
-  employee_name:     string;
-  has_passkey:       boolean;
-  name:              string;
-  registered_at:     string;
-  last_used_at:      string;
-}
+export type TimeClockCredentialRow = components["schemas"]["TimeClockCredentialRow"];
 
-export interface TimeClockCredentialList {
-  rows: TimeClockCredentialRow[];
-}
+export type TimeClockCredentialList = components["schemas"]["TimeClockCredentialList"];
 
-export interface PunchChallengeResponse {
-  options_json: string;
-  assert_token: string;
-}
+export type PunchChallengeResponse = components["schemas"]["PunchChallengeResponse"];
 
 export interface RegisterBeginResponse {
   options_json:   string;
@@ -275,25 +253,9 @@ export function adminDeleteCredential(
 
 // ── Paystub (v2 payroll) ────────────────────────────────────
 
-export interface PaystubShiftRow {
-  id:            number;
-  clock_in_at:   string;
-  clock_out_at:  string | null;
-  hours_worked:  number | null;
-  status:        TimeClockStatus;
-  notes:         string;
-}
+export type PaystubShiftRow = components["schemas"]["PaystubShiftRow"];
 
-export interface PaystubResponse {
-  store_employee_id: number;
-  employee_name:     string;
-  hourly_rate:       number;
-  approved_hours:    number;
-  gross_pay:         number;
-  from_date:         string;
-  to_date:           string;
-  shifts:            PaystubShiftRow[];
-}
+export type PaystubResponse = components["schemas"]["PaystubResponse"];
 
 export function usePaystub(
   storeEmployeeId: number | null, from: string, to: string,
@@ -343,19 +305,9 @@ export function useStopBreakMutation() {
 
 // ── Shift scheduling (v2) ──────────────────────────────────
 
-export interface ShiftRow {
-  id:                number;
-  store_employee_id: number;
-  employee_name:     string;
-  shift_date:        string;  // "YYYY-MM-DD"
-  start_time:        string;  // "HH:MM:SS"
-  end_time:          string;  // "HH:MM:SS"
-  notes:             string;
-}
+export type ShiftRow = components["schemas"]["ShiftRow"];
 
-export interface ShiftList {
-  rows: ShiftRow[];
-}
+export type ShiftList = components["schemas"]["ShiftList"];
 
 export interface ShiftCreateInput {
   store_employee_id: number;
