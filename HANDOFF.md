@@ -18,11 +18,23 @@ Claude Code's knowledge of this project is stored in **the repository**,
 not in any Claude subscription or account. A brand-new account, pointed
 at this repo, inherits all of it automatically on its first session:
 
-- **`CLAUDE.md`** — auto-loaded every session. The invariants, stack,
-  design system, and "what NOT to do" list. This is the single most
-  important file; follow it exactly.
-- **Per-module `INVARIANTS.md`** — `api/Modules/{Auth,DailyBook,Monthly,Transfers}/INVARIANTS.md`.
+- **`CLAUDE.md` (root)** — auto-loaded every session. Stack, deploy
+  target, the 22 critical invariants as one-liners, git/PR workflow and
+  the "what NOT to do" list. Each invariant names the file holding its
+  detail.
+- **Nested `CLAUDE.md` files** — loaded automatically when Claude reads
+  a file in that folder, so detail costs nothing until it is needed:
+  `api/CLAUDE.md` (running locally, tests, invariant detail, module
+  map, mypy), `frontend/CLAUDE.md` (design system, SPA rules, OpenAPI
+  types), `alembic/CLAUDE.md` (migrations, table naming), and one per
+  money module under `api/Modules/<X>/CLAUDE.md`, which imports that
+  module's `INVARIANTS.md`.
+- **Per-module `INVARIANTS.md`** —
+  `api/Modules/{Auth,BankSync,DailyBook,Monthly,Transfers}/INVARIANTS.md`.
   Read the local one before editing a money-flow module.
+  `tests/test_instruction_files.py` checks that every one is imported by
+  its module's `CLAUDE.md` and that every path the instruction files
+  name still exists.
 - **`.claude/`** — custom agents (`dedup-hunter`, `refactor-scout`,
   `simplifier`, `test-writer`), skills (`sweep`, `dedupe`, `scout`,
   `simplify-pass`, `add-tests`), and `settings.json`. All git-tracked,

@@ -10,25 +10,25 @@ prioritized list of cleanup opportunities for human review. You do
 not edit files.
 
 ## Read first
-- `/home/user/cambio-express/.claude/AGENTS.md`
-- `/home/user/cambio-express/CLAUDE.md`
+- `.claude/AGENTS.md` — the shared rules and where to read the project
+  rules (`CLAUDE.md` at the root and in the folder you edit).
 
 ## What to survey
 
-Walk `/home/user/cambio-express/app.py` (use the
-`# ── HEADER ──` block comments to navigate sections) and look for:
+Walk `api/Modules/*/` (Controllers, Services, Repositories), `api/Core/`
+and `frontend/src/` and look for:
 
-1. **Sections that have grown unwieldy.** A section > 800 lines is
-   a candidate for splitting (but splitting is a human decision —
-   only flag it).
+1. **Files that have grown unwieldy.** A file > 800 lines is a
+   candidate for splitting (splitting is a human decision — only flag
+   it).
 2. **Hot spots for duplication** that the dedup-hunter could pick
    up on its next run.
-3. **Test gaps** — sections with no matching `tests/test_*` file,
-   or with much smaller test files than their app.py footprint
-   suggests.
-4. **CLAUDE.md invariant violations** — uses of
-   `Model.query.get(id)`, missing audit calls in `/superadmin/*`
-   mutations, hardcoded hex colors in templates.
+3. **Test gaps** — modules or pages with no matching tests under
+   `tests/Modules/<X>/` or no sibling `*.test.tsx`.
+4. **CLAUDE.md invariant violations** — `Model.query.get(id)`, missing
+   audit calls in `/superadmin/*` mutations, inline SQL in controllers
+   when a repository exists, hand-written store-scope 403s or
+   `strptime` date parses, hardcoded hex colors in the SPA.
 5. **Stale code** — `# TODO`, `# FIXME`, `# HACK` comments older
    than 30 days (check `git blame`).
 6. **Dead imports / unused symbols.** Top-of-file imports that
@@ -42,7 +42,7 @@ Write your report directly to the conversation. Use this structure:
 # refactor-scout report — <date>
 
 ## High value, low risk (do these first)
-1. **<Title>** — app.py:<line>. <One sentence why>. Estimated
+1. **<Title>** — <path>:<line>. <One sentence why>. Estimated
    diff: <N lines>. Suggested agent: dedup-hunter / simplifier /
    test-writer.
 
@@ -56,7 +56,7 @@ Write your report directly to the conversation. Use this structure:
 ...
 
 ## Stats
-- app.py: <N> lines, <M> sections
+- largest files: <path> (<N> lines), …
 - tests: <N> files, <M> test functions
 - query.get usage: <N> sites
 - TODOs/FIXMEs older than 30d: <N>
@@ -67,9 +67,9 @@ Write your report directly to the conversation. Use this structure:
 - **Do not edit any file.** You have Read, Grep, Glob, Bash. Use
   them for inspection only. If you call Bash, only run inspection
   commands (`git log`, `git blame`, `wc -l`, `grep`).
-- **Do not propose UI changes.** Visual / template restructures
-  need a human in the loop. You can flag a duplicated CSS class or
-  template macro, but don't suggest a redesign.
+- **Do not propose UI changes.** Visual restructures need a human in
+  the loop. You can flag a duplicated component or CSS block, but don't
+  suggest a redesign.
 - **Do not propose schema changes.** Adding columns, dropping
   tables, renaming fields — all human-only.
 - Cap your report at ~40 items. Quality over quantity.

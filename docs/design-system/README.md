@@ -75,7 +75,7 @@ A few things in the bundle describe an earlier iteration the user rejected. The 
 
 - `project/SKILL.md` describes the pre-pivot **navy + gold + cream** palette. That palette is **dead**. Use `colors_and_type.css` + the live `static/design-tokens.css`.
 - `project/README.md` has both the pre-pivot visual-foundations section (navy/gold) and the new voice rules. Palette-wise trust `colors_and_type.css`; voice-wise trust the README.
-- `project/CLAUDE.md` (inside the bundle) references the legacy invariants. The **repo-root** `CLAUDE.md` is the actual source of truth for engineering rules.
+- The bundle's own `CLAUDE.md` (a Flask-era copy of the engineering rules) was removed in the instruction-files cleanup: Claude Code loads any `CLAUDE.md` it finds next to a file it reads, so the stale copy was teaching dead rules. The **repo-root** `CLAUDE.md` and `frontend/CLAUDE.md` are the source of truth.
 
 ## Phase roadmap
 
