@@ -1495,12 +1495,11 @@ def test_paystub_rejects_inverted_window(client, test_store_id):
 
 
 def test_team_create_accepts_hourly_rate(client, test_store_id):
-    """The Settings → Team create endpoint accepts hourly_rate
-    so the admin can set it at the same time as the cashier
-    name."""
+    """The employees create endpoint accepts hourly_rate so the
+    admin can set it at the same time as the cashier name."""
     token = _login(client, test_store_id)
     resp = client.post(
-        "/api/v2/admin/team",
+        "/api/v2/admin/employees",
         json={"name": "Rate Setter", "hourly_rate": 22.75},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -1510,13 +1509,13 @@ def test_team_create_accepts_hourly_rate(client, test_store_id):
 
 
 def test_team_update_changes_hourly_rate(client, test_store_id):
-    """A PATCH on the team endpoint can flip the rate without
+    """A PATCH on the employee can flip the rate without
     touching the name."""
     with db_session():
         emp = _seed_employee(test_store_id, name="Bump Rate")
     token = _login(client, test_store_id)
-    resp = client.put(
-        f"/api/v2/admin/team/{emp}",
+    resp = client.patch(
+        f"/api/v2/admin/employees/{emp}",
         json={"hourly_rate": 30.0},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -1527,7 +1526,7 @@ def test_team_update_changes_hourly_rate(client, test_store_id):
 def test_team_rejects_negative_rate(client, test_store_id):
     token = _login(client, test_store_id)
     resp = client.post(
-        "/api/v2/admin/team",
+        "/api/v2/admin/employees",
         json={"name": "Neg Rate", "hourly_rate": -1.0},
         headers={"Authorization": f"Bearer {token}"},
     )

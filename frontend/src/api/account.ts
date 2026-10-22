@@ -441,15 +441,6 @@ export async function updateStoreInfo(
   );
 }
 
-// ── Team roster ────────────────────────────────────────────
-
-export interface TeamMemberRow {
-  id:          number;
-  name:        string;
-  is_active:   boolean;
-  hourly_rate: number;
-}
-
 export async function forgotPassword(
   email: string,
 ): Promise<{ status: string }> {

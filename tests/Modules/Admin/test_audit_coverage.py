@@ -93,81 +93,47 @@ def test_update_store_info_no_op_skips_audit(client, test_store_id):
     assert after == before
 
 
-# ── Admin: team roster ──────────────────────────────────────
+# ── Admin: employee roster ──────────────────────────────────
 
 
-def test_create_team_member_emits_audit_row(client, test_store_id):
+def test_create_employee_emits_audit_row(client, test_store_id):
     token = _login_admin(client, test_store_id)
     resp = client.post(
-        "/api/v2/admin/team",
+        "/api/v2/admin/employees",
         json={"name": "Audit-Test Cashier", "hourly_rate": 15.0},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 201
-    row = _latest_audit_row(test_store_id, "create_team_member")
+    row = _latest_audit_row(test_store_id, "create_employee")
     assert row is not None
     assert "Audit-Test Cashier" in (row.target_label or "")
 
 
-def test_update_team_member_emits_rename_audit(client, test_store_id):
+def test_update_employee_audit_names_the_changed_fields(
+    client, test_store_id,
+):
+    """Rename and deactivate each leave a row that says what moved."""
     token = _login_admin(client, test_store_id)
-    create = client.post(
-        "/api/v2/admin/team",
-        json={"name": "Pre-Rename", "hourly_rate": 0.0},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    employee_id = create.get_json()["id"]
-    resp = client.put(
-        f"/api/v2/admin/team/{employee_id}",
-        json={"name": "Post-Rename"},
-        headers={"Authorization": f"Bearer {token}"},
+    h = {"Authorization": f"Bearer {token}"}
+    employee_id = client.post(
+        "/api/v2/admin/employees", json={"name": "Pre-Rename"}, headers=h,
+    ).get_json()["id"]
+    resp = client.patch(
+        f"/api/v2/admin/employees/{employee_id}",
+        json={"name": "Post-Rename"}, headers=h,
     )
     assert resp.status_code == 200
-    row = _latest_audit_row(test_store_id, "update_team_member")
+    row = _latest_audit_row(test_store_id, "update_employee")
     assert row is not None
     assert "name" in (row.summary or "")
 
-
-def test_update_team_member_emits_reactivate_action(client, test_store_id):
-    """Reactivation gets its own action label so the audit feed
-    distinguishes "fired" vs "rehired" at a glance."""
-    token = _login_admin(client, test_store_id)
-    create = client.post(
-        "/api/v2/admin/team",
-        json={"name": "Boomerang Cashier"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    employee_id = create.get_json()["id"]
-    # Deactivate first so reactivation is the operation under test.
-    client.delete(
-        f"/api/v2/admin/team/{employee_id}",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    resp = client.put(
-        f"/api/v2/admin/team/{employee_id}",
-        json={"is_active": True},
-        headers={"Authorization": f"Bearer {token}"},
+    resp = client.patch(
+        f"/api/v2/admin/employees/{employee_id}",
+        json={"is_active": False}, headers=h,
     )
     assert resp.status_code == 200
-    row = _latest_audit_row(test_store_id, "reactivate_team_member")
-    assert row is not None
-
-
-def test_deactivate_team_member_emits_audit_row(client, test_store_id):
-    token = _login_admin(client, test_store_id)
-    create = client.post(
-        "/api/v2/admin/team",
-        json={"name": "Goodbye Cashier"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    employee_id = create.get_json()["id"]
-    resp = client.delete(
-        f"/api/v2/admin/team/{employee_id}",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 204
-    row = _latest_audit_row(test_store_id, "deactivate_team_member")
-    assert row is not None
+    row = _latest_audit_row(test_store_id, "update_employee")
+    assert "is_active" in (row.summary or "")
 
 
 # ── Admin: subscription add-ons ─────────────────────────────

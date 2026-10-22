@@ -22,12 +22,6 @@ from api.Modules.Admin.Requests.store_info import (
 from api.Modules.Admin.Requests.tax_export import (
     TaxExportYearsResponse,
 )
-from api.Modules.Admin.Requests.team import (
-    TeamListResponse,
-    TeamMemberCreateRequest,
-    TeamMemberRow,
-    TeamMemberUpdateRequest,
-)
 from api.Modules.Admin.Requests.users import (
     AdminUserCreateRequest,
     AdminUserDetailResponse,
@@ -55,8 +49,4 @@ __all__ = [
     "StoreInfoRow",
     "StoreInfoUpdateRequest",
     "TaxExportYearsResponse",
-    "TeamListResponse",
-    "TeamMemberCreateRequest",
-    "TeamMemberRow",
-    "TeamMemberUpdateRequest",
 ]

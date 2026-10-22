@@ -119,28 +119,26 @@ def test_redeem_connect_code_denied_for_employee(client, test_store_id):
         assert db.session.query(StoreOwnerLink).count() == 0
 
 
-# ── Team roster + employees hub: 404 / validation ───────────────
+# ── Employees hub: 404 / validation ─────────────────────────────
 
-def test_team_member_blank_rename_and_missing_ids(client, test_store_id):
+def test_employee_blank_rename_and_missing_ids(client, test_store_id):
     token = login_admin(client, test_store_id)
-    made = client.post("/api/v2/admin/team", headers=_h(token),
+    made = client.post("/api/v2/admin/employees", headers=_h(token),
                        json={"name": "Gap Member"})
     assert made.status_code == 201
     mid = made.get_json()["id"]
 
-    blank = client.put(f"/api/v2/admin/team/{mid}", headers=_h(token),
-                       json={"name": "   "})
+    blank = client.patch(f"/api/v2/admin/employees/{mid}",
+                         headers=_h(token), json={"name": "   "})
     assert blank.status_code == 422
     with db_session():
         assert db.session.get(StoreEmployee, mid).name == "Gap Member"
 
-    assert client.put("/api/v2/admin/team/99999", headers=_h(token),
-                      json={"name": "x"}).status_code == 404
-    assert client.delete("/api/v2/admin/team/99999",
-                         headers=_h(token)).status_code == 404
+    assert client.patch("/api/v2/admin/employees/99999", headers=_h(token),
+                        json={"name": "x"}).status_code == 404
 
 
-def test_team_and_employee_rows_of_other_store_are_404(client, test_store_id):
+def test_employee_rows_of_other_store_are_404(client, test_store_id):
     with db_session():
         other = Store(name="Gap Other", slug="gap-other", is_active=True)
         db.session.add(other)
@@ -150,8 +148,6 @@ def test_team_and_employee_rows_of_other_store_are_404(client, test_store_id):
         db.session.commit()
         fid = foreign.id
     token = login_admin(client, test_store_id)
-    assert client.delete(f"/api/v2/admin/team/{fid}",
-                         headers=_h(token)).status_code == 404
     assert client.patch(f"/api/v2/admin/employees/{fid}", headers=_h(token),
                         json={"name": "Hijack"}).status_code == 404
     assert client.post(f"/api/v2/admin/employees/{fid}/link",

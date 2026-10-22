@@ -29,7 +29,6 @@ from api.Modules.Admin.Repositories import (
     find_store_user,
     find_team_member,
     list_store_users,
-    list_team,
 )
 
 from api.Modules.Admin.Requests.employees import (
@@ -67,10 +66,6 @@ from api.Modules.Admin.Requests import (
     StoreInfoRow,
     StoreInfoUpdateRequest,
     TaxExportYearsResponse,
-    TeamListResponse,
-    TeamMemberCreateRequest,
-    TeamMemberRow,
-    TeamMemberUpdateRequest,
 )
 from api.Modules.Admin.Services import (
     SelfDemotionError,
@@ -79,7 +74,6 @@ from api.Modules.Admin.Services import (
     add_team_member,
     build_tax_pack_zip,
     create_store_user,
-    deactivate_team_member,
     get_referral_payload,
     list_audit_rows,
     tax_export_default_year,
@@ -227,141 +221,13 @@ def update_store_info_route(
     return StoreInfoResponse(store=_to_row(store))
 
 
-# ── Team roster ─────────────────────────────────────────────
-
-
-def _team_row(e) -> TeamMemberRow:
-    return TeamMemberRow(
-        id=e.id, name=e.name or "", is_active=bool(e.is_active),
-        hourly_rate=float(getattr(e, "hourly_rate", 0.0) or 0.0),
-    )
-
-
-@router.get("/team", response_model=TeamListResponse)
-def list_team_route(
-    db: Session = Depends(get_db),
-    claims: dict[str, Any] = Depends(get_principal),
-) -> TeamListResponse:
-    """All StoreEmployee rows for the JWT principal's store
-    (active + inactive). Inactive rows are surfaced so the
-    admin can reactivate them — the legacy "Processed by"
-    dropdown filters to active separately."""
-    require_permission(claims, "users", "read")
-    store_id = resolve_store_scope(claims)
-    rows = list_team(db, store_id)
-    return TeamListResponse(members=[_team_row(r) for r in rows])
-
-
-@router.post(
-    "/team", response_model=TeamMemberRow, status_code=201,
-)
-def create_team_member_route(
-    body: TeamMemberCreateRequest,
-    db: Session = Depends(get_db),
-    claims: dict[str, Any] = Depends(get_principal),
-) -> TeamMemberRow:
-    """Create a new active StoreEmployee row."""
-    require_permission(claims, "users", "create")
-    store_id = resolve_store_scope(claims)
-    try:
-        row = add_team_member(
-            db, store_id, body.name, hourly_rate=body.hourly_rate,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    _audit_admin_action(
-        db, claims=claims, action="create_team_member",
-        target_type="team_member",
-        target_id=str(row.id),
-        target_label=(row.name or "")[:160],
-        summary=f"created at hourly_rate={float(row.hourly_rate or 0.0):.2f}",
-    )
-    db.commit()
-    return _team_row(row)
-
-
-@router.put(
-    "/team/{employee_id}", response_model=TeamMemberRow,
-)
-def update_team_member_route(
-    employee_id: int = Path(..., ge=1),
-    body: TeamMemberUpdateRequest = ...,
-    db: Session = Depends(get_db),
-    claims: dict[str, Any] = Depends(get_principal),
-) -> TeamMemberRow:
-    """Rename and/or toggle active. Cross-store IDs → 404
-    (opaque tenancy)."""
-    require_permission(claims, "users", "update")
-    store_id = resolve_store_scope(claims)
-    member = find_team_member(db, store_id, employee_id)
-    if member is None:
-        raise HTTPException(status_code=404, detail="Team member not found")
-    fields = body.model_dump(exclude_unset=True)
-    try:
-        update_team_member(
-            db, member,
-            name=fields.get("name"),
-            is_active=fields.get("is_active"),
-            hourly_rate=fields.get("hourly_rate"),
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    if fields:
-        # Audit reflects which keys the operator submitted (rename /
-        # reactivate / rate-change distinguish themselves cleanly in
-        # the audit feed) without dumping sensitive values.
-        action = (
-            "reactivate_team_member"
-            if fields.get("is_active") is True
-            else "deactivate_team_member"
-            if fields.get("is_active") is False
-            else "update_team_member"
-        )
-        _audit_admin_action(
-            db, claims=claims, action=action,
-            target_type="team_member",
-            target_id=str(member.id),
-            target_label=(member.name or "")[:160],
-            summary=f"changed: {', '.join(sorted(fields.keys()))}",
-        )
-    db.commit()
-    return _team_row(member)
-
-
-@router.delete(
-    "/team/{employee_id}", status_code=204,
-)
-def deactivate_team_member_route(
-    employee_id: int = Path(..., ge=1),
-    db: Session = Depends(get_db),
-    claims: dict[str, Any] = Depends(get_principal),
-) -> None:
-    """Soft-delete: flips is_active=False. We never hard-delete
-    StoreEmployee rows so historical employee_name / employee_id
-    attribution on past Transfer rows survives."""
-    require_permission(claims, "users", "delete")
-    store_id = resolve_store_scope(claims)
-    member = find_team_member(db, store_id, employee_id)
-    if member is None:
-        raise HTTPException(status_code=404, detail="Team member not found")
-    deactivate_team_member(db, member)
-    _audit_admin_action(
-        db, claims=claims, action="deactivate_team_member",
-        target_type="team_member",
-        target_id=str(member.id),
-        target_label=(member.name or "")[:160],
-        summary="soft-deleted (is_active=False)",
-    )
-    db.commit()
-
-
 # ── Unified Employees hub (E-1) ────────────────────────────
 #
 # One place manages the person: StoreEmployee is the HR record;
 # the optional user link attaches their login. These endpoints
-# power /app/employees; the legacy /team + /users endpoints stay
-# for compatibility (transfer attribution + time clock keep using
-# roster ids) until the SPA cutover removes their pages.
+# power /app/employees (the old /team roster API was its duplicate
+# and is gone; transfer attribution + time clock keep using the
+# same StoreEmployee ids).
 
 
 # ── The rank rule (api/Core/Permissions/ranks.py) ──────────

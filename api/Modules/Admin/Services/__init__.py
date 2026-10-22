@@ -13,7 +13,6 @@ from api.Modules.Admin.Services.tax_pack import build_tax_pack_zip
 from api.Modules.Admin.Services.team import (
     TeamMemberNotFoundError,
     add_team_member,
-    deactivate_team_member,
     update_team_member,
 )
 from api.Modules.Admin.Services.users import (
@@ -31,7 +30,6 @@ __all__ = [
     "add_team_member",
     "build_tax_pack_zip",
     "create_store_user",
-    "deactivate_team_member",
     "get_referral_payload",
     "list_audit_rows",
     "tax_export_default_year",
