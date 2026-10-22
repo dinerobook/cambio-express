@@ -105,3 +105,39 @@ def test_decode_rejects_token_signed_with_different_secret():
     )
     with pytest.raises(jwt.InvalidSignatureError):
         decode_access_token(bogus)
+
+
+# ── Tokens minted before a library upgrade stay valid (2026-10-21) ──
+# PyJWT went 2.7 → 2.15. A token is plain HS256 over a JSON payload,
+# so a session started before the deploy must still verify after it.
+# This builds one by hand — no PyJWT involved — in the exact shape
+# issue_access_token has always written.
+
+
+def _hand_made_hs256(payload: dict, secret: str) -> str:
+    import base64
+    import hashlib
+    import hmac
+    import json
+
+    def b64(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    head = b64(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    body = b64(json.dumps(payload, separators=(",", ":")).encode())
+    sig = hmac.new(secret.encode(), f"{head}.{body}".encode(), hashlib.sha256).digest()
+    return f"{head}.{body}.{b64(sig)}"
+
+
+def test_a_session_token_from_before_the_upgrade_still_decodes():
+    import time
+
+    from api.Modules.Auth.Services.jwt_issuer import _secret, decode_access_token
+    now = int(time.time())
+    token = _hand_made_hs256({
+        "sub": "7", "role": "admin", "store_id": 3, "perms": ["transfers.read"],
+        "name": "A", "username": "a", "iat": now, "exp": now + 600,
+        "sid": "s-1",
+    }, _secret())
+    claims = decode_access_token(token)
+    assert claims["sub"] == "7" and claims["store_id"] == 3 and claims["sid"] == "s-1"

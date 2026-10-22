@@ -61,7 +61,7 @@ class EmployeesListResponse(BaseModel):
 
 
 class EmployeeCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name: str = Field(..., min_length=1, max_length=120)
     hourly_rate: float | None = Field(None, ge=0, le=10_000)
@@ -81,7 +81,7 @@ class EmployeeUpdateRequest(BaseModel):
     ``clear_*`` flags reset the nullable dates (None can't be the
     clear sentinel on an optional field)."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:        str | None = Field(None, min_length=1, max_length=120)
     is_active:   bool | None = None

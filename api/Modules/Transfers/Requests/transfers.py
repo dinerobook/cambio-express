@@ -127,7 +127,7 @@ class CreateTransferRequest(BaseModel):
     country, store)` so the client can't lie about the tax rate.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     send_date: str  # YYYY-MM-DD
     company: str = Field(..., min_length=1, max_length=30)

@@ -279,6 +279,21 @@ def create_app() -> FastAPI:
             },
         )
 
+    from fastapi.exceptions import RequestValidationError
+    from fastapi.exception_handlers import request_validation_exception_handler
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_handler(request, exc):
+        """FastAPI's own 422, except that a NaN / Infinity the client
+        sent is echoed back as text: the default handler puts the raw
+        value in ``input`` and JSON cannot carry it, so a refused
+        "NaN" amount turned into a 500 (2026-10-21)."""
+        return await request_validation_exception_handler(
+            request, RequestValidationError(
+                _finite_only(exc.errors()), body=exc.body,
+            ),
+        )
+
     @app.get("/health", tags=["meta"])
     def health() -> dict:
         """Tiny liveness probe — 200 + JSON envelope so the load
@@ -305,3 +320,16 @@ def create_app() -> FastAPI:
 # Module-level instance for `uvicorn api.main:api_app` (used by the
 # `asgi.py` top-level router).
 api_app = create_app()
+
+
+def _finite_only(value):
+    """``value`` with every non-finite float replaced by its text
+    (``nan`` / ``inf`` / ``-inf``), so the 422 body serialises."""
+    import math
+    if isinstance(value, float) and not math.isfinite(value):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _finite_only(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_finite_only(v) for v in value]
+    return value

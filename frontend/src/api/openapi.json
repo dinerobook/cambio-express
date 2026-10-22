@@ -816,6 +816,7 @@
         "additionalProperties": false,
         "properties": {
           "content_base64": {
+            "maxLength": 5592408,
             "minLength": 1,
             "title": "Content Base64",
             "type": "string"
@@ -8423,6 +8424,7 @@
         "additionalProperties": false,
         "properties": {
           "content_base64": {
+            "maxLength": 357913944,
             "minLength": 1,
             "title": "Content Base64",
             "type": "string"
@@ -8523,6 +8525,7 @@
         "additionalProperties": false,
         "properties": {
           "content_base64": {
+            "maxLength": 357913944,
             "minLength": 1,
             "title": "Content Base64",
             "type": "string"

@@ -23,7 +23,7 @@ class ClockPunchRequest(BaseModel):
     passkeys keeps the simple body) — the server promotes the
     check to "required" based on the store's toggle."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     store_employee_id: int = Field(..., ge=1)
     notes:             str = Field("", max_length=500)

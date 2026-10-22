@@ -1,5 +1,5 @@
-jinja2==3.1.4    # email templates + Starlette Jinja2Templates (was a flask transitive)
-requests==2.32.3
+jinja2==3.1.6    # email templates + Starlette Jinja2Templates (was a flask transitive)
+requests==2.34.2
 gunicorn==22.0.0
 psycopg2-binary==2.9.9
 stripe==9.12.0
@@ -8,19 +8,18 @@ pywebpush==2.0.0
 pyotp==2.9.0
 qrcode==7.4.2
 webauthn==2.7.1
-Pillow==10.4.0
+Pillow==13.0.0
 # Deterministic (text-layer) parsing of remittance-company daily
 # reports — see api/Modules/ReportImport. No OCR/vision: these PDFs
 # carry a real text layer, so extraction is free + offline.
-# Pinned to 0.11.9 (not 0.11.10): 0.11.10 requires Pillow>=12.2.0,
-# which conflicts with our Pillow==10.4.0 pin. 0.11.9 accepts
-# Pillow 10.x and its extract_text() output is identical.
-pdfplumber==0.11.9
+# 0.11.10 needs Pillow>=12.2; both moved together on 2026-10-21 when
+# Pillow 10.4 picked up published vulnerabilities (pip-audit).
+pdfplumber==0.11.10
 # Gilbarco Passport NAXML journal ingest (PosImport) — the XML
 # comes from customer sites (untrusted), so parse through
 # defusedxml to neutralize XXE / entity-expansion attacks.
 defusedxml==0.7.1
-pytest==8.2.0
+pytest==9.1.1
 # ── FastAPI ─────────────────────────────────────────────────────
 # Flask is gone as of PR #550 — asgi.py is the production entry
 # point and FastAPI handles every route. /api/v2/* / /webhooks/*
@@ -29,12 +28,12 @@ pytest==8.2.0
 fastapi==0.136.1
 uvicorn[standard]==0.46.0
 pydantic==2.13.3
-pydantic-settings==2.13.0
+pydantic-settings==2.14.2
 httpx==0.28.1  # FastAPI TestClient + httpx-backed AsgiTestClient
 # JWT issuance for the FastAPI auth surface.
 # JWT-claims auth model — full permission set as claims, 30-min
 # access token TTL, refresh token + jti blacklist.
-PyJWT==2.7.0
+PyJWT==2.15.1
 # Observability stack (see api/Core/Observability/ + BACKLOG E1/E2).
 # Sentry is opt-in via SENTRY_DSN; structlog is the always-on
 # structured-logging foundation. Both libraries are lightweight,

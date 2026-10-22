@@ -151,7 +151,7 @@ class SuperadminStoreUpdateRequest(BaseModel):
     on a /new page that lets them pick the plan before save; the
     edit page needs the same affordance so a comped store can be
     moved between plans without going through Stripe."""
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:             str   | None = Field(None, min_length=1, max_length=120)
     slug:             str   | None = Field(None, min_length=1, max_length=60)

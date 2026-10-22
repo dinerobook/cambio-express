@@ -44,7 +44,7 @@ class ReturnCheckWriteRequest(BaseModel):
     """POST/PUT body. Status transitions go through dedicated
     endpoints, not via this schema."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     bounced_on:    str   = Field(..., min_length=10, max_length=10)
     customer_name: str   = Field(..., min_length=1, max_length=120)
@@ -94,7 +94,7 @@ class ReturnCheckPaymentWriteRequest(BaseModel):
     other`` for consistency.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     paid_on: str    = Field(..., min_length=10, max_length=10)
     amount:  float  = Field(..., gt=0)

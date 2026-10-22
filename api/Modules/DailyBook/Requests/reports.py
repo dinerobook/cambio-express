@@ -150,7 +150,7 @@ class LineItemCreateRequest(BaseModel):
     against the same parsers the legacy form uses (`parse_at_time`,
     `parse_amount`) so error messages match for cutover parity."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     kind: str  # validated server-side against LINE_ITEM_KINDS
     at_time: str = ""  # HH:MM; empty = no time recorded
@@ -171,7 +171,7 @@ class LineItemUpdateRequest(BaseModel):
     which DailyReport field the row rolls up into, breaking the
     derivation in surprising ways)."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     at_time: str | None = None  # HH:MM
     amount: float | None = None  # > 0; the Service rejects ≤0
@@ -257,7 +257,7 @@ class MTServiceRow(BaseModel):
     amount and fee only (no federal tax or commission on these). Same
     shape on read and write."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     company: str
     service: ServiceKind
@@ -291,7 +291,7 @@ class MTBreakdownWriteRow(BaseModel):
     """Operator-edited per-company values. Sent as a list inside
     MTBreakdownWriteRequest."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     company: str
     amount: float = 0.0
@@ -327,7 +327,7 @@ class DailyReportUpdateRequest(BaseModel):
     SPA can submit a partial form (only what the cashier edited).
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     taxable_sales:           float | None = None
     non_taxable:             float | None = None

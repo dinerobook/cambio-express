@@ -64,7 +64,7 @@ class VendorResponse(BaseModel):
 
 
 class ItemWriteRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     pos_code:        str = Field(..., min_length=1, max_length=30)
     pos_code_format: str = Field("upc", pattern="^(upc|plu)$")
@@ -84,7 +84,7 @@ class ItemWriteRequest(BaseModel):
 
 
 class ItemUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     pos_code:        str | None = Field(None, min_length=1, max_length=30)
     pos_code_format: str | None = Field(None, pattern="^(upc|plu)$")
@@ -149,7 +149,7 @@ class ItemListResponse(BaseModel):
 
 
 class InvoiceLineWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     item_id:     int | None = Field(None, ge=1)
     description: str = Field("", max_length=160)
@@ -160,7 +160,7 @@ class InvoiceLineWrite(BaseModel):
 
 
 class InvoiceWriteRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     vendor_id:      int = Field(..., ge=1)
     invoice_number: str = Field(..., min_length=1, max_length=60)
@@ -180,7 +180,7 @@ class InvoiceWriteRequest(BaseModel):
 
 
 class InvoiceUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     vendor_id:      int | None = Field(None, ge=1)
     invoice_number: str | None = Field(None, min_length=1, max_length=60)

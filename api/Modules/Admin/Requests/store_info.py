@@ -29,7 +29,7 @@ class MTCompanyEntry(BaseModel):
     it). Deep validation (dedupe, caps, no commas) lives in
     ``Transfers.Services.encode_mt_companies``."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:    str  = Field(..., max_length=80)
     enabled: bool = True
@@ -102,7 +102,7 @@ class StoreInfoUpdateRequest(BaseModel):
     """PUT body. Only the operator-editable fields. Slug,
     plan, billing, retention etc. stay server-managed."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:             str | None = Field(None, max_length=120)
     email:            str | None = Field(None, max_length=120)
