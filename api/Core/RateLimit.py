@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from starlette.requests import Request
 
 
 _storage = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
@@ -25,8 +25,27 @@ _enabled = os.environ.get("RATELIMIT_ENABLED", "1") not in (
 )
 
 
+def client_ip(request: Request) -> str:
+    """The address a limit is counted against.
+
+    Behind Render the socket peer is Render's proxy, the same few
+    addresses for every customer, so keying on it (slowapi's
+    ``get_remote_address``) counted every sign-in on the platform
+    against one shared limit: ten sign-in attempts a minute from
+    anyone could lock every store out. The proxy appends the address that connected to it to
+    ``X-Forwarded-For``; the RIGHTMOST entry is that one. Entries to
+    its left come from the client and can be forged, so they are
+    never used — a forged header cannot buy a fresh bucket. No
+    header (local dev, tests) → the socket peer, as before."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    last = fwd.rsplit(",", 1)[-1].strip()
+    if last:
+        return last[:64]
+    return request.client.host if request.client else ""
+
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=client_ip,
     storage_uri=_storage,
     strategy="fixed-window",
     enabled=_enabled,

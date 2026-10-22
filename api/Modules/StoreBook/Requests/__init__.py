@@ -80,7 +80,7 @@ class StoreBookUpdateRequest(BaseModel):
     here, so a typo surfaces as an error instead of a save that
     silently discarded a number.
     """
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     values: dict[str, int] | None = None
     counts: dict[str, float] | None = None

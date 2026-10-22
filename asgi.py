@@ -38,6 +38,7 @@ from api.PublicRoutes import (
     PUBLIC_ROUTE_PREFIXES as _PUBLIC_PREFIXES,
     public_app as _public_app,
 )
+from api.Core.Observability.security_headers import with_page_security_headers
 from api.SpaCutover import redirect_target as _cutover_redirect
 from api.spa import spa_app as _spa_app
 
@@ -51,7 +52,7 @@ _STATIC_DIR = os.path.join(_HERE, "static")
 _static_app = StaticFiles(directory=_STATIC_DIR)
 
 
-async def asgi_app(scope, receive, send):
+async def _route(scope, receive, send):
     """Top-level ASGI router.
 
     Three scope types matter:
@@ -137,3 +138,9 @@ async def asgi_app(scope, receive, send):
     # didn't match any mount or redirect rule — let FastAPI's
     # exception handler produce a structured JSON response.
     await _api_app(scope, receive, send)
+
+
+# Every response leaves with the security headers — the SPA shell,
+# landing page, TV board and /static as well as the API (which sets
+# its own, fuller CSP first). See api/Core/Observability/security_headers.py.
+asgi_app = with_page_security_headers(_route)

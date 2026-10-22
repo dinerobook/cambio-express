@@ -15,6 +15,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 
 def test_slowapi_limiter_disabled_in_test_env():
     """The conftest forces RATELIMIT_ENABLED=0. The slowapi limiter
@@ -153,3 +155,82 @@ def test_every_limited_route_is_safe_without_headers():
         "Rate-limit headers were turned on; these routes would 500 after "
         f"committing: {sorted(unsafe)}"
     )
+
+
+# ── Whose address a limit counts (2026-10-21) ────────────────
+# Behind Render every request arrives from Render's proxy. Keying on
+# the socket peer put every customer in one bucket; the key is now
+# the address Render's proxy saw, the rightmost X-Forwarded-For.
+
+
+def _req(headers=None, peer="10.0.0.1"):
+    from starlette.requests import Request
+    scope = {
+        "type": "http", "method": "GET", "path": "/",
+        "headers": [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()],
+        "client": (peer, 1234),
+    }
+    return Request(scope)
+
+
+def test_limit_key_is_the_address_the_proxy_saw():
+    from api.Core.RateLimit import client_ip
+    assert client_ip(_req({"X-Forwarded-For": "203.0.113.7"})) == "203.0.113.7"
+
+
+def test_limit_key_ignores_a_forged_left_entry():
+    """A client can send its own X-Forwarded-For; the proxy appends
+    the real address after it. Only that last entry counts, so a
+    forged header never buys a fresh bucket."""
+    from api.Core.RateLimit import client_ip
+    forged = _req({"X-Forwarded-For": "1.2.3.4, 203.0.113.7"})
+    assert client_ip(forged) == "203.0.113.7"
+
+
+def test_limit_key_without_a_proxy_is_the_socket_peer():
+    from api.Core.RateLimit import client_ip
+    assert client_ip(_req(peer="127.0.0.1")) == "127.0.0.1"
+    assert client_ip(_req({"X-Forwarded-For": " "}, peer="127.0.0.1")) == "127.0.0.1"
+
+
+def test_two_customers_behind_the_proxy_have_separate_login_buckets(client):
+    lim = _armed()
+    try:
+        a = [client.post("/api/v2/auth/login",
+                         json={"username": "x", "password": "y", "store_id": 0},
+                         headers={"X-Forwarded-For": "198.51.100.1"}).status_code
+             for _ in range(11)]
+        b = client.post("/api/v2/auth/login",
+                        json={"username": "x", "password": "y", "store_id": 0},
+                        headers={"X-Forwarded-For": "198.51.100.2"}).status_code
+    finally:
+        _disarm(lim)
+    assert a[-1] == 429
+    assert b != 429
+
+
+@pytest.mark.parametrize("path", [
+    "/api/v2/auth/store-by-slug/nope", "/api/v2/auth/referral/NOPE",
+])
+def test_public_lookups_are_limited(client, path):
+    lim = _armed()
+    try:
+        statuses = [client.get(path).status_code for _ in range(61)]
+    finally:
+        _disarm(lim)
+    assert statuses[0] == 404
+    assert statuses[-1] == 429
+
+
+def test_tv_pair_init_is_limited_and_answers_429_json(client):
+    lim = _armed()
+    try:
+        statuses = [client.post("/api/tv-pair/init", json={}).status_code
+                    for _ in range(21)]
+        last = client.post("/api/tv-pair/init", json={})
+    finally:
+        _disarm(lim)
+    assert statuses[0] == 200
+    assert statuses[-1] == 429
+    assert last.status_code == 429
+    assert "Too many requests" in last.get_json()["detail"]

@@ -21,7 +21,7 @@ class TeamListResponse(BaseModel):
 
 
 class TeamMemberCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:        str   = Field(..., min_length=1, max_length=120)
     hourly_rate: float = Field(0.0, ge=0.0, le=10_000.0)
@@ -30,7 +30,7 @@ class TeamMemberCreateRequest(BaseModel):
 class TeamMemberUpdateRequest(BaseModel):
     """PATCH-style update — fields omitted are left alone."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:        str   | None = Field(None, min_length=1, max_length=120)
     is_active:   bool  | None = None

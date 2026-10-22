@@ -32,6 +32,8 @@ from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 
 from api.Core.Database import SessionLocal
+from api.Core.RateLimit import limiter as _rate_limiter
+from slowapi.errors import RateLimitExceeded
 from api.Core.Clock import utc_now
 
 
@@ -244,10 +246,13 @@ async def tv_device_display(request: Request) -> Response:
 # ── Pair-code JSON API ────────────────────────────────────────────
 
 
+@_rate_limiter.limit("20/minute;200/hour")
 async def tv_pair_init(request: Request) -> JSONResponse:
     """The Fire TV app calls this on launch. Creates a
     ``TVPendingPair`` with a fresh code + device_token and returns
-    both."""
+    both. Public and unauthenticated, so it is rate-limited per
+    address: each call writes a row, and without a limit anyone
+    could fill the table."""
     from api.Modules.TVDisplay.Models import TVPendingPair
     from api.Modules.TVDisplay.Services.pair_code import (
         PAIR_CODE_LIFETIME, generate_device_token, generate_pair_code,
@@ -350,6 +355,14 @@ async def tv_pair_status(request: Request) -> JSONResponse:
 # ── App assembly ──────────────────────────────────────────────────
 
 
+async def _too_many_requests(request: Request, exc: Exception) -> JSONResponse:
+    """Same 429 body as the API's (``api/main.py``)."""
+    return JSONResponse(
+        {"detail": "Too many requests — try again in a moment."},
+        status_code=429,
+    )
+
+
 public_app = Starlette(routes=[
     Route("/", landing, methods=["GET"]),
     Route("/privacy", privacy, methods=["GET"]),
@@ -360,7 +373,7 @@ public_app = Starlette(routes=[
     Route("/tv/{token}", tv_public_display, methods=["GET"]),
     Route("/api/tv-pair/init", tv_pair_init, methods=["POST"]),
     Route("/api/tv-pair/status", tv_pair_status, methods=["GET"]),
-])
+], exception_handlers={RateLimitExceeded: _too_many_requests})
 
 
 # Paths the dispatcher should route here instead of Flask. Kept as

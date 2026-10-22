@@ -468,6 +468,13 @@ a monthly P&L edit needs the monthly ones.
       decorators on their controllers (look for `from
       api.Core.RateLimit import limiter as _rate_limiter` in
       `api/Modules/Auth/Controllers/__init__.py`).
+    - Limits count per client address: `client_ip` in
+      `api/Core/RateLimit.py`, the RIGHTMOST `X-Forwarded-For`
+      entry (the one Render's proxy appended — entries left of it
+      are client-written and forgeable), else the socket peer.
+      Keying on the socket peer put every customer behind Render's
+      proxy into one shared bucket. Public Starlette routes
+      (`api/PublicRoutes.py`) use the same limiter.
     - Storage backend defaults to in-memory; prod sets
       `RATELIMIT_STORAGE_URI=redis://...` in `render.yaml` so the
       bucket holds across workers. `RATELIMIT_ENABLED=0` disables
@@ -506,15 +513,16 @@ a monthly P&L edit needs the monthly ones.
     - Tests in ``tests/Core/test_jobs.py`` exercise both modes
       (sync + queued) and the defensive partial-env fallback.
 17. **CSRF protection** — Flask has no POST surface anymore so
-    Flask-WTF is gone. The SPA talks to FastAPI over Bearer JWT
-    in the Authorization header, which is naturally CSRF-immune
-    (browsers don't attach it to cross-origin requests by
-    default). Webhook endpoints verify provider signatures
-    (Stripe `Stripe-Signature`, Resend HMAC) so they don't rely
-    on session-cookie auth either. If you ever reintroduce a
-    cookie-authenticated form-POST surface, add CSRF protection
-    back at that point — don't bolt cookie auth onto a JSON
-    endpoint without it.
+    Flask-WTF is gone. The SPA signs in with an httpOnly
+    `db_access_token` cookie (plus a `Bearer` header for scripts
+    and tests), so the CSRF defence is the cookie's
+    `SameSite=Lax`: a browser never sends it on another site's
+    POST / PUT / PATCH / DELETE. That holds only while **no GET
+    route changes state** — keep every write on a non-GET verb.
+    Webhook endpoints verify provider signatures (Stripe
+    `Stripe-Signature`, Resend HMAC) instead. Never loosen the
+    cookie to `SameSite=None`, and if you ever add a
+    cookie-authenticated HTML form POST, add a CSRF token with it.
 18. **The rank rule and the live principal** — see
     `api/Modules/Auth/INVARIANTS.md`. Every route that changes
     another person's role, password, active flag, custom access
@@ -541,6 +549,24 @@ a monthly P&L edit needs the monthly ones.
     owners only their umbrella, superadmin any. Outside that is a
     403. `tests/Core/test_store_scope_routes.py` walks every such
     route and fails when one answers another store.
+20. **Every route needs a signed-in caller unless it is on the
+    public list.** `tests/Core/test_route_auth.py` walks the live
+    router and expects 401 from every route a stranger calls,
+    except the `PUBLIC` table there (sign-in and its recovery
+    steps, sign-up, the price list, liveness, webhooks). A new
+    public route goes on that list in the same PR, with a rate
+    limit (invariant 15).
+21. **Number fields refuse NaN and Infinity.** Every request model
+    with a `float` carries `ConfigDict(allow_inf_nan=False)`
+    (`tests/Core/test_request_bodies.py` walks them); the 422
+    handler in `api/main.py` echoes such a value back as text.
+22. **Security headers leave with every response** — API, SPA
+    shell, landing, TV board, `/static`. `asgi.py` wraps the router
+    in `with_page_security_headers`
+    (`api/Core/Observability/security_headers.py`); the API keeps
+    its full CSP, pages carry framing / base / plugin rules. A
+    script allowlist on pages must be tried against the live Stripe
+    bank-connect flow first.
 
 ## Migrations
 **Every schema change is an Alembic revision.** Generate one with:

@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class GameWriteRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     game_number:      str = Field(..., min_length=1, max_length=20)
     name:             str = Field(..., min_length=1, max_length=120)
@@ -16,7 +16,7 @@ class GameWriteRequest(BaseModel):
 
 
 class GameUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:             str | None = Field(None, min_length=1, max_length=120)
     ticket_price:     float | None = Field(None, ge=0)

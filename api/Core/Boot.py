@@ -50,6 +50,37 @@ def warn_default_seed_passwords(
         )
 
 
+_DEV_SECRET = "dev-secret-key-do-not-use-in-prod"
+
+
+def warn_default_signing_secret(
+    logger: Optional[logging.Logger] = None, settings: object = None,
+) -> bool:
+    """CRITICAL log when an HTTPS boot would sign sign-in tokens with
+    the dev secret that is public in this repo — anyone could then
+    mint a superadmin token. Render generates ``SECRET_KEY``, so this
+    should never fire; it exists so a mis-set environment is loud
+    rather than silent. Logs only (never refuses to boot) so a
+    surprise cannot take the live app down. Returns True when it
+    warned."""
+    if not os.environ.get("APP_BASE_URL", "").startswith("https://"):
+        return False
+    if settings is None:
+        from api.Core.Config import get_settings
+        settings = get_settings()
+    secret = (
+        getattr(settings, "auth_jwt_secret", "")
+        or getattr(settings, "secret_key", "")
+    )
+    if secret and secret != _DEV_SECRET:
+        return False
+    (logger or logging.getLogger("dinerobook")).critical(
+        "Sign-in tokens are signed with the public dev secret. "
+        "Set SECRET_KEY (or AUTH_JWT_SECRET) on the web service now.",
+    )
+    return True
+
+
 # Resources added AFTER the first Casbin seed. An existing database
 # needs their default rows added once (``seed_defaults`` no-ops once
 # policy exists). Append new resources here when they join
@@ -100,6 +131,7 @@ def init_db(logger: Optional[logging.Logger] = None) -> None:
     """
     log = logger or logging.getLogger("dinerobook")
     warn_default_seed_passwords(log)
+    warn_default_signing_secret(log)
 
     from api.Core.Bootstrap import (
         apply_schema, drop_legacy_tables, ensure_added_indexes,

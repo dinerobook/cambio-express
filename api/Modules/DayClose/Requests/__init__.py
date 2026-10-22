@@ -51,14 +51,14 @@ class DepartmentResponse(BaseModel):
 
 
 class DepartmentSaleLine(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     department_id: int = Field(..., ge=1)
     amount:        float = Field(..., ge=0)
 
 
 class RegisterCloseWriteRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     register_label: str = Field(..., min_length=1, max_length=40)
     shift_label:    str = Field("", max_length=40)

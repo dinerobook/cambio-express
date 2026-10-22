@@ -245,7 +245,7 @@ class OwnerCrossStoreDefaultsRequest(BaseModel):
     ``Admin.Requests.store_info.StoreInfoUpdateRequest`` since
     each store's update goes through the same service guard."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     store_ids: list[int] = Field(..., min_length=1, max_length=50)
 

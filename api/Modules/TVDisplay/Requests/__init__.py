@@ -128,7 +128,7 @@ class TVDisplayBankEdit(BaseModel):
     """One existing bank row in the country editor. ``rates`` maps a
     company column header to its rate; a missing or null entry clears
     that cell. ``delete`` drops the bank and its rates."""
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     id: int
     bank_name: str = Field(default="", max_length=120)

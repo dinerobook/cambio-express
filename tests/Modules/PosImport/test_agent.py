@@ -282,3 +282,30 @@ def test_auto_commit_gates(client, test_store_id):
     assert client.get(
         "/api/v2/dayclose/day/2024-06-01", headers=h,
     ).json()["closes"] == []
+
+
+def test_oversized_agent_upload_is_refused_before_decoding(client, test_store_id):
+    """The body is capped at the agent's file ceiling (in base64
+    length), so a huge post is a 422 at validation, not a decode of
+    the whole thing into memory first."""
+    from api.Modules.PosImport.Services.agent import MAX_AGENT_FILE_BYTES
+    key = _issue_key(client, _admin(client, test_store_id))["key"]
+    too_long = "A" * ((MAX_AGENT_FILE_BYTES + 2) // 3 * 4 + 4)
+    resp = client.post(
+        "/api/v2/posimport/agent/upload",
+        headers={"X-Agent-Key": key},
+        json={"filename": "big.xml", "content_base64": too_long},
+    )
+    assert resp.status_code == 422
+    assert "content_base64" in resp.text
+
+
+def test_upload_at_the_ceiling_still_validates():
+    from api.Modules.PosImport.Requests import AgentUploadRequest, NaxmlUploadRequest
+    from api.Modules.PosImport.Services.agent import MAX_AGENT_FILE_BYTES
+    from api.Modules.PosImport.Services.ingest import MAX_PAYLOAD_BYTES
+    exact = base64.b64encode(b"x" * MAX_AGENT_FILE_BYTES).decode()
+    AgentUploadRequest(filename="a.xml", content_base64=exact)
+    limit = NaxmlUploadRequest.model_fields["content_base64"].metadata
+    assert any(getattr(m, "max_length", None) == (MAX_PAYLOAD_BYTES + 2) // 3 * 4
+               for m in limit)

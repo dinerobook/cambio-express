@@ -179,7 +179,7 @@ class MonthlyUpdateRequest(BaseModel):
     client sends.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     taxable_sales:           float | None = None
     non_taxable:             float | None = None

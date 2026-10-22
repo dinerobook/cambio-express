@@ -86,3 +86,49 @@ def test_prod_boot_no_warning_with_admin_passwords_set():
         f"unexpected seed-password warning when env vars are set; "
         f"out:\n{out}\nerr:\n{err}"
     )
+
+
+# ── Sign-in token secret (2026-10-21) ───────────────────────────
+# A public default secret would let anyone mint a superadmin token.
+
+
+class _Settings:
+    def __init__(self, secret_key="", auth_jwt_secret=""):
+        self.secret_key = secret_key
+        self.auth_jwt_secret = auth_jwt_secret
+
+
+def test_https_boot_with_the_dev_secret_logs_critical(monkeypatch, caplog):
+    import logging
+    from api.Core.Boot import warn_default_signing_secret
+    monkeypatch.setenv("APP_BASE_URL", "https://dinerobook.com")
+    with caplog.at_level(logging.CRITICAL, logger="dinerobook"):
+        warned = warn_default_signing_secret(
+            settings=_Settings(secret_key="dev-secret-key-do-not-use-in-prod"),
+        )
+    assert warned is True
+    assert "public dev secret" in caplog.text
+
+
+def test_https_boot_with_an_empty_secret_logs_critical(monkeypatch):
+    from api.Core.Boot import warn_default_signing_secret
+    monkeypatch.setenv("APP_BASE_URL", "https://dinerobook.com")
+    assert warn_default_signing_secret(settings=_Settings()) is True
+
+
+def test_https_boot_with_a_real_secret_is_quiet(monkeypatch):
+    from api.Core.Boot import warn_default_signing_secret
+    monkeypatch.setenv("APP_BASE_URL", "https://dinerobook.com")
+    assert warn_default_signing_secret(
+        settings=_Settings(secret_key="dev-secret-key-do-not-use-in-prod",
+                           auth_jwt_secret="a-real-one"),
+    ) is False
+    assert warn_default_signing_secret(
+        settings=_Settings(secret_key="generated-by-render"),
+    ) is False
+
+
+def test_dev_boot_never_warns_about_the_secret(monkeypatch):
+    from api.Core.Boot import warn_default_signing_secret
+    monkeypatch.delenv("APP_BASE_URL", raising=False)
+    assert warn_default_signing_secret(settings=_Settings()) is False

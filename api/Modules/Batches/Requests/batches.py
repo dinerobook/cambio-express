@@ -62,7 +62,7 @@ class BatchWriteRequest(BaseModel):
     `transfers_total` from the live Transfer table after the
     write."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     ach_date:        str = Field(..., min_length=10, max_length=10)  # YYYY-MM-DD
     company:         str = Field(..., min_length=1, max_length=30)

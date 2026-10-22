@@ -543,7 +543,9 @@ def login_route(
 @router.get(
     "/store-by-slug/{slug}", response_model=StoreLookupResponse,
 )
+@_rate_limiter.limit("60/minute")
 def store_by_slug_route(
+    request: Request,
     slug: str, db: Session = Depends(get_db),  # noqa: ARG001
 ) -> StoreLookupResponse:
     """Public store lookup for the SPA's per-store login page.
@@ -1597,7 +1599,9 @@ def signup_owner_route(
 
 
 @router.get("/referral/{code}", response_model=ReferralPreviewResponse)
+@_rate_limiter.limit("60/minute")
 def referral_preview_route(
+    request: Request,
     code: str, db: Session = Depends(get_db),
 ) -> ReferralPreviewResponse:
     """Resolve a referral code so the SPA's /signup page can show
