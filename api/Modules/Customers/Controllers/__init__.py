@@ -19,17 +19,18 @@ Layer rules:
     Controller → Repository  ✓ (for read-only export)
     Controller → DB session  ✓ (only via ``Depends(get_db)``)
 """
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy.orm import Session
 
 from api.Core.Csv import build_csv
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_id
 from api.Core.Audit import audit_operator
 from api.Modules.Auth.Controllers import get_principal
-from api.Modules.Auth.Services.principal import require_permission
+from api.Modules.Auth.Services.principal import require_permission, resolve_store_scope
 from api.Modules.Auth.Models import User
 from api.Modules.Customers.Repositories import (
     find_by_id_in_stores,
@@ -136,13 +137,7 @@ def upsert_route(
     store_id = authorize_store_id(db, claims, store_id)
     parsed_dob: date | None = None
     if body.dob:
-        try:
-            parsed_dob = datetime.strptime(body.dob, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(
-                status_code=422,
-                detail="dob must be YYYY-MM-DD",
-            )
+        parsed_dob = parse_iso_day(body.dob, field="dob")
     cust = upsert(
         db, store_id, body.full_name,
         body.phone_country, body.phone_number,
@@ -177,12 +172,7 @@ def export_csv_route(
     path matcher doesn't try to coerce ``"export.csv"`` to an
     integer ID first.
     """
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
+    sid = resolve_store_scope(claims)
     require_permission(claims, "customers", "update")
     sid = int(sid)
     siblings = sibling_store_ids(db, sid)
@@ -317,11 +307,7 @@ def merge_route(
     and the audit trail needs admin attribution.
     """
     require_permission(claims, "customers", "delete")
-    sid_raw = claims.get("store_id")
-    if sid_raw is None:
-        raise HTTPException(
-            status_code=403, detail="JWT does not carry a store scope.",
-        )
+    sid_raw = resolve_store_scope(claims)
     store_id = int(sid_raw)
     siblings = sibling_store_ids(db, store_id)
 

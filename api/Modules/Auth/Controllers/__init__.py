@@ -1669,7 +1669,6 @@ def send_password_reset_email(
     service.
     """
     import logging
-    import os
     from api.Core.Database import SessionLocal
     from api.Modules.Notifications.Services.smtp import send_email
     from api.Modules.Notifications.Services.templates import (

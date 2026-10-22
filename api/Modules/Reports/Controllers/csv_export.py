@@ -32,7 +32,7 @@ from typing import Any, Callable
 from fastapi import Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
-from api.Core.Clock import store_local_today
+from api.Core.Clock import resolve_period, store_local_today
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
@@ -57,21 +57,9 @@ def _parse_period(
     """``today`` anchors the defaults: store exports pass the store's
     calendar day; the platform-wide superadmin exports leave it
     unset and keep the server's UTC day."""
-    if today is None:
-        today = date.today()
-    default_from = date(today.year, today.month, 1)
-    raw_from = (args.get("from_") or "").strip()
-    raw_to   = (args.get("to") or "").strip()
-    try:
-        d_from = datetime.strptime(raw_from, "%Y-%m-%d").date() if raw_from else default_from
-    except ValueError:
-        d_from = default_from
-    try:
-        d_to = datetime.strptime(raw_to, "%Y-%m-%d").date() if raw_to else today
-    except ValueError:
-        d_to = today
-    if d_from > d_to:
-        d_from, d_to = d_to, d_from
+    d_from, d_to = resolve_period(
+        args.get("from_"), args.get("to"), today=today or date.today(),
+    )
     label = f"{d_from.strftime('%b %d, %Y')} – {d_to.strftime('%b %d, %Y')}"
     return d_from, d_to, label
 

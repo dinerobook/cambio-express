@@ -191,15 +191,6 @@ class Candidate:
         return str(self.lines[0].kind)
 
 
-@dataclass
-class _Snapshot:
-    """What a candidate search needs about a store, loaded once."""
-    lines: list[DailyLineItem]
-    taken: set[int]                       # entries already in the bank
-    rejected: set[tuple[int, int]]        # (txn id, line id)
-    rivals: list[BankTransaction] = field(default_factory=list)
-
-
 def _bank_added_line_ids(db: Session, store_id: int) -> set[int]:
     return {
         int(i) for (i,) in

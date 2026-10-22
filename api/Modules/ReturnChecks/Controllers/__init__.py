@@ -19,16 +19,16 @@ Mounts at `/api/v2/return-checks/*`. Endpoints:
                                  'recovered' → 'pending' if the
                                  total drops below the full amount
 """
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams, paginate
 from api.Core.Sorting import SORT_DIR_PATTERN
 from api.Modules.Auth.Controllers import get_principal
-from api.Modules.Auth.Services.principal import require_permission
+from api.Modules.Auth.Services.principal import require_permission, resolve_store_scope
 from api.Modules.ReturnChecks.Repositories import (
     find_return_check,
     list_payments,
@@ -62,16 +62,6 @@ from typing import Any
 
 
 router = APIRouter()
-
-
-def _require_admin_scope(claims: dict[str, Any]) -> int:
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
-    return int(sid)
 
 
 def _audit_return_check_action(
@@ -129,18 +119,7 @@ def _row(rc) -> ReturnCheckRow:
 
 
 def _parse_payload(body: ReturnCheckWriteRequest) -> ReturnCheckWriteInput:
-    try:
-        bounced_on = datetime.strptime(
-            body.bounced_on, "%Y-%m-%d",
-        ).date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "field": "bounced_on",
-                "message": "Date must be YYYY-MM-DD.",
-            },
-        )
+    bounced_on = parse_iso_day(body.bounced_on, field="bounced_on")
     return ReturnCheckWriteInput(
         bounced_on=bounced_on,
         customer_name=body.customer_name,
@@ -166,12 +145,7 @@ def list_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckListResponse:
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "read")
     query = return_checks_query(
         db, int(sid), status=status, sort=sort, direction=dir,
@@ -196,12 +170,7 @@ def get_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckResponse:
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "read")
     rc = find_return_check(db, int(sid), rc_id)
     if rc is None:
@@ -215,7 +184,7 @@ def create_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckResponse:
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "create")
     payload = _parse_payload(body)
     user_id = int(claims["sub"])
@@ -242,7 +211,7 @@ def update_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckResponse:
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "update")
     payload = _parse_payload(body)
     try:
@@ -297,7 +266,7 @@ def mark_loss_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckResponse:
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "update")
     return _transition(
         db, sid, rc_id, mark_loss, claims=claims, action="mark_loss",
@@ -313,7 +282,7 @@ def mark_fraud_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckResponse:
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "update")
     return _transition(
         db, sid, rc_id, mark_fraud, claims=claims, action="mark_fraud",
@@ -329,7 +298,7 @@ def reopen_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckResponse:
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "update")
     return _transition(
         db, sid, rc_id, reopen, claims=claims, action="reopen_return_check",
@@ -356,12 +325,7 @@ def payments_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckPaymentsResponse:
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "read")
     rc = find_return_check(db, int(sid), rc_id)
     if rc is None:
@@ -387,18 +351,9 @@ def record_payment_route(
     recovered return check. Auto-creates the matching
     ``DailyLineItem(kind='return_payback')`` and re-derives the
     daily-book total + parent status."""
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "update")
-    try:
-        paid_on = datetime.strptime(body.paid_on, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "field": "paid_on",
-                "message": "Date must be YYYY-MM-DD.",
-            },
-        )
+    paid_on = parse_iso_day(body.paid_on, field="paid_on")
     payload = RecordPaymentInput(
         paid_on=paid_on,
         amount=float(body.amount or 0),
@@ -448,7 +403,7 @@ def delete_payment_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
 ) -> ReturnCheckPaymentResponse:
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     require_permission(claims, "return_checks", "delete")
     # Snapshot the payment before the Service deletes it so the audit
     # row carries the amount that walked out the door — answers

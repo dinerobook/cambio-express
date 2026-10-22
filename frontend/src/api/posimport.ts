@@ -24,10 +24,6 @@ export async function previewNaxml(
   });
 }
 
-export async function fetchMappings(): Promise<MappingListResponse> {
-  return api<MappingListResponse>("/api/v2/posimport/mapping");
-}
-
 export async function saveMappings(
   mappings: Array<{ merchandise_code: string; department_id: number }>,
 ): Promise<MappingListResponse> {

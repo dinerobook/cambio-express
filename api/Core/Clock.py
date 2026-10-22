@@ -87,6 +87,35 @@ def parse_iso_day(raw: str, *, field: str) -> date:
         )
 
 
+def resolve_period(
+    raw_from: str | None, raw_to: str | None, *, today: date,
+) -> tuple[date, date]:
+    """A report's ``from`` / ``to`` query values as a date range.
+
+    Blank or unreadable ``from`` → the first of ``today``'s month;
+    blank or unreadable ``to`` → ``today``; a backwards range is
+    swapped rather than answered empty. Lenient on purpose — a
+    report page with a mistyped date shows this month, it doesn't
+    error. ``today`` is the store's day (``store_local_today``) for
+    store reports, the server's for platform-wide ones. The one
+    copy the report endpoints, the CSV export and the superadmin
+    reports share."""
+    def parse(raw: str | None, default: date) -> date:
+        text = (raw or "").strip()
+        if not text:
+            return default
+        try:
+            return datetime.strptime(text, "%Y-%m-%d").date()
+        except ValueError:
+            return default
+
+    d_from = parse(raw_from, date(today.year, today.month, 1))
+    d_to = parse(raw_to, today)
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    return d_from, d_to
+
+
 def _zone(name: str | None) -> ZoneInfo:
     """ZoneInfo for an IANA name; blank or unknown names are UTC."""
     try:

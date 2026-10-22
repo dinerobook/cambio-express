@@ -31,7 +31,7 @@ from fastapi import (
 from fastapi.responses import Response as PlainResponse
 from sqlalchemy.orm import Session
 
-from api.Core.Clock import utc_now
+from api.Core.Clock import parse_iso_day, utc_now
 from api.Core.Audit import audit_operator
 from api.Core.Database import get_db
 from api.Core.RateLimit import limiter as _rate_limiter
@@ -236,10 +236,7 @@ def commit_naxml_route(
 ) -> NaxmlCommitResponse:
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "update")
-    try:
-        day = datetime.strptime(body.day, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(status_code=422, detail="day must be YYYY-MM-DD")
+    day = parse_iso_day(body.day, field="day")
     loaded = _load_or_422(_decode_payload(body.content_base64))
     try:
         # Keep the day's staged agent files the upload doesn't
@@ -474,10 +471,7 @@ def commit_staged_route(
 ) -> NaxmlCommitResponse:
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "update")
-    try:
-        day = datetime.strptime(body.day, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(status_code=422, detail="day must be YYYY-MM-DD")
+    day = parse_iso_day(body.day, field="day")
     events = staged_events_for_day(db, sid, day)
     try:
         result = commit_business_day(
@@ -519,13 +513,8 @@ def item_movement_route(
     search."""
     sid = resolve_store_scope(claims)
     require_permission(claims, "reports", "read")
-    try:
-        start_d = datetime.strptime(start, "%Y-%m-%d").date()
-        end_d = datetime.strptime(end, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422, detail="Dates must be YYYY-MM-DD.",
-        )
+    start_d = parse_iso_day(start, field="start")
+    end_d = parse_iso_day(end, field="end")
     if end_d < start_d:
         raise HTTPException(
             status_code=422, detail="end must not be before start.",
@@ -623,13 +612,10 @@ def pricebook_export_route(
     require_permission(claims, "catalog", "read")
     since = None
     if changed_since.strip():
-        try:
-            since = datetime.strptime(changed_since.strip(), "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(
-                status_code=422,
-                detail="changed_since must be YYYY-MM-DD.",
-            )
+        since = datetime.combine(
+            parse_iso_day(changed_since.strip(), field="changed_since"),
+            datetime.min.time(),
+        )
     from api.Modules.PosImport.Services.naxml_export import export_items
     xml, count = export_items(db, sid, changed_since=since)
     if count == 0:
@@ -678,13 +664,8 @@ def list_transactions_route(
     """
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "read")
-    try:
-        start_d = datetime.strptime(start, "%Y-%m-%d").date()
-        end_d = datetime.strptime(end, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422, detail="Dates must be YYYY-MM-DD.",
-        )
+    start_d = parse_iso_day(start, field="start")
+    end_d = parse_iso_day(end, field="end")
     try:
         result = list_transactions(
             db, sid, start_d, end_d, q=q, kind=kind,

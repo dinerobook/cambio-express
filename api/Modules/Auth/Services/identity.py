@@ -74,11 +74,6 @@ def normalize_phone(raw: str | None) -> str:
     return digits
 
 
-def looks_like_phone(raw: str | None) -> bool:
-    """True when `raw` normalises to a usable phone number."""
-    return bool(normalize_phone(raw))
-
-
 def login_identifier(email: str | None, phone: str | None) -> str:
     """The canonical identifier stored on ``User.username`` for a
     NEW account.

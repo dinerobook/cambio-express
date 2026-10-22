@@ -441,51 +441,6 @@ export async function updateStoreInfo(
   );
 }
 
-// ── Team roster ────────────────────────────────────────────
-
-export interface TeamMemberRow {
-  id:          number;
-  name:        string;
-  is_active:   boolean;
-  hourly_rate: number;
-}
-
-export function useTeam() {
-  const identity = getCurrentIdentity();
-  return useQuery<{ members: TeamMemberRow[] }>({
-    enabled: identity?.store_id != null,
-    queryKey: ["admin", "team", identity?.store_id],
-    queryFn: () =>
-      api<{ members: TeamMemberRow[] }>("/api/v2/admin/team"),
-  });
-}
-
-export async function createTeamMember(
-  name: string, hourly_rate = 0,
-): Promise<TeamMemberRow> {
-  return api<TeamMemberRow>(
-    "/api/v2/admin/team",
-    { method: "POST", json: { name, hourly_rate } },
-  );
-}
-
-export async function updateTeamMember(
-  id: number,
-  body: { name?: string; is_active?: boolean; hourly_rate?: number },
-): Promise<TeamMemberRow> {
-  return api<TeamMemberRow>(
-    `/api/v2/admin/team/${id}`,
-    { method: "PUT", json: body },
-  );
-}
-
-export async function deactivateTeamMember(id: number): Promise<void> {
-  await api<void>(
-    `/api/v2/admin/team/${id}`,
-    { method: "DELETE" },
-  );
-}
-
 export async function forgotPassword(
   email: string,
 ): Promise<{ status: string }> {

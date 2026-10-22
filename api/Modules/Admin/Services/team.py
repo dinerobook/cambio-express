@@ -66,14 +66,3 @@ def _validate_rate(rate: float) -> float:
     if rate > 10_000:
         raise ValueError("Hourly rate is unreasonably high.")
     return rate
-
-
-def deactivate_team_member(
-    db: Session, employee: StoreEmployee,
-) -> StoreEmployee:
-    """Soft-delete: flip is_active=False. We never hard-delete
-    StoreEmployee rows so the historical employee_name + employee_id
-    attribution on past Transfer rows survives."""
-    setattr(employee, "is_active", False)
-    db.flush()
-    return employee

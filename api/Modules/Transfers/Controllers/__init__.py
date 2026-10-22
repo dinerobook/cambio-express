@@ -23,7 +23,6 @@ Layer rules:
     Controller → Repository  ✗
     Controller → DB session  ✓ (only via Depends(get_db))
 """
-from datetime import datetime
 
 from fastapi import (
     APIRouter, Depends, Header, HTTPException, Path, Query, Request,
@@ -31,11 +30,12 @@ from fastapi import (
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import (
-    has_permission, require_permission,
+    has_permission, require_permission, resolve_store_scope,
 )
 from api.Modules.Transfers.Models import PAYMENT_CASH
 from api.Modules.Transfers.Repositories import (
@@ -145,15 +145,7 @@ def employees_route(
     roster is store-specific.
     """
     require_permission(claims, "transfers", "read")
-    store_id = claims.get("store_id")
-    if store_id is None:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "JWT does not carry a store scope. Sign in as a store "
-                "admin or owner to load the roster."
-            ),
-        )
+    store_id = resolve_store_scope(claims)
     rows = active_roster(db, int(store_id))
     return RosterResponse(
         employees=[EmployeeRow(id=r.id, name=r.name or "") for r in rows],
@@ -173,15 +165,7 @@ def choices_route(
     if not (has_permission(claims, "transfers", "read")
             or has_permission(claims, "batches", "read")):
         require_permission(claims, "transfers", "read")
-    store_id = claims.get("store_id")
-    if store_id is None:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "JWT does not carry a store scope. Sign in as a store "
-                "admin or owner to load the store's lists."
-            ),
-        )
+    store_id = resolve_store_scope(claims)
     companies, countries, rate = form_choices(db, int(store_id))
     return TransferChoicesResponse(
         companies=companies, countries=countries, federal_tax_rate=rate,
@@ -276,12 +260,7 @@ def _payload_from(
     apart on a field (the edit-wipes-fields bug of #933 was exactly
     that kind of drift). ``client_request_id`` is the create-only
     Idempotency-Key; the edit leaves it None."""
-    try:
-        send_date = datetime.strptime(body.send_date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422, detail="send_date must be YYYY-MM-DD",
-        )
+    send_date = parse_iso_day(body.send_date, field="send_date")
     return CreateTransferInput(
         store_id=store_id,
         created_by_user_id=user_id,
@@ -346,15 +325,7 @@ def create_route(
     after a lost response never logs the money twice.
     """
     require_permission(claims, "transfers", "create")
-    store_id_claim = claims.get("store_id")
-    if store_id_claim is None:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "JWT does not carry a store scope. Sign in as a "
-                "store admin or owner to create transfers."
-            ),
-        )
+    store_id_claim = resolve_store_scope(claims)
     user_id = int(claims["sub"])
     _enforce_business_hours_gate(db, int(store_id_claim))
 
@@ -492,15 +463,7 @@ def update_route(
     Cross-tenant updates return 404 to keep tenancy opaque.
     """
     require_permission(claims, "transfers", "update")
-    store_id_claim = claims.get("store_id")
-    if store_id_claim is None:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "JWT does not carry a store scope. Sign in as a "
-                "store admin or owner to edit transfers."
-            ),
-        )
+    store_id_claim = resolve_store_scope(claims)
     user_id = int(claims["sub"])
     _enforce_business_hours_gate(db, int(store_id_claim))
 
@@ -537,12 +500,7 @@ def delete_transfer_route(
     "confirm=… company=… status=…").
     """
     require_permission(claims, "transfers", "delete")
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
+    sid = resolve_store_scope(claims)
     try:
         transfer = delete_transfer(db, transfer_id, int(sid))
     except TransferNotFoundError:

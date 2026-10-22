@@ -88,20 +88,6 @@ export interface BatchLinkedTransferRow {
   status: string;
 }
 
-export function useBatchTransfers(batchId: number | undefined) {
-  const identity = getCurrentIdentity();
-  return useQuery<{ transfers: BatchLinkedTransferRow[] }>({
-    enabled:
-      Number.isFinite(batchId) &&
-      identity?.store_id != null,
-    queryKey: ["batches", "transfers", identity?.store_id, batchId],
-    queryFn: () =>
-      api<{ transfers: BatchLinkedTransferRow[] }>(
-        `/api/v2/batches/${batchId}/transfers`,
-      ),
-  });
-}
-
 export function useBatches({
   sort = "", direction = "desc", page = 1, perPage = 50,
 }: { sort?: BatchSort; direction?: BatchDir; page?: number; perPage?: number } = {}) {

@@ -10,13 +10,13 @@ separate (later) endpoint.
 """
 import base64
 import binascii
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from api.Core.Audit import audit_operator
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
@@ -156,12 +156,7 @@ def commit_intermex_route(
                 "JWT does not authorize edits to this store's daily book."
             ),
         )
-    try:
-        d = datetime.strptime(body.report_date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422, detail="report_date must be YYYY-MM-DD",
-        )
+    d = parse_iso_day(body.report_date, field="report_date")
 
     report = _parse_pdf_or_422(_decode_pdf(body.content_base64))
     try:

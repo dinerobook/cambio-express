@@ -765,7 +765,7 @@ Cross-cutting (under `api/Core/`):
 | `Audit` | `audit_operator`, `audit_superadmin`, `@audit_action` decorator — claims-aware wrappers around the recorder Services |
 | `Boot` | `init_db()`, `warn_default_seed_passwords()` — called from `api/main.py` lifespan |
 | `Bootstrap` | Alembic upgrade, index safety-net, legacy backfills |
-| `Clock` | `utc_now()` — canonical UTC timestamp (single point to flip when migrating to tz-aware) |
+| `Clock` | `utc_now()` — canonical UTC timestamp (single point to flip when migrating to tz-aware); `store_local_today`; `parse_iso_day` (a `YYYY-MM-DD` value or a 422 naming the field — never hand-write `strptime` in a controller); `resolve_period` (a report's `from`/`to`). `tests/Core/test_one_copy_helpers.py` holds the line |
 | `Config` | Pydantic-settings env loader |
 | `Csv` | `build_csv(headers, rows)` — string-based CSV construction helper |
 | `Database` | SQLAlchemy engine + `SessionLocal` + `get_db` FastAPI dep |
@@ -775,7 +775,7 @@ Cross-cutting (under `api/Core/`):
 | `PasswordHash` | bcrypt wrappers used by signup + change-password |
 | `Permissions` | Casbin-backed RBAC — `check_permission`, `permissions_for`, `set_store_permissions`, the rank rule (`ranks.py`), the one matrix-route path (`matrix_update.py`) |
 | `RateLimit` | slowapi singleton + decorator |
-| `StoreScope` | `authorize_store_id(s)` — which stores a client-supplied store id may reach (invariant 19) |
+| `StoreScope` | `authorize_store_id(s)` — which stores a client-supplied store id may reach (invariant 19). The token's OWN store is `resolve_store_scope(claims)` in `Auth/Services/principal.py`; never re-write that 403 inline |
 
 Top-level files:
 
