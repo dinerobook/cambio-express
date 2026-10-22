@@ -35,51 +35,6 @@ export interface ReportEnvelope<R> {
   totals: AggregatedTotals;
 }
 
-interface PeriodQuery {
-  // Both YYYY-MM-DD. The hook is disabled until both are set
-  // (avoids a 422 from the backend).
-  from?: string;
-  to?: string;
-}
-
-function useReport<R>(slug: string, p: PeriodQuery) {
-  const identity = getCurrentIdentity();
-  const storeId = identity?.store_id;
-  const ready =
-    storeId !== null &&
-    storeId !== undefined &&
-    Boolean(p.from) &&
-    Boolean(p.to);
-
-  return useQuery<ReportEnvelope<R>>({
-    enabled: ready,
-    queryKey: ["reports", slug, storeId, p.from, p.to],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        store_ids: String(storeId),
-        from: p.from!,
-        to: p.to!,
-      });
-      return api<ReportEnvelope<R>>(
-        `/api/v2/reports/${slug}?${params.toString()}`,
-      );
-    },
-  });
-}
-
-export const useSalesByCompany = (p: PeriodQuery) =>
-  useReport<CompanyRow>("sales-by-company", p);
-
-export const useSalesByService = (p: PeriodQuery) =>
-  useReport<ServiceTypeRow>("sales-by-service", p);
-
-export const useByDestinationCountry = (p: PeriodQuery) =>
-  useReport<CountryRow>("by-destination-country", p);
-
-export const useTopRecipients = (p: PeriodQuery) =>
-  useReport<RecipientRow>("top-recipients", p);
-
-
 // ── Report-center index ─────────────────────────────────────
 
 export interface ReportListRow {

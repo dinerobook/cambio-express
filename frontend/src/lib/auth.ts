@@ -229,19 +229,6 @@ function _decodeJwtClaims(token: string): IdentityClaims | null {
   }
 }
 
-/** @deprecated kept for back-compat — only returns the parsed
- *  payload, never the token itself. New code reads via
- *  ``getCurrentIdentity()``. */
-export const decodeJwtClaims = _decodeJwtClaims;
-
-/** @deprecated The token lives in an httpOnly cookie now; this
- *  always returns ``null``. Auth checks should go through
- *  ``getCurrentIdentity()`` (chrome state) or a fetch to a
- *  protected endpoint (real auth). */
-export function getAccessToken(): string | null {
-  return null;
-}
-
 /** Cache the non-secret claims locally. Decodes the JWT payload
  *  from the login response so old call sites that pass
  *  ``result.access_token`` keep working — the cookie is already

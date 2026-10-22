@@ -758,13 +758,7 @@ def _require_admin_bank_scope(claims: dict[str, Any], action: str = "read") -> i
     """Bank-sync mutations are admin-only.  Returns the store_id;
     raises 403 on missing store scope or non-admin role."""
     require_permission(claims, "bank_sync", action)
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
-    return int(sid)
+    return resolve_store_scope(claims)
 
 
 def _audit_bank_action(

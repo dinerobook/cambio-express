@@ -359,7 +359,7 @@ def list_users_route(
     """List all users across all stores with search + filters."""
     _require_superadmin(claims)
     from api.Modules.Superadmin.Repositories import list_users_with_store_query
-    from api.Modules.Tenancy.Models import Store, User
+    from api.Modules.Tenancy.Models import User
     query = list_users_with_store_query(db)
     if q:
         needle = f"%{q}%"
@@ -2299,21 +2299,9 @@ def superadmin_report_drilldown_route(
     fn_name = _SA_SERVICE_DISPATCH.get(slug)
     if fn_name is None:
         raise HTTPException(status_code=404, detail=f"Unknown report '{slug}'.")
-    from datetime import date as _date, datetime as _dt
-    today = _date.today()
-    default_from = _date(today.year, today.month, 1)
-    try:
-        d_from = (
-            _dt.strptime(from_, "%Y-%m-%d").date() if from_ else default_from
-        )
-    except ValueError:
-        d_from = default_from
-    try:
-        d_to = _dt.strptime(to, "%Y-%m-%d").date() if to else today
-    except ValueError:
-        d_to = today
-    if d_from > d_to:
-        d_from, d_to = d_to, d_from
+    from datetime import date as _date
+    from api.Core.Clock import resolve_period
+    d_from, d_to = resolve_period(from_, to, today=_date.today())
 
     import api.Modules.Superadmin.Services as svc
     service = getattr(svc, fn_name, None)

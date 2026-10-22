@@ -340,26 +340,6 @@ export interface TransfersSummary {
   grand_total: number;
 }
 
-// Hook: per-day MT roll-up from the employee transfer log.
-// Read-only — the daily book's `money_transfer` field is the
-// operator's writable counterpart; this hook just shows what
-// the transfer table already has so the cashier doesn't have
-// to re-key it.
-export function useTransfersSummary(date: string | undefined) {
-  const identity = getCurrentIdentity();
-  const storeId = identity?.store_id;
-  return useQuery<TransfersSummary>({
-    enabled:
-      Boolean(date) && storeId !== null && storeId !== undefined,
-    queryKey: ["dailybook", "transfers-summary", storeId, date],
-    queryFn: async () => {
-      return await api<TransfersSummary>(
-        `/api/v2/daily/${storeId}/${date}/transfers-summary`,
-      );
-    },
-  });
-}
-
 
 // ── Editable per-company MT breakdown ────────────────────────
 

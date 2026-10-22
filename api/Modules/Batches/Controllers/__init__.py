@@ -5,15 +5,15 @@ caller's store with precomputed transfers_total + variance, plus
 the per-batch create / edit / link-transfers endpoints the SPA
 batches page uses.
 """
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams
 from api.Modules.Auth.Controllers import get_principal
-from api.Modules.Auth.Services.principal import require_permission
+from api.Modules.Auth.Services.principal import require_permission, resolve_store_scope
 from api.Modules.Batches.Models import Transfer
 from api.Modules.Batches.Requests import (
     BatchLinkedTransferRow,
@@ -92,15 +92,7 @@ def list_route(
     JWTs (no store_id claim) → 403 — this endpoint is store-
     scoped."""
     require_permission(claims, "batches", "read")
-    store_id = claims.get("store_id")
-    if store_id is None:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "JWT does not carry a store scope. Sign in as a "
-                "store admin or owner to view batches."
-            ),
-        )
+    store_id = resolve_store_scope(claims)
     if page is None:
         rows = list_store_batches(
             db, int(store_id), sort=sort, direction=direction,
@@ -116,21 +108,6 @@ def list_route(
         rows=[_row(r) for r in summaries],
         total=total, page=page, total_pages=total_pages,
     )
-
-
-def _require_admin_scope(claims: dict[str, Any]) -> int:
-    """Both store_id (write is store-scoped) AND admin role
-    (cashiers can't manage batches in the legacy admin_required
-    path).  Permission guard is NOT here — callers add their own
-    ``require_permission(claims, "batches", "<action>")`` so
-    create / update / delete each carry the correct action."""
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
-    return int(sid)
 
 
 def _audit_batch(db, claims, action, batch, *, summary):
@@ -173,16 +150,7 @@ def _diff_summary(before: dict[str, Any], after: dict[str, Any]) -> str:
 
 
 def _parse_payload(body: BatchWriteRequest) -> BatchWriteInput:
-    try:
-        ach_date = datetime.strptime(body.ach_date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "field": "ach_date",
-                "message": "Date must be YYYY-MM-DD.",
-            },
-        )
+    ach_date = parse_iso_day(body.ach_date, field="ach_date")
     return BatchWriteInput(
         ach_date=ach_date,
         company=body.company,
@@ -210,12 +178,7 @@ def get_batch_route(
 ) -> BatchResponse:
     """Single-batch detail. Cross-tenant lookups → 404."""
     require_permission(claims, "batches", "read")
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
+    sid = resolve_store_scope(claims)
     row = find_batch(db, int(sid), batch_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Batch not found")
@@ -235,7 +198,7 @@ def create_batch_route(
     /batches/new Flask handler used to record. Without this, SPA
     creates would silently bypass the audit log."""
     require_permission(claims, "batches", "create")
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     payload = _parse_payload(body)
     try:
         row = create_batch(db, sid, payload)
@@ -267,7 +230,7 @@ def update_batch_route(
     tracked (amount, status, reconciled) so the operator-side audit
     trail stays consistent with the SPA cutover."""
     require_permission(claims, "batches", "update")
-    sid = _require_admin_scope(claims)
+    sid = resolve_store_scope(claims)
     payload = _parse_payload(body)
     # Snapshot the fields that the legacy edit handler diffed before
     # we mutate them. The Service mutates in-place, so we have to
@@ -316,12 +279,7 @@ def batch_transfers_route(
     `batch_id == batch_ref`. Mirrors the legacy
     /batches/<id>/transfers Jinja page."""
     require_permission(claims, "batches", "read")
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
+    sid = resolve_store_scope(claims)
     batch = find_batch(db, int(sid), batch_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")

@@ -42,5 +42,4 @@ export function initSentry(): boolean {
 // import from one place. Lets us swap to a different reporter (or
 // strip Sentry entirely) without rewriting consumers.
 export const captureException = Sentry.captureException;
-export const captureMessage = Sentry.captureMessage;
 export const ErrorBoundary = Sentry.ErrorBoundary;

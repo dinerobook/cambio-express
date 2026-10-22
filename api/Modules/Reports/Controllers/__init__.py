@@ -24,13 +24,13 @@ Layer rules from the ADR:
     Controller → DB session  ✓ (only via `Depends(get_db)`)
     Controller → Provider    ✗
 """
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
-from api.Core.Clock import store_local_today
+from api.Core.Clock import resolve_period, store_local_today
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
@@ -129,19 +129,9 @@ def parse_period(
     tomorrow for a US store in the evening. FastAPI caches
     ``parse_store_ids`` per request, so the scope check runs once.
     """
-    today = store_local_today(db, store_ids[0] if store_ids else None)
-    default_from = date(today.year, today.month, 1)
-    try:
-        d_from = datetime.strptime(from_, "%Y-%m-%d").date() if from_ else default_from
-    except ValueError:
-        d_from = default_from
-    try:
-        d_to = datetime.strptime(to, "%Y-%m-%d").date() if to else today
-    except ValueError:
-        d_to = today
-    if d_from > d_to:
-        d_from, d_to = d_to, d_from
-    return d_from, d_to
+    return resolve_period(
+        from_, to, today=store_local_today(db, store_ids[0] if store_ids else None),
+    )
 
 
 # ── Routes ──────────────────────────────────────────────────

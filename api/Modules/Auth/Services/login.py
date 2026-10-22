@@ -335,17 +335,9 @@ def finalize_2fa_with_totp(
     the recovery code consumed, and exposing both helpers with
     the same call shape keeps the Controller path simple.
     """
-    import jwt as _jwt  # local import to keep the type annotation clean
-    from api.Modules.Auth.Services.jwt_issuer import decode_pending_2fa_token
     from api.Modules.Auth.Services.totp import verify_totp_token
 
-    try:
-        claims = decode_pending_2fa_token(pending_token)
-    except _jwt.InvalidTokenError as exc:
-        raise AuthenticationError(str(exc) or "Invalid pending token")
-    user = db.get(User, int(claims["sub"]))
-    if user is None or not user.is_active:
-        raise AuthenticationError("Invalid or expired pending session")
+    user = _user_for_pending(db, pending_token)
     if not verify_totp_token(user, code):
         raise AuthenticationError("Invalid verification code")
     return _issue_full_login(user, db)
@@ -505,17 +497,9 @@ def finalize_2fa_with_recovery_code(
     Caller commits — the recovery code's `used_at` flush isn't
     durable until the session commits.
     """
-    import jwt as _jwt
-    from api.Modules.Auth.Services.jwt_issuer import decode_pending_2fa_token
     from api.Modules.Auth.Services.totp import consume_recovery_code
 
-    try:
-        claims = decode_pending_2fa_token(pending_token)
-    except _jwt.InvalidTokenError as exc:
-        raise AuthenticationError(str(exc) or "Invalid pending token")
-    user = db.get(User, int(claims["sub"]))
-    if user is None or not user.is_active:
-        raise AuthenticationError("Invalid or expired pending session")
+    user = _user_for_pending(db, pending_token)
     if not consume_recovery_code(db, user, code):
         raise AuthenticationError("Invalid recovery code")
     return _issue_full_login(user, db)

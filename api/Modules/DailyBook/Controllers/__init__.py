@@ -187,17 +187,7 @@ def update_daily_route(
     require_permission(claims, "daily_book", "update")
     d = parse_iso_day(report_date, field="report_date")
 
-    claim_store = claims.get("store_id")
-    if claim_store is None or int(claim_store) != int(store_id):
-        # Same opaque 403 for "no store scope" and
-        # "wrong store" — never leak which one tripped.
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "JWT does not authorize edits to this store's "
-                "daily book."
-            ),
-        )
+    _require_store_match(claims, store_id)
 
     # Drop the `notes` field; everything else is the float subset
     # that update_daily_report writes via setattr — only fields
@@ -330,15 +320,7 @@ def lock_daily_route(
     require_permission(claims, "daily_book", "update")
     require_permission(claims, "day_lock", "update")
     d = parse_iso_day(report_date, field="report_date")
-    claim_store = claims.get("store_id")
-    if claim_store is None or int(claim_store) != int(store_id):
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "JWT does not authorize edits to this store's "
-                "daily book."
-            ),
-        )
+    _require_store_match(claims, store_id)
     # Snapshot the prior lock state — the audit row only fires on
     # a state transition (matches the legacy /daily/<ds>/lock
     # `was_locked` guard).
@@ -402,15 +384,7 @@ def unlock_daily_route(
     require_permission(claims, "daily_book", "update")
     require_permission(claims, "day_lock", "update")
     d = parse_iso_day(report_date, field="report_date")
-    claim_store = claims.get("store_id")
-    if claim_store is None or int(claim_store) != int(store_id):
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "JWT does not authorize edits to this store's "
-                "daily book."
-            ),
-        )
+    _require_store_match(claims, store_id)
     existing = find_report_by_date(db, int(store_id), d)
     was_locked = bool(existing and existing.locked_at)
     result = unlock_report(db, int(store_id), d)

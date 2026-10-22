@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
+from api.Modules.Auth.Services.principal import resolve_store_scope
 from api.Modules.Billing.Requests import (
     BillingPortalResponse,
     CheckoutSessionRequest,
@@ -82,12 +83,7 @@ def _require_billing_scope(claims: dict[str, Any]) -> int:
             status_code=403,
             detail="Only store admins can manage billing.",
         )
-    sid = claims.get("store_id")
-    if sid is None:
-        raise HTTPException(
-            status_code=403,
-            detail="JWT does not carry a store scope.",
-        )
+    sid = resolve_store_scope(claims)
     return int(sid)
 
 
