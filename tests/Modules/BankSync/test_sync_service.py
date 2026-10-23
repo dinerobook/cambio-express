@@ -412,3 +412,27 @@ def test_sync_survives_a_matching_fault(monkeypatch):
         assert (new_rows, err) == (1, "")
         assert db.session.query(BankTransaction).filter_by(
             store_id=s.id, description="ATM DEPOSIT").count() == 1
+
+
+def test_upsert_reads_transacted_at_as_utc():
+    """Stripe sends a Unix timestamp; the row keeps naive UTC whatever
+    the server's own zone is (2026-10-10 02:30 UTC is still Oct 9 in
+    the US, so a local-time read would book it on the wrong day)."""
+    from api.Modules.BankSync.Services import upsert_bank_transaction
+    with db_session():
+        s, a = _store_with_account(db.session, slug="upsert-ts")
+        row, _ = upsert_bank_transaction(
+            db.session, s.id, a, _stripe_txn_dict(transacted_at=1791599400),
+        )
+        assert row.posted_at == datetime(2026, 10, 10, 2, 30)
+
+
+def test_upsert_ignores_an_unreadable_transacted_at():
+    from api.Modules.BankSync.Services import upsert_bank_transaction
+    with db_session():
+        s, a = _store_with_account(db.session, slug="upsert-bad-ts")
+        row, inserted = upsert_bank_transaction(
+            db.session, s.id, a, _stripe_txn_dict(transacted_at="not-a-time"),
+        )
+        assert inserted is True
+        assert row.posted_at is None

@@ -181,3 +181,42 @@ def test_resend_missing_secret_env_rejects_even_well_formed_signature(client):
                  "svix-signature": "v1,whatever"},
     )
     assert resp.status_code == 400
+
+
+def test_stripe_event_is_still_handled_when_the_delivery_log_fails(client):
+    """The Webhook Health log is best-effort: a failure writing it must
+    never drop the event itself (a paid checkout would never activate)."""
+    from unittest.mock import MagicMock
+    event = {"id": "evt_nolog", "type": "invoice.paid", "data": {"object": {}}}
+    with patch("api.Modules.Webhooks.Models.WebhookEvent", MagicMock()), \
+         patch("api.Modules.Billing.Services.handle_stripe_event") as handle:
+        resp = _post_stripe(client, event)
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ok": True}
+    handle.assert_called_once()
+    assert handle.call_args.args[1]["id"] == "evt_nolog"
+
+
+def test_stripe_handler_error_with_no_log_row_still_returns_200(client):
+    from unittest.mock import MagicMock
+    event = {"id": "evt_nolog_boom", "type": "invoice.paid", "data": {"object": {}}}
+    with patch("api.Modules.Webhooks.Models.WebhookEvent", MagicMock()), \
+         patch("api.Modules.Billing.Services.handle_stripe_event",
+               side_effect=RuntimeError("kaboom")):
+        resp = _post_stripe(client, event)
+    assert resp.status_code == 200
+    assert "warning" in resp.get_json()
+
+
+def test_stripe_bad_signature_is_refused_even_when_the_log_fails(client):
+    from unittest.mock import MagicMock
+    with patch("api.Modules.Webhooks.Models.WebhookEvent", MagicMock()), \
+         patch("api.Modules.Billing.Services.handle_stripe_event") as handle:
+        resp = client.post(
+            "/api/v2/webhooks/stripe",
+            data=b'{"type":"customer.subscription.deleted"}',
+            headers={"Stripe-Signature": "t=0,v1=deadbeef",
+                     "Content-Type": "application/json"},
+        )
+    assert resp.status_code == 400
+    handle.assert_not_called()

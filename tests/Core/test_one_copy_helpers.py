@@ -62,9 +62,9 @@ def test_nothing_calls_utcnow_directly():
         for p in sorted((ROOT / top).rglob("*.py"))
         if p.name != "test_one_copy_helpers.py"
         and p != ROOT / "api" / "Core" / "Clock.py"
-        and "utcnow" in _src(p)
+        and ("utcnow" in _src(p) or "utcfromtimestamp" in _src(p))
     ]
-    assert offenders == [], "use utc_now() from api.Core.Clock"
+    assert offenders == [], "use utc_now() / utc_from_timestamp() from api.Core.Clock"
 
 
 def test_utc_now_is_naive_utc():
@@ -76,6 +76,16 @@ def test_utc_now_is_naive_utc():
     assert now.tzinfo is None
     real = datetime.now(timezone.utc).replace(tzinfo=None)
     assert abs((real - now).total_seconds()) < 5
+
+
+def test_utc_from_timestamp_is_naive_utc():
+    from datetime import datetime
+
+    from api.Core.Clock import utc_from_timestamp
+
+    # 2026-10-10 02:30:00 UTC, whatever the server's local zone is.
+    assert utc_from_timestamp(1791599400) == datetime(2026, 10, 10, 2, 30)
+    assert utc_from_timestamp(1791599400).tzinfo is None
 
 
 def test_daily_book_checks_the_path_store_in_one_place():

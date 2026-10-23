@@ -44,7 +44,7 @@ from api.Modules.BankSync.Services.builtin_rules import (
     BUILTIN_BANK_RULES,
 )
 from api.Modules.Billing.Services.config import stripe_is_configured
-from api.Core.Clock import utc_now
+from api.Core.Clock import utc_now, utc_from_timestamp
 
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ def upsert_bank_transaction(
     row.status = status or "posted"
     if transacted_at:
         try:
-            row.posted_at = datetime.utcfromtimestamp(
+            row.posted_at = utc_from_timestamp(
                 int(transacted_at),
             )
         except (TypeError, ValueError):

@@ -663,8 +663,8 @@ def subscription_summary_route(
             sub = stripe.Subscription.retrieve(store.stripe_subscription_id)
             cancel_at_period_end = bool(sub.cancel_at_period_end)
             if cancel_at_period_end and sub.current_period_end:
-                from datetime import datetime
-                cancel_at = datetime.utcfromtimestamp(
+                from api.Core.Clock import utc_from_timestamp
+                cancel_at = utc_from_timestamp(
                     sub.current_period_end
                 ).strftime("%B %d, %Y")
         except Exception:

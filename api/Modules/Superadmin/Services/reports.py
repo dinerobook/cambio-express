@@ -9,7 +9,7 @@ from datetime import date
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import Any
-from api.Core.Clock import utc_now
+from api.Core.Clock import utc_now, utc_from_timestamp
 
 
 def _plan_mrr_table() -> dict[tuple[str, str], float]:
@@ -742,7 +742,7 @@ def payouts(
     d_to: date,
 ) -> tuple[list[dict], dict]:
     """Stripe payouts to the platform bank account in the period."""
-    from datetime import date as _date, datetime
+    from datetime import date as _date
     import stripe
     gte, lte = _stripe_period_unix(d_from, d_to)
     rows: list[dict] = []
@@ -761,7 +761,7 @@ def payouts(
         amt = float(p.get("amount", 0) or 0) / 100.0
         arrival_ts = p.get("arrival_date")
         arrival = (
-            datetime.utcfromtimestamp(arrival_ts).date()
+            utc_from_timestamp(arrival_ts).date()
             if arrival_ts else None
         )
         status = p.get("status", "") or ""

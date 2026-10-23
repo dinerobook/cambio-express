@@ -19,11 +19,11 @@ The Service uses `logging.getLogger(__name__)` instead of
 `app.logger` so it's callable from any context.
 """
 import logging
-from datetime import datetime
 
 import stripe
 from sqlalchemy.orm import Session
 
+from api.Core.Clock import utc_from_timestamp
 from api.Modules.Billing.Services.config import stripe_is_configured
 
 
@@ -110,7 +110,7 @@ def upsert_fc_account(db: Session, store_id: int, api_obj):
             row.last_balance_cents = 0
         if as_of:
             try:
-                row.last_balance_as_of = datetime.utcfromtimestamp(
+                row.last_balance_as_of = utc_from_timestamp(
                     int(as_of),
                 )
             except (TypeError, ValueError):
