@@ -8,6 +8,8 @@ import { getCurrentIdentity } from "./../lib/auth";
 import { passkeysSupported } from "./../lib/webauthn";
 import type { components } from "./openapi";
 
+type StatusOk = components["schemas"]["StatusOkResponse"];
+
 export interface ChangePasswordBody {
   current_password: string;
   new_password: string;
@@ -16,8 +18,8 @@ export interface ChangePasswordBody {
 
 export async function changePassword(
   body: ChangePasswordBody,
-): Promise<{ status: string }> {
-  return api<{ status: string }>(
+): Promise<StatusOk> {
+  return api<StatusOk>(
     "/api/v2/auth/change-password",
     { method: "POST", json: body },
   );
@@ -198,42 +200,16 @@ export function useProfile() {
 // the shell can lock a frozen / lapsed-subscription store's users out to
 // a re-subscribe / suspended screen. `reason`: "frozen" | "subscription"
 // | "". Superadmin (no store) is never gated.
-export interface SessionStatus {
-  gated:      boolean;
-  reason:     "frozen" | "subscription" | "";
-  plan:       string;
-  store_name: string;
-  /** IANA zone every date and time renders in — the store's, else
-   *  the person's own, else "" (the device's). Read by
-   *  `DisplayTimezone` in the shell; pages never read it directly. */
-  timezone: string;
-  /** cstore | gas_station | grocery | msb_hybrid ("" for
-   *  store-less principals like superadmin). */
-  business_type: string;
-  /** Module flags ON for this store — gates nav + routes. */
-  features: string[];
-  /** The principal's LIVE effective permissions ("resource.action").
-   *  The shell adopts these over the list cached at login so a
-   *  mid-session access change reaches the nav and route guards
-   *  before the access token expires. */
-  permissions: string[];
-  /** Trial countdown for the topbar (W-1). null for paid stores. */
-  trial: TrialBanner | null;
-  /** Set while a superadmin is signed in AS this person. The shell
-   *  shows the impersonation banner and the exit control from this.
-   *  `read_only`: the server refuses every write on this session
-   *  (403 with reason `read_only_impersonation`). */
-  impersonation: { by_user_id: number; by_name: string; read_only: boolean } | null;
-}
+/** `timezone`: the IANA zone every date and time renders in (the
+ *  store's, else the person's own, else "" = the device's).
+ *  `features`: module flags ON for this store, gating nav + routes.
+ *  `permissions`: the LIVE effective list the shell adopts over the
+ *  one cached at login. `trial`: topbar countdown, null when paid.
+ *  `impersonation`: set while a superadmin is signed in AS this
+ *  person; `read_only` sessions have every write refused. */
+export type SessionStatus = components["schemas"]["SessionStatusResponse"];
 
-export interface TrialBanner {
-  status: "active" | "expiring_soon" | "grace" | "expired";
-  /** Whole days remaining, rounded UP — 30 hours reads as 2, not 1.
-   *  0 once the trial has ended. */
-  days_left: number;
-  tone: "neutral" | "warning" | "negative";
-  message: string;
-}
+export type TrialBanner = components["schemas"]["TrialBanner"];
 
 export function useSessionStatus() {
   return useQuery<SessionStatus>({
@@ -323,8 +299,8 @@ export async function updateStoreInfo(
 
 export async function forgotPassword(
   email: string,
-): Promise<{ status: string }> {
-  return api<{ status: string }>(
+): Promise<StatusOk> {
+  return api<StatusOk>(
     "/api/v2/auth/forgot-password",
     { method: "POST", json: { email } },
   );
@@ -338,27 +314,16 @@ export interface ResetPasswordBody {
 
 export async function resetPassword(
   body: ResetPasswordBody,
-): Promise<{ status: string }> {
-  return api<{ status: string }>(
+): Promise<StatusOk> {
+  return api<StatusOk>(
     "/api/v2/auth/reset-password",
     { method: "POST", json: body },
   );
 }
 
 
-export interface PasskeyRow {
-  id: number;
-  name: string;
-  aaguid: string;
-  transports: string;
-  created_at: string;
-  last_used_at: string;
-}
-
-export interface PasskeyListResponse {
-  passkeys: PasskeyRow[];
-  total: number;
-}
+export type PasskeyRow = components["schemas"]["PasskeyRow"];
+export type PasskeyListResponse = components["schemas"]["PasskeyListResponse"];
 
 export function usePasskeys() {
   const identity = getCurrentIdentity();
@@ -386,10 +351,7 @@ export async function deletePasskey(id: number): Promise<void> {
 // browsers). Older builds lack it — the SPA hides the Add button
 // when this returns false.
 
-interface PasskeyRegisterBeginResponse {
-  options_json:   string;
-  register_token: string;
-}
+type PasskeyRegisterBeginResponse = components["schemas"]["PasskeyRegisterBeginResponse"];
 
 // WebAuthn ships its options as base64url-encoded byte fields
 // (challenge, user.id, excludeCredentials[].id). The browser API
@@ -415,7 +377,9 @@ function _bytesToB64url(bytes: ArrayBuffer | Uint8Array): string {
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-export async function registerPasskey(name: string): Promise<PasskeyRow> {
+export async function registerPasskey(
+  name: string,
+): Promise<components["schemas"]["PasskeyCreated"]> {
   if (!passkeysSupported()) {
     throw new Error(
       "This browser doesn't expose the WebAuthn API. Use a modern Chrome, Safari, Firefox, or Edge build.",
@@ -468,7 +432,7 @@ export async function registerPasskey(name: string): Promise<PasskeyRow> {
     },
   };
 
-  const finish = await api<{ passkey: PasskeyRow }>(
+  const finish = await api<components["schemas"]["PasskeyRegisterFinishResponse"]>(
     "/api/v2/auth/passkeys/register/finish",
     {
       method: "POST",

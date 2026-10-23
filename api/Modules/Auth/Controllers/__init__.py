@@ -19,6 +19,13 @@ import jwt
 from api.Core.Database import get_db
 from api.Core.RateLimit import limiter as _rate_limiter
 from api.Modules.Auth.Models import User
+from api.Modules.Auth.Requests.passkeys import (
+    PasskeyListResponse, PasskeyRegisterBeginResponse,
+    PasskeyRegisterFinishResponse,
+)
+from api.Modules.Auth.Requests.session import (
+    MeResponse, SessionStatusResponse, StatusOkResponse,
+)
 from api.Modules.Auth.Requests import (
     ActiveSessionRow,
     ActiveSessionsResponse,
@@ -900,7 +907,10 @@ def refresh_route(
     )
 
 
-@router.get("/me")
+@router.get(
+    "/me", response_model=None,
+    responses={200: {"model": MeResponse}},
+)
 def me_route(claims: dict[str, Any] = Depends(get_principal)) -> dict[str, Any]:
     """Echo the verified JWT claims. Useful for the React app's first
     paint to confirm the token is still valid + render user chrome
@@ -915,7 +925,10 @@ def me_route(claims: dict[str, Any] = Depends(get_principal)) -> dict[str, Any]:
     }
 
 
-@router.get("/session-status")
+@router.get(
+    "/session-status", response_model=None,
+    responses={200: {"model": SessionStatusResponse}},
+)
 def session_status_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1118,7 +1131,7 @@ def update_notifications_route(
 # ── User data export (GDPR portability) ────────────────────
 
 
-@router.get("/account/export")
+@router.get("/account/export", response_class=Response)
 def export_my_data_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1373,7 +1386,10 @@ def get_my_activity_route(
     )
 
 
-@router.post("/change-password")
+@router.post(
+    "/change-password", response_model=None,
+    responses={200: {"model": StatusOkResponse}},
+)
 @_rate_limiter.limit("5/minute;20/hour")
 def change_password_route(
     request: Request,
@@ -1637,7 +1653,10 @@ def referral_preview_route(
     )
 
 
-@router.post("/forgot-password")
+@router.post(
+    "/forgot-password", response_model=None,
+    responses={200: {"model": StatusOkResponse}},
+)
 @_rate_limiter.limit("5/minute;20/hour")
 def forgot_password_route(
     request: Request,
@@ -1739,7 +1758,10 @@ def send_password_reset_email(
             )
 
 
-@router.post("/reset-password")
+@router.post(
+    "/reset-password", response_model=None,
+    responses={200: {"model": StatusOkResponse}},
+)
 @_rate_limiter.limit("5/minute;20/hour")
 def reset_password_route(
     request: Request,
@@ -1788,7 +1810,10 @@ def reset_password_route(
 # FastAPI doesn't share Flask's `session` dict (Flask removed
 # in PR #550).
 
-@router.post("/passkeys/register/begin")
+@router.post(
+    "/passkeys/register/begin", response_model=None,
+    responses={200: {"model": PasskeyRegisterBeginResponse}},
+)
 def passkey_register_begin_route(
     request: Request,
     db: Session = Depends(get_db),
@@ -1852,7 +1877,10 @@ def passkey_register_begin_route(
     }
 
 
-@router.post("/passkeys/register/finish")
+@router.post(
+    "/passkeys/register/finish", response_model=None,
+    responses={200: {"model": PasskeyRegisterFinishResponse}},
+)
 def passkey_register_finish_route(
     body: dict[str, Any],
     request: Request,
@@ -1941,7 +1969,10 @@ def passkey_register_finish_route(
 # SPA settings page (`/app/settings/security`).
 
 
-@router.get("/passkeys")
+@router.get(
+    "/passkeys", response_model=None,
+    responses={200: {"model": PasskeyListResponse}},
+)
 def list_passkeys_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),

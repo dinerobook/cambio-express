@@ -12,3 +12,30 @@ class PasskeyRegisterBeginResponse(BaseModel):
 
     options_json: str
     register_token: str
+
+
+class PasskeyCreated(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    name: str
+    created_at: str
+    last_used_at: str
+
+
+class PasskeyRegisterFinishResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    passkey: PasskeyCreated
+
+
+class PasskeyRow(PasskeyCreated):
+    aaguid: str
+    transports: str
+
+
+class PasskeyListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    passkeys: list[PasskeyRow]
+    total: int

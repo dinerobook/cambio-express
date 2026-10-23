@@ -6031,6 +6031,30 @@
         "title": "HighValueTransfersTotals",
         "type": "object"
       },
+      "ImpersonationInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "by_name": {
+            "title": "By Name",
+            "type": "string"
+          },
+          "by_user_id": {
+            "title": "By User Id",
+            "type": "integer"
+          },
+          "read_only": {
+            "title": "Read Only",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "by_user_id",
+          "by_name",
+          "read_only"
+        ],
+        "title": "ImpersonationInfo",
+        "type": "object"
+      },
       "ImportDepartmentRow": {
         "additionalProperties": false,
         "properties": {
@@ -8528,6 +8552,55 @@
           "amount"
         ],
         "title": "MatchedEntry",
+        "type": "object"
+      },
+      "MeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "store_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Id"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "full_name",
+          "role",
+          "store_id",
+          "permissions"
+        ],
+        "title": "MeResponse",
         "type": "object"
       },
       "MessageListResponse": {
@@ -11350,6 +11423,57 @@
         "title": "PackRow",
         "type": "object"
       },
+      "PasskeyCreated": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_used_at": {
+            "title": "Last Used At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "last_used_at"
+        ],
+        "title": "PasskeyCreated",
+        "type": "object"
+      },
+      "PasskeyListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "passkeys": {
+            "items": {
+              "$ref": "#/components/schemas/PasskeyRow"
+            },
+            "title": "Passkeys",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "passkeys",
+          "total"
+        ],
+        "title": "PasskeyListResponse",
+        "type": "object"
+      },
       "PasskeyRegisterBeginResponse": {
         "additionalProperties": false,
         "description": "Step one of a WebAuthn registration: the browser options (a\nJSON string for ``navigator.credentials.create()``) and the\nsigned token the client echoes back on ``/register/finish``.",
@@ -11368,6 +11492,58 @@
           "register_token"
         ],
         "title": "PasskeyRegisterBeginResponse",
+        "type": "object"
+      },
+      "PasskeyRegisterFinishResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "passkey": {
+            "$ref": "#/components/schemas/PasskeyCreated"
+          }
+        },
+        "required": [
+          "passkey"
+        ],
+        "title": "PasskeyRegisterFinishResponse",
+        "type": "object"
+      },
+      "PasskeyRow": {
+        "additionalProperties": false,
+        "properties": {
+          "aaguid": {
+            "title": "Aaguid",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_used_at": {
+            "title": "Last Used At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "transports": {
+            "title": "Transports",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "last_used_at",
+          "aaguid",
+          "transports"
+        ],
+        "title": "PasskeyRow",
         "type": "object"
       },
       "PaystubResponse": {
@@ -13937,6 +14113,88 @@
         "title": "SessionRevokeResponse",
         "type": "object"
       },
+      "SessionStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "business_type": {
+            "title": "Business Type",
+            "type": "string"
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "gated": {
+            "title": "Gated",
+            "type": "boolean"
+          },
+          "impersonation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImpersonationInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "frozen",
+              "subscription",
+              ""
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "trial": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrialBanner"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "gated",
+          "reason",
+          "impersonation",
+          "plan",
+          "store_name",
+          "timezone",
+          "business_type",
+          "features",
+          "permissions",
+          "trial"
+        ],
+        "title": "SessionStatusResponse",
+        "type": "object"
+      },
       "SettlementReturnRow": {
         "additionalProperties": false,
         "description": "One entry that settled part of an open one.",
@@ -14309,6 +14567,21 @@
           "days"
         ],
         "title": "StagedDaysResponse",
+        "type": "object"
+      },
+      "StatusOkResponse": {
+        "additionalProperties": false,
+        "description": "Password change / forgot / reset: always ``{\"status\": \"ok\"}``\n(forgot-password never reveals whether an account exists).",
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "StatusOkResponse",
         "type": "object"
       },
       "StoreBookColumnSpec": {
@@ -20333,6 +20606,47 @@
         "title": "TransfersSummaryResponse",
         "type": "object"
       },
+      "TrialBanner": {
+        "additionalProperties": false,
+        "description": "``trial_banner()`` \u2014 the topbar trial countdown.",
+        "properties": {
+          "days_left": {
+            "title": "Days Left",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "expiring_soon",
+              "grace",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tone": {
+            "enum": [
+              "neutral",
+              "warning",
+              "negative"
+            ],
+            "title": "Tone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "days_left",
+          "tone",
+          "message"
+        ],
+        "title": "TrialBanner",
+        "type": "object"
+      },
       "UnreadCountResponse": {
         "additionalProperties": false,
         "description": "Nav-badge payload: total unread replies for the caller's\nconversation side (store side vs platform staff).",
@@ -25040,11 +25354,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
@@ -25228,9 +25537,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Change Password Route Auth Change Password Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StatusOkResponse"
                 }
               }
             },
@@ -25272,9 +25579,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Forgot Password Route Auth Forgot Password Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StatusOkResponse"
                 }
               }
             },
@@ -25676,9 +25981,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Me Route Auth Me Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/MeResponse"
                 }
               }
             },
@@ -26024,9 +26327,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Passkeys Route Auth Passkeys Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PasskeyListResponse"
                 }
               }
             },
@@ -26092,9 +26393,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Passkey Register Begin Route Auth Passkeys Register Begin Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PasskeyRegisterBeginResponse"
                 }
               }
             },
@@ -26172,9 +26471,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Passkey Register Finish Route Auth Passkeys Register Finish Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PasskeyRegisterFinishResponse"
                 }
               }
             },
@@ -26750,9 +27047,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Reset Password Route Auth Reset Password Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StatusOkResponse"
                 }
               }
             },
@@ -26818,9 +27113,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Session Status Route Auth Session Status Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SessionStatusResponse"
                 }
               }
             },
