@@ -30,40 +30,9 @@ import { formatDate } from "../lib/datetime";
 import styles from "./SuperadminStoreDrill.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { RolePermissionsEditor } from "../components/RolePermissionsEditor";
+import type { components } from "../api/openapi";
 
-interface StoreInfo {
-  id: number; name: string; slug: string; email: string;
-  phone: string; address: string; plan: string;
-  billing_cycle: string; is_active: boolean;
-  trial_status: string; created_at: string;
-  trial_ends_at: string; canceled_at: string;
-  stripe_customer_id: string;
-  frozen: boolean; frozen_at: string; frozen_reason: string;
-  /** On a free Basic/Pro plan handed out by a superadmin; Stripe
-   *  collection is paused while this is set. */
-  comped: boolean; comped_at: string; comp_reason: string;
-}
-
-interface TeamMember {
-  id: number; username: string; full_name: string;
-  role: string; email: string; is_active: boolean;
-  has_2fa: boolean; last_login_at: string;
-}
-
-interface TransferRow {
-  id: number; send_date: string; sender_name: string;
-  recipient_name: string; company: string;
-  send_amount: number; fee: number; total_collected: number;
-  status: string; created_at: string;
-}
-
-interface DrillData {
-  store: StoreInfo;
-  team: TeamMember[];
-  roster: Array<{ id: number; name: string; is_active: boolean }>;
-  recent_transfers: TransferRow[];
-  stats_30d: { transfer_count: number; volume: number; fees: number };
-}
+type DrillData = components["schemas"]["SuperadminStoreDrillResponse"];
 
 function useStoreDrill(storeId: number | undefined) {
   const identity = getCurrentIdentity();

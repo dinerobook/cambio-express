@@ -206,5 +206,8 @@ Never hand-write an interface the server already describes:
 `src/api/` shares its name with a generated schema. The few kept by
 hand (fields Pydantic defaults make optional, a narrower literal union)
 are listed there with their reason. Shapes the server has no schema
-for (`dict` responses) still migrate on touch, by giving the route a
-response model. `announcements.ts` is the canonical example.
+for (`dict` responses) are being typed module by module (api/CLAUDE.md
+→ "Every JSON answer documents its shape"); when a route gets its
+model, its hand-written SPA copy — in `src/api/` or a route file —
+moves onto the generated type in the same PR. `announcements.ts` is
+the canonical example.

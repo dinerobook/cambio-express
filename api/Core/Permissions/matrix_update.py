@@ -131,3 +131,44 @@ def apply_matrix_reset(
     reset_store_to_defaults(store_id, role, session=db)
     from api.Modules.Auth.Services.principal import revoke_refresh_tokens
     revoke_refresh_tokens(db, store_id=store_id, role=role)
+
+
+# ── Answers ───────────────────────────────────────────────────────
+# Documented with ``response_model=None, responses={200: {"model": …}}``
+# on the routes: the dicts ``get_permission_matrix`` /
+# ``get_global_matrix`` build go out unchanged, and the test suite's
+# response contract proves they have exactly these fields.
+
+RoleGrid = dict[str, dict[str, bool]]
+
+
+class GlobalPermissionMatrix(BaseModel):
+    """``get_global_matrix()`` — the layer every store inherits."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    roles: list[str]
+    resources: list[str]
+    actions: list[str]
+    matrix: dict[str, RoleGrid]
+
+
+class StorePermissionMatrix(BaseModel):
+    """``get_permission_matrix()`` — one store's grid per role, with
+    the roles the caller may edit and those carrying store rows."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    store_id: int
+    roles: list[str]
+    editable_roles: list[str]
+    resources: list[str]
+    actions: list[str]
+    matrix: dict[str, RoleGrid]
+    has_overrides: list[str]
+
+
+class NamedStorePermissionMatrix(StorePermissionMatrix):
+    """The store matrix plus the store's name (superadmin store page)."""
+
+    store_name: str

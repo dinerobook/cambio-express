@@ -10,11 +10,9 @@ import {
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SuperadminMaintenance.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import type { components } from "../api/openapi";
 
-interface MaintenanceState {
-  enabled: boolean;
-  message: string;
-}
+type MaintenanceState = components["schemas"]["SuperadminMaintenanceResponse"];
 
 function useMaintenanceState() {
   const identity = getCurrentIdentity();

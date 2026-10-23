@@ -14,30 +14,10 @@ import {
 import styles from "./SuperadminEmailLog.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
+import type { components } from "../api/openapi";
 
-interface EmailEventRow {
-  id: number;
-  to_addr: string;
-  event_type: string;
-  bounce_type: string;
-  message_id: string;
-  created_at: string;
-}
-
-interface SuppressedRow {
-  user_id: number;
-  username: string;
-  email: string;
-  bounced_at: string;
-}
-
-interface EmailLogData {
-  rows: EmailEventRow[];
-  total: number;
-  page: number;
-  total_pages: number;
-  suppressed: SuppressedRow[];
-}
+type EmailEventRow = components["schemas"]["SuperadminEmailEventRow"];
+type EmailLogData = components["schemas"]["SuperadminEmailLogResponse"];
 
 const EVENT_TYPES = [
   { value: "", label: "All events" },

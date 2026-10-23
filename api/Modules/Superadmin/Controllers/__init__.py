@@ -26,8 +26,31 @@ from api.Modules.Auth.Models import User
 from api.Modules.Auth.Services import resolve_superadmin_user
 from api.Modules.Auth.Services.principal import revoke_refresh_tokens
 from api.Core.Permissions.matrix_update import (
+    GlobalPermissionMatrix, NamedStorePermissionMatrix,
     PermissionMatrixBody, ResetRoleBody, apply_matrix_reset,
     apply_matrix_update,
+)
+from api.Modules.Superadmin.Requests.responses import (
+    SuperadminBillingOverviewResponse,
+    SuperadminBulkActionResponse,
+    SuperadminChangeRoleResponse,
+    SuperadminClearRetentionResponse,
+    SuperadminDashboardResponse,
+    SuperadminEmailLogResponse,
+    SuperadminImpersonateResponse,
+    SuperadminMaintenanceResponse,
+    SuperadminOkResponse,
+    SuperadminPlatformUserResponse,
+    SuperadminReportDrilldownResponse,
+    SuperadminRetentionDryRunResponse,
+    SuperadminRevokeSessionsResponse,
+    SuperadminStoreAuditLogResponse,
+    SuperadminStoreDrillResponse,
+    SuperadminStoreEmailResponse,
+    SuperadminSystemHealthResponse,
+    SuperadminTempPasswordResponse,
+    SuperadminToggleActiveResponse,
+    SuperadminUserListResponse,
 )
 from api.Modules.Superadmin.Requests import (
     DiscountCodeListResponse,
@@ -166,7 +189,10 @@ def _adapt_detail(s) -> SuperadminStoreDetailRow:
     )
 
 
-@router.get("/dashboard")
+@router.get(
+    "/dashboard", response_model=None,
+    responses={200: {"model": SuperadminDashboardResponse}},
+)
 def dashboard_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -268,7 +294,10 @@ def _compute_mrr_trend(db: Session) -> dict[str, Any]:
 # ── Maintenance mode ───────────────────────────────────────
 
 
-@router.get("/maintenance")
+@router.get(
+    "/maintenance", response_model=None,
+    responses={200: {"model": SuperadminMaintenanceResponse}},
+)
 def get_maintenance_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -280,7 +309,10 @@ def get_maintenance_route(
     return {"enabled": enabled, "message": message}
 
 
-@router.post("/maintenance")
+@router.post(
+    "/maintenance", response_model=None,
+    responses={200: {"model": SuperadminMaintenanceResponse}},
+)
 def set_maintenance_route(
     body: SuperadminMaintenanceRequest,
     db: Session = Depends(get_db),
@@ -308,7 +340,10 @@ def set_maintenance_route(
 # ── Permissions matrix ─────────────────────────────────────
 
 
-@router.get("/permissions")
+@router.get(
+    "/permissions", response_model=None,
+    responses={200: {"model": GlobalPermissionMatrix}},
+)
 def get_permissions_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -319,7 +354,10 @@ def get_permissions_route(
     return get_global_matrix()
 
 
-@router.put("/permissions")
+@router.put(
+    "/permissions", response_model=None,
+    responses={200: {"model": GlobalPermissionMatrix}},
+)
 def update_permissions_route(
     body: PermissionMatrixBody,
     db: Session = Depends(get_db),
@@ -347,7 +385,10 @@ def update_permissions_route(
 # ── Global user management ─────────────────────────────────
 
 
-@router.get("/users")
+@router.get(
+    "/users", response_model=None,
+    responses={200: {"model": SuperadminUserListResponse}},
+)
 def list_users_route(
     q: str | None = Query(None),
     role: str | None = Query(None),
@@ -392,7 +433,10 @@ def list_users_route(
     return paginate(query, pagination, adapter=_row)
 
 
-@router.post("/users/{user_id}/change-role")
+@router.post(
+    "/users/{user_id}/change-role", response_model=None,
+    responses={200: {"model": SuperadminChangeRoleResponse}},
+)
 def change_user_role_route(
     body: SuperadminChangeRoleRequest,
     user_id: int = Path(..., ge=1),
@@ -447,7 +491,10 @@ def change_user_role_route(
     return {"ok": True, "role": new_role}
 
 
-@router.post("/platform-users", status_code=201)
+@router.post(
+    "/platform-users", status_code=201, response_model=None,
+    responses={201: {"model": SuperadminPlatformUserResponse}},
+)
 def create_platform_user_route(
     body: PlatformUserCreateRequest,
     db: Session = Depends(get_db),
@@ -500,7 +547,10 @@ def create_platform_user_route(
     }
 
 
-@router.post("/users/{user_id}/toggle-active")
+@router.post(
+    "/users/{user_id}/toggle-active", response_model=None,
+    responses={200: {"model": SuperadminToggleActiveResponse}},
+)
 def toggle_user_active_route(
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -532,7 +582,10 @@ def toggle_user_active_route(
     return {"ok": True, "is_active": user.is_active}
 
 
-@router.post("/users/{user_id}/reset-2fa")
+@router.post(
+    "/users/{user_id}/reset-2fa", response_model=None,
+    responses={200: {"model": SuperadminOkResponse}},
+)
 def reset_2fa_route(
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -558,7 +611,10 @@ def reset_2fa_route(
     return {"ok": True}
 
 
-@router.post("/users/{user_id}/force-password-reset")
+@router.post(
+    "/users/{user_id}/force-password-reset", response_model=None,
+    responses={200: {"model": SuperadminTempPasswordResponse}},
+)
 def force_password_reset_route(
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -588,7 +644,10 @@ def force_password_reset_route(
     return {"ok": True, "temp_password": temp_pw}
 
 
-@router.post("/users/{user_id}/revoke-sessions")
+@router.post(
+    "/users/{user_id}/revoke-sessions", response_model=None,
+    responses={200: {"model": SuperadminRevokeSessionsResponse}},
+)
 def revoke_user_sessions_route(
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -629,7 +688,10 @@ def revoke_user_sessions_route(
 IMPERSONATION_TTL_SECONDS = 3600
 
 
-@router.post("/impersonate/stop")
+@router.post(
+    "/impersonate/stop", response_model=None,
+    responses={200: {"model": SuperadminOkResponse}},
+)
 def stop_impersonation_route(
     response: Response,
     db: Session = Depends(get_db),
@@ -668,7 +730,10 @@ def stop_impersonation_route(
     return {"ok": True}
 
 
-@router.post("/impersonate/{user_id}")
+@router.post(
+    "/impersonate/{user_id}", response_model=None,
+    responses={200: {"model": SuperadminImpersonateResponse}},
+)
 def impersonate_route(
     response: Response,
     body: SuperadminImpersonateRequest | None = None,
@@ -765,7 +830,10 @@ def impersonate_route(
 # ── Billing overview ────────────────────────────────────────
 
 
-@router.get("/billing-overview")
+@router.get(
+    "/billing-overview", response_model=None,
+    responses={200: {"model": SuperadminBillingOverviewResponse}},
+)
 def billing_overview_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -835,7 +903,10 @@ def billing_overview_route(
 # ── Email log ──────────────────────────────────────────────
 
 
-@router.get("/email-log")
+@router.get(
+    "/email-log", response_model=None,
+    responses={200: {"model": SuperadminEmailLogResponse}},
+)
 def email_log_route(
     q: str | None = Query(None),
     event_type: str | None = Query(None),
@@ -881,7 +952,10 @@ def email_log_route(
 # ── Store deep-drill ───────────────────────────────────────
 
 
-@router.get("/stores/{store_id}/drill")
+@router.get(
+    "/stores/{store_id}/drill", response_model=None,
+    responses={200: {"model": SuperadminStoreDrillResponse}},
+)
 def store_drill_route(
     store_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -1091,7 +1165,10 @@ def end_comp_route(
     return _comp_response(s, stripe_resumed=bool(result["stripe_resumed"]))
 
 
-@router.get("/stores/{store_id}/audit-log")
+@router.get(
+    "/stores/{store_id}/audit-log", response_model=None,
+    responses={200: {"model": SuperadminStoreAuditLogResponse}},
+)
 def store_audit_log_route(
     store_id: int = Path(..., ge=1),
     target: str = Query("", max_length=40),
@@ -1201,7 +1278,10 @@ def store_features_route(
     )
 
 
-@router.get("/system-health")
+@router.get(
+    "/system-health", response_model=None,
+    responses={200: {"model": SuperadminSystemHealthResponse}},
+)
 def system_health_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1710,7 +1790,10 @@ def extend_trial_route(
     )
 
 
-@router.post("/stores/{store_id}/toggle-active")
+@router.post(
+    "/stores/{store_id}/toggle-active", response_model=None,
+    responses={200: {"model": SuperadminToggleActiveResponse}},
+)
 def toggle_store_active_route(
     store_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -1734,7 +1817,10 @@ def toggle_store_active_route(
     return {"ok": True, "is_active": s.is_active}
 
 
-@router.get("/retention-dry-run")
+@router.get(
+    "/retention-dry-run", response_model=None,
+    responses={200: {"model": SuperadminRetentionDryRunResponse}},
+)
 def retention_dry_run_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1754,7 +1840,10 @@ def retention_dry_run_route(
     return retention_purge_dry_run(db)
 
 
-@router.post("/stores/{store_id}/clear-retention")
+@router.post(
+    "/stores/{store_id}/clear-retention", response_model=None,
+    responses={200: {"model": SuperadminClearRetentionResponse}},
+)
 def clear_retention_route(
     store_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -1791,7 +1880,10 @@ def clear_retention_route(
     return {"ok": True}
 
 
-@router.post("/bulk-action")
+@router.post(
+    "/bulk-action", response_model=None,
+    responses={200: {"model": SuperadminBulkActionResponse}},
+)
 def bulk_action_route(
     body: SuperadminBulkActionRequest,
     db: Session = Depends(get_db),
@@ -2007,7 +2099,10 @@ def unfreeze_store_route(
 # ── Store communication ─────────────────────────────────────
 
 
-@router.post("/stores/{store_id}/email")
+@router.post(
+    "/stores/{store_id}/email", response_model=None,
+    responses={200: {"model": SuperadminStoreEmailResponse}},
+)
 def email_store_route(
     body: SuperadminStoreEmailRequest,
     store_id: int = Path(..., ge=1),
@@ -2276,7 +2371,10 @@ _SA_SERVICE_DISPATCH = {
 }
 
 
-@router.get("/reports/{slug}")
+@router.get(
+    "/reports/{slug}", response_model=None,
+    responses={200: {"model": SuperadminReportDrilldownResponse}},
+)
 def superadmin_report_drilldown_route(
     slug: str,
     from_: str | None = Query(None, alias="from"),
@@ -2330,7 +2428,10 @@ def superadmin_report_drilldown_route(
 # ── Per-store permission overrides (from store drill) ──────
 
 
-@router.get("/stores/{store_id}/permissions")
+@router.get(
+    "/stores/{store_id}/permissions", response_model=None,
+    responses={200: {"model": NamedStorePermissionMatrix}},
+)
 def superadmin_store_permissions_route(
     store_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -2352,7 +2453,10 @@ def superadmin_store_permissions_route(
     return result
 
 
-@router.put("/stores/{store_id}/permissions")
+@router.put(
+    "/stores/{store_id}/permissions", response_model=None,
+    responses={200: {"model": NamedStorePermissionMatrix}},
+)
 def superadmin_update_store_permissions_route(
     body: PermissionMatrixBody,
     store_id: int = Path(..., ge=1),
@@ -2384,7 +2488,10 @@ def superadmin_update_store_permissions_route(
     )
 
 
-@router.post("/stores/{store_id}/permissions/reset")
+@router.post(
+    "/stores/{store_id}/permissions/reset", response_model=None,
+    responses={200: {"model": NamedStorePermissionMatrix}},
+)
 def superadmin_reset_store_permissions_route(
     body: ResetRoleBody,
     store_id: int = Path(..., ge=1),

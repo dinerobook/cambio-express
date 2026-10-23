@@ -118,6 +118,28 @@ _starlette_client = _StarletteTestClient(_asgi_app)
 _starlette_client.__enter__()  # spin up the portal + lifespan
 
 
+def _check_response_contract(method: str, path: str, resp) -> None:
+    """Fail the test when a JSON answer doesn't match the shape its
+    route documents (``tests/_response_contract.py``)."""
+    route_path = path.split("?", 1)[0]
+    if not route_path.startswith("/api/v2/"):
+        return
+    if "application/json" not in resp.headers.get("content-type", ""):
+        return
+    from api.main import api_app
+    from tests._response_contract import check
+    try:
+        body = resp.json()
+    except ValueError:
+        return
+    errors = check(api_app, method.upper(), route_path[len("/api/v2"):],
+                   resp.status_code, body)
+    assert not errors, (
+        f"{method.upper()} {route_path} answered a shape its documented "
+        "model doesn't match:\n  " + "\n  ".join(errors)
+    )
+
+
 class AsgiTestClient:
     """Flask-test-client-compatible client that runs requests
     through the production ``asgi:asgi_app``.
@@ -167,9 +189,9 @@ class AsgiTestClient:
                 kwargs["data"] = data
         if content is not None:
             kwargs["content"] = content
-        return AsgiTestResponse(
-            _starlette_client.request(method, path, **kwargs),
-        )
+        resp = _starlette_client.request(method, path, **kwargs)
+        _check_response_contract(method, path, resp)
+        return AsgiTestResponse(resp)
 
     def get(self, path, **kwargs):
         return self._request("GET", path, **kwargs)

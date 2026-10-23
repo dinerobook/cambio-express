@@ -18,27 +18,9 @@ import {
 import styles from "./SuperadminBilling.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
+import type { components } from "../api/openapi";
 
-interface StoreRow {
-  store_id: number;
-  name: string;
-  slug: string;
-  plan: string;
-  email: string;
-  trial_ends_at?: string;
-  grace_ends_at?: string;
-  canceled_at?: string;
-  data_retention_until?: string;
-  days_left?: number;
-}
-
-interface BillingData {
-  expiring_soon: StoreRow[];
-  in_grace: StoreRow[];
-  retention_queue: StoreRow[];
-  recent_cancels: StoreRow[];
-  webhook_stats: Record<string, number>;
-}
+type BillingData = components["schemas"]["SuperadminBillingOverviewResponse"];
 
 function useBillingOverview() {
   const identity = getCurrentIdentity();

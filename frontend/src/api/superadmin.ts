@@ -8,7 +8,6 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import type { AdminAuditRow } from "./admin";
 import type { PillTone } from "../components/ui";
 import type { components } from "./openapi";
 
@@ -175,67 +174,13 @@ export function useSuperadminReports() {
 }
 
 
-export interface PlanDistEntry {
-  label: string;
-  count: number;
-}
+type Schemas = components["schemas"];
 
-export interface VolumeByCompany {
-  company: string;
-  count: number;
-  total: number;
-}
-
-export interface TopReferrer {
-  store_name: string;
-  slug: string;
-  code: string;
-  redeemed: number;
-  reward_total_cents: number;
-}
-
-export interface ActivityEntry {
-  when: string;
-  kind: "signup" | "cancel";
-  store_name: string;
-  detail: string;
-  plan: string;
-}
-
-export interface SuperadminDashboardData {
-  total_stores: number;
-  active_count: number;
-  trial_count: number;
-  paid_count: number;
-  inactive_count: number;
-  estimated_mrr: number;
-  new_stores_30d: number;
-  new_stores_delta: number;
-  churn_30d: number;
-  churn_delta: number;
-  basic_count: number;
-  pro_count: number;
-  basic_monthly: number;
-  basic_yearly: number;
-  pro_monthly: number;
-  pro_yearly: number;
-  basic_monthly_mrr: number;
-  basic_yearly_mrr: number;
-  pro_monthly_mrr: number;
-  pro_yearly_mrr: number;
-  signup_labels: string[];
-  signup_direct: number[];
-  signup_referral: number[];
-  plan_dist: PlanDistEntry[];
-  volume_by_company: VolumeByCompany[];
-  total_volume_30d: number;
-  total_transfers_30d: number;
-  top_referrers: TopReferrer[];
-  direct_signups: number;
-  referral_signups: number;
-  activity: ActivityEntry[];
-  mrr_trend: { labels: string[]; values: number[] };
-}
+export type PlanDistEntry = Schemas["SuperadminPlanCount"];
+export type VolumeByCompany = Schemas["SuperadminCompanyVolume"];
+export type TopReferrer = Schemas["SuperadminTopReferrer"];
+export type ActivityEntry = Schemas["SuperadminActivityRow"];
+export type SuperadminDashboardData = Schemas["SuperadminDashboardResponse"];
 
 export function useSuperadminDashboard() {
   const identity = getCurrentIdentity();
@@ -248,26 +193,8 @@ export function useSuperadminDashboard() {
 }
 
 
-export interface SuperadminUserRow {
-  id: number;
-  username: string;
-  full_name: string;
-  email: string;
-  role: string;
-  store_id: number | null;
-  store_name: string;
-  is_active: boolean;
-  has_2fa: boolean;
-  last_login_at: string;
-  created_at: string;
-}
-
-interface SuperadminUserListResponse {
-  rows: SuperadminUserRow[];
-  total: number;
-  page: number;
-  total_pages: number;
-}
+export type SuperadminUserRow = Schemas["SuperadminUserRow"];
+type SuperadminUserListResponse = Schemas["SuperadminUserListResponse"];
 
 export function useSuperadminUsers(opts: {
   q?: string; role?: string; store_id?: number; page?: number; perPage?: number;
@@ -295,45 +222,39 @@ export async function createPlatformUser(body: {
   email: string;
   password: string;
 }) {
-  return api<{
-    ok: boolean;
-    user: {
-      id: number; username: string; full_name: string;
-      email: string; role: string;
-    };
-  }>("/api/v2/superadmin/platform-users", { method: "POST", json: body });
+  return api<Schemas["SuperadminPlatformUserResponse"]>("/api/v2/superadmin/platform-users", { method: "POST", json: body });
 }
 
 export async function changeUserRole(userId: number, role: string) {
-  return api<{ ok: boolean; role: string }>(
+  return api<Schemas["SuperadminChangeRoleResponse"]>(
     `/api/v2/superadmin/users/${userId}/change-role`,
     { method: "POST", json: { role } },
   );
 }
 
 export async function toggleUserActive(userId: number) {
-  return api<{ ok: boolean; is_active: boolean }>(
+  return api<Schemas["SuperadminToggleActiveResponse"]>(
     `/api/v2/superadmin/users/${userId}/toggle-active`,
     { method: "POST" },
   );
 }
 
 export async function resetUser2FA(userId: number) {
-  return api<{ ok: boolean }>(
+  return api<Schemas["SuperadminOkResponse"]>(
     `/api/v2/superadmin/users/${userId}/reset-2fa`,
     { method: "POST" },
   );
 }
 
 export async function forcePasswordReset(userId: number) {
-  return api<{ ok: boolean; temp_password: string }>(
+  return api<Schemas["SuperadminTempPasswordResponse"]>(
     `/api/v2/superadmin/users/${userId}/force-password-reset`,
     { method: "POST" },
   );
 }
 
 export async function revokeUserSessions(userId: number) {
-  return api<{ ok: boolean; revoked_count: number }>(
+  return api<Schemas["SuperadminRevokeSessionsResponse"]>(
     `/api/v2/superadmin/users/${userId}/revoke-sessions`,
     { method: "POST" },
   );
@@ -347,10 +268,7 @@ export type ImpersonationMode = "full" | "read_only";
 export async function impersonateUser(
   userId: number, mode: ImpersonationMode = "full",
 ) {
-  return api<{
-    token: string;
-    user: { id: number; username: string; role: string; store_id: number | null; full_name: string };
-  }>(
+  return api<Schemas["SuperadminImpersonateResponse"]>(
     `/api/v2/superadmin/impersonate/${userId}`,
     { method: "POST", json: { mode } },
   );
@@ -360,7 +278,7 @@ export async function impersonateUser(
  *  access cookie dropped). Call through `lib/impersonation.ts`,
  *  which also restores the superadmin's own session. */
 export async function stopImpersonationRequest() {
-  return api<{ ok: boolean }>(
+  return api<Schemas["SuperadminOkResponse"]>(
     "/api/v2/superadmin/impersonate/stop",
     { method: "POST" },
   );
@@ -427,13 +345,7 @@ export async function endComp(storeId: number) {
   );
 }
 
-export interface StoreAuditLogResponse {
-  rows: AdminAuditRow[];
-  total: number;
-  page: number;
-  per_page: number;
-  total_pages: number;
-}
+export type StoreAuditLogResponse = Schemas["SuperadminStoreAuditLogResponse"];
 
 /** The store's own activity feed (what its admin sees on
  *  /app/admin/audit-log), read from the superadmin store page. */
@@ -493,22 +405,8 @@ export function useStoreFeatures(storeId: number | undefined) {
   });
 }
 
-export interface RetentionDryRunStoreRow {
-  store_id: number;
-  name: string;
-  slug: string;
-  canceled_at: string;
-  data_retention_until: string;
-  row_count: number;
-  row_counts: Record<string, number>;
-}
-
-export interface RetentionDryRunResponse {
-  now: string;
-  store_count: number;
-  total_child_rows: number;
-  stores: RetentionDryRunStoreRow[];
-}
+export type RetentionDryRunStoreRow = Schemas["SuperadminRetentionStore"];
+export type RetentionDryRunResponse = Schemas["SuperadminRetentionDryRunResponse"];
 
 export async function retentionDryRun() {
   return api<RetentionDryRunResponse>(
@@ -518,14 +416,14 @@ export async function retentionDryRun() {
 }
 
 export async function clearStoreRetention(storeId: number) {
-  return api<{ ok: boolean; already_clear?: boolean }>(
+  return api<Schemas["SuperadminClearRetentionResponse"]>(
     `/api/v2/superadmin/stores/${storeId}/clear-retention`,
     { method: "POST" },
   );
 }
 
 export async function toggleStoreActive(storeId: number) {
-  return api<{ ok: boolean; is_active: boolean }>(
+  return api<Schemas["SuperadminToggleActiveResponse"]>(
     `/api/v2/superadmin/stores/${storeId}/toggle-active`,
     { method: "POST" },
   );
@@ -575,7 +473,7 @@ export async function unfreezeStore(storeId: number) {
 }
 
 export async function emailStore(storeId: number, subject: string, message: string) {
-  return api<{ ok: boolean; sent_to: string[]; total: number }>(
+  return api<Schemas["SuperadminStoreEmailResponse"]>(
     `/api/v2/superadmin/stores/${storeId}/email`,
     { method: "POST", json: { subject, message } },
   );
@@ -586,7 +484,7 @@ export async function bulkStoreAction(
   action: "extend_trial" | "enable" | "disable",
   days?: number,
 ) {
-  return api<{ ok: boolean; count: number; results: Array<Record<string, unknown>> }>(
+  return api<Schemas["SuperadminBulkActionResponse"]>(
     `/api/v2/superadmin/bulk-action`,
     { method: "POST", json: { store_ids, action, days } },
   );
