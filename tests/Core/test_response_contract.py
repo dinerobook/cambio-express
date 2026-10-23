@@ -94,17 +94,7 @@ def test_errors_and_undocumented_routes_are_not_checked():
 # model (doc-only as above when it builds a dict) and delete its line.
 
 UNTYPED = {
-    "DELETE /admin/roles/{role_id}",
-    "DELETE /admin/users/{user_id}/permissions",
     "DELETE /catalog/invoices/{invoice_id}",
-    "GET /admin/audit-log.csv",
-    "GET /admin/roles",
-    "GET /admin/roles/{role_id}/members",
-    "GET /admin/store-permissions",
-    "GET /admin/subscription",
-    "GET /admin/tax-export.zip",
-    "GET /admin/timeclock.csv",
-    "GET /admin/users/{user_id}/permissions",
     "GET /auth/account/export",
     "GET /auth/me",
     "GET /auth/passkeys",
@@ -137,10 +127,6 @@ UNTYPED = {
     "GET /reports/returned-check-status",
     "GET /reports/{slug}.csv",
     "GET /superadmin/reports/{slug}.csv",
-    "POST /admin/redeem-connect-code",
-    "POST /admin/roles",
-    "POST /admin/store-permissions/reset",
-    "POST /admin/timeclock/credentials/{store_employee_id}/register/begin",
     "POST /auth/change-password",
     "POST /auth/forgot-password",
     "POST /auth/passkeys/register/begin",
@@ -149,10 +135,6 @@ UNTYPED = {
     "POST /owner/store/{store_id}/permissions/reset",
     "POST /webhooks/resend",
     "POST /webhooks/stripe",
-    "PUT /admin/roles/{role_id}",
-    "PUT /admin/store-permissions",
-    "PUT /admin/users/{user_id}/permissions",
-    "PUT /admin/users/{user_id}/role",
     "PUT /owner/store/{store_id}/permissions",
 }
 

@@ -47,41 +47,9 @@ export async function openBillingPortal(): Promise<PortalResponse> {
   });
 }
 
-export interface SubscriptionStore {
-  id: number;
-  name: string | null;
-  email: string | null;
-  plan: string | null;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
-  data_retention_until: string | null;
-}
-
-export interface SubscriptionAddon {
-  key: string;
-  name: string;
-  price_label: string;
-  tagline: string;
-  description: string;
-  status: string;
-  is_active: boolean;
-}
-
-export interface SubscriptionSummary {
-  store: SubscriptionStore;
-  plan_label: string;
-  plan_price: string;
-  has_paid_plan: boolean;
-  trial_status: string | null;
-  trial_days_left: number | null;
-  retention_days_left: number | null;
-  retention_total_days: number;
-  addons: SubscriptionAddon[];
-  active_addon_count: number;
-  cancel_at_period_end: boolean;
-  cancel_at: string | null;
-  referral_code: string | null;
-}
+export type SubscriptionStore = components["schemas"]["SubscriptionStore"];
+export type SubscriptionAddon = components["schemas"]["SubscriptionAddon"];
+export type SubscriptionSummary = components["schemas"]["SubscriptionSummaryResponse"];
 
 export async function fetchSubscriptionSummary(): Promise<SubscriptionSummary> {
   return api<SubscriptionSummary>("/api/v2/admin/subscription");

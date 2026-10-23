@@ -2,6 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import type { PillTone } from "../components/ui";
+import type { components } from "./openapi";
+
+type Schemas = components["schemas"];
 
 /** UI-STANDARDS §3 role pills — one tone per built-in role on every
  *  screen. admin is the store's live operator (accent), employee is
@@ -35,33 +38,18 @@ export function roleLabel(role: string): string {
   return ROLE_LABELS[role] ?? role;
 }
 
-// Named access roles (R-3). Hand-written types: the roles routes
-// return plain dicts rather than Pydantic response models, so
-// there is nothing in openapi.d.ts to import.
+// Named access roles (R-3).
 
 export type PermMatrix = Record<string, Record<string, boolean>>;
 
-export interface AccessRole {
-  id: number;
-  name: string;
-  member_count: number;
-  matrix: PermMatrix;
-  updated_at: string | null;
-  /** Present only on the response to an edit that propagated. */
-  affected_members?: RoleMember[];
-}
+/** A saved role. `affected_members` comes only on the answer to an
+ *  edit (who had their access rewritten). */
+export type AccessRole = Schemas["AccessRoleRow"]
+  & Partial<Pick<Schemas["AccessRoleUpdateResponse"], "affected_members">>;
 
-export interface RoleMember {
-  id: number;
-  name: string;
-  role?: string;
-}
+export type RoleMember = Schemas["AccessRoleMember"];
 
-export interface RoleListResponse {
-  resources: string[];
-  actions: string[];
-  roles: AccessRole[];
-}
+export type RoleListResponse = Schemas["AccessRoleListResponse"];
 
 export function useAccessRoles() {
   return useQuery<RoleListResponse>({
@@ -74,7 +62,7 @@ export function useAccessRoles() {
  *  confirmation before a propagating save. */
 export async function fetchRoleMembers(
   roleId: number,
-): Promise<{ role_id: number; name: string; members: RoleMember[] }> {
+): Promise<Schemas["AccessRoleMembersResponse"]> {
   return api(`/api/v2/admin/roles/${roleId}/members`);
 }
 
@@ -88,22 +76,22 @@ export async function createAccessRole(body: {
 
 export async function updateAccessRole(
   id: number, body: { name?: string; matrix?: PermMatrix },
-): Promise<AccessRole> {
-  return api<AccessRole>(`/api/v2/admin/roles/${id}`, {
+): Promise<Schemas["AccessRoleUpdateResponse"]> {
+  return api<Schemas["AccessRoleUpdateResponse"]>(`/api/v2/admin/roles/${id}`, {
     method: "PUT", json: body,
   });
 }
 
 export async function deleteAccessRole(
   id: number,
-): Promise<{ deleted: string; detached: RoleMember[] }> {
+): Promise<Schemas["AccessRoleDeleteResponse"]> {
   return api(`/api/v2/admin/roles/${id}`, { method: "DELETE" });
 }
 
 /** Put a user in a saved role, or take them out (`null`). */
 export async function assignAccessRole(
   userId: number, roleId: number | null,
-): Promise<{ store_role_id: number | null; store_role_name: string | null }> {
+): Promise<Schemas["UserRoleAssignmentResponse"]> {
   return api(`/api/v2/admin/users/${userId}/role`, {
     method: "PUT", json: { role_id: roleId },
   });
@@ -114,14 +102,7 @@ export async function assignAccessRole(
 // who is in no saved role and has no custom access can do. A store
 // admin may edit the Employee row only (`editable_roles`).
 
-export interface BuiltinRolesResponse {
-  roles: string[];
-  editable_roles: string[];
-  resources: string[];
-  actions: string[];
-  matrix: Record<string, PermMatrix>;
-  has_overrides: string[];
-}
+export type BuiltinRolesResponse = Schemas["StorePermissionMatrix"];
 
 export function useBuiltinRoles(enabled = true) {
   return useQuery<BuiltinRolesResponse>({

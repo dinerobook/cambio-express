@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
+from api.Modules.Auth.Requests.passkeys import PasskeyRegisterBeginResponse
 from api.Modules.Auth.Services import resolve_store_scope
 from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.TimeClock.Models import TimeClockEntry, TimeClockShift
@@ -428,7 +429,7 @@ def admin_entries_route(
     )
 
 
-@admin_router.get("/timeclock.csv")
+@admin_router.get("/timeclock.csv", response_class=Response)
 def export_admin_entries_csv_route(
     from_: date = Query(..., alias="from"),
     to:    date = Query(...),
@@ -1184,7 +1185,11 @@ def admin_credentials_list_route(
     return TimeClockCredentialList(rows=rows)
 
 
-@admin_router.post("/timeclock/credentials/{store_employee_id}/register/begin")
+@admin_router.post(
+    "/timeclock/credentials/{store_employee_id}/register/begin",
+    response_model=None,
+    responses={200: {"model": PasskeyRegisterBeginResponse}},
+)
 def admin_credentials_register_begin_route(
     request: Request,
     store_employee_id: int = Path(..., ge=1),

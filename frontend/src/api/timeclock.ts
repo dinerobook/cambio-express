@@ -198,10 +198,7 @@ export type TimeClockCredentialList = components["schemas"]["TimeClockCredential
 
 export type PunchChallengeResponse = components["schemas"]["PunchChallengeResponse"];
 
-export interface RegisterBeginResponse {
-  options_json:   string;
-  register_token: string;
-}
+export type RegisterBeginResponse = components["schemas"]["PasskeyRegisterBeginResponse"];
 
 export function useTimeClockCredentials() {
   return useQuery<TimeClockCredentialList>({
