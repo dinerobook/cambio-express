@@ -6826,6 +6826,23 @@ export interface components {
             /** Updated At */
             updated_at: string | null;
         };
+        /** AchVolumeResponse */
+        AchVolumeResponse: {
+            /** Rows */
+            rows: components["schemas"]["AchVolumeRow"][];
+            totals: components["schemas"]["CountAmountTotals"];
+        };
+        /** AchVolumeRow */
+        AchVolumeRow: {
+            /** Amount */
+            amount: number;
+            /** Avg */
+            avg: number;
+            /** Company */
+            company: string;
+            /** Count */
+            count: number;
+        };
         /**
          * ActiveAnnouncementRow
          * @description Slim shape returned to the SPA banner — only the fields the
@@ -7451,6 +7468,25 @@ export interface components {
             /** Slug */
             slug: string;
         };
+        /** BankChargesResponse */
+        BankChargesResponse: {
+            /** Rows */
+            rows: components["schemas"]["BankChargesRow"][];
+            totals: components["schemas"]["CountAmountTotals"];
+        };
+        /** BankChargesRow */
+        BankChargesRow: {
+            /** Account */
+            account: string | null;
+            /** Amount */
+            amount: number;
+            /** Avg */
+            avg: number;
+            /** Count */
+            count: number;
+            /** Last4 */
+            last4: string | null;
+        };
         /**
          * BankConnectCompleteRequest
          * @description `POST /api/v2/bank/connect/complete` body — the SPA hands
@@ -7528,6 +7564,36 @@ export interface components {
              * @default 0
              */
             tagged: number;
+        };
+        /** BankRuleAuditResponse */
+        BankRuleAuditResponse: {
+            /** Rows */
+            rows: components["schemas"]["BankRuleAuditRow"][];
+            totals: components["schemas"]["BankRuleAuditTotals"];
+        };
+        /** BankRuleAuditRow */
+        BankRuleAuditRow: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+            /** Match */
+            match: string;
+            /** Rule Id */
+            rule_id: number;
+            /** Target */
+            target: string;
+        };
+        /** BankRuleAuditTotals */
+        BankRuleAuditTotals: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Rules */
+            rules: number;
         };
         /**
          * BankRuleListResponse
@@ -7955,6 +8021,36 @@ export interface components {
              */
             suggestion_count: number;
         };
+        /** BankTxnBreakdownResponse */
+        BankTxnBreakdownResponse: {
+            /** Rows */
+            rows: components["schemas"]["BankTxnBreakdownRow"][];
+            totals: components["schemas"]["BankTxnBreakdownTotals"];
+        };
+        /** BankTxnBreakdownRow */
+        BankTxnBreakdownRow: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+            /** Signed */
+            signed: number;
+            /** Slug */
+            slug: string;
+        };
+        /** BankTxnBreakdownTotals */
+        BankTxnBreakdownTotals: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Inflow */
+            inflow: number;
+            /** Outflow */
+            outflow: number;
+        };
         /**
          * BatchLinkedTransferRow
          * @description Subset of Transfer columns the SPA's batch-detail page
@@ -8218,6 +8314,44 @@ export interface components {
             rows: components["schemas"]["CountryRow"][];
             totals: components["schemas"]["AggregatedTotals"];
         };
+        /** CancelledTransferRow */
+        CancelledTransferRow: {
+            /** Amount */
+            amount: number;
+            /** Company */
+            company: string;
+            /** Confirm */
+            confirm: string;
+            /** Country */
+            country: string;
+            /** Recipient Name */
+            recipient_name: string;
+            /** Send Date */
+            send_date: string;
+            /** Sender Name */
+            sender_name: string;
+            /** Status */
+            status: string;
+            /** Status Notes */
+            status_notes: string;
+        };
+        /** CancelledTransfersResponse */
+        CancelledTransfersResponse: {
+            /** Rows */
+            rows: components["schemas"]["CancelledTransferRow"][];
+            totals: components["schemas"]["CancelledTransfersTotals"];
+        };
+        /** CancelledTransfersTotals */
+        CancelledTransfersTotals: {
+            /** Amount */
+            amount: number;
+            /** Canceled */
+            canceled: number;
+            /** Count */
+            count: number;
+            /** Rejected */
+            rejected: number;
+        };
         /** CashierProductivityResponse */
         CashierProductivityResponse: {
             /** Rows */
@@ -8399,6 +8533,13 @@ export interface components {
              * @description Sum of federal_tax in USD.
              */
             tax: number;
+        };
+        /** CountAmountTotals */
+        CountAmountTotals: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
         };
         /** CountryRow */
         CountryRow: {
@@ -8641,6 +8782,33 @@ export interface components {
          */
         CustomerUpsertResponse: {
             customer: components["schemas"]["api__Modules__Customers__Requests__customers__CustomerRow"];
+        };
+        /** DailyLineItemDayRow */
+        DailyLineItemDayRow: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Date */
+            date: string;
+        };
+        /**
+         * DailyLineItemReportResponse
+         * @description Daily drops and check deposits: one row per day.
+         */
+        DailyLineItemReportResponse: {
+            /** Rows */
+            rows: components["schemas"]["DailyLineItemDayRow"][];
+            totals: components["schemas"]["DailyLineItemTotals"];
+        };
+        /** DailyLineItemTotals */
+        DailyLineItemTotals: {
+            /** Amount */
+            amount: number;
+            /** Avg Per Day */
+            avg_per_day: number;
+            /** Count */
+            count: number;
         };
         /**
          * DailyReportResponse
@@ -9124,6 +9292,36 @@ export interface components {
              */
             skipped: number;
         };
+        /** EmployeeActivityResponse */
+        EmployeeActivityResponse: {
+            /** Rows */
+            rows: components["schemas"]["EmployeeActivityRow"][];
+            totals: components["schemas"]["EmployeeActivityTotals"];
+        };
+        /** EmployeeActivityRow */
+        EmployeeActivityRow: {
+            /** Cancels */
+            cancels: number;
+            /** Count */
+            count: number;
+            /** Employee */
+            employee: string;
+            /** Last Activity */
+            last_activity: string | null;
+            /** Sent */
+            sent: number;
+            /** Username */
+            username: string;
+        };
+        /** EmployeeActivityTotals */
+        EmployeeActivityTotals: {
+            /** Cancels */
+            cancels: number;
+            /** Count */
+            count: number;
+            /** Sent */
+            sent: number;
+        };
         /** EmployeeCreateRequest */
         EmployeeCreateRequest: {
             /** Address Line1 */
@@ -9305,6 +9503,32 @@ export interface components {
             /** Enabled By Default */
             enabled_by_default: boolean;
         };
+        /** FeesVsTaxResponse */
+        FeesVsTaxResponse: {
+            /** Rows */
+            rows: components["schemas"]["FeesVsTaxRow"][];
+            totals: components["schemas"]["FeesVsTaxTotals"];
+        };
+        /** FeesVsTaxRow */
+        FeesVsTaxRow: {
+            /** Amount */
+            amount: number;
+            /** Label */
+            label: string;
+            /** Note */
+            note: string;
+        };
+        /** FeesVsTaxTotals */
+        FeesVsTaxTotals: {
+            /** Count */
+            count: number;
+            /** Fees */
+            fees: number;
+            /** Ratio */
+            ratio: number;
+            /** Tax */
+            tax: number;
+        };
         /**
          * ForgotPasswordRequest
          * @description POST body for /auth/forgot-password. Always responds 200
@@ -9397,6 +9621,46 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HighValueTransferRow */
+        HighValueTransferRow: {
+            /** Amount */
+            amount: number;
+            /** Company */
+            company: string;
+            /** Confirm */
+            confirm: string;
+            /** Country */
+            country: string;
+            /** Fee */
+            fee: number;
+            /** Recipient Name */
+            recipient_name: string;
+            /** Send Date */
+            send_date: string;
+            /** Sender Name */
+            sender_name: string;
+            /** Tax */
+            tax: number;
+        };
+        /** HighValueTransfersResponse */
+        HighValueTransfersResponse: {
+            /** Rows */
+            rows: components["schemas"]["HighValueTransferRow"][];
+            /** Threshold */
+            threshold: number;
+            totals: components["schemas"]["HighValueTransfersTotals"];
+        };
+        /** HighValueTransfersTotals */
+        HighValueTransfersTotals: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Fees */
+            fees: number;
+            /** Tax */
+            tax: number;
         };
         /** ImportDepartmentRow */
         ImportDepartmentRow: {
@@ -10985,6 +11249,38 @@ export interface components {
             /** Content Base64 */
             content_base64: string;
         };
+        /** NewVsReturningResponse */
+        NewVsReturningResponse: {
+            /** Rows */
+            rows: components["schemas"]["NewVsReturningRow"][];
+            totals: components["schemas"]["NewVsReturningTotals"];
+        };
+        /** NewVsReturningRow */
+        NewVsReturningRow: {
+            /** Bucket */
+            bucket: string;
+            /** Customers */
+            customers: number;
+            /** Sent */
+            sent: number;
+            /** Tone */
+            tone: string;
+            /** Txns */
+            txns: number;
+        };
+        /** NewVsReturningTotals */
+        NewVsReturningTotals: {
+            /** Customers */
+            customers: number;
+            /** New Count */
+            new_count: number;
+            /** Returning Count */
+            returning_count: number;
+            /** Sent */
+            sent: number;
+            /** Txns */
+            txns: number;
+        };
         /**
          * NotificationsResponse
          * @description Per-user notification preferences.
@@ -11764,6 +12060,60 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "approved" | "rejected";
+        };
+        /** PeriodComparisonResponse */
+        PeriodComparisonResponse: {
+            /** Rows */
+            rows: components["schemas"]["PeriodComparisonRow"][];
+            totals: components["schemas"]["PeriodComparisonTotals"];
+        };
+        /** PeriodComparisonRow */
+        PeriodComparisonRow: {
+            /** Current */
+            current: number;
+            /** Delta */
+            delta: number;
+            /** Is Money */
+            is_money: boolean;
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+            /** Prior */
+            prior: number;
+        };
+        /** PeriodComparisonTotals */
+        PeriodComparisonTotals: {
+            /** Current Label */
+            current_label: string;
+            /** Prior Label */
+            prior_label: string;
+        };
+        /** PeriodPlResponse */
+        PeriodPlResponse: {
+            /** Rows */
+            rows: components["schemas"]["PeriodPlRow"][];
+            totals: components["schemas"]["PeriodPlTotals"];
+        };
+        /** PeriodPlRow */
+        PeriodPlRow: {
+            /** Amount */
+            amount: number;
+            /** Label */
+            label: string;
+            /** Section */
+            section: string;
+        };
+        /** PeriodPlTotals */
+        PeriodPlTotals: {
+            /** Days */
+            days: number;
+            /** Expenses */
+            expenses: number;
+            /** Income */
+            income: number;
+            /** Net */
+            net: number;
         };
         /**
          * PeriodSummaryResponse
@@ -12680,6 +13030,40 @@ export interface components {
              * @default 0
              */
             return_check_fee: number;
+        };
+        /** ReturnedCheckStatusResponse */
+        ReturnedCheckStatusResponse: {
+            /** Rows */
+            rows: components["schemas"]["ReturnedCheckStatusRow"][];
+            totals: components["schemas"]["ReturnedCheckStatusTotals"];
+        };
+        /** ReturnedCheckStatusRow */
+        ReturnedCheckStatusRow: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Recovered */
+            recovered: number;
+            /** Status */
+            status: string;
+            /** Status Key */
+            status_key: string;
+        };
+        /** ReturnedCheckStatusTotals */
+        ReturnedCheckStatusTotals: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Fees */
+            fees: number;
+            /** Loss Fraud */
+            loss_fraud: number;
+            /** Net Gl */
+            net_gl: number;
+            /** Recovered */
+            recovered: number;
         };
         /** RoleCreateRequest */
         RoleCreateRequest: {
@@ -23972,7 +24356,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AchVolumeResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24012,7 +24396,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BankChargesResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24052,7 +24436,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BankRuleAuditResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24092,7 +24476,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["BankTxnBreakdownResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24172,7 +24556,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["CancelledTransfersResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24252,7 +24636,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DailyLineItemReportResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24292,7 +24676,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DailyLineItemReportResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24332,7 +24716,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["EmployeeActivityResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24372,7 +24756,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["FeesVsTaxResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24413,7 +24797,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["HighValueTransfersResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24453,7 +24837,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["NewVsReturningResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24495,7 +24879,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PeriodComparisonResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24535,7 +24919,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PeriodPlResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24575,7 +24959,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ReturnedCheckStatusResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24820,9 +25204,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -26197,9 +26579,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

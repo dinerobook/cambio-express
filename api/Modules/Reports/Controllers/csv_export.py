@@ -335,7 +335,7 @@ def store_csv_export(
 def register(router) -> None:
     """Attach the store-scope CSV route onto the Reports router."""
 
-    @router.get("/{slug}.csv")
+    @router.get("/{slug}.csv", response_class=Response)
     def csv_export(
         slug: str,
         from_: str | None = Query(None, alias="from"),
@@ -520,7 +520,7 @@ def superadmin_csv_export(
 def register_superadmin(router) -> None:
     """Attach the platform-scope CSV route onto the Superadmin router."""
 
-    @router.get("/reports/{slug}.csv")
+    @router.get("/reports/{slug}.csv", response_class=Response)
     def csv_export(
         slug: str,
         from_: str | None = Query(None, alias="from"),
