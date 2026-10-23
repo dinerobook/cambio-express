@@ -6,26 +6,10 @@ import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { Card, Input, PageHeader, PageShell } from "../components/ui";
 import { AuditTable, type AuditTableRow } from "../components/AuditTable";
 import { PageCrumbs } from "../components/PageCrumbs";
+import type { components } from "../api/openapi";
 
-interface ActivityRow {
-  type: string;
-  store_id: number;
-  store_name: string;
-  user_name: string;
-  user_role: string;
-  action: string;
-  target_type: string;
-  target_label: string;
-  summary: string;
-  created_at: string;
-}
-
-interface ActivityResponse {
-  rows: ActivityRow[];
-  total: number;
-  page: number;
-  total_pages: number;
-}
+type ActivityRow = components["schemas"]["OwnerActivityRow"];
+type ActivityResponse = components["schemas"]["OwnerActivityListResponse"];
 
 function useOwnerActivity(q: string, page: number, perPage: number) {
   const identity = getCurrentIdentity();

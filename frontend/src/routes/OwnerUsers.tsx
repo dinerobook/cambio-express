@@ -9,23 +9,10 @@ import {
   type DataColumn,
 } from "../components/ui";
 import { PageCrumbs } from "../components/PageCrumbs";
+import type { components } from "../api/openapi";
 
-interface UserRow {
-  id: number;
-  username: string;
-  full_name: string;
-  role: string;
-  is_active: boolean;
-  store_id: number;
-  store_name: string;
-}
-
-interface UsersResponse {
-  rows: UserRow[];
-  total: number;
-  page: number;
-  total_pages: number;
-}
+type UserRow = components["schemas"]["OwnerUserRow"];
+type UsersResponse = components["schemas"]["OwnerUserListResponse"];
 
 function useOwnerUsers(storeId: number | null, q: string, page: number, perPage: number) {
   const identity = getCurrentIdentity();

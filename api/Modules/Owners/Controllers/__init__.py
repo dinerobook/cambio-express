@@ -23,7 +23,13 @@ from api.Modules.Auth.Models import User
 from api.Modules.Auth.Services.principal import (
     require_permission, revoke_refresh_tokens,
 )
+from api.Modules.Owners.Requests.responses import (
+    OwnerActivityListResponse, OwnerDashboardResponse,
+    OwnerStoreDetailResponse, OwnerUserListResponse,
+)
+from api.Modules.Reports.Controllers import ReportListResponse
 from api.Core.Permissions.matrix_update import (
+    StorePermissionMatrix,
     PermissionMatrixBody, ResetRoleBody, apply_matrix_reset,
     apply_matrix_update, validate_role_matrix,
 )
@@ -540,7 +546,10 @@ def owner_unlink_store_route(
 # ── Owner report center index ──────────────────────────────
 
 
-@router.get("/reports")
+@router.get(
+    "/reports", response_model=None,
+    responses={200: {"model": ReportListResponse}},
+)
 def owner_reports_route(
     db: Session = Depends(get_db),  # noqa: ARG001 — kept for symmetry
     claims: dict[str, Any] = Depends(get_principal),
@@ -584,7 +593,10 @@ def _require_owner(db: Session, claims: dict[str, Any]) -> User:
     return _require_owner_principal(db, claims)
 
 
-@router.get("/dashboard")
+@router.get(
+    "/dashboard", response_model=None,
+    responses={200: {"model": OwnerDashboardResponse}},
+)
 def owner_dashboard_route(
     period: str = "month",
     db: Session = Depends(get_db),
@@ -610,7 +622,10 @@ def owner_dashboard_route(
     return {k: _safe_value(v) for k, v in ctx.items()}
 
 
-@router.get("/store/{store_id}")
+@router.get(
+    "/store/{store_id}", response_model=None,
+    responses={200: {"model": OwnerStoreDetailResponse}},
+)
 def owner_store_detail_route(
     store_id: int = Path(..., ge=1),
     period: str = "month",
@@ -743,7 +758,10 @@ def owner_store_detail_route(
 # ── Owner user management ──────────────────────────────────
 
 
-@router.get("/users")
+@router.get(
+    "/users", response_model=None,
+    responses={200: {"model": OwnerUserListResponse}},
+)
 def owner_users_route(
     store_id: int | None = Query(None, ge=1),
     q: str = Query("", max_length=100),
@@ -782,7 +800,10 @@ def owner_users_route(
 # ── Owner store permissions ────────────────────────────────
 
 
-@router.get("/store/{store_id}/permissions")
+@router.get(
+    "/store/{store_id}/permissions", response_model=None,
+    responses={200: {"model": StorePermissionMatrix}},
+)
 def owner_store_permissions_route(
     store_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -802,7 +823,10 @@ def owner_store_permissions_route(
     return get_permission_matrix(store_id, visible_roles, editable_roles)
 
 
-@router.put("/store/{store_id}/permissions")
+@router.put(
+    "/store/{store_id}/permissions", response_model=None,
+    responses={200: {"model": StorePermissionMatrix}},
+)
 def owner_update_store_permissions_route(
     body: PermissionMatrixBody,
     store_id: int = Path(..., ge=1),
@@ -831,7 +855,10 @@ def owner_update_store_permissions_route(
     )
 
 
-@router.post("/store/{store_id}/permissions/reset")
+@router.post(
+    "/store/{store_id}/permissions/reset", response_model=None,
+    responses={200: {"model": StorePermissionMatrix}},
+)
 def owner_reset_store_permissions_route(
     body: ResetRoleBody,
     store_id: int = Path(..., ge=1),
@@ -882,7 +909,10 @@ def _audit_store_permissions(
 # ── Cross-store activity stream ────────────────────────────
 
 
-@router.get("/activity")
+@router.get(
+    "/activity", response_model=None,
+    responses={200: {"model": OwnerActivityListResponse}},
+)
 def owner_activity_route(
     store_id: int | None = Query(None, ge=1),
     q: str = Query("", max_length=100),

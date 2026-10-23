@@ -11,16 +11,9 @@ import {
 import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import { PageCrumbs } from "../components/PageCrumbs";
+import type { components } from "../api/openapi";
 
-interface PermissionMatrix {
-  store_id: number;
-  roles: string[];
-  editable_roles: string[];
-  resources: string[];
-  actions: string[];
-  matrix: Record<string, Record<string, Record<string, boolean>>>;
-  has_overrides: string[];
-}
+type PermissionMatrix = components["schemas"]["StorePermissionMatrix"];
 
 export default function OwnerBulkPermissions() {
   const {
