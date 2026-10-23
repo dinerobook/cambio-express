@@ -10200,6 +10200,97 @@
         "title": "OpenSettlementRow",
         "type": "object"
       },
+      "OwnerActivityListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerActivityRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages"
+        ],
+        "title": "OwnerActivityListResponse",
+        "type": "object"
+      },
+      "OwnerActivityRow": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "target_label": {
+            "title": "Target Label",
+            "type": "string"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "user_name": {
+            "title": "User Name",
+            "type": "string"
+          },
+          "user_role": {
+            "title": "User Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "store_id",
+          "store_name",
+          "user_name",
+          "user_role",
+          "action",
+          "target_type",
+          "target_label",
+          "summary",
+          "created_at"
+        ],
+        "title": "OwnerActivityRow",
+        "type": "object"
+      },
       "OwnerAddStoreRequest": {
         "additionalProperties": false,
         "description": "POST body for /auth/my-stores \u2014 an existing owner adds a new\nstore under their umbrella (U-5a, the switcher's \"+\" button).\nThe new store gets its own trial window; subscriptions stay\nper store.",
@@ -10233,6 +10324,30 @@
           "name"
         ],
         "title": "OwnerAddStoreRequest",
+        "type": "object"
+      },
+      "OwnerAgingBucket": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "amount",
+          "count"
+        ],
+        "title": "OwnerAgingBucket",
         "type": "object"
       },
       "OwnerBillingResponse": {
@@ -10626,6 +10741,69 @@
         "title": "OwnerBulkPermissionsResultRow",
         "type": "object"
       },
+      "OwnerCompanyBreakdown": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "number"
+          }
+        },
+        "required": [
+          "company",
+          "count",
+          "volume",
+          "fees"
+        ],
+        "title": "OwnerCompanyBreakdown",
+        "type": "object"
+      },
+      "OwnerCompanyRow": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "tax": {
+            "title": "Tax",
+            "type": "number"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "number"
+          }
+        },
+        "required": [
+          "company",
+          "count",
+          "volume",
+          "fees",
+          "tax"
+        ],
+        "title": "OwnerCompanyRow",
+        "type": "object"
+      },
       "OwnerConnectCodeListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -10887,6 +11065,154 @@
         "title": "OwnerCrossStoreResultRow",
         "type": "object"
       },
+      "OwnerDashboardResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "agg_over_short": {
+            "title": "Agg Over Short",
+            "type": "number"
+          },
+          "agg_over_short_delta": {
+            "title": "Agg Over Short Delta",
+            "type": "number"
+          },
+          "agg_transfers": {
+            "title": "Agg Transfers",
+            "type": "integer"
+          },
+          "agg_transfers_delta": {
+            "title": "Agg Transfers Delta",
+            "type": "integer"
+          },
+          "agg_volume": {
+            "title": "Agg Volume",
+            "type": "number"
+          },
+          "agg_volume_delta": {
+            "title": "Agg Volume Delta",
+            "type": "number"
+          },
+          "company_breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerCompanyBreakdown"
+            },
+            "title": "Company Breakdown",
+            "type": "array"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "string"
+          },
+          "prev_label": {
+            "title": "Prev Label",
+            "type": "string"
+          },
+          "rc_aging": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerAgingBucket"
+            },
+            "title": "Rc Aging",
+            "type": "array"
+          },
+          "rc_labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rc Labels",
+            "type": "array"
+          },
+          "rc_losses": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Rc Losses",
+            "type": "array"
+          },
+          "rc_period": {
+            "$ref": "#/components/schemas/OwnerReturnCheckPeriod"
+          },
+          "rc_recoveries": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Rc Recoveries",
+            "type": "array"
+          },
+          "series_count": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Series Count",
+            "type": "array"
+          },
+          "series_labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Series Labels",
+            "type": "array"
+          },
+          "series_volume": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Series Volume",
+            "type": "array"
+          },
+          "store_comparison": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerStoreVolume"
+            },
+            "title": "Store Comparison",
+            "type": "array"
+          },
+          "store_count": {
+            "title": "Store Count",
+            "type": "integer"
+          },
+          "stores": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerStoreCard"
+            },
+            "title": "Stores",
+            "type": "array"
+          }
+        },
+        "required": [
+          "period",
+          "prev_label",
+          "period_start",
+          "period_end",
+          "store_count",
+          "stores",
+          "agg_transfers",
+          "agg_volume",
+          "agg_over_short",
+          "agg_transfers_delta",
+          "agg_volume_delta",
+          "agg_over_short_delta",
+          "series_labels",
+          "series_volume",
+          "series_count",
+          "company_breakdown",
+          "store_comparison",
+          "rc_period",
+          "rc_aging",
+          "rc_labels",
+          "rc_recoveries",
+          "rc_losses"
+        ],
+        "title": "OwnerDashboardResponse",
+        "type": "object"
+      },
       "OwnerLocationsResponse": {
         "additionalProperties": false,
         "description": "Per-store rows for /api/v2/owner/locations.\n\n`total` is the unfiltered umbrella size (so the SPA can\ndistinguish \"owner has no stores connected yet\" from \"search\nreturned zero matches\").",
@@ -11044,6 +11370,134 @@
         "title": "OwnerPLRollupTotals",
         "type": "object"
       },
+      "OwnerRecentTransfer": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "recipient_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Name"
+          },
+          "send_amount": {
+            "title": "Send Amount",
+            "type": "number"
+          },
+          "send_date": {
+            "title": "Send Date",
+            "type": "string"
+          },
+          "sender_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Name"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "id",
+          "send_date",
+          "sender_name",
+          "recipient_name",
+          "company",
+          "send_amount",
+          "country",
+          "status"
+        ],
+        "title": "OwnerRecentTransfer",
+        "type": "object"
+      },
+      "OwnerReturnCheckPeriod": {
+        "additionalProperties": false,
+        "properties": {
+          "fee_income": {
+            "title": "Fee Income",
+            "type": "number"
+          },
+          "fraud": {
+            "title": "Fraud",
+            "type": "number"
+          },
+          "losses": {
+            "title": "Losses",
+            "type": "number"
+          },
+          "net_gl": {
+            "title": "Net Gl",
+            "type": "number"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "number"
+          },
+          "pending_count": {
+            "title": "Pending Count",
+            "type": "integer"
+          },
+          "recoveries": {
+            "title": "Recoveries",
+            "type": "number"
+          }
+        },
+        "required": [
+          "recoveries",
+          "fee_income",
+          "losses",
+          "fraud",
+          "net_gl",
+          "pending",
+          "pending_count"
+        ],
+        "title": "OwnerReturnCheckPeriod",
+        "type": "object"
+      },
       "OwnerSignupRequest": {
         "additionalProperties": false,
         "description": "POST body for /auth/signup/owner. Mirrors the legacy\n/signup/owner Jinja form. Returns a JWT on success so the SPA\ndrops the new owner straight onto /owner/dashboard.",
@@ -11140,6 +11594,59 @@
         "title": "OwnerSignupResponse",
         "type": "object"
       },
+      "OwnerStoreCard": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "over_short": {
+            "title": "Over Short",
+            "type": "number"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "count",
+          "volume",
+          "over_short"
+        ],
+        "title": "OwnerStoreCard",
+        "type": "object"
+      },
       "OwnerStoreCompanyChip": {
         "additionalProperties": false,
         "properties": {
@@ -11162,6 +11669,114 @@
           "volume"
         ],
         "title": "OwnerStoreCompanyChip",
+        "type": "object"
+      },
+      "OwnerStoreDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "company_rows": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerCompanyRow"
+            },
+            "title": "Company Rows",
+            "type": "array"
+          },
+          "daily_labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Daily Labels",
+            "type": "array"
+          },
+          "over_short_data": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Over Short Data",
+            "type": "array"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "period_count": {
+            "title": "Period Count",
+            "type": "integer"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_fees": {
+            "title": "Period Fees",
+            "type": "number"
+          },
+          "period_over_short": {
+            "title": "Period Over Short",
+            "type": "number"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "string"
+          },
+          "period_tax": {
+            "title": "Period Tax",
+            "type": "number"
+          },
+          "period_volume": {
+            "title": "Period Volume",
+            "type": "number"
+          },
+          "prev_count": {
+            "title": "Prev Count",
+            "type": "integer"
+          },
+          "prev_label": {
+            "title": "Prev Label",
+            "type": "string"
+          },
+          "prev_volume": {
+            "title": "Prev Volume",
+            "type": "number"
+          },
+          "receipts_data": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Receipts Data",
+            "type": "array"
+          },
+          "recent_transfers": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerRecentTransfer"
+            },
+            "title": "Recent Transfers",
+            "type": "array"
+          },
+          "store": {
+            "$ref": "#/components/schemas/OwnerStoreSummary"
+          }
+        },
+        "required": [
+          "store",
+          "period",
+          "prev_label",
+          "period_start",
+          "period_end",
+          "company_rows",
+          "period_count",
+          "period_volume",
+          "period_fees",
+          "period_tax",
+          "period_over_short",
+          "prev_count",
+          "prev_volume",
+          "daily_labels",
+          "over_short_data",
+          "receipts_data",
+          "recent_transfers"
+        ],
+        "title": "OwnerStoreDetailResponse",
         "type": "object"
       },
       "OwnerStoreRow": {
@@ -11217,11 +11832,180 @@
         "title": "OwnerStoreRow",
         "type": "object"
       },
+      "OwnerStoreSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "plan"
+        ],
+        "title": "OwnerStoreSummary",
+        "type": "object"
+      },
+      "OwnerStoreVolume": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "count",
+          "volume"
+        ],
+        "title": "OwnerStoreVolume",
+        "type": "object"
+      },
       "OwnerUnlinkRequest": {
         "additionalProperties": false,
         "description": "POST body for /owner/unlink/{store_id}. Empty schema today\n(the store_id is in the path), but `extra=\"forbid\"` keeps it\nexplicit + future-extensible.",
         "properties": {},
         "title": "OwnerUnlinkRequest",
+        "type": "object"
+      },
+      "OwnerUserListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerUserRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages"
+        ],
+        "title": "OwnerUserListResponse",
+        "type": "object"
+      },
+      "OwnerUserRow": {
+        "additionalProperties": false,
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "store_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Id"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "full_name",
+          "role",
+          "is_active",
+          "store_id",
+          "store_name"
+        ],
+        "title": "OwnerUserRow",
         "type": "object"
       },
       "PackActivateRequest": {
@@ -35453,7 +36237,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerActivityListResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -36026,7 +36812,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerDashboardResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -36280,7 +37068,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ReportListResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -36364,7 +37154,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerStoreDetailResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -36439,9 +37231,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Owner Store Permissions Route Owner Store  Store Id  Permissions Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StorePermissionMatrix"
                 }
               }
             },
@@ -36525,9 +37315,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Owner Update Store Permissions Route Owner Store  Store Id  Permissions Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StorePermissionMatrix"
                 }
               }
             },
@@ -36613,9 +37401,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Owner Reset Store Permissions Route Owner Store  Store Id  Permissions Reset Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StorePermissionMatrix"
                 }
               }
             },
@@ -36813,7 +37599,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerUserListResponse"
+                }
               }
             },
             "description": "Successful Response"

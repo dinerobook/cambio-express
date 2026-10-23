@@ -100,17 +100,9 @@ UNTYPED = {
     "GET /dashboard/summary",
     "GET /health",
     "GET /maintenance-status",
-    "GET /owner/activity",
-    "GET /owner/dashboard",
-    "GET /owner/reports",
-    "GET /owner/store/{store_id}",
-    "GET /owner/store/{store_id}/permissions",
-    "GET /owner/users",
     "GET /posimport/naxml/pricebook-export",
-    "POST /owner/store/{store_id}/permissions/reset",
     "POST /webhooks/resend",
     "POST /webhooks/stripe",
-    "PUT /owner/store/{store_id}/permissions",
 }
 
 

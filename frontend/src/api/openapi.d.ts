@@ -11482,6 +11482,40 @@ export interface components {
             /** Settled */
             settled: number;
         };
+        /** OwnerActivityListResponse */
+        OwnerActivityListResponse: {
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["OwnerActivityRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** OwnerActivityRow */
+        OwnerActivityRow: {
+            /** Action */
+            action: string;
+            /** Created At */
+            created_at: string;
+            /** Store Id */
+            store_id: number;
+            /** Store Name */
+            store_name: string;
+            /** Summary */
+            summary: string;
+            /** Target Label */
+            target_label: string;
+            /** Target Type */
+            target_type: string;
+            /** Type */
+            type: string;
+            /** User Name */
+            user_name: string;
+            /** User Role */
+            user_role: string;
+        };
         /**
          * OwnerAddStoreRequest
          * @description POST body for /auth/my-stores — an existing owner adds a new
@@ -11507,6 +11541,15 @@ export interface components {
              * @default
              */
             phone: string;
+        };
+        /** OwnerAgingBucket */
+        OwnerAgingBucket: {
+            /** Amount */
+            amount: number;
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
         };
         /**
          * OwnerBillingResponse
@@ -11688,6 +11731,30 @@ export interface components {
             /** Store Id */
             store_id: number;
         };
+        /** OwnerCompanyBreakdown */
+        OwnerCompanyBreakdown: {
+            /** Company */
+            company: string;
+            /** Count */
+            count: number;
+            /** Fees */
+            fees: number;
+            /** Volume */
+            volume: number;
+        };
+        /** OwnerCompanyRow */
+        OwnerCompanyRow: {
+            /** Company */
+            company: string;
+            /** Count */
+            count: number;
+            /** Fees */
+            fees: number;
+            /** Tax */
+            tax: number;
+            /** Volume */
+            volume: number;
+        };
         /** OwnerConnectCodeListResponse */
         OwnerConnectCodeListResponse: {
             /** Rows */
@@ -11785,6 +11852,52 @@ export interface components {
              */
             store_name: string;
         };
+        /** OwnerDashboardResponse */
+        OwnerDashboardResponse: {
+            /** Agg Over Short */
+            agg_over_short: number;
+            /** Agg Over Short Delta */
+            agg_over_short_delta: number;
+            /** Agg Transfers */
+            agg_transfers: number;
+            /** Agg Transfers Delta */
+            agg_transfers_delta: number;
+            /** Agg Volume */
+            agg_volume: number;
+            /** Agg Volume Delta */
+            agg_volume_delta: number;
+            /** Company Breakdown */
+            company_breakdown: components["schemas"]["OwnerCompanyBreakdown"][];
+            /** Period */
+            period: string;
+            /** Period End */
+            period_end: string;
+            /** Period Start */
+            period_start: string;
+            /** Prev Label */
+            prev_label: string;
+            /** Rc Aging */
+            rc_aging: components["schemas"]["OwnerAgingBucket"][];
+            /** Rc Labels */
+            rc_labels: string[];
+            /** Rc Losses */
+            rc_losses: number[];
+            rc_period: components["schemas"]["OwnerReturnCheckPeriod"];
+            /** Rc Recoveries */
+            rc_recoveries: number[];
+            /** Series Count */
+            series_count: number[];
+            /** Series Labels */
+            series_labels: string[];
+            /** Series Volume */
+            series_volume: number[];
+            /** Store Comparison */
+            store_comparison: components["schemas"]["OwnerStoreVolume"][];
+            /** Store Count */
+            store_count: number;
+            /** Stores */
+            stores: components["schemas"]["OwnerStoreCard"][];
+        };
         /**
          * OwnerLocationsResponse
          * @description Per-store rows for /api/v2/owner/locations.
@@ -11860,6 +11973,42 @@ export interface components {
             /** Revenue */
             revenue: number;
         };
+        /** OwnerRecentTransfer */
+        OwnerRecentTransfer: {
+            /** Company */
+            company: string | null;
+            /** Country */
+            country: string | null;
+            /** Id */
+            id: number;
+            /** Recipient Name */
+            recipient_name: string | null;
+            /** Send Amount */
+            send_amount: number;
+            /** Send Date */
+            send_date: string;
+            /** Sender Name */
+            sender_name: string | null;
+            /** Status */
+            status: string | null;
+        };
+        /** OwnerReturnCheckPeriod */
+        OwnerReturnCheckPeriod: {
+            /** Fee Income */
+            fee_income: number;
+            /** Fraud */
+            fraud: number;
+            /** Losses */
+            losses: number;
+            /** Net Gl */
+            net_gl: number;
+            /** Pending */
+            pending: number;
+            /** Pending Count */
+            pending_count: number;
+            /** Recoveries */
+            recoveries: number;
+        };
         /**
          * OwnerSignupRequest
          * @description POST body for /auth/signup/owner. Mirrors the legacy
@@ -11909,6 +12058,21 @@ export interface components {
             /** Username */
             username: string;
         };
+        /** OwnerStoreCard */
+        OwnerStoreCard: {
+            /** Count */
+            count: number;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string | null;
+            /** Over Short */
+            over_short: number;
+            /** Slug */
+            slug: string | null;
+            /** Volume */
+            volume: number;
+        };
         /** OwnerStoreCompanyChip */
         OwnerStoreCompanyChip: {
             /** Company */
@@ -11917,6 +12081,42 @@ export interface components {
             count: number;
             /** Volume */
             volume: number;
+        };
+        /** OwnerStoreDetailResponse */
+        OwnerStoreDetailResponse: {
+            /** Company Rows */
+            company_rows: components["schemas"]["OwnerCompanyRow"][];
+            /** Daily Labels */
+            daily_labels: string[];
+            /** Over Short Data */
+            over_short_data: number[];
+            /** Period */
+            period: string;
+            /** Period Count */
+            period_count: number;
+            /** Period End */
+            period_end: string;
+            /** Period Fees */
+            period_fees: number;
+            /** Period Over Short */
+            period_over_short: number;
+            /** Period Start */
+            period_start: string;
+            /** Period Tax */
+            period_tax: number;
+            /** Period Volume */
+            period_volume: number;
+            /** Prev Count */
+            prev_count: number;
+            /** Prev Label */
+            prev_label: string;
+            /** Prev Volume */
+            prev_volume: number;
+            /** Receipts Data */
+            receipts_data: number[];
+            /** Recent Transfers */
+            recent_transfers: components["schemas"]["OwnerRecentTransfer"][];
+            store: components["schemas"]["OwnerStoreSummary"];
         };
         /**
          * OwnerStoreRow
@@ -11942,6 +12142,28 @@ export interface components {
             /** Volume */
             volume: number;
         };
+        /** OwnerStoreSummary */
+        OwnerStoreSummary: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string | null;
+            /** Plan */
+            plan: string | null;
+            /** Slug */
+            slug: string | null;
+        };
+        /** OwnerStoreVolume */
+        OwnerStoreVolume: {
+            /** Count */
+            count: number;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string | null;
+            /** Volume */
+            volume: number;
+        };
         /**
          * OwnerUnlinkRequest
          * @description POST body for /owner/unlink/{store_id}. Empty schema today
@@ -11949,6 +12171,34 @@ export interface components {
          *     explicit + future-extensible.
          */
         OwnerUnlinkRequest: Record<string, never>;
+        /** OwnerUserListResponse */
+        OwnerUserListResponse: {
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["OwnerUserRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** OwnerUserRow */
+        OwnerUserRow: {
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Role */
+            role: string;
+            /** Store Id */
+            store_id: number | null;
+            /** Store Name */
+            store_name: string;
+            /** Username */
+            username: string;
+        };
         /** PackActivateRequest */
         PackActivateRequest: {
             /** Activated On */
@@ -23108,7 +23358,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["OwnerActivityListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23388,7 +23638,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["OwnerDashboardResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23494,7 +23744,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ReportListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23531,7 +23781,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["OwnerStoreDetailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23566,9 +23816,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -23607,9 +23855,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -23648,9 +23894,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -23727,7 +23971,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["OwnerUserListResponse"];
                 };
             };
             /** @description Validation Error */
