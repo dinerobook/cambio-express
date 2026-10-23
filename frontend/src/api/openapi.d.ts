@@ -9293,6 +9293,26 @@ export interface components {
             /** Tickets Per Pack */
             tickets_per_pack: number;
         };
+        /**
+         * GlobalPermissionMatrix
+         * @description ``get_global_matrix()`` — the layer every store inherits.
+         */
+        GlobalPermissionMatrix: {
+            /** Actions */
+            actions: string[];
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** Resources */
+            resources: string[];
+            /** Roles */
+            roles: string[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -10820,6 +10840,34 @@ export interface components {
         MyStoresResponse: {
             /** Stores */
             stores: components["schemas"]["SwitchableStoreRow"][];
+        };
+        /**
+         * NamedStorePermissionMatrix
+         * @description The store matrix plus the store's name (superadmin store page).
+         */
+        NamedStorePermissionMatrix: {
+            /** Actions */
+            actions: string[];
+            /** Editable Roles */
+            editable_roles: string[];
+            /** Has Overrides */
+            has_overrides: string[];
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** Resources */
+            resources: string[];
+            /** Roles */
+            roles: string[];
+            /** Store Id */
+            store_id: number;
+            /** Store Name */
+            store_name: string;
         };
         /** NaxmlCommitRequest */
         NaxmlCommitRequest: {
@@ -13263,6 +13311,19 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /** SuperadminActivityRow */
+        SuperadminActivityRow: {
+            /** Detail */
+            detail: string;
+            /** Kind */
+            kind: string;
+            /** Plan */
+            plan: string | null;
+            /** Store Name */
+            store_name: string | null;
+            /** When */
+            when: string;
+        };
         /** SuperadminAnomalyListResponse */
         SuperadminAnomalyListResponse: {
             /** Rows */
@@ -13332,6 +13393,44 @@ export interface components {
             /** Target Type */
             target_type: string;
         };
+        /** SuperadminBillingOverviewResponse */
+        SuperadminBillingOverviewResponse: {
+            /** Expiring Soon */
+            expiring_soon: components["schemas"]["SuperadminBillingStoreRow"][];
+            /** In Grace */
+            in_grace: components["schemas"]["SuperadminBillingStoreRow"][];
+            /** Recent Cancels */
+            recent_cancels: components["schemas"]["SuperadminBillingStoreRow"][];
+            /** Retention Queue */
+            retention_queue: components["schemas"]["SuperadminBillingStoreRow"][];
+            /** Webhook Stats */
+            webhook_stats: {
+                [key: string]: number;
+            };
+        };
+        /** SuperadminBillingStoreRow */
+        SuperadminBillingStoreRow: {
+            /** Canceled At */
+            canceled_at?: string | null;
+            /** Data Retention Until */
+            data_retention_until?: string | null;
+            /** Days Left */
+            days_left?: number | null;
+            /** Email */
+            email: string;
+            /** Grace Ends At */
+            grace_ends_at?: string | null;
+            /** Name */
+            name: string;
+            /** Plan */
+            plan: string;
+            /** Slug */
+            slug: string;
+            /** Store Id */
+            store_id: number;
+            /** Trial Ends At */
+            trial_ends_at?: string | null;
+        };
         /**
          * SuperadminBulkActionRequest
          * @description POST body for /superadmin/bulk-action.
@@ -13350,6 +13449,28 @@ export interface components {
             /** Store Ids */
             store_ids: number[];
         };
+        /** SuperadminBulkActionResponse */
+        SuperadminBulkActionResponse: {
+            /** Count */
+            count: number;
+            /** Ok */
+            ok: boolean;
+            /** Results */
+            results: components["schemas"]["SuperadminBulkActionResult"][];
+        };
+        /** SuperadminBulkActionResult */
+        SuperadminBulkActionResult: {
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Name */
+            name: string | null;
+            /** Skipped */
+            skipped?: string | null;
+            /** Store Id */
+            store_id: number;
+            /** Trial Ends At */
+            trial_ends_at?: string | null;
+        };
         /**
          * SuperadminChangeRoleRequest
          * @description POST body for /superadmin/users/{id}/change-role. The store
@@ -13362,6 +13483,20 @@ export interface components {
              * @enum {string}
              */
             role: "admin" | "employee" | "owner";
+        };
+        /** SuperadminChangeRoleResponse */
+        SuperadminChangeRoleResponse: {
+            /** Ok */
+            ok: boolean;
+            /** Role */
+            role: string;
+        };
+        /** SuperadminClearRetentionResponse */
+        SuperadminClearRetentionResponse: {
+            /** Already Clear */
+            already_clear?: boolean | null;
+            /** Ok */
+            ok: boolean;
         };
         /**
          * SuperadminCompPlanRequest
@@ -13407,6 +13542,262 @@ export interface components {
              * @default false
              */
             stripe_resumed: boolean;
+        };
+        /** SuperadminCompanyVolume */
+        SuperadminCompanyVolume: {
+            /** Company */
+            company: string;
+            /** Count */
+            count: number;
+            /** Total */
+            total: number;
+        };
+        /** SuperadminDashboardResponse */
+        SuperadminDashboardResponse: {
+            /** Active Count */
+            active_count: number;
+            /** Activity */
+            activity: components["schemas"]["SuperadminActivityRow"][];
+            /** Basic Count */
+            basic_count: number;
+            /** Basic Monthly */
+            basic_monthly: number;
+            /** Basic Monthly Mrr */
+            basic_monthly_mrr: number;
+            /** Basic Yearly */
+            basic_yearly: number;
+            /** Basic Yearly Mrr */
+            basic_yearly_mrr: number;
+            /** Churn 30D */
+            churn_30d: number;
+            /** Churn Delta */
+            churn_delta: number;
+            /** Direct Signups */
+            direct_signups: number;
+            /** Estimated Mrr */
+            estimated_mrr: number;
+            /** Inactive Count */
+            inactive_count: number;
+            mrr_trend: components["schemas"]["SuperadminMrrTrend"];
+            /** New Stores 30D */
+            new_stores_30d: number;
+            /** New Stores Delta */
+            new_stores_delta: number;
+            /** Paid Count */
+            paid_count: number;
+            /** Plan Dist */
+            plan_dist: components["schemas"]["SuperadminPlanCount"][];
+            /** Pro Count */
+            pro_count: number;
+            /** Pro Monthly */
+            pro_monthly: number;
+            /** Pro Monthly Mrr */
+            pro_monthly_mrr: number;
+            /** Pro Yearly */
+            pro_yearly: number;
+            /** Pro Yearly Mrr */
+            pro_yearly_mrr: number;
+            /** Referral Signups */
+            referral_signups: number;
+            /** Signup Direct */
+            signup_direct: number[];
+            /** Signup Labels */
+            signup_labels: string[];
+            /** Signup Referral */
+            signup_referral: number[];
+            /** Top Referrers */
+            top_referrers: components["schemas"]["SuperadminTopReferrer"][];
+            /** Total Stores */
+            total_stores: number;
+            /** Total Transfers 30D */
+            total_transfers_30d: number;
+            /** Total Volume 30D */
+            total_volume_30d: number;
+            /** Trial Count */
+            trial_count: number;
+            /** Volume By Company */
+            volume_by_company: components["schemas"]["SuperadminCompanyVolume"][];
+        };
+        /** SuperadminDbHealth */
+        SuperadminDbHealth: {
+            /** Error */
+            error: string;
+            /** Ok */
+            ok: boolean;
+            /** Total Stores */
+            total_stores: number;
+            /** Total Transfers */
+            total_transfers: number;
+            /** Total Users */
+            total_users: number;
+        };
+        /** SuperadminDrillRosterRow */
+        SuperadminDrillRosterRow: {
+            /** Id */
+            id: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+        };
+        /** SuperadminDrillStats */
+        SuperadminDrillStats: {
+            /** Fees */
+            fees: number;
+            /** Transfer Count */
+            transfer_count: number;
+            /** Volume */
+            volume: number;
+        };
+        /** SuperadminDrillStore */
+        SuperadminDrillStore: {
+            /** Address */
+            address: string;
+            /** Billing Cycle */
+            billing_cycle: string;
+            /** Canceled At */
+            canceled_at: string;
+            /** Comp Reason */
+            comp_reason: string;
+            /** Comped */
+            comped: boolean;
+            /** Comped At */
+            comped_at: string;
+            /** Created At */
+            created_at: string;
+            /** Email */
+            email: string;
+            /** Frozen */
+            frozen: boolean;
+            /** Frozen At */
+            frozen_at: string;
+            /** Frozen Reason */
+            frozen_reason: string;
+            /** Id */
+            id: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone: string;
+            /** Plan */
+            plan: string;
+            /** Slug */
+            slug: string;
+            /** Stripe Customer Id */
+            stripe_customer_id: string;
+            /** Trial Ends At */
+            trial_ends_at: string;
+            /** Trial Status */
+            trial_status: string;
+        };
+        /** SuperadminDrillTeamMember */
+        SuperadminDrillTeamMember: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Has 2Fa */
+            has_2fa: boolean;
+            /** Id */
+            id: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Last Login At */
+            last_login_at: string;
+            /** Role */
+            role: string;
+            /** Username */
+            username: string;
+        };
+        /** SuperadminDrillTransfer */
+        SuperadminDrillTransfer: {
+            /** Company */
+            company: string;
+            /** Created At */
+            created_at: string;
+            /** Fee */
+            fee: number;
+            /** Id */
+            id: number;
+            /** Recipient Name */
+            recipient_name: string;
+            /** Send Amount */
+            send_amount: number;
+            /** Send Date */
+            send_date: string;
+            /** Sender Name */
+            sender_name: string;
+            /** Status */
+            status: string;
+            /** Total Collected */
+            total_collected: number;
+        };
+        /** SuperadminEmailEventRow */
+        SuperadminEmailEventRow: {
+            /** Bounce Type */
+            bounce_type: string;
+            /** Created At */
+            created_at: string;
+            /** Event Type */
+            event_type: string;
+            /** Id */
+            id: number;
+            /** Message Id */
+            message_id: string;
+            /** To Addr */
+            to_addr: string;
+        };
+        /** SuperadminEmailHealth */
+        SuperadminEmailHealth: {
+            /** Configured */
+            configured: boolean;
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /** Last Event At */
+            last_event_at?: string | null;
+            /** Recent Events */
+            recent_events?: {
+                [key: string]: number;
+            } | null;
+            /** Status */
+            status?: string | null;
+            /** Suppressed Count */
+            suppressed_count?: number | null;
+        };
+        /** SuperadminEmailLogResponse */
+        SuperadminEmailLogResponse: {
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["SuperadminEmailEventRow"][];
+            /** Suppressed */
+            suppressed: components["schemas"]["SuperadminSuppressedAddress"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** SuperadminEnvInfo */
+        SuperadminEnvInfo: {
+            /** Database Url Set */
+            database_url_set: boolean;
+            /** Platform */
+            platform: string;
+            /** Python Version */
+            python_version: string;
+            /** Secret Key Set */
+            secret_key_set: boolean;
+            /** Sentry Dsn Set */
+            sentry_dsn_set: boolean;
+            /** Server Time */
+            server_time: string;
+            /** Webauthn Rp Id */
+            webauthn_rp_id: string;
         };
         /**
          * SuperadminExtendTrialRequest
@@ -13454,6 +13845,25 @@ export interface components {
              */
             mode: "full" | "read_only";
         };
+        /** SuperadminImpersonateResponse */
+        SuperadminImpersonateResponse: {
+            /** Token */
+            token: string;
+            user: components["schemas"]["SuperadminImpersonatedUser"];
+        };
+        /** SuperadminImpersonatedUser */
+        SuperadminImpersonatedUser: {
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: number;
+            /** Role */
+            role: string | null;
+            /** Store Id */
+            store_id: number | null;
+            /** Username */
+            username: string;
+        };
         /**
          * SuperadminMaintenanceRequest
          * @description POST body for /superadmin/maintenance.
@@ -13469,6 +13879,25 @@ export interface components {
              * @default
              */
             message: string;
+        };
+        /** SuperadminMaintenanceResponse */
+        SuperadminMaintenanceResponse: {
+            /** Enabled */
+            enabled: boolean;
+            /** Message */
+            message: string;
+        };
+        /** SuperadminMrrTrend */
+        SuperadminMrrTrend: {
+            /** Labels */
+            labels: string[];
+            /** Values */
+            values: number[];
+        };
+        /** SuperadminOkResponse */
+        SuperadminOkResponse: {
+            /** Ok */
+            ok: boolean;
         };
         /**
          * SuperadminOwnerLinkCreateRequest
@@ -13498,6 +13927,44 @@ export interface components {
             /** Username */
             username: string;
         };
+        /** SuperadminPlanCount */
+        SuperadminPlanCount: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+        };
+        /** SuperadminPlatformUser */
+        SuperadminPlatformUser: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: number;
+            /** Role */
+            role: string;
+            /** Username */
+            username: string;
+        };
+        /** SuperadminPlatformUserResponse */
+        SuperadminPlatformUserResponse: {
+            /** Ok */
+            ok: boolean;
+            user: components["schemas"]["SuperadminPlatformUser"];
+        };
+        /** SuperadminQueueHealth */
+        SuperadminQueueHealth: {
+            /** Enabled */
+            enabled: boolean;
+            /** Redis Configured */
+            redis_configured: boolean;
+        };
+        /** SuperadminRateLimitHealth */
+        SuperadminRateLimitHealth: {
+            /** Enabled */
+            enabled: boolean;
+        };
         /**
          * SuperadminReportCategory
          * @description Group of related reports — Platform Health / Revenue /
@@ -13514,6 +13981,25 @@ export interface components {
             label: string;
             /** Reports */
             reports: components["schemas"]["SuperadminReportRow"][];
+        };
+        /**
+         * SuperadminReportDrilldownResponse
+         * @description ``GET /superadmin/reports/{slug}`` — generic across ~20
+         *     reports: the SPA builds its KPIs from ``totals`` and its columns
+         *     from the first row's keys. Some reports add extra top-level keys
+         *     (a series beside the totals), so extras pass.
+         */
+        SuperadminReportDrilldownResponse: {
+            /** Rows */
+            rows: {
+                [key: string]: unknown;
+            }[];
+            /** Totals */
+            totals: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
         };
         /** SuperadminReportListResponse */
         SuperadminReportListResponse: {
@@ -13540,6 +14026,56 @@ export interface components {
             status: string;
             /** Url */
             url: string | null;
+        };
+        /** SuperadminRetentionDryRunResponse */
+        SuperadminRetentionDryRunResponse: {
+            /** Now */
+            now: string;
+            /** Store Count */
+            store_count: number;
+            /** Stores */
+            stores: components["schemas"]["SuperadminRetentionStore"][];
+            /** Total Child Rows */
+            total_child_rows: number;
+        };
+        /** SuperadminRetentionStore */
+        SuperadminRetentionStore: {
+            /** Canceled At */
+            canceled_at: string;
+            /** Data Retention Until */
+            data_retention_until: string;
+            /** Name */
+            name: string;
+            /** Row Count */
+            row_count: number;
+            /** Row Counts */
+            row_counts: {
+                [key: string]: number;
+            };
+            /** Slug */
+            slug: string;
+            /** Store Id */
+            store_id: number;
+        };
+        /** SuperadminRevokeSessionsResponse */
+        SuperadminRevokeSessionsResponse: {
+            /** Ok */
+            ok: boolean;
+            /** Revoked Count */
+            revoked_count: number;
+        };
+        /** SuperadminStoreAuditLogResponse */
+        SuperadminStoreAuditLogResponse: {
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Rows */
+            rows: components["schemas"]["AdminAuditRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
         };
         /**
          * SuperadminStoreCreateRequest
@@ -13693,6 +14229,17 @@ export interface components {
             /** Trial Ends At */
             trial_ends_at: string;
         };
+        /** SuperadminStoreDrillResponse */
+        SuperadminStoreDrillResponse: {
+            /** Recent Transfers */
+            recent_transfers: components["schemas"]["SuperadminDrillTransfer"][];
+            /** Roster */
+            roster: components["schemas"]["SuperadminDrillRosterRow"][];
+            stats_30d: components["schemas"]["SuperadminDrillStats"];
+            store: components["schemas"]["SuperadminDrillStore"];
+            /** Team */
+            team: components["schemas"]["SuperadminDrillTeamMember"][];
+        };
         /**
          * SuperadminStoreEmailRequest
          * @description POST body for /superadmin/stores/{id}/email — one message to
@@ -13703,6 +14250,15 @@ export interface components {
             message: string;
             /** Subject */
             subject: string;
+        };
+        /** SuperadminStoreEmailResponse */
+        SuperadminStoreEmailResponse: {
+            /** Ok */
+            ok: boolean;
+            /** Sent To */
+            sent_to: string[];
+            /** Total */
+            total: number;
         };
         /** SuperadminStoreFeatureListResponse */
         SuperadminStoreFeatureListResponse: {
@@ -13859,6 +14415,130 @@ export interface components {
             plan?: string | null;
             /** Slug */
             slug?: string | null;
+        };
+        /**
+         * SuperadminStripeHealth
+         * @description ``check_stripe_integration()``. Which keys appear depends on
+         *     how far the probe got (no key, Stripe down, fully checked), so
+         *     every field past ``ok`` is optional and extra keys pass.
+         */
+        SuperadminStripeHealth: {
+            /** Account Email */
+            account_email?: string | null;
+            /** Account Id */
+            account_id?: string | null;
+            /** Env */
+            env?: {
+                [key: string]: boolean;
+            } | null;
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /** Fc Error */
+            fc_error?: string | null;
+            /** Fc Ok */
+            fc_ok?: boolean | null;
+            /** Key Pair Match */
+            key_pair_match?: boolean | null;
+            /** Mode */
+            mode?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Price Errors */
+            price_errors?: {
+                [key: string]: string;
+            } | null;
+            /** Price Ok */
+            price_ok?: {
+                [key: string]: boolean;
+            } | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** SuperadminSuppressedAddress */
+        SuperadminSuppressedAddress: {
+            /** Bounced At */
+            bounced_at: string;
+            /** Email */
+            email: string | null;
+            /** User Id */
+            user_id: number;
+            /** Username */
+            username: string;
+        };
+        /** SuperadminSystemHealthResponse */
+        SuperadminSystemHealthResponse: {
+            db: components["schemas"]["SuperadminDbHealth"];
+            email: components["schemas"]["SuperadminEmailHealth"];
+            env: components["schemas"]["SuperadminEnvInfo"];
+            queue: components["schemas"]["SuperadminQueueHealth"];
+            rate_limiting: components["schemas"]["SuperadminRateLimitHealth"];
+            stripe: components["schemas"]["SuperadminStripeHealth"];
+        };
+        /** SuperadminTempPasswordResponse */
+        SuperadminTempPasswordResponse: {
+            /** Ok */
+            ok: boolean;
+            /** Temp Password */
+            temp_password: string;
+        };
+        /** SuperadminToggleActiveResponse */
+        SuperadminToggleActiveResponse: {
+            /** Is Active */
+            is_active: boolean;
+            /** Ok */
+            ok: boolean;
+        };
+        /** SuperadminTopReferrer */
+        SuperadminTopReferrer: {
+            /** Code */
+            code: string;
+            /** Redeemed */
+            redeemed: number;
+            /** Reward Total Cents */
+            reward_total_cents: number;
+            /** Slug */
+            slug: string | null;
+            /** Store Name */
+            store_name: string | null;
+        };
+        /** SuperadminUserListResponse */
+        SuperadminUserListResponse: {
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["SuperadminUserRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** SuperadminUserRow */
+        SuperadminUserRow: {
+            /** Created At */
+            created_at: string;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Has 2Fa */
+            has_2fa: boolean;
+            /** Id */
+            id: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Last Login At */
+            last_login_at: string;
+            /** Role */
+            role: string;
+            /** Store Id */
+            store_id: number | null;
+            /** Store Name */
+            store_name: string;
+            /** Username */
+            username: string;
         };
         /** SwitchStoreRequest */
         SwitchStoreRequest: {
@@ -24772,9 +25452,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminBillingOverviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24811,9 +25489,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminBulkActionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24846,9 +25522,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminDashboardResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24960,9 +25634,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminEmailLogResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24995,9 +25667,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminOkResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25036,9 +25706,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminImpersonateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25071,9 +25739,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminMaintenanceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25110,9 +25776,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminMaintenanceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25145,9 +25809,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GlobalPermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -25184,9 +25846,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GlobalPermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -25223,9 +25883,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminPlatformUserResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25296,7 +25954,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SuperadminReportDrilldownResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25367,9 +26025,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminRetentionDryRunResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25562,9 +26218,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminStoreAuditLogResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25599,9 +26253,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminClearRetentionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25714,9 +26366,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminStoreDrillResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25755,9 +26405,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminStoreEmailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26050,9 +26698,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["NamedStorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -26091,9 +26737,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["NamedStorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -26132,9 +26776,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["NamedStorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -26169,9 +26811,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminToggleActiveResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26239,9 +26879,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminSystemHealthResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26282,9 +26920,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminUserListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26323,9 +26959,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminChangeRoleResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26360,9 +26994,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminTempPasswordResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26397,9 +27029,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminOkResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26434,9 +27064,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminRevokeSessionsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26471,9 +27099,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SuperadminToggleActiveResponse"];
                 };
             };
             /** @description Validation Error */

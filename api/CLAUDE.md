@@ -47,6 +47,22 @@ superadmin + one trial store. Features smoke-tested in chat must
 graduate into committed tests (tracked in `BACKLOG.md`). Every change
 carries grant / deny / success / failure tests.
 
+## Every JSON answer documents its shape
+A route answers with a Pydantic model: `response_model=X`, or — for a
+route that still builds a plain dict — `response_model=None,
+responses={200: {"model": X}}` (201 for a create). The second form is
+documentation only: the dict leaves unchanged, nothing is filtered, so
+typing a live route cannot drop a field a page reads. conftest checks
+every 2xx JSON answer the test suite receives against its documented
+model (`tests/_response_contract.py`: no missing required key, no
+undocumented key, right types), so the model must be exactly what the
+route sends — when you type a route, add a test whose answer carries
+every list filled in (e.g. `tests/Modules/Superadmin/test_typed_answers.py`).
+`tests/Core/test_response_contract.py` keeps the `UNTYPED` list of
+routes not yet typed; it only shrinks, and a new untyped JSON route
+fails it. Then `npm run generate-types` and use the generated type in
+the SPA (`frontend/CLAUDE.md`).
+
 ## Invariant detail
 
 **3. Trial state machine** — `Store.plan ∈ {trial, basic, pro,

@@ -4988,6 +4988,54 @@
         "title": "GameWriteRequest",
         "type": "object"
       },
+      "GlobalPermissionMatrix": {
+        "additionalProperties": false,
+        "description": "``get_global_matrix()`` \u2014 the layer every store inherits.",
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles",
+          "resources",
+          "actions",
+          "matrix"
+        ],
+        "title": "GlobalPermissionMatrix",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -8418,6 +8466,80 @@
           "stores"
         ],
         "title": "MyStoresResponse",
+        "type": "object"
+      },
+      "NamedStorePermissionMatrix": {
+        "additionalProperties": false,
+        "description": "The store matrix plus the store's name (superadmin store page).",
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "editable_roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Editable Roles",
+            "type": "array"
+          },
+          "has_overrides": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Has Overrides",
+            "type": "array"
+          },
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "store_id",
+          "roles",
+          "editable_roles",
+          "resources",
+          "actions",
+          "matrix",
+          "has_overrides",
+          "store_name"
+        ],
+        "title": "NamedStorePermissionMatrix",
         "type": "object"
       },
       "NaxmlCommitRequest": {
@@ -13855,6 +13977,54 @@
         "title": "StoreOverrideRow",
         "type": "object"
       },
+      "SuperadminActivityRow": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "store_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Name"
+          },
+          "when": {
+            "title": "When",
+            "type": "string"
+          }
+        },
+        "required": [
+          "when",
+          "kind",
+          "store_name",
+          "detail",
+          "plan"
+        ],
+        "title": "SuperadminActivityRow",
+        "type": "object"
+      },
       "SuperadminAnomalyListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -14016,6 +14186,144 @@
         "title": "SuperadminAuditRow",
         "type": "object"
       },
+      "SuperadminBillingOverviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "expiring_soon": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminBillingStoreRow"
+            },
+            "title": "Expiring Soon",
+            "type": "array"
+          },
+          "in_grace": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminBillingStoreRow"
+            },
+            "title": "In Grace",
+            "type": "array"
+          },
+          "recent_cancels": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminBillingStoreRow"
+            },
+            "title": "Recent Cancels",
+            "type": "array"
+          },
+          "retention_queue": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminBillingStoreRow"
+            },
+            "title": "Retention Queue",
+            "type": "array"
+          },
+          "webhook_stats": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Webhook Stats",
+            "type": "object"
+          }
+        },
+        "required": [
+          "expiring_soon",
+          "in_grace",
+          "retention_queue",
+          "recent_cancels",
+          "webhook_stats"
+        ],
+        "title": "SuperadminBillingOverviewResponse",
+        "type": "object"
+      },
+      "SuperadminBillingStoreRow": {
+        "additionalProperties": false,
+        "properties": {
+          "canceled_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canceled At"
+          },
+          "data_retention_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Retention Until"
+          },
+          "days_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Left"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "grace_ends_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grace Ends At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "trial_ends_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Ends At"
+          }
+        },
+        "required": [
+          "store_id",
+          "name",
+          "slug",
+          "plan",
+          "email"
+        ],
+        "title": "SuperadminBillingStoreRow",
+        "type": "object"
+      },
       "SuperadminBulkActionRequest": {
         "additionalProperties": false,
         "description": "POST body for /superadmin/bulk-action.",
@@ -14053,6 +14361,92 @@
         "title": "SuperadminBulkActionRequest",
         "type": "object"
       },
+      "SuperadminBulkActionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminBulkActionResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "count",
+          "results"
+        ],
+        "title": "SuperadminBulkActionResponse",
+        "type": "object"
+      },
+      "SuperadminBulkActionResult": {
+        "additionalProperties": false,
+        "properties": {
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "skipped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "trial_ends_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Ends At"
+          }
+        },
+        "required": [
+          "store_id",
+          "name"
+        ],
+        "title": "SuperadminBulkActionResult",
+        "type": "object"
+      },
       "SuperadminChangeRoleRequest": {
         "additionalProperties": false,
         "description": "POST body for /superadmin/users/{id}/change-role. The store\nroles only \u2014 superadmin and support logins are created through\ntheir own paths and never converted.",
@@ -14071,6 +14465,50 @@
           "role"
         ],
         "title": "SuperadminChangeRoleRequest",
+        "type": "object"
+      },
+      "SuperadminChangeRoleResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "role"
+        ],
+        "title": "SuperadminChangeRoleResponse",
+        "type": "object"
+      },
+      "SuperadminClearRetentionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "already_clear": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Already Clear"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "SuperadminClearRetentionResponse",
         "type": "object"
       },
       "SuperadminCompPlanRequest": {
@@ -14146,6 +14584,707 @@
           "comp_reason"
         ],
         "title": "SuperadminCompPlanResponse",
+        "type": "object"
+      },
+      "SuperadminCompanyVolume": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "company",
+          "count",
+          "total"
+        ],
+        "title": "SuperadminCompanyVolume",
+        "type": "object"
+      },
+      "SuperadminDashboardResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_count": {
+            "title": "Active Count",
+            "type": "integer"
+          },
+          "activity": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminActivityRow"
+            },
+            "title": "Activity",
+            "type": "array"
+          },
+          "basic_count": {
+            "title": "Basic Count",
+            "type": "integer"
+          },
+          "basic_monthly": {
+            "title": "Basic Monthly",
+            "type": "integer"
+          },
+          "basic_monthly_mrr": {
+            "title": "Basic Monthly Mrr",
+            "type": "integer"
+          },
+          "basic_yearly": {
+            "title": "Basic Yearly",
+            "type": "integer"
+          },
+          "basic_yearly_mrr": {
+            "title": "Basic Yearly Mrr",
+            "type": "integer"
+          },
+          "churn_30d": {
+            "title": "Churn 30D",
+            "type": "integer"
+          },
+          "churn_delta": {
+            "title": "Churn Delta",
+            "type": "integer"
+          },
+          "direct_signups": {
+            "title": "Direct Signups",
+            "type": "integer"
+          },
+          "estimated_mrr": {
+            "title": "Estimated Mrr",
+            "type": "integer"
+          },
+          "inactive_count": {
+            "title": "Inactive Count",
+            "type": "integer"
+          },
+          "mrr_trend": {
+            "$ref": "#/components/schemas/SuperadminMrrTrend"
+          },
+          "new_stores_30d": {
+            "title": "New Stores 30D",
+            "type": "integer"
+          },
+          "new_stores_delta": {
+            "title": "New Stores Delta",
+            "type": "integer"
+          },
+          "paid_count": {
+            "title": "Paid Count",
+            "type": "integer"
+          },
+          "plan_dist": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminPlanCount"
+            },
+            "title": "Plan Dist",
+            "type": "array"
+          },
+          "pro_count": {
+            "title": "Pro Count",
+            "type": "integer"
+          },
+          "pro_monthly": {
+            "title": "Pro Monthly",
+            "type": "integer"
+          },
+          "pro_monthly_mrr": {
+            "title": "Pro Monthly Mrr",
+            "type": "integer"
+          },
+          "pro_yearly": {
+            "title": "Pro Yearly",
+            "type": "integer"
+          },
+          "pro_yearly_mrr": {
+            "title": "Pro Yearly Mrr",
+            "type": "integer"
+          },
+          "referral_signups": {
+            "title": "Referral Signups",
+            "type": "integer"
+          },
+          "signup_direct": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Signup Direct",
+            "type": "array"
+          },
+          "signup_labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Signup Labels",
+            "type": "array"
+          },
+          "signup_referral": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Signup Referral",
+            "type": "array"
+          },
+          "top_referrers": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminTopReferrer"
+            },
+            "title": "Top Referrers",
+            "type": "array"
+          },
+          "total_stores": {
+            "title": "Total Stores",
+            "type": "integer"
+          },
+          "total_transfers_30d": {
+            "title": "Total Transfers 30D",
+            "type": "integer"
+          },
+          "total_volume_30d": {
+            "title": "Total Volume 30D",
+            "type": "number"
+          },
+          "trial_count": {
+            "title": "Trial Count",
+            "type": "integer"
+          },
+          "volume_by_company": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminCompanyVolume"
+            },
+            "title": "Volume By Company",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total_stores",
+          "active_count",
+          "trial_count",
+          "paid_count",
+          "inactive_count",
+          "estimated_mrr",
+          "new_stores_30d",
+          "new_stores_delta",
+          "churn_30d",
+          "churn_delta",
+          "basic_count",
+          "pro_count",
+          "basic_monthly",
+          "basic_yearly",
+          "pro_monthly",
+          "pro_yearly",
+          "basic_monthly_mrr",
+          "basic_yearly_mrr",
+          "pro_monthly_mrr",
+          "pro_yearly_mrr",
+          "signup_labels",
+          "signup_direct",
+          "signup_referral",
+          "plan_dist",
+          "volume_by_company",
+          "total_volume_30d",
+          "total_transfers_30d",
+          "top_referrers",
+          "direct_signups",
+          "referral_signups",
+          "activity",
+          "mrr_trend"
+        ],
+        "title": "SuperadminDashboardResponse",
+        "type": "object"
+      },
+      "SuperadminDbHealth": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "total_stores": {
+            "title": "Total Stores",
+            "type": "integer"
+          },
+          "total_transfers": {
+            "title": "Total Transfers",
+            "type": "integer"
+          },
+          "total_users": {
+            "title": "Total Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ok",
+          "error",
+          "total_users",
+          "total_stores",
+          "total_transfers"
+        ],
+        "title": "SuperadminDbHealth",
+        "type": "object"
+      },
+      "SuperadminDrillRosterRow": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_active"
+        ],
+        "title": "SuperadminDrillRosterRow",
+        "type": "object"
+      },
+      "SuperadminDrillStats": {
+        "additionalProperties": false,
+        "properties": {
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "transfer_count": {
+            "title": "Transfer Count",
+            "type": "integer"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "number"
+          }
+        },
+        "required": [
+          "transfer_count",
+          "volume",
+          "fees"
+        ],
+        "title": "SuperadminDrillStats",
+        "type": "object"
+      },
+      "SuperadminDrillStore": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "billing_cycle": {
+            "title": "Billing Cycle",
+            "type": "string"
+          },
+          "canceled_at": {
+            "title": "Canceled At",
+            "type": "string"
+          },
+          "comp_reason": {
+            "title": "Comp Reason",
+            "type": "string"
+          },
+          "comped": {
+            "title": "Comped",
+            "type": "boolean"
+          },
+          "comped_at": {
+            "title": "Comped At",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "frozen": {
+            "title": "Frozen",
+            "type": "boolean"
+          },
+          "frozen_at": {
+            "title": "Frozen At",
+            "type": "string"
+          },
+          "frozen_reason": {
+            "title": "Frozen Reason",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "stripe_customer_id": {
+            "title": "Stripe Customer Id",
+            "type": "string"
+          },
+          "trial_ends_at": {
+            "title": "Trial Ends At",
+            "type": "string"
+          },
+          "trial_status": {
+            "title": "Trial Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "email",
+          "phone",
+          "address",
+          "plan",
+          "billing_cycle",
+          "is_active",
+          "trial_status",
+          "created_at",
+          "trial_ends_at",
+          "canceled_at",
+          "stripe_customer_id",
+          "frozen",
+          "frozen_at",
+          "frozen_reason",
+          "comped",
+          "comped_at",
+          "comp_reason"
+        ],
+        "title": "SuperadminDrillStore",
+        "type": "object"
+      },
+      "SuperadminDrillTeamMember": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "has_2fa": {
+            "title": "Has 2Fa",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "last_login_at": {
+            "title": "Last Login At",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "full_name",
+          "role",
+          "email",
+          "is_active",
+          "has_2fa",
+          "last_login_at"
+        ],
+        "title": "SuperadminDrillTeamMember",
+        "type": "object"
+      },
+      "SuperadminDrillTransfer": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "recipient_name": {
+            "title": "Recipient Name",
+            "type": "string"
+          },
+          "send_amount": {
+            "title": "Send Amount",
+            "type": "number"
+          },
+          "send_date": {
+            "title": "Send Date",
+            "type": "string"
+          },
+          "sender_name": {
+            "title": "Sender Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total_collected": {
+            "title": "Total Collected",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "send_date",
+          "sender_name",
+          "recipient_name",
+          "company",
+          "send_amount",
+          "fee",
+          "total_collected",
+          "status",
+          "created_at"
+        ],
+        "title": "SuperadminDrillTransfer",
+        "type": "object"
+      },
+      "SuperadminEmailEventRow": {
+        "additionalProperties": false,
+        "properties": {
+          "bounce_type": {
+            "title": "Bounce Type",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "to_addr": {
+            "title": "To Addr",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "to_addr",
+          "event_type",
+          "bounce_type",
+          "message_id",
+          "created_at"
+        ],
+        "title": "SuperadminEmailEventRow",
+        "type": "object"
+      },
+      "SuperadminEmailHealth": {
+        "additionalProperties": false,
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "last_event_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event At"
+          },
+          "recent_events": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent Events"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "suppressed_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suppressed Count"
+          }
+        },
+        "required": [
+          "configured"
+        ],
+        "title": "SuperadminEmailHealth",
+        "type": "object"
+      },
+      "SuperadminEmailLogResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminEmailEventRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "suppressed": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminSuppressedAddress"
+            },
+            "title": "Suppressed",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages",
+          "suppressed"
+        ],
+        "title": "SuperadminEmailLogResponse",
+        "type": "object"
+      },
+      "SuperadminEnvInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "database_url_set": {
+            "title": "Database Url Set",
+            "type": "boolean"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          },
+          "python_version": {
+            "title": "Python Version",
+            "type": "string"
+          },
+          "secret_key_set": {
+            "title": "Secret Key Set",
+            "type": "boolean"
+          },
+          "sentry_dsn_set": {
+            "title": "Sentry Dsn Set",
+            "type": "boolean"
+          },
+          "server_time": {
+            "title": "Server Time",
+            "type": "string"
+          },
+          "webauthn_rp_id": {
+            "title": "Webauthn Rp Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "python_version",
+          "platform",
+          "server_time",
+          "database_url_set",
+          "secret_key_set",
+          "sentry_dsn_set",
+          "webauthn_rp_id"
+        ],
+        "title": "SuperadminEnvInfo",
         "type": "object"
       },
       "SuperadminExtendTrialRequest": {
@@ -14226,6 +15365,72 @@
         "title": "SuperadminImpersonateRequest",
         "type": "object"
       },
+      "SuperadminImpersonateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SuperadminImpersonatedUser"
+          }
+        },
+        "required": [
+          "token",
+          "user"
+        ],
+        "title": "SuperadminImpersonateResponse",
+        "type": "object"
+      },
+      "SuperadminImpersonatedUser": {
+        "additionalProperties": false,
+        "properties": {
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "store_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Id"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "role",
+          "store_id",
+          "full_name"
+        ],
+        "title": "SuperadminImpersonatedUser",
+        "type": "object"
+      },
       "SuperadminMaintenanceRequest": {
         "additionalProperties": false,
         "description": "POST body for /superadmin/maintenance.",
@@ -14243,6 +15448,64 @@
           }
         },
         "title": "SuperadminMaintenanceRequest",
+        "type": "object"
+      },
+      "SuperadminMaintenanceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "message"
+        ],
+        "title": "SuperadminMaintenanceResponse",
+        "type": "object"
+      },
+      "SuperadminMrrTrend": {
+        "additionalProperties": false,
+        "properties": {
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "values": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "labels",
+          "values"
+        ],
+        "title": "SuperadminMrrTrend",
+        "type": "object"
+      },
+      "SuperadminOkResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "SuperadminOkResponse",
         "type": "object"
       },
       "SuperadminOwnerLinkCreateRequest": {
@@ -14313,6 +15576,110 @@
         "title": "SuperadminOwnerLinkRow",
         "type": "object"
       },
+      "SuperadminPlanCount": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "count"
+        ],
+        "title": "SuperadminPlanCount",
+        "type": "object"
+      },
+      "SuperadminPlatformUser": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "full_name",
+          "email",
+          "role"
+        ],
+        "title": "SuperadminPlatformUser",
+        "type": "object"
+      },
+      "SuperadminPlatformUserResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SuperadminPlatformUser"
+          }
+        },
+        "required": [
+          "ok",
+          "user"
+        ],
+        "title": "SuperadminPlatformUserResponse",
+        "type": "object"
+      },
+      "SuperadminQueueHealth": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "redis_configured": {
+            "title": "Redis Configured",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "redis_configured"
+        ],
+        "title": "SuperadminQueueHealth",
+        "type": "object"
+      },
+      "SuperadminRateLimitHealth": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "SuperadminRateLimitHealth",
+        "type": "object"
+      },
       "SuperadminReportCategory": {
         "additionalProperties": false,
         "description": "Group of related reports \u2014 Platform Health / Revenue /\nStripe / Trial Funnel / Feature Adoption / Support. The\n`icon` is an inline stroke SVG matching the rest of the\nsidebar/nav iconography (CLAUDE.md design system).",
@@ -14344,6 +15711,31 @@
           "reports"
         ],
         "title": "SuperadminReportCategory",
+        "type": "object"
+      },
+      "SuperadminReportDrilldownResponse": {
+        "additionalProperties": true,
+        "description": "``GET /superadmin/reports/{slug}`` \u2014 generic across ~20\nreports: the SPA builds its KPIs from ``totals`` and its columns\nfrom the first row's keys. Some reports add extra top-level keys\n(a series beside the totals), so extras pass.",
+        "properties": {
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "additionalProperties": true,
+            "title": "Totals",
+            "type": "object"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "SuperadminReportDrilldownResponse",
         "type": "object"
       },
       "SuperadminReportListResponse": {
@@ -14403,6 +15795,141 @@
           "status"
         ],
         "title": "SuperadminReportRow",
+        "type": "object"
+      },
+      "SuperadminRetentionDryRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "now": {
+            "title": "Now",
+            "type": "string"
+          },
+          "store_count": {
+            "title": "Store Count",
+            "type": "integer"
+          },
+          "stores": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminRetentionStore"
+            },
+            "title": "Stores",
+            "type": "array"
+          },
+          "total_child_rows": {
+            "title": "Total Child Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "now",
+          "store_count",
+          "total_child_rows",
+          "stores"
+        ],
+        "title": "SuperadminRetentionDryRunResponse",
+        "type": "object"
+      },
+      "SuperadminRetentionStore": {
+        "additionalProperties": false,
+        "properties": {
+          "canceled_at": {
+            "title": "Canceled At",
+            "type": "string"
+          },
+          "data_retention_until": {
+            "title": "Data Retention Until",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "row_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Row Counts",
+            "type": "object"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "store_id",
+          "name",
+          "slug",
+          "canceled_at",
+          "data_retention_until",
+          "row_count",
+          "row_counts"
+        ],
+        "title": "SuperadminRetentionStore",
+        "type": "object"
+      },
+      "SuperadminRevokeSessionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "revoked_count": {
+            "title": "Revoked Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ok",
+          "revoked_count"
+        ],
+        "title": "SuperadminRevokeSessionsResponse",
+        "type": "object"
+      },
+      "SuperadminStoreAuditLogResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/AdminAuditRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "per_page",
+          "total_pages"
+        ],
+        "title": "SuperadminStoreAuditLogResponse",
         "type": "object"
       },
       "SuperadminStoreCreateRequest": {
@@ -14641,6 +16168,47 @@
         "title": "SuperadminStoreDetailRow",
         "type": "object"
       },
+      "SuperadminStoreDrillResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "recent_transfers": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminDrillTransfer"
+            },
+            "title": "Recent Transfers",
+            "type": "array"
+          },
+          "roster": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminDrillRosterRow"
+            },
+            "title": "Roster",
+            "type": "array"
+          },
+          "stats_30d": {
+            "$ref": "#/components/schemas/SuperadminDrillStats"
+          },
+          "store": {
+            "$ref": "#/components/schemas/SuperadminDrillStore"
+          },
+          "team": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminDrillTeamMember"
+            },
+            "title": "Team",
+            "type": "array"
+          }
+        },
+        "required": [
+          "store",
+          "team",
+          "roster",
+          "recent_transfers",
+          "stats_30d"
+        ],
+        "title": "SuperadminStoreDrillResponse",
+        "type": "object"
+      },
       "SuperadminStoreEmailRequest": {
         "additionalProperties": false,
         "description": "POST body for /superadmin/stores/{id}/email \u2014 one message to\nevery active admin of the store who has an email address.",
@@ -14663,6 +16231,33 @@
           "message"
         ],
         "title": "SuperadminStoreEmailRequest",
+        "type": "object"
+      },
+      "SuperadminStoreEmailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "sent_to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sent To",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ok",
+          "sent_to",
+          "total"
+        ],
+        "title": "SuperadminStoreEmailResponse",
         "type": "object"
       },
       "SuperadminStoreFeatureListResponse": {
@@ -15011,6 +16606,392 @@
           }
         },
         "title": "SuperadminStoreUpdateRequest",
+        "type": "object"
+      },
+      "SuperadminStripeHealth": {
+        "additionalProperties": true,
+        "description": "``check_stripe_integration()``. Which keys appear depends on\nhow far the probe got (no key, Stripe down, fully checked), so\nevery field past ``ok`` is optional and extra keys pass.",
+        "properties": {
+          "account_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Email"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "env": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Env"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "fc_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fc Error"
+          },
+          "fc_ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fc Ok"
+          },
+          "key_pair_match": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Pair Match"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "price_errors": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Errors"
+          },
+          "price_ok": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Ok"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "SuperadminStripeHealth",
+        "type": "object"
+      },
+      "SuperadminSuppressedAddress": {
+        "additionalProperties": false,
+        "properties": {
+          "bounced_at": {
+            "title": "Bounced At",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "email",
+          "bounced_at"
+        ],
+        "title": "SuperadminSuppressedAddress",
+        "type": "object"
+      },
+      "SuperadminSystemHealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "db": {
+            "$ref": "#/components/schemas/SuperadminDbHealth"
+          },
+          "email": {
+            "$ref": "#/components/schemas/SuperadminEmailHealth"
+          },
+          "env": {
+            "$ref": "#/components/schemas/SuperadminEnvInfo"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/SuperadminQueueHealth"
+          },
+          "rate_limiting": {
+            "$ref": "#/components/schemas/SuperadminRateLimitHealth"
+          },
+          "stripe": {
+            "$ref": "#/components/schemas/SuperadminStripeHealth"
+          }
+        },
+        "required": [
+          "db",
+          "stripe",
+          "email",
+          "queue",
+          "rate_limiting",
+          "env"
+        ],
+        "title": "SuperadminSystemHealthResponse",
+        "type": "object"
+      },
+      "SuperadminTempPasswordResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "temp_password": {
+            "title": "Temp Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "temp_password"
+        ],
+        "title": "SuperadminTempPasswordResponse",
+        "type": "object"
+      },
+      "SuperadminToggleActiveResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "is_active"
+        ],
+        "title": "SuperadminToggleActiveResponse",
+        "type": "object"
+      },
+      "SuperadminTopReferrer": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "redeemed": {
+            "title": "Redeemed",
+            "type": "integer"
+          },
+          "reward_total_cents": {
+            "title": "Reward Total Cents",
+            "type": "integer"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "store_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Name"
+          }
+        },
+        "required": [
+          "store_name",
+          "slug",
+          "code",
+          "redeemed",
+          "reward_total_cents"
+        ],
+        "title": "SuperadminTopReferrer",
+        "type": "object"
+      },
+      "SuperadminUserListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminUserRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages"
+        ],
+        "title": "SuperadminUserListResponse",
+        "type": "object"
+      },
+      "SuperadminUserRow": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "has_2fa": {
+            "title": "Has 2Fa",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "last_login_at": {
+            "title": "Last Login At",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "store_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Id"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "full_name",
+          "email",
+          "role",
+          "store_id",
+          "store_name",
+          "is_active",
+          "has_2fa",
+          "last_login_at",
+          "created_at"
+        ],
+        "title": "SuperadminUserRow",
         "type": "object"
       },
       "SwitchStoreRequest": {
@@ -38668,9 +40649,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Billing Overview Route Superadmin Billing Overview Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminBillingOverviewResponse"
                 }
               }
             },
@@ -38746,9 +40725,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Bulk Action Route Superadmin Bulk Action Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminBulkActionResponse"
                 }
               }
             },
@@ -38814,9 +40791,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Dashboard Route Superadmin Dashboard Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminDashboardResponse"
                 }
               }
             },
@@ -39092,9 +41067,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Email Log Route Superadmin Email Log Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminEmailLogResponse"
                 }
               }
             },
@@ -39160,9 +41133,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Stop Impersonation Route Superadmin Impersonate Stop Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminOkResponse"
                 }
               }
             },
@@ -39255,9 +41226,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Impersonate Route Superadmin Impersonate  User Id  Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminImpersonateResponse"
                 }
               }
             },
@@ -39322,9 +41291,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Maintenance Route Superadmin Maintenance Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminMaintenanceResponse"
                 }
               }
             },
@@ -39397,9 +41364,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Set Maintenance Route Superadmin Maintenance Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminMaintenanceResponse"
                 }
               }
             },
@@ -39465,9 +41430,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Permissions Route Superadmin Permissions Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/GlobalPermissionMatrix"
                 }
               }
             },
@@ -39541,9 +41504,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Update Permissions Route Superadmin Permissions Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/GlobalPermissionMatrix"
                 }
               }
             },
@@ -39619,9 +41580,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Platform User Route Superadmin Platform Users Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminPlatformUserResponse"
                 }
               }
             },
@@ -39793,7 +41752,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/SuperadminReportDrilldownResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -39962,9 +41923,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Retention Dry Run Route Superadmin Retention Dry Run Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminRetentionDryRunResponse"
                 }
               }
             },
@@ -40451,9 +42410,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Store Audit Log Route Superadmin Stores  Store Id  Audit Log Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminStoreAuditLogResponse"
                 }
               }
             },
@@ -40529,9 +42486,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Clear Retention Route Superadmin Stores  Store Id  Clear Retention Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminClearRetentionResponse"
                 }
               }
             },
@@ -40779,9 +42734,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Store Drill Route Superadmin Stores  Store Id  Drill Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminStoreDrillResponse"
                 }
               }
             },
@@ -40867,9 +42820,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Email Store Route Superadmin Stores  Store Id  Email Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminStoreEmailResponse"
                 }
               }
             },
@@ -41522,9 +43473,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Superadmin Store Permissions Route Superadmin Stores  Store Id  Permissions Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/NamedStorePermissionMatrix"
                 }
               }
             },
@@ -41608,9 +43557,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Superadmin Update Store Permissions Route Superadmin Stores  Store Id  Permissions Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/NamedStorePermissionMatrix"
                 }
               }
             },
@@ -41696,9 +43643,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Superadmin Reset Store Permissions Route Superadmin Stores  Store Id  Permissions Reset Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/NamedStorePermissionMatrix"
                 }
               }
             },
@@ -41774,9 +43719,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Toggle Store Active Route Superadmin Stores  Store Id  Toggle Active Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminToggleActiveResponse"
                 }
               }
             },
@@ -41918,9 +43861,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response System Health Route Superadmin System Health Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminSystemHealthResponse"
                 }
               }
             },
@@ -42061,9 +44002,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Users Route Superadmin Users Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminUserListResponse"
                 }
               }
             },
@@ -42149,9 +44088,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Change User Role Route Superadmin Users  User Id  Change Role Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminChangeRoleResponse"
                 }
               }
             },
@@ -42227,9 +44164,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Force Password Reset Route Superadmin Users  User Id  Force Password Reset Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminTempPasswordResponse"
                 }
               }
             },
@@ -42305,9 +44240,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Reset 2Fa Route Superadmin Users  User Id  Reset 2Fa Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminOkResponse"
                 }
               }
             },
@@ -42383,9 +44316,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Revoke User Sessions Route Superadmin Users  User Id  Revoke Sessions Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminRevokeSessionsResponse"
                 }
               }
             },
@@ -42461,9 +44392,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Toggle User Active Route Superadmin Users  User Id  Toggle Active Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SuperadminToggleActiveResponse"
                 }
               }
             },

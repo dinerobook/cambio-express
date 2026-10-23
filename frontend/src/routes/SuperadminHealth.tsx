@@ -14,50 +14,9 @@ import {
 import styles from "./SuperadminHealth.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
+import type { components } from "../api/openapi";
 
-interface HealthData {
-  db: {
-    ok: boolean;
-    error: string;
-    total_users: number;
-    total_stores: number;
-    total_transfers: number;
-  };
-  stripe: {
-    ok: boolean;
-    error: string;
-    account_id?: string;
-    mode?: string;
-    env: Record<string, boolean>;
-    price_ok?: Record<string, boolean>;
-    fc_ok?: boolean;
-    key_pair_match?: boolean;
-  };
-  email: {
-    configured: boolean;
-    status?: string;
-    error?: string;
-    recent_events?: Record<string, number>;
-    suppressed_count?: number;
-    last_event_at?: string | null;
-  };
-  queue: {
-    enabled: boolean;
-    redis_configured: boolean;
-  };
-  rate_limiting: {
-    enabled: boolean;
-  };
-  env: {
-    python_version: string;
-    platform: string;
-    server_time: string;
-    database_url_set: boolean;
-    secret_key_set: boolean;
-    sentry_dsn_set: boolean;
-    webauthn_rp_id: string;
-  };
-}
+type HealthData = components["schemas"]["SuperadminSystemHealthResponse"];
 
 function useSystemHealth() {
   const identity = getCurrentIdentity();
