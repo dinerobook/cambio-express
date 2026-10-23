@@ -23,6 +23,13 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+def utc_from_timestamp(ts: float) -> datetime:
+    """A Unix timestamp (Stripe, Financial Connections) as a naive UTC
+    datetime — the replacement for the deprecated
+    ``datetime.utcfromtimestamp``."""
+    return datetime.fromtimestamp(ts, timezone.utc).replace(tzinfo=None)
+
+
 # Canonical IANA timezone list — the dropdown options for both the
 # personal-profile and store-settings forms. Single source so the
 # two pickers can never drift.

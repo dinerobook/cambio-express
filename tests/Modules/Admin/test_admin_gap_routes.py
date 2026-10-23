@@ -276,3 +276,47 @@ def test_subscription_summary_for_trial_store_reports_countdown(client, test_sto
     assert body["trial_status"] in {"active", "expiring_soon"}
     assert 0 <= body["trial_days_left"] <= 7
     assert body["referral_code"] is None
+
+
+def test_subscription_summary_shows_the_scheduled_cancel_date(client, test_store_id, monkeypatch):
+    """A paid store whose subscription ends at the period end sees the
+    date it ends, read from Stripe's Unix timestamp in UTC."""
+    import stripe
+    from types import SimpleNamespace
+    _paid(test_store_id, "pro")
+    with db_session():
+        db.session.get(Store, test_store_id).stripe_subscription_id = "sub_gap"
+        db.session.commit()
+    seen = []
+
+    def _retrieve(sub_id):
+        seen.append(sub_id)
+        # 2026-11-01 02:30 UTC — still Oct 31 in the US.
+        return SimpleNamespace(cancel_at_period_end=True,
+                               current_period_end=1793500200)
+
+    monkeypatch.setattr(stripe.Subscription, "retrieve", _retrieve)
+    token = login_admin(client, test_store_id)
+    body = client.get("/api/v2/admin/subscription", headers=_h(token)).get_json()
+    assert seen == ["sub_gap"]
+    assert body["cancel_at_period_end"] is True
+    assert body["cancel_at"] == "November 01, 2026"
+
+
+def test_subscription_summary_survives_a_stripe_outage(client, test_store_id, monkeypatch):
+    import stripe
+    _paid(test_store_id, "pro")
+    with db_session():
+        db.session.get(Store, test_store_id).stripe_subscription_id = "sub_down"
+        db.session.commit()
+
+    def _boom(sub_id):
+        raise stripe.error.APIConnectionError("down")
+
+    monkeypatch.setattr(stripe.Subscription, "retrieve", _boom)
+    token = login_admin(client, test_store_id)
+    resp = client.get("/api/v2/admin/subscription", headers=_h(token))
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["cancel_at_period_end"] is False
+    assert body["cancel_at"] is None

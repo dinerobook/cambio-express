@@ -269,3 +269,27 @@ def test_refresh_records_stripe_error_in_last_error(monkeypatch):
 
 
 
+
+
+def test_upsert_reads_balance_as_of_as_utc():
+    from api.Modules.BankSync.Services import upsert_fc_account
+    with db_session():
+        s = _add_store(db.session, slug="upsert-fc-asof")
+        row = upsert_fc_account(db.session, s.id, _stripe_account_dict(
+            account_id="fcacct_asof",
+            balance={"current": 500, "as_of": 1791599400},
+        ))
+        assert row.last_balance_cents == 500
+        assert row.last_balance_as_of == datetime(2026, 10, 10, 2, 30)
+
+
+def test_upsert_ignores_unreadable_balance_values():
+    from api.Modules.BankSync.Services import upsert_fc_account
+    with db_session():
+        s = _add_store(db.session, slug="upsert-fc-badbal")
+        row = upsert_fc_account(db.session, s.id, _stripe_account_dict(
+            account_id="fcacct_badbal",
+            balance={"current": "lots", "as_of": "yesterday"},
+        ))
+        assert row.last_balance_cents == 0
+        assert row.last_balance_as_of is None
