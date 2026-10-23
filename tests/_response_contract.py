@@ -60,7 +60,13 @@ def shape_errors(tp: Any, value: Any, where: str = "$") -> list[str]:
     errors: list[str] = []
     if value is None:
         return errors
-    for cand in _unwrap(tp):
+    cands = _unwrap(tp)
+    models = [c for c in cands if isinstance(c, type) and issubclass(c, BaseModel)]
+    if len(models) > 1 and isinstance(value, dict):
+        # A union of shapes (e.g. one per role): the value only has to
+        # match one of them — the closest is the one it was meant as.
+        return min((shape_errors(m, value, where) for m in models), key=len)
+    for cand in cands:
         origin = get_origin(cand)
         if isinstance(cand, type) and issubclass(cand, BaseModel) and isinstance(value, dict):
             fields = {(f.alias or name): f for name, f in cand.model_fields.items()}

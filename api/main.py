@@ -26,6 +26,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
+from api.Core.Responses import HealthResponse, MaintenanceState
 
 from api.Core.Config import settings
 from api.Core.Observability import (
@@ -294,13 +295,19 @@ def create_app() -> FastAPI:
             ),
         )
 
-    @app.get("/health", tags=["meta"])
+    @app.get(
+        "/health", tags=["meta"], response_model=None,
+        responses={200: {"model": HealthResponse}},
+    )
     def health() -> dict:
         """Tiny liveness probe — 200 + JSON envelope so the load
         balancer can confirm the app is reachable."""
         return {"status": "ok", "version": app.version}
 
-    @app.get("/maintenance-status", tags=["meta"])
+    @app.get(
+        "/maintenance-status", tags=["meta"], response_model=None,
+        responses={200: {"model": MaintenanceState}},
+    )
     def maintenance_status(db: Session = Depends(get_db)) -> dict:
         """Public (no auth) — returns maintenance mode state so the
         SPA can show a banner without a separate superadmin call."""

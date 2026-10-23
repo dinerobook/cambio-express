@@ -75,19 +75,12 @@ export async function toggleAddon(
 // had one and it drifted, advertising Pro yearly at $420 while
 // checkout charged $450.
 
-export interface PublicPlan {
-  key: string;
-  label: string;
-  monthly_cents: number;
-  yearly_cents: number;
-  /** Whole months of the monthly price the yearly price saves. */
-  months_free: number;
-}
+export type PublicPlan = components["schemas"]["PublicPlan"];
 
 export function usePublicPricing() {
-  return useQuery<{ plans: PublicPlan[] }>({
+  return useQuery<components["schemas"]["PublicPricingResponse"]>({
     queryKey: ["billing", "public-pricing"],
-    queryFn: () => api<{ plans: PublicPlan[] }>("/api/v2/billing/pricing"),
+    queryFn: () => api<components["schemas"]["PublicPricingResponse"]>("/api/v2/billing/pricing"),
     // Prices change about never; don't refetch on every mount.
     staleTime: 60 * 60 * 1000,
   });

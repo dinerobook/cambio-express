@@ -38,8 +38,6 @@ from api.Modules.Superadmin.Requests.responses import (
     SuperadminDashboardResponse,
     SuperadminEmailLogResponse,
     SuperadminImpersonateResponse,
-    SuperadminMaintenanceResponse,
-    SuperadminOkResponse,
     SuperadminPlatformUserResponse,
     SuperadminReportDrilldownResponse,
     SuperadminRetentionDryRunResponse,
@@ -92,6 +90,7 @@ from api.Modules.Superadmin.Requests import (
 )
 from typing import Any
 from api.Core.Clock import utc_now
+from api.Core.Responses import MaintenanceState, OkResponse
 from api.Modules.Superadmin.Services.trials import (
     TrialWindowError, apply_plan_change, extend_store_trial,
 )
@@ -296,7 +295,7 @@ def _compute_mrr_trend(db: Session) -> dict[str, Any]:
 
 @router.get(
     "/maintenance", response_model=None,
-    responses={200: {"model": SuperadminMaintenanceResponse}},
+    responses={200: {"model": MaintenanceState}},
 )
 def get_maintenance_route(
     db: Session = Depends(get_db),
@@ -311,7 +310,7 @@ def get_maintenance_route(
 
 @router.post(
     "/maintenance", response_model=None,
-    responses={200: {"model": SuperadminMaintenanceResponse}},
+    responses={200: {"model": MaintenanceState}},
 )
 def set_maintenance_route(
     body: SuperadminMaintenanceRequest,
@@ -584,7 +583,7 @@ def toggle_user_active_route(
 
 @router.post(
     "/users/{user_id}/reset-2fa", response_model=None,
-    responses={200: {"model": SuperadminOkResponse}},
+    responses={200: {"model": OkResponse}},
 )
 def reset_2fa_route(
     user_id: int = Path(..., ge=1),
@@ -690,7 +689,7 @@ IMPERSONATION_TTL_SECONDS = 3600
 
 @router.post(
     "/impersonate/stop", response_model=None,
-    responses={200: {"model": SuperadminOkResponse}},
+    responses={200: {"model": OkResponse}},
 )
 def stop_impersonation_route(
     response: Response,
