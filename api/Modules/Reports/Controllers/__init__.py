@@ -44,6 +44,21 @@ from api.Modules.Reports.Requests import (
     TopCustomersResponse,
     TopRecipientsResponse,
 )
+from api.Modules.Reports.Requests.drilldowns import (
+    AchVolumeResponse,
+    BankChargesResponse,
+    BankRuleAuditResponse,
+    BankTxnBreakdownResponse,
+    CancelledTransfersResponse,
+    DailyLineItemReportResponse,
+    EmployeeActivityResponse,
+    FeesVsTaxResponse,
+    HighValueTransfersResponse,
+    NewVsReturningResponse,
+    PeriodComparisonResponse,
+    PeriodPlResponse,
+    ReturnedCheckStatusResponse,
+)
 from api.Modules.Reports.Services import (
     by_destination_country,
     cashier_productivity,
@@ -233,15 +248,16 @@ def cashier_productivity_route(
 
 # ── Batch-3 drilldowns ──────────────────────────────────────
 #
-# These five reports return `{rows, totals}` from their existing
-# Service functions. Pydantic schemas would add boilerplate without
-# value — the SPA already accepts a generic `{rows, totals}` envelope
-# (see `ReportDrilldownResponse` in frontend/src/api/reportDrilldown.ts).
-# `response_model=None` skips schema generation but the JSON shape is
-# stable: the SPA treats each row's identity field as a known string.
+# These reports return the `{rows, totals}` dicts their Service
+# functions build, unchanged. Each documents its shape with a model
+# from `Requests.drilldowns` (doc-only — nothing is filtered), and the
+# test suite's response contract proves the model on every answer.
 
 
-@router.get("/new-vs-returning")
+@router.get(
+    "/new-vs-returning", response_model=None,
+    responses={200: {"model": NewVsReturningResponse}},
+)
 def new_vs_returning_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -253,7 +269,10 @@ def new_vs_returning_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/fees-vs-tax")
+@router.get(
+    "/fees-vs-tax", response_model=None,
+    responses={200: {"model": FeesVsTaxResponse}},
+)
 def fees_vs_tax_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -265,7 +284,10 @@ def fees_vs_tax_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/high-value-transfers")
+@router.get(
+    "/high-value-transfers", response_model=None,
+    responses={200: {"model": HighValueTransfersResponse}},
+)
 def high_value_transfers_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -280,7 +302,10 @@ def high_value_transfers_route(
     return {"rows": rows, "totals": totals, "threshold": threshold}
 
 
-@router.get("/cancelled-transfers")
+@router.get(
+    "/cancelled-transfers", response_model=None,
+    responses={200: {"model": CancelledTransfersResponse}},
+)
 def cancelled_transfers_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -292,7 +317,10 @@ def cancelled_transfers_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/ach-volume")
+@router.get(
+    "/ach-volume", response_model=None,
+    responses={200: {"model": AchVolumeResponse}},
+)
 def ach_volume_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -307,7 +335,10 @@ def ach_volume_route(
 # ── Batch-4 drilldowns (audit + banking) ───────────────────
 
 
-@router.get("/returned-check-status")
+@router.get(
+    "/returned-check-status", response_model=None,
+    responses={200: {"model": ReturnedCheckStatusResponse}},
+)
 def returned_check_status_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -319,7 +350,10 @@ def returned_check_status_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/bank-transactions-breakdown")
+@router.get(
+    "/bank-transactions-breakdown", response_model=None,
+    responses={200: {"model": BankTxnBreakdownResponse}},
+)
 def bank_txn_breakdown_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -331,7 +365,10 @@ def bank_txn_breakdown_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/daily-drops")
+@router.get(
+    "/daily-drops", response_model=None,
+    responses={200: {"model": DailyLineItemReportResponse}},
+)
 def daily_drops_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -343,7 +380,10 @@ def daily_drops_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/check-deposits")
+@router.get(
+    "/check-deposits", response_model=None,
+    responses={200: {"model": DailyLineItemReportResponse}},
+)
 def check_deposits_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -355,7 +395,10 @@ def check_deposits_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/bank-rule-audit")
+@router.get(
+    "/bank-rule-audit", response_model=None,
+    responses={200: {"model": BankRuleAuditResponse}},
+)
 def bank_rule_audit_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -367,7 +410,10 @@ def bank_rule_audit_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/bank-charges-by-account")
+@router.get(
+    "/bank-charges-by-account", response_model=None,
+    responses={200: {"model": BankChargesResponse}},
+)
 def bank_charges_by_account_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -379,7 +425,10 @@ def bank_charges_by_account_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/period-comparison")
+@router.get(
+    "/period-comparison", response_model=None,
+    responses={200: {"model": PeriodComparisonResponse}},
+)
 def period_comparison_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -406,7 +455,10 @@ def period_comparison_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/employee-activity")
+@router.get(
+    "/employee-activity", response_model=None,
+    responses={200: {"model": EmployeeActivityResponse}},
+)
 def employee_activity_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),
@@ -418,7 +470,10 @@ def employee_activity_route(
     return {"rows": rows, "totals": totals}
 
 
-@router.get("/period-pl")
+@router.get(
+    "/period-pl", response_model=None,
+    responses={200: {"model": PeriodPlResponse}},
+)
 def period_pl_route(
     period: tuple[date, date] = Depends(parse_period),
     store_ids: list[int] = Depends(parse_store_ids),

@@ -210,6 +210,56 @@
         "title": "AccessRoleUpdateResponse",
         "type": "object"
       },
+      "AchVolumeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/AchVolumeRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/CountAmountTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "AchVolumeResponse",
+        "type": "object"
+      },
+      "AchVolumeRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "avg": {
+            "title": "Avg",
+            "type": "number"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "company",
+          "count",
+          "amount",
+          "avg"
+        ],
+        "title": "AchVolumeRow",
+        "type": "object"
+      },
       "ActiveAnnouncementRow": {
         "additionalProperties": false,
         "description": "Slim shape returned to the SPA banner \u2014 only the fields the\nbanner needs to render. Skips audit/lifecycle fields so a\ncashier's network tab never reveals `created_by`, schedule\ntimestamps, or broadcast state for an internal announcement.",
@@ -1518,6 +1568,75 @@
         "title": "BankCategoryOption",
         "type": "object"
       },
+      "BankChargesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BankChargesRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/CountAmountTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "BankChargesResponse",
+        "type": "object"
+      },
+      "BankChargesRow": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "avg": {
+            "title": "Avg",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last4"
+          }
+        },
+        "required": [
+          "account",
+          "last4",
+          "count",
+          "amount",
+          "avg"
+        ],
+        "title": "BankChargesRow",
+        "type": "object"
+      },
       "BankConnectCompleteRequest": {
         "additionalProperties": false,
         "description": "`POST /api/v2/bank/connect/complete` body \u2014 the SPA hands\nback the FC session id after Stripe.js resolves so the\nserver can fetch + persist the linked accounts.",
@@ -1624,6 +1743,90 @@
           }
         },
         "title": "BankRuleApplyReport",
+        "type": "object"
+      },
+      "BankRuleAuditResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BankRuleAuditRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/BankRuleAuditTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "BankRuleAuditResponse",
+        "type": "object"
+      },
+      "BankRuleAuditRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "match": {
+            "title": "Match",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "integer"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "label",
+          "target",
+          "match",
+          "count",
+          "amount"
+        ],
+        "title": "BankRuleAuditRow",
+        "type": "object"
+      },
+      "BankRuleAuditTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rules": {
+            "title": "Rules",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "rules"
+        ],
+        "title": "BankRuleAuditTotals",
         "type": "object"
       },
       "BankRuleListResponse": {
@@ -2318,6 +2521,90 @@
         "title": "BankTransactionRow",
         "type": "object"
       },
+      "BankTxnBreakdownResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BankTxnBreakdownRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/BankTxnBreakdownTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "BankTxnBreakdownResponse",
+        "type": "object"
+      },
+      "BankTxnBreakdownRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "signed": {
+            "title": "Signed",
+            "type": "number"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "label",
+          "count",
+          "signed",
+          "amount"
+        ],
+        "title": "BankTxnBreakdownRow",
+        "type": "object"
+      },
+      "BankTxnBreakdownTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "inflow": {
+            "title": "Inflow",
+            "type": "number"
+          },
+          "outflow": {
+            "title": "Outflow",
+            "type": "number"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "inflow",
+          "outflow"
+        ],
+        "title": "BankTxnBreakdownTotals",
+        "type": "object"
+      },
       "BatchLinkedTransferRow": {
         "additionalProperties": false,
         "description": "Subset of Transfer columns the SPA's batch-detail page\nrenders. Kept narrower than the full TransferRow because\ncross-module Pydantic re-export gets messy and the SPA\ndoesn't need every field here.",
@@ -2695,6 +2982,110 @@
         "title": "ByDestinationCountryResponse",
         "type": "object"
       },
+      "CancelledTransferRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "confirm": {
+            "title": "Confirm",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "recipient_name": {
+            "title": "Recipient Name",
+            "type": "string"
+          },
+          "send_date": {
+            "title": "Send Date",
+            "type": "string"
+          },
+          "sender_name": {
+            "title": "Sender Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_notes": {
+            "title": "Status Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "send_date",
+          "sender_name",
+          "recipient_name",
+          "country",
+          "company",
+          "amount",
+          "status",
+          "status_notes",
+          "confirm"
+        ],
+        "title": "CancelledTransferRow",
+        "type": "object"
+      },
+      "CancelledTransfersResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CancelledTransferRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/CancelledTransfersTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "CancelledTransfersResponse",
+        "type": "object"
+      },
+      "CancelledTransfersTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "canceled": {
+            "title": "Canceled",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "rejected": {
+            "title": "Rejected",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "canceled",
+          "rejected"
+        ],
+        "title": "CancelledTransfersTotals",
+        "type": "object"
+      },
       "CashierProductivityResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2987,6 +3378,25 @@
           "company"
         ],
         "title": "CompanyRow",
+        "type": "object"
+      },
+      "CountAmountTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "amount"
+        ],
+        "title": "CountAmountTotals",
         "type": "object"
       },
       "CountryRow": {
@@ -3372,6 +3782,76 @@
           "customer"
         ],
         "title": "CustomerUpsertResponse",
+        "type": "object"
+      },
+      "DailyLineItemDayRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "count",
+          "amount"
+        ],
+        "title": "DailyLineItemDayRow",
+        "type": "object"
+      },
+      "DailyLineItemReportResponse": {
+        "additionalProperties": false,
+        "description": "Daily drops and check deposits: one row per day.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DailyLineItemDayRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DailyLineItemTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "DailyLineItemReportResponse",
+        "type": "object"
+      },
+      "DailyLineItemTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "avg_per_day": {
+            "title": "Avg Per Day",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "avg_per_day"
+        ],
+        "title": "DailyLineItemTotals",
         "type": "object"
       },
       "DailyReportResponse": {
@@ -4436,6 +4916,97 @@
         "title": "DismissResponse",
         "type": "object"
       },
+      "EmployeeActivityResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/EmployeeActivityRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/EmployeeActivityTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "EmployeeActivityResponse",
+        "type": "object"
+      },
+      "EmployeeActivityRow": {
+        "additionalProperties": false,
+        "properties": {
+          "cancels": {
+            "title": "Cancels",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "employee": {
+            "title": "Employee",
+            "type": "string"
+          },
+          "last_activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Activity"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "number"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "employee",
+          "username",
+          "count",
+          "sent",
+          "cancels",
+          "last_activity"
+        ],
+        "title": "EmployeeActivityRow",
+        "type": "object"
+      },
+      "EmployeeActivityTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "cancels": {
+            "title": "Cancels",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "number"
+          }
+        },
+        "required": [
+          "count",
+          "sent",
+          "cancels"
+        ],
+        "title": "EmployeeActivityTotals",
+        "type": "object"
+      },
       "EmployeeCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5009,6 +5580,80 @@
         "title": "FeatureFlagToggleRequest",
         "type": "object"
       },
+      "FeesVsTaxResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/FeesVsTaxRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/FeesVsTaxTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "FeesVsTaxResponse",
+        "type": "object"
+      },
+      "FeesVsTaxRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "amount",
+          "note"
+        ],
+        "title": "FeesVsTaxRow",
+        "type": "object"
+      },
+      "FeesVsTaxTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "ratio": {
+            "title": "Ratio",
+            "type": "number"
+          },
+          "tax": {
+            "title": "Tax",
+            "type": "number"
+          }
+        },
+        "required": [
+          "fees",
+          "tax",
+          "count",
+          "ratio"
+        ],
+        "title": "FeesVsTaxTotals",
+        "type": "object"
+      },
       "ForgotPasswordRequest": {
         "additionalProperties": false,
         "description": "POST body for /auth/forgot-password. Always responds 200\nregardless of whether the email exists \u2014 the legacy contract\nis \"Check your email\" so attackers can't enumerate registered\naddresses.",
@@ -5275,6 +5920,115 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HighValueTransferRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "confirm": {
+            "title": "Confirm",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "number"
+          },
+          "recipient_name": {
+            "title": "Recipient Name",
+            "type": "string"
+          },
+          "send_date": {
+            "title": "Send Date",
+            "type": "string"
+          },
+          "sender_name": {
+            "title": "Sender Name",
+            "type": "string"
+          },
+          "tax": {
+            "title": "Tax",
+            "type": "number"
+          }
+        },
+        "required": [
+          "send_date",
+          "sender_name",
+          "recipient_name",
+          "country",
+          "company",
+          "amount",
+          "fee",
+          "tax",
+          "confirm"
+        ],
+        "title": "HighValueTransferRow",
+        "type": "object"
+      },
+      "HighValueTransfersResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/HighValueTransferRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "threshold": {
+            "title": "Threshold",
+            "type": "number"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/HighValueTransfersTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals",
+          "threshold"
+        ],
+        "title": "HighValueTransfersResponse",
+        "type": "object"
+      },
+      "HighValueTransfersTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "tax": {
+            "title": "Tax",
+            "type": "number"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "fees",
+          "tax"
+        ],
+        "title": "HighValueTransfersTotals",
         "type": "object"
       },
       "ImportDepartmentRow": {
@@ -8887,6 +9641,95 @@
         "title": "NaxmlUploadRequest",
         "type": "object"
       },
+      "NewVsReturningResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/NewVsReturningRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/NewVsReturningTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "NewVsReturningResponse",
+        "type": "object"
+      },
+      "NewVsReturningRow": {
+        "additionalProperties": false,
+        "properties": {
+          "bucket": {
+            "title": "Bucket",
+            "type": "string"
+          },
+          "customers": {
+            "title": "Customers",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "number"
+          },
+          "tone": {
+            "title": "Tone",
+            "type": "string"
+          },
+          "txns": {
+            "title": "Txns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bucket",
+          "customers",
+          "txns",
+          "sent",
+          "tone"
+        ],
+        "title": "NewVsReturningRow",
+        "type": "object"
+      },
+      "NewVsReturningTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "customers": {
+            "title": "Customers",
+            "type": "integer"
+          },
+          "new_count": {
+            "title": "New Count",
+            "type": "integer"
+          },
+          "returning_count": {
+            "title": "Returning Count",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "number"
+          },
+          "txns": {
+            "title": "Txns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "customers",
+          "txns",
+          "sent",
+          "new_count",
+          "returning_count"
+        ],
+        "title": "NewVsReturningTotals",
+        "type": "object"
+      },
       "NotificationsResponse": {
         "additionalProperties": false,
         "description": "Per-user notification preferences.\n\nThree ``*_applies`` flags tell the SPA when a toggle is\ninteractive vs. greyed-out informational:\n\n  * ``trial_toggle_applies`` \u2014 True only for admins / owners\n    of a store currently in active / expiring-soon / grace\n    trial state.\n  * ``locked_day_digest_applies`` \u2014 True only for admins /\n    owners (employees don't receive the digest by design).\n  * ``daily_summary_applies`` \u2014 same as the locked-day digest:\n    admins / owners only.",
@@ -10635,6 +11478,159 @@
           "clock_in_at"
         ],
         "title": "PaystubShiftRow",
+        "type": "object"
+      },
+      "PeriodComparisonResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodComparisonRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/PeriodComparisonTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "PeriodComparisonResponse",
+        "type": "object"
+      },
+      "PeriodComparisonRow": {
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "number"
+          },
+          "delta": {
+            "title": "Delta",
+            "type": "number"
+          },
+          "is_money": {
+            "title": "Is Money",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "number"
+          },
+          "prior": {
+            "title": "Prior",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "current",
+          "prior",
+          "delta",
+          "pct",
+          "is_money"
+        ],
+        "title": "PeriodComparisonRow",
+        "type": "object"
+      },
+      "PeriodComparisonTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "current_label": {
+            "title": "Current Label",
+            "type": "string"
+          },
+          "prior_label": {
+            "title": "Prior Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_label",
+          "prior_label"
+        ],
+        "title": "PeriodComparisonTotals",
+        "type": "object"
+      },
+      "PeriodPlResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodPlRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/PeriodPlTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "PeriodPlResponse",
+        "type": "object"
+      },
+      "PeriodPlRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "section",
+          "amount"
+        ],
+        "title": "PeriodPlRow",
+        "type": "object"
+      },
+      "PeriodPlTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "expenses": {
+            "title": "Expenses",
+            "type": "number"
+          },
+          "income": {
+            "title": "Income",
+            "type": "number"
+          },
+          "net": {
+            "title": "Net",
+            "type": "number"
+          }
+        },
+        "required": [
+          "income",
+          "expenses",
+          "net",
+          "days"
+        ],
+        "title": "PeriodPlTotals",
         "type": "object"
       },
       "PeriodSummaryResponse": {
@@ -12580,6 +13576,100 @@
           "amount"
         ],
         "title": "ReturnCheckWriteRequest",
+        "type": "object"
+      },
+      "ReturnedCheckStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnedCheckStatusRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ReturnedCheckStatusTotals"
+          }
+        },
+        "required": [
+          "rows",
+          "totals"
+        ],
+        "title": "ReturnedCheckStatusResponse",
+        "type": "object"
+      },
+      "ReturnedCheckStatusRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "recovered": {
+            "title": "Recovered",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "status_key": {
+            "title": "Status Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "status_key",
+          "count",
+          "amount",
+          "recovered"
+        ],
+        "title": "ReturnedCheckStatusRow",
+        "type": "object"
+      },
+      "ReturnedCheckStatusTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "loss_fraud": {
+            "title": "Loss Fraud",
+            "type": "number"
+          },
+          "net_gl": {
+            "title": "Net Gl",
+            "type": "number"
+          },
+          "recovered": {
+            "title": "Recovered",
+            "type": "number"
+          }
+        },
+        "required": [
+          "count",
+          "amount",
+          "recovered",
+          "fees",
+          "loss_fraud",
+          "net_gl"
+        ],
+        "title": "ReturnedCheckStatusTotals",
         "type": "object"
       },
       "RoleCreateRequest": {
@@ -37023,7 +38113,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/AchVolumeResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -37133,7 +38225,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/BankChargesResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -37243,7 +38337,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/BankRuleAuditResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -37353,7 +38449,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/BankTxnBreakdownResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -37575,7 +38673,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/CancelledTransfersResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -37797,7 +38897,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DailyLineItemReportResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -37907,7 +39009,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DailyLineItemReportResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -38017,7 +39121,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeActivityResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -38127,7 +39233,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/FeesVsTaxResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -38248,7 +39356,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/HighValueTransfersResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -38358,7 +39468,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/NewVsReturningResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -38500,7 +39612,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodComparisonResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -38610,7 +39724,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodPlResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -38720,7 +39836,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnedCheckStatusResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -39477,11 +40595,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
@@ -42525,11 +43638,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
