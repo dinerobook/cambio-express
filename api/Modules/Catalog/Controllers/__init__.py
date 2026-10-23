@@ -28,6 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from api.Core.Audit import audit_operator
+from api.Core.Responses import OkResponse
 from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams, paginate, pagination_dep
@@ -440,7 +441,10 @@ def update_invoice_route(
     )
 
 
-@router.delete("/invoices/{invoice_id}")
+@router.delete(
+    "/invoices/{invoice_id}", response_model=None,
+    responses={200: {"model": OkResponse}},
+)
 def delete_invoice_route(
     invoice_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),

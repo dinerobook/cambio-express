@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from api.main import api_app
-from tests._response_contract import check, documented_model
+from tests._response_contract import check, documented_model, shape_errors
 
 
 class _Line(BaseModel):
@@ -87,23 +87,12 @@ def test_errors_and_undocumented_routes_are_not_checked():
     assert check(_app, "GET", "/untyped", 200, {"anything": 1}) == []
 
 
-# ── Ratchet: JSON routes with no documented answer ────────────────
+# ── Every JSON route documents its answer ─────────────────────────
 #
-# Each still hands the SPA an untyped dict, so the SPA keeps a hand-
-# written copy of its shape. The list only shrinks: give a route a
-# model (doc-only as above when it builds a dict) and delete its line.
-
-UNTYPED = {
-    "DELETE /catalog/invoices/{invoice_id}",
-    "GET /billing/pricing",
-    "GET /customers/export.csv",
-    "GET /dashboard/summary",
-    "GET /health",
-    "GET /maintenance-status",
-    "GET /posimport/naxml/pricebook-export",
-    "POST /webhooks/resend",
-    "POST /webhooks/stripe",
-}
+# A route that answers JSON with no model would hand the SPA an
+# untyped dict, and the SPA would keep a hand-written copy of its
+# shape that drifts. Give it a model (doc-only as above when it builds
+# a dict); a file download declares ``response_class=Response``.
 
 
 def _untyped_routes() -> set[str]:
@@ -118,18 +107,32 @@ def _untyped_routes() -> set[str]:
                 continue
             if "$ref" in schema or schema.get("type") == "array":
                 continue
+            if all("$ref" in v for v in schema.get("oneOf", [{}])):
+                continue
             out.add(f"{method.upper()} {path}")
     return out
 
 
-def test_no_new_untyped_json_route():
-    new = sorted(_untyped_routes() - UNTYPED)
-    assert new == [], (
+def test_every_json_route_documents_its_answer():
+    assert sorted(_untyped_routes()) == [], (
         "document the answer: response_model=X, or response_model=None "
-        "plus responses={200: {'model': X}} for a route that builds a dict"
+        "plus responses={200: {'model': X}} for a route that builds a "
+        "dict; a download declares response_class=Response"
     )
 
 
-def test_untyped_list_has_no_stale_entries():
-    stale = sorted(UNTYPED - _untyped_routes())
-    assert stale == [], "this route is typed now — remove it from UNTYPED"
+def test_a_union_answer_matches_its_closest_shape():
+    from typing import Literal
+
+    class _A(BaseModel):
+        kind: Literal["a"]
+        x: int
+
+    class _B(BaseModel):
+        kind: Literal["b"]
+        y: int
+
+    assert shape_errors(_A | _B, {"kind": "b", "y": 1}) == []
+    assert shape_errors(_A | _B, {"kind": "b", "y": 1, "z": 2}) == [
+        "$.z: sent but not in _B",
+    ]

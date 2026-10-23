@@ -18,10 +18,6 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class SuperadminOkResponse(_Strict):
-    ok: bool
-
-
 # ── Dashboard ────────────────────────────────────────────────────
 
 
@@ -90,11 +86,6 @@ class SuperadminDashboardResponse(_Strict):
     referral_signups: int
     activity: list[SuperadminActivityRow]
     mrr_trend: SuperadminMrrTrend
-
-
-class SuperadminMaintenanceResponse(_Strict):
-    enabled: bool
-    message: str
 
 
 # ── Users ────────────────────────────────────────────────────────

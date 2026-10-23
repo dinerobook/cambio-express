@@ -12,7 +12,7 @@ import styles from "./SuperadminMaintenance.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import type { components } from "../api/openapi";
 
-type MaintenanceState = components["schemas"]["SuperadminMaintenanceResponse"];
+type MaintenanceState = components["schemas"]["MaintenanceState"];
 
 function useMaintenanceState() {
   const identity = getCurrentIdentity();

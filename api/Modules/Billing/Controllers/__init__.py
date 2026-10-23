@@ -27,6 +27,7 @@ from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import resolve_store_scope
 from api.Modules.Billing.Requests import (
     BillingPortalResponse,
+    PublicPricingResponse,
     CheckoutSessionRequest,
     CheckoutSessionResponse,
 )
@@ -255,7 +256,10 @@ def _stripe_user_message(exc: Exception) -> str:
     return "Payment service error. Please try again."
 
 
-@router.get("/pricing")
+@router.get(
+    "/pricing", response_model=None,
+    responses={200: {"model": PublicPricingResponse}},
+)
 def public_pricing_route() -> dict[str, Any]:
     """Plan prices for the marketing page. **Unauthenticated** —
     it renders before anyone has an account.

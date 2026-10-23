@@ -594,7 +594,7 @@ def item_movement_route(
     )
 
 
-@router.get("/naxml/pricebook-export")
+@router.get("/naxml/pricebook-export", response_class=PlainResponse)
 def pricebook_export_route(
     changed_since: str = FQuery(
         "", description="YYYY-MM-DD — only items updated on/after",

@@ -58,9 +58,10 @@ model (`tests/_response_contract.py`: no missing required key, no
 undocumented key, right types), so the model must be exactly what the
 route sends — when you type a route, add a test whose answer carries
 every list filled in (e.g. `tests/Modules/Superadmin/test_typed_answers.py`).
-`tests/Core/test_response_contract.py` keeps the `UNTYPED` list of
-routes not yet typed; it only shrinks, and a new untyped JSON route
-fails it. Then `npm run generate-types` and use the generated type in
+`tests/Core/test_response_contract.py` fails when any JSON route has
+no documented answer; a file download declares
+`response_class=Response`. A whole answer of `{"ok": true}` uses the
+shared `OkResponse` (`api/Core/Responses.py`). Then `npm run generate-types` and use the generated type in
 the SPA (`frontend/CLAUDE.md`).
 
 ## Invariant detail

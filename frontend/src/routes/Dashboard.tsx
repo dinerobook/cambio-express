@@ -975,8 +975,8 @@ function QuickLink({ to, title, desc }: { to: string; title: string; desc: strin
 
 function StatusPill({
   value, tones,
-}: { value: string; tones: Record<string, PillTone> }) {
-  return <Pill tone={tones[value] ?? "neutral"}>{value}</Pill>;
+}: { value: string | null; tones: Record<string, PillTone> }) {
+  return <Pill tone={(value && tones[value]) || "neutral"}>{value}</Pill>;
 }
 
 // Local table cell styles — extends the DS tokens with the dense

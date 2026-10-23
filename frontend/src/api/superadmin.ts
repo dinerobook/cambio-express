@@ -240,7 +240,7 @@ export async function toggleUserActive(userId: number) {
 }
 
 export async function resetUser2FA(userId: number) {
-  return api<Schemas["SuperadminOkResponse"]>(
+  return api<Schemas["OkResponse"]>(
     `/api/v2/superadmin/users/${userId}/reset-2fa`,
     { method: "POST" },
   );
@@ -278,7 +278,7 @@ export async function impersonateUser(
  *  access cookie dropped). Call through `lib/impersonation.ts`,
  *  which also restores the superadmin's own session. */
 export async function stopImpersonationRequest() {
-  return api<Schemas["SuperadminOkResponse"]>(
+  return api<Schemas["OkResponse"]>(
     "/api/v2/superadmin/impersonate/stop",
     { method: "POST" },
   );

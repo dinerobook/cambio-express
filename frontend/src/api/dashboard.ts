@@ -7,199 +7,33 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import type { components } from "./openapi";
 
-export interface AdminDashboardKpis {
-  total_transfers: number;
-  today_transfers: number;
-  pending_ach: number;
-  today_report_entered: boolean;
-  net_income_month: number | null;
-}
+type Schemas = components["schemas"];
 
-export interface CompanyStat {
-  company: string;
-  count: number;
-  total: number;
-  fees: number;
-}
+// One shape per role; `role` narrows the union. Module blocks are
+// null when the module is off or nothing is recorded yet.
+export type AdminDashboardKpis = Schemas["AdminDashboardKpis"];
+export type CompanyStat = Schemas["CompanyStat"];
+export type DashboardTransferRow = Schemas["DashboardTransferRow"];
+export type DashboardBatchRow = Schemas["DashboardBatchRow"];
+export type DashboardBankAccount = Schemas["DashboardBankAccount"];
+export type DayCloseSnapshot = Schemas["DayCloseSnapshot"];
+export type LotterySnapshot = Schemas["LotterySnapshot"];
+export type HourlyBlock = Schemas["HourlyBlock"];
+export type SalesBlock = Schemas["SalesBlock"];
+export type PurchasesBlock = Schemas["PurchasesBlock"];
+export type RegisterActivityBlock = Schemas["RegisterActivityBlock"];
+export type ReceiptRow = Schemas["ReceiptRow"];
+export type TransfersRollup = Schemas["TransfersRollup"];
+export type ClockedInRow = Schemas["ClockedInRow"];
+export type AdminDashboard = Schemas["AdminDashboard"];
+export type EmployeeTodayRow = Schemas["EmployeeTodayRow"];
+export type EmployeeDashboard = Schemas["EmployeeDashboard"];
 
-export interface DashboardTransferRow {
-  id: number;
-  send_date: string;
-  sender_name: string;
-  company: string;
-  send_amount: number;
-  status: string;
-}
-
-export interface DashboardBatchRow {
-  id: number;
-  ach_date: string;
-  company: string;
-  ach_amount: number;
-  variance: number;
-  status: string;
-}
-
-export interface DashboardBankAccount {
-  id: number;
-  display_name: string | null;
-  institution_name: string | null;
-  last4: string | null;
-  last_balance: number;
-  last_balance_as_of: string | null;
-}
-
-// Module snapshots (P1-10): each enabled module contributes its
-// dashboard section; null = module on but nothing recorded yet.
-export interface DayCloseSnapshot {
-  date: string;
-  gross_sales: number;
-  sales_tax: number;
-  over_short: number | null;
-  uncounted_drawers: number;
-  closes: number;
-  top_departments: Array<{ name: string; amount: number }>;
-}
-
-export interface LotterySnapshot {
-  date: string;
-  tickets_sold: number;
-  value: number;
-  uncounted_active_packs: number;
-  active_packs: number;
-}
-
-// Generic store blocks (D-1). sales/purchases are null when the
-// matching module (day_close / price_book) is off; clocked_in is
-// universal.
-export interface HourlyBlock {
-  current_date: string;
-  previous_date: string | null;
-  current: number[];   // 24 hour buckets
-  previous: number[] | null;
-  current_total: number;
-  previous_total: number | null;
-}
-
-export interface SalesBlock {
-  today: number;
-  yesterday: number;
-  month_to_date: number;
-  d7: number;
-  d15: number;
-  d30: number;
-  trend: Array<{ date: string; amount: number }>;
-  // Hourly chart data (G-3) — null until the store has hourly
-  // buckets (fed by the Gilbarco agent).
-  hourly: HourlyBlock | null;
-}
-
-export interface PurchasesBlock {
-  today: number;
-  d7: number;
-  d15: number;
-  d30: number;
-  open_count: number;
-  open_total: number;
-}
-
-// What the register itself did on the latest booked day (D-4).
-// null until the store has booked a business day from its POS, so
-// a hand-keyed store never sees an empty block.
-export interface RegisterActivityBlock {
-  date: string;
-  is_today: boolean;
-  receipts: number;
-  voided_tickets: number;
-  refunds: number;
-  total_rung: number;
-  fuel_gallons: number;
-  fuel_sales: number;
-}
-
-export interface ReceiptRow {
-  id: number;
-  transaction_no: string;
-  register_id: string;
-  cashier_id: string;
-  receipt_at: string | null;
-  business_date: string;
-  total: number;
-  has_voided_line: boolean;
-}
-
-// Money-transfer volume over the same windows as sales and
-// purchases, so the period table can line all three up. null when
-// the money-services module is off.
-export interface TransfersRollup {
-  today: number;
-  d7: number;
-  d15: number;
-  d30: number;
-}
-
-export interface ClockedInRow {
-  name: string;
-  clock_in_at: string | null;
-}
-
-export interface AdminDashboard {
-  role: "admin";
-  today: string;
-  modules: string[];
-  day_close: DayCloseSnapshot | null;
-  lottery: LotterySnapshot | null;
-  sales: SalesBlock | null;
-  purchases: PurchasesBlock | null;
-  clocked_in: ClockedInRow[];
-  register: RegisterActivityBlock | null;
-  recent_receipts: ReceiptRow[];
-  transfers_rollup: TransfersRollup | null;
-  kpis: AdminDashboardKpis;
-  company_stats: CompanyStat[];
-  recent_transfers: DashboardTransferRow[];
-  recent_batches: DashboardBatchRow[];
-  stripe_accounts: DashboardBankAccount[];
-}
-
-export interface EmployeeTodayRow {
-  id: number;
-  created_at: string | null;
-  sender_name: string;
-  company: string;
-  /** "Payout" for cash paid out to a recipient. */
-  service_type: string;
-  /** "cash" or "debit_card". */
-  payment_method: string;
-  send_amount: number;
-  fee: number;
-  recipient_name: string | null;
-  country: string | null;
-  confirm_number: string | null;
-  status: string;
-}
-
-export interface EmployeeDashboard {
-  role: "employee";
-  today: string;
-  modules: string[];
-  day_close: DayCloseSnapshot | null;
-  lottery: LotterySnapshot | null;
-  register: RegisterActivityBlock | null;
-  today_transfers: EmployeeTodayRow[];
-  /** `sent` leaves payouts out; they are in `paid_out`. */
-  totals: { sent: number; paid_out: number; fees: number; count: number };
-}
-
-// Shape of the superadmin payload is intentionally loose — the
-// underlying service returns a wide assortment of fields that we
-// want to surface without rebuilding pydantic models for each.
-// The SPA component reads what it needs and ignores the rest.
-export interface SuperadminDashboard {
-  role: "superadmin";
-  [key: string]: unknown;
-}
+/** The platform context: wide and loosely shaped, the page reads the
+ *  handful of keys it needs. */
+export type SuperadminDashboard = Schemas["SuperadminDashboard"];
 
 export type DashboardSummary =
   | AdminDashboard

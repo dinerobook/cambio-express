@@ -149,7 +149,7 @@ def upsert_route(
     return CustomerUpsertResponse(customer=_row(cust, store_id, home_names))
 
 
-@router.get("/export.csv")
+@router.get("/export.csv", response_class=Response)
 def export_csv_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),

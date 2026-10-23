@@ -626,6 +626,193 @@
         "title": "AdminCreateEntryRequest",
         "type": "object"
       },
+      "AdminDashboard": {
+        "additionalProperties": false,
+        "properties": {
+          "clocked_in": {
+            "items": {
+              "$ref": "#/components/schemas/ClockedInRow"
+            },
+            "title": "Clocked In",
+            "type": "array"
+          },
+          "company_stats": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyStat"
+            },
+            "title": "Company Stats",
+            "type": "array"
+          },
+          "day_close": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayCloseSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/AdminDashboardKpis"
+          },
+          "lottery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LotterySnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "purchases": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PurchasesBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recent_batches": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardBatchRow"
+            },
+            "title": "Recent Batches",
+            "type": "array"
+          },
+          "recent_receipts": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptRow"
+            },
+            "title": "Recent Receipts",
+            "type": "array"
+          },
+          "recent_transfers": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardTransferRow"
+            },
+            "title": "Recent Transfers",
+            "type": "array"
+          },
+          "register": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegisterActivityBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "const": "admin",
+            "title": "Role",
+            "type": "string"
+          },
+          "sales": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SalesBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stripe_accounts": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardBankAccount"
+            },
+            "title": "Stripe Accounts",
+            "type": "array"
+          },
+          "today": {
+            "title": "Today",
+            "type": "string"
+          },
+          "transfers_rollup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransfersRollup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "role",
+          "today",
+          "modules",
+          "day_close",
+          "lottery",
+          "sales",
+          "purchases",
+          "clocked_in",
+          "register",
+          "recent_receipts",
+          "transfers_rollup",
+          "kpis",
+          "company_stats",
+          "recent_transfers",
+          "recent_batches",
+          "stripe_accounts"
+        ],
+        "title": "AdminDashboard",
+        "type": "object"
+      },
+      "AdminDashboardKpis": {
+        "additionalProperties": false,
+        "properties": {
+          "net_income_month": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Income Month"
+          },
+          "pending_ach": {
+            "title": "Pending Ach",
+            "type": "integer"
+          },
+          "today_report_entered": {
+            "title": "Today Report Entered",
+            "type": "boolean"
+          },
+          "today_transfers": {
+            "title": "Today Transfers",
+            "type": "integer"
+          },
+          "total_transfers": {
+            "title": "Total Transfers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_transfers",
+          "today_transfers",
+          "pending_ach",
+          "today_report_entered",
+          "net_income_month"
+        ],
+        "title": "AdminDashboardKpis",
+        "type": "object"
+      },
       "AdminUpdateEntryRequest": {
         "additionalProperties": false,
         "description": "Admin-side edit. Every field is optional \u2014 a partial\nPUT leaves omitted fields alone. ``clock_out_at`` may be\nexplicitly set to None (use ``clock_out_at: null`` in JSON)\nto re-open a closed shift; the server distinguishes\n\"not in payload\" from \"set to null\" via ``model_fields_set``.\n\nNotes is replace-not-append (it's an admin override \u2014\ncashier-supplied notes survive only when the admin leaves\nthe field out of the patch).",
@@ -3336,6 +3523,32 @@
         "title": "ClockPunchRequest",
         "type": "object"
       },
+      "ClockedInRow": {
+        "additionalProperties": false,
+        "properties": {
+          "clock_in_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clock In At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "clock_in_at"
+        ],
+        "title": "ClockedInRow",
+        "type": "object"
+      },
       "CompanyRow": {
         "additionalProperties": false,
         "properties": {
@@ -3378,6 +3591,35 @@
           "company"
         ],
         "title": "CompanyRow",
+        "type": "object"
+      },
+      "CompanyStat": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "title": "Company",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "company",
+          "count",
+          "total",
+          "fees"
+        ],
+        "title": "CompanyStat",
         "type": "object"
       },
       "CountAmountTotals": {
@@ -4261,6 +4503,240 @@
         "title": "DailyReportUpdateRequest",
         "type": "object"
       },
+      "DashboardBankAccount": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "institution_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Name"
+          },
+          "last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last4"
+          },
+          "last_balance": {
+            "title": "Last Balance",
+            "type": "number"
+          },
+          "last_balance_as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Balance As Of"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "institution_name",
+          "last4",
+          "last_balance",
+          "last_balance_as_of"
+        ],
+        "title": "DashboardBankAccount",
+        "type": "object"
+      },
+      "DashboardBatchRow": {
+        "additionalProperties": false,
+        "properties": {
+          "ach_amount": {
+            "title": "Ach Amount",
+            "type": "number"
+          },
+          "ach_date": {
+            "title": "Ach Date",
+            "type": "string"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "variance": {
+            "title": "Variance",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "ach_date",
+          "company",
+          "ach_amount",
+          "variance",
+          "status"
+        ],
+        "title": "DashboardBatchRow",
+        "type": "object"
+      },
+      "DashboardTransferRow": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "send_amount": {
+            "title": "Send Amount",
+            "type": "number"
+          },
+          "send_date": {
+            "title": "Send Date",
+            "type": "string"
+          },
+          "sender_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Name"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "id",
+          "send_date",
+          "sender_name",
+          "company",
+          "send_amount",
+          "status"
+        ],
+        "title": "DashboardTransferRow",
+        "type": "object"
+      },
+      "DayCloseSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "closes": {
+            "title": "Closes",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "gross_sales": {
+            "title": "Gross Sales",
+            "type": "number"
+          },
+          "over_short": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Over Short"
+          },
+          "sales_tax": {
+            "title": "Sales Tax",
+            "type": "number"
+          },
+          "top_departments": {
+            "items": {
+              "$ref": "#/components/schemas/TopDepartment"
+            },
+            "title": "Top Departments",
+            "type": "array"
+          },
+          "uncounted_drawers": {
+            "title": "Uncounted Drawers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "gross_sales",
+          "sales_tax",
+          "over_short",
+          "uncounted_drawers",
+          "closes",
+          "top_departments"
+        ],
+        "title": "DayCloseSnapshot",
+        "type": "object"
+      },
       "DayCloseSummaryResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5131,6 +5607,79 @@
         "title": "EmployeeCreateRequest",
         "type": "object"
       },
+      "EmployeeDashboard": {
+        "additionalProperties": false,
+        "properties": {
+          "day_close": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayCloseSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lottery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LotterySnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "register": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegisterActivityBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "const": "employee",
+            "title": "Role",
+            "type": "string"
+          },
+          "today": {
+            "title": "Today",
+            "type": "string"
+          },
+          "today_transfers": {
+            "items": {
+              "$ref": "#/components/schemas/EmployeeTodayRow"
+            },
+            "title": "Today Transfers",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/EmployeeTotals"
+          }
+        },
+        "required": [
+          "role",
+          "today",
+          "modules",
+          "day_close",
+          "lottery",
+          "register",
+          "today_transfers",
+          "totals"
+        ],
+        "title": "EmployeeDashboard",
+        "type": "object"
+      },
       "EmployeeLinkRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5278,6 +5827,153 @@
           "login"
         ],
         "title": "EmployeeRecord",
+        "type": "object"
+      },
+      "EmployeeTodayRow": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "confirm_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm Number"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "payment_method": {
+            "title": "Payment Method",
+            "type": "string"
+          },
+          "recipient_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Name"
+          },
+          "send_amount": {
+            "title": "Send Amount",
+            "type": "number"
+          },
+          "sender_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Name"
+          },
+          "service_type": {
+            "title": "Service Type",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "sender_name",
+          "company",
+          "service_type",
+          "payment_method",
+          "send_amount",
+          "fee",
+          "recipient_name",
+          "country",
+          "confirm_number",
+          "status"
+        ],
+        "title": "EmployeeTodayRow",
+        "type": "object"
+      },
+      "EmployeeTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "paid_out": {
+            "title": "Paid Out",
+            "type": "number"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "number"
+          }
+        },
+        "required": [
+          "sent",
+          "paid_out",
+          "fees",
+          "count"
+        ],
+        "title": "EmployeeTotals",
         "type": "object"
       },
       "EmployeeUpdateRequest": {
@@ -5922,6 +6618,25 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
       "HighValueTransferRow": {
         "additionalProperties": false,
         "properties": {
@@ -6029,6 +6744,72 @@
           "tax"
         ],
         "title": "HighValueTransfersTotals",
+        "type": "object"
+      },
+      "HourlyBlock": {
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Current",
+            "type": "array"
+          },
+          "current_date": {
+            "title": "Current Date",
+            "type": "string"
+          },
+          "current_total": {
+            "title": "Current Total",
+            "type": "number"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous"
+          },
+          "previous_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Date"
+          },
+          "previous_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Total"
+          }
+        },
+        "required": [
+          "current_date",
+          "previous_date",
+          "current",
+          "previous",
+          "current_total",
+          "previous_total"
+        ],
+        "title": "HourlyBlock",
         "type": "object"
       },
       "ImpersonationInfo": {
@@ -8042,6 +8823,40 @@
         "title": "LoginResponse",
         "type": "object"
       },
+      "LotterySnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "active_packs": {
+            "title": "Active Packs",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "tickets_sold": {
+            "title": "Tickets Sold",
+            "type": "integer"
+          },
+          "uncounted_active_packs": {
+            "title": "Uncounted Active Packs",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "tickets_sold",
+          "value",
+          "uncounted_active_packs",
+          "active_packs"
+        ],
+        "title": "LotterySnapshot",
+        "type": "object"
+      },
       "MTBreakdownResponse": {
         "additionalProperties": false,
         "description": "Per-company MT breakdown for a single (store, date). Empty\n`rows` means the store has no MT companies configured (a fresh\ninstall before the company list is populated). `services` holds\nonly the saved non-zero service rows; `saved_total` covers\ntransfers and services \u2014 the In column's Services box.",
@@ -8345,6 +9160,26 @@
           "service"
         ],
         "title": "MTServiceRow",
+        "type": "object"
+      },
+      "MaintenanceState": {
+        "additionalProperties": false,
+        "description": "Maintenance mode as the public banner and the superadmin\nswitch both read it.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "message"
+        ],
+        "title": "MaintenanceState",
         "type": "object"
       },
       "MappingListResponse": {
@@ -10110,6 +10945,20 @@
           }
         },
         "title": "NotificationsUpdateRequest",
+        "type": "object"
+      },
+      "OkResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "OkResponse",
         "type": "object"
       },
       "OpenSettlementListResponse": {
@@ -13391,6 +14240,58 @@
         "title": "ProfileUpdateRequest",
         "type": "object"
       },
+      "PublicPlan": {
+        "additionalProperties": false,
+        "description": "One tier on the marketing page, monthly and yearly paired.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "monthly_cents": {
+            "title": "Monthly Cents",
+            "type": "integer"
+          },
+          "months_free": {
+            "title": "Months Free",
+            "type": "integer"
+          },
+          "yearly_cents": {
+            "title": "Yearly Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "monthly_cents",
+          "yearly_cents",
+          "months_free"
+        ],
+        "title": "PublicPlan",
+        "type": "object"
+      },
+      "PublicPricingResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/PublicPlan"
+            },
+            "title": "Plans",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plans"
+        ],
+        "title": "PublicPricingResponse",
+        "type": "object"
+      },
       "PunchChallengeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -13424,6 +14325,45 @@
           "assert_token"
         ],
         "title": "PunchChallengeResponse",
+        "type": "object"
+      },
+      "PurchasesBlock": {
+        "additionalProperties": false,
+        "properties": {
+          "d15": {
+            "title": "D15",
+            "type": "number"
+          },
+          "d30": {
+            "title": "D30",
+            "type": "number"
+          },
+          "d7": {
+            "title": "D7",
+            "type": "number"
+          },
+          "open_count": {
+            "title": "Open Count",
+            "type": "integer"
+          },
+          "open_total": {
+            "title": "Open Total",
+            "type": "number"
+          },
+          "today": {
+            "title": "Today",
+            "type": "number"
+          }
+        },
+        "required": [
+          "today",
+          "d7",
+          "d15",
+          "d30",
+          "open_count",
+          "open_total"
+        ],
+        "title": "PurchasesBlock",
         "type": "object"
       },
       "PushStatusResponse": {
@@ -13508,6 +14448,62 @@
           "endpoint"
         ],
         "title": "PushUnsubscribeRequest",
+        "type": "object"
+      },
+      "ReceiptRow": {
+        "additionalProperties": false,
+        "properties": {
+          "business_date": {
+            "title": "Business Date",
+            "type": "string"
+          },
+          "cashier_id": {
+            "title": "Cashier Id",
+            "type": "string"
+          },
+          "has_voided_line": {
+            "title": "Has Voided Line",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "receipt_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt At"
+          },
+          "register_id": {
+            "title": "Register Id",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          },
+          "transaction_no": {
+            "title": "Transaction No",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "transaction_no",
+          "register_id",
+          "cashier_id",
+          "receipt_at",
+          "business_date",
+          "total",
+          "has_voided_line"
+        ],
+        "title": "ReceiptRow",
         "type": "object"
       },
       "ReceiptStore": {
@@ -13925,6 +14921,55 @@
           }
         },
         "title": "RefreshRequest",
+        "type": "object"
+      },
+      "RegisterActivityBlock": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "fuel_gallons": {
+            "title": "Fuel Gallons",
+            "type": "number"
+          },
+          "fuel_sales": {
+            "title": "Fuel Sales",
+            "type": "number"
+          },
+          "is_today": {
+            "title": "Is Today",
+            "type": "boolean"
+          },
+          "receipts": {
+            "title": "Receipts",
+            "type": "integer"
+          },
+          "refunds": {
+            "title": "Refunds",
+            "type": "integer"
+          },
+          "total_rung": {
+            "title": "Total Rung",
+            "type": "number"
+          },
+          "voided_tickets": {
+            "title": "Voided Tickets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "is_today",
+          "receipts",
+          "voided_tickets",
+          "refunds",
+          "total_rung",
+          "fuel_gallons",
+          "fuel_sales"
+        ],
+        "title": "RegisterActivityBlock",
         "type": "object"
       },
       "RegisterCloseRow": {
@@ -14736,6 +15781,64 @@
         "title": "RosterResponse",
         "type": "object"
       },
+      "SalesBlock": {
+        "additionalProperties": false,
+        "properties": {
+          "d15": {
+            "title": "D15",
+            "type": "number"
+          },
+          "d30": {
+            "title": "D30",
+            "type": "number"
+          },
+          "d7": {
+            "title": "D7",
+            "type": "number"
+          },
+          "hourly": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HourlyBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "month_to_date": {
+            "title": "Month To Date",
+            "type": "number"
+          },
+          "today": {
+            "title": "Today",
+            "type": "number"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/SalesTrendPoint"
+            },
+            "title": "Trend",
+            "type": "array"
+          },
+          "yesterday": {
+            "title": "Yesterday",
+            "type": "number"
+          }
+        },
+        "required": [
+          "today",
+          "yesterday",
+          "month_to_date",
+          "d7",
+          "d15",
+          "d30",
+          "trend",
+          "hourly"
+        ],
+        "title": "SalesBlock",
+        "type": "object"
+      },
       "SalesByCompanyResponse": {
         "additionalProperties": false,
         "properties": {
@@ -14797,6 +15900,25 @@
           "totals"
         ],
         "title": "SalesByServiceResponse",
+        "type": "object"
+      },
+      "SalesTrendPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "amount"
+        ],
+        "title": "SalesTrendPoint",
         "type": "object"
       },
       "SectionTotalsResponse": {
@@ -17329,6 +18451,22 @@
         "title": "SuperadminCompanyVolume",
         "type": "object"
       },
+      "SuperadminDashboard": {
+        "additionalProperties": true,
+        "description": "The platform context (``superadmin_dashboard_context``) with\nthe KPI aliases the SPA reads. Wide and loosely shaped: the SPA\nreads a handful of keys, so the rest pass undocumented.",
+        "properties": {
+          "role": {
+            "const": "superadmin",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "SuperadminDashboard",
+        "type": "object"
+      },
       "SuperadminDashboardResponse": {
         "additionalProperties": false,
         "properties": {
@@ -18169,25 +19307,6 @@
         "title": "SuperadminMaintenanceRequest",
         "type": "object"
       },
-      "SuperadminMaintenanceResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "enabled",
-          "message"
-        ],
-        "title": "SuperadminMaintenanceResponse",
-        "type": "object"
-      },
       "SuperadminMrrTrend": {
         "additionalProperties": false,
         "properties": {
@@ -18211,20 +19330,6 @@
           "values"
         ],
         "title": "SuperadminMrrTrend",
-        "type": "object"
-      },
-      "SuperadminOkResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "ok": {
-            "title": "Ok",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "ok"
-        ],
-        "title": "SuperadminOkResponse",
         "type": "object"
       },
       "SuperadminOwnerLinkCreateRequest": {
@@ -20800,6 +21905,25 @@
         "title": "TopCustomersResponse",
         "type": "object"
       },
+      "TopDepartment": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "amount"
+        ],
+        "title": "TopDepartment",
+        "type": "object"
+      },
       "TopRecipientsResponse": {
         "additionalProperties": false,
         "properties": {
@@ -21359,6 +22483,35 @@
         "title": "TransferRow",
         "type": "object"
       },
+      "TransfersRollup": {
+        "additionalProperties": false,
+        "properties": {
+          "d15": {
+            "title": "D15",
+            "type": "number"
+          },
+          "d30": {
+            "title": "D30",
+            "type": "number"
+          },
+          "d7": {
+            "title": "D7",
+            "type": "number"
+          },
+          "today": {
+            "title": "Today",
+            "type": "number"
+          }
+        },
+        "required": [
+          "today",
+          "d7",
+          "d15",
+          "d30"
+        ],
+        "title": "TransfersRollup",
+        "type": "object"
+      },
       "TransfersSummaryResponse": {
         "additionalProperties": false,
         "description": "Auto-fill payload for the Daily Book's Money Transfers tab.\nAggregates active (non-cancelled) Transfer rows by company for\na single (store, send_date). Zero-row days still return one\nentry per active company so the table renders consistently.",
@@ -21899,6 +23052,32 @@
           "name"
         ],
         "title": "VendorWriteRequest",
+        "type": "object"
+      },
+      "WebhookAck": {
+        "additionalProperties": false,
+        "description": "Delivery accepted. ``warning`` is set when the event was\nrecorded but its handler failed (the sender must not retry a\nhandler bug). A bad signature or body answers 400\n``{\"error\": \u2026}`` instead.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "WebhookAck",
         "type": "object"
       },
       "api__Modules__Customers__Requests__customers__CustomerRow": {
@@ -31126,9 +32305,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Public Pricing Route Billing Pricing Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PublicPricingResponse"
                 }
               }
             },
@@ -31426,9 +32603,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Invoice Route Catalog Invoices  Invoice Id  Delete",
-                  "type": "object"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             },
@@ -32208,11 +33383,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
@@ -33863,7 +35033,28 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "admin": "#/components/schemas/AdminDashboard",
+                      "employee": "#/components/schemas/EmployeeDashboard",
+                      "superadmin": "#/components/schemas/SuperadminDashboard"
+                    },
+                    "propertyName": "role"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/AdminDashboard"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EmployeeDashboard"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SuperadminDashboard"
+                    }
+                  ],
+                  "title": "Response 200 Dashboard Summary Dashboard Summary Get"
+                }
               }
             },
             "description": "Successful Response"
@@ -34909,9 +36100,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Health Health Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/HealthResponse"
                 }
               }
             },
@@ -35737,9 +36926,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Maintenance Status Maintenance Status Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/MaintenanceState"
                 }
               }
             },
@@ -38352,11 +39539,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
@@ -43996,7 +45178,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuperadminOkResponse"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             },
@@ -44154,7 +45336,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuperadminMaintenanceResponse"
+                  "$ref": "#/components/schemas/MaintenanceState"
                 }
               }
             },
@@ -44227,7 +45409,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuperadminMaintenanceResponse"
+                  "$ref": "#/components/schemas/MaintenanceState"
                 }
               }
             },
@@ -47098,7 +48280,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuperadminOkResponse"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             },
@@ -50119,7 +51301,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAck"
+                }
               }
             },
             "description": "Successful Response"
@@ -50139,7 +51323,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAck"
+                }
               }
             },
             "description": "Successful Response"

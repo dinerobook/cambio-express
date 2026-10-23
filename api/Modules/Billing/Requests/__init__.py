@@ -33,3 +33,20 @@ __all__ = [
     "CheckoutSessionRequest",
     "CheckoutSessionResponse",
 ]
+
+
+class PublicPlan(BaseModel):
+    """One tier on the marketing page, monthly and yearly paired."""
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    label: str
+    monthly_cents: int
+    yearly_cents: int
+    months_free: int
+
+
+class PublicPricingResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    plans: list[PublicPlan]

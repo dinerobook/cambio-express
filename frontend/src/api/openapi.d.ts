@@ -7015,6 +7015,50 @@ export interface components {
             /** Store Employee Id */
             store_employee_id: number;
         };
+        /** AdminDashboard */
+        AdminDashboard: {
+            /** Clocked In */
+            clocked_in: components["schemas"]["ClockedInRow"][];
+            /** Company Stats */
+            company_stats: components["schemas"]["CompanyStat"][];
+            day_close: components["schemas"]["DayCloseSnapshot"] | null;
+            kpis: components["schemas"]["AdminDashboardKpis"];
+            lottery: components["schemas"]["LotterySnapshot"] | null;
+            /** Modules */
+            modules: string[];
+            purchases: components["schemas"]["PurchasesBlock"] | null;
+            /** Recent Batches */
+            recent_batches: components["schemas"]["DashboardBatchRow"][];
+            /** Recent Receipts */
+            recent_receipts: components["schemas"]["ReceiptRow"][];
+            /** Recent Transfers */
+            recent_transfers: components["schemas"]["DashboardTransferRow"][];
+            register: components["schemas"]["RegisterActivityBlock"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            role: "admin";
+            sales: components["schemas"]["SalesBlock"] | null;
+            /** Stripe Accounts */
+            stripe_accounts: components["schemas"]["DashboardBankAccount"][];
+            /** Today */
+            today: string;
+            transfers_rollup: components["schemas"]["TransfersRollup"] | null;
+        };
+        /** AdminDashboardKpis */
+        AdminDashboardKpis: {
+            /** Net Income Month */
+            net_income_month: number | null;
+            /** Pending Ach */
+            pending_ach: number;
+            /** Today Report Entered */
+            today_report_entered: boolean;
+            /** Today Transfers */
+            today_transfers: number;
+            /** Total Transfers */
+            total_transfers: number;
+        };
         /**
          * AdminUpdateEntryRequest
          * @description Admin-side edit. Every field is optional — a partial
@@ -8504,6 +8548,13 @@ export interface components {
             /** Store Employee Id */
             store_employee_id: number;
         };
+        /** ClockedInRow */
+        ClockedInRow: {
+            /** Clock In At */
+            clock_in_at: string | null;
+            /** Name */
+            name: string;
+        };
         /** CompanyRow */
         CompanyRow: {
             /**
@@ -8533,6 +8584,17 @@ export interface components {
              * @description Sum of federal_tax in USD.
              */
             tax: number;
+        };
+        /** CompanyStat */
+        CompanyStat: {
+            /** Company */
+            company: string;
+            /** Count */
+            count: number;
+            /** Fees */
+            fees: number;
+            /** Total */
+            total: number;
         };
         /** CountAmountTotals */
         CountAmountTotals: {
@@ -9063,6 +9125,68 @@ export interface components {
             /** Taxable Sales */
             taxable_sales?: number | null;
         };
+        /** DashboardBankAccount */
+        DashboardBankAccount: {
+            /** Display Name */
+            display_name: string | null;
+            /** Id */
+            id: number;
+            /** Institution Name */
+            institution_name: string | null;
+            /** Last4 */
+            last4: string | null;
+            /** Last Balance */
+            last_balance: number;
+            /** Last Balance As Of */
+            last_balance_as_of: string | null;
+        };
+        /** DashboardBatchRow */
+        DashboardBatchRow: {
+            /** Ach Amount */
+            ach_amount: number;
+            /** Ach Date */
+            ach_date: string;
+            /** Company */
+            company: string | null;
+            /** Id */
+            id: number;
+            /** Status */
+            status: string | null;
+            /** Variance */
+            variance: number;
+        };
+        /** DashboardTransferRow */
+        DashboardTransferRow: {
+            /** Company */
+            company: string | null;
+            /** Id */
+            id: number;
+            /** Send Amount */
+            send_amount: number;
+            /** Send Date */
+            send_date: string;
+            /** Sender Name */
+            sender_name: string | null;
+            /** Status */
+            status: string | null;
+        };
+        /** DayCloseSnapshot */
+        DayCloseSnapshot: {
+            /** Closes */
+            closes: number;
+            /** Date */
+            date: string;
+            /** Gross Sales */
+            gross_sales: number;
+            /** Over Short */
+            over_short: number | null;
+            /** Sales Tax */
+            sales_tax: number;
+            /** Top Departments */
+            top_departments: components["schemas"]["TopDepartment"][];
+            /** Uncounted Drawers */
+            uncounted_drawers: number;
+        };
         /** DayCloseSummaryResponse */
         DayCloseSummaryResponse: {
             /** Card Total */
@@ -9345,6 +9469,24 @@ export interface components {
             /** User Id */
             user_id?: number | null;
         };
+        /** EmployeeDashboard */
+        EmployeeDashboard: {
+            day_close: components["schemas"]["DayCloseSnapshot"] | null;
+            lottery: components["schemas"]["LotterySnapshot"] | null;
+            /** Modules */
+            modules: string[];
+            register: components["schemas"]["RegisterActivityBlock"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            role: "employee";
+            /** Today */
+            today: string;
+            /** Today Transfers */
+            today_transfers: components["schemas"]["EmployeeTodayRow"][];
+            totals: components["schemas"]["EmployeeTotals"];
+        };
         /** EmployeeLinkRequest */
         EmployeeLinkRequest: {
             /** User Id */
@@ -9401,6 +9543,44 @@ export interface components {
             payroll_schedule: string;
             /** Phone */
             phone: string;
+        };
+        /** EmployeeTodayRow */
+        EmployeeTodayRow: {
+            /** Company */
+            company: string | null;
+            /** Confirm Number */
+            confirm_number: string | null;
+            /** Country */
+            country: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Fee */
+            fee: number;
+            /** Id */
+            id: number;
+            /** Payment Method */
+            payment_method: string;
+            /** Recipient Name */
+            recipient_name: string | null;
+            /** Send Amount */
+            send_amount: number;
+            /** Sender Name */
+            sender_name: string | null;
+            /** Service Type */
+            service_type: string;
+            /** Status */
+            status: string | null;
+        };
+        /** EmployeeTotals */
+        EmployeeTotals: {
+            /** Count */
+            count: number;
+            /** Fees */
+            fees: number;
+            /** Paid Out */
+            paid_out: number;
+            /** Sent */
+            sent: number;
         };
         /**
          * EmployeeUpdateRequest
@@ -9622,6 +9802,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HealthResponse */
+        HealthResponse: {
+            /** Status */
+            status: string;
+            /** Version */
+            version: string;
+        };
         /** HighValueTransferRow */
         HighValueTransferRow: {
             /** Amount */
@@ -9661,6 +9848,21 @@ export interface components {
             fees: number;
             /** Tax */
             tax: number;
+        };
+        /** HourlyBlock */
+        HourlyBlock: {
+            /** Current */
+            current: number[];
+            /** Current Date */
+            current_date: string;
+            /** Current Total */
+            current_total: number;
+            /** Previous */
+            previous: number[] | null;
+            /** Previous Date */
+            previous_date: string | null;
+            /** Previous Total */
+            previous_total: number | null;
         };
         /** ImpersonationInfo */
         ImpersonationInfo: {
@@ -10427,6 +10629,19 @@ export interface components {
              */
             username: string;
         };
+        /** LotterySnapshot */
+        LotterySnapshot: {
+            /** Active Packs */
+            active_packs: number;
+            /** Date */
+            date: string;
+            /** Tickets Sold */
+            tickets_sold: number;
+            /** Uncounted Active Packs */
+            uncounted_active_packs: number;
+            /** Value */
+            value: number;
+        };
         /**
          * MTBreakdownResponse
          * @description Per-company MT breakdown for a single (store, date). Empty
@@ -10614,6 +10829,17 @@ export interface components {
              * @enum {string}
              */
             service: "bill_payment" | "top_up" | "recharge" | "money_order";
+        };
+        /**
+         * MaintenanceState
+         * @description Maintenance mode as the public banner and the superadmin
+         *     switch both read it.
+         */
+        MaintenanceState: {
+            /** Enabled */
+            enabled: boolean;
+            /** Message */
+            message: string;
         };
         /** MappingListResponse */
         MappingListResponse: {
@@ -11439,6 +11665,11 @@ export interface components {
             notify_trial_reminders?: boolean | null;
             /** Notify Trial Reminders Push */
             notify_trial_reminders_push?: boolean | null;
+        };
+        /** OkResponse */
+        OkResponse: {
+            /** Ok */
+            ok: boolean;
         };
         /** OpenSettlementListResponse */
         OpenSettlementListResponse: {
@@ -12728,6 +12959,27 @@ export interface components {
             /** Timezone */
             timezone?: string | null;
         };
+        /**
+         * PublicPlan
+         * @description One tier on the marketing page, monthly and yearly paired.
+         */
+        PublicPlan: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Monthly Cents */
+            monthly_cents: number;
+            /** Months Free */
+            months_free: number;
+            /** Yearly Cents */
+            yearly_cents: number;
+        };
+        /** PublicPricingResponse */
+        PublicPricingResponse: {
+            /** Plans */
+            plans: components["schemas"]["PublicPlan"][];
+        };
         /** PunchChallengeRequest */
         PunchChallengeRequest: {
             /** Store Employee Id */
@@ -12746,6 +12998,21 @@ export interface components {
             assert_token: string;
             /** Options Json */
             options_json: string;
+        };
+        /** PurchasesBlock */
+        PurchasesBlock: {
+            /** D15 */
+            d15: number;
+            /** D30 */
+            d30: number;
+            /** D7 */
+            d7: number;
+            /** Open Count */
+            open_count: number;
+            /** Open Total */
+            open_total: number;
+            /** Today */
+            today: number;
         };
         /**
          * PushStatusResponse
@@ -12816,6 +13083,25 @@ export interface components {
         PushUnsubscribeRequest: {
             /** Endpoint */
             endpoint: string;
+        };
+        /** ReceiptRow */
+        ReceiptRow: {
+            /** Business Date */
+            business_date: string;
+            /** Cashier Id */
+            cashier_id: string;
+            /** Has Voided Line */
+            has_voided_line: boolean;
+            /** Id */
+            id: number;
+            /** Receipt At */
+            receipt_at: string | null;
+            /** Register Id */
+            register_id: string;
+            /** Total */
+            total: number;
+            /** Transaction No */
+            transaction_no: string;
         };
         /**
          * ReceiptStore
@@ -13027,6 +13313,25 @@ export interface components {
         RefreshRequest: {
             /** Refresh Token */
             refresh_token?: string | null;
+        };
+        /** RegisterActivityBlock */
+        RegisterActivityBlock: {
+            /** Date */
+            date: string;
+            /** Fuel Gallons */
+            fuel_gallons: number;
+            /** Fuel Sales */
+            fuel_sales: number;
+            /** Is Today */
+            is_today: boolean;
+            /** Receipts */
+            receipts: number;
+            /** Refunds */
+            refunds: number;
+            /** Total Rung */
+            total_rung: number;
+            /** Voided Tickets */
+            voided_tickets: number;
         };
         /** RegisterCloseRow */
         RegisterCloseRow: {
@@ -13423,6 +13728,24 @@ export interface components {
             /** Employees */
             employees: components["schemas"]["api__Modules__Transfers__Requests__transfers__EmployeeRow"][];
         };
+        /** SalesBlock */
+        SalesBlock: {
+            /** D15 */
+            d15: number;
+            /** D30 */
+            d30: number;
+            /** D7 */
+            d7: number;
+            hourly: components["schemas"]["HourlyBlock"] | null;
+            /** Month To Date */
+            month_to_date: number;
+            /** Today */
+            today: number;
+            /** Trend */
+            trend: components["schemas"]["SalesTrendPoint"][];
+            /** Yesterday */
+            yesterday: number;
+        };
         /** SalesByCompanyResponse */
         SalesByCompanyResponse: {
             /** Rows */
@@ -13440,6 +13763,13 @@ export interface components {
             /** Rows */
             rows: components["schemas"]["ServiceTypeRow"][];
             totals: components["schemas"]["AggregatedTotals"];
+        };
+        /** SalesTrendPoint */
+        SalesTrendPoint: {
+            /** Amount */
+            amount: number;
+            /** Date */
+            date: string;
         };
         /** SectionTotalsResponse */
         SectionTotalsResponse: {
@@ -14466,6 +14796,21 @@ export interface components {
             /** Total */
             total: number;
         };
+        /**
+         * SuperadminDashboard
+         * @description The platform context (``superadmin_dashboard_context``) with
+         *     the KPI aliases the SPA reads. Wide and loosely shaped: the SPA
+         *     reads a handful of keys, so the rest pass undocumented.
+         */
+        SuperadminDashboard: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            role: "superadmin";
+        } & {
+            [key: string]: unknown;
+        };
         /** SuperadminDashboardResponse */
         SuperadminDashboardResponse: {
             /** Active Count */
@@ -14794,24 +15139,12 @@ export interface components {
              */
             message: string;
         };
-        /** SuperadminMaintenanceResponse */
-        SuperadminMaintenanceResponse: {
-            /** Enabled */
-            enabled: boolean;
-            /** Message */
-            message: string;
-        };
         /** SuperadminMrrTrend */
         SuperadminMrrTrend: {
             /** Labels */
             labels: string[];
             /** Values */
             values: number[];
-        };
-        /** SuperadminOkResponse */
-        SuperadminOkResponse: {
-            /** Ok */
-            ok: boolean;
         };
         /**
          * SuperadminOwnerLinkCreateRequest
@@ -15994,6 +16327,13 @@ export interface components {
             rows: components["schemas"]["api__Modules__Reports__Requests__customers__CustomerRow"][];
             totals: components["schemas"]["AggregatedTotals"];
         };
+        /** TopDepartment */
+        TopDepartment: {
+            /** Amount */
+            amount: number;
+            /** Name */
+            name: string;
+        };
         /** TopRecipientsResponse */
         TopRecipientsResponse: {
             /** Rows */
@@ -16354,6 +16694,17 @@ export interface components {
             /** Total Collected */
             total_collected: number;
         };
+        /** TransfersRollup */
+        TransfersRollup: {
+            /** D15 */
+            d15: number;
+            /** D30 */
+            d30: number;
+            /** D7 */
+            d7: number;
+            /** Today */
+            today: number;
+        };
         /**
          * TransfersSummaryResponse
          * @description Auto-fill payload for the Daily Book's Money Transfers tab.
@@ -16559,6 +16910,19 @@ export interface components {
              * @default
              */
             phone: string;
+        };
+        /**
+         * WebhookAck
+         * @description Delivery accepted. ``warning`` is set when the event was
+         *     recorded but its handler failed (the sender must not retry a
+         *     handler bug). A bad signature or body answers 400
+         *     ``{"error": …}`` instead.
+         */
+        WebhookAck: {
+            /** Ok */
+            ok: boolean;
+            /** Warning */
+            warning?: string | null;
         };
         /**
          * CustomerRow
@@ -21086,9 +21450,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PublicPricingResponse"];
                 };
             };
         };
@@ -21269,9 +21631,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["OkResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21535,9 +21895,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -22250,7 +22608,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AdminDashboard"] | components["schemas"]["EmployeeDashboard"] | components["schemas"]["SuperadminDashboard"];
                 };
             };
             /** @description Validation Error */
@@ -22750,9 +23108,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["HealthResponse"];
                 };
             };
         };
@@ -23146,9 +23502,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MaintenanceState"];
                 };
             };
         };
@@ -24331,9 +24685,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -26595,7 +26947,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuperadminOkResponse"];
+                    "application/json": components["schemas"]["OkResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26667,7 +27019,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuperadminMaintenanceResponse"];
+                    "application/json": components["schemas"]["MaintenanceState"];
                 };
             };
             /** @description Validation Error */
@@ -26704,7 +27056,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuperadminMaintenanceResponse"];
+                    "application/json": components["schemas"]["MaintenanceState"];
                 };
             };
             /** @description Validation Error */
@@ -27955,7 +28307,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuperadminOkResponse"];
+                    "application/json": components["schemas"]["OkResponse"];
                 };
             };
             /** @description Validation Error */
@@ -29297,7 +29649,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["WebhookAck"];
                 };
             };
         };
@@ -29317,7 +29669,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["WebhookAck"];
                 };
             };
         };

@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from api.Core.Clock import local_today, utc_now
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
+from api.Modules.Dashboard.Requests import DashboardSummaryResponse
 from typing import Any
 
 
@@ -805,7 +806,10 @@ def _superadmin_summary(db: Session) -> dict[str, Any]:
     return out
 
 
-@router.get("/summary")
+@router.get(
+    "/summary", response_model=None,
+    responses={200: {"model": DashboardSummaryResponse}},
+)
 def dashboard_summary(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
