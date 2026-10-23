@@ -9662,6 +9662,15 @@ export interface components {
             /** Tax */
             tax: number;
         };
+        /** ImpersonationInfo */
+        ImpersonationInfo: {
+            /** By Name */
+            by_name: string;
+            /** By User Id */
+            by_user_id: number;
+            /** Read Only */
+            read_only: boolean;
+        };
         /** ImportDepartmentRow */
         ImportDepartmentRow: {
             /** Amount */
@@ -10699,6 +10708,21 @@ export interface components {
              * Format: date
              */
             report_date: string;
+        };
+        /** MeResponse */
+        MeResponse: {
+            /** Full Name */
+            full_name: string;
+            /** Permissions */
+            permissions: string[];
+            /** Role */
+            role: string;
+            /** Store Id */
+            store_id: number | null;
+            /** User Id */
+            user_id: number;
+            /** Username */
+            username: string;
         };
         /** MessageListResponse */
         MessageListResponse: {
@@ -11995,6 +12019,24 @@ export interface components {
             /** Tickets Per Pack */
             tickets_per_pack: number;
         };
+        /** PasskeyCreated */
+        PasskeyCreated: {
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Last Used At */
+            last_used_at: string;
+            /** Name */
+            name: string;
+        };
+        /** PasskeyListResponse */
+        PasskeyListResponse: {
+            /** Passkeys */
+            passkeys: components["schemas"]["PasskeyRow"][];
+            /** Total */
+            total: number;
+        };
         /**
          * PasskeyRegisterBeginResponse
          * @description Step one of a WebAuthn registration: the browser options (a
@@ -12006,6 +12048,25 @@ export interface components {
             options_json: string;
             /** Register Token */
             register_token: string;
+        };
+        /** PasskeyRegisterFinishResponse */
+        PasskeyRegisterFinishResponse: {
+            passkey: components["schemas"]["PasskeyCreated"];
+        };
+        /** PasskeyRow */
+        PasskeyRow: {
+            /** Aaguid */
+            aaguid: string;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Last Used At */
+            last_used_at: string;
+            /** Name */
+            name: string;
+            /** Transports */
+            transports: string;
         };
         /**
          * PaystubResponse
@@ -13185,6 +13246,30 @@ export interface components {
             /** Revoked */
             revoked: number;
         };
+        /** SessionStatusResponse */
+        SessionStatusResponse: {
+            /** Business Type */
+            business_type: string;
+            /** Features */
+            features: string[];
+            /** Gated */
+            gated: boolean;
+            impersonation: components["schemas"]["ImpersonationInfo"] | null;
+            /** Permissions */
+            permissions: string[];
+            /** Plan */
+            plan: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "frozen" | "subscription" | "";
+            /** Store Name */
+            store_name: string;
+            /** Timezone */
+            timezone: string;
+            trial: components["schemas"]["TrialBanner"] | null;
+        };
         /**
          * SettlementReturnRow
          * @description One entry that settled part of an open one.
@@ -13364,6 +13449,15 @@ export interface components {
         StagedDaysResponse: {
             /** Days */
             days: components["schemas"]["StagedDayRow"][];
+        };
+        /**
+         * StatusOkResponse
+         * @description Password change / forgot / reset: always ``{"status": "ok"}``
+         *     (forgot-password never reveals whether an account exists).
+         */
+        StatusOkResponse: {
+            /** Status */
+            status: string;
         };
         /** StoreBookColumnSpec */
         StoreBookColumnSpec: {
@@ -16026,6 +16120,26 @@ export interface components {
             grand_total: number;
         };
         /**
+         * TrialBanner
+         * @description ``trial_banner()`` — the topbar trial countdown.
+         */
+        TrialBanner: {
+            /** Days Left */
+            days_left: number;
+            /** Message */
+            message: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "expiring_soon" | "grace" | "expired";
+            /**
+             * Tone
+             * @enum {string}
+             */
+            tone: "neutral" | "warning" | "negative";
+        };
+        /**
          * UnreadCountResponse
          * @description Nav-badge payload: total unread replies for the caller's
          *     conversation side (store side vs platform staff).
@@ -18206,9 +18320,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -18282,9 +18394,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StatusOkResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18317,9 +18427,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StatusOkResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18612,9 +18720,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MeResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18787,9 +18893,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PasskeyListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18822,9 +18926,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PasskeyRegisterBeginResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18863,9 +18965,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PasskeyRegisterFinishResponse"];
                 };
             };
             /** @description Validation Error */
@@ -19174,9 +19274,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StatusOkResponse"];
                 };
             };
             /** @description Validation Error */
@@ -19209,9 +19307,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionStatusResponse"];
                 };
             };
             /** @description Validation Error */

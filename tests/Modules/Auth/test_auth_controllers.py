@@ -1604,3 +1604,38 @@ def test_passkey_register_finish_rejects_token_for_wrong_user(
     )
     assert resp.status_code == 400
     assert "match" in resp.get_json()["detail"].lower()
+
+
+def test_passkey_register_finish_saves_a_verified_passkey(
+    client, test_store_id,
+):
+    """The success path: a credential the WebAuthn library accepts is
+    saved and returned in the GET /passkeys row shape, and then
+    listed. The browser ceremony itself can't run in a test, so the
+    library's verify step is replaced with its verified result."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+    token = _login_admin_token(client, test_store_id)
+    headers = {"Authorization": f"Bearer {token}"}
+    begin = client.post(
+        "/api/v2/auth/passkeys/register/begin", json={}, headers=headers,
+    ).get_json()
+    verified = SimpleNamespace(
+        credential_id=b"cred-1", credential_public_key=b"pk",
+        sign_count=0, aaguid="aaguid-1",
+    )
+    with patch("webauthn.verify_registration_response", return_value=verified):
+        resp = client.post(
+            "/api/v2/auth/passkeys/register/finish",
+            json={"register_token": begin["register_token"],
+                  "credential": {"id": "x"}, "name": "Laptop"},
+            headers=headers,
+        )
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    saved = resp.get_json()["passkey"]
+    assert saved["name"] == "Laptop"
+    assert saved["created_at"]
+    listed = client.get("/api/v2/auth/passkeys", headers=headers).get_json()
+    assert listed["total"] == 1
+    assert listed["passkeys"][0]["id"] == saved["id"]
+    assert listed["passkeys"][0]["aaguid"] == "aaguid-1"

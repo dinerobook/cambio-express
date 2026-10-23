@@ -95,10 +95,6 @@ def test_errors_and_undocumented_routes_are_not_checked():
 
 UNTYPED = {
     "DELETE /catalog/invoices/{invoice_id}",
-    "GET /auth/account/export",
-    "GET /auth/me",
-    "GET /auth/passkeys",
-    "GET /auth/session-status",
     "GET /billing/pricing",
     "GET /customers/export.csv",
     "GET /dashboard/summary",
@@ -111,11 +107,6 @@ UNTYPED = {
     "GET /owner/store/{store_id}/permissions",
     "GET /owner/users",
     "GET /posimport/naxml/pricebook-export",
-    "POST /auth/change-password",
-    "POST /auth/forgot-password",
-    "POST /auth/passkeys/register/begin",
-    "POST /auth/passkeys/register/finish",
-    "POST /auth/reset-password",
     "POST /owner/store/{store_id}/permissions/reset",
     "POST /webhooks/resend",
     "POST /webhooks/stripe",
