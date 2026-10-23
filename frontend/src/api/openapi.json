@@ -1,6 +1,215 @@
 {
   "components": {
     "schemas": {
+      "AccessRoleDeleteResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "string"
+          },
+          "detached": {
+            "items": {
+              "$ref": "#/components/schemas/AffectedMember"
+            },
+            "title": "Detached",
+            "type": "array"
+          }
+        },
+        "required": [
+          "deleted",
+          "detached"
+        ],
+        "title": "AccessRoleDeleteResponse",
+        "type": "object"
+      },
+      "AccessRoleListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AccessRoleRow"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resources",
+          "actions",
+          "roles"
+        ],
+        "title": "AccessRoleListResponse",
+        "type": "object"
+      },
+      "AccessRoleMember": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "title": "AccessRoleMember",
+        "type": "object"
+      },
+      "AccessRoleMembersResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/AccessRoleMember"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role_id": {
+            "title": "Role Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "role_id",
+          "name",
+          "members"
+        ],
+        "title": "AccessRoleMembersResponse",
+        "type": "object"
+      },
+      "AccessRoleRow": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "member_count",
+          "matrix",
+          "updated_at"
+        ],
+        "title": "AccessRoleRow",
+        "type": "object"
+      },
+      "AccessRoleUpdateResponse": {
+        "additionalProperties": false,
+        "description": "The role after the edit, and whose access was rewritten.",
+        "properties": {
+          "affected_members": {
+            "items": {
+              "$ref": "#/components/schemas/AffectedMember"
+            },
+            "title": "Affected Members",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "member_count",
+          "matrix",
+          "updated_at",
+          "affected_members"
+        ],
+        "title": "AccessRoleUpdateResponse",
+        "type": "object"
+      },
       "ActiveAnnouncementRow": {
         "additionalProperties": false,
         "description": "Slim shape returned to the SPA banner \u2014 only the fields the\nbanner needs to render. Skips audit/lifecycle fields so a\ncashier's network tab never reveals `created_by`, schedule\ntimestamps, or broadcast state for an internal announcement.",
@@ -715,6 +924,25 @@
           }
         },
         "title": "AdminUserUpdateRequest",
+        "type": "object"
+      },
+      "AffectedMember": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "AffectedMember",
         "type": "object"
       },
       "AgentKeyIssueRequest": {
@@ -10279,6 +10507,26 @@
         "title": "PackRow",
         "type": "object"
       },
+      "PasskeyRegisterBeginResponse": {
+        "additionalProperties": false,
+        "description": "Step one of a WebAuthn registration: the browser options (a\nJSON string for ``navigator.credentials.create()``) and the\nsigned token the client echoes back on ``/register/finish``.",
+        "properties": {
+          "options_json": {
+            "title": "Options Json",
+            "type": "string"
+          },
+          "register_token": {
+            "title": "Register Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "options_json",
+          "register_token"
+        ],
+        "title": "PasskeyRegisterBeginResponse",
+        "type": "object"
+      },
       "PaystubResponse": {
         "additionalProperties": false,
         "description": "Pay summary for one roster member over a date range.\n\n``approved_hours \u00d7 hourly_rate = gross_pay``. Pending /\nrejected shifts are listed alongside but don't count\ntoward gross pay \u2014 the admin approves them on the payroll\npage first.",
@@ -11580,6 +11828,20 @@
           "code"
         ],
         "title": "RecoveryLoginRequest",
+        "type": "object"
+      },
+      "RedeemConnectCodeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "owner_name": {
+            "title": "Owner Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner_name"
+        ],
+        "title": "RedeemConnectCodeResponse",
         "type": "object"
       },
       "ReferralCodeResponse": {
@@ -13975,6 +14237,316 @@
           "updated_at"
         ],
         "title": "StoreOverrideRow",
+        "type": "object"
+      },
+      "StorePermissionMatrix": {
+        "additionalProperties": false,
+        "description": "``get_permission_matrix()`` \u2014 one store's grid per role, with\nthe roles the caller may edit and those carrying store rows.",
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "editable_roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Editable Roles",
+            "type": "array"
+          },
+          "has_overrides": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Has Overrides",
+            "type": "array"
+          },
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "store_id",
+          "roles",
+          "editable_roles",
+          "resources",
+          "actions",
+          "matrix",
+          "has_overrides"
+        ],
+        "title": "StorePermissionMatrix",
+        "type": "object"
+      },
+      "SubscriptionAddon": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price_label": {
+            "title": "Price Label",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tagline": {
+            "title": "Tagline",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "price_label",
+          "tagline",
+          "description",
+          "status",
+          "is_active"
+        ],
+        "title": "SubscriptionAddon",
+        "type": "object"
+      },
+      "SubscriptionStore": {
+        "additionalProperties": false,
+        "properties": {
+          "data_retention_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Retention Until"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "stripe_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Customer Id"
+          },
+          "stripe_subscription_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Subscription Id"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "plan",
+          "stripe_customer_id",
+          "stripe_subscription_id",
+          "data_retention_until"
+        ],
+        "title": "SubscriptionStore",
+        "type": "object"
+      },
+      "SubscriptionSummaryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_addon_count": {
+            "title": "Active Addon Count",
+            "type": "integer"
+          },
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionAddon"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "cancel_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel At"
+          },
+          "cancel_at_period_end": {
+            "title": "Cancel At Period End",
+            "type": "boolean"
+          },
+          "has_paid_plan": {
+            "title": "Has Paid Plan",
+            "type": "boolean"
+          },
+          "plan_label": {
+            "title": "Plan Label",
+            "type": "string"
+          },
+          "plan_price": {
+            "title": "Plan Price",
+            "type": "string"
+          },
+          "referral_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referral Code"
+          },
+          "retention_days_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retention Days Left"
+          },
+          "retention_total_days": {
+            "title": "Retention Total Days",
+            "type": "integer"
+          },
+          "store": {
+            "$ref": "#/components/schemas/SubscriptionStore"
+          },
+          "trial_days_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Days Left"
+          },
+          "trial_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Status"
+          }
+        },
+        "required": [
+          "store",
+          "plan_label",
+          "plan_price",
+          "has_paid_plan",
+          "trial_status",
+          "trial_days_left",
+          "retention_days_left",
+          "retention_total_days",
+          "addons",
+          "active_addon_count",
+          "cancel_at_period_end",
+          "cancel_at",
+          "referral_code"
+        ],
+        "title": "SubscriptionSummaryResponse",
         "type": "object"
       },
       "SuperadminActivityRow": {
@@ -18742,6 +19314,144 @@
         "title": "UseEntryRequest",
         "type": "object"
       },
+      "UserPermissionMatrix": {
+        "additionalProperties": false,
+        "description": "``get_user_permission_matrix()`` \u2014 one person's effective grid\n(their custom access over their role) and whether they have\ncustom access.",
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "has_custom": {
+            "title": "Has Custom",
+            "type": "boolean"
+          },
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "role",
+          "store_id",
+          "resources",
+          "actions",
+          "matrix",
+          "has_custom"
+        ],
+        "title": "UserPermissionMatrix",
+        "type": "object"
+      },
+      "UserRoleAssignmentResponse": {
+        "additionalProperties": false,
+        "description": "The person's grid after joining or leaving a saved role.",
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "has_custom": {
+            "title": "Has Custom",
+            "type": "boolean"
+          },
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "title": "Matrix",
+            "type": "object"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "store_role_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Role Id"
+          },
+          "store_role_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Role Name"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "role",
+          "store_id",
+          "resources",
+          "actions",
+          "matrix",
+          "has_custom",
+          "store_role_id",
+          "store_role_name"
+        ],
+        "title": "UserRoleAssignmentResponse",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -19516,11 +20226,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
@@ -19979,9 +20684,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Redeem Connect Code Route Admin Redeem Connect Code Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RedeemConnectCodeResponse"
                 }
               }
             },
@@ -20113,9 +20816,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Roles Route Admin Roles Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AccessRoleListResponse"
                 }
               }
             },
@@ -20188,9 +20889,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Role Route Admin Roles Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AccessRoleRow"
                 }
               }
             },
@@ -20266,9 +20965,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Role Route Admin Roles  Role Id  Delete",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AccessRoleDeleteResponse"
                 }
               }
             },
@@ -20352,9 +21049,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Update Role Route Admin Roles  Role Id  Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AccessRoleUpdateResponse"
                 }
               }
             },
@@ -20430,9 +21125,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Role Members Route Admin Roles  Role Id  Members Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AccessRoleMembersResponse"
                 }
               }
             },
@@ -20637,9 +21330,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Store Permissions Route Admin Store Permissions Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StorePermissionMatrix"
                 }
               }
             },
@@ -20713,9 +21404,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Update Store Permissions Route Admin Store Permissions Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StorePermissionMatrix"
                 }
               }
             },
@@ -20791,9 +21480,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Reset Store Permissions Route Admin Store Permissions Reset Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StorePermissionMatrix"
                 }
               }
             },
@@ -20858,7 +21545,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionSummaryResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -20933,11 +21622,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
@@ -21277,11 +21961,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
@@ -21489,9 +22168,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Admin Credentials Register Begin Route Admin Timeclock Credentials  Store Employee Id  Register Begin Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PasskeyRegisterBeginResponse"
                 }
               }
             },
@@ -22607,9 +23284,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Clear User Permissions Route Admin Users  User Id  Permissions Delete",
-                  "type": "object"
+                  "$ref": "#/components/schemas/UserPermissionMatrix"
                 }
               }
             },
@@ -22683,9 +23358,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get User Permissions Route Admin Users  User Id  Permissions Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/UserPermissionMatrix"
                 }
               }
             },
@@ -22769,9 +23442,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Set User Permissions Route Admin Users  User Id  Permissions Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/UserPermissionMatrix"
                 }
               }
             },
@@ -22857,9 +23528,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Assign User Role Route Admin Users  User Id  Role Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/UserRoleAssignmentResponse"
                 }
               }
             },

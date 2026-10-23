@@ -172,3 +172,19 @@ class NamedStorePermissionMatrix(StorePermissionMatrix):
     """The store matrix plus the store's name (superadmin store page)."""
 
     store_name: str
+
+
+class UserPermissionMatrix(BaseModel):
+    """``get_user_permission_matrix()`` — one person's effective grid
+    (their custom access over their role) and whether they have
+    custom access."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int
+    role: str
+    store_id: int
+    resources: list[str]
+    actions: list[str]
+    matrix: RoleGrid
+    has_custom: bool

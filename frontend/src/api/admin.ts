@@ -128,15 +128,7 @@ export async function updateAdminUser(
 /** resource → action → allowed */
 export type PermMatrix = Record<string, Record<string, boolean>>;
 
-export interface UserPermissionMatrix {
-  user_id:   number;
-  role:      string;
-  store_id:  number;
-  resources: string[];
-  actions:   string[];
-  matrix:    PermMatrix;
-  has_custom: boolean;
-}
+export type UserPermissionMatrix = components["schemas"]["UserPermissionMatrix"];
 
 export function useAdminUserPermissions(uid: number | null) {
   return useQuery<UserPermissionMatrix>({

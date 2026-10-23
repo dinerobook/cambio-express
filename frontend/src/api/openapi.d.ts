@@ -6753,6 +6753,79 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccessRoleDeleteResponse */
+        AccessRoleDeleteResponse: {
+            /** Deleted */
+            deleted: string;
+            /** Detached */
+            detached: components["schemas"]["AffectedMember"][];
+        };
+        /** AccessRoleListResponse */
+        AccessRoleListResponse: {
+            /** Actions */
+            actions: string[];
+            /** Resources */
+            resources: string[];
+            /** Roles */
+            roles: components["schemas"]["AccessRoleRow"][];
+        };
+        /** AccessRoleMember */
+        AccessRoleMember: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Role */
+            role: string;
+        };
+        /** AccessRoleMembersResponse */
+        AccessRoleMembersResponse: {
+            /** Members */
+            members: components["schemas"]["AccessRoleMember"][];
+            /** Name */
+            name: string;
+            /** Role Id */
+            role_id: number;
+        };
+        /** AccessRoleRow */
+        AccessRoleRow: {
+            /** Id */
+            id: number;
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: boolean;
+                };
+            };
+            /** Member Count */
+            member_count: number;
+            /** Name */
+            name: string;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /**
+         * AccessRoleUpdateResponse
+         * @description The role after the edit, and whose access was rewritten.
+         */
+        AccessRoleUpdateResponse: {
+            /** Affected Members */
+            affected_members: components["schemas"]["AffectedMember"][];
+            /** Id */
+            id: number;
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: boolean;
+                };
+            };
+            /** Member Count */
+            member_count: number;
+            /** Name */
+            name: string;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /**
          * ActiveAnnouncementRow
          * @description Slim shape returned to the SPA banner — only the fields the
@@ -7056,6 +7129,13 @@ export interface components {
             password?: string | null;
             /** Role */
             role?: string | null;
+        };
+        /** AffectedMember */
+        AffectedMember: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** AgentKeyIssueRequest */
         AgentKeyIssueRequest: {
@@ -11620,6 +11700,18 @@ export interface components {
             tickets_per_pack: number;
         };
         /**
+         * PasskeyRegisterBeginResponse
+         * @description Step one of a WebAuthn registration: the browser options (a
+         *     JSON string for ``navigator.credentials.create()``) and the
+         *     signed token the client echoes back on ``/register/finish``.
+         */
+        PasskeyRegisterBeginResponse: {
+            /** Options Json */
+            options_json: string;
+            /** Register Token */
+            register_token: string;
+        };
+        /**
          * PaystubResponse
          * @description Pay summary for one roster member over a date range.
          *
@@ -12205,6 +12297,11 @@ export interface components {
             code: string;
             /** Pending Token */
             pending_token: string;
+        };
+        /** RedeemConnectCodeResponse */
+        RedeemConnectCodeResponse: {
+            /** Owner Name */
+            owner_name: string;
         };
         /**
          * ReferralCodeResponse
@@ -13310,6 +13407,95 @@ export interface components {
             store_slug: string;
             /** Updated At */
             updated_at: string;
+        };
+        /**
+         * StorePermissionMatrix
+         * @description ``get_permission_matrix()`` — one store's grid per role, with
+         *     the roles the caller may edit and those carrying store rows.
+         */
+        StorePermissionMatrix: {
+            /** Actions */
+            actions: string[];
+            /** Editable Roles */
+            editable_roles: string[];
+            /** Has Overrides */
+            has_overrides: string[];
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** Resources */
+            resources: string[];
+            /** Roles */
+            roles: string[];
+            /** Store Id */
+            store_id: number;
+        };
+        /** SubscriptionAddon */
+        SubscriptionAddon: {
+            /** Description */
+            description: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Price Label */
+            price_label: string;
+            /** Status */
+            status: string;
+            /** Tagline */
+            tagline: string;
+        };
+        /** SubscriptionStore */
+        SubscriptionStore: {
+            /** Data Retention Until */
+            data_retention_until: string | null;
+            /** Email */
+            email: string | null;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string | null;
+            /** Plan */
+            plan: string | null;
+            /** Stripe Customer Id */
+            stripe_customer_id: string | null;
+            /** Stripe Subscription Id */
+            stripe_subscription_id: string | null;
+        };
+        /** SubscriptionSummaryResponse */
+        SubscriptionSummaryResponse: {
+            /** Active Addon Count */
+            active_addon_count: number;
+            /** Addons */
+            addons: components["schemas"]["SubscriptionAddon"][];
+            /** Cancel At */
+            cancel_at: string | null;
+            /** Cancel At Period End */
+            cancel_at_period_end: boolean;
+            /** Has Paid Plan */
+            has_paid_plan: boolean;
+            /** Plan Label */
+            plan_label: string;
+            /** Plan Price */
+            plan_price: string;
+            /** Referral Code */
+            referral_code: string | null;
+            /** Retention Days Left */
+            retention_days_left: number | null;
+            /** Retention Total Days */
+            retention_total_days: number;
+            store: components["schemas"]["SubscriptionStore"];
+            /** Trial Days Left */
+            trial_days_left: number | null;
+            /** Trial Status */
+            trial_status: string | null;
         };
         /** SuperadminActivityRow */
         SuperadminActivityRow: {
@@ -15482,6 +15668,60 @@ export interface components {
             /** Line Id */
             line_id: number;
         };
+        /**
+         * UserPermissionMatrix
+         * @description ``get_user_permission_matrix()`` — one person's effective grid
+         *     (their custom access over their role) and whether they have
+         *     custom access.
+         */
+        UserPermissionMatrix: {
+            /** Actions */
+            actions: string[];
+            /** Has Custom */
+            has_custom: boolean;
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: boolean;
+                };
+            };
+            /** Resources */
+            resources: string[];
+            /** Role */
+            role: string;
+            /** Store Id */
+            store_id: number;
+            /** User Id */
+            user_id: number;
+        };
+        /**
+         * UserRoleAssignmentResponse
+         * @description The person's grid after joining or leaving a saved role.
+         */
+        UserRoleAssignmentResponse: {
+            /** Actions */
+            actions: string[];
+            /** Has Custom */
+            has_custom: boolean;
+            /** Matrix */
+            matrix: {
+                [key: string]: {
+                    [key: string]: boolean;
+                };
+            };
+            /** Resources */
+            resources: string[];
+            /** Role */
+            role: string;
+            /** Store Id */
+            store_id: number;
+            /** Store Role Id */
+            store_role_id: number | null;
+            /** Store Role Name */
+            store_role_name: string | null;
+            /** User Id */
+            user_id: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -15831,9 +16071,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -16054,9 +16292,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RedeemConnectCodeResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16122,9 +16358,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AccessRoleListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16161,9 +16395,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AccessRoleRow"];
                 };
             };
             /** @description Validation Error */
@@ -16202,9 +16434,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AccessRoleUpdateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16239,9 +16469,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AccessRoleDeleteResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16276,9 +16504,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AccessRoleMembersResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16381,9 +16607,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -16420,9 +16644,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -16459,9 +16681,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StorePermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -16494,7 +16714,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SubscriptionSummaryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16529,9 +16749,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -16673,9 +16891,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -16775,9 +16991,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PasskeyRegisterBeginResponse"];
                 };
             };
             /** @description Validation Error */
@@ -17288,9 +17502,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UserPermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -17329,9 +17541,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UserPermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -17366,9 +17576,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UserPermissionMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -17407,9 +17615,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UserRoleAssignmentResponse"];
                 };
             };
             /** @description Validation Error */

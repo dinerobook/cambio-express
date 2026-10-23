@@ -19,7 +19,14 @@ from api.Modules.Auth.Services.principal import (
 )
 from api.Core.Permissions.matrix_update import (
     PermissionMatrixBody, ResetRoleBody, RoleMatrixBody,
+    StorePermissionMatrix, UserPermissionMatrix,
     apply_matrix_reset, apply_matrix_update, validate_role_matrix,
+)
+from api.Modules.Admin.Requests.responses import (
+    AccessRoleDeleteResponse, AccessRoleListResponse,
+    AccessRoleMembersResponse, AccessRoleRow, AccessRoleUpdateResponse,
+    RedeemConnectCodeResponse, SubscriptionSummaryResponse,
+    UserRoleAssignmentResponse,
 )
 from api.Modules.Admin.Requests.roles import (
     AssignRoleRequest, RoleCreateRequest, RoleUpdateRequest,
@@ -608,7 +615,10 @@ def _adapt_addon(key: str, addon: dict[str, Any], *, is_active: bool) -> "AddonR
     )
 
 
-@router.get("/subscription")
+@router.get(
+    "/subscription", response_model=None,
+    responses={200: {"model": SubscriptionSummaryResponse}},
+)
 def subscription_summary_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -820,7 +830,7 @@ def list_tax_export_years_route(
 from api.Core.RateLimit import limiter as _rate_limiter
 
 
-@router.get("/tax-export.zip")
+@router.get("/tax-export.zip", response_class=Response)
 @_rate_limiter.limit("5/minute")
 def download_tax_pack_route(
     request: Request,
@@ -904,7 +914,7 @@ def get_admin_audit_log_route(
     )
 
 
-@router.get("/audit-log.csv")
+@router.get("/audit-log.csv", response_class=Response)
 @_rate_limiter.limit("5/minute")
 def export_admin_audit_log_csv_route(
     request: Request,
@@ -1304,7 +1314,10 @@ def _find_permission_target(db, claims, store_id: int, user_id: int):
     return user
 
 
-@router.get("/users/{user_id}/permissions")
+@router.get(
+    "/users/{user_id}/permissions", response_model=None,
+    responses={200: {"model": UserPermissionMatrix}},
+)
 def get_user_permissions_route(
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -1323,7 +1336,10 @@ def get_user_permissions_route(
     )
 
 
-@router.put("/users/{user_id}/permissions")
+@router.put(
+    "/users/{user_id}/permissions", response_model=None,
+    responses={200: {"model": UserPermissionMatrix}},
+)
 def set_user_permissions_route(
     body: RoleMatrixBody,
     user_id: int = Path(..., ge=1),
@@ -1364,7 +1380,10 @@ def set_user_permissions_route(
     )
 
 
-@router.delete("/users/{user_id}/permissions")
+@router.delete(
+    "/users/{user_id}/permissions", response_model=None,
+    responses={200: {"model": UserPermissionMatrix}},
+)
 def clear_user_permissions_route(
     user_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -1455,7 +1474,10 @@ def get_admin_referrals_route(
 # ── Per-store role permissions ─────────────────────────────
 
 
-@router.get("/store-permissions")
+@router.get(
+    "/store-permissions", response_model=None,
+    responses={200: {"model": StorePermissionMatrix}},
+)
 def get_store_permissions_route(
     db: Session = Depends(get_db),
     claims: dict = Depends(get_principal),
@@ -1470,7 +1492,10 @@ def get_store_permissions_route(
     )
 
 
-@router.put("/store-permissions")
+@router.put(
+    "/store-permissions", response_model=None,
+    responses={200: {"model": StorePermissionMatrix}},
+)
 def update_store_permissions_route(
     body: PermissionMatrixBody,
     db: Session = Depends(get_db),
@@ -1497,7 +1522,10 @@ def update_store_permissions_route(
     return get_store_permissions_route(db=db, claims=claims)
 
 
-@router.post("/store-permissions/reset")
+@router.post(
+    "/store-permissions/reset", response_model=None,
+    responses={200: {"model": StorePermissionMatrix}},
+)
 def reset_store_permissions_route(
     body: ResetRoleBody,
     db: Session = Depends(get_db),
@@ -1533,7 +1561,10 @@ def _editable_roles_for(claims: dict) -> list[str]:
 # ── Connect-code redemption (store admin) ──────────────────
 
 
-@router.post("/redeem-connect-code")
+@router.post(
+    "/redeem-connect-code", response_model=None,
+    responses={200: {"model": RedeemConnectCodeResponse}},
+)
 def redeem_connect_code_route(
     body: dict,
     db: Session = Depends(get_db),
@@ -1620,7 +1651,10 @@ def _member_label(user) -> str:
     return (user.full_name or user.username or f"#{user.id}")[:80]
 
 
-@router.get("/roles")
+@router.get(
+    "/roles", response_model=None,
+    responses={200: {"model": AccessRoleListResponse}},
+)
 def list_roles_route(
     db: Session = Depends(get_db),
     claims: dict[str, Any] = Depends(get_principal),
@@ -1643,7 +1677,10 @@ def list_roles_route(
     }
 
 
-@router.get("/roles/{role_id}/members")
+@router.get(
+    "/roles/{role_id}/members", response_model=None,
+    responses={200: {"model": AccessRoleMembersResponse}},
+)
 def role_members_route(
     role_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -1671,7 +1708,10 @@ def role_members_route(
     }
 
 
-@router.post("/roles", status_code=201)
+@router.post(
+    "/roles", status_code=201, response_model=None,
+    responses={201: {"model": AccessRoleRow}},
+)
 def create_role_route(
     body: RoleCreateRequest,
     db: Session = Depends(get_db),
@@ -1700,7 +1740,10 @@ def create_role_route(
     return _role_row(role, 0)
 
 
-@router.put("/roles/{role_id}")
+@router.put(
+    "/roles/{role_id}", response_model=None,
+    responses={200: {"model": AccessRoleUpdateResponse}},
+)
 def update_role_route(
     body: RoleUpdateRequest,
     role_id: int = Path(..., ge=1),
@@ -1754,7 +1797,10 @@ def update_role_route(
     return out
 
 
-@router.delete("/roles/{role_id}")
+@router.delete(
+    "/roles/{role_id}", response_model=None,
+    responses={200: {"model": AccessRoleDeleteResponse}},
+)
 def delete_role_route(
     role_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
@@ -1791,7 +1837,10 @@ def delete_role_route(
     }
 
 
-@router.put("/users/{user_id}/role")
+@router.put(
+    "/users/{user_id}/role", response_model=None,
+    responses={200: {"model": UserRoleAssignmentResponse}},
+)
 def assign_user_role_route(
     body: AssignRoleRequest,
     user_id: int = Path(..., ge=1),
