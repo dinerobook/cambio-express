@@ -280,6 +280,22 @@ def _require_assignable_role(claims: dict[str, Any], role: str | None) -> None:
         )
 
 
+def _refuse_fixed_role(role: str | None) -> None:
+    """422 when someone tries to give custom access or a saved role
+    to a role whose access is fixed in code (the accountant). The
+    resolver ignores such rows anyway; refusing keeps the screens
+    from claiming access the person does not have."""
+    from api.Core.Permissions import is_fixed_role
+    if is_fixed_role(role):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "An accountant's access is fixed: view only reports, "
+                "the monthly P&L and the tax pack."
+            ),
+        )
+
+
 def _require_within_ceiling(
     claims: dict[str, Any], store_id: int,
     *, matrix: dict | None = None,
@@ -1125,6 +1141,8 @@ def create_user_route(
     require_permission(claims, "users", "create")
     store_id = resolve_store_scope(claims)
     _require_assignable_role(claims, body.role)
+    if body.store_role_id is not None or body.permissions is not None:
+        _refuse_fixed_role(body.role)
     if body.store_role_id is not None:
         from api.Modules.Admin.Services.roles import (
             RoleNotFoundError as _RoleNotFound, get_role, role_matrix,
@@ -1261,6 +1279,17 @@ def update_user_route(
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    if (
+        standing_before[0] != user.role
+        and (user.role or "") == "accountant"
+    ):
+        # An accountant's access is fixed. Drop any custom access or
+        # saved role they carried, so a later move back to employee
+        # starts from that role's own access, not a stale grid.
+        from api.Core.Permissions import clear_user_permissions
+        from api.Modules.Admin.Services.roles import detach_member
+        clear_user_permissions(store_id, user.id, session=db)
+        detach_member(db, user)
     # Build a one-line summary listing which fields changed; keep
     # it short — recorder truncates at 2000 chars but the audit
     # page renders these inline.
@@ -1351,6 +1380,7 @@ def set_user_permissions_route(
     require_permission(claims, "users", "update")
     store_id = resolve_store_scope(claims)
     user = _find_permission_target(db, claims, store_id, user_id)
+    _refuse_fixed_role(user.role)
     validate_role_matrix(body.matrix)
     _require_within_ceiling(claims, store_id, matrix=body.matrix)
     from api.Core.Permissions import (
@@ -1858,6 +1888,8 @@ def assign_user_role_route(
     store_id = resolve_store_scope(claims)
     user = _find_permission_target(db, claims, store_id, user_id)
     role_id = body.role_id
+    if role_id is not None:
+        _refuse_fixed_role(user.role)
     from api.Modules.Admin.Services.roles import (
         RoleNotFoundError, assign_role, get_role, role_matrix,
     )

@@ -12,7 +12,8 @@ Validation rules (kept in sync with the legacy form):
   - password (on create): required, ≥1 char. Hashed via
     `User.set_password` — never stored raw.
   - password (on update): omit / blank to keep the current hash.
-  - role: must be 'admin' or 'employee'. Other values rejected.
+  - role: must be 'admin', 'employee' or 'accountant' (view-only
+    bookkeeper with fixed access). Other values rejected.
   - full_name: optional, ≤120 chars (trimmed).
   - is_active: PATCH-only; flipping False on yourself is blocked
     by the controller (`require_not_self`) — see the self-edit
@@ -30,7 +31,7 @@ from api.Modules.Admin.Repositories.users import (
 from api.Modules.Billing.Services.feature_flags import MODULE_FLAG_KEYS
 
 
-VALID_ROLES = ("admin", "employee")
+VALID_ROLES = ("admin", "employee", "accountant")
 
 # PATCH sentinel for update_store_user's module_access: "caller
 # didn't send the field" is distinct from "caller sent null"
@@ -125,7 +126,7 @@ def create_store_user(
 
     role = (role or "employee").strip()
     if role not in VALID_ROLES:
-        raise ValueError("Role must be 'admin' or 'employee'.")
+        raise ValueError("Role must be 'admin', 'employee' or 'accountant'.")
 
     full_name = (full_name or "").strip()[:120]
 
@@ -178,7 +179,7 @@ def update_store_user(
     if role is not None:
         role_clean = (role or "").strip()
         if role_clean not in VALID_ROLES:
-            raise ValueError("Role must be 'admin' or 'employee'.")
+            raise ValueError("Role must be 'admin', 'employee' or 'accountant'.")
         if (
             actor_id is not None
             and user.id == actor_id

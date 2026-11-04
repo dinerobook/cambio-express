@@ -566,6 +566,13 @@ daily-book line until a second site's export confirms the
 relationship.
 
 ## Nice to have (post-launch)
+- [ ] **Accountant follow-ups (D1 shipped 2026-11-04 as one login per
+      store).** Not built, ask the owner first: an in-app "switch
+      store" for accountants (today they sign out and pick the store
+      at sign-in); a one-click "remove from all my stores" for the
+      owner; MSB daily book view-only for accountants (owner left it
+      off); Store reports (retail) for accountants — the server list
+      only carries `/reports/*`, `/monthly/*` and the tax pack.
 - [x] **Daily Book Money Transfers — editable per-company breakdown.**
       Landed. New `GET/PUT /api/v2/daily/{store}/{date}/mt-breakdown`
       endpoints back the Transfers tab: each row carries saved

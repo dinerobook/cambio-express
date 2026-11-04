@@ -990,7 +990,8 @@
           "assignable_roles": {
             "default": [
               "admin",
-              "employee"
+              "employee",
+              "accountant"
             ],
             "items": {
               "type": "string"
@@ -11549,8 +11550,11 @@
             "title": "Phone"
           },
           "role": {
-            "const": "employee",
             "default": "employee",
+            "enum": [
+              "employee",
+              "accountant"
+            ],
             "title": "Role",
             "type": "string"
           },

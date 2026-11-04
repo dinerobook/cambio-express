@@ -182,6 +182,11 @@ Dashboard · Daily · Money services · Team · Reports · Finance · Displays
 exactly one group: add the link there and the route's access row in
 `src/lib/access.ts`. `filterNavForRole` hides items the person cannot
 open and groups left empty.
+The view-only **Accountant** sees only the pages in `ACCOUNTANT_PAGES`
+(`src/lib/access.ts`), lands on Reports (`homePathFor`), and its
+Reports menu carries Monthly P&L and Data export (it has no
+dashboard). A page for accountants needs a line there AND on the
+server's list (`api/Core/Permissions/accountant.py`).
 
 ## Lists (root invariant 14)
 Every paginated table searches as you type — **never** a "type then

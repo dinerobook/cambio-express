@@ -18,6 +18,8 @@ export const ROLE_TONES: Record<string, PillTone> = {
   owner:      "info",
   superadmin: "warning",
   support:    "info",
+  // The view-only bookkeeper: a secondary identity, like owner.
+  accountant: "info",
 };
 
 export function roleTone(role: string): PillTone {
@@ -32,6 +34,7 @@ export const ROLE_LABELS: Record<string, string> = {
   owner:      "Owner",
   superadmin: "Superadmin",
   support:    "Support",
+  accountant: "Accountant",
 };
 
 export function roleLabel(role: string): string {

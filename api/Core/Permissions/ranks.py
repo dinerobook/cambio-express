@@ -13,6 +13,12 @@ can hold all of it in their head:
   row at the home store; an employee who was given the Team
   permission can manage other employees only.
 * You may assign roles at or below your own rank only.
+* An ``accountant`` (view-only bookkeeper, fixed access) is managed
+  at ADMIN rank: only an admin, an owner or the superadmin may add,
+  change or remove one. An employee with the Team permission could
+  otherwise reset the accountant's password and sign in with it. As
+  an actor, an accountant ranks below everyone and manages no one
+  (it holds no Team permission either).
 * You may not grant access you do not hold yourself. Admins and
   owners hold everything at their store, so this bites only on
   employee-rank actors: the grid they write for a colleague, a
@@ -33,15 +39,31 @@ ROLE_RANK: dict[str, int] = {
     "superadmin": 3,
 }
 
+# The rank a person must hold to manage (or assign) a role that is
+# not on the ladder above. Looked up only for TARGETS: an accountant
+# acting ranks as an unknown role (below employee).
+MANAGED_AT_RANK: dict[str, int] = {
+    "accountant": ROLE_RANK["admin"],
+}
+
 # Roles a store-level route may ever assign. Owner rows are made
 # by signup and superadmin tooling only.
-ASSIGNABLE_ROLES: tuple[str, ...] = ("admin", "employee")
+ASSIGNABLE_ROLES: tuple[str, ...] = ("admin", "employee", "accountant")
 
 
 def rank_of(role: str | None) -> int:
     """Unknown or blank roles rank below employee, so a malformed
-    row can never outrank anyone and can always be cleaned up."""
+    row can never outrank anyone and can always be cleaned up.
+    This is the rank of an ACTOR; an accountant ranks here as -1."""
     return ROLE_RANK.get((role or "").strip(), -1)
+
+
+def target_rank(role: str | None) -> int:
+    """The rank needed to manage or assign ``role``."""
+    clean = (role or "").strip()
+    if clean in MANAGED_AT_RANK:
+        return MANAGED_AT_RANK[clean]
+    return rank_of(clean)
 
 
 def actor_rank_role(claims: Mapping[str, Any]) -> str:
@@ -57,13 +79,13 @@ def actor_rank_role(claims: Mapping[str, Any]) -> str:
 
 def can_manage(claims: Mapping[str, Any], target_role: str | None) -> bool:
     """May this actor change a person holding ``target_role``?"""
-    return rank_of(actor_rank_role(claims)) >= rank_of(target_role)
+    return rank_of(actor_rank_role(claims)) >= target_rank(target_role)
 
 
 def assignable_roles(claims: Mapping[str, Any]) -> list[str]:
     """Roles this actor may give to someone else."""
     ceiling = rank_of(actor_rank_role(claims))
-    return [r for r in ASSIGNABLE_ROLES if rank_of(r) <= ceiling]
+    return [r for r in ASSIGNABLE_ROLES if target_rank(r) <= ceiling]
 
 
 def can_assign_role(claims: Mapping[str, Any], role: str | None) -> bool:

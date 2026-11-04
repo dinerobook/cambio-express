@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api, ApiError } from "./../lib/api";
+import { canDo } from "./../lib/access";
 import { getCurrentIdentity } from "./../lib/auth";
 import { passkeysSupported } from "./../lib/webauthn";
 import type { components } from "./openapi";
@@ -283,7 +284,9 @@ export type StoreInfoResponse = components["schemas"]["StoreInfoResponse"];
 export function useStoreInfo() {
   const identity = getCurrentIdentity();
   return useQuery<StoreInfoResponse>({
-    enabled: identity?.store_id != null,
+    // settings.read is what the server checks; without it (an
+    // accountant) the topbar simply has no referral badge.
+    enabled: identity?.store_id != null && canDo("settings.read"),
     queryKey: ["admin", "store-info", identity?.store_id],
     queryFn: () =>
       api<StoreInfoResponse>("/api/v2/admin/store-info"),

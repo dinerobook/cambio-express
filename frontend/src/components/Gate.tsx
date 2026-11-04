@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 
-import { canAccessWith, findAccess } from "../lib/access";
+import { canAccessWith, findAccess, homePathFor } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 
 /** Route guard driven by `lib/access.ts`.
@@ -18,11 +18,14 @@ export default function Gate({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   const identity = getCurrentIdentity();
   if (!identity) return <Navigate to="/login" replace />;
+  // Home is the dashboard, or Reports for an accountant (who has
+  // no dashboard) — never a page that would bounce again.
+  const home = homePathFor(identity);
   if (findAccess(pathname) === undefined) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={home} replace />;
   }
   if (!canAccessWith(identity, pathname)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={home} replace />;
   }
   return <>{children}</>;
 }
