@@ -50,6 +50,24 @@ def normalize_theme(raw: str | None) -> str:
     return raw if raw in _THEME_CHOICES else "dark"
 
 
+# Allowed UI languages — kept in sync with the Pydantic
+# ``LanguagePreference`` Literal in Requests/profile.py and with
+# ``LANGUAGES`` in frontend/src/i18n/index.ts.
+_LANGUAGE_CHOICES = ("en", "es")
+
+
+def normalize_language(raw: str | None) -> str | None:
+    """Coerce ``user.language`` to a safe value.
+
+    NULL (never chosen), empty or unknown reads as ``None``: the
+    person never picked, so the app keeps the language their device
+    shows (English unless someone pressed ES on the sign-in screen).
+    A person who never picked therefore sees exactly what they saw
+    before Spanish existed.
+    """
+    return raw if raw in _LANGUAGE_CHOICES else None
+
+
 def get_profile_payload(user: User) -> dict[str, Any]:
     """Pure read — no DB access beyond what's already on `user`.
     Returns the payload for the Profile React page."""
@@ -64,6 +82,9 @@ def get_profile_payload(user: User) -> dict[str, Any]:
         "theme_preference": normalize_theme(
             str(user.theme_preference) if user.theme_preference else None,
         ),
+        "language":         normalize_language(
+            str(user.language) if user.language else None,
+        ),
         "created_at":       user.created_at.isoformat() if user.created_at else "",
         "last_login_at":    user.last_login_at.isoformat() if user.last_login_at else "",
         "timezone_choices": TIMEZONE_CHOICES,
@@ -77,6 +98,7 @@ def update_profile(
     phone:            Optional[str] = None,
     timezone:         Optional[str] = None,
     theme_preference: Optional[str] = None,
+    language:         Optional[str] = None,
 ) -> None:
     """Validate + apply changes to `user`. Raises
     ProfileValidationError on bad input. Caller commits.
@@ -121,6 +143,9 @@ def update_profile(
             "Theme must be 'dark' or 'light'."
         )
 
+    if language is not None and language not in _LANGUAGE_CHOICES:
+        errors["language"] = "Language must be 'en' or 'es'."
+
     if errors:
         raise ProfileValidationError(errors)
 
@@ -134,4 +159,6 @@ def update_profile(
         setattr(user, "timezone", timezone.strip())
     if theme_preference is not None:
         setattr(user, "theme_preference", theme_preference)
+    if language is not None:
+        setattr(user, "language", language)
     db.flush()

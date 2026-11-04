@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import styles from "../routes/auth.module.css";
 import { BrandLink } from "./BrandLink";
+import { LanguageSwitch } from "./LanguageSwitch";
 
 /** Shared chrome for every logged-out page (Login, TwoFactor,
  *  ForgotPassword, ResetPassword, Signup, SignupOwner, ...).
@@ -13,6 +14,9 @@ import { BrandLink } from "./BrandLink";
  *  the card on the right. The card comes first in the markup, so
  *  on narrow screens (where the halves stack) and for keyboard and
  *  screen-reader users the form is still the first thing.
+ *
+ *  The nav carries the EN | ES language switch on every signed-out
+ *  page (UI-STANDARDS §10).
  *
  *  `document` is for long-form pages (the privacy policy): a wide,
  *  top-aligned card instead of the narrow centred form card. */
@@ -32,9 +36,12 @@ export function AuthChrome({
     <>
       <nav className={styles.nav}>
         <BrandLink />
-        {navLink && (
-          <Link to={navLink.to} className={styles.navLink}>{navLink.label}</Link>
-        )}
+        <div className={styles.navEnd}>
+          <LanguageSwitch />
+          {navLink && (
+            <Link to={navLink.to} className={styles.navLink}>{navLink.label}</Link>
+          )}
+        </div>
       </nav>
 
       <div className={document ? `${styles.page} ${styles.pageDocument}` : styles.page}>

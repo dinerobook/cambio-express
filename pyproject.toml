@@ -220,6 +220,7 @@ files = [
     "api/Modules/Superadmin/Requests/discounts.py",
     "api/Modules/Superadmin/Requests/stores.py",
     "api/Modules/Superadmin/Services/dashboard.py",
+    "api/Modules/Superadmin/Services/setup_progress.py",
     # ── api/Modules/Tenancy ──────────────────────────────────
     "api/Modules/Tenancy/Models/__init__.py",
     # ── api/Modules/TimeClock ────────────────────────────────

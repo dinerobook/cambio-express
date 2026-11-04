@@ -3,14 +3,14 @@
 > Loaded automatically when Claude reads a file in this folder. The
 > module sends email and push (`Services/smtp.py`, `Services/push.py`,
 > the digests and reminders) and owns the top-bar bell. Root invariant
-> 23 is the one-line version of the bell rules below.
+> 24 is the one-line version of the bell rules below.
 
 ## The bell (owner, 2026-11-04)
 
 The bell in the top bar lists the work waiting for the signed-in person
 in the store they are in. Design doc:
 https://claude.ai/artifact/Pc5j3drBnTNyPKkLHTLyTq. UI rules:
-`docs/design-system/UI-STANDARDS.md` §10.
+`docs/design-system/UI-STANDARDS.md` §11.
 
 **How it works.** `GET /api/v2/notifications/bell`
 (`Controllers/__init__.py`) calls `build_bell` in
@@ -54,7 +54,8 @@ superadmin "Sign in as" may read the bell but not dismiss (403,
    is dismissed on its own. The dismiss route refuses a key whose kind
    is unknown.
 5. Add the item's row to `BELL_ITEMS` in `frontend/src/lib/bellItems.ts`
-   (words, icon, link) and run `npm run generate-types`. The SPA table
+   (icon, link, and words through `t()` with new `bell.*` keys in
+   `frontend/src/i18n/en.ts` and `es.ts`) and run `npm run generate-types`. The SPA table
    is typed by `BellKind`, so a missing row fails the build.
 6. Tests in `tests/Modules/Notifications/test_bell.py`: shown when true,
    gone when fixed, hidden without each permission (default role,

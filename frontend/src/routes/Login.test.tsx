@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Login from "./Login";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Sign-in is the front door. Pinned here (CLAUDE.md invariant #13):
 //   - a role that needs 2FA never gets an identity from the password
@@ -184,5 +186,82 @@ describe("Login", () => {
     renderPage();
     await signIn();
     expect(await screen.findByText("dashboard page")).toBeInTheDocument();
+  });
+});
+
+
+describe("Login in Spanish", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    api.mockReset();
+    setLanguage("es");
+  });
+
+  it("shows the sign-in form in Spanish with no English left", () => {
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Correo o teléfono")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Iniciar sesión →" })).toBeDisabled();
+    expect(englishLeftovers(document.body, ["login.", "common."])).toEqual([]);
+  });
+
+  it("shows a wrong password in Spanish", async () => {
+    api.mockRejectedValue(new ApiError(401, "Invalid username or password", {}));
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Correo o teléfono"), "ana");
+    await userEvent.type(screen.getByPlaceholderText("••••••••"), "nope");
+    await userEvent.click(screen.getByRole("button", { name: "Iniciar sesión →" }));
+    expect(await screen.findByText("Usuario o contraseña incorrectos")).toBeInTheDocument();
+    expect(getCurrentIdentity()).toBeNull();
+  });
+
+  it("shows a server sentence it does not know as the server sent it", async () => {
+    api.mockRejectedValue(new ApiError(403, "A brand-new refusal", {}));
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Correo o teléfono"), "ana");
+    await userEvent.type(screen.getByPlaceholderText("••••••••"), "x");
+    await userEvent.click(screen.getByRole("button", { name: "Iniciar sesión →" }));
+    expect(await screen.findByText("A brand-new refusal")).toBeInTheDocument();
+  });
+
+  it("walks the two-factor step in Spanish", async () => {
+    api.mockResolvedValueOnce({
+      requires_totp: true, pending_token: "p", has_recovery_codes: true,
+    });
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Correo o teléfono"), "root");
+    await userEvent.type(screen.getByPlaceholderText("••••••••"), "x");
+    await userEvent.click(screen.getByRole("button", { name: "Iniciar sesión →" }));
+    expect(await screen.findByText("Verifique su identidad")).toBeInTheDocument();
+    expect(getCurrentIdentity()).toBeNull();
+    expect(englishLeftovers(document.body, ["login.", "common."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Usar un código de recuperación" }));
+    expect(screen.getByLabelText("Código de recuperación")).toBeInTheDocument();
+  });
+
+  it("asks which store in Spanish", async () => {
+    api.mockRejectedValueOnce(new ApiError(409, "pick", {
+      detail: {
+        code: "store_ambiguous", message: "pick",
+        stores: [{ store_id: 1, store_name: "", role: "admin" }],
+      },
+    }));
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Correo o teléfono"), "ana");
+    await userEvent.type(screen.getByPlaceholderText("••••••••"), "x");
+    await userEvent.click(screen.getByRole("button", { name: "Iniciar sesión →" }));
+    expect(await screen.findByText("¿Qué tienda?")).toBeInTheDocument();
+    expect(screen.getByText("Tienda #1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Atrás" })).toBeInTheDocument();
+  });
+
+  it("switches language from the EN | ES buttons on the page", async () => {
+    setLanguage("en");
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Español" }));
+    expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
+    expect(window.localStorage.getItem("dinerobook.language")).toBe("es");
+    await userEvent.click(screen.getByRole("button", { name: "English" }));
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 });

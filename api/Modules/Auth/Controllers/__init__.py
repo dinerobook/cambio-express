@@ -1068,6 +1068,7 @@ def update_profile_route(
             phone=body.phone,
             timezone=body.timezone,
             theme_preference=body.theme_preference,
+            language=body.language,
         )
     except ProfileValidationError as exc:
         raise HTTPException(
@@ -1164,6 +1165,7 @@ def export_my_data_route(
         "store_id": user.store_id,
         "timezone": getattr(user, "timezone", "") or "",
         "theme_preference": getattr(user, "theme_preference", "") or "",
+        "language": getattr(user, "language", "") or "",
         "is_active": bool(user.is_active),
         "created_at": _iso(getattr(user, "created_at", None)),
         "last_login_at": _iso(getattr(user, "last_login_at", None)),

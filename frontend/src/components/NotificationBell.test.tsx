@@ -257,3 +257,24 @@ describe("<NotificationBell> — dismiss", () => {
     expect(within(panel).queryByRole("button", { name: /Dismiss/ })).toBeNull();
   });
 });
+
+describe("<NotificationBell> — Spanish", () => {
+  it("shows the bell, its list and its buttons in Spanish", async () => {
+    const { setLanguage } = await import("../i18n");
+    const { englishLeftovers } = await import("../test/i18n");
+    setLanguage("es");
+    mockFetch({ [BELL]: { body: answer([UNLOCKED, DUE_BACK, BANK, CHECKS]) } });
+    show();
+    const btn = await bell();
+    await waitFor(() => expect(btn).toHaveAccessibleName("Notificaciones, 4 requieren atención"));
+    await userEvent.setup().click(btn);
+    const panel = await screen.findByRole("dialog", { name: "Notificaciones" });
+    expect(within(panel).getByText("Un libro diario no está cerrado")).toBeInTheDocument();
+    expect(within(panel).getByText("Ayer")).toBeInTheDocument();
+    expect(within(panel).getByText("4 movimientos bancarios por revisar")).toBeInTheDocument();
+    // The panel and the button (the toast host's own region label is
+    // the kit's, not the bell's).
+    expect(englishLeftovers(panel, ["bell.", "shell.notifications"])).toEqual([]);
+    expect(englishLeftovers(btn, ["bell.", "shell.notifications"])).toEqual([]);
+  });
+});

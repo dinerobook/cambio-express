@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import { PAGE_SIZES, pageRange } from "../../lib/pagination";
 import { Select } from "./Select";
 import { fmtNumber } from "../../lib/formatters";
+import { useT } from "../../i18n";
 
 /** Prev/next pagination footer — the one pager every list uses.
  *
@@ -29,6 +30,7 @@ export function Pager({
   perPage?: number;
   onPerPage?: (next: number) => void;
 }) {
+  const t = useT();
   const counted = total != null && pageRows != null && total > 0;
   // The picker only matters once a list is longer than the smallest page.
   const sizer = perPage != null && onPerPage != null
@@ -52,20 +54,22 @@ export function Pager({
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem 1rem", alignItems: "center" }}>
           {counted && (
             <span style={{ color: tokens.textMuted, fontSize: "0.85rem" }}>
-              Showing {fmtNumber(first)}–{fmtNumber(last)} of{" "}
-              {fmtNumber(total)}
+              {t("pager.showing", {
+                first: fmtNumber(first), last: fmtNumber(last),
+                total: fmtNumber(total),
+              })}
             </span>
           )}
           {leading}
         </div>
       )}
       {(totalPages > 1 || sizer) && (
-        <nav aria-label="Pages" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
+        <nav aria-label={t("pager.pages")} style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
           {sizer && (
             <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", color: tokens.textMuted, fontSize: "0.85rem" }}>
-              Rows
+              {t("pager.rows")}
               <Select
-                aria-label="Rows per page"
+                aria-label={t("pager.rowsPerPage")}
                 value={perPage}
                 onChange={(e) => onPerPage(Number(e.target.value))}
                 style={{ width: "auto", padding: "0.3rem 0.5rem" }}
@@ -82,7 +86,7 @@ export function Pager({
                 onClick={() => onPage(page - 1)}
                 disabled={page <= 1}
               >
-                ← Previous
+                {t("pager.previous")}
               </Button>
               <span style={{ color: tokens.textMuted, fontSize: "0.85rem" }}>
                 {page} / {totalPages}
@@ -93,7 +97,7 @@ export function Pager({
                 onClick={() => onPage(page + 1)}
                 disabled={page >= totalPages}
               >
-                Next →
+                {t("pager.next")}
               </Button>
             </>
           )}

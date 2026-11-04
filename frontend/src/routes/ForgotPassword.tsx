@@ -5,6 +5,7 @@ import { AuthChrome, StatusPill } from "../components/AuthChrome";
 import { Button, Field, Input } from "../components/ui";
 import { forgotPassword } from "../api/account";
 import styles from "./auth.module.css";
+import { useT } from "../i18n";
 
 // /app/forgot-password — request a reset link.
 //
@@ -12,6 +13,7 @@ import styles from "./auth.module.css";
 // "Check your email" regardless of whether the address exists,
 // so attackers can't enumerate registered emails.
 export default function ForgotPassword() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [busy,  setBusy]  = useState(false);
   const [done,  setDone]  = useState(false);
@@ -31,29 +33,26 @@ export default function ForgotPassword() {
   }
 
   return (
-    <AuthChrome navLink={{ to: "/login", label: "← Back to sign in" }}>
+    <AuthChrome navLink={{ to: "/login", label: t("login.backToSignIn") }}>
       {done ? (
         <>
-          <StatusPill>✓ EMAIL SENT</StatusPill>
-          <div className={styles.cardTitle}>Check your email</div>
+          <StatusPill>{t("forgot.sentPill")}</StatusPill>
+          <div className={styles.cardTitle}>{t("forgot.sentTitle")}</div>
           <div className={styles.cardSub}>
-            If <span className={styles.subMono}>{email}</span> is registered,
-            you'll receive a link to set a new password. The link expires in
-            1 hour. If you don't see it, check your spam folder.
+            {t("forgot.sentBefore")} <span className={styles.subMono}>{email}</span>{" "}
+            {t("forgot.sentAfter")}
           </div>
-          <Link to="/login" className={styles.backLink}>← Back to sign in</Link>
+          <Link to="/login" className={styles.backLink}>{t("login.backToSignIn")}</Link>
         </>
       ) : (
         <>
-          <StatusPill>PASSWORD RESET</StatusPill>
-          <div className={styles.cardTitle}>Forgot your password?</div>
+          <StatusPill>{t("forgot.pill")}</StatusPill>
+          <div className={styles.cardTitle}>{t("forgot.title")}</div>
           <div className={styles.cardSub}>
-            Enter the email on your account. We'll send a one-time link
-            to set a new password. For employees, contact your store
-            admin for a reset.
+            {t("forgot.subtitle")}
           </div>
           <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
-            <Field label="Email">
+            <Field label={t("forgot.email")}>
               <Input
                 type="email"
                 autoComplete="email"
@@ -73,10 +72,10 @@ export default function ForgotPassword() {
               disabled={busy || !email}
               style={{ width: "100%" }}
             >
-              {busy ? "Sending…" : "Send reset link"}
+              {busy ? t("forgot.submitting") : t("forgot.submit")}
             </Button>
           </form>
-          <Link to="/login" className={styles.backLink}>← Back to sign in</Link>
+          <Link to="/login" className={styles.backLink}>{t("login.backToSignIn")}</Link>
         </>
       )}
     </AuthChrome>

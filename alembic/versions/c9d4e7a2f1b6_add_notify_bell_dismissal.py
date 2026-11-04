@@ -16,7 +16,7 @@ match the model. Idempotent: survives a replay where the table
 already exists.
 
 Revision ID: c9d4e7a2f1b6
-Revises: b8e4f2a6c1d3
+Revises: c4a9e2f7b1d5
 Create Date: 2026-11-04 01:30:00.000000
 
 """
@@ -28,7 +28,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'c9d4e7a2f1b6'
-down_revision: Union[str, None] = 'b8e4f2a6c1d3'
+down_revision: Union[str, None] = 'c4a9e2f7b1d5'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

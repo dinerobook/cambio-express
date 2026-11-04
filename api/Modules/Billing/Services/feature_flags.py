@@ -138,6 +138,37 @@ def store_feature_enabled(
     return bool(flag.enabled_by_default)
 
 
+def stores_feature_enabled(
+    db: Session, stores: list[Store], flag_key: str,
+) -> dict[int, bool]:
+    """``store_feature_enabled`` for many stores at once, as
+    ``{store_id: enabled}`` — two queries however many stores, for
+    platform lists. Same priority: override → business-type bundle →
+    global default → fail-open."""
+    if not stores:
+        return {}
+    overrides = {
+        int(row.store_id): bool(row.enabled)
+        for row in db.query(StoreFeatureOverride).filter(
+            StoreFeatureOverride.flag_key == flag_key,
+            StoreFeatureOverride.store_id.in_([s.id for s in stores]),
+        )
+    }
+    flag = db.query(FeatureFlag).filter_by(key=flag_key).first()
+    fallback = True if flag is None else bool(flag.enabled_by_default)
+    out: dict[int, bool] = {}
+    for store in stores:
+        sid = int(store.id)
+        if sid in overrides:
+            out[sid] = overrides[sid]
+            continue
+        bundled = module_bundle_default(
+            getattr(store, "business_type", None), flag_key,
+        )
+        out[sid] = fallback if bundled is None else bundled
+    return out
+
+
 def opt_in_flag_enabled(db: Session, store_id: int, flag_key: str) -> bool:
     """Resolve an OPT-IN flag: a switch for new behaviour that must
     stay off until someone turns it on (the owner's store first,

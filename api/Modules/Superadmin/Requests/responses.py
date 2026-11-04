@@ -206,6 +206,39 @@ class SuperadminEmailLogResponse(_Strict):
     suppressed: list[SuperadminSuppressedAddress]
 
 
+# ── Setup progress per store ─────────────────────────────────────
+
+
+class SuperadminSetupProgressRow(_Strict):
+    store_id: int
+    name: str
+    slug: str
+    plan: str
+    is_active: bool
+    # Store-local calendar day the store signed up, and days since.
+    signed_up_on: str | None
+    days_since_signup: int | None
+    # None = the step does not apply (Money services module off, or
+    # no company sells money orders).
+    companies_added: bool | None
+    company_count: int
+    charges_set: bool | None
+    money_order_companies: int
+    money_order_charges_set: int
+    bank_connected: bool
+    # ISO day of the first locked daily book, None until one is locked.
+    first_locked_day: str | None
+    steps_done: int
+    steps_total: int
+
+
+class SuperadminSetupProgressResponse(_Strict):
+    rows: list[SuperadminSetupProgressRow]
+    total: int
+    page: int
+    total_pages: int
+
+
 # ── Store drill, store activity ──────────────────────────────────
 
 

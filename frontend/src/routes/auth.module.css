@@ -48,6 +48,20 @@
 
 .navLink:hover { color: var(--db-gray-9); }
 
+/* Right side of the nav: language switch, then the page's link. The
+   link may shrink and wrap on a phone; the switch never does. */
+.navEnd {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.navEnd .navLink {
+  min-width: 0;
+  text-align: right;
+}
+
 .page {
   min-height: calc(100vh - 60px);
   min-height: calc(100dvh - 60px);
@@ -340,6 +354,7 @@
 @media (max-width: 600px) {
   .nav { padding: 0 16px; height: 56px; }
   .navLink { font-size: 12px; }
+  .navEnd { gap: 10px; }
   .page {
     padding: 20px 14px;
     padding-bottom: max(20px, env(safe-area-inset-bottom));

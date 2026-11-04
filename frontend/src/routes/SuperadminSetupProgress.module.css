@@ -1,0 +1,38 @@
+/* Page-specific styles for SuperadminSetupProgress.tsx. */
+
+.filterRow {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.searchInput {
+  max-width: 22rem;
+}
+
+.store {
+  min-width: 0;
+}
+
+.storeName {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.storeMeta {
+  color: var(--db-text-muted);
+  font-family: var(--db-font-mono);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.mono {
+  font-family: var(--db-font-mono);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.dash {
+  color: var(--db-text-muted);
+}

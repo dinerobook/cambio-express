@@ -7,13 +7,14 @@ import {
   BELL_QUERY_KEY, useBell, useBellActions, type BellItem,
 } from "../api/bell";
 import { canAccess } from "../lib/access";
+import { useT } from "../i18n";
 import { getCurrentIdentity } from "../lib/auth";
 import { BELL_ITEMS, type BellIcon } from "../lib/bellItems";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { AppLink, Button, CountBadge, useToast } from "./ui";
 import styles from "./NotificationBell.module.css";
 
-// The top-bar notification bell (UI-STANDARDS §10). A fixed-size
+// The top-bar notification bell (UI-STANDARDS §11). A fixed-size
 // button whose count badge is drawn ON TOP of it, so nothing in the
 // bar moves whether the count is 0 or 12. Clicking opens a short
 // list; each row opens the page that fixes it, and Dismiss hides it
@@ -52,6 +53,7 @@ export function NotificationBell() {
   const storeId = getCurrentIdentity()?.store_id;
   const bell = useBell();
   const { dismiss, undismiss } = useBellActions();
+  const t = useT();
   const toast = useToast();
   const errorToast = useApiErrorToast();
   const qc = useQueryClient();
@@ -80,26 +82,28 @@ export function NotificationBell() {
     (i) => canAccess(BELL_ITEMS[i.kind].to(i, { storeDay })),
   );
   const count = items.length;
-  const label = count > 0
-    ? `Notifications, ${count} need${count === 1 ? "s" : ""} attention`
-    : "Notifications, none";
+  const label = count === 0
+    ? t("bell.labelNone")
+    : count === 1
+      ? t("bell.labelOne")
+      : t("bell.labelMany", { count });
 
   async function onDismiss(item: BellItem) {
     listRef.current?.focus();
     try {
       await dismiss(item);
     } catch (err) {
-      errorToast(err, "Couldn't dismiss that. Try again.");
+      errorToast(err, t("bell.dismissFailed"));
       return;
     }
     toast({
       tone: "info",
-      message: "Dismissed for today.",
+      message: t("bell.dismissed"),
       action: {
-        label: "Undo",
+        label: t("bell.undo"),
         onClick: () => {
           undismiss(item).catch((err: unknown) => (
-            errorToast(err, "Couldn't undo that. Try again.")
+            errorToast(err, t("bell.undoFailed"))
           ));
         },
       },
@@ -119,7 +123,7 @@ export function NotificationBell() {
           type="button"
           className={styles.bellBtn}
           aria-label={label}
-          title="Notifications"
+          title={t("shell.notifications")}
           data-testid="notification-bell"
         >
           <BellGlyph />
@@ -133,10 +137,10 @@ export function NotificationBell() {
           side="bottom"
           sideOffset={8}
           collisionPadding={8}
-          aria-label="Notifications"
+          aria-label={t("shell.notifications")}
         >
           <div className={styles.header}>
-            <h2 className={styles.title}>Notifications</h2>
+            <h2 className={styles.title}>{t("shell.notifications")}</h2>
           </div>
           <div
             className={styles.body}
@@ -145,22 +149,22 @@ export function NotificationBell() {
           >
             {!data && bell.isError ? (
               <div className={styles.state}>
-                <p>Couldn't load your notifications.</p>
+                <p>{t("bell.loadError")}</p>
                 <Button
                   tone="secondary" size="sm"
                   onClick={() => void bell.refetch()}
                 >
-                  Try again
+                  {t("bell.retry")}
                 </Button>
               </div>
             ) : !data ? (
-              <div className={styles.state} aria-busy="true">Loading…</div>
+              <div className={styles.state} aria-busy="true">{t("common.loading")}</div>
             ) : count === 0 ? (
               <div className={styles.state}>
                 <span className={styles.caughtUpIcon} aria-hidden="true">
                   <ItemIcon icon="done" />
                 </span>
-                <p>You're all caught up.</p>
+                <p>{t("bell.caughtUp")}</p>
               </div>
             ) : (
               <ul className={styles.list}>
@@ -192,8 +196,8 @@ export function NotificationBell() {
                         <button
                           type="button"
                           className={styles.dismissBtn}
-                          aria-label={`Dismiss for today: ${title}`}
-                          title="Dismiss for today"
+                          aria-label={t("bell.dismissLabel", { title })}
+                          title={t("bell.dismissTitle")}
                           onClick={() => void onDismiss(item)}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -211,7 +215,7 @@ export function NotificationBell() {
             )}
           </div>
           <p className={styles.footer}>
-            Dismissed items come back tomorrow if they are still open.
+            {t("bell.footer")}
           </p>
         </Popover.Content>
       </Popover.Portal>

@@ -5468,6 +5468,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/superadmin/setup-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Setup Progress Route
+         * @description Setup progress per store, newest store first: companies added,
+         *     charge per money order set, bank connected, first day locked.
+         *     Read-only. Its own route so the dashboard summary stays light.
+         */
+        get: operations["setup_progress_route_superadmin_setup_progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/superadmin/stores": {
         parameters: {
             query?: never;
@@ -13033,6 +13055,8 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
+            /** Language */
+            language?: ("en" | "es") | null;
             /** Last Login At */
             last_login_at: string;
             /** Phone */
@@ -13064,6 +13088,8 @@ export interface components {
             email?: string | null;
             /** Full Name */
             full_name?: string | null;
+            /** Language */
+            language?: ("en" | "es") | null;
             /** Phone */
             phone?: string | null;
             /** Theme Preference */
@@ -15422,6 +15448,52 @@ export interface components {
             ok: boolean;
             /** Revoked Count */
             revoked_count: number;
+        };
+        /** SuperadminSetupProgressResponse */
+        SuperadminSetupProgressResponse: {
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["SuperadminSetupProgressRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** SuperadminSetupProgressRow */
+        SuperadminSetupProgressRow: {
+            /** Bank Connected */
+            bank_connected: boolean;
+            /** Charges Set */
+            charges_set: boolean | null;
+            /** Companies Added */
+            companies_added: boolean | null;
+            /** Company Count */
+            company_count: number;
+            /** Days Since Signup */
+            days_since_signup: number | null;
+            /** First Locked Day */
+            first_locked_day: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Money Order Charges Set */
+            money_order_charges_set: number;
+            /** Money Order Companies */
+            money_order_companies: number;
+            /** Name */
+            name: string;
+            /** Plan */
+            plan: string;
+            /** Signed Up On */
+            signed_up_on: string | null;
+            /** Slug */
+            slug: string;
+            /** Steps Done */
+            steps_done: number;
+            /** Steps Total */
+            steps_total: number;
+            /** Store Id */
+            store_id: number;
         };
         /** SuperadminStoreAuditLogResponse */
         SuperadminStoreAuditLogResponse: {
@@ -27523,6 +27595,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SuperadminRetentionDryRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setup_progress_route_superadmin_setup_progress_get: {
+        parameters: {
+            query?: {
+                /** @description Search name, slug or email. */
+                q?: string;
+                /** @description open = setup not finished (default), done, or all. */
+                status?: string;
+                /** @description 1-based page number */
+                page?: number;
+                /** @description Rows per page (1 to 200) */
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuperadminSetupProgressResponse"];
                 };
             };
             /** @description Validation Error */

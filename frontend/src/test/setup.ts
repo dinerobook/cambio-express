@@ -16,12 +16,17 @@ import { afterEach, beforeEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 import { setDisplayTimezone } from "../lib/datetime";
+import { setLanguage } from "../i18n";
 
 afterEach(() => {
   cleanup();
   // The display timezone is module state (lib/datetime); a test that
   // sets one must not leak it into the next file's assertions.
   setDisplayTimezone(undefined);
+  // Same for the language (i18n/index.ts): a Spanish test must not
+  // leave the next file reading Spanish. English is the default.
+  setLanguage("en");
+  try { window.localStorage.removeItem("dinerobook.language"); } catch { /* */ }
 });
 
 // Every link, tab, button and row action hides itself when the
