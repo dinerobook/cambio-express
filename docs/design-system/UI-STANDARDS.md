@@ -527,3 +527,87 @@ This is enforced by the kit, not by per-page checks:
   with the shared component to use and what it replaces. Where a
   grep can catch a relapse, add it to `lib/sourceGuards.test.ts`.
   Owner's standing rule (2026-10-21).
+
+## 10. Language — English and Spanish
+
+Set 2026-11-04 (Spanish in the app). Each person picks **English** or
+**Español** under Settings → Profile; it is saved on their account
+(`User.language`) and follows them to every device. Signed-out pages
+carry an **EN | ES** switch (`LanguageSwitch` in `AuthChrome`),
+remembered on that device. After sign-in a saved profile choice wins;
+a person who never chose (NULL, answered as null) keeps what the
+device shows, so pressing ES at sign-in carries on into the app.
+**English is the default and never changes** for anyone who does not
+pick Spanish; the browser's own language is not used.
+
+- **Words come from the translator, never typed in a covered screen.**
+  `const t = useT();` then `t("login.title")`. The English words live in
+  `frontend/src/i18n/en.ts`, the Spanish in `frontend/src/i18n/es.ts`.
+  `es.ts` is typed against `en.ts`, so a key missing in Spanish, or a
+  typo in a key, fails `npm run build`. Keys are `<area>.<what>`;
+  shared words (`common.cancel`, `common.loading`) are reused, not
+  re-added per screen.
+- **Placeholders, never glued pieces:** `t("pager.showing", { first,
+  last, total })` with `{first}` in both languages. Word order differs
+  between the two; `i18n.test.tsx` fails when the placeholders differ.
+- **The sidebar** keeps `NAV` in English (it names URLs, page titles
+  and the breadcrumb trail) and shows each title and label through
+  `navWord()` (`frontend/src/i18n/navWords.ts`). A new NAV label needs
+  its Spanish there; `navWords.test.tsx` fails otherwise.
+- **Server messages** stay English on the wire. The few sentences a
+  covered screen can receive are listed in
+  `frontend/src/i18n/serverMessages.ts` and come back in Spanish
+  through `apiErrorMessage`; anything unlisted shows the server's
+  English as before. `tests/Modules/Auth/test_spa_server_messages.py`
+  fails if the API stops sending a listed sentence.
+- **Dates** use the person's language for month and weekday words
+  through the shared formatters (§4); the store-timezone rule is
+  unchanged. **Money keeps US punctuation** ($1,234.56) in both
+  languages, so amounts match receipts and bank statements. Never pass
+  a locale to `Intl` in a screen.
+- **Names stay as typed:** store, company (Intermex, Maxi, Barri),
+  customer and employee names, and anything a person entered, are never
+  translated. Each language's own name ("English", "Español") is shown
+  untranslated so a person can always find theirs.
+- **Covered screens are listed** in `COVERED_FILES`
+  (`frontend/src/i18n/coverage.test.ts`). That guard fails when a
+  covered file gains English typed directly in JSX text, in a `label`,
+  `placeholder`, `title` or `aria-label`, or in an error setter.
+  Moving a screen into Spanish = translate it, add a Spanish render
+  test using `englishLeftovers()` (`frontend/src/test/i18n.ts`), and
+  add the file to the list. A covered file never goes back.
+- **Tests stay in English.** `src/test/setup.ts` resets the language to
+  English after every test; existing tests find English text, which is
+  the proof English did not change. A Spanish test sets
+  `setLanguage("es")` itself.
+
+**Glossary** (use these words everywhere, so the same English word is
+always the same Spanish word):
+
+| English | Spanish |
+|---|---|
+| Admin (store role) | Administrador — never "Superadministrador" |
+| Employee | Empleado |
+| Owner | Dueño |
+| Daily book | Libro diario |
+| Money transfer / Transfers | Envío de dinero / Envíos |
+| Money order | Giro postal |
+| Over / short | Sobrante / Faltante |
+| Cash drop | Depósito de efectivo |
+| Lock day | Cerrar el día |
+| Federal tax | Impuesto federal |
+| Fee | Comisión |
+| Store | Tienda |
+| Settings | Configuración |
+| Sign in / Sign out | Iniciar sesión / Cerrar sesión |
+| Save changes / Cancel | Guardar cambios / Cancelar |
+| Unsaved changes | Cambios sin guardar |
+
+Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
+Sentence case applies in both languages (§7b).
+
+Covered so far: sign-in (sign-in, store picker, 2FA code step,
+per-store sign-in, forgot / reset password), the app shell (sidebar,
+top bar, user menu, theme button), and the kit's loading text, pager,
+confirm buttons and unsaved-changes bar and prompt. Next: the daily
+book, then transfers, then the rest of the app, then emails.

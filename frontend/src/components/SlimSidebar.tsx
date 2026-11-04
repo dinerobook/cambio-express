@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
 import { sectionSlug } from "./navConfig";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 import styles from "./SlimSidebar.module.css";
 
 export interface NavItem {
@@ -63,6 +65,9 @@ export function SlimSidebar({
   supportBadge?: number;
 }) {
   const location = useLocation();
+  // Labels show through navWord(); NAV itself stays English (it
+  // names URLs and the page titles). useT re-renders on a switch.
+  const t = useT();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
 
   // Auto-close the fly-out on route change — picking a tile
@@ -97,7 +102,7 @@ export function SlimSidebar({
   return (
     <aside
       className={`app-sidebar${drawerOpen ? " is-open" : ""}`}
-      aria-label="Primary navigation"
+      aria-label={t("shell.primaryNavigation")}
     >
       {/* Slim icon column — desktop only (CSS hides on mobile).
           Brand is a single ``$`` tile; the wordmark would overflow
@@ -122,11 +127,11 @@ export function SlimSidebar({
                 to={group.to}
                 className={({ isActive }) =>
                   railClass(styles.groupBtn, isActive, group.title)}
-                title={group.title}
-                aria-label={group.title}
+                title={navWord(group.title)}
+                aria-label={navWord(group.title)}
               >
                 <span className={styles.groupIcon}>{group.icon}</span>
-                <span className={styles.groupLabel}>{group.title}</span>
+                <span className={styles.groupLabel}>{navWord(group.title)}</span>
               </NavLink>
             );
           }
@@ -144,10 +149,10 @@ export function SlimSidebar({
               aria-expanded={openGroup === group.title}
               aria-haspopup="menu"
               aria-controls={`group-flyout-${group.title.toLowerCase()}`}
-              aria-label={`${group.title} menu`}
+              aria-label={t("shell.groupMenu", { group: navWord(group.title) })}
             >
               <span className={styles.groupIcon}>{group.icon}</span>
-              <span className={styles.groupLabel}>{group.title}</span>
+              <span className={styles.groupLabel}>{navWord(group.title)}</span>
             </button>
           );
         })}
@@ -155,15 +160,15 @@ export function SlimSidebar({
           <NavLink
             to={supportLink.to}
             className={({ isActive }) => railClass(styles.supportBtn, isActive)}
-            title={supportLink.label}
+            title={navWord(supportLink.label)}
             aria-label={
               supportBadge > 0
-                ? `${supportLink.label} — ${supportBadge} unread`
-                : supportLink.label
+                ? t("shell.unread", { label: navWord(supportLink.label), count: supportBadge })
+                : navWord(supportLink.label)
             }
           >
             <span className={styles.groupIcon}>{supportLink.icon}</span>
-            <span className={styles.groupLabel}>{supportLink.label}</span>
+            <span className={styles.groupLabel}>{navWord(supportLink.label)}</span>
             <UnreadBadge count={supportBadge} />
           </NavLink>
         )}
@@ -193,13 +198,13 @@ export function SlimSidebar({
               to={`/hub/${sectionSlug(activeGroup.title)}`}
               className={styles.flyoutHeader}
               role="menuitem"
-              title={`Open the ${activeGroup.title} hub`}
+              title={t("shell.openHub", { group: navWord(activeGroup.title) })}
             >
               <span className={styles.flyoutHeaderIcon}>
                 {activeGroup.icon}
               </span>
               <span className={styles.flyoutHeaderTitle}>
-                {activeGroup.title}
+                {navWord(activeGroup.title)}
               </span>
               <span className={styles.flyoutHeaderChevron} aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -224,7 +229,7 @@ export function SlimSidebar({
                   role="menuitem"
                 >
                   <span className={styles.itemIcon}>{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span>{navWord(item.label)}</span>
                 </NavLink>
               ))}
             </div>
@@ -252,8 +257,8 @@ export function SlimSidebar({
                 : styles.drawerGroupTitle}
             >
               {group.to
-                ? <><span className={styles.itemIcon}>{group.icon}</span><span>{group.title}</span></>
-                : group.title}
+                ? <><span className={styles.itemIcon}>{group.icon}</span><span>{navWord(group.title)}</span></>
+                : navWord(group.title)}
             </NavLink>
             <div className={styles.itemList}>
               {group.items.map((item) => (
@@ -266,7 +271,7 @@ export function SlimSidebar({
                   end={false}
                 >
                   <span className={styles.itemIcon}>{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span>{navWord(item.label)}</span>
                 </NavLink>
               ))}
             </div>
@@ -281,7 +286,7 @@ export function SlimSidebar({
               }
             >
               <span className={styles.itemIcon}>{supportLink.icon}</span>
-              <span>{supportLink.label}</span>
+              <span>{navWord(supportLink.label)}</span>
               <UnreadBadge count={supportBadge} inline />
             </NavLink>
           </div>

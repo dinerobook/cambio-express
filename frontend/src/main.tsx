@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { registerServiceWorker } from "./lib/installPrompt";
 import { initSentry } from "./lib/sentry";
+import { initLanguageFromDevice } from "./i18n";
 import "./styles.css";
 
 // No-op when VITE_SENTRY_DSN is empty (CI, local dev). Activates and
@@ -70,6 +71,11 @@ const router = createBrowserRouter(
   [{ path: "*", element: <App /> }],
   { basename: "/app" },
 );
+
+// The device's last language choice, before first paint (English
+// unless this device picked Spanish). The profile overrides it once
+// it loads (AppShell).
+initLanguageFromDevice();
 
 createRoot(rootEl).render(
   <StrictMode>

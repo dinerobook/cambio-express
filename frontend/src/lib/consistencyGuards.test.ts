@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { en } from "../i18n/en";
 import { NAV } from "../components/navConfig";
 import { RESOURCE_LABELS } from "../components/PermissionMatrixTable";
 import matrixCss from "../components/PermissionMatrixTable.module.css?raw";
@@ -282,6 +283,8 @@ describe("phone top bar", () => {
 
   it("keeps the referral badge named when its amount is hidden", () => {
     expect(shellCss).toMatch(/\.app-referral-badge-amount \{\s*display: none;/);
-    expect(shellSrc).toContain('aria-label="Referrals: earn $100"');
+    // Named through the translator (UI-STANDARDS §10).
+    expect(shellSrc).toContain('aria-label={t("shell.referralLabel")}');
+    expect(en["shell.referralLabel"]).toBe("Referrals: earn $100");
   });
 });

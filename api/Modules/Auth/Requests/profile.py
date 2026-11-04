@@ -15,6 +15,11 @@ from pydantic import BaseModel, ConfigDict, Field
 # page).
 ThemePreference = Literal["dark", "light"]
 
+# Allowed values for ``User.language``. NULL / unknown is answered as
+# null (never chosen) and the SPA keeps the device's language, which
+# is English unless the person pressed ES on the sign-in screen.
+LanguagePreference = Literal["en", "es"]
+
 
 class ProfileResponse(BaseModel):
     """Full payload for the /app/account/profile page on first
@@ -32,6 +37,8 @@ class ProfileResponse(BaseModel):
     phone:             str
     timezone:          str
     theme_preference:  ThemePreference
+    # None = never chosen: the SPA keeps the device's language.
+    language:          Optional[LanguagePreference] = None
     created_at:        str
     last_login_at:     str
     timezone_choices:  list[str]
@@ -49,3 +56,4 @@ class ProfileUpdateRequest(BaseModel):
     phone:            Optional[str] = Field(default=None, max_length=40)
     timezone:         Optional[str] = Field(default=None, max_length=64)
     theme_preference: Optional[ThemePreference] = None
+    language:         Optional[LanguagePreference] = None

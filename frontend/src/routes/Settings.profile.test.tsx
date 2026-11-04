@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { SettingsProfile } from "./Settings";
 import { ApiError } from "../lib/api";
 import { renderRouteWithGuard } from "../test/renderRoute";
+import { getLanguage, setLanguage } from "../i18n";
 
 // Settings → Profile (your own name, email, phone, theme). Pinned:
 // the form loads clean, an edit shows the Unsaved changes bar and
@@ -82,5 +83,60 @@ describe("Settings → Profile", () => {
     expect(await screen.findByText("Not a phone number.")).toBeInTheDocument();
     expect(screen.getByLabelText(/^Phone/)).toHaveValue("abc");
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+  });
+});
+
+
+describe("Settings → Profile language (UI-STANDARDS §10)", () => {
+  it("shows English for a profile that never chose (or an older server)", () => {
+    renderTab();
+    expect(screen.getByLabelText(/^Language/)).toHaveValue("en");
+    expect(screen.getByRole("option", { name: "Español" })).toBeInTheDocument();
+  });
+
+  it("picking Español saves it and switches the app on save", async () => {
+    renderTab();
+    await userEvent.selectOptions(screen.getByLabelText(/^Language/), "es");
+    // Nothing switches until the person saves.
+    expect(getLanguage()).toBe("en");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ language: "es" }),
+    ));
+    await waitFor(() => expect(getLanguage()).toBe("es"));
+    expect(screen.getByLabelText(/^Idioma \(Language\)/)).toHaveValue("es");
+  });
+
+  it("a refused save keeps the current language", async () => {
+    updateProfile.mockRejectedValue(new ApiError(422, "bad", {
+      detail: { field_errors: { language: "Language must be 'en' or 'es'." } },
+    }));
+    renderTab();
+    await userEvent.selectOptions(screen.getByLabelText(/^Language/), "es");
+    await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
+    expect(await screen.findByText("Language must be 'en' or 'es'.")).toBeInTheDocument();
+    expect(getLanguage()).toBe("en");
+  });
+
+  it("never chosen keeps the device's language (ES picked at sign-in)", () => {
+    setLanguage("es");
+    useProfile.mockReturnValue({
+      data: { ...PROFILE, language: null },
+      isLoading: false, isError: false, error: null, refetch: vi.fn(),
+    });
+    renderTab();
+    expect(screen.getByLabelText(/^Idioma \(Language\)/)).toHaveValue("es");
+    expect(getLanguage()).toBe("es");
+  });
+
+  it("shows the saved Spanish choice", () => {
+    useProfile.mockReturnValue({
+      data: { ...PROFILE, language: "es" },
+      isLoading: false, isError: false, error: null, refetch: vi.fn(),
+    });
+    setLanguage("es");
+    renderTab();
+    expect(screen.getByLabelText(/^Idioma \(Language\)/)).toHaveValue("es");
   });
 });

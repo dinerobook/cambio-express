@@ -14113,6 +14113,21 @@
             "title": "Full Name",
             "type": "string"
           },
+          "language": {
+            "anyOf": [
+              {
+                "enum": [
+                  "en",
+                  "es"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
           "last_login_at": {
             "title": "Last Login At",
             "type": "string"
@@ -14196,6 +14211,21 @@
               }
             ],
             "title": "Full Name"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "enum": [
+                  "en",
+                  "es"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
           },
           "phone": {
             "anyOf": [

@@ -7,6 +7,7 @@ import { Alert, Button, Field, Input, Loading } from "../components/ui";
 import { api, apiErrorMessage } from "../lib/api";
 import { setAccessToken } from "../lib/auth";
 import { BRAND_NAME } from "../lib/brand";
+import { useT } from "../i18n";
 import styles from "./auth.module.css";
 
 interface LoginResponse {
@@ -25,6 +26,7 @@ interface LoginResponse {
 export default function LoginStore() {
   const { slug = "" } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const t = useT();
   const [store,    setStore]    = useState<StoreLookup | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -67,7 +69,7 @@ export default function LoginStore() {
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Network error. Please try again."),
+        apiErrorMessage(err, t("common.networkError")),
       );
     } finally {
       setBusy(false);
@@ -75,25 +77,24 @@ export default function LoginStore() {
   }
 
   return (
-    <AuthChrome navLink={{ to: "/login", label: "Sign in another way" }}>
+    <AuthChrome navLink={{ to: "/login", label: t("login.otherWay") }}>
       {loading ? (
         <Loading />
       ) : notFound || !store ? (
         <>
-          <div className={styles.cardTitle}>Store not found</div>
+          <div className={styles.cardTitle}>{t("login.storeNotFound")}</div>
           <div className={styles.cardSub}>
-            We couldn't find a store with that code. Check with your
-            manager for the correct URL.
+            {t("login.storeNotFoundHint")}
           </div>
-          <Link to="/login" className={styles.backLink}>← Back to sign in</Link>
+          <Link to="/login" className={styles.backLink}>{t("login.backToSignIn")}</Link>
         </>
       ) : (
         <div className={styles.stack}>
-          <StatusPill>SECURE · {store.name.toUpperCase()}</StatusPill>
+          <StatusPill>{t("login.secureStore", { store: store.name.toUpperCase() })}</StatusPill>
           <div>
-            <div className={styles.cardTitle}>Employee sign in</div>
+            <div className={styles.cardTitle}>{t("login.employeeTitle")}</div>
             <div className={styles.cardSub} style={{ marginBottom: 0 }}>
-              Sign in with the username your store admin gave you.
+              {t("login.employeeSubtitle")}
             </div>
           </div>
 
@@ -103,10 +104,10 @@ export default function LoginStore() {
             onSubmit={onSubmit}
             style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}
           >
-            <Field label="Username">
+            <Field label={t("login.employeeUsername")}>
               <Input
                 type="text"
-                placeholder="your-username"
+                placeholder={t("login.employeeUsernamePlaceholder")}
                 autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -115,7 +116,7 @@ export default function LoginStore() {
                 autoFocus
               />
             </Field>
-            <Field label="Password">
+            <Field label={t("login.password")}>
               <Input
                 type="password"
                 placeholder="••••••••"
@@ -134,7 +135,7 @@ export default function LoginStore() {
               disabled={busy || !username || !password}
               style={{ width: "100%" }}
             >
-              {busy ? "Signing in…" : "Sign in →"}
+              {busy ? t("login.submitting") : t("login.submit")}
             </Button>
           </form>
 

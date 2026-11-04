@@ -100,7 +100,7 @@ def test_no_instruction_file_in_the_design_export() -> None:
 
 def test_root_lists_every_invariant_and_stays_short() -> None:
     root = _text(ROOT / "CLAUDE.md")
-    for n in range(1, 23):
+    for n in range(1, 24):
         # 119 code / test comments cite "invariant N" — the numbering stays.
         assert re.search(rf"^{n}\. \*\*", root, re.M), f"invariant {n} missing"
     assert len(root.encode("utf-8")) < 20_000, "root CLAUDE.md is loaded every session; keep it short"
@@ -138,6 +138,7 @@ KEY_RULES = (
     "react-hook-form",
     "generate-types",
     "cashnet",
+    "COVERED_FILES",
     "BUILTIN_BANK_RULES",
     "WEBAUTHN_RP_ID",
     "save_policy()",

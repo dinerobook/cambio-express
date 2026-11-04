@@ -1,0 +1,140 @@
+// Spanish words, key for key with en.ts (UI-STANDARDS §10).
+//
+// Typed against the English list: a missing key, an extra key or a
+// typo fails `npm run build`. Use the glossary in
+// docs/design-system/UI-STANDARDS.md §10 so the same English word is
+// always the same Spanish word (Admin = "Administrador", never
+// "Superadministrador"). Brand and company names stay as they are.
+
+import type { MessageKey } from "./en";
+
+export const es: Record<MessageKey, string> = {
+  // ── Shared words (kit components, buttons) ────────────────────
+  "common.loading": "Cargando…",
+  "common.confirm": "Confirmar",
+  "common.cancel": "Cancelar",
+  "common.back": "Atrás",
+  "common.networkError": "Error de red. Inténtelo de nuevo.",
+  "common.unexpectedResponse": "El servidor envió una respuesta inesperada.",
+  "common.tooManyAttempts": "Demasiados intentos. Espere un minuto e inténtelo de nuevo.",
+  "common.privacy": "Privacidad",
+  // Keeps the English word so someone who landed in Spanish by
+  // mistake can still find the way back.
+  "common.language": "Idioma (Language)",
+
+  // ── Pager ────────────────────────────────────────────────────
+  "pager.showing": "Mostrando {first}–{last} de {total}",
+  "pager.pages": "Páginas",
+  "pager.rows": "Filas",
+  "pager.rowsPerPage": "Filas por página",
+  "pager.previous": "← Anterior",
+  "pager.next": "Siguiente →",
+
+  // ── Unsaved changes guard ────────────────────────────────────
+  "unsaved.pill": "Cambios sin guardar",
+  "unsaved.title": "¿Descartar los cambios sin guardar?",
+  "unsaved.message": "Tiene cambios sin guardar en esta página. ¿Salir sin guardar?",
+  "unsaved.leave": "Salir",
+  "unsaved.keepEditing": "Seguir editando",
+
+  // ── Sign-in (Login, LoginStore) ──────────────────────────────
+  "login.title": "Iniciar sesión",
+  "login.subtitle": "Bienvenido de nuevo. Continúe donde lo dejó.",
+  "login.username": "Correo o teléfono",
+  "login.usernamePlaceholder": "usted@tienda.com o (555) 123-4567",
+  "login.password": "Contraseña",
+  "login.forgot": "¿La olvidó?",
+  "login.submit": "Iniciar sesión →",
+  "login.submitting": "Iniciando sesión…",
+  "login.newHere": "¿Nuevo en DineroBook?",
+  "login.createAccount": "Crear una cuenta →",
+  "login.createAccountNav": "Crear una cuenta",
+  "login.copyright": "© 2026 DineroBook",
+  "login.invalidCredentials": "Usuario o contraseña incorrectos",
+  "login.storeDisabled": "Esta tienda ha sido desactivada. Comuníquese con soporte.",
+  "login.pickStoreTitle": "¿Qué tienda?",
+  "login.pickStoreSubtitle": "Su cuenta funciona en más de una tienda. Elija la que quiere abrir.",
+  "login.storeNumber": "Tienda #{id}",
+  "login.twoFactorPill": "SE REQUIERE VERIFICACIÓN EN DOS PASOS",
+  "login.twoFactorTitle": "Verifique su identidad",
+  "login.twoFactorTotpHint": "Escriba el código de 6 dígitos de su app de autenticación.",
+  "login.twoFactorRecoveryHint": "Escriba uno de sus códigos de recuperación de un solo uso.",
+  "login.verificationCode": "Código de verificación",
+  "login.recoveryCode": "Código de recuperación",
+  "login.verify": "Verificar →",
+  "login.verifying": "Verificando…",
+  "login.useRecoveryCode": "Usar un código de recuperación",
+  "login.backToAuthenticator": "Volver al código de autenticación",
+  "login.invalidVerificationCode": "Código de verificación incorrecto",
+  "login.invalidRecoveryCode": "Código de recuperación incorrecto",
+  "login.sessionExpired": "La sesión pendiente no es válida o venció. Inicie sesión de nuevo.",
+  "login.otherWay": "Iniciar sesión de otra forma",
+  "login.storeNotFound": "Tienda no encontrada",
+  "login.storeNotFoundHint": "No encontramos una tienda con ese código. Pida a su gerente la dirección correcta.",
+  "login.backToSignIn": "← Volver a iniciar sesión",
+  "login.secureStore": "SEGURO · {store}",
+  "login.employeeTitle": "Inicio de sesión de empleados",
+  "login.employeeSubtitle": "Inicie sesión con el usuario que le dio el administrador de su tienda.",
+  "login.employeeUsername": "Usuario",
+  "login.employeeUsernamePlaceholder": "su-usuario",
+
+  // ── Forgot / reset password ──────────────────────────────────
+  "forgot.sentPill": "✓ CORREO ENVIADO",
+  "forgot.sentTitle": "Revise su correo",
+  "forgot.sentBefore": "Si",
+  "forgot.sentAfter": "está registrado, recibirá un enlace para crear una contraseña nueva. El enlace vence en 1 hora. Si no lo ve, revise la carpeta de correo no deseado.",
+  "forgot.pill": "RESTABLECER CONTRASEÑA",
+  "forgot.title": "¿Olvidó su contraseña?",
+  "forgot.subtitle": "Escriba el correo de su cuenta. Le enviaremos un enlace de un solo uso para crear una contraseña nueva. Si es empleado, pida al administrador de su tienda que la restablezca.",
+  "forgot.email": "Correo electrónico",
+  "forgot.submit": "Enviar enlace",
+  "forgot.submitting": "Enviando…",
+  "reset.mismatch": "Las contraseñas no coinciden.",
+  "reset.tooShort": "La contraseña debe tener al menos 8 caracteres.",
+  "reset.failed": "No se pudo restablecer la contraseña. Es posible que el enlace haya vencido.",
+  "reset.missingPill": "FALTA EL ENLACE",
+  "reset.missingTitle": "Falta el enlace de restablecimiento",
+  "reset.missingHint": "Este enlace no incluye un código. Pida un enlace nuevo y le enviaremos otro por correo.",
+  "reset.requestNew": "Pedir un enlace nuevo",
+  "reset.donePill": "✓ CONTRASEÑA ACTUALIZADA",
+  "reset.doneTitle": "Contraseña actualizada",
+  "reset.doneHint": "Ya puede iniciar sesión con su contraseña nueva.",
+  "reset.pill": "CREAR UNA CONTRASEÑA NUEVA",
+  "reset.title": "Crear una contraseña nueva",
+  "reset.subtitle": "Use al menos 8 caracteres.",
+  "reset.newPassword": "Contraseña nueva",
+  "reset.newPasswordPlaceholder": "Mín. 8 caracteres",
+  "reset.confirmPassword": "Confirmar contraseña nueva",
+  "reset.confirmPlaceholder": "Repítala",
+  "reset.submit": "Actualizar contraseña",
+  "reset.submitting": "Guardando…",
+
+  // ── App shell (top bar, user menu, sidebar) ──────────────────
+  "shell.openNavigation": "Abrir navegación",
+  "shell.primaryNavigation": "Navegación principal",
+  "shell.groupMenu": "Menú {group}",
+  "shell.openHub": "Abrir la sección {group}",
+  "shell.unread": "{label} — {count} sin leer",
+  "shell.trialEndsToday": "La prueba termina hoy",
+  "shell.trialDayLeft": "Queda 1 día",
+  "shell.trialDaysLeft": "Quedan {count} días",
+  "shell.trialEnded": "La prueba terminó",
+  "shell.subscribe": "Suscribirse",
+  "shell.trialAskAdmin": "{message} Pida al administrador de su tienda que se suscriba.",
+  "shell.trialClickToSubscribe": "{message} Haga clic para suscribirse.",
+  "shell.switchStore": "Cambiar de tienda",
+  "shell.enterStore": "Entrar a una tienda",
+  "shell.referralTitle": "Gane $100 — comparta su código: {code}",
+  "shell.referralLabel": "Referidos: gane $100",
+  "shell.maintenance": "La plataforma está en mantenimiento.",
+  "shell.userMenu": "Menú de usuario de {name}",
+  "shell.currentUser": "usuario actual",
+  "shell.profile": "Perfil",
+  "shell.notifications": "Notificaciones",
+  "shell.signOut": "Cerrar sesión",
+  "shell.lightMode": "Cambiar a modo claro",
+  "shell.darkMode": "Cambiar a modo oscuro",
+
+  // ── Settings → Profile language choice ───────────────────────
+  "profile.languageHint": "Las palabras de la app. Los nombres, los montos y lo que la gente escribió no cambian. Le sigue a cada dispositivo donde inicie sesión.",
+};

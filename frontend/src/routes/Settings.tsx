@@ -24,6 +24,9 @@ import { hasPermission } from "../lib/permissions";
 import { passkeysSupported } from "../lib/webauthn";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
+  getLanguage, isLanguage, LANGUAGE_NAMES, LANGUAGES, setLanguage, useT,
+} from "../i18n";
+import {
   Alert, Button, ButtonLink, Card, Checkbox, ConfirmDialog, Empty,
   ErrorState, Field, FormActions, InfoTip, Input, Loading, PageHeader,
   PageShell, SectionTitle, Select, space, Switch, TabsBar, TabsLink,
@@ -138,6 +141,7 @@ function DataExportCard() {
 
 function ProfileCard() {
   const queryClient = useQueryClient();
+  const t = useT();
   const { data, isLoading, isError, error, refetch } = useProfile();
 
   const toast = useToast();
@@ -162,6 +166,7 @@ function ProfileCard() {
       email:            data.email || (loginIsEmail ? data.username : ""),
       phone:            data.phone,
       theme_preference: data.theme_preference,
+      language:         data.language,
     };
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable draft + dirty baseline from server-fetched profile so inputs are controlled from first paint
     setDraft(hydrated);
@@ -193,6 +198,8 @@ function ProfileCard() {
     try {
       await updateProfile(draft);
       setBaseline(draft);  // edits are now the saved state — clear dirty
+      // The app switches language as soon as the choice is saved.
+      if (isLanguage(draft.language)) setLanguage(draft.language);
       toast({ message: "Profile updated.", tone: "success" });
       queryClient.invalidateQueries({ queryKey: ["account", "profile"] });
     } catch (err) {
@@ -311,6 +318,27 @@ function ProfileCard() {
           >
             Light theme (dark is the default)
           </Switch>
+        </Field>
+
+        <Field
+          label={<>{t("common.language")}<InfoTip text={t("profile.languageHint")} /></>}
+          error={fieldErrors.language}
+        >
+          <Select
+            // Never chosen (null): show what this device is showing.
+            value={draft.language ?? getLanguage()}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (isLanguage(next)) set("language", next);
+            }}
+            disabled={busy}
+          >
+            {LANGUAGES.map((lang) => (
+              <option key={lang} value={lang} lang={lang}>
+                {LANGUAGE_NAMES[lang]}
+              </option>
+            ))}
+          </Select>
         </Field>
 
         <hr className={styles.profileHr} />

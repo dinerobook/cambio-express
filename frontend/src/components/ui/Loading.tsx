@@ -1,15 +1,17 @@
 import type { CSSProperties, ReactNode } from "react";
 
+import { useT } from "../../i18n";
 import { fontSize, space, tokens } from "./tokens";
 
 /** Inline "Loading…" with optional label. For full-region
  *  loading states use ``<TableSkeleton>``. */
 export function Loading({
-  label = "Loading…", style,
+  label, style,
 }: {
   label?: ReactNode;
   style?: CSSProperties;
 }) {
+  const t = useT();
   return (
     <p
       style={{
@@ -25,7 +27,7 @@ export function Loading({
       aria-live="polite"
     >
       <Spinner />
-      {label}
+      {label ?? t("common.loading")}
     </p>
   );
 }

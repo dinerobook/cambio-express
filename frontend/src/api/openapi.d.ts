@@ -12943,6 +12943,8 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
+            /** Language */
+            language?: ("en" | "es") | null;
             /** Last Login At */
             last_login_at: string;
             /** Phone */
@@ -12974,6 +12976,8 @@ export interface components {
             email?: string | null;
             /** Full Name */
             full_name?: string | null;
+            /** Language */
+            language?: ("en" | "es") | null;
             /** Phone */
             phone?: string | null;
             /** Theme Preference */

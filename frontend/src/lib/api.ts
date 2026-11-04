@@ -18,6 +18,7 @@ import {
   clearAccessToken, clearRefreshFallback, getRefreshFallback,
   persistLoginResponse,
 } from "./auth";
+import { translateServerMessage } from "../i18n/serverMessages";
 
 export class ApiError extends Error {
   status: number;
@@ -39,13 +40,18 @@ export class ApiError extends Error {
  *  the person (WebAuthn cancel, push permission denied, Stripe.js
  *  connect, geolocation). Leave it off for a plain fetch: there a
  *  non-ApiError is "Failed to fetch" / a JSON parse error, and the
- *  fallback reads better. */
+ *  fallback reads better.
+ *
+ *  A server sentence the translator knows (i18n/serverMessages.ts)
+ *  comes back in the person's language; English is unchanged. */
 export function apiErrorMessage(
   err: unknown,
   fallback: string,
   { anyError = false }: { anyError?: boolean } = {},
 ): string {
-  if (err instanceof ApiError) return err.message || fallback;
+  if (err instanceof ApiError) {
+    return err.message ? translateServerMessage(err.message, err.status) : fallback;
+  }
   if (anyError && err instanceof Error && err.message) return err.message;
   return fallback;
 }
