@@ -187,6 +187,8 @@ export interface ProfileUpdateBody {
   phone?:            string;
   timezone?:         string;
   theme_preference?: ThemePreference;
+  /** "en" | "es" — the person's app language (UI-STANDARDS §10). */
+  language?:         ProfileResponse["language"];
 }
 
 export function useProfile() {

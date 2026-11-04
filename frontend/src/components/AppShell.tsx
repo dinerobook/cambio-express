@@ -10,6 +10,7 @@ import StoreGate from "./StoreGate";
 import { DisplayTimezone } from "./DisplayTimezone";
 import { recordVisit } from "../lib/recency";
 import { reconcileTheme } from "../lib/theme";
+import { reconcileLanguage, useT } from "../i18n";
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { ImpersonationBanner } from "./ImpersonationBanner";
 import { CommandPalette } from "./CommandPalette";
@@ -67,6 +68,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     reconcileTheme(profile?.theme_preference);
   }, [profile?.theme_preference]);
+  // Same for the person's language (UI-STANDARDS §10): the profile
+  // wins over the device's last choice, so it follows them around.
+  useEffect(() => {
+    reconcileLanguage(profile?.language);
+  }, [profile?.language]);
 
   // Auto-close the drawer on navigation. Without this, tapping a
   // nav link on mobile would route to the new page but leave the
@@ -190,12 +196,13 @@ function Topbar({
   const referralCode = canAccess("/settings/referrals")
     ? storeInfo.data?.referral_code
     : undefined;
+  const t = useT();
   return (
     <header className="app-topbar">
       <button
         type="button"
         className="app-hamburger"
-        aria-label="Open navigation"
+        aria-label={t("shell.openNavigation")}
         onClick={onToggleDrawer}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -227,6 +234,7 @@ function Topbar({
 // Nothing renders for a paid store: the server sends `trial: null`.
 function TrialChip() {
   const session = useSessionStatus();
+  const t = useT();
   const trial = session.data?.trial;
   if (!trial) return null;
   // Everyone in the store sees how long is left; only someone who
@@ -244,23 +252,25 @@ function TrialChip() {
       <span className="app-trial-chip-text">
         {trial.status === "active" || trial.status === "expiring_soon"
           ? (trial.days_left === 0
-              ? "Trial ends today"
-              : `${trial.days_left} day${trial.days_left === 1 ? "" : "s"} left`)
-          : "Trial ended"}
+              ? t("shell.trialEndsToday")
+              : trial.days_left === 1
+                ? t("shell.trialDayLeft")
+                : t("shell.trialDaysLeft", { count: trial.days_left }))
+          : t("shell.trialEnded")}
       </span>
-      {canPay && <span className="app-trial-chip-cta">Subscribe</span>}
+      {canPay && <span className="app-trial-chip-cta">{t("shell.subscribe")}</span>}
     </>
   );
   const cls = `app-trial-chip is-${trial.tone}`;
   if (!canPay) {
     return (
-      <span className={cls} title={`${trial.message} Ask your store admin to subscribe.`}>
+      <span className={cls} title={t("shell.trialAskAdmin", { message: trial.message })}>
         {body}
       </span>
     );
   }
   return (
-    <Link to="/subscribe" className={cls} title={`${trial.message} Click to subscribe.`}>
+    <Link to="/subscribe" className={cls} title={t("shell.trialClickToSubscribe", { message: trial.message })}>
       {body}
     </Link>
   );
@@ -277,16 +287,17 @@ function StoreSwitchChip({
 }) {
   const [open, setOpen] = useState(false);
   const session = useSessionStatus();
+  const t = useT();
   const inStore = identity?.role === "admin" && identity?.owner_id != null;
   const label = inStore
-    ? (session.data?.store_name || "Switch store")
-    : "Enter a store";
+    ? (session.data?.store_name || t("shell.switchStore"))
+    : t("shell.enterStore");
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Switch store"
+        title={t("shell.switchStore")}
         className="app-store-chip"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -310,12 +321,13 @@ function StoreSwitchChip({
 
 function ReferralBadge({ code }: { code: string }) {
   const navigate = useNavigate();
+  const t = useT();
   return (
     <button
       type="button"
       onClick={() => navigate("/account/referrals")}
-      title={`Earn $100 — share your code: ${code}`}
-      aria-label="Referrals: earn $100"
+      title={t("shell.referralTitle", { code })}
+      aria-label={t("shell.referralLabel")}
       className="app-referral-badge"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
@@ -330,16 +342,18 @@ function ReferralBadge({ code }: { code: string }) {
 
 function MaintenanceBanner() {
   const [msg, setMsg] = useState<string | null>(null);
+  const t = useT();
   useEffect(() => {
     fetch("/api/v2/maintenance-status")
       .then((r) => r.json())
       .then((d: { enabled: boolean; message: string }) => {
-        if (d.enabled) setMsg(d.message || "The platform is under maintenance.");
+        // "" = on, with no message of its own: the default below.
+        if (d.enabled) setMsg(d.message || "");
         else setMsg(null);
       })
       .catch(() => {});
   }, []);
-  if (!msg) return null;
+  if (msg === null) return null;
   return (
     <div style={{
       background: "var(--db-tone-warning-bg)",
@@ -350,7 +364,7 @@ function MaintenanceBanner() {
       fontSize: "0.88rem",
       fontWeight: 500,
     }}>
-      {msg}
+      {msg || t("shell.maintenance")}
     </div>
   );
 }

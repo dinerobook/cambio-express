@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import { type CSSProperties, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
@@ -148,7 +149,7 @@ function sizeClass(size: "sm" | "md" | "lg"): string {
  *  `open` is false and the modal renders nothing. */
 export function ConfirmDialog({
   open, title, message, onConfirm, onCancel, busy = false,
-  confirmLabel = "Confirm", cancelLabel = "Cancel",
+  confirmLabel, cancelLabel,
   confirmTone = "primary", error,
 }: {
   open: boolean;
@@ -171,6 +172,7 @@ export function ConfirmDialog({
    *  Save/Confirm flow. */
   confirmTone?: Extract<ButtonTone, "primary" | "danger">;
 }) {
+  const t = useT();
   return (
     <Modal
       open={open}
@@ -181,7 +183,7 @@ export function ConfirmDialog({
       actions={
         <>
           <Button tone="secondary" onClick={onCancel} disabled={busy}>
-            {cancelLabel}
+            {cancelLabel ?? t("common.cancel")}
           </Button>
           <Button
             tone={confirmTone}
@@ -189,7 +191,7 @@ export function ConfirmDialog({
             busy={busy}
             disabled={busy}
           >
-            {confirmLabel}
+            {confirmLabel ?? t("common.confirm")}
           </Button>
         </>
       }

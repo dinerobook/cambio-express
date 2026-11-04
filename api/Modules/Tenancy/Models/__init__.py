@@ -263,6 +263,11 @@ class User(Base):
     # per-user (not per-device) so the preference follows the user
     # across browsers / devices. Logged-out pages always render dark.
     theme_preference = Column(String(8), default="dark")
+    # UI language (Spanish in the app, 2026-11-04). NULL = English,
+    # the default, so nobody sees a change until they pick Spanish
+    # under Settings → Profile. Read through
+    # ``api.Modules.Auth.Services.profile.normalize_language``.
+    language = Column(String(8), nullable=True)
     # Per-user module access (U-3): NULL = every module the store
     # has (the default); a comma-separated subset of
     # MODULE_FLAG_KEYS restricts what this user's nav/session

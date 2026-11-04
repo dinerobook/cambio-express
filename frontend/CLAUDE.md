@@ -189,6 +189,22 @@ table is the kit `<DataTable>` (row count, rows per page, server sort,
 keyboard rows, phone cards — UI-STANDARDS §7). Reference:
 `src/routes/Transfers.tsx`.
 
+## Language — English and Spanish (root invariant 23)
+Each person picks English or Español in Settings → Profile; English is
+the default and never changes. In a screen listed in `COVERED_FILES`
+(`src/i18n/coverage.test.ts`) every visible word comes from
+`const t = useT()` → `t("area.what")`: English in `src/i18n/en.ts`,
+Spanish in `src/i18n/es.ts` (typed against the English, so a missing
+Spanish string fails `npm run build`). Fill values with `{name}`
+placeholders, never by gluing translated pieces. Sidebar labels go
+through `navWord()` (`src/i18n/navWords.ts`), server sentences through
+`apiErrorMessage` (`src/i18n/serverMessages.ts`), dates through the
+shared formatters (store timezone unchanged, money stays $1,234.56).
+Moving a screen into Spanish: translate it, add a Spanish render test
+with `englishLeftovers()` (`src/test/i18n.ts`), add it to
+`COVERED_FILES`. Names people typed are never translated. Full rules
+and the glossary: UI-STANDARDS §10.
+
 ## OpenAPI → TypeScript types
 The SPA reads request / response shapes from `src/api/openapi.d.ts`,
 generated from the FastAPI app's OpenAPI spec. **Never edit it by

@@ -18,6 +18,8 @@
 
 // Last known zone, per device, so the first paint after a reload
 // is already right while session-status is in flight.
+import { intlLocale } from "../i18n";
+
 const _TZ_CACHE_KEY = "dinerobook.display_tz";
 
 let _displayTz: string | undefined = (() => {
@@ -84,7 +86,9 @@ export function parseTimestamp(iso: string | null | undefined): Date | null {
 function fmt(
   d: Date, opts: Intl.DateTimeFormatOptions, timeZone?: string | null,
 ): string {
-  return new Intl.DateTimeFormat("en-US", {
+  // Words in the person's language (UI-STANDARDS §10); the zone rule
+  // is unchanged. Parsing helpers below stay "en-US" on purpose.
+  return new Intl.DateTimeFormat(intlLocale(), {
     ...opts, timeZone: zoneFor(timeZone),
   }).format(d);
 }
@@ -112,7 +116,7 @@ function render(
     const dayOpts = { ...opts };
     delete dayOpts.hour; delete dayOpts.minute; delete dayOpts.hourCycle;
     delete dayOpts.timeZoneName;
-    return new Intl.DateTimeFormat("en-US", { ...dayOpts, timeZone: "UTC" })
+    return new Intl.DateTimeFormat(intlLocale(), { ...dayOpts, timeZone: "UTC" })
       .format(day);
   }
   const d = parseTimestamp(iso);

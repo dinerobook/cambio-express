@@ -4,9 +4,8 @@ import {
 } from "react-router-dom";
 
 import { ConfirmDialog } from "./ui";
-import {
-  activeUnsavedMessage, DEFAULT_UNSAVED_TITLE,
-} from "../lib/useUnsavedGuard";
+import { activeUnsavedMessage } from "../lib/useUnsavedGuard";
+import { useT } from "../i18n";
 
 // The single router blocker behind every unsaved-changes guard
 // (see lib/useUnsavedGuard.ts). Rendered once in App: while any form
@@ -34,14 +33,15 @@ function LeaveBlocker() {
     [],
   );
   const blocker = useBlocker(shouldBlock);
+  const t = useT();
   const blocked = blocker.state === "blocked";
   return (
     <ConfirmDialog
       open={blocked}
-      title={DEFAULT_UNSAVED_TITLE}
+      title={t("unsaved.title")}
       message={(blocked && activeUnsavedMessage()) || ""}
-      confirmLabel="Leave"
-      cancelLabel="Keep editing"
+      confirmLabel={t("unsaved.leave")}
+      cancelLabel={t("unsaved.keepEditing")}
       confirmTone="danger"
       onConfirm={() => blocker.proceed?.()}
       onCancel={() => blocker.reset?.()}

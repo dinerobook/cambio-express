@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useId, useState } from "react";
 
+import { useT } from "../i18n";
+
 // The one unsaved-changes guard for every edit form in the SPA.
 //
 // A form computes its own `dirty` flag (the draft differs from the
@@ -33,9 +35,9 @@ import { useCallback, useEffect, useId, useState } from "react";
 //     <Button type="submit">Save</Button>
 //   </FormActions>
 
-export const DEFAULT_UNSAVED_TITLE = "Discard unsaved changes?";
-export const DEFAULT_UNSAVED_MESSAGE =
-  "You have unsaved edits on this page. Leave without saving?";
+// The default title and message ("Discard unsaved changes?") are the
+// "unsaved.*" words in i18n/en.ts, read through `t` so a Spanish user
+// gets Spanish.
 
 // ── Registry read by <UnsavedChangesHost> ───────────────────────────
 
@@ -90,8 +92,9 @@ export function useUnsavedGuard(
   dirty: boolean,
   opts: { title?: string; message?: string } = {},
 ): UnsavedGuard {
-  const title = opts.title ?? DEFAULT_UNSAVED_TITLE;
-  const message = opts.message ?? DEFAULT_UNSAVED_MESSAGE;
+  const t = useT();
+  const title = opts.title ?? t("unsaved.title");
+  const message = opts.message ?? t("unsaved.message");
   const id = useId();
 
   // Layer 1: browser-native prompt on refresh / close.
@@ -134,8 +137,8 @@ export function useUnsavedGuard(
       open: pending !== null,
       title,
       message,
-      confirmLabel: "Leave",
-      cancelLabel: "Keep editing",
+      confirmLabel: t("unsaved.leave"),
+      cancelLabel: t("unsaved.keepEditing"),
       confirmTone: "danger",
       onConfirm: () => {
         const action = pending?.proceed;

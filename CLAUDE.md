@@ -143,6 +143,11 @@ is in the file named after the arrow.
     `float`. → `api/CLAUDE.md`
 22. **Security headers leave with every response** —
     `with_page_security_headers` in `asgi.py`. → `api/CLAUDE.md`
+23. **English is the default; Spanish is per person** — a screen in
+    `COVERED_FILES` reads every word through `useT()` / `t()`
+    (`frontend/src/i18n/`), never typed English; a new English string
+    needs its Spanish twin or the build fails. → `frontend/CLAUDE.md`,
+    UI-STANDARDS §10
 
 Money modules carry an `INVARIANTS.md` (Auth, BankSync, DailyBook,
 Monthly, Transfers). It loads with that module's `CLAUDE.md`; the SPA

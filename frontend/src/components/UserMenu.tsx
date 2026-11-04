@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type { getCurrentIdentity } from "../lib/auth";
+import { useT } from "../i18n";
 import styles from "./UserMenu.module.css";
 
 // Topbar user menu — circular avatar button → fade-scale-in
@@ -29,6 +30,7 @@ export function UserMenu({
 }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const t = useT();
 
   const username = identity?.username || "";
   const initial = (username[0] || "·").toUpperCase();
@@ -40,7 +42,7 @@ export function UserMenu({
         <button
           type="button"
           className={styles.avatarBtn}
-          aria-label={`User menu for ${username || "current user"}`}
+          aria-label={t("shell.userMenu", { name: username || t("shell.currentUser") })}
         >
           <span className={styles.avatar}>{initial}</span>
         </button>
@@ -63,14 +65,14 @@ export function UserMenu({
             onSelect={() => navigate("/settings/profile")}
           >
             <ProfileIcon />
-            <span>Profile</span>
+            <span>{t("shell.profile")}</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item
             className={styles.item}
             onSelect={() => navigate("/account/notifications")}
           >
             <BellIcon />
-            <span>Notifications</span>
+            <span>{t("shell.notifications")}</span>
           </DropdownMenu.Item>
           <DropdownMenu.Separator className={styles.divider} />
           <DropdownMenu.Item
@@ -78,7 +80,7 @@ export function UserMenu({
             onSelect={onSignOut}
           >
             <SignOutIcon />
-            <span>Sign out</span>
+            <span>{t("shell.signOut")}</span>
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

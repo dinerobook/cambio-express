@@ -7,6 +7,7 @@ import { Alert, Button, Field, Input, Pill } from "../components/ui";
 import { api, apiErrorMessage } from "../lib/api";
 import { persistLoginResponse } from "../lib/auth";
 import { autoEnterOwnerStore } from "../api/switchStore";
+import { useT } from "../i18n";
 import styles from "./Login.module.css";
 import chrome from "./auth.module.css";
 import {
@@ -42,6 +43,7 @@ export default function Login() {
     useState<StoreChoice[] | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const t = useT();
   const stateDest = (location.state as LocationState | null)?.from;
 
   async function finishLogin(result: LoginResponse) {
@@ -106,7 +108,7 @@ export default function Login() {
       if (choices) {
         setStoreChoices(choices);
       } else {
-        setError(apiErrorMessage(err, "Network error. Please try again."));
+        setError(apiErrorMessage(err, t("common.networkError")));
       }
     } finally {
       setBusy(false);
@@ -126,7 +128,7 @@ export default function Login() {
       });
       await handleResult(result);
     } catch (err) {
-      setError(apiErrorMessage(err, "Network error. Please try again."));
+      setError(apiErrorMessage(err, t("common.networkError")));
       setStoreChoices(null);
     } finally {
       setBusy(false);
@@ -135,7 +137,7 @@ export default function Login() {
 
   return (
     <AuthChrome
-      navLink={{ to: "/signup", label: "Create an account" }}
+      navLink={{ to: "/signup", label: t("login.createAccountNav") }}
       aside={<LoginShowcase />}
     >
       <div className={chrome.stack}>
@@ -179,18 +181,19 @@ function PrimaryForm({
   busy: boolean;
   onSubmit: (e: FormEvent) => void;
 }) {
+  const t = useT();
   return (
     <>
-      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>Sign in</h2>
-      <p className={chrome.cardSub} style={{ margin: 0 }}>Welcome back. Pick up where you left off.</p>
+      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>{t("login.title")}</h2>
+      <p className={chrome.cardSub} style={{ margin: 0 }}>{t("login.subtitle")}</p>
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-        <Field label="Email or phone">
+        <Field label={t("login.username")}>
           <Input
             type="text"
-            placeholder="you@store.com or (555) 123-4567"
+            placeholder={t("login.usernamePlaceholder")}
             autoFocus required
             autoComplete="username"
             value={username}
@@ -201,12 +204,12 @@ function PrimaryForm({
         <Field
           label={
             <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span>Password</span>
+              <span>{t("login.password")}</span>
               <Link
                 to="/forgot-password"
                 style={{ fontSize: "0.78rem", color: "var(--db-neon)", fontWeight: 500, textDecoration: "none" }}
               >
-                Forgot?
+                {t("login.forgot")}
               </Link>
             </span>
           }
@@ -229,7 +232,7 @@ function PrimaryForm({
           disabled={busy || !username || !password}
           style={{ width: "100%" }}
         >
-          {busy ? "Signing in…" : "Sign in →"}
+          {busy ? t("login.submitting") : t("login.submit")}
         </Button>
       </form>
 
@@ -240,7 +243,7 @@ function PrimaryForm({
           complicated. /login/:slug still resolves for old bookmarks. */}
 
       <div className={chrome.centerRow}>
-        New to DineroBook? <Link to="/signup">Create an account →</Link>
+        {t("login.newHere")} <Link to="/signup">{t("login.createAccount")}</Link>
       </div>
 
       {/* No uptime or encryption badges here: a claim on a sign-in
@@ -248,7 +251,7 @@ function PrimaryForm({
           pretending to be one. */}
       <div className={chrome.footer}>
         <div className={chrome.copyright}>
-          © 2026 DineroBook · <a href="/privacy">Privacy</a>
+          {t("login.copyright")} · <a href="/privacy">{t("common.privacy")}</a>
         </div>
       </div>
     </>
@@ -268,12 +271,12 @@ function StorePicker({
   onPick: (storeId: number) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <>
-      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>Which store?</h2>
+      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>{t("login.pickStoreTitle")}</h2>
       <p className={chrome.cardSub} style={{ margin: 0 }}>
-        Your sign-in works at more than one store. Pick the one you
-        want to open.
+        {t("login.pickStoreSubtitle")}
       </p>
 
       {error && <Alert tone="error">{error}</Alert>}
@@ -288,7 +291,7 @@ function StorePicker({
             disabled={busy}
           >
             <span className={styles.storeChoiceName}>
-              {c.store_name || `Store #${c.store_id}`}
+              {c.store_name || t("login.storeNumber", { id: c.store_id })}
             </span>
             {c.role && (
               <span className={styles.storeChoiceRole}>{c.role}</span>
@@ -302,7 +305,7 @@ function StorePicker({
         onClick={onCancel} disabled={busy}
         style={{ width: "100%" }}
       >
-        Back
+        {t("common.back")}
       </Button>
     </>
   );
@@ -316,6 +319,7 @@ function SecondFactor({
   onSuccess: (result: LoginResponse) => void | Promise<void>;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [mode, setMode]   = useState<"totp" | "recovery">("totp");
   const [code, setCode]   = useState("");
   const [busy, setBusy]   = useState(false);
@@ -336,10 +340,10 @@ function SecondFactor({
       if (result.access_token) {
         await onSuccess(result);
       } else {
-        setError("Server returned an unexpected response.");
+        setError(t("common.unexpectedResponse"));
       }
     } catch (err) {
-      setError(apiErrorMessage(err, "Network error. Please try again."));
+      setError(apiErrorMessage(err, t("common.networkError")));
     } finally {
       setBusy(false);
     }
@@ -347,18 +351,18 @@ function SecondFactor({
 
   return (
     <>
-      <Pill tone="accent" dot mono>TWO-FACTOR REQUIRED</Pill>
-      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>Verify your identity</h2>
+      <Pill tone="accent" dot mono>{t("login.twoFactorPill")}</Pill>
+      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>{t("login.twoFactorTitle")}</h2>
       <p className={chrome.cardSub} style={{ margin: 0 }}>
         {mode === "totp"
-          ? "Enter the 6-digit code from your authenticator app."
-          : "Enter one of your single-use recovery codes."}
+          ? t("login.twoFactorTotpHint")
+          : t("login.twoFactorRecoveryHint")}
       </p>
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-        <Field label={mode === "totp" ? "Verification code" : "Recovery code"}>
+        <Field label={mode === "totp" ? t("login.verificationCode") : t("login.recoveryCode")}>
           <Input
             type="text"
             autoComplete="one-time-code"
@@ -384,7 +388,7 @@ function SecondFactor({
           disabled={busy || !code}
           style={{ width: "100%" }}
         >
-          {busy ? "Verifying…" : "Verify →"}
+          {busy ? t("login.verifying") : t("login.verify")}
         </Button>
       </form>
 
@@ -394,7 +398,7 @@ function SecondFactor({
             tone="ghost"
             onClick={() => { setMode("recovery"); setCode(""); setError(null); }}
           >
-            Use a recovery code
+            {t("login.useRecoveryCode")}
           </Button>
         )}
         {mode === "recovery" && (
@@ -402,15 +406,15 @@ function SecondFactor({
             tone="ghost"
             onClick={() => { setMode("totp"); setCode(""); setError(null); }}
           >
-            Back to authenticator code
+            {t("login.backToAuthenticator")}
           </Button>
         )}
-        <Button tone="ghost" onClick={onCancel}>Cancel</Button>
+        <Button tone="ghost" onClick={onCancel}>{t("common.cancel")}</Button>
       </div>
 
       <div className={chrome.footer}>
         <div className={chrome.copyright}>
-          © 2026 DineroBook · <a href="/privacy">Privacy</a>
+          {t("login.copyright")} · <a href="/privacy">{t("common.privacy")}</a>
         </div>
       </div>
     </>

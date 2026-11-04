@@ -1,0 +1,35 @@
+/* EN | ES on the signed-out nav. Fixed width so the nav never moves
+   when the choice flips (UI-STANDARDS: controls don't shift). */
+.switch {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--db-gray-3);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.option {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--db-gray-7);
+  font: 600 12px/1 var(--db-font-mono);
+  letter-spacing: 0.04em;
+  width: 34px;
+  height: 26px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.option:hover { color: var(--db-gray-9); }
+
+.option[aria-pressed="true"] {
+  background: var(--db-neon);
+  color: var(--db-neon-ink);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--db-neon);
+  outline-offset: 2px;
+}

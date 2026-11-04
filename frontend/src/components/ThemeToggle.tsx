@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { updateProfile } from "../api/account";
 import { applyTheme, getCurrentTheme, type Theme } from "../lib/theme";
+import { useT } from "../i18n";
 import styles from "./ThemeToggle.module.css";
 
 // Topbar button that flips dark ↔ light.
@@ -18,6 +19,7 @@ import styles from "./ThemeToggle.module.css";
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(getCurrentTheme);
+  const t = useT();
 
   function onToggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
@@ -32,8 +34,8 @@ export default function ThemeToggle() {
   }
 
   const label = theme === "dark"
-    ? "Switch to light mode"
-    : "Switch to dark mode";
+    ? t("shell.lightMode")
+    : t("shell.darkMode");
 
   return (
     <button

@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { UnsavedGuard } from "../../lib/useUnsavedGuard";
 import { ConfirmDialog } from "./Modal";
 import { Pill } from "./Pill";
+import { useT } from "../../i18n";
 
 // The Save / Cancel button bar at the bottom of every form. Inline
 // styles for this row were duplicated across ~20 route files
@@ -46,9 +47,10 @@ export function FormActions({
    *  forms whose Save would otherwise scroll out of view. */
   sticky?: boolean;
 }) {
+  const t = useT();
   const dirty = guard?.dirty ?? false;
   const status = dirty
-    ? <Pill tone="warning" dot>Unsaved changes</Pill>
+    ? <Pill tone="warning" dot>{t("unsaved.pill")}</Pill>
     : note;
   const className = [
     "ds-form-actions",
