@@ -108,17 +108,9 @@ def matching_enabled(db: Session, store_id: int) -> bool:
     undeclared flags, a database with no registry row yet (a test
     database, a boot before the seed) reads the declared default —
     off — so nothing changes for a store until it is switched on."""
-    from api.Modules.Billing.Models import FeatureFlag, StoreFeatureOverride
+    from api.Modules.Billing.Services.feature_flags import opt_in_flag_enabled
 
-    override = (
-        db.query(StoreFeatureOverride)
-          .filter_by(store_id=store_id, flag_key=FEATURE_FLAG)
-          .first()
-    )
-    if override is not None:
-        return bool(override.enabled)
-    flag = db.query(FeatureFlag).filter_by(key=FEATURE_FLAG).first()
-    return bool(flag.enabled_by_default) if flag is not None else False
+    return opt_in_flag_enabled(db, store_id, FEATURE_FLAG)
 
 
 def bank_check_number(description: str | None) -> int | None:

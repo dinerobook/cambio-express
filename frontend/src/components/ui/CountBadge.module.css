@@ -1,0 +1,34 @@
+/* Phone-style count circle (CountBadge.tsx). Negative state colour,
+   not the neon accent, so it reads as "needs attention". Drawn ON
+   TOP of its parent (absolute) so the parent keeps its size whether
+   the count is 0, 3 or 12 — desktop navigation controls never move. */
+
+.pinned,
+.inline {
+  background: var(--db-negative);
+  color: var(--db-on-negative);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.pinned {
+  position: absolute;
+  top: var(--count-badge-top, -0.35rem);
+  right: var(--count-badge-right, -0.35rem);
+  box-shadow: 0 0 0 2px var(--db-bg);
+}
+
+.inline {
+  margin-left: auto;
+}

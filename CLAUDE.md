@@ -10,6 +10,7 @@
 > | [`api/`](api/CLAUDE.md) | module map, `api/Core` helpers, the detail behind the backend invariants below, mypy ratchet, templates |
 > | `api/Modules/{Auth,BankSync,DailyBook,Monthly,Transfers}/` | that module's `INVARIANTS.md` (imported, so it is always in view) |
 > | [`api/Modules/Customers/`](api/Modules/Customers/CLAUDE.md) | the Transfers invariants (customer upsert) |
+> | [`api/Modules/Notifications/`](api/Modules/Notifications/CLAUDE.md) | the top-bar bell: how items are built, how to add one |
 > | [`frontend/`](frontend/CLAUDE.md) | design system, UI standards, OpenAPI types, the SPA checks CI runs |
 > | [`alembic/`](alembic/CLAUDE.md) | migrations and table naming |
 >
@@ -143,6 +144,11 @@ is in the file named after the arrow.
     `float`. → `api/CLAUDE.md`
 22. **Security headers leave with every response** —
     `with_page_security_headers` in `asgi.py`. → `api/CLAUDE.md`
+23. **The bell is the one "something to do" alert** — a new reminder is
+    a read-only bell source with a permission (`SOURCES`, `BellKind`)
+    plus its `BELL_ITEMS` row, never a new top-bar banner; items are
+    worked out live, only dismissals (one store day) are stored.
+    → `api/Modules/Notifications/CLAUDE.md`, UI-STANDARDS §10
 
 Money modules carry an `INVARIANTS.md` (Auth, BankSync, DailyBook,
 Monthly, Transfers). It loads with that module's `CLAUDE.md`; the SPA

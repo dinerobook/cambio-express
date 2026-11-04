@@ -3089,6 +3089,138 @@
         "title": "BatchWriteRequest",
         "type": "object"
       },
+      "BellDismissRequest": {
+        "additionalProperties": false,
+        "description": "Dismiss (or undo the dismissal of) one item for today.",
+        "properties": {
+          "key": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "BellDismissRequest",
+        "type": "object"
+      },
+      "BellItem": {
+        "additionalProperties": false,
+        "description": "One row in the bell's list. Words, icon and link are the\nSPA's job (``bellItems.ts``); the server sends only what the\nsentence needs.",
+        "properties": {
+          "amount_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Cents"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "daily_book.unlocked",
+              "daily_book.due_back",
+              "bank.to_check",
+              "return_checks.pending"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "urgency": {
+            "enum": [
+              "overdue",
+              "due"
+            ],
+            "title": "Urgency",
+            "type": "string"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "urgency",
+          "count"
+        ],
+        "title": "BellItem",
+        "type": "object"
+      },
+      "BellResponse": {
+        "additionalProperties": false,
+        "description": "``GET /notifications/bell``. ``enabled: false`` (no store, or\nthe store's ``notification_bell`` flag off) means the SPA shows\nno bell at all.",
+        "properties": {
+          "can_dismiss": {
+            "title": "Can Dismiss",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BellItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "store_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Day"
+          }
+        },
+        "required": [
+          "enabled",
+          "store_day",
+          "can_dismiss",
+          "items"
+        ],
+        "title": "BellResponse",
+        "type": "object"
+      },
       "BillingPortalResponse": {
         "additionalProperties": false,
         "description": "Mint succeeded \u2014 `url` is the Stripe-hosted Billing Portal\nURL the SPA should redirect the user to.",
@@ -37324,6 +37456,224 @@
         "summary": "Update Monthly Route",
         "tags": [
           "monthly"
+        ]
+      }
+    },
+    "/notifications/bell": {
+      "get": {
+        "description": "The signed-in person's bell items for the store they are in.",
+        "operationId": "bell_route_notifications_bell_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BellResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bell Route",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/bell/dismiss": {
+      "post": {
+        "description": "Hide one item for this person until the store's next day.",
+        "operationId": "bell_dismiss_route_notifications_bell_dismiss_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BellDismissRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bell Dismiss Route",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/bell/undismiss": {
+      "post": {
+        "description": "Undo today's dismissal of one item (the toast's Undo).",
+        "operationId": "bell_undismiss_route_notifications_bell_undismiss_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BellDismissRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bell Undismiss Route",
+        "tags": [
+          "notifications"
         ]
       }
     },

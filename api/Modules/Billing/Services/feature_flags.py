@@ -138,6 +138,35 @@ def store_feature_enabled(
     return bool(flag.enabled_by_default)
 
 
+def opt_in_flag_enabled(db: Session, store_id: int, flag_key: str) -> bool:
+    """Resolve an OPT-IN flag: a switch for new behaviour that must
+    stay off until someone turns it on (the owner's store first,
+    every store once it has proven itself).
+
+    Lookup: per-store override → the registry row's default → the
+    default declared in ``DEFAULT_FEATURE_FLAGS`` → off. Unlike
+    ``store_feature_enabled`` it never fails open: a database with no
+    registry row yet (a test database, a boot before the seed) reads
+    the declared default, so nothing changes for a store until it is
+    switched on. Used by ``bank_matching`` and ``notification_bell``.
+    """
+    override = (
+        db.query(StoreFeatureOverride)
+          .filter_by(store_id=store_id, flag_key=flag_key)
+          .first()
+    )
+    if override is not None:
+        return bool(override.enabled)
+    flag = db.query(FeatureFlag).filter_by(key=flag_key).first()
+    if flag is not None:
+        return bool(flag.enabled_by_default)
+    from api.Core.Bootstrap import DEFAULT_FEATURE_FLAGS
+    for key, _label, _desc, default in DEFAULT_FEATURE_FLAGS:
+        if key == flag_key:
+            return bool(default)
+    return False
+
+
 def enabled_module_flags(db: Session, store: Store | None) -> list[str]:
     """The module flags currently ON for this store — the SPA reads
     this off /auth/session-status to decide which nav sections and

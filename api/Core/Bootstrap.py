@@ -100,6 +100,14 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
      "Recognise a bank transaction that is already in the daily book, "
      "link it instead of adding it twice, and let admins dismiss "
      "transactions that were already handled.", False),
+    # Off until a store is switched on (owner, 2026-11-04): the
+    # top-bar bell, owner's store first. Resolved with
+    # ``opt_in_flag_enabled`` — never fails open.
+    # api/Modules/Notifications/CLAUDE.md.
+    ("notification_bell", "Notification bell",
+     "Show the bell in the top bar with the store's to-do items "
+     "(days not locked, cash due back, bank rows to check, old "
+     "returned checks).", False),
     # Module flags. The business-type bundle decides these per
     # store (``_BUSINESS_TYPE_MODULE_DEFAULTS``); the rows exist so
     # the superadmin Feature-flags page can set a PER-STORE override

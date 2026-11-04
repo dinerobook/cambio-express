@@ -311,6 +311,9 @@ Known shared components, and what they own:
 | `PageCrumbs` (`components/PageCrumbs.tsx`) | a hand-typed `<Breadcrumbs crumbs={[…]}>` trail |
 | `fmtCount` (`lib/formatters`) | `` `${n.toLocaleString()} ${n === 1 ? "x" : "xs"}` `` |
 | `useUnsavedGuard` / `useDirtyBaseline` + `<FormActions guard>` | your own `beforeunload`, "Unsaved changes" label, leave-confirm dialog, baseline-vs-draft compare, or save bar — see "Unsaved changes" in §2 |
+| `CountBadge` (kit) | a page-local red count circle, an `UnreadBadge`, or a badge that sits in the flow and widens its button — it is drawn on top of its parent so the control never changes size, hides at 0 and caps at `max` ("99+", "9+") |
+| `NotificationBell` (`components/NotificationBell.tsx`) + `BELL_ITEMS` (`lib/bellItems.ts`) | a new top-bar banner, chip or badge that tells someone there is work to do — add a bell item instead (§10) |
+| `toast({ …, action: { label: "Undo", onClick } })` | a hand-built "Undo" link inside a toast message |
 | `useApiErrorToast` | `toast({ message: err instanceof ApiError ? … , tone: "error" })` |
 | `*_STATUS_TONES` in `api/` (`BATCH_`, `TRANSFER_`, `RETURN_CHECK_`, `TICKET_`) | a per-route status → tone map |
 | `fmtMoney2` / `formatDate` / `formatTimestamp` | `toFixed(2)`, `.slice(0, 10)`, `toLocaleDateString()` |
@@ -527,3 +530,43 @@ This is enforced by the kit, not by per-page checks:
   with the shared component to use and what it replaces. Where a
   grep can catch a relapse, add it to `lib/sourceGuards.test.ts`.
   Owner's standing rule (2026-10-21).
+
+## 10. The bell — one place for "something to do"
+
+The top-bar bell (`components/NotificationBell.tsx`) is the only place
+the app tells a signed-in person that work is waiting: a day not
+locked, cash due back, bank rows to check, an old returned check. It
+is behind the per-store `notification_bell` flag (Platform → Feature
+flags), off until switched on. Owner, 2026-11-04.
+
+- **Fixed size, fixed spot.** The button is 2.25rem square between the
+  install button and the theme toggle. Its count is a `CountBadge`
+  drawn on top of it, capped at "9+", hidden at 0. The bar never moves
+  whether the count is 0 or 12.
+- **The label carries the count:** "Notifications, 3 need attention" /
+  "Notifications, none". The badge is `aria-hidden`.
+- **The panel** is a Radix Popover (§5): Escape and outside click
+  close it, focus returns to the bell, it scrolls inside (max 70% of
+  the screen) and is the full width of a phone less 0.5rem a side.
+  Each row is an `AppLink` to the page that fixes it (icon, one-line
+  title, one detail line) plus a Dismiss button labelled "Dismiss for
+  today: <title>". Overdue rows use the warning tone, today's the info
+  tone. Empty: "You're all caught up." Footer: "Dismissed items come
+  back tomorrow if they are still open."
+- **Dismiss lasts one store day**, per person. The row leaves at once,
+  a toast says "Dismissed for today." with Undo. During a superadmin
+  "Sign in as" the bell shows but Dismiss does not (`can_dismiss`).
+- **No access, no control:** a row whose page `canAccess` refuses is not
+  shown, and the server only sends items the person's permissions,
+  modules and features allow.
+- **Adding an item** is a server source (rules in
+  `api/Modules/Notifications/CLAUDE.md`) plus one row in `BELL_ITEMS`
+  (`lib/bellItems.ts`): words, icon, link — sentence case, counts
+  through `fmtCount`, money through `fmtMoney2`, days through
+  `dayWords` (Today / Yesterday against the STORE's day). The row is
+  typed `Record<BellKind, …>`, so a server kind without its row fails
+  `npm run build`. Never a new top-bar banner or badge for the same
+  job.
+- Tests: `NotificationBell.test.tsx` (size at 0 / 3 / 12, labels,
+  links, access, dismiss, Undo, refused dismiss, Sign in as) and
+  `lib/bellItems.test.ts` (every row's words and link).

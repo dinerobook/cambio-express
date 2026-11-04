@@ -103,6 +103,7 @@ export { Checkbox } from "./Checkbox";
 export { Switch } from "./Switch";
 export { Tooltip } from "./Tooltip";
 export { InfoTip } from "./InfoTip";
+export { CountBadge } from "./CountBadge";
 /* eslint-disable react-refresh/only-export-components -- public DS surface: re-export `useToast` from this barrel so consumers don't learn two import paths.  Same trade-off as the tokens block above. */
 export {
   ToastProvider,

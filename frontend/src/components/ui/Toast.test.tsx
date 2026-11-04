@@ -98,3 +98,42 @@ describe("<ToastProvider> + useToast", () => {
     err.mockRestore();
   });
 });
+
+describe("toast action", () => {
+  function ActionTrigger({ onUndo }: { onUndo: () => void }) {
+    const toast = useToast();
+    return (
+      <button onClick={() => toast({
+        message: "Dismissed for today.", tone: "info",
+        action: { label: "Undo", onClick: onUndo },
+      })}>push</button>
+    );
+  }
+
+  it("runs the action once and closes the toast", async () => {
+    const user = userEvent.setup();
+    const onUndo = vi.fn();
+    render(
+      <ToastProvider>
+        <ActionTrigger onUndo={onUndo} />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByText("push"));
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.queryByText("Dismissed for today.")).toBeNull();
+    });
+  });
+
+  it("renders no action button when none is given", async () => {
+    const user = userEvent.setup();
+    render(
+      <ToastProvider>
+        <Trigger message="Saved." />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByText("push"));
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+});

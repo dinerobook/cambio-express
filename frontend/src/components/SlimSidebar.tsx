@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
+import { CountBadge } from "./ui";
 import { sectionSlug } from "./navConfig";
 import styles from "./SlimSidebar.module.css";
 
@@ -164,7 +165,7 @@ export function SlimSidebar({
           >
             <span className={styles.groupIcon}>{supportLink.icon}</span>
             <span className={styles.groupLabel}>{supportLink.label}</span>
-            <UnreadBadge count={supportBadge} />
+            <CountBadge count={supportBadge} />
           </NavLink>
         )}
       </div>
@@ -282,7 +283,7 @@ export function SlimSidebar({
             >
               <span className={styles.itemIcon}>{supportLink.icon}</span>
               <span>{supportLink.label}</span>
-              <UnreadBadge count={supportBadge} inline />
+              <CountBadge count={supportBadge} inline />
             </NavLink>
           </div>
         )}
@@ -291,18 +292,3 @@ export function SlimSidebar({
   );
 }
 
-/** Phone-style red notification circle. Hidden at 0; caps the
- *  display at 99+ so the circle never stretches. `inline` renders
- *  it in the row flow (mobile drawer) instead of pinned to the
- *  icon corner (desktop slim column). */
-function UnreadBadge({ count, inline }: { count: number; inline?: boolean }) {
-  if (count <= 0) return null;
-  return (
-    <span
-      className={inline ? styles.badgeInline : styles.badge}
-      aria-hidden="true"
-    >
-      {count > 99 ? "99+" : count}
-    </span>
-  );
-}

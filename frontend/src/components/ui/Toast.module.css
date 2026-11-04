@@ -114,6 +114,31 @@
   outline-offset: 1px;
 }
 
+/* The toast's one follow-up ("Undo") — a text button in the accent,
+   beside the message, so it never hides under the dismiss ×. */
+.actionBtn {
+  appearance: none;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  padding: 0.1rem 0.35rem;
+  margin: -0.1rem 0;
+  border-radius: 0.4rem;
+  color: var(--db-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actionBtn:hover {
+  background: var(--db-surface-3);
+}
+
+.actionBtn:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 1px;
+}
+
 /* ── Motion ─────────────────────────────────────────────────── */
 
 .enter {

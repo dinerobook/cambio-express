@@ -19,6 +19,9 @@ export interface ToastInput {
   /** Auto-dismiss delay in ms.  Default 3500.  Pass 0 to make
    *  the toast sticky until manually dismissed. */
   duration?: number;
+  /** One short follow-up the person may take, such as "Undo". The
+   *  toast closes when it is pressed. */
+  action?: { label: string; onClick: () => void };
 }
 
 interface ToastRecord extends ToastInput {
@@ -169,6 +172,18 @@ function ToastItem({
     >
       <ToneIcon tone={tone} />
       <span className={styles.message}>{record.message}</span>
+      {record.action && (
+        <button
+          type="button"
+          className={styles.actionBtn}
+          onClick={() => {
+            record.action?.onClick();
+            onStartDismiss(record.id);
+          }}
+        >
+          {record.action.label}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onStartDismiss(record.id)}

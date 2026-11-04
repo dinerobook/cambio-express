@@ -137,6 +137,13 @@ def _register_routers(app: FastAPI) -> None:
     from api.Modules.Support.Controllers import router as support_router
     app.include_router(support_router, prefix="/tickets", tags=["support"])
 
+    from api.Modules.Notifications.Controllers import (
+        router as notifications_router,
+    )
+    app.include_router(
+        notifications_router, prefix="/notifications", tags=["notifications"],
+    )
+
     from api.Modules.Superadmin.Controllers import (
         router as superadmin_router,
     )
