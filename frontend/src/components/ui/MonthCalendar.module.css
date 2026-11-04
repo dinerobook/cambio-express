@@ -51,6 +51,13 @@
 /* ── Cell base ────────────────────────────────────────────── */
 
 .cell {
+  /* The app shell has no global border-box reset: without this the
+     padding and border sit OUTSIDE the grid column, so on a phone the
+     Saturday cell pokes past the card's edge. `width: 100%` pins the
+     cell to its column: otherwise min-height + aspect-ratio make it
+     3rem wide inside a narrower column. */
+  box-sizing: border-box;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -102,6 +109,8 @@
 }
 
 .emptyCell {
+  box-sizing: border-box;
+  width: 100%;
   background: transparent;
   border: 1px solid transparent;
   aspect-ratio: 1 / 1;

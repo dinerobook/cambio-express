@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { components } from "./openapi";
+import type { MessageKey } from "../i18n";
 
 // Full DailyReport payload — every model column the editor needs
 // to hydrate every input, plus derived totals + lock state.
@@ -304,11 +305,12 @@ export type ServiceKind = MTServiceRow["service"];
 
 // The Services box's tabs after Money transfer, in order. Keys match
 // SERVICE_KINDS in api/Modules/DailyBook/Services/mt_breakdown.py.
-export const SERVICE_KINDS: ReadonlyArray<{ key: ServiceKind; label: string }> = [
-  { key: "bill_payment", label: "Bill payments" },
-  { key: "top_up",       label: "Top-ups" },
-  { key: "recharge",     label: "Recharges" },
-  { key: "money_order",  label: "Money orders" },
+// `label` is a translator key (i18n/en.ts): render it with t().
+export const SERVICE_KINDS: ReadonlyArray<{ key: ServiceKind; label: MessageKey }> = [
+  { key: "bill_payment", label: "daily.billPayments" },
+  { key: "top_up",       label: "daily.topUps" },
+  { key: "recharge",     label: "daily.recharges" },
+  { key: "money_order",  label: "daily.moneyOrders" },
 ];
 
 export interface MTBreakdown {

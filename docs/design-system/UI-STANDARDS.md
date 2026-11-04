@@ -594,6 +594,20 @@ pick Spanish; the browser's own language is not used.
   English after every test; existing tests find English text, which is
   the proof English did not change. A Spanish test sets
   `setLanguage("es")` itself.
+- **Counts use `tn()`**, never `count === 1 ? "entry" : "entries"`:
+  `tn("daily.entries", n, fmtNumber)` picks the `.one` / `.other` key
+  by the language's plural rules ("1 entrada", "3 entradas").
+- **Config tables hold keys, not words.** A table of boxes, tabs or
+  columns (`SERVICE_KINDS`, `DAILY_TAB_DEFS`, the money-owed
+  `DIRECTION` table) types its `label` as `MessageKey` and the screen
+  renders `t(label)`. The coverage guard accepts a `label:` only when
+  it is a real key.
+- **Kit components translate their own words** (MonthCalendar's
+  weekdays and legend, PeriodStepper's "Previous day", the confirm
+  buttons), so every page that uses them is covered at once. Month
+  headings use `formatMonthYear()`, weekday headings
+  `weekdayNamesShort()` (`lib/datetime.ts`), never the English
+  `MONTH_NAMES` arrays in a covered screen.
 
 **Glossary** (use these words everywhere, so the same English word is
 always the same Spanish word):
@@ -616,6 +630,18 @@ always the same Spanish word):
 | Sign in / Sign out | Iniciar sesión / Cerrar sesión |
 | Save changes / Cancel | Guardar cambios / Cancelar |
 | Unsaved changes | Cambios sin guardar |
+| Lock / Unlock (button) | Cerrar / Reabrir |
+| In / Out (daily book columns) | Entradas / Salidas |
+| Cash In / Cash Out (boxes) | Entrada de efectivo / Salida de efectivo |
+| Forward balance | Saldo inicial |
+| Safe balance | Saldo de la caja fuerte |
+| Cash deposit (to the bank) | Depósito bancario en efectivo |
+| Check deposits / On hold | Depósitos de cheques / Retenidos |
+| Owed to us / We owe | Nos deben / Debemos |
+| Expected back / We pay this back | Se espera de vuelta / Lo devolvemos |
+| Payroll / Purchases / Expenses | Nómina / Compras / Gastos |
+| Sales / Sales tax / Taxable | Ventas / Impuesto de venta / Gravable |
+| Payouts | Pagos a beneficiarios |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -623,8 +649,11 @@ Sentence case applies in both languages (§7b).
 Covered so far: sign-in (sign-in, store picker, 2FA code step,
 per-store sign-in, forgot / reset password), the app shell (sidebar,
 top bar, user menu, theme button), and the kit's loading text, pager,
-confirm buttons and unsaved-changes bar and prompt. Next: the daily
-book, then transfers, then the rest of the app, then emails.
+confirm buttons and unsaved-changes bar and prompt; the MSB daily
+book (month calendar, day editor, every box and popup, money owed,
+checks on hold, and its server messages), with the kit month calendar
+and day / week / month stepper. Next: transfers, then the rest of the
+app, then emails.
 
 ## 11. The bell — one place for "something to do"
 

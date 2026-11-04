@@ -3,13 +3,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   getLanguage, initLanguageFromDevice, intlLocale, isLanguage,
-  reconcileLanguage, setLanguage, t, useT,
+  reconcileLanguage, setLanguage, t, tn, useT,
 } from "./index";
 import { en, type MessageKey } from "./en";
 import { es } from "./es";
 import { translateServerMessage, SERVER_MESSAGES } from "./serverMessages";
 import { ApiError, apiErrorMessage } from "../lib/api";
-import { formatDate, formatTime } from "../lib/datetime";
+import {
+  formatDate, formatMonthYear, formatTime, weekdayNamesShort,
+} from "../lib/datetime";
 import { fmtMoney2 } from "../lib/formatters";
 
 // The translator's contract (UI-STANDARDS §10): English by default
@@ -23,7 +25,13 @@ function placeholders(s: string): string[] {
 }
 
 // Words that are the same in both languages on purpose.
-const SAME_IN_BOTH: MessageKey[] = ["login.copyright"];
+const SAME_IN_BOTH: MessageKey[] = [
+  "login.copyright",
+  // A brand name, and words Spanish spells the same.
+  "daily.boostMobile", "daily.total", "daily.totalCaps", "daily.totalLabel",
+  // Only placeholders: "{count} {label}".
+  "daily.countOpen",
+];
 
 describe("word lists", () => {
   it("has a Spanish entry for every English key and nothing extra", () => {
@@ -191,5 +199,41 @@ describe("dates and money", () => {
     expect(fmtMoney2(1234.5)).toBe("$1,234.50");
     setLanguage("es");
     expect(fmtMoney2(1234.5)).toBe("$1,234.50");
+  });
+});
+
+describe("counts and month words", () => {
+  it("tn picks the plural form by the language's rules", () => {
+    expect(tn("daily.entries", 0)).toBe("0 entries");
+    expect(tn("daily.entries", 1)).toBe("1 entry");
+    expect(tn("daily.entries", 1234, (n) => n.toLocaleString("en-US")))
+      .toBe("1,234 entries");
+    act(() => setLanguage("es"));
+    expect(tn("daily.entries", 1)).toBe("1 entrada");
+    expect(tn("daily.entries", 2)).toBe("2 entradas");
+    expect(tn("daily.entries", 0)).toBe("0 entradas");
+  });
+
+  it("every .one key has its .other twin", () => {
+    const keys = Object.keys(en);
+    const ones = keys.filter((k) => k.endsWith(".one"));
+    expect(ones.length).toBeGreaterThan(0);
+    for (const k of ones) expect(keys).toContain(k.replace(/\.one$/, ".other"));
+  });
+
+  it("month headings and weekdays follow the language", () => {
+    expect(formatMonthYear(2026, 10)).toBe("October 2026");
+    expect(weekdayNamesShort()).toEqual(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+    act(() => setLanguage("es"));
+    expect(formatMonthYear(2026, 10)).toBe("octubre de 2026");
+    expect(weekdayNamesShort()[0]).toMatch(/^dom/);
+  });
+
+  it("daily book server sentences come back in Spanish", () => {
+    act(() => setLanguage("es"));
+    for (const [sentence, key] of Object.entries(SERVER_MESSAGES)) {
+      expect(translateServerMessage(sentence, 400)).toBe(es[key]);
+    }
+    expect(translateServerMessage("Something else", 400)).toBe("Something else");
   });
 });

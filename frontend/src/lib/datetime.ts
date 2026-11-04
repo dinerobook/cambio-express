@@ -206,6 +206,14 @@ export const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ] as const;
 
+/** A month heading in the person's language: ``November 2026`` /
+ *  ``noviembre de 2026``. ``month`` is 1-12. */
+export function formatMonthYear(year: number, month: number): string {
+  return new Intl.DateTimeFormat(intlLocale(), {
+    month: "long", year: "numeric", timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, 1, 12)));
+}
+
 /** Three-letter month names, same indexing as ``MONTH_NAMES``. */
 export const MONTH_NAMES_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -334,6 +342,17 @@ export function addDaysIso(iso: string, delta: number): string {
 export const WEEKDAY_NAMES_SHORT = [
   "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
 ] as const;
+
+/** Short weekday names in the person's language, Sunday first:
+ *  ``Sun`` … / ``dom`` …. Same indexing as ``WEEKDAY_NAMES_SHORT``. */
+export function weekdayNamesShort(): string[] {
+  const f = new Intl.DateTimeFormat(intlLocale(), {
+    weekday: "short", timeZone: "UTC",
+  });
+  // 2026-11-01 is a Sunday.
+  return Array.from({ length: 7 }, (_, i) =>
+    f.format(new Date(Date.UTC(2026, 10, 1 + i, 12))));
+}
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");

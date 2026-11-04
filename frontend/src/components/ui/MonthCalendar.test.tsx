@@ -82,3 +82,17 @@ describe("MonthCalendar", () => {
     expect(dayFor).toHaveBeenCalledTimes(31);
   });
 });
+
+// jsdom can't measure layout, so the containment rule is pinned in the
+// CSS itself: a day cell (and a blank one) sizes border-box, or its
+// padding and border push the Saturday cell past the card on a phone.
+import calendarCss from "./MonthCalendar.module.css?raw";
+
+describe("MonthCalendar containment", () => {
+  it("sizes day cells border-box and lets them shrink", () => {
+    for (const cls of ["cell", "emptyCell"]) {
+      const rule = new RegExp(`\\.${cls} \\{[^}]*box-sizing: border-box;\\s*width: 100%`);
+      expect(calendarCss).toMatch(rule);
+    }
+  });
+});

@@ -13,6 +13,7 @@ import {
   type BreakdownPart,
 } from "../components/ui";
 import styles from "./EditDailyBook.module.css";
+import { useT } from "../i18n";
 
 export function DailyBookTile({
   title, total, parts, status, onOpen,
@@ -41,14 +42,24 @@ export function DailyBookTile({
 /** The one status pill for money still open on a box: red "N overdue"
  *  when any is overdue, else amber "N <openLabel>", else nothing. */
 export function OpenStatusPill({
-  open, overdue, openLabel = "open",
+  open, overdue, openLabel,
 }: {
   open: number;
   overdue: number;
+  /** Already in the person's language; defaults to "open". */
   openLabel?: string;
 }) {
-  if (overdue > 0) return <Pill tone="negative">{overdue} overdue</Pill>;
-  if (open > 0) return <Pill tone="warning">{open} {openLabel}</Pill>;
+  const t = useT();
+  if (overdue > 0) {
+    return <Pill tone="negative">{t("daily.countOverdue", { count: overdue })}</Pill>;
+  }
+  if (open > 0) {
+    return (
+      <Pill tone="warning">
+        {t("daily.countOpen", { count: open, label: openLabel ?? t("daily.openWord") })}
+      </Pill>
+    );
+  }
   return null;
 }
 

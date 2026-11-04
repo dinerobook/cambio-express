@@ -41,10 +41,11 @@ import {
 import { isOverdue, useOpenOfKind } from "./dailyBookOpen";
 import { BoxTabs, DailyBookTile, OpenStatusPill } from "./DailyBookTile";
 import styles from "./EditDailyBook.module.css";
+import { t, useT, type MessageKey } from "../i18n";
 
 /** The tick-box label for an entry of `kind`. */
 function settleLabel(kind: string): string {
-  return kind === "other_cash_in" ? "We pay this back" : "Expected back";
+  return t(kind === "other_cash_in" ? "daily.wePayBack" : "daily.expectedBack");
 }
 
 /** Tick box + optional "back by" date, for the add row and the
@@ -60,16 +61,17 @@ export function SettleFields({
   onSettleByChange: (next: string) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   if (isAlwaysOpen(kind)) {
     if (!checked) return null;
     return (
       <div className={styles.settleFields}>
-        <Field label="Deposit by (optional)">
+        <Field label={t("daily.depositByOptional")}>
           <DateInput
             value={settleBy}
             onChange={(e) => onSettleByChange(e.target.value)}
             disabled={disabled}
-            aria-label="Deposit by"
+            aria-label={t("daily.depositBy")}
           />
         </Field>
       </div>
@@ -85,12 +87,12 @@ export function SettleFields({
         {settleLabel(kind)}
       </Checkbox>
       {checked && (
-        <Field label="By (optional)">
+        <Field label={t("daily.byOptional")}>
           <DateInput
             value={settleBy}
             onChange={(e) => onSettleByChange(e.target.value)}
             disabled={disabled}
-            aria-label="Settle by"
+            aria-label={t("daily.settleBy")}
           />
         </Field>
       )}
@@ -100,11 +102,12 @@ export function SettleFields({
 
 /** One entry's settlement state, or nothing for a plain entry. */
 export function SettlementPill({ item }: { item: LineItemRow }) {
+  const t = useT();
   if (item.settles_item_id != null) {
     return (
       <Pill tone="info">
-        {item.kind === "other_cash_in" ? "Return"
-          : item.kind === "held_check_deposit" ? "Deposited" : "Payback"}
+        {t(item.kind === "other_cash_in" ? "daily.pillReturn"
+          : item.kind === "held_check_deposit" ? "daily.pillDeposited" : "daily.pillPayback")}
       </Pill>
     );
   }
@@ -112,47 +115,48 @@ export function SettlementPill({ item }: { item: LineItemRow }) {
   const hold = item.kind === "check_hold";
   if (item.expects_settlement) {
     if (left <= 0) {
-      return <Pill tone="accent">{hold ? "Deposited" : "Settled"}</Pill>;
+      return <Pill tone="accent">{t(hold ? "daily.pillDeposited" : "daily.pillSettled")}</Pill>;
     }
     return (
       <Pill tone="warning">
-        {hold ? "On hand" : item.kind === "other_cash_in" ? "We owe" : "Expected back"}
-        {" · "}{fmtMoney2(left)} {hold ? "to deposit" : "left"}
+        {t(hold ? "daily.pillOnHand" : item.kind === "other_cash_in" ? "daily.weOwe" : "daily.expectedBack")}
+        {" · "}{t(hold ? "daily.toDeposit" : "daily.left", { amount: fmtMoney2(left) })}
       </Pill>
     );
   }
-  if ((item.settled ?? 0) > 0) return <Pill tone="neutral">Closed</Pill>;
+  if ((item.settled ?? 0) > 0) return <Pill tone="neutral">{t("daily.pillClosed")}</Pill>;
   return null;
 }
 
 type Direction = "owed_to_us" | "we_owe" | "checks_on_hand";
 
+// Every word here is a translator key (i18n/en.ts), read with t().
 const DIRECTION: Record<Direction, {
-  kind: string; record: string; settleKind: string;
-  empty: string; lockedHint: string; cashNote?: string;
+  kind: string; record: MessageKey; settleKind: MessageKey;
+  empty: MessageKey; lockedHint: MessageKey; cashNote?: MessageKey;
 }> = {
   // Lent out of the drawer → comes back as a Cash In entry.
   owed_to_us: {
     kind: "other_cash_out",
-    record: "Record return", settleKind: "Cash In",
-    empty: "Nothing is owed to the store. Tick \"Expected back\" on a Cash Out entry to track one.",
-    lockedHint: "This day is locked, so it is view only. Open an unlocked day to record a return.",
+    record: "daily.recordReturn", settleKind: "daily.cashIn",
+    empty: "daily.owedToUsEmpty",
+    lockedHint: "daily.owedToUsLocked",
   },
   // Borrowed into the drawer → paid back as a Cash Out entry.
   we_owe: {
     kind: "other_cash_in",
-    record: "Record payback", settleKind: "Cash Out",
-    empty: "The store owes nothing. Tick \"We pay this back\" on a Cash In entry to track one.",
-    lockedHint: "This day is locked, so it is view only. Open an unlocked day to record a payback.",
+    record: "daily.recordPayback", settleKind: "daily.cashOut",
+    empty: "daily.weOweEmpty",
+    lockedHint: "daily.weOweLocked",
   },
   // Checks cashed and kept → deposited on a later day. The deposit
   // moves no cash: it left the drawer on the day of the hold.
   checks_on_hand: {
     kind: "check_hold",
-    record: "Deposit", settleKind: "Check Deposits (from hold)",
-    empty: "No checks on hand. Add one below when you cash a check to deposit later.",
-    lockedHint: "This day is locked, so it is view only. Open the day you go to the bank to record a deposit.",
-    cashNote: "No effect on cash or over/short: the cash left the drawer on the day the checks were held.",
+    record: "daily.deposit", settleKind: "daily.checkDepositsFromHold",
+    empty: "daily.checksOnHandEmpty",
+    lockedHint: "daily.checksOnHandLocked",
+    cashNote: "daily.checksOnHandCashNote",
   },
 };
 
@@ -169,20 +173,26 @@ const DIRECTION: Record<Direction, {
 // INVARIANTS.md "Settlements".
 const CASH_FLOW = {
   in: {
-    title: "Cash In",
-    todayLabel: "Received", todayPart: "Received today",
-    openLabel: "Owed to us", settlement: "owed_to_us",
-    todayTip: "Cash put into the drawer today. Tick \"We pay this back\" on a loan to track it under We owe on the Cash Out box.",
-    openTip: "Cash lent out of the drawer (a Cash Out ticked \"Expected back\"). Record return books it here, as Cash In, on this day.",
+    title: "daily.cashIn",
+    todayLabel: "daily.received", todayPart: "daily.receivedToday",
+    openLabel: "daily.owedToUs", settlement: "owed_to_us",
+    todayTip: "daily.cashInTodayTip",
+    openTip: "daily.cashInOpenTip",
+    aboutToday: "daily.aboutReceived", aboutOpen: "daily.aboutOwedToUs",
   },
   out: {
-    title: "Cash Out",
-    todayLabel: "Paid out", todayPart: "Paid out today",
-    openLabel: "We owe", settlement: "we_owe",
-    todayTip: "Cash taken out of the drawer today. Tick \"Expected back\" on cash lent out to track it under Owed to us on the Cash In box.",
-    openTip: "Cash borrowed into the drawer (a Cash In ticked \"We pay this back\"). Record payback books it here, as Cash Out, on this day.",
+    title: "daily.cashOut",
+    todayLabel: "daily.paidOut", todayPart: "daily.paidOutToday",
+    openLabel: "daily.weOwe", settlement: "we_owe",
+    todayTip: "daily.cashOutTodayTip",
+    openTip: "daily.cashOutOpenTip",
+    aboutToday: "daily.aboutPaidOut", aboutOpen: "daily.aboutWeOwe",
   },
-} as const;
+} as const satisfies Record<string, {
+  title: MessageKey; todayLabel: MessageKey; todayPart: MessageKey;
+  openLabel: MessageKey; settlement: Direction; todayTip: MessageKey;
+  openTip: MessageKey; aboutToday: MessageKey; aboutOpen: MessageKey;
+}>;
 
 export function CashFlowWidget({
   direction, total, entries, storeId, date, locked, onChange,
@@ -197,6 +207,7 @@ export function CashFlowWidget({
   locked: boolean;
   onChange: () => void;
 }) {
+  const t = useT();
   const c = CASH_FLOW[direction];
   const owed = useOpenOfKind(
     direction === "in" ? "other_cash_out" : "other_cash_in", date,
@@ -207,11 +218,11 @@ export function CashFlowWidget({
   return (
     <>
       <DailyBookTile
-        title={c.title}
+        title={t(c.title)}
         total={total}
         parts={[
-          { label: c.todayPart, amount: total },
-          { label: c.openLabel, amount: owed.total, open: true },
+          { label: t(c.todayPart), amount: total },
+          { label: t(c.openLabel), amount: owed.total, open: true },
         ]}
         status={
           <OpenStatusPill open={owed.items.length} overdue={owed.overdue} />
@@ -221,23 +232,23 @@ export function CashFlowWidget({
 
       <Modal
         open={open}
-        title={c.title}
+        title={t(c.title)}
         size="lg"
         onClose={() => setOpen(false)}
       >
         <div className={styles.lineModalBody}>
           <BoxTabs
             tabs={[
-              { key: "today", label: c.todayLabel, amount: total },
+              { key: "today", label: t(c.todayLabel), amount: total },
               {
-                key: "open", label: c.openLabel, amount: owed.total,
+                key: "open", label: t(c.openLabel), amount: owed.total,
                 status: <OpenStatusPill open={0} overdue={owed.overdue} />,
               },
             ]}
             active={tab}
             onChange={setTab}
-            tip={tab === "today" ? c.todayTip : c.openTip}
-            tipLabel={`About ${tab === "today" ? c.todayLabel : c.openLabel}`.toLowerCase()}
+            tip={t(tab === "today" ? c.todayTip : c.openTip)}
+            tipLabel={t(tab === "today" ? c.aboutToday : c.aboutOpen)}
           />
           {tab === "today" ? entries : (
             <SettlementsList
@@ -267,6 +278,7 @@ export function SettlementsList({
   locked: boolean;
   onChange: () => void;
 }) {
+  const t = useT();
   const d = DIRECTION[direction];
   const { query, items } = useOpenOfKind(DIRECTION[direction].kind, date);
   const queryClient = useQueryClient();
@@ -294,7 +306,7 @@ export function SettlementsList({
       setClosing(null);
       refresh();
     } catch (e) {
-      setCloseErr(apiErrorMessage(e, "Could not close this entry."));
+      setCloseErr(apiErrorMessage(e, t("daily.closeFailed")));
     } finally {
       setCloseBusy(false);
     }
@@ -305,23 +317,23 @@ export function SettlementsList({
       <div className={styles.lineModalBody}>
         {query.isError ? (
           <Alert tone="error">
-            {apiErrorMessage(query.error, "Could not load open entries.")}
+            {apiErrorMessage(query.error, t("daily.openLoadFailed"))}
           </Alert>
         ) : items.length === 0 ? (
           <p className={styles.emptyEntries}>
-            {d.empty}
+            {t(d.empty)}
           </p>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table className={styles.widgetTable}>
               <thead>
                 <tr>
-                  <th className={styles.widgetTh}>Who / note</th>
-                  <th className={styles.widgetTh}>Day</th>
-                  <th className={styles.widgetTh}>Amount</th>
-                  <th className={styles.widgetTh}>Left</th>
-                  <th className={styles.widgetTh}>By</th>
-                  <th className={styles.widgetTh} aria-label="actions" />
+                  <th className={styles.widgetTh}>{t("daily.whoNote")}</th>
+                  <th className={styles.widgetTh}>{t("daily.day")}</th>
+                  <th className={styles.widgetTh}>{t("daily.amount")}</th>
+                  <th className={styles.widgetTh}>{t("daily.leftColumn")}</th>
+                  <th className={styles.widgetTh}>{t("daily.byColumn")}</th>
+                  <th className={styles.widgetTh} aria-label={t("daily.actionsColumn")} />
                 </tr>
               </thead>
               <tbody>
@@ -331,7 +343,7 @@ export function SettlementsList({
                       {o.note || "—"}
                       {o.returns.map((r) => (
                         <div key={r.id} className={styles.widgetTdSmall}>
-                          {fmtMoney2(r.amount)} on {formatDate(r.report_date)}
+                          {t("daily.amountOnDate", { amount: fmtMoney2(r.amount), date: formatDate(r.report_date) })}
                         </div>
                       ))}
                     </td>
@@ -344,10 +356,10 @@ export function SettlementsList({
                     </td>
                     <td className={styles.widgetTd}>
                       {o.settle_by == null ? (
-                        <Pill tone="neutral">No date</Pill>
+                        <Pill tone="neutral">{t("daily.noDate")}</Pill>
                       ) : isOverdue(o, today) ? (
                         <Pill tone="negative">
-                          {formatDate(o.settle_by)} · overdue
+                          {t("daily.dateOverdue", { date: formatDate(o.settle_by) })}
                         </Pill>
                       ) : (
                         <Pill tone="warning">{formatDate(o.settle_by)}</Pill>
@@ -355,23 +367,23 @@ export function SettlementsList({
                     </td>
                     <td className={styles.widgetTd}>
                       <RowActions
-                        label="Actions"
+                        label={t("daily.actions")}
                         actions={[
                           {
-                            label: d.record,
+                            label: t(d.record),
                             tone: "primary",
                             perm: "daily_book.create",
                             hidden: locked,
                             onClick: () => setRecording(o),
                           },
                           {
-                            label: "Change date",
+                            label: t("daily.changeDate"),
                             perm: "daily_book.update",
                             hidden: locked || o.day_locked,
                             onClick: () => setRedating(o),
                           },
                           {
-                            label: "Close",
+                            label: t("daily.close"),
                             perm: "daily_book.update",
                             hidden: locked || o.day_locked,
                             onClick: () => { setCloseErr(null); setClosing(o); },
@@ -380,8 +392,7 @@ export function SettlementsList({
                       />
                       {!locked && o.day_locked && (
                         <div className={styles.widgetTdSmall}>
-                          {formatDate(o.report_date)} is locked. Unlock it to
-                          change the date or close this entry.
+                          {t("daily.entryDayLocked", { date: formatDate(o.report_date) })}
                         </div>
                       )}
                     </td>
@@ -392,16 +403,16 @@ export function SettlementsList({
           </div>
         )}
         {locked && items.length > 0 && (
-          <p className={styles.emptyEntries}>{d.lockedHint}</p>
+          <p className={styles.emptyEntries}>{t(d.lockedHint)}</p>
         )}
       </div>
 
       {recording && (
         <RecordSettlementModal
           item={recording}
-          title={d.record}
-          settleKind={d.settleKind}
-          cashNote={d.cashNote}
+          title={t(d.record)}
+          settleKind={t(d.settleKind)}
+          cashNote={d.cashNote ? t(d.cashNote) : undefined}
           storeId={storeId}
           date={date}
           onClose={() => setRecording(null)}
@@ -420,14 +431,14 @@ export function SettlementsList({
 
       <ConfirmDialog
         open={closing != null}
-        title="Close this entry?"
-        message={closing ? (
-          <>
-            {fmtMoney2(closing.outstanding)} of “{closing.note || "this entry"}”
-            stops showing as open. Nothing already booked changes.
-          </>
-        ) : ""}
-        confirmLabel="Close"
+        title={t("daily.closeTitle")}
+        message={closing
+          ? t("daily.closeMessage", {
+            amount: fmtMoney2(closing.outstanding),
+            what: closing.note || t("daily.thisEntryLower"),
+          })
+          : ""}
+        confirmLabel={t("daily.close")}
         busy={closeBusy}
         error={closeErr}
         onConfirm={() => { void confirmClose(); }}
@@ -449,6 +460,7 @@ function RecordSettlementModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const [amount, setAmount] = useState(item.outstanding);
   const [time, setTime] = useState("");
   const [busy, setBusy] = useState(false);
@@ -457,11 +469,11 @@ function RecordSettlementModal({
   async function save() {
     if (busy) return;
     if (!amount || amount <= 0) {
-      setErr("Amount must be greater than zero.");
+      setErr(t("daily.amountPositive"));
       return;
     }
     if (amount > item.outstanding) {
-      setErr(`Only ${fmtMoney2(item.outstanding)} is still outstanding.`);
+      setErr(t("daily.onlyOutstanding", { amount: fmtMoney2(item.outstanding) }));
       return;
     }
     setBusy(true);
@@ -476,7 +488,7 @@ function RecordSettlementModal({
       });
       onDone();
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not record this."));
+      setErr(apiErrorMessage(e, t("daily.recordFailed")));
     } finally {
       setBusy(false);
     }
@@ -492,7 +504,7 @@ function RecordSettlementModal({
       actions={(
         <>
           <Button type="button" tone="secondary" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="button" tone="primary" busy={busy}
@@ -505,10 +517,10 @@ function RecordSettlementModal({
     >
       <div className={styles.lineModalBody}>
         <p style={{ margin: 0 }}>
-          {item.note || "This entry"} · {fmtMoney2(item.outstanding)} left
+          {t("daily.entryLeft", { what: item.note || t("daily.thisEntry"), amount: fmtMoney2(item.outstanding) })}
         </p>
-        <MoneyInput label="Amount" value={amount} onChange={setAmount} disabled={busy} />
-        <Field label="Time (optional)">
+        <MoneyInput label={t("daily.amount")} value={amount} onChange={setAmount} disabled={busy} />
+        <Field label={t("daily.timeOptional")}>
           <Input
             type="time"
             value={time}
@@ -517,7 +529,7 @@ function RecordSettlementModal({
           />
         </Field>
         <p className={styles.widgetTdSmall} style={{ margin: 0 }}>
-          Adds {fmtMoney2(amount || 0)} to {settleKind} on {formatDate(date)}.
+          {t("daily.addsTo", { amount: fmtMoney2(amount || 0), box: settleKind, date: formatDate(date) })}
           {cashNote && <>{" "}{cashNote}</>}
         </p>
         {err && <Alert tone="error">{err}</Alert>}
@@ -534,6 +546,7 @@ function SettleByModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const [settleBy, setSettleBy] = useState(item.settle_by ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -546,7 +559,7 @@ function SettleByModal({
       await updateLineItem(storeId, item.id, { settle_by: settleBy || null });
       onDone();
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not change the date."));
+      setErr(apiErrorMessage(e, t("daily.changeDateFailed")));
     } finally {
       setBusy(false);
     }
@@ -555,34 +568,34 @@ function SettleByModal({
   return (
     <Modal
       open
-      title="Change date"
+      title={t("daily.changeDate")}
       size="sm"
       onClose={onClose}
       disabled={busy}
       actions={(
         <>
           <Button type="button" tone="secondary" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="button" tone="primary" busy={busy}
             onClick={() => { void save(); }}
           >
-            Save
+            {t("daily.saveShort")}
           </Button>
         </>
       )}
     >
       <div className={styles.lineModalBody}>
         <p style={{ margin: 0 }}>
-          {item.note || "This entry"} · {fmtMoney2(item.outstanding)} left
+          {t("daily.entryLeft", { what: item.note || t("daily.thisEntry"), amount: fmtMoney2(item.outstanding) })}
         </p>
-        <Field label="By (leave empty for no date)">
+        <Field label={t("daily.byLeaveEmpty")}>
           <DateInput
             value={settleBy}
             onChange={(e) => setSettleBy(e.target.value)}
             disabled={busy}
-            aria-label="Settle by"
+            aria-label={t("daily.settleBy")}
           />
         </Field>
         {err && <Alert tone="error">{err}</Alert>}

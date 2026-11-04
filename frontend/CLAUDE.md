@@ -213,7 +213,9 @@ through `navWord()` (`src/i18n/navWords.ts`), server sentences through
 shared formatters (store timezone unchanged, money stays $1,234.56).
 Moving a screen into Spanish: translate it, add a Spanish render test
 with `englishLeftovers()` (`src/test/i18n.ts`), add it to
-`COVERED_FILES`. Names people typed are never translated. Full rules
+`COVERED_FILES`. Names people typed are never translated. Counts go
+through `tn()` (plural rules), config tables hold `MessageKey` labels
+rendered with `t()`, month headings use `formatMonthYear()`. Full rules
 and the glossary: UI-STANDARDS §10.
 
 ## OpenAPI → TypeScript types
