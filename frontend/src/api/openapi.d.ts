@@ -3569,6 +3569,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications/bell": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bell Route
+         * @description The signed-in person's bell items for the store they are in.
+         */
+        get: operations["bell_route_notifications_bell_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/bell/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bell Dismiss Route
+         * @description Hide one item for this person until the store's next day.
+         */
+        post: operations["bell_dismiss_route_notifications_bell_dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/bell/undismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bell Undismiss Route
+         * @description Undo today's dismissal of one item (the toast's Undo).
+         */
+        post: operations["bell_undismiss_route_notifications_bell_undismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/owner/activity": {
         parameters: {
             query?: never;
@@ -8328,6 +8388,58 @@ export interface components {
              * @default
              */
             transfer_dates: string;
+        };
+        /**
+         * BellDismissRequest
+         * @description Dismiss (or undo the dismissal of) one item for today.
+         */
+        BellDismissRequest: {
+            /** Key */
+            key: string;
+        };
+        /**
+         * BellItem
+         * @description One row in the bell's list. Words, icon and link are the
+         *     SPA's job (``bellItems.ts``); the server sends only what the
+         *     sentence needs.
+         */
+        BellItem: {
+            /** Amount Cents */
+            amount_cents?: number | null;
+            /** Count */
+            count: number;
+            /** Day */
+            day?: string | null;
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "daily_book.unlocked" | "daily_book.due_back" | "bank.to_check" | "return_checks.pending";
+            /**
+             * Urgency
+             * @enum {string}
+             */
+            urgency: "overdue" | "due";
+            /** View */
+            view?: string | null;
+        };
+        /**
+         * BellResponse
+         * @description ``GET /notifications/bell``. ``enabled: false`` (no store, or
+         *     the store's ``notification_bell`` flag off) means the SPA shows
+         *     no bell at all.
+         */
+        BellResponse: {
+            /** Can Dismiss */
+            can_dismiss: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Items */
+            items: components["schemas"]["BellItem"][];
+            /** Store Day */
+            store_day: string | null;
         };
         /**
          * BillingPortalResponse
@@ -23746,6 +23858,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonthlyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bell_route_notifications_bell_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BellResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bell_dismiss_route_notifications_bell_dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BellDismissRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bell_undismiss_route_notifications_bell_undismiss_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BellDismissRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
                 };
             };
             /** @description Validation Error */

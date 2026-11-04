@@ -408,6 +408,12 @@ impact ÷ effort. Numbers are an estimate.
       for the owner's store first on Platform → Feature flags, check
       the Bank page's Daily book column and "Match now", then other
       stores. See BankSync `INVARIANTS.md` → "Matching".
+- [ ] **Notification bell switched on** (ops — owner 2026-11-04) —
+      the top-bar bell shipped behind the per-store flag
+      `notification_bell` (off). Turn it on for the owner's store on
+      Platform → Feature flags, use it for a few days, then set the
+      flag's default on for every store. See
+      `api/Modules/Notifications/CLAUDE.md` → "The bell".
 - [ ] **Stripe bank webhook event** (ops, not urgent — owner
       2026-10-21) — add `financial_connections.account.refreshed_transactions`
       to the Stripe webhook endpoint so new bank transactions sync

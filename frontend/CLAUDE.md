@@ -96,6 +96,12 @@ Non-negotiables:
   "Admin", never "Super Admin" — and every page that edits roles'
   permission grids renders `<RolePermissionsEditor>`.
   `src/lib/consistencyGuards.test.ts` enforces all of it.
+- **The bell is the one "something to do" alert** (UI-STANDARDS §11,
+  root invariant 24). Work waiting for someone is a bell item: a server
+  source plus its row in `src/lib/bellItems.ts`, rendered by
+  `src/components/NotificationBell.tsx`. Never a new top-bar banner,
+  chip or badge for the same job. Count circles are the kit
+  `CountBadge` (drawn on top, so its button never changes size).
 - **Dark by default; light is opt-in.** `data-theme` flips between
   `"dark"` (default) and `"light"` (per-user, `User.theme_preference`).
   The light palette darkens the neon accent so links and active nav stay

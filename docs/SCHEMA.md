@@ -18,6 +18,7 @@ Every table is named `<area>_<thing>`. The prefix says which part of the product
 | `hr_` | Time clock now, payroll later. People-hours, not money. | TimeClock |
 | `msb_` | Remittance money: transfers, senders, ACH batches, the MSB daily book, monthly P&L, returned checks, the rate board. | Batches, Customers, DailyBook, Monthly, ReturnChecks, TVDisplay, Transfers |
 | `retail_` | C-store money: registers, departments, the Store daily book, lottery, POS journal ingest, price book, vendors, purchases. | Catalog, DayClose, Lottery, PosImport, StoreBook |
+| `notify_` | In-app notifications: what a person dismissed on the top-bar bell. Never money, never a source of truth. | Notifications |
 
 Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 
@@ -149,3 +150,9 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | `retail_store_daily_entry` | `StoreDailyEntry` | `StoreBook` | store | `tenancy_store.id`, `tenancy_user.id` | — |
 | `retail_store_daily_entry_original` | `StoreDailyEntryOriginal` | `StoreBook` | store | `retail_store_daily_entry.id` | — |
 | `retail_vendor` | `Vendor` | `Catalog` | store | `tenancy_store.id` | — |
+
+## `notify_`
+
+| Table | Model | Module | Scope | Foreign keys | Read first |
+|---|---|---|---|---|---|
+| `notify_bell_dismissal` | `BellDismissal` | `Notifications` | store | `tenancy_store.id` | — |

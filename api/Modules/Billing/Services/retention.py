@@ -83,6 +83,9 @@ STORE_OWNED_MODELS: list[str] = [
     "SupportMessage",
     "SupportTicket",
     "AnnouncementStore",
+    # Bell dismissals: user_id is not a FK, so order only matters
+    # for the store FK.
+    "BellDismissal",
     "User",
     # Named access roles (R-3). AFTER User: user.store_role_id FKs
     # store_role, so the referencing rows must be gone first.
@@ -150,6 +153,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
     from api.Modules.Support.Models import SupportMessage, SupportTicket
     from api.Modules.TVDisplay.Models import TVDisplay
     from api.Modules.Announcements.Models import AnnouncementStore
+    from api.Modules.Notifications.Models import BellDismissal
 
     return [
         # Matches FK bank_transaction — before anything else.
@@ -226,6 +230,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
         # links (the Announcement rows themselves are global, not
         # store-owned, so they survive).
         (AnnouncementStore, "store_id"),
+        (BellDismissal, "store_id"),
         (User, "store_id"),
         # Named access roles — AFTER User (user.store_role_id FKs
         # store_role); permission rows FK the role, so they go first.

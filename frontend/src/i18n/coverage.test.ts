@@ -22,6 +22,7 @@ export const COVERED_FILES = [
   "components/SlimSidebar.tsx",
   "components/UserMenu.tsx",
   "components/ThemeToggle.tsx",
+  "components/NotificationBell.tsx",
   "components/UnsavedChangesHost.tsx",
   "components/PageCrumbs.tsx",
   // Kit pieces every screen shows

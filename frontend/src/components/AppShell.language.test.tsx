@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "./AppShell";
 import { getLanguage, setLanguage } from "../i18n";
 import { mockFetch } from "../test/fetchMock";
+import { ToastProvider } from "./ui/Toast";
 
 // The shell applies the person's saved language once the profile
 // loads (UI-STANDARDS §10): a saved choice wins over the device, a
@@ -31,7 +32,11 @@ function renderShell() {
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={["/dashboard"]}>
-        <AppShell><p>page</p></AppShell>
+        {/* The app mounts the shell inside ToastProvider (App.tsx);
+            the bell in the top bar needs it. */}
+        <ToastProvider>
+          <AppShell><p>page</p></AppShell>
+        </ToastProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );

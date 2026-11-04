@@ -1,0 +1,212 @@
+/* Top-bar notification bell (NotificationBell.tsx, UI-STANDARDS §10).
+ *
+ * The button has a FIXED width and height: the count badge is drawn
+ * on top of it (CountBadge, absolute), so the bar never moves whether
+ * the count is 0, 3 or 12. Same outlined look as the theme toggle
+ * beside it.
+ */
+
+.bellBtn {
+  position: relative;
+  appearance: none;
+  box-sizing: border-box;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--db-border);
+  background: transparent;
+  color: var(--db-text);
+  cursor: pointer;
+  line-height: 0;
+  transition: background-color 120ms ease, transform 120ms ease,
+              border-color 120ms ease;
+}
+
+.bellBtn:hover {
+  background: var(--db-fill-subtle);
+  border-color: var(--db-border-strong);
+}
+
+.bellBtn:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 2px;
+}
+
+.bellBtn:active {
+  transform: scale(0.97);
+}
+
+/* ── Panel ─────────────────────────────────────────────── */
+
+.panel {
+  box-sizing: border-box;
+  width: min(23rem, calc(100vw - 1rem));
+  /* Scrolls inside rather than running off the screen. */
+  max-height: min(32rem, 70vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-border);
+  border-radius: 0.75rem;
+  box-shadow: var(--db-shadow-pop);
+  z-index: 60;
+  overflow: hidden;
+}
+
+.header {
+  padding: 0.75rem 1rem 0.5rem;
+  border-bottom: 1px solid var(--db-border);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--db-font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--db-text);
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.5rem;
+}
+
+.row:hover {
+  background: var(--db-fill-subtle);
+}
+
+.rowLink {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 0.5rem;
+  color: var(--db-text);
+  text-decoration: none;
+}
+
+.rowLink:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: -2px;
+}
+
+.icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+}
+
+.overdue {
+  color: var(--db-tone-warning-fg);
+  background: var(--db-tone-warning-bg);
+}
+
+.due {
+  color: var(--db-tone-info-fg);
+  background: var(--db-tone-info-bg);
+}
+
+.text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.rowTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.rowDetail {
+  font-size: 0.8rem;
+  color: var(--db-text-muted);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.dismissBtn {
+  flex: 0 0 auto;
+  appearance: none;
+  width: 2rem;
+  height: 2rem;
+  margin-right: 0.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--db-text-muted);
+  cursor: pointer;
+}
+
+.dismissBtn:hover {
+  background: var(--db-surface-3);
+  color: var(--db-text);
+}
+
+.dismissBtn:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 1px;
+}
+
+.state {
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  color: var(--db-text-muted);
+  font-size: 0.875rem;
+}
+
+.state p {
+  margin: 0;
+}
+
+.caughtUpIcon {
+  color: var(--db-accent);
+  line-height: 0;
+}
+
+.footer {
+  margin: 0;
+  padding: 0.55rem 1rem 0.7rem;
+  border-top: 1px solid var(--db-border);
+  font-size: 0.75rem;
+  color: var(--db-text-muted);
+}

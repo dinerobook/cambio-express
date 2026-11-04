@@ -35,8 +35,8 @@ from pathlib import Path
 
 from sqlalchemy import Table
 
-# Area prefix → what belongs there. Ten areas; two of them carry the
-# product line (msb / retail), the other eight name shared layers
+# Area prefix → what belongs there. Eleven areas; two of them carry the
+# product line (msb / retail), the other nine name shared layers
 # explicitly instead of lumping them under "global".
 AREAS: dict[str, str] = {
     "tenancy_": "Who exists: stores, users, employees, owner links, "
@@ -57,6 +57,8 @@ AREAS: dict[str, str] = {
     "retail_": "C-store money: registers, departments, the Store daily "
                "book, lottery, POS journal ingest, price book, vendors, "
                "purchases.",
+    "notify_": "In-app notifications: what a person dismissed on the "
+               "top-bar bell. Never money, never a source of truth.",
 }
 
 # Module folder under api/Modules → area prefix. A module may only
@@ -85,6 +87,7 @@ MODULE_PREFIX: dict[str, str] = {
     "Lottery": "retail_",
     "PosImport": "retail_",
     "Catalog": "retail_",
+    "Notifications": "notify_",
 }
 
 LIBRARY_TABLES: frozenset[str] = frozenset({"alembic_version", "casbin_rule"})

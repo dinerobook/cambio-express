@@ -16,6 +16,7 @@ import { ImpersonationBanner } from "./ImpersonationBanner";
 import { CommandPalette } from "./CommandPalette";
 import { HelpCenter } from "./HelpCenter";
 import { InstallAppButton } from "./InstallAppButton";
+import { NotificationBell } from "./NotificationBell";
 import { filterNavForRole, SUPPORT_LINK } from "./navConfig";
 import { isOwnerSession } from "../api/switchStore";
 import { SlimSidebar } from "./SlimSidebar";
@@ -218,6 +219,7 @@ function Topbar({
       <TrialChip />
       {referralCode && <ReferralBadge code={referralCode} />}
       <InstallAppButton />
+      <NotificationBell />
       <ThemeToggle />
       <UserMenu identity={identity} onSignOut={onSignOut} />
     </header>
