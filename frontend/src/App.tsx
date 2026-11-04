@@ -135,6 +135,7 @@ const SuperadminPermissions = lazy(() => import("./routes/SuperadminPermissions"
 const SuperadminReports = lazy(() => import("./routes/SuperadminReports"));
 const SuperadminStoreForm = lazy(() => import("./routes/SuperadminStoreForm"));
 const SuperadminStores = lazy(() => import("./routes/SuperadminStores"));
+const SuperadminSetupProgress = lazy(() => import("./routes/SuperadminSetupProgress"));
 const SuperadminUsers = lazy(() => import("./routes/SuperadminUsers"));
 const TimeClock = lazy(() => import("./routes/TimeClock"));
 const Transactions = lazy(() => import("./routes/Transactions"));
@@ -353,6 +354,7 @@ export default function App() {
           <Route path="superadmin/stores/:id/drill" element={<Gate><SuperadminStoreDrill /></Gate>} />
           <Route path="superadmin/permissions"   element={<Gate><SuperadminPermissions /></Gate>} />
           <Route path="superadmin/stores"        element={<Gate><SuperadminStores /></Gate>} />
+          <Route path="superadmin/setup-progress" element={<Gate><SuperadminSetupProgress /></Gate>} />
           <Route path="superadmin/users"         element={<Gate><SuperadminUsers /></Gate>} />
           <Route path="superadmin/stores/new"    element={<Gate><SuperadminStoreForm /></Gate>} />
           <Route path="superadmin/stores/:id/edit" element={<Gate><SuperadminStoreForm /></Gate>} />

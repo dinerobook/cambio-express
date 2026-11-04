@@ -19719,6 +19719,162 @@
         "title": "SuperadminRevokeSessionsResponse",
         "type": "object"
       },
+      "SuperadminSetupProgressResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SuperadminSetupProgressRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages"
+        ],
+        "title": "SuperadminSetupProgressResponse",
+        "type": "object"
+      },
+      "SuperadminSetupProgressRow": {
+        "additionalProperties": false,
+        "properties": {
+          "bank_connected": {
+            "title": "Bank Connected",
+            "type": "boolean"
+          },
+          "charges_set": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charges Set"
+          },
+          "companies_added": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companies Added"
+          },
+          "company_count": {
+            "title": "Company Count",
+            "type": "integer"
+          },
+          "days_since_signup": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Since Signup"
+          },
+          "first_locked_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Locked Day"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "money_order_charges_set": {
+            "title": "Money Order Charges Set",
+            "type": "integer"
+          },
+          "money_order_companies": {
+            "title": "Money Order Companies",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "signed_up_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed Up On"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "steps_done": {
+            "title": "Steps Done",
+            "type": "integer"
+          },
+          "steps_total": {
+            "title": "Steps Total",
+            "type": "integer"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "store_id",
+          "name",
+          "slug",
+          "plan",
+          "is_active",
+          "signed_up_on",
+          "days_since_signup",
+          "companies_added",
+          "company_count",
+          "charges_set",
+          "money_order_companies",
+          "money_order_charges_set",
+          "bank_connected",
+          "first_locked_day",
+          "steps_done",
+          "steps_total"
+        ],
+        "title": "SuperadminSetupProgressRow",
+        "type": "object"
+      },
       "SuperadminStoreAuditLogResponse": {
         "additionalProperties": false,
         "properties": {
@@ -45981,6 +46137,125 @@
           }
         },
         "summary": "Retention Dry Run Route",
+        "tags": [
+          "superadmin"
+        ]
+      }
+    },
+    "/superadmin/setup-progress": {
+      "get": {
+        "description": "Setup progress per store, newest store first: companies added,\ncharge per money order set, bank connected, first day locked.\nRead-only. Its own route so the dashboard summary stays light.",
+        "operationId": "setup_progress_route_superadmin_setup_progress_get",
+        "parameters": [
+          {
+            "description": "Search name, slug or email.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Search name, slug or email.",
+              "maxLength": 200,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "open = setup not finished (default), done, or all.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "description": "open = setup not finished (default), done, or all.",
+              "pattern": "^(open|done|all)$",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-based page number",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "1-based page number",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page (1 to 200)",
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Rows per page (1 to 200)",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuperadminSetupProgressResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Setup Progress Route",
         "tags": [
           "superadmin"
         ]

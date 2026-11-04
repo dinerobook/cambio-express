@@ -290,6 +290,7 @@ export const NAV: NavGroup[] = [
     icon: iconPlatform(),
     items: [
       { to: "/superadmin/stores",        label: "Stores",        icon: iconPlatform(),  desc: "Every store on the platform.",   roles: ["superadmin"] },
+      { to: "/superadmin/setup-progress", label: "Setup progress", icon: iconDaily(), desc: "Which new stores are stuck in setup.", roles: ["superadmin"] },
       { to: "/superadmin/users",         label: "Users",         icon: iconCustomers(), desc: "All accounts across stores.",    roles: ["superadmin"] },
       { to: "/superadmin/tickets",       label: "Tickets",       icon: iconSupport(),   desc: "Support tickets from stores.",   roles: ["superadmin", "support"] },
       { to: "/superadmin/announcements", label: "Announcements", icon: iconBanner(),    desc: "Broadcast banners and emails.",  roles: ["superadmin"] },
