@@ -140,7 +140,7 @@ export interface OwnerBulkAddUserBody {
   phone?:    string;
   password:  string;
   full_name: string;
-  role:      "admin" | "employee";
+  role:      components["schemas"]["OwnerBulkAddUserRequest"]["role"];
   store_ids: number[];
 }
 

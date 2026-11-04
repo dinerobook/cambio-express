@@ -67,7 +67,11 @@ export function toggleMatrixCell(
  *  like everywhere else (a store admin is "Admin" — owner,
  *  2026-10-21). "owner" is the signup account that owns the store;
  *  it is shown but never managed from the team pages (the rank
- *  rule). Anything else is an employee login. */
+ *  rule). An accountant is the view-only bookkeeper. Anything else is
+ *  an employee login. */
 export function accountTypeLabel(role: string | null | undefined): string {
-  return roleLabel(role === "owner" || role === "admin" ? role : "employee");
+  return roleLabel(
+    role === "owner" || role === "admin" || role === "accountant"
+      ? role : "employee",
+  );
 }

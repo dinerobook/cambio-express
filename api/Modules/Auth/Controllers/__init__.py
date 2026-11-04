@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 import os
 import jwt
 
+from api.Core.Permissions.accountant import require_accountant_route
 from api.Core.Database import get_db
 from api.Core.RateLimit import limiter as _rate_limiter
 from api.Modules.Auth.Models import User
@@ -231,6 +232,7 @@ clear_access_token_cookie = _clear_access_token_cookie
 
 
 def get_principal(
+    request: Request,
     authorization: str | None = Header(default=None),
     db_access_token: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
@@ -244,7 +246,8 @@ def get_principal(
 
     Raises 401 on missing / malformed / expired / bad signature,
     and 401 when the token no longer describes a live principal
-    (see ``_require_live_principal``).
+    (see ``_require_live_principal``), and 403 when an accountant
+    calls a route outside its list (``require_accountant_route``).
     """
     token: str | None = None
     if authorization and authorization.lower().startswith("bearer "):
@@ -270,6 +273,9 @@ def get_principal(
             headers={"WWW-Authenticate": 'Bearer error="invalid"'},
         )
     _require_live_principal(db, claims)
+    # Second lock on the view-only accountant role: only the routes
+    # on its list answer it (api/Core/Permissions/accountant.py).
+    require_accountant_route(request, claims)
     return claims
 
 

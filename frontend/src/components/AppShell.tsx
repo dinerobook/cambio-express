@@ -147,7 +147,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <SlimSidebar
         groups={groups}
         drawerOpen={drawerOpen}
-        supportLink={SUPPORT_LINK}
+        supportLink={canAccess(SUPPORT_LINK.to) ? SUPPORT_LINK : undefined}
         supportBadge={ticketsUnread.data?.unread ?? 0}
       />
       <Topbar

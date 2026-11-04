@@ -30,7 +30,8 @@ def authorize_store_ids(
 
     An empty request means "every store in scope": all stores for a
     superadmin (the services read that as no filter), the umbrella
-    for an owner, the token's store for everyone else."""
+    for an owner, the token's store for everyone else (an accountant
+    included: one sign-in per store, like an employee)."""
     from api.Modules.Owners.Services import owner_store_ids
     from api.Modules.Tenancy.Models import User
 
@@ -52,7 +53,7 @@ def authorize_store_ids(
                 detail="Requested store_ids fall outside your owner umbrella.",
             )
         return scoped
-    if role in ("admin", "employee"):
+    if role in ("admin", "employee", "accountant"):
         if store_id is None:
             raise HTTPException(status_code=403, detail="No store on token.")
         own = int(store_id)

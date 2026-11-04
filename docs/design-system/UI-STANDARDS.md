@@ -128,7 +128,8 @@ same tone on every screen:
 - Boolean table cells: `Active` / `Inactive` (lifecycle) — never
   `Yes`/`No`, `Disabled`, `✓`, or `—` — except dense matrices, where
   `✓` / `—` is the standard pair.
-- Role pills: `admin → accent`, `employee → neutral`, `owner → info`;
+- Role pills: `admin → accent`, `employee → neutral`, `owner → info`,
+  `accountant → info` (a secondary, view-only identity);
   the platform roles `superadmin → warning`, `support → info` (never
   red — no role is a failure). One map: `ROLE_TONES` / `roleTone()`
   in `api/roles.ts`.
@@ -506,6 +507,16 @@ This is enforced by the kit, not by per-page checks:
   show/hide condition is a change request: a custom access role
   (R-3) can grant or withhold any right, and a role check ignores
   it. Ask `hasPermission(resource, action)` or `canAccess(path)`.
+- **A view-only role has a page list, not just permissions.** The
+  Accountant (fixed access: Reports, monthly P&L, tax pack) may only
+  open the pages in `ACCOUNTANT_PAGES` (`lib/access.ts`) — the SPA
+  twin of the server's route list in
+  `api/Core/Permissions/accountant.py`. `canAccessWith` checks it
+  before the table, so an `open` page (dashboard, notifications,
+  support) is closed to them unless listed, and a refused page sends
+  them home with `homePathFor` (Reports for an accountant, the
+  dashboard for everyone else). A page that shows several downloads
+  hides each one the viewer's sign-in would be refused (Data export).
 - **Tests sign someone in.** `src/test/setup.ts` seeds a
   full-permission admin before every test, so an isolated component
   renders its controls. A test about a narrower person overwrites

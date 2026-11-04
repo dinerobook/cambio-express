@@ -53,6 +53,7 @@ describe("status tone maps", () => {
       owner: "info",
       superadmin: "warning",
       support: "info",
+      accountant: "info",
     });
     expect(Object.values(ROLE_TONES)).not.toContain("negative");
     expect(roleTone("admin")).toBe("accent");

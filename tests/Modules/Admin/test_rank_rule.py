@@ -77,7 +77,7 @@ def test_admin_cannot_touch_the_owner_row(client, test_store_id):
     owner_row = next(r for r in rows["rows"] if r["id"] == owner_id)
     assert owner_row["role"] == "owner"
     assert owner_row["can_manage"] is False
-    assert rows["assignable_roles"] == ["admin", "employee"]
+    assert rows["assignable_roles"] == ["admin", "employee", "accountant"]
 
     for body in (
         {"password": "pwned-pass-1"},
@@ -401,7 +401,7 @@ def test_rank_helpers():
     assert can_manage(employee, "employee") is True
     assert can_manage(employee, "") is True  # a malformed row is cleanable
     assert assignable_roles(employee) == ["employee"]
-    assert assignable_roles(admin) == ["admin", "employee"]
+    assert assignable_roles(admin) == ["admin", "employee", "accountant"]
     assert can_assign_role(employee, "admin") is False
     assert can_assign_role(admin, "owner") is False
     # Any write implies read before the ceiling is checked.
