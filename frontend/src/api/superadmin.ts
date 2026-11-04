@@ -93,6 +93,30 @@ export function useSuperadminStoresPage(opts: {
 }
 
 
+export type SuperadminSetupProgressRow = components["schemas"]["SuperadminSetupProgressRow"];
+export type SuperadminSetupProgressResponse = components["schemas"]["SuperadminSetupProgressResponse"];
+
+/** Platform → Setup progress: each store's four setup steps.
+ *  ``status`` is ``open`` (not finished), ``done`` or ``all``. */
+export function useSuperadminSetupProgress(opts: {
+  q: string; status: string; page: number; perPage: number;
+}) {
+  const identity = getCurrentIdentity();
+  const { q, status, page, perPage } = opts;
+  return useQuery<SuperadminSetupProgressResponse>({
+    enabled: identity?.role === "superadmin",
+    queryKey: ["superadmin", "setup-progress", identity?.user_id, q, status, page, perPage],
+    queryFn: () => {
+      const qs = new URLSearchParams({
+        q, status, page: String(page), per_page: String(perPage),
+      });
+      return api<SuperadminSetupProgressResponse>(`/api/v2/superadmin/setup-progress?${qs}`);
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
+
 export type SuperadminAuditRow = components["schemas"]["SuperadminAuditRow"];
 
 export type SuperadminAuditListResponse = components["schemas"]["SuperadminAuditListResponse"];

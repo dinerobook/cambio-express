@@ -16,7 +16,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.Core.Database import get_db
-from api.Core.Pagination import PaginationParams, paginate, pagination_dep
+from api.Core.Pagination import (
+    PaginationParams, paginate, paginate_list, pagination_dep,
+)
 from api.Core.Sorting import SORT_DIR_PATTERN
 from api.Modules.Audit.Services import record_superadmin_action
 from api.Modules.Auth.Controllers import (
@@ -42,6 +44,7 @@ from api.Modules.Superadmin.Requests.responses import (
     SuperadminReportDrilldownResponse,
     SuperadminRetentionDryRunResponse,
     SuperadminRevokeSessionsResponse,
+    SuperadminSetupProgressResponse,
     SuperadminStoreAuditLogResponse,
     SuperadminStoreDrillResponse,
     SuperadminStoreEmailResponse,
@@ -1411,6 +1414,33 @@ def _store_row(s: Any) -> SuperadminStoreRow:
         stripe_customer_id=s.stripe_customer_id or "",
         stripe_subscription_id=s.stripe_subscription_id or "",
     )
+
+
+@router.get(
+    "/setup-progress", response_model=None,
+    responses={200: {"model": SuperadminSetupProgressResponse}},
+)
+def setup_progress_route(
+    q: str = Query("", max_length=200, description="Search name, slug or email."),
+    status: str = Query(
+        "open", pattern="^(open|done|all)$",
+        description="open = setup not finished (default), done, or all.",
+    ),
+    pagination: PaginationParams = Depends(pagination_dep),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> dict[str, Any]:
+    """Setup progress per store, newest store first: companies added,
+    charge per money order set, bank connected, first day locked.
+    Read-only. Its own route so the dashboard summary stays light."""
+    _require_superadmin(claims)
+    from api.Modules.Superadmin.Repositories import stores_query
+    from api.Modules.Superadmin.Services.setup_progress import (
+        filter_setup_rows, setup_progress_rows,
+    )
+    stores = stores_query(db, q=q).all()
+    rows = filter_setup_rows(setup_progress_rows(db, stores), status)
+    return paginate_list(rows, pagination)
 
 
 @router.get("/stores/{store_id}", response_model=SuperadminStoreDetailResponse)

@@ -138,6 +138,37 @@ def store_feature_enabled(
     return bool(flag.enabled_by_default)
 
 
+def stores_feature_enabled(
+    db: Session, stores: list[Store], flag_key: str,
+) -> dict[int, bool]:
+    """``store_feature_enabled`` for many stores at once, as
+    ``{store_id: enabled}`` — two queries however many stores, for
+    platform lists. Same priority: override → business-type bundle →
+    global default → fail-open."""
+    if not stores:
+        return {}
+    overrides = {
+        int(row.store_id): bool(row.enabled)
+        for row in db.query(StoreFeatureOverride).filter(
+            StoreFeatureOverride.flag_key == flag_key,
+            StoreFeatureOverride.store_id.in_([s.id for s in stores]),
+        )
+    }
+    flag = db.query(FeatureFlag).filter_by(key=flag_key).first()
+    fallback = True if flag is None else bool(flag.enabled_by_default)
+    out: dict[int, bool] = {}
+    for store in stores:
+        sid = int(store.id)
+        if sid in overrides:
+            out[sid] = overrides[sid]
+            continue
+        bundled = module_bundle_default(
+            getattr(store, "business_type", None), flag_key,
+        )
+        out[sid] = fallback if bundled is None else bundled
+    return out
+
+
 def enabled_module_flags(db: Session, store: Store | None) -> list[str]:
     """The module flags currently ON for this store — the SPA reads
     this off /auth/session-status to decide which nav sections and
