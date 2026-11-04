@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { canAccess } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
 import type { components } from "./openapi";
@@ -33,7 +34,9 @@ interface TicketResponse {
 export function useTicketsUnread() {
   const identity = getCurrentIdentity();
   return useQuery<{ unread: number }>({
-    enabled: identity != null,
+    // Only for people who have the Support page at all (not the
+    // accountant), so the badge never polls a refused endpoint.
+    enabled: identity != null && canAccess("/account/tickets"),
     queryKey: ["tickets", "unread"],
     queryFn: () => api<{ unread: number }>("/api/v2/tickets/unread"),
     refetchInterval: 60_000,

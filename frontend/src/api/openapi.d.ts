@@ -7150,7 +7150,8 @@ export interface components {
              * Assignable Roles
              * @default [
              *       "admin",
-             *       "employee"
+             *       "employee",
+             *       "accountant"
              *     ]
              */
             assignable_roles: string[];
@@ -11900,9 +11901,9 @@ export interface components {
             /**
              * Role
              * @default employee
-             * @constant
+             * @enum {string}
              */
-            role: "employee";
+            role: "employee" | "accountant";
             /** Store Ids */
             store_ids: number[];
         };

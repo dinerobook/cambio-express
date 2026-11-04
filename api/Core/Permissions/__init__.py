@@ -102,6 +102,25 @@ RBAC_DEFAULTS: dict[str, list[str]] = {
     ),
 }
 
+# Built-in roles whose access is FIXED in code: no Casbin row, no
+# per-store override and no per-user overlay can widen or narrow
+# them, so no matrix editor can hand an accountant the daily book by
+# accident. ``resolve_grants`` answers these before any lookup.
+#
+# ``accountant`` — the store's bookkeeper or CPA (idea D1, 2026-11-04):
+# view-only Reports (which carry the tax pack) and the monthly P&L.
+# Defence in depth: ``api/Core/Permissions/accountant.py`` also
+# refuses every API route not on its list, before the route runs.
+FIXED_ROLE_GRANTS: dict[str, frozenset[tuple[str, str]]] = {
+    "accountant": frozenset({("reports", "read"), ("monthly", "read")}),
+}
+
+
+def is_fixed_role(role: str | None) -> bool:
+    """True for a built-in role whose access no editor may change."""
+    return (role or "") in FIXED_ROLE_GRANTS
+
+
 LEGACY_ROLE_PERMISSIONS: dict[str, list[str]] = {
     "superadmin": ["platform.admin", "store.admin", "store.employee", "owner.read"],
     # Tickets-only platform role. Deliberately NOT in the
@@ -297,6 +316,8 @@ def _resolve_grants(role: str, store_id: int) -> set[tuple[str, str]]:
     resources fall back to global once; the next save re-freezes
     them explicitly.
     """
+    if role in FIXED_ROLE_GRANTS:
+        return set(FIXED_ROLE_GRANTS[role])
     e = _get_enforcer()
     store_rules = e.get_filtered_policy(0, role, str(store_id))
     if not store_rules:
@@ -352,6 +373,8 @@ def resolve_user_grants(
     """Effective grants for one USER at a store: the user's own
     overlay where it speaks, the role's resolved grants where it
     doesn't."""
+    if role in FIXED_ROLE_GRANTS:
+        return set(FIXED_ROLE_GRANTS[role])
     mentioned, grants = _user_overlay(user_id, store_id)
     role_grants = _resolve_grants(role, store_id)
     if not mentioned:
@@ -393,6 +416,10 @@ def resolve_grants(
     """
     if role == "superadmin":
         return set(ALL_GRANTS)
+    if role in FIXED_ROLE_GRANTS:
+        # Fixed in code: never read from Casbin, so neither a store
+        # override nor a leftover per-user overlay can change it.
+        return set(FIXED_ROLE_GRANTS[role])
     if role not in RBAC_DEFAULTS:
         # Unknown or blank role: nothing. (A blank subject would
         # also match EVERY row in a filtered policy lookup.)

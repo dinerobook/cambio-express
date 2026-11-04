@@ -46,6 +46,31 @@ export interface RouteAccess {
 }
 
 const STORE_ROLES = ["admin", "employee", "owner"];
+
+/** The view-only bookkeeper role (fixed access: reports, monthly P&L
+ *  and the tax pack). The server refuses every API route outside its
+ *  list (`api/Core/Permissions/accountant.py`); this is the same
+ *  rule for pages, so an accountant is never shown a page whose data
+ *  the server would refuse. Checked BEFORE the table below, so an
+ *  `open` page is still closed to them unless listed here. */
+export const ACCOUNTANT_ROLE = "accountant";
+export const ACCOUNTANT_PAGES: string[] = [
+  "/reports",
+  "/reports/*",
+  "/monthly",
+  "/admin/data-export",
+  "/settings",
+  "/settings/profile",
+  "/settings/security",
+  "/account/activity",
+  "/account/sessions",
+];
+
+/** Where a signed-in person lands, and where a refused page sends
+ *  them. An accountant has no dashboard: Reports is their home. */
+export function homePathFor(identity: IdentityLike): string {
+  return identity?.role === ACCOUNTANT_ROLE ? "/reports" : "/dashboard";
+}
 const STORE_MANAGERS = ["admin", "owner", "superadmin"];
 
 export const ROUTE_ACCESS: RouteAccess[] = [
@@ -91,7 +116,9 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/store-reports", perm: "reports.read" },
   { path: "/store-reports/*", perm: "reports.read" },
   { path: "/admin/data-export", perm: "reports.read" },
-  { path: "/admin/audit-log", perm: "reports.read" },
+  // The audit log is the store's own activity record, not a report
+  // for the accountant: every role holding reports.read but them.
+  { path: "/admin/audit-log", perm: "reports.read", roles: ["admin", "employee", "owner", "superadmin"] },
 
   // ── Finance ────────────────────────────────────────────────
   { path: "/bank", perm: "bank_sync.read" },
@@ -180,6 +207,13 @@ export function canAccessWith(identity: IdentityLike, to: string): boolean {
   // from being unlisted by accident.
   if (!rule) return true;
   if (!identity) return false;
+  if (identity.role === ACCOUNTANT_ROLE) {
+    const path = normalisePath(to);
+    const listed = ACCOUNTANT_PAGES.some(
+      (p) => matchPath({ path: p, end: true }, path) !== null,
+    );
+    if (!listed) return false;
+  }
   if (rule.open) return true;
   if (rule.roles && !rule.roles.includes(identity.role)) return false;
   if (rule.perm) {

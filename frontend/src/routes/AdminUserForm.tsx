@@ -286,14 +286,17 @@ export default function AdminUserForm() {
     setServerError(null);
     setFieldErrors({});
     try {
-      const moduleAccess = draft.restrict ? draft.modules : null;
-      const savedRole = savedRoleId(draft.access);
+      // An accountant's access is fixed on the server: no module
+      // filter, no saved role, no custom grid is sent for them.
+      const isAccountant = draft.role === "accountant";
+      const moduleAccess = draft.restrict && !isAccountant ? draft.modules : null;
+      const savedRole = isAccountant ? null : savedRoleId(draft.access);
       // A saved role is applied through the role endpoint. Sending
       // its matrix to the per-user overlay route instead would
       // immediately DETACH the user from the role they were just
       // put in (R-3's hand-edit rule).
-      const wantsCustom =
-        savedRole == null && draft.access !== "role" && draft.perm != null;
+      const wantsCustom = !isAccountant
+        && savedRole == null && draft.access !== "role" && draft.perm != null;
       if (isEdit) {
         const body: AdminUserUpdateBody = {
           full_name: draft.full_name,
@@ -306,10 +309,12 @@ export default function AdminUserForm() {
         // Custom access saves through the R-1 overlay endpoints —
         // only when it actually changed (each write revokes the
         // user's sessions, so no-op saves shouldn't log them out).
-        if (!isSelf && savedRole !== savedRoleId(baseline.access)) {
+        // Moving someone to Accountant clears their saved role and
+        // custom access on the server in the same save.
+        if (!isSelf && !isAccountant && savedRole !== savedRoleId(baseline.access)) {
           await assignAccessRole(uid, savedRole);
         }
-        if (!isSelf && savedRole == null) {
+        if (!isSelf && !isAccountant && savedRole == null) {
           const hadCustom =
             baseline.access !== "role"
             && savedRoleId(baseline.access) == null;
@@ -469,10 +474,22 @@ export default function AdminUserForm() {
               {assignableRoles.includes("admin") && (
                 <option value="admin">Admin (full access)</option>
               )}
+              {(assignableRoles.includes("accountant") || draft.role === "accountant") && (
+                <option value="accountant">Accountant (view only)</option>
+              )}
             </Select>
           </Field>
 
-          {!isSelf && (
+          {draft.role === "accountant" && (
+            <Alert tone="info">
+              View only: reports, the monthly P&amp;L and the tax pack.
+              An accountant's access is fixed and can't be widened. To
+              give them several of your stores, add the same email at
+              each store; they pick the store when they sign in.
+            </Alert>
+          )}
+
+          {!isSelf && draft.role !== "accountant" && (
             <Field
               label="Role"
               hint="What this person can do, enforced on every request. Roles are set up on Team → Roles & access."
@@ -553,6 +570,7 @@ export default function AdminUserForm() {
             </Field>
           )}
 
+          {draft.role !== "accountant" && (
           <Field
             label="Module access"
             error={fieldErrors.module_access}
@@ -591,6 +609,7 @@ export default function AdminUserForm() {
               )}
             </div>
           </Field>
+          )}
 
           <Field
             label={

@@ -11,6 +11,7 @@ import {
   daysAgoIso, storeNow, todayIso,
 } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { canAccess, canDo } from "../lib/access";
 
 // /app/admin/data-export — single hub for every authed CSV /
 // ZIP download the admin can pull. Catalogs the scattered
@@ -20,6 +21,10 @@ import { PageCrumbs } from "../components/PageCrumbs";
 //
 // Useful for GDPR-style data-portability requests + new-store
 // onboarding ("show me what I'll be able to get back out").
+//
+// No access, no control: a download the viewer's sign-in would be
+// refused (the customer directory, time clock and audit log for an
+// accountant) is not shown at all.
 
 export default function AdminDataExport() {
   const taxYears = useTaxExportYears();
@@ -203,15 +208,16 @@ export default function AdminDataExport() {
         </Section>
       </Card>
 
-      <Card>
-        <Section title="Customer directory">
-          <p className={styles.intro}>
-            Every customer row visible across your stores
-            (alphabetical), masked-phone-disabled — useful for
-            CRM exports + GDPR data-portability requests.
-          </p>
-          {customersErr && (
-            <Alert tone="error">{customersErr}</Alert>
+      {canDo("customers.update") && (
+        <Card>
+          <Section title="Customer directory">
+            <p className={styles.intro}>
+              Every customer row visible across your stores
+              (alphabetical), masked-phone-disabled — useful for
+              CRM exports + GDPR data-portability requests.
+            </p>
+            {customersErr && (
+              <Alert tone="error">{customersErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
@@ -232,6 +238,7 @@ export default function AdminDataExport() {
           </div>
         </Section>
       </Card>
+      )}
 
       <Card>
         <Section title="Transfers (custom range)">
@@ -319,15 +326,16 @@ export default function AdminDataExport() {
         </Section>
       </Card>
 
-      <Card>
-        <Section title="Time-clock entries (custom range)">
-          <p className={styles.intro}>
-            Every clock-in / clock-out in the window plus the
-            derived late-minutes and adjusted-after-the-fact
-            flags. Plugs straight into a payroll spreadsheet.
-          </p>
-          {tcErr && (
-            <Alert tone="error">{tcErr}</Alert>
+      {canAccess("/admin/timeclock") && (
+        <Card>
+          <Section title="Time-clock entries (custom range)">
+            <p className={styles.intro}>
+              Every clock-in / clock-out in the window plus the
+              derived late-minutes and adjusted-after-the-fact
+              flags. Plugs straight into a payroll spreadsheet.
+            </p>
+            {tcErr && (
+              <Alert tone="error">{tcErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
@@ -360,17 +368,19 @@ export default function AdminDataExport() {
           </div>
         </Section>
       </Card>
+      )}
 
-      <Card>
-        <Section title="Audit log">
-          <p className={styles.intro}>
-            Every operator + transfer audit row for this store —
-            who did what, when, with the before/after summary
-            line. Useful for compliance or for investigating a
-            disputed change.
-          </p>
-          {auditErr && (
-            <Alert tone="error">{auditErr}</Alert>
+      {canAccess("/admin/audit-log") && (
+        <Card>
+          <Section title="Audit log">
+            <p className={styles.intro}>
+              Every operator + transfer audit row for this store —
+              who did what, when, with the before/after summary
+              line. Useful for compliance or for investigating a
+              disputed change.
+            </p>
+            {auditErr && (
+              <Alert tone="error">{auditErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
@@ -391,6 +401,7 @@ export default function AdminDataExport() {
           </div>
         </Section>
       </Card>
+      )}
 
       <Card>
         <Section title="More report CSVs">

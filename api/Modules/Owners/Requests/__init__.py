@@ -208,7 +208,9 @@ class OwnerBulkAddUserRequest(BaseModel):
     phone:     str | None = Field(None, max_length=40)
     password:  str = Field(..., min_length=8, max_length=200)
     full_name: str = Field("", max_length=120)
-    role:      Literal["employee"] = "employee"
+    # An accountant is the view-only bookkeeper (fixed access:
+    # reports, monthly P&L, tax pack), one login per store.
+    role:      Literal["employee", "accountant"] = "employee"
     store_ids: list[int] = Field(..., min_length=1, max_length=50)
 
 

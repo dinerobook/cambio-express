@@ -466,6 +466,39 @@ test_support_role.py`:
   instead.
 
 
+## The `accountant` store role — fixed, view-only, two locks
+
+The store's bookkeeper or CPA (idea D1, 2026-11-04). A normal
+per-store `User` row with `role="accountant"`; several of an
+owner's stores = one login per store (owner "Add user to stores"),
+and the sign-in store picker chooses. No table, no new token kind.
+Pinned by `tests/Core/test_accountant_role.py` (grant, deny on
+EVERY route, revoke, store isolation, rank rule) and
+`frontend/src/lib/accountant.test.tsx`.
+
+- **Lock 1 — fixed grants.** `FIXED_ROLE_GRANTS["accountant"]` =
+  `reports.read` + `monthly.read` (the tax pack is behind
+  `reports.read`). `resolve_grants`, `_resolve_grants` and
+  `resolve_user_grants` answer a fixed role BEFORE reading Casbin,
+  so no store override and no per-user overlay can widen it. The
+  role is in no matrix editor's `editable_roles`; the Admin routes
+  refuse custom access or a saved role for it (422), and moving
+  someone TO accountant clears their overlay and saved role.
+- **Lock 2 — the route list.** `get_principal` runs every
+  accountant request through `require_accountant_route`
+  (`api/Core/Permissions/accountant.py`): the matched route
+  TEMPLATE must be on `ACCOUNTANT_ROUTES` (or a GET under
+  `/reports/`), otherwise 403 before the route body runs. A route
+  added later is refused to accountants until someone lists it.
+  Never widen the list to a write beyond their own account.
+- **Rank.** An accountant is managed at ADMIN rank
+  (`MANAGED_AT_RANK` in `ranks.py`): only an admin, an owner or the
+  superadmin adds, edits or removes one, so an employee with the
+  Team permission cannot reset their password and use it. As an
+  actor an accountant ranks below everyone and manages no one.
+- **Scope.** `authorize_store_ids` treats an accountant like an
+  employee: the token's store only.
+
 ## The login flow — what's actually wired today
 
 The SPA's login flow lives entirely in the FastAPI routes under
@@ -849,6 +882,9 @@ What needs a security discussion FIRST:
   switch: staff login refused (403) and restored on enable, live
   tokens + refresh refused, owners still sign in but cannot
   switch in, superadmin + impersonation unaffected, bulk path.
+- `tests/Core/test_accountant_role.py` — the accountant role: the
+  fixed grants, the route list walked over every route, revoke,
+  store isolation, the rank rule.
 - `tests/Modules/Admin/test_rank_rule.py` — the rank rule: owner
   rows out of an admin's reach, the Team permission is not a
   store takeover, rejected matrix bodies write nothing.

@@ -36,7 +36,7 @@ class AdminUserListResponse(BaseModel):
     # Account types the asker may hand out: at or below their own
     # rank. Feeds the account-type picker so it never offers a
     # choice the server would refuse.
-    assignable_roles: list[str] = ["admin", "employee"]
+    assignable_roles: list[str] = ["admin", "employee", "accountant"]
 
 
 class AdminUserDetailResponse(BaseModel):

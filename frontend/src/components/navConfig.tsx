@@ -203,13 +203,28 @@ export const NAV: NavGroup[] = [
     // blur). Each center lists its own categories; the store
     // center is flag-gated so MSB-profile stores never see it.
     title: "Reports",
-    roles: ["admin"],
+    roles: ["admin", "accountant"],
     icon: iconReports(),
     items: [
       {
         to: "/reports", label: "MSB reports",
         icon: iconTransfers(),
         desc: "Money-services analytics and exports.",
+      },
+      // The accountant has no dashboard (where admins open the
+      // monthly P&L), so their Reports menu carries it and the tax
+      // pack directly.
+      {
+        to: "/monthly", label: "Monthly P&L",
+        roles: ["accountant"],
+        icon: iconRollup(),
+        desc: "Profit and loss, month by month.",
+      },
+      {
+        to: "/admin/data-export", label: "Data export",
+        roles: ["accountant"],
+        icon: iconAudit(),
+        desc: "Year-end tax pack and CSV downloads.",
       },
       {
         to: "/store-reports", label: "Store reports",

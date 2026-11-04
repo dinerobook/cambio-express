@@ -580,7 +580,9 @@ def list_reports_route(
     Auth: any logged-in caller scoped to a store. Owners get the
     same admin-side category list when viewing through their own
     store; the owner-prefix variant lives at /owner/reports."""
-    if claims.get("role") not in ("admin", "owner", "employee", "superadmin"):
+    if claims.get("role") not in (
+        "admin", "owner", "employee", "accountant", "superadmin",
+    ):
         raise HTTPException(
             status_code=403,
             detail="Sign in as a store user to view reports.",

@@ -132,7 +132,10 @@ is in the file named after the arrow.
 18. **The rank rule and the live principal** — every route that changes
     another person's role, password, active flag or access goes through
     `api/Core/Permissions/ranks.py`; `get_principal` checks the DB on
-    every request. → `api/Modules/Auth/CLAUDE.md`
+    every request. The view-only **Accountant** role has fixed grants
+    and a route list checked in `get_principal`; a new route is
+    refused to it until listed in `api/Core/Permissions/accountant.py`.
+    → `api/Modules/Auth/CLAUDE.md`
 19. **A store id from the client is a request, not a scope** — run it
     through `authorize_store_id(s)` (`api.Core.StoreScope`).
     → `api/CLAUDE.md`

@@ -23,7 +23,7 @@ from api.Modules.Admin.Services.users import (
 )
 from api.Modules.Owners.Repositories import get_store_names_map, store_ids_for_owner
 
-VALID_ROLES = {"admin", "employee"}
+VALID_ROLES = {"admin", "employee", "accountant"}
 
 
 def bulk_add_user_to_stores(
@@ -49,7 +49,9 @@ def bulk_add_user_to_stores(
     other new login (L-2). Creating the same identifier at several
     stores is the intended use here, and it's exactly the case the
     sign-in store-picker handles: one set of credentials, valid at
-    several stores, so they choose which one to open.
+    several stores, so they choose which one to open. That is also
+    how an accountant reaches several of the owner's stores: one
+    view-only login per store, all created here in one go.
 
     Caller commits. Per-store failures don't roll the whole
     batch back — each is reported in the response and the
@@ -59,7 +61,7 @@ def bulk_add_user_to_stores(
     from api.Modules.Auth.Services.identity import login_identifier
 
     if role not in VALID_ROLES:
-        raise ValueError("Role must be 'admin' or 'employee'.")
+        raise ValueError("Role must be 'admin', 'employee' or 'accountant'.")
     if not login_identifier(email, phone):
         raise ValueError(
             "An email address or phone number is required — it's how "

@@ -2,13 +2,13 @@ import { useMemo, useState, type FormEvent } from "react";
 
 import {
   bulkAddUser, useOwnerLocations,
-  type OwnerBulkAddUserResultRow,
+  type OwnerBulkAddUserBody, type OwnerBulkAddUserResultRow,
 } from "../api/owner";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, Button, Card, Checkbox, Empty, ErrorState, Field, FormActions,
-  InfoTip, Input, Loading, PageHeader, PageShell, Section,
+  InfoTip, Input, Loading, PageHeader, PageShell, Section, Select,
 } from "../components/ui";
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { BulkResultsCard } from "../components/BulkResultsCard";
@@ -32,7 +32,7 @@ export default function OwnerBulkAddUser() {
   const [phone, setPhone]         = useState("");
   const [password, setPassword]   = useState("");
   const [fullName, setFullName]   = useState("");
-  const [role]                    = useState<"employee">("employee");
+  const [role, setRole]           = useState<OwnerBulkAddUserBody["role"]>("employee");
   const [busy, setBusy]           = useState(false);
   const [err, setErr]             = useState<string | null>(null);
   const [results, setResults]     =
@@ -46,7 +46,7 @@ export default function OwnerBulkAddUser() {
     selected: storeIds, isSelected, toggle: toggleStore, toggleAll, allSelected,
   } = useStoreSelection(allStoreIds);
 
-  const { dirty, markSaved } = useDirtyBaseline({ email, phone, password, fullName });
+  const { dirty, markSaved } = useDirtyBaseline({ email, phone, password, fullName, role });
   const guard = useUnsavedGuard(dirty && !busy, {
     message: "You have a user you haven't created yet. Leave without creating?",
   });
@@ -162,8 +162,21 @@ export default function OwnerBulkAddUser() {
                     onChange={(e) => setFullName(e.target.value)}
                   />
                 </Field>
-                <Field label="Role">
-                  <Input value="Employee (cashier)" disabled />
+                <Field
+                  label="Role"
+                  hint={
+                    role === "accountant"
+                      ? "View only: reports, the monthly P&L and the tax pack. They pick the store when they sign in."
+                      : undefined
+                  }
+                >
+                  <Select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as OwnerBulkAddUserBody["role"])}
+                  >
+                    <option value="employee">Employee (cashier)</option>
+                    <option value="accountant">Accountant (view only)</option>
+                  </Select>
                 </Field>
               </div>
             </Section>
