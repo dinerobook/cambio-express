@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { tokens } from "./tokens";
+import { useT } from "../../i18n";
 
 /** Breadcrumb navigation trail — shows the user where they are
  *  and lets them jump back to any ancestor page.
@@ -19,9 +20,10 @@ import { tokens } from "./tokens";
 export function Breadcrumbs({ crumbs }: {
   crumbs: Array<{ label: string; to?: string }>;
 }) {
+  const t = useT();
   if (crumbs.length === 0) return null;
   return (
-    <nav aria-label="Breadcrumb" style={barStyle}>
+    <nav aria-label={t("common.breadcrumb")} style={barStyle}>
       <ol style={listStyle}>
         {crumbs.map((c, i) => {
           const isLast = i === crumbs.length - 1;

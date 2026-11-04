@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
-import { WEEKDAY_NAMES_SHORT, daysInMonth, isoDate } from "../../lib/datetime";
+import { daysInMonth, isoDate, weekdayNamesShort } from "../../lib/datetime";
+import { useT } from "../../i18n";
 import styles from "./MonthCalendar.module.css";
 
 /** A month grid of days, each linking to that day's page.
@@ -43,23 +44,24 @@ export interface MonthCalendarDay {
  *  if a cell state changes, the legend that explains it is right
  *  next to it. */
 export function MonthCalendarLegend() {
+  const t = useT();
   return (
     <div className={styles.legend}>
       <span className={styles.legendItem}>
         <span className={`${styles.swatch} ${styles.isToday}`} />
-        Today
+        {t("calendar.today")}
       </span>
       <span className={styles.legendItem}>
         <span className={`${styles.swatch} ${styles.hasData}`} />
-        Has entry
+        {t("calendar.hasEntry")}
       </span>
       <span className={styles.legendItem}>
         <span className={`${styles.swatch} ${styles.isLocked}`} />
-        Locked
+        {t("calendar.locked")}
       </span>
       <span className={styles.legendItem}>
         <span className={styles.swatch} />
-        No entry yet
+        {t("calendar.noEntry")}
       </span>
     </div>
   );
@@ -80,6 +82,7 @@ export function MonthCalendar({
   hrefFor: (iso: string) => string | null;
   ariaLabelFor?: (iso: string) => string;
 }) {
+  const t = useT();
   const firstWeekday = new Date(year, month - 1, 1).getDay();
   const total = daysInMonth(year, month);
 
@@ -94,8 +97,8 @@ export function MonthCalendar({
   return (
     <div>
       <div className={styles.weekHeader}>
-        {WEEKDAY_NAMES_SHORT.map((d) => (
-          <div key={d} className={styles.weekHeaderCell}>{d}</div>
+        {weekdayNamesShort().map((d, i) => (
+          <div key={i} className={styles.weekHeaderCell}>{d}</div>
         ))}
       </div>
       <div className={styles.grid}>
@@ -125,7 +128,7 @@ export function MonthCalendar({
                     stroke="currentColor" fill="none" strokeWidth="2"
                     strokeLinecap="round" strokeLinejoin="round"
                     className={styles.lockIcon}
-                    aria-label="Locked"
+                    aria-label={t("calendar.locked")}
                   >
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -174,7 +177,7 @@ export function MonthCalendar({
             </>
           );
           const href = hrefFor(iso);
-          const label = ariaLabelFor?.(iso) ?? `Open ${iso}`;
+          const label = ariaLabelFor?.(iso) ?? t("calendar.open", { date: iso });
           // No reachable editor → a plain tile, not a link that bounces.
           return href ? (
             <Link key={iso} to={href} className={cls} aria-label={label}>

@@ -3,6 +3,8 @@ import { useLocation } from "react-router-dom";
 import { getCurrentIdentity } from "../lib/auth";
 import { Breadcrumbs } from "./ui";
 import { filterNavForRole, navTrail, type NavCrumb } from "./navConfig";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 /** The trail above every page title (UI-STANDARDS §7b). The first
  *  crumbs come from the sidebar (`NAV`), never typed by hand, so a
@@ -24,6 +26,7 @@ export function PageCrumbs({
   under?: string;
   via?: NavCrumb[];
 }) {
+  useT(); // re-render when the language changes
   const { pathname } = useLocation();
   const identity = getCurrentIdentity();
   // Module flags only hide items; they never change which item a
@@ -32,7 +35,13 @@ export function PageCrumbs({
     identity?.role ?? "",
     identity?.permissions ?? [],
   );
-  const crumbs = [...navTrail(under ?? pathname, groups), ...via];
+  // Sidebar crumbs read in the person's language like the sidebar
+  // itself; `via` and `current` arrive already translated.
+  const crumbs = [
+    ...navTrail(under ?? pathname, groups)
+      .map((c) => ({ ...c, label: navWord(c.label) })),
+    ...via,
+  ];
   if (current) crumbs.push({ label: current });
   return <Breadcrumbs crumbs={crumbs} />;
 }

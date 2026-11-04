@@ -10,9 +10,11 @@ import {
 } from "../components/ui";
 import { canAccess } from "../lib/access";
 import {
-  MONTH_NAMES, daysInMonth, monthRangeIso, shiftMonth, storeNow, todayIso,
+  daysInMonth, formatMonthYear, monthRangeIso, shiftMonth, storeNow, todayIso,
 } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/daily — the Daily Book landing page. A calendar of the
 // chosen month + a monthly summary strip. Each day cell is a link
@@ -21,6 +23,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // the calendar, then enter that day's book.
 
 export default function DailyBook() {
+  const t = useT();
   const [params, setParams] = useSearchParams();
 
   // Read year+month from the URL. Default to current month so the
@@ -64,8 +67,8 @@ export default function DailyBook() {
       <PageCrumbs />
 
       <PageHeader
-        title="MSB daily book"
-        subtitle={`${MONTH_NAMES[month - 1]} ${year}`}
+        title={navWord("MSB daily book")}
+        subtitle={formatMonthYear(year, month)}
         actions={(
           <PeriodStepper
             unit="month"
@@ -75,9 +78,9 @@ export default function DailyBook() {
             <ButtonLink
               to={`/daily/edit?date=${today}`}
               tone="secondary" size="sm"
-              title="Open today's daily book"
+              title={t("daily.openToday")}
             >
-              Today
+              {t("daily.today")}
             </ButtonLink>
           </PeriodStepper>
         )}
@@ -86,7 +89,7 @@ export default function DailyBook() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={apiErrorMessage(error, "Could not load month.")}
+          message={apiErrorMessage(error, t("daily.monthLoadFailed"))}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -94,20 +97,20 @@ export default function DailyBook() {
       {data && (
         <KpiGrid minWidth="180px">
           <KpiCard
-            label="Days logged"
+            label={t("daily.daysLogged")}
             value={`${data.days_logged} / ${daysInMonth(year, month)}`}
           />
           <KpiCard
-            label="Total in"
+            label={t("daily.totalIn")}
             value={fmtMoney(data.total_receipts)}
             tone="positive"
           />
           <KpiCard
-            label="Total out"
+            label={t("daily.totalOut")}
             value={fmtMoney(data.total_disbursements)}
           />
           <KpiCard
-            label="Net"
+            label={t("daily.net")}
             value={fmtMoney(data.net)}
             tone={data.net >= 0 ? "positive" : "negative"}
           />
@@ -143,13 +146,14 @@ function Calendar({
   today: string;
   reportByDate: Map<string, DailyReportRow>;
 }) {
+  const t = useT();
   return (
     <MonthCalendar
       year={year}
       month={month}
       today={today}
       hrefFor={(iso) => (canAccess("/daily/edit") ? `/daily/edit?date=${iso}` : null)}
-      ariaLabelFor={(iso) => `Open daily book for ${iso}`}
+      ariaLabelFor={(iso) => t("daily.openDay", { date: iso })}
       dayFor={(iso) => {
         const report = reportByDate.get(iso);
         if (!report) return undefined;
@@ -161,7 +165,7 @@ function Calendar({
           locked: Boolean(report.locked),
           primary: fmtMoney(total),
           variance: over,
-          varianceTitle: `Over/short: ${fmtMoney2(over)}`,
+          varianceTitle: t("daily.overShortTitle", { amount: fmtMoney2(over) }),
         };
       }}
     />

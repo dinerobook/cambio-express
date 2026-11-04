@@ -2,6 +2,14 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { Button } from "./Button";
 import styles from "./PeriodStepper.module.css";
+import { useT, type MessageKey } from "../../i18n";
+
+const PREV: Record<PeriodUnit, MessageKey> = {
+  day: "period.previousDay", week: "period.previousWeek", month: "period.previousMonth",
+};
+const NEXT: Record<PeriodUnit, MessageKey> = {
+  day: "period.nextDay", week: "period.nextWeek", month: "period.nextMonth",
+};
 
 export type PeriodUnit = "day" | "week" | "month";
 export type PeriodStepperVariant = "arrows" | "labeled" | "chevrons";
@@ -28,7 +36,7 @@ export type PeriodStepperVariant = "arrows" | "labeled" | "chevrons";
  *  bounds — the same rules a button press follows. */
 export function PeriodStepper({
   unit, onPrev, onNext, children, prevDisabled, nextDisabled,
-  onToday, todayLabel = "Today", onCalendar, variant = "arrows",
+  onToday, todayLabel, onCalendar, variant = "arrows",
   arrowKeys = false, fill = false,
 }: {
   unit: PeriodUnit;
@@ -50,8 +58,9 @@ export function PeriodStepper({
    *  push the next / today buttons to the far edge. */
   fill?: boolean;
 }) {
-  const prevLabel = `Previous ${unit}`;
-  const nextLabel = `Next ${unit}`;
+  const t = useT();
+  const prevLabel = t(PREV[unit]);
+  const nextLabel = t(NEXT[unit]);
 
   // The listener is bound once; the latest callbacks + bounds are
   // read through a ref so a re-render never re-binds it.
@@ -109,7 +118,7 @@ export function PeriodStepper({
         </button>
         {onToday && (
           <Button tone="secondary" size="sm" onClick={onToday}>
-            {todayLabel}
+            {todayLabel ?? t("calendar.today")}
           </Button>
         )}
         {onCalendar && <CalendarButton onClick={onCalendar} />}
@@ -138,7 +147,7 @@ export function PeriodStepper({
       </Button>
       {onToday && (
         <Button tone="secondary" size={size} onClick={onToday}>
-          {todayLabel}
+          {todayLabel ?? t("calendar.today")}
         </Button>
       )}
       {onCalendar && <CalendarButton onClick={onCalendar} />}
@@ -147,11 +156,12 @@ export function PeriodStepper({
 }
 
 function CalendarButton({ onClick }: { onClick: () => void }) {
+  const t = useT();
   return (
     <button
       type="button" className={`${styles.iconBtn} ${styles.calendarBtn}`}
       onClick={onClick}
-      aria-label="Back to calendar" title="Back to calendar"
+      aria-label={t("calendar.backToCalendar")} title={t("calendar.backToCalendar")}
     >
       <CalendarIcon />
     </button>
