@@ -21,9 +21,13 @@ def _listed_sentences() -> list[str]:
 
 
 def _api_source() -> str:
-    return "\n".join(
+    src = "\n".join(
         p.read_text() for p in (_ROOT / "api").rglob("*.py")
     )
+    # Python joins adjacent literals ("Remove them " "first"), so a
+    # sentence split over lines in the source is one sentence on the
+    # wire. Join them the same way before searching.
+    return re.sub(r'"\s*\n\s*"', "", src)
 
 
 def test_table_is_found_and_not_empty():

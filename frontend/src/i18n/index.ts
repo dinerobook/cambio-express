@@ -110,6 +110,26 @@ export function t(key: MessageKey, vars?: MessageVars): string {
 
 export type Translate = typeof t;
 
+/** Keys that come in a `.one` / `.other` pair ("daily.entries.one"). */
+export type PluralBase = {
+  [K in MessageKey]: K extends `${infer B}.one`
+    ? (`${B}.other` extends MessageKey ? B : never)
+    : never;
+}[MessageKey];
+
+/** A count with its noun in the current language: `tn("daily.entries",
+ *  3)` → "3 entries" / "3 entradas". `{count}` is filled with the
+ *  number as `fmt` writes it (the caller passes `fmtNumber`, so the
+ *  thousands separator matches every other count). */
+export function tn(
+  base: PluralBase, count: number, fmt: (n: number) => string = String,
+  vars?: MessageVars,
+): string {
+  const form = new Intl.PluralRules(INTL_LOCALES[current]).select(count);
+  const key = (form === "one" ? `${base}.one` : `${base}.other`) as MessageKey;
+  return t(key, { ...vars, count: fmt(count) });
+}
+
 function subscribe(fn: () => void): () => void {
   listeners.add(fn);
   return () => { listeners.delete(fn); };

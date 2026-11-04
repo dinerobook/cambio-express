@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { en } from "./en";
+
 // Translation guard (UI-STANDARDS §10). Every file listed here has
 // been moved onto the translator: its visible words come from
 // `t(...)` (i18n/en.ts + es.ts), never typed in English directly.
@@ -21,10 +23,19 @@ export const COVERED_FILES = [
   "components/UserMenu.tsx",
   "components/ThemeToggle.tsx",
   "components/UnsavedChangesHost.tsx",
+  "components/PageCrumbs.tsx",
   // Kit pieces every screen shows
+  "components/ui/Breadcrumbs.tsx",
   "components/ui/FormActions.tsx",
   "components/ui/Loading.tsx",
   "components/ui/Pager.tsx",
+  "components/ui/MonthCalendar.tsx",
+  "components/ui/PeriodStepper.tsx",
+  // Daily book
+  "routes/DailyBook.tsx",
+  "routes/EditDailyBook.tsx",
+  "routes/DailyBookSettlements.tsx",
+  "routes/DailyBookTile.tsx",
 ];
 
 const sources = import.meta.glob(
@@ -55,7 +66,8 @@ function rawStrings(src: string): string[] {
   const body = code(src);
   const found: string[] = [];
   // JSX text between tags: >Sign in<
-  for (const m of body.matchAll(/>([^<>{}]*[A-Za-z]{2}[^<>{}]*)</g)) {
+  // `(?<!=)`: an arrow's `=>` is code (`() => Promise<void>`), not a tag.
+  for (const m of body.matchAll(/(?<!=)>([^<>{}]*[A-Za-z]{2}[^<>{}]*)</g)) {
     const text = m[1].trim();
     // Skip TypeScript, not JSX: generics and comparisons like
     // `useState<X | null>(null); … <` contain code punctuation.
@@ -72,7 +84,8 @@ function rawStrings(src: string): string[] {
   for (const m of body.matchAll(
     /\b(label|title|message):\s*"([^"]*[A-Za-z]{2}[^"]*)"/g,
   )) {
-    found.push(`${m[1]}: "${m[2]}"`);
+    // A config table naming its words by translator key is fine.
+    if (!(m[2] in en)) found.push(`${m[1]}: "${m[2]}"`);
   }
   for (const m of body.matchAll(
     /\b(setError|setMsg|apiErrorMessage\([^,]+,)\s*\(?\s*"([^"]*[A-Za-z]{2}[^"]*)"/g,

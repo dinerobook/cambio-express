@@ -17,6 +17,24 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Invalid verification code": "login.invalidVerificationCode",
   "Invalid recovery code": "login.invalidRecoveryCode",
   "Invalid or expired pending session": "login.sessionExpired",
+  // Daily book
+  "Amount must be greater than zero.": "daily.amountPositive",
+  "Daily report is locked — unlock it before editing.": "daily.serverLocked",
+  "No daily report logged for this date": "daily.serverNoReport",
+  "Line item not found": "daily.serverEntryNotFound",
+  "Lock failed": "daily.lockFailed",
+  "Unlock failed": "daily.lockFailed",
+  "Enter a valid time (HH:MM).": "daily.serverBadTime",
+  "That's more than is still outstanding on this entry.": "daily.serverMoreThanOutstanding",
+  "A return can't be dated before the entry it settles.": "daily.serverReturnBeforeEntry",
+  "The settle-by date can't be before the entry's own day.": "daily.serverSettleByBeforeDay",
+  "That entry isn't open for a return any more.": "daily.serverNotOpen",
+  "Returns are recorded against this entry. Remove them first, then remove this entry.": "daily.serverHasReturns",
+  "Returns already recorded against this entry add up to more than that amount.": "daily.serverReturnsExceed",
+  "This payback is linked to a return check. Edit it from Books → Return Checks (update the payment).": "daily.serverPaybackEdit",
+  "This payback is linked to a return check. Remove it from Books → Return Checks (delete the payment).": "daily.serverPaybackRemove",
+  "A settle-by date needs the entry marked as coming back.": "daily.serverSettleByNeedsMark",
+  "A return can't itself be marked as coming back.": "daily.serverReturnMarked",
 };
 
 /** The server's `message` in the current language when known. A 429
