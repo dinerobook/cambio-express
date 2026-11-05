@@ -75,7 +75,7 @@ export const NAV_WORDS_ES: Record<string, string> = {
   "TV display": "Pantalla de TV",
   "Team users": "Usuarios del equipo",
   "Tickets": "Solicitudes",
-  "Time clock": "Reloj de asistencia",
+  "Time clock": "Reloj checador",
   "Transactions": "Transacciones",
   "Transfers": "Envíos",
   "Users": "Usuarios",

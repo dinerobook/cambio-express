@@ -2,85 +2,112 @@ import { Fragment, type ReactNode } from "react";
 
 import { actionsFor } from "../lib/permissions";
 import { Checkbox } from "./ui";
+import { t, useT, type MessageKey } from "../i18n";
 import styles from "./PermissionMatrixTable.module.css";
 
 // Single source of truth for permission-matrix labels — every
 // route that renders the resources × actions grid goes through
 // these (StorePermissions, OwnerStorePermissions,
 // SuperadminPermissions, SuperadminStoreDrill, AdminUserForm,
-// OwnerBulkPermissions, RoleEdit, RolesAccess).
+// OwnerBulkPermissions, RoleEdit, RolesAccess). The tables hold
+// translator keys (UI-STANDARDS §10); screens show the words through
+// `resourceLabel()` / `actionLabel()` / `actionShort()`, and an
+// unknown resource or action shows as stored.
 /* eslint-disable react-refresh/only-export-components -- the label
    maps are the component's default labelers; exporting them here
    keeps one import path for the matrix + its vocabulary.  Fast-
    refresh skip on this single file is acceptable. */
-export const RESOURCE_LABELS: Record<string, string> = {
-  transfers: "Money transfers",
-  customers: "Customers",
-  daily_book: "MSB daily book",
-  monthly: "Monthly P&L",
-  batches: "ACH batches",
-  bank_sync: "Bank accounts",
-  reports: "Reports",
-  settings: "Settings",
+export const RESOURCE_LABELS: Record<string, MessageKey> = {
+  transfers: "perm.resTransfers",
+  customers: "perm.resCustomers",
+  daily_book: "perm.resDailyBook",
+  monthly: "perm.resMonthly",
+  batches: "perm.resBatches",
+  bank_sync: "perm.resBankSync",
+  reports: "perm.resReports",
+  settings: "perm.resSettings",
   // Both rows live under the sidebar's Team menu; the labels say
   // so, so taking one away doesn't read as "removes Team" while
   // the other still shows it.
-  users: "Team: employees & logins",
-  time_clock: "Team: time clock",
-  return_checks: "Returned checks",
-  lottery: "Lottery",
-  day_close: "Store daily book",
-  catalog: "Price book & purchases",
+  users: "perm.resUsers",
+  time_clock: "perm.resTimeClock",
+  return_checks: "perm.resReturnChecks",
+  lottery: "perm.resLottery",
+  day_close: "perm.resDayClose",
+  catalog: "perm.resCatalog",
   // One switch for both daily books' Lock / Unlock buttons. Only
   // bites alongside Edit on that book.
-  day_lock: "Lock / unlock days",
+  day_lock: "perm.resDayLock",
   // One switch: mark bank transactions as already handled.
-  bank_dismiss: "Dismiss bank transactions",
+  bank_dismiss: "perm.resBankDismiss",
 };
 
-export const ACTION_LABELS: Record<string, string> = {
-  create: "Create", read: "View", update: "Edit", delete: "Delete",
+export const ACTION_LABELS: Record<string, MessageKey> = {
+  create: "perm.actCreate", read: "perm.actRead",
+  update: "perm.actUpdate", delete: "perm.actDelete",
 };
+
+/** One letter per action for the compact "Access by area" chips.
+ *  Its own key, because the first letters collide in Spanish
+ *  (Editar / Eliminar). */
+const ACTION_SHORT: Record<string, MessageKey> = {
+  create: "perm.actCreateShort", read: "perm.actReadShort",
+  update: "perm.actUpdateShort", delete: "perm.actDeleteShort",
+};
+
+export function resourceLabel(resource: string): string {
+  return Object.hasOwn(RESOURCE_LABELS, resource)
+    ? t(RESOURCE_LABELS[resource]) : resource;
+}
+
+export function actionLabel(action: string): string {
+  return Object.hasOwn(ACTION_LABELS, action) ? t(ACTION_LABELS[action]) : action;
+}
+
+export function actionShort(action: string): string {
+  return Object.hasOwn(ACTION_SHORT, action)
+    ? t(ACTION_SHORT[action]) : action.charAt(0).toUpperCase();
+}
 
 /** Areas grouped the way the sidebar groups their pages, so a
  *  long grid reads in sections instead of one undivided list.
- *  A resource missing here still renders, under "Other". */
-export const RESOURCE_GROUPS: { title: string; resources: string[] }[] = [
+ *  A resource missing here still renders, under "Other". `title`
+ *  is a translator key. */
+export const RESOURCE_GROUPS: { title: MessageKey; resources: string[] }[] = [
   {
-    title: "Money services",
+    title: "perm.groupMoneyServices",
     resources: ["transfers", "customers", "batches", "return_checks"],
   },
   {
-    title: "Books",
+    title: "perm.groupBooks",
     resources: [
       "daily_book", "day_close", "day_lock", "monthly", "lottery", "catalog",
     ],
   },
-  { title: "Finance", resources: ["bank_sync", "bank_dismiss", "reports"] },
-  { title: "Team", resources: ["users", "time_clock"] },
-  { title: "Store", resources: ["settings"] },
+  { title: "perm.groupFinance", resources: ["bank_sync", "bank_dismiss", "reports"] },
+  { title: "perm.groupTeam", resources: ["users", "time_clock"] },
+  { title: "perm.groupStore", resources: ["settings"] },
 ];
 
 /** Split `resources` into RESOURCE_GROUPS order, dropping empty
- *  groups and keeping anything unmapped visible under "Other". */
+ *  groups and keeping anything unmapped visible under "Other".
+ *  `key` is stable across languages; `title` is in the person's. */
 export function groupResources(
   resources: string[],
-): { title: string; resources: string[] }[] {
+): { key: string; title: string; resources: string[] }[] {
   const known = new Set(RESOURCE_GROUPS.flatMap((g) => g.resources));
-  const out = RESOURCE_GROUPS
+  const out: { key: string; title: string; resources: string[] }[] = RESOURCE_GROUPS
     .map((g) => ({
-      title: g.title,
+      key: g.title,
+      title: t(g.title),
       resources: g.resources.filter((r) => resources.includes(r)),
     }))
     .filter((g) => g.resources.length > 0);
   const other = resources.filter((r) => !known.has(r));
-  if (other.length) out.push({ title: "Other", resources: other });
+  if (other.length) out.push({ key: "other", title: t("perm.groupOther"), resources: other });
   return out;
 }
 /* eslint-enable react-refresh/only-export-components */
-
-const defaultResourceLabel = (r: string) => RESOURCE_LABELS[r] ?? r;
-const defaultActionLabel = (a: string) => ACTION_LABELS[a] ?? a;
 
 /** Resources × actions checkbox grid — THE permission matrix.
  *  A single-switch resource (`RESOURCE_ACTIONS`, e.g. "Lock /
@@ -97,9 +124,9 @@ export function PermissionMatrixTable({
   checked,
   onToggle,
   disabled = false,
-  resourceLabel = defaultResourceLabel,
-  actionLabel = defaultActionLabel,
-  resourceHeader = "Resource",
+  resourceLabel: labelResource = resourceLabel,
+  actionLabel: labelAction = actionLabel,
+  resourceHeader,
   ariaContext,
   trailingColumn,
   grouped = false,
@@ -128,24 +155,25 @@ export function PermissionMatrixTable({
    *  group (Money services, Books…). */
   grouped?: boolean;
 }) {
+  useT(); // re-render on a language switch
   const context = ariaContext ? ` (${ariaContext})` : "";
   const span = 1 + actions.length + (trailingColumn ? 1 : 0);
   const sections = grouped
     ? groupResources(resources)
-    : [{ title: "", resources }];
+    : [{ key: "all", title: "", resources }];
   return (
     <div className={styles.scroll}>
       <table className={styles.matrix}>
         <thead>
           <tr>
-            <th>{resourceHeader}</th>
-            {actions.map((a) => <th key={a}>{actionLabel(a)}</th>)}
+            <th>{resourceHeader ?? t("perm.resource")}</th>
+            {actions.map((a) => <th key={a}>{labelAction(a)}</th>)}
             {trailingColumn && <th>{trailingColumn.header}</th>}
           </tr>
         </thead>
         <tbody>
           {sections.map((section) => (
-            <Fragment key={section.title || "all"}>
+            <Fragment key={section.key}>
               {section.title && (
                 <tr className={styles.groupRow}>
                   <td colSpan={span}>{section.title}</td>
@@ -153,7 +181,7 @@ export function PermissionMatrixTable({
               )}
               {section.resources.map((resource) => (
                 <tr key={resource}>
-                  <td>{resourceLabel(resource)}</td>
+                  <td>{labelResource(resource)}</td>
                   {actions.map((action) => (
                     <td key={action}>
                       {actionsFor(resource, actions).includes(action) && (
@@ -162,7 +190,7 @@ export function PermissionMatrixTable({
                             checked={checked(resource, action)}
                             onChange={() => onToggle(resource, action)}
                             disabled={disabled}
-                            aria-label={`${actionLabel(action)} — ${resourceLabel(resource)}${context}`}
+                            aria-label={`${labelAction(action)} — ${labelResource(resource)}${context}`}
                           />
                         </div>
                       )}

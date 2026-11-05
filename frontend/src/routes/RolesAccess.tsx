@@ -11,7 +11,7 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { actionsFor, hasPermission } from "../lib/permissions";
 import { areasGranted } from "../lib/roleTemplates";
 import {
-  ACTION_LABELS, RESOURCE_LABELS, groupResources,
+  actionLabel, actionShort, groupResources, resourceLabel,
 } from "../components/PermissionMatrixTable";
 import {
   ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState,
@@ -20,6 +20,8 @@ import {
 } from "../components/ui";
 import styles from "./RolesAccess.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tn, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Team → Roles & access. ONE place that says what each kind of
 // person here can do: the two built-in roles (Admin / Employee —
@@ -34,11 +36,9 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // "who can delete transfers?" is one look rather than N role
 // pages. Editing a role happens on its own page (RoleEdit).
 
-// The built-in roles a store edits here, named once in api/roles.
-const BUILTIN_LABELS: Record<string, string> = {
-  admin: roleLabel("admin"),
-  employee: roleLabel("employee"),
-};
+// The built-in roles a store edits here, named once in api/roles
+// (and named at render, so the name follows the language).
+const BUILTIN_ROLES = ["admin", "employee"];
 
 interface RoleColumn {
   key: string;
@@ -60,7 +60,7 @@ function personLabel(u: AdminUserRow): string {
 function peoplePill(n: number) {
   return (
     <Pill tone={n > 0 ? "accent" : "neutral"}>
-      {n === 1 ? "1 person" : `${n} people`}
+      {tn("roles.people", n)}
     </Pill>
   );
 }
@@ -74,6 +74,7 @@ export default function RolesAccess({
   const qc = useQueryClient();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
+  const t = useT();
   const saved = useAccessRoles();
   // The built-in defaults sit behind settings.read; without it the
   // page still works for saved roles, it just can't show them.
@@ -90,14 +91,12 @@ export default function RolesAccess({
       void qc.invalidateQueries({ queryKey: ["admin", "users"] });
       toast({
         message: res.detached.length
-          ? `Deleted "${res.deleted}". ${res.detached.length === 1
-            ? "1 person keeps" : `${res.detached.length} people keep`} `
-            + "the access they have now, as custom access."
-          : `Deleted "${res.deleted}".`,
+          ? tn("roles.deletedKeep", res.detached.length, String, { name: res.deleted })
+          : t("roles.deleted", { name: res.deleted }),
         tone: "success",
       });
     } catch (err) {
-      toastApiError(err, "Could not delete the role.");
+      toastApiError(err, t("roles.deleteFailed"));
     } finally {
       setBusy(false);
       setConfirmDelete(null);
@@ -111,10 +110,10 @@ export default function RolesAccess({
   );
 
   const builtinColumns: RoleColumn[] = (builtin.data?.roles ?? [])
-    .filter((r) => r in BUILTIN_LABELS)
+    .filter((r) => BUILTIN_ROLES.includes(r))
     .map((r) => ({
       key: r,
-      name: BUILTIN_LABELS[r],
+      name: roleLabel(r),
       builtin: true,
       matrix: builtin.data?.matrix[r] ?? {},
     }));
@@ -129,24 +128,24 @@ export default function RolesAccess({
     <PageShell gap="1.25rem">
       <PageCrumbs />
       <PageHeader
-        title="Roles & access"
-        subtitle="What each role can do here. Give people a role from their login; edit the role and everyone in it changes together."
+        title={navWord("Roles & access")}
+        subtitle={t("roles.subtitle")}
         actions={
           <ButtonLink tone="primary" to="/team/roles/new" perm="users.update">
-            + Add role
+            {t("roles.add")}
           </ButtonLink>
         }
       />
 
       <TabsBar>
-        <TabsLink to="/team/roles" end>Roles</TabsLink>
-        <TabsLink to="/team/roles/by-area">Access by area</TabsLink>
+        <TabsLink to="/team/roles" end>{t("roles.tabRoles")}</TabsLink>
+        <TabsLink to="/team/roles/by-area">{t("roles.tabByArea")}</TabsLink>
       </TabsBar>
 
       {(saved.isLoading || builtin.isLoading) && <Loading />}
       {saved.isError && (
         <ErrorState
-          message="Could not load roles."
+          message={t("roles.loadFailed")}
           onRetry={() => { void saved.refetch(); }}
         />
       )}
@@ -157,7 +156,7 @@ export default function RolesAccess({
             <Table>
               <thead>
                 <tr>
-                  {["Role", "People", "Areas", ""].map((h) => (
+                  {[t("employee.role"), t("roles.colPeople"), t("roles.colAreas"), ""].map((h) => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
@@ -171,7 +170,7 @@ export default function RolesAccess({
                     <tr key={`builtin-${col.key}`}>
                       <td style={tdStyle}>
                         {col.name}{" "}
-                        <Pill tone="neutral">built-in</Pill>
+                        <Pill tone="neutral">{t("roles.builtin")}</Pill>
                       </td>
                       <td style={tdStyle}>
                         {peoplePill(people.filter(
@@ -179,19 +178,19 @@ export default function RolesAccess({
                         ).length)}
                       </td>
                       <td style={tdStyle} className={styles.num}>
-                        {areasGranted(col.matrix)} of {resources.length}
+                        {t("roles.areasOf", { granted: areasGranted(col.matrix), total: resources.length })}
                       </td>
                       <td style={{ ...tdStyle, textAlign: "right" }}>
                         <RowActions
                           title={col.name}
                           actions={[
                             {
-                              label: editable ? "Edit" : "View",
+                              label: editable ? t("common.edit") : t("roles.view"),
                               tone: "primary",
                               onClick: () => navigate(`/team/roles/${col.key}`),
                             },
                             {
-                              label: "Duplicate",
+                              label: t("roles.duplicate"),
                               perm: "users.update",
                               onClick: () => navigate(
                                 `/team/roles/new?copy=${col.key}`,
@@ -208,27 +207,27 @@ export default function RolesAccess({
                     <td style={tdStyle}>{r.name}</td>
                     <td style={tdStyle}>{peoplePill(r.member_count)}</td>
                     <td style={tdStyle} className={styles.num}>
-                      {areasGranted(r.matrix)} of {resources.length}
+                      {t("roles.areasOf", { granted: areasGranted(r.matrix), total: resources.length })}
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right" }}>
                       <RowActions
                         title={r.name}
                         actions={[
                           {
-                            label: "Edit",
+                            label: t("common.edit"),
                             perm: "users.update",
                             tone: "primary",
                             onClick: () => navigate(`/team/roles/${r.id}`),
                           },
                           {
-                            label: "Duplicate",
+                            label: t("roles.duplicate"),
                             perm: "users.update",
                             onClick: () => navigate(
                               `/team/roles/new?copy=${r.id}`,
                             ),
                           },
                           {
-                            label: "Delete",
+                            label: t("roles.delete"),
                             perm: "users.update",
                             tone: "warning",
                             onClick: () => setConfirmDelete(r),
@@ -242,19 +241,17 @@ export default function RolesAccess({
             </Table>
             {saved.data.roles.length === 0 && (
               <EmptyState
-                title="No roles of your own yet"
-                body="Add a role for each job here (Shift lead, Bookkeeper, Lottery cashier), then pick it on each person's login."
+                title={t("roles.emptyTitle")}
+                body={t("roles.emptyBody")}
               />
             )}
           </Card>
 
           {custom.length > 0 && (
-            <Section title="People with custom access">
+            <Section title={t("roles.customTitle")}>
               <Card>
                 <p className={styles.lede}>
-                  These people have access set just for them, so editing a
-                  role does not change them. Save one as a role to reuse
-                  their setup, or move them onto a role from their login.
+                  {t("roles.customBody")}
                 </p>
                 <Table>
                   <tbody>
@@ -262,14 +259,14 @@ export default function RolesAccess({
                       <tr key={u.id}>
                         <td style={tdStyle}>
                           {personLabel(u)}{" "}
-                          <Pill tone="warning">Custom</Pill>
+                          <Pill tone="warning">{t("roles.customPill")}</Pill>
                         </td>
                         <td style={{ ...tdStyle, textAlign: "right" }}>
                           <RowActions
                             title={personLabel(u)}
                             actions={[
                               {
-                                label: "Save as role",
+                                label: t("roles.saveAsRole"),
                                 perm: "users.update",
                                 tone: "primary",
                                 onClick: () => navigate(
@@ -277,7 +274,7 @@ export default function RolesAccess({
                                 ),
                               },
                               {
-                                label: "Edit access",
+                                label: t("roles.editAccess"),
                                 perm: "users.update",
                                 onClick: () => navigate(
                                   `/admin/users/${u.id}/edit`,
@@ -306,18 +303,14 @@ export default function RolesAccess({
 
       <ConfirmDialog
         open={confirmDelete != null}
-        title={`Delete "${confirmDelete?.name ?? ""}"?`}
+        title={t("roles.deleteTitle", { name: confirmDelete?.name ?? "" })}
         confirmTone="danger"
         message={
           (confirmDelete?.member_count ?? 0) > 0
-            ? `${confirmDelete?.member_count === 1
-              ? "1 person is" : `${confirmDelete?.member_count} people are`} `
-              + "in this role. Deleting it does NOT change what they can "
-              + "do: they keep exactly the access they have now, as "
-              + "custom access."
-            : "Nobody is in this role."
+            ? tn("roles.deleteMembers", confirmDelete?.member_count ?? 0)
+            : t("roles.deleteNobody")
         }
-        confirmLabel="Delete role"
+        confirmLabel={t("roles.deleteRole")}
         busy={busy}
         onConfirm={() => { if (confirmDelete) void remove(confirmDelete); }}
         onCancel={() => setConfirmDelete(null)}
@@ -336,38 +329,40 @@ function AccessByArea({
   actions: string[];
   columns: RoleColumn[];
 }) {
+  const t = useT();
   return (
     <Card>
       <div className={styles.scroll}>
         <table className={styles.areaTable}>
           <thead>
             <tr>
-              <th>Area</th>
+              <th>{t("userForm.area")}</th>
               {columns.map((c) => <th key={c.key}>{c.name}</th>)}
             </tr>
           </thead>
           <tbody>
             {groupResources(resources).map((group) => [
-              <tr key={`g-${group.title}`} className={styles.groupRow}>
+              <tr key={`g-${group.key}`} className={styles.groupRow}>
                 <td colSpan={columns.length + 1}>{group.title}</td>
               </tr>,
               ...group.resources.map((res) => (
                 <tr key={res}>
-                  <td>{RESOURCE_LABELS[res] ?? res}</td>
+                  <td>{resourceLabel(res)}</td>
                   {columns.map((c) => (
                     <td key={c.key}>
                       <span className={styles.chips}>
                         {actionsFor(res, actions).map((a) => {
                           const on = c.matrix[res]?.[a] ?? false;
-                          const label = ACTION_LABELS[a] ?? a;
+                          const label = actionLabel(a);
+                          const yesNo = on ? t("roles.yes") : t("roles.no");
                           return (
                             <span
                               key={a}
                               className={on ? styles.chipOn : styles.chip}
-                              title={`${label}: ${on ? "yes" : "no"}`}
-                              aria-label={`${c.name}, ${RESOURCE_LABELS[res] ?? res}, ${label}: ${on ? "yes" : "no"}`}
+                              title={`${label}: ${yesNo}`}
+                              aria-label={`${c.name}, ${resourceLabel(res)}, ${label}: ${yesNo}`}
                             >
-                              {label.charAt(0)}
+                              {actionShort(a)}
                             </span>
                           );
                         })}
@@ -381,7 +376,7 @@ function AccessByArea({
         </table>
       </div>
       <p className={styles.legend}>
-        {actions.map((a) => `${(ACTION_LABELS[a] ?? a).charAt(0)} ${(ACTION_LABELS[a] ?? a).toLowerCase()}`).join(" · ")}
+        {actions.map((a) => `${actionShort(a)} ${actionLabel(a).toLowerCase()}`).join(" · ")}
       </p>
     </Card>
   );

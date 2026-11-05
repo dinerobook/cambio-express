@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { t, type MessageKey } from "../i18n";
 import type { PillTone } from "../components/ui";
 import type { components } from "./openapi";
 
@@ -28,17 +29,18 @@ export function roleTone(role: string): PillTone {
 
 /** The one display name per built-in role, on every screen
  *  (UI-STANDARDS §7b). Unknown roles show as stored. */
-export const ROLE_LABELS: Record<string, string> = {
-  admin:      "Admin",
-  employee:   "Employee",
-  owner:      "Owner",
-  superadmin: "Superadmin",
-  support:    "Support",
-  accountant: "Accountant",
+export const ROLE_LABELS: Record<string, MessageKey> = {
+  admin:      "role.admin",
+  employee:   "role.employee",
+  owner:      "role.owner",
+  superadmin: "role.superadmin",
+  support:    "role.support",
+  accountant: "role.accountant",
 };
 
+/** The role's name in the person's language (UI-STANDARDS §10). */
 export function roleLabel(role: string): string {
-  return ROLE_LABELS[role] ?? role;
+  return Object.hasOwn(ROLE_LABELS, role) ? t(ROLE_LABELS[role]) : role;
 }
 
 // Named access roles (R-3).

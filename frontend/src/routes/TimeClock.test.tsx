@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import TimeClock from "./TimeClock";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The punch page. Every shift's hours start here, so a punch that
 // silently fails (or looks recorded when it was refused) is lost
@@ -166,5 +168,23 @@ describe("Time clock punch page", () => {
     renderRoute(<TimeClock />);
     expect(await screen.findByText("Couldn't load current shifts.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+});
+
+describe("Time clock punch page in Spanish", () => {
+  it("shows the roster, tags and buttons in Spanish and punches", async () => {
+    setLanguage("es");
+    const calls = mockFetch(routes({
+      "POST /api/v2/timeclock/clock-in": { body: { entry: { ...OPEN_ANA, id: 42, store_employee_id: 4 } } },
+    }));
+    renderRoute(<TimeClock />);
+    expect(await screen.findByRole("option", { name: /Ana\s+\(en turno\)/ })).toBeInTheDocument();
+    expect(await screen.findByText("En turno ahora")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["clock.", "payroll.", "schedule.", "common."])).toEqual([]);
+    const select = screen.getByRole("combobox", { name: /Nombre en la lista/ });
+    await userEvent.selectOptions(select, "4");
+    await userEvent.click(screen.getByRole("button", { name: "Marcar entrada" }));
+    expect(await screen.findByText("Beto marcó su entrada.")).toBeInTheDocument();
+    expect(callsTo(calls, "POST /api/v2/timeclock/clock-in")).toHaveLength(1);
   });
 });
