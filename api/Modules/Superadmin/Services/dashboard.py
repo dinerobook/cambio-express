@@ -11,7 +11,9 @@ Dashboard tab. Returns the kwargs dict the template expects:
   - referral leaderboard (top 5 by redemption count)
   - 30-day transfer volume rolled up by company (top 6)
   - merged activity feed (signups + cancels, newest first, capped 12)
-  - full store list ordered by signup date
+
+`platform_summary` is the slim cut of the same figures for the
+Platform -> Controls overview tiles (``GET /dashboard/summary``).
 
 `compute_mrr` is exposed separately so the operator-billing page
 can stay in lockstep with the dashboard's MRR math.
@@ -53,25 +55,14 @@ def compute_mrr(
     return bm, by_, pm, py_, bm + by_ + pm + py_
 
 
-def superadmin_dashboard_context(db: Session) -> dict[str, Any]:
-    """Platform-wide BI metrics for the superadmin Dashboard tab.
+def _plan_buckets(db: Session) -> tuple[int, int, int, int, int, int]:
+    """Store counts by plan and billing cycle, from one GROUP BY.
 
-    Returns the kwargs dict that `dashboard_superadmin.html`
-    expects.
-    """
-    from api.Modules.Billing.Models import ReferralCode
+    Returns ``(basic_monthly, basic_yearly, pro_monthly, pro_yearly,
+    trial, inactive)``. Shared by the full platform dashboard and the
+    slim Controls summary so the two never count differently."""
     from api.Modules.Tenancy.Models import Store
-    from api.Modules.Owners.Services import OWNER_TRANSFER_EXCLUDED
-    from api.Modules.Transfers.Models import Transfer
 
-    now = utc_now()
-    today_d = date.today()
-    d30_ago = now - timedelta(days=30)
-    d60_ago = now - timedelta(days=60)
-    d90_ago = now - timedelta(days=90)
-
-    # Plan + cycle distribution. Single GROUP BY → split into the
-    # eight buckets the dashboard needs.
     plan_rows = (
         db.query(
             Store.plan, Store.billing_cycle, func.count(Store.id),
@@ -96,6 +87,84 @@ def superadmin_dashboard_context(db: Session) -> dict[str, Any]:
             trial_count += n
         elif p == "inactive":
             inactive_count += n
+    return (basic_monthly, basic_yearly, pro_monthly, pro_yearly,
+            trial_count, inactive_count)
+
+
+def platform_summary(db: Session) -> dict[str, Any]:
+    """The ten platform figures the Platform → Controls overview shows,
+    and nothing else.
+
+    ``GET /dashboard/summary`` used to send the whole
+    ``superadmin_dashboard_context`` (every store row with every
+    column, the 90-day signup series, referrers, transfer volume and
+    the activity feed) to a page that renders ten tiles. The figures
+    here use the same counting as the full dashboard
+    (``_plan_buckets``, ``compute_mrr``), so the tiles read the same
+    numbers as before.
+    """
+    from api.Modules.Tenancy.Models import Store
+
+    now = utc_now()
+    d30_ago = now - timedelta(days=30)
+    (basic_monthly, basic_yearly, pro_monthly, pro_yearly,
+     trial_count, inactive_count) = _plan_buckets(db)
+    *_, mrr = compute_mrr(
+        basic_monthly, basic_yearly, pro_monthly, pro_yearly,
+    )
+    return {
+        "total_stores": db.query(Store).count(),
+        "active_stores": (
+            db.query(Store).filter_by(is_active=True).count()
+        ),
+        "trial_stores": trial_count,
+        "paid_stores": (
+            basic_monthly + basic_yearly + pro_monthly + pro_yearly
+        ),
+        "inactive_stores": inactive_count,
+        "mrr_total": mrr,
+        # ARR = MRR x 12, shown beside MRR.
+        "arr_total": float(mrr) * 12.0,
+        "new_stores_30d": (
+            db.query(Store).filter(Store.created_at >= d30_ago).count()
+        ),
+        "cancellations_30d": (
+            db.query(Store)
+              .filter(
+                  Store.canceled_at.isnot(None),
+                  Store.canceled_at >= d30_ago,
+              )
+              .count()
+        ),
+        # Stores past cancellation, still inside the data-retention
+        # window: counted live, no flag to keep in sync.
+        "retention_queue": (
+            db.query(Store)
+              .filter(
+                  Store.data_retention_until.isnot(None),
+                  Store.data_retention_until > now,
+              )
+              .count()
+        ),
+    }
+
+
+def superadmin_dashboard_context(db: Session) -> dict[str, Any]:
+    """Platform-wide BI metrics for the superadmin Dashboard page
+    (``GET /superadmin/dashboard``)."""
+    from api.Modules.Billing.Models import ReferralCode
+    from api.Modules.Tenancy.Models import Store
+    from api.Modules.Owners.Services import OWNER_TRANSFER_EXCLUDED
+    from api.Modules.Transfers.Models import Transfer
+
+    now = utc_now()
+    today_d = date.today()
+    d30_ago = now - timedelta(days=30)
+    d60_ago = now - timedelta(days=60)
+    d90_ago = now - timedelta(days=90)
+
+    (basic_monthly, basic_yearly, pro_monthly, pro_yearly,
+     trial_count, inactive_count) = _plan_buckets(db)
 
     basic_count = basic_monthly + basic_yearly
     pro_count = pro_monthly + pro_yearly
@@ -279,10 +348,6 @@ def superadmin_dashboard_context(db: Session) -> dict[str, Any]:
     )
     activity = activity[:12]
 
-    stores = (
-        db.query(Store).order_by(Store.created_at.desc()).all()
-    )
-
     return dict(
         total_stores=total_stores, active_count=active_count,
         trial_count=trial_count, paid_count=paid_count,
@@ -308,5 +373,4 @@ def superadmin_dashboard_context(db: Session) -> dict[str, Any]:
         direct_signups=direct_signups,
         referral_signups=referral_signups,
         activity=activity,
-        stores=stores,
     )

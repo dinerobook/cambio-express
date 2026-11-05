@@ -94,12 +94,7 @@ export default function Dashboard() {
     return <Navigate to="/superadmin/tickets" replace />;
   }
 
-  const title =
-    identity?.role === "superadmin"
-      ? "Platform dashboard"
-      : identity?.role === "employee"
-        ? "My dashboard"
-        : "Dashboard";
+  const title = identity?.role === "employee" ? "My dashboard" : "Dashboard";
 
   return (
     <PageShell>
@@ -150,7 +145,8 @@ export default function Dashboard() {
 function Body({ summary }: { summary: DashboardSummary }) {
   if (summary.role === "admin") return <AdminPanel d={summary} />;
   if (summary.role === "employee") return <EmployeePanel d={summary} />;
-  if (summary.role === "superadmin") return <SuperadminPanel d={summary} />;
+  // A superadmin is sent to /superadmin/dashboard before this
+  // renders; their platform figures live on Platform → Controls.
   return <ErrorState message="Unrecognised role." />;
 }
 
@@ -894,80 +890,6 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
         </Card>
       )}
     </>
-  );
-}
-
-// ── Superadmin ────────────────────────────────────────────────
-
-interface SuperadminContextLite {
-  total_stores?: number;
-  active_stores?: number;
-  trial_stores?: number;
-  paid_stores?: number;
-  inactive_stores?: number;
-  mrr_total?: number;
-  arr_total?: number;
-  new_stores_30d?: number;
-  cancellations_30d?: number;
-  [key: string]: unknown;
-}
-
-function SuperadminPanel({ d }: { d: SuperadminContextLite & { role: string } }) {
-  return (
-    <>
-      <KpiGrid>
-        <KpiCard label="Total stores" value={fmtNumber(d.total_stores)} sub="All time" />
-        <KpiCard label="Active" value={fmtNumber(d.active_stores)} tone="positive" />
-        <KpiCard label="Trial" value={fmtNumber(d.trial_stores)} tone="warning" />
-        <KpiCard label="Paid" value={fmtNumber(d.paid_stores)} tone="positive" />
-        <KpiCard
-          label="MRR"
-          value={typeof d.mrr_total === "number" ? fmtMoney(d.mrr_total) : "—"}
-          tone="positive"
-        />
-        <KpiCard
-          label="ARR"
-          value={typeof d.arr_total === "number" ? fmtMoney(d.arr_total) : "—"}
-          tone="positive"
-        />
-        <KpiCard label="New (last 30 days)" value={fmtNumber(d.new_stores_30d)} tone="positive" />
-        <KpiCard
-          label="Cancellations (30d)"
-          value={fmtNumber(d.cancellations_30d)}
-          tone={
-            typeof d.cancellations_30d === "number" && d.cancellations_30d > 0
-              ? "negative"
-              : "positive"
-          }
-        />
-      </KpiGrid>
-
-      <Section title="Quick links">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: space.md,
-          }}
-        >
-          <QuickLink to="/superadmin/stores" title="Stores" desc="Browse, edit, impersonate." />
-          <QuickLink to="/superadmin/audit-log" title="Audit log" desc="Every platform admin action." />
-          <QuickLink to="/superadmin/announcements" title="Announcements" desc="Global banners + push." />
-          <QuickLink to="/superadmin/reports" title="Platform reports" desc="MRR/ARR, churn, adoption." />
-        </div>
-      </Section>
-    </>
-  );
-}
-
-function QuickLink({ to, title, desc }: { to: string; title: string; desc: string }) {
-  return (
-    <AppLink to={to} style={{ textDecoration: "none", color: "inherit" }}>
-      <Card interactive padding={space.lg}>
-        <div style={{ fontWeight: 600, marginBottom: space.xs }}>{title}</div>
-        <div style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>{desc}</div>
-      </Card>
-    </AppLink>
   );
 }
 
