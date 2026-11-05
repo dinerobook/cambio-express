@@ -22,7 +22,8 @@ import {
 } from "../components/ui";
 import styles from "./RoleEdit.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtCount } from "../lib/formatters";
+import { fmtNumber } from "../lib/formatters";
+import { t, tn, useT } from "../i18n";
 
 // One role, on its own page (Team → Roles & access → a role).
 //
@@ -35,11 +36,11 @@ import { fmtCount } from "../lib/formatters";
 //   - "employee" / "admin" — a built-in role: the store's defaults
 //     for that account type. A store admin may edit Employee only.
 
-// The built-in roles a store edits here, named once in api/roles.
-const BUILTIN_NAMES: Record<string, string> = {
-  admin: roleLabel("admin"),
-  employee: roleLabel("employee"),
-};
+// The built-in roles a store edits here, named once in api/roles
+// (at render, so the name follows the language).
+const BUILTIN_ROLES = ["admin", "employee"];
+const isBuiltin = (key: string | null): key is string =>
+  key != null && BUILTIN_ROLES.includes(key);
 
 type Template = "blank" | "employee" | "hr" | "bookkeeper";
 
@@ -49,9 +50,10 @@ export default function RoleEdit() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  useT(); // re-render on a language switch
 
   const isNew = roleId === "new";
-  const builtinKey = roleId in BUILTIN_NAMES ? roleId : null;
+  const builtinKey = isBuiltin(roleId) ? roleId : null;
   const savedId = !isNew && !builtinKey ? Number(roleId) : null;
   const copyFrom = isNew ? params.get("copy") : null;
   const fromUser = isNew ? Number(params.get("from_user")) || null : null;
@@ -59,7 +61,7 @@ export default function RoleEdit() {
   // A built-in role (or a new role copied from one) is read from the
   // store-permissions route, which needs settings.read.
   const needsBuiltin = builtinKey != null
-    || (copyFrom != null && copyFrom in BUILTIN_NAMES);
+    || isBuiltin(copyFrom);
   const canReadBuiltin = hasPermission("settings", "read");
 
   const saved = useAccessRoles();
@@ -102,7 +104,7 @@ export default function RoleEdit() {
     if (builtinKey) {
       const m = builtin.data?.matrix[builtinKey];
       return m
-        ? { name: BUILTIN_NAMES[builtinKey], matrix: structuredClone(m) }
+        ? { name: roleLabel(builtinKey), matrix: structuredClone(m) }
         : null;
     }
     if (fromUser != null) {
@@ -111,14 +113,14 @@ export default function RoleEdit() {
         : null;
     }
     if (copyFrom) {
-      const src = copyFrom in BUILTIN_NAMES
+      const src = isBuiltin(copyFrom)
         ? builtin.data?.matrix[copyFrom]
         : saved.data?.roles.find((r) => r.id === Number(copyFrom))?.matrix;
-      const srcName = copyFrom in BUILTIN_NAMES
-        ? BUILTIN_NAMES[copyFrom]
+      const srcName = isBuiltin(copyFrom)
+        ? roleLabel(copyFrom)
         : saved.data?.roles.find((r) => r.id === Number(copyFrom))?.name;
       return src
-        ? { name: `Copy of ${srcName ?? "role"}`, matrix: structuredClone(src) }
+        ? { name: t("roleEdit.copyOf", { name: srcName ?? t("roleEdit.role") }), matrix: structuredClone(src) }
         : null;
     }
     return resources.length
@@ -146,19 +148,19 @@ export default function RoleEdit() {
 
   const isDirty = draft != null && JSON.stringify(draft) !== baseline;
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved changes to this role. Leave without saving?",
+    message: t("roleEdit.unsavedMessage"),
   });
 
   function backToList() {
     navigate("/team/roles");
   }
 
-  function applyTemplate(t: Template) {
-    setTemplate(t);
+  function applyTemplate(tpl: Template) {
+    setTemplate(tpl);
     let matrix: PermMatrix;
-    if (t === "hr") matrix = hrMatrix(resources, actions);
-    else if (t === "bookkeeper") matrix = bookkeeperMatrix(resources, actions);
-    else if (t === "employee" && builtin.data?.matrix.employee) {
+    if (tpl === "hr") matrix = hrMatrix(resources, actions);
+    else if (tpl === "bookkeeper") matrix = bookkeeperMatrix(resources, actions);
+    else if (tpl === "employee" && builtin.data?.matrix.employee) {
       matrix = structuredClone(builtin.data.matrix.employee);
     } else matrix = emptyMatrix(resources, actions);
     setDraft((d) => (d ? { ...d, matrix } : d));
@@ -183,7 +185,7 @@ export default function RoleEdit() {
         qc.setQueryData(["store-permissions"], result);
         await refreshToken();
         toast({
-          message: `${BUILTIN_NAMES[builtinKey]} role saved.`,
+          message: t("roleEdit.builtinSaved", { name: roleLabel(builtinKey) }),
           tone: "success",
         });
       } else if (savedId != null) {
@@ -193,8 +195,8 @@ export default function RoleEdit() {
         const n = res.affected_members?.length ?? 0;
         toast({
           message: n
-            ? `Saved. Access updated for ${fmtCount(n, "person", "people")}.`
-            : "Saved.",
+            ? tn("roleEdit.savedFor", n, fmtNumber)
+            : t("roleEdit.saved"),
           tone: "success",
         });
       } else {
@@ -208,8 +210,8 @@ export default function RoleEdit() {
         }
         toast({
           message: fromUserRow
-            ? `Role created. ${fromUserRow.full_name || fromUserRow.username} now follows it.`
-            : "Role created.",
+            ? t("roleEdit.createdFollows", { name: fromUserRow.full_name || fromUserRow.username })
+            : t("roleEdit.created"),
           tone: "success",
         });
       }
@@ -218,7 +220,7 @@ export default function RoleEdit() {
       setBaseline(JSON.stringify(draft));
       guard.proceed(backToList);
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("roleEdit.saveFailed")));
     } finally {
       setBusy(false);
       setPending(null);
@@ -240,7 +242,7 @@ export default function RoleEdit() {
       setPending(res.members.map((m) => m.name));
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not check who this affects."),
+        apiErrorMessage(err, t("roleEdit.checkFailed")),
       );
     } finally {
       setBusy(false);
@@ -256,23 +258,23 @@ export default function RoleEdit() {
       qc.setQueryData(["store-permissions"], result);
       await refreshToken();
       const m = structuredClone(result.matrix[builtinKey]);
-      const next = { name: BUILTIN_NAMES[builtinKey], matrix: m };
+      const next = { name: roleLabel(builtinKey), matrix: m };
       setDraft(next);
       setBaseline(JSON.stringify(next));
       toast({
-        message: `${BUILTIN_NAMES[builtinKey]} role reset to the DineroBook defaults.`,
+        message: t("roleEdit.resetDone", { name: roleLabel(builtinKey) }),
         tone: "success",
       });
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not reset."));
+      setError(apiErrorMessage(err, t("roleEdit.resetFailed")));
     } finally {
       setBusy(false);
     }
   }
 
   const title = builtinKey
-    ? BUILTIN_NAMES[builtinKey]
-    : savedRole?.name ?? (isNew ? "New role" : "Role");
+    ? roleLabel(builtinKey)
+    : savedRole?.name ?? (isNew ? t("roleEdit.newRole") : t("roleEdit.roleTitle"));
 
   // Who is in this role, for the side panel.
   const memberNames: string[] = savedId != null
@@ -297,10 +299,10 @@ export default function RoleEdit() {
       <PageHeader title={title} />
 
       {builtinDenied ? (
-        <ErrorState message="You don't have access to the built-in roles." />
+        <ErrorState message={t("roleEdit.noBuiltinAccess")} />
       ) : loadFailed ? (
         <ErrorState
-          message="Could not load this role."
+          message={t("roleEdit.loadFailed")}
           onRetry={() => {
             if (saved.isError) void saved.refetch();
             if (builtin.isError) void builtin.refetch();
@@ -316,8 +318,8 @@ export default function RoleEdit() {
               {readOnly && (
                 <Alert tone="info">
                   {builtinKey === "admin"
-                    ? "Admins can do everything in the store. This role is shown for reference and can't be changed here."
-                    : "This role is shown for reference. You don't have the access needed to change it."}
+                    ? t("roleEdit.adminReadOnly")
+                    : t("roleEdit.readOnly")}
                 </Alert>
               )}
               <PermissionMatrixTable
@@ -326,7 +328,7 @@ export default function RoleEdit() {
                 checked={(r, a) => draft.matrix[r]?.[a] ?? false}
                 onToggle={toggle}
                 disabled={busy || readOnly}
-                resourceHeader="Area"
+                resourceHeader={t("userForm.area")}
                 ariaContext={title}
                 grouped
               />
@@ -338,19 +340,19 @@ export default function RoleEdit() {
               <div className={styles.grid}>
                 {builtinKey ? (
                   <Field
-                    label="Role"
-                    hint={`Everyone with a${builtinKey === "admin" ? "n Admin" : "n Employee"} login who isn't in another role follows this one.`}
+                    label={t("roleEdit.roleTitle")}
+                    hint={builtinKey === "admin" ? t("roleEdit.adminFollows") : t("roleEdit.employeeFollows")}
                   >
                     <Input type="text" value={title} disabled />
                   </Field>
                 ) : (
                   <Field
-                    label="Role name"
-                    hint="What this job is called in your store, like “Shift lead” or “Bookkeeper”."
+                    label={t("roleEdit.name")}
+                    hint={t("roleEdit.nameHint")}
                   >
                     <Input
                       type="text" value={draft.name} required maxLength={60}
-                      placeholder="Shift lead"
+                      placeholder={t("roleEdit.namePlaceholder")}
                       onChange={(e) => {
                         const name = e.target.value;
                         setDraft((d) => (d ? { ...d, name } : d));
@@ -361,28 +363,28 @@ export default function RoleEdit() {
                 )}
 
                 {isNew && !copyFrom && fromUser == null && (
-                  <Field label="Start from">
+                  <Field label={t("roleEdit.startFrom")}>
                     <Select
                       value={template}
                       onChange={(e) => applyTemplate(e.target.value as Template)}
                       disabled={busy}
                     >
-                      <option value="blank">Nothing ticked</option>
+                      <option value="blank">{t("roleEdit.tplBlank")}</option>
                       {builtin.data?.matrix.employee && (
-                        <option value="employee">The Employee role</option>
+                        <option value="employee">{t("roleEdit.tplEmployee")}</option>
                       )}
-                      <option value="hr">HR &amp; payroll: time clock only, no financials</option>
-                      <option value="bookkeeper">Bookkeeper: view the books, move no money</option>
+                      <option value="hr">{t("roleEdit.tplHr")}</option>
+                      <option value="bookkeeper">{t("roleEdit.tplBookkeeper")}</option>
                     </Select>
                   </Field>
                 )}
 
                 <div>
                   <div className={styles.label}>
-                    {fromUser != null ? "Will follow this role" : "In this role"}
+                    {fromUser != null ? t("roleEdit.willFollow") : t("roleEdit.inRole")}
                   </div>
                   {memberNames.length === 0 ? (
-                    <p className={styles.muted}>Nobody yet.</p>
+                    <p className={styles.muted}>{t("roleEdit.nobody")}</p>
                   ) : (
                     <ul className={styles.members}>
                       {memberNames.map((n) => <li key={n}>{n}</li>)}
@@ -392,9 +394,7 @@ export default function RoleEdit() {
 
                 {!readOnly && memberNames.length > 0 && fromUser == null && (
                   <p className={styles.muted}>
-                    Saving changes what{" "}
-                    {memberNames.length === 1 ? "this person" : `these ${memberNames.length} people`}
-                    {" "}can do right away.
+                    {tn("roleEdit.savingChanges", memberNames.length, fmtNumber)}
                   </p>
                 )}
 
@@ -405,13 +405,13 @@ export default function RoleEdit() {
                       onClick={() => guard.confirmLeave(backToList)}
                       disabled={busy}
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button
                       type="submit" busy={busy}
                       disabled={busy || (!isNew && !isDirty)}
                     >
-                      {isNew ? "Create role" : "Save role"}
+                      {isNew ? t("roleEdit.create") : t("roleEdit.save")}
                     </Button>
                   </FormActions>
                 )}
@@ -422,7 +422,7 @@ export default function RoleEdit() {
                     onClick={() => { void resetToDefaults(); }}
                     disabled={busy}
                   >
-                    Reset to DineroBook defaults
+                    {t("roleEdit.reset")}
                   </Button>
                 )}
               </div>
@@ -433,15 +433,13 @@ export default function RoleEdit() {
 
       <ConfirmDialog
         open={pending != null}
-        title="This changes people's access"
+        title={t("roleEdit.confirmTitle")}
         message={
           pending && pending.length
-            ? `Saving updates access for ${fmtCount(pending.length, "person", "people")}: `
-              + `${pending.join(", ")}. `
-              + "They'll be signed out so the change takes effect."
-            : "Saving updates this role."
+            ? tn("roleEdit.confirmBody", pending.length, fmtNumber, { names: pending.join(", ") })
+            : t("roleEdit.confirmNobody")
         }
-        confirmLabel="Save and update them"
+        confirmLabel={t("roleEdit.confirmSave")}
         busy={busy}
         onConfirm={() => { void save(); }}
         onCancel={() => setPending(null)}

@@ -19,6 +19,8 @@ import {
   PageShell, Pill, RowActions, Section, useToast, type DataColumn,
 } from "../components/ui";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { useT, type Translate } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/employees — the unified Employees hub (E-2). ONE place
 // manages the person: HR record (payroll basics, personal
@@ -37,13 +39,13 @@ const SORT_KEYS: Record<string, (r: EmployeeRow) => string | number> = {
   status: (r) => (r.is_active ? 1 : 0),
 };
 
-const LOGIN_ONLY_COLUMNS = (
-  busy: boolean, adopt: (u: LoginOnlyRow) => void,
+const loginOnlyColumns = (
+  t: Translate, busy: boolean, adopt: (u: LoginOnlyRow) => void,
 ): DataColumn<LoginOnlyRow>[] => [
-  { key: "login", header: "Login", render: (u) => <strong>{u.username}</strong> },
-  { key: "name", header: "Name", render: (u) => u.full_name || "—" },
+  { key: "login", header: t("employee.login"), render: (u) => <strong>{u.username}</strong> },
+  { key: "name", header: t("common.name"), render: (u) => u.full_name || "—" },
   {
-    key: "role", header: "Role",
+    key: "role", header: t("employee.role"),
     render: (u) => (
       <Pill tone={u.role === "employee" ? "neutral" : "accent"}>
         {accountTypeLabel(u.role)}
@@ -57,7 +59,7 @@ const LOGIN_ONLY_COLUMNS = (
         title={u.username}
         actions={[
           {
-            label: "Create employee record",
+            label: t("employee.createRecord"),
             perm: "users.create",
             onClick: () => adopt(u),
             disabled: busy,
@@ -79,6 +81,7 @@ export default function Employees() {
   const toast = useToast();
   const toastApiError = useApiErrorToast();
   const navigate = useNavigate();
+  const t = useT();
   const [confirmRow, setConfirmRow] = useState<EmployeeRow | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -92,13 +95,13 @@ export default function Employees() {
       await updateEmployee(row.id, { is_active: !row.is_active });
       toast({
         message: row.is_active
-          ? `${row.name} deactivated.`
-          : `${row.name} reactivated.`,
+          ? t("employee.deactivated", { name: row.name })
+          : t("employee.reactivated", { name: row.name }),
         tone: "success",
       });
       refresh();
     } catch (err) {
-      toastApiError(err, "Could not update the employee.");
+      toastApiError(err, t("employee.updateFailed"));
     } finally {
       setBusy(false);
       setConfirmRow(null);
@@ -114,40 +117,40 @@ export default function Employees() {
         name: row.full_name || row.username,
         user_id: row.user_id,
       });
-      toast({ message: "Employee record created.", tone: "success" });
+      toast({ message: t("employee.recordCreated"), tone: "success" });
       refresh();
       navigate(`/employees/${made.id}/edit`);
     } catch (err) {
-      toastApiError(err, "Could not create the employee record.");
+      toastApiError(err, t("employee.recordCreateFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   const columns: DataColumn<EmployeeRow>[] = [
-    { key: "name", header: "Name", sortKey: "name", render: (r) => <strong>{r.name}</strong>,
+    { key: "name", header: t("common.name"), sortKey: "name", render: (r) => <strong>{r.name}</strong>,
       csv: (r) => r.name },
-    { key: "login", header: "Login", sortKey: "login", render: (r) => <LoginCell row={r} />,
+    { key: "login", header: t("employee.login"), sortKey: "login", render: (r) => <LoginCell row={r} />,
       csv: (r) => r.login?.username ?? "" },
     {
-      key: "rate", header: "Rate", sortKey: "rate", sortFirst: "desc",
-      render: (r) => (r.hourly_rate > 0 ? `${fmtMoney2(r.hourly_rate)}/hr` : "—"),
-      csvHeader: "Hourly rate",
+      key: "rate", header: t("employee.rate"), sortKey: "rate", sortFirst: "desc",
+      render: (r) => (r.hourly_rate > 0 ? t("employee.perHour", { amount: fmtMoney2(r.hourly_rate) }) : "—"),
+      csvHeader: t("employee.hourlyRate"),
       csv: (r) => (r.hourly_rate > 0 ? csvMoney(r.hourly_rate) : ""),
     },
     {
-      key: "hired", header: "Hired", sortKey: "hired", sortFirst: "desc",
+      key: "hired", header: t("employee.hired"), sortKey: "hired", sortFirst: "desc",
       render: (r) => (r.hired_on ? formatDate(r.hired_on) : "—"),
       csv: (r) => csvDate(r.hired_on),
     },
     {
-      key: "status", header: "Status", sortKey: "status", sortFirst: "desc",
+      key: "status", header: t("common.status"), sortKey: "status", sortFirst: "desc",
       render: (r) => (
         <Pill tone={r.is_active ? "accent" : "neutral"}>
-          {r.is_active ? "Active" : "Inactive"}
+          {r.is_active ? t("common.active") : t("common.inactive")}
         </Pill>
       ),
-      csv: (r) => (r.is_active ? "Active" : "Inactive"),
+      csv: (r) => (r.is_active ? t("common.active") : t("common.inactive")),
     },
     {
       key: "actions", header: "", label: "", align: "right",
@@ -156,7 +159,7 @@ export default function Employees() {
           title={r.name}
           actions={[
             {
-              label: "Edit",
+              label: t("common.edit"),
               perm: "users.update",
               onClick: () => navigate(`/employees/${r.id}/edit`),
             },
@@ -169,19 +172,19 @@ export default function Employees() {
                 // Deep-links the form's Login tab (E-3) — "who can
                 // sign in" is the most common reason to open
                 // somebody's record.
-                label: r.login ? "Manage access" : "Add login",
+                label: r.login ? t("employee.manageAccess") : t("employee.addLogin"),
                 perm: "users.update",
                 onClick: () => navigate(`/employees/${r.id}/edit?tab=login`),
               },
               r.is_active
                 ? {
-                    label: "Deactivate", tone: "danger" as const,
+                    label: t("employee.deactivate"), tone: "danger" as const,
                     perm: "users.update",
                     onClick: () => setConfirmRow(r),
                     disabled: busy,
                   }
                 : {
-                    label: "Reactivate",
+                    label: t("employee.reactivate"),
                     perm: "users.update",
                     onClick: () => { void toggleActive(r); },
                     disabled: busy,
@@ -205,11 +208,11 @@ export default function Employees() {
     <PageShell>
       <PageCrumbs />
       <PageHeader
-        title="Employees"
-        subtitle="Everyone who works here — profile, payroll, and login in one place."
+        title={navWord("Employees")}
+        subtitle={t("employee.subtitle")}
         actions={(
           <ButtonLink to="/employees/new" tone="primary" size="sm">
-            + Add employee
+            {t("employee.add")}
           </ButtonLink>
         )}
       />
@@ -221,8 +224,8 @@ export default function Employees() {
           rowKey={(r) => r.id}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle="No employees yet"
-          emptyBody='Click "+ Add employee" to add your first person.'
+          emptyTitle={t("employee.emptyTitle")}
+          emptyBody={t("employee.emptyBody")}
           sort={filters.sort}
           page={{
             page: shown.page, totalPages: shown.totalPages, total: shown.total,
@@ -233,25 +236,23 @@ export default function Employees() {
             filename: "employees",
             allRows: sorted,
             extraColumns: [
-              { header: "Account type", csv: (r) => (r.login ? accountTypeLabel(r.login.role) : "") },
+              { header: t("employee.accountType"), csv: (r) => (r.login ? accountTypeLabel(r.login.role) : "") },
             ],
           }}
         />
       </Card>
 
       {loginOnly.length > 0 && (
-        <Section title="Logins without an employee record">
+        <Section title={t("employee.loginOnlyTitle")}>
           <Card>
             <p style={{ marginTop: 0 }}>
-              These accounts can sign in but have no HR record yet —
-              create one so their payroll and personal details live
-              here too.
+              {t("employee.loginOnlyBody")}
             </p>
             <DataTable
-              columns={LOGIN_ONLY_COLUMNS(busy, (u) => { void adoptLogin(u); })}
+              columns={loginOnlyColumns(t, busy, (u) => { void adoptLogin(u); })}
               rows={loginOnly}
               rowKey={(u) => u.user_id}
-              emptyTitle="No logins without a record."
+              emptyTitle={t("employee.loginOnlyEmpty")}
             />
           </Card>
         </Section>
@@ -259,9 +260,9 @@ export default function Employees() {
 
       <ConfirmDialog
         open={confirmRow != null}
-        title="Deactivate this employee?"
-        message={`Deactivate ${confirmRow?.name ?? "this employee"}? They disappear from attribution dropdowns and the time clock; history is kept. A linked login stays active — disable it from the Login section if they should also lose access.`}
-        confirmLabel="Deactivate"
+        title={t("employee.deactivateTitle")}
+        message={t("employee.deactivateBody", { name: confirmRow?.name ?? t("employee.thisEmployee") })}
+        confirmLabel={t("employee.deactivate")}
         confirmTone="danger"
         busy={busy}
         onConfirm={() => { if (confirmRow) void toggleActive(confirmRow); }}
@@ -272,7 +273,8 @@ export default function Employees() {
 }
 
 function LoginCell({ row: r }: { row: EmployeeRow }) {
-  if (!r.login) return <Pill tone="neutral">No login</Pill>;
+  const t = useT();
+  if (!r.login) return <Pill tone="neutral">{t("employee.noLogin")}</Pill>;
   return (
     <>
       <Pill tone={r.login.role === "employee" ? "neutral" : "accent"}>
@@ -289,13 +291,13 @@ function LoginCell({ row: r }: { row: EmployeeRow }) {
       ) : r.login.has_custom_permissions ? (
         <>
           {" "}
-          <Pill tone="neutral">Custom access</Pill>
+          <Pill tone="neutral">{t("employee.customAccess")}</Pill>
         </>
       ) : null}
       {!r.login.is_active && (
         <>
           {" "}
-          <Pill tone="neutral">Login inactive</Pill>
+          <Pill tone="neutral">{t("employee.loginInactive")}</Pill>
         </>
       )}
     </>

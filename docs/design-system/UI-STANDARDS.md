@@ -652,8 +652,15 @@ pick Spanish; the browser's own language is not used.
   its label key there. The same holds for a batch status
   (`batchStatusLabel()`, `api/batches.ts`), a returned check's status
   and payment method (`returnCheckStatusLabel()`,
-  `paymentMethodLabel()`, `api/returnChecks.ts`); a status pill takes
-  its tone from the stored value and its words from the label.
+  `paymentMethodLabel()`, `api/returnChecks.ts`), a shift status
+  (`timeClockStatusLabel()`, `api/timeclock.ts`) and a built-in role
+  (`roleLabel()`, `api/roles.ts`); a status pill takes its tone from
+  the stored value and its words from the label. Permission areas and
+  actions go through `resourceLabel()`, `actionLabel()` and
+  `actionShort()` (`components/PermissionMatrixTable.tsx`); the
+  one-letter chips have their own keys because first letters collide
+  in Spanish (Editar / Eliminar). A label helper is called during
+  render, never at module level, so it follows a language switch.
 - **Form schemas hold keys.** zod keeps the message it was built with,
   so a schema's message is a translator key
   (`z.string().min(1, "transfer.nameRequired")`) and the field shows
@@ -709,6 +716,12 @@ always the same Spanish word):
 | Returned check | Cheque devuelto |
 | Cleared / Held (ACH batch) | Acreditado / Retenido |
 | Time clock | Reloj checador |
+| Login (a person's sign-in) | Acceso |
+| Role / Custom access | Rol / Acceso personalizado |
+| Accountant | Contador |
+| Shift / Clock in / Clock out | Turno / Marcar entrada / Marcar salida |
+| Schedule / Paystub | Horario / Talón de pago |
+| Passkey | Llave de acceso |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -726,9 +739,12 @@ error, retry button, toasts, info tip and row actions; the store and
 employee dashboards, customers and merge, ACH batches, returned checks
 and their payments, and the shell pieces every page can show (store
 gate, impersonation bar, command palette, help panel, announcement
-banner, install button, 404, and the rest of the kit). Next: settings
-and team, bank, monthly and reports, owner and billing pages,
-platform pages, then emails. The help articles
+banner, install button, 404, and the rest of the kit); the team pages
+(employees and their form, logins, roles and access, role edit, the
+permission grids, payroll, schedule, punch credentials, the time
+clock and the paystub). Next: settings and account pages, bank,
+monthly and reports, owner and billing pages, platform pages, then
+emails. The help articles
 (`lib/help/registry.ts`) are still English.
 
 ## 11. The bell — one place for "something to do"

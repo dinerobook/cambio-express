@@ -10,6 +10,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { setDisplayTimezone } from "../lib/datetime";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Payroll history shows and edits punches on the STORE's clock. The
 // server stores naive UTC: a 10:00 clock-in in Chicago is
@@ -34,8 +36,8 @@ const LIST = {
   isLoading: false, isError: false,
 };
 
-vi.mock("../api/timeclock", () => ({
-  TIMECLOCK_STATUS_TONES: { pending: "warning", approved: "success", rejected: "negative" },
+vi.mock("../api/timeclock", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/timeclock")>()),
   useAdminTimeClock: () => LIST,
   useTimeClockHistory: () => ({ data: undefined, isLoading: true }),
   adminCreateEntry: (...a: unknown[]) => adminCreateEntry(...a),
@@ -121,5 +123,31 @@ describe("Payroll history on the store clock", () => {
     renderPage();
     expect(screen.getByText("Admin or owner only.")).toBeInTheDocument();
     expect(screen.queryByText("Oct 9, 2026, 10:00 CDT")).not.toBeInTheDocument();
+  });
+});
+
+// Spanish (UI-STANDARDS §10): headings, pills, row actions and the
+// entry popup read in Spanish; the status is still sent in English.
+describe("Payroll history in Spanish", () => {
+  const P = ["payroll.", "timeclock.", "common."];
+
+  it("shows the list and the edit popup in Spanish, saving English values", async () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Nómina" })).toBeInTheDocument();
+    expect(screen.getByText("Pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Horas aprobadas")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, P)).toEqual([]);
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Editar registro" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("option", { name: "Aprobado" })).toHaveValue("approved");
+    expect(englishLeftovers(dialog, P)).toEqual([]);
+    await userEvent.selectOptions(within(dialog).getByLabelText(/^Estado/), "approved");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(adminUpdateEntry).toHaveBeenCalledWith(
+      41, expect.objectContaining({ status: "approved" }),
+    ));
   });
 });

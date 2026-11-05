@@ -22,6 +22,11 @@ import {
 } from "../components/ui";
 import styles from "./TimeClock.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+// A URL, the same in every language.
+const SETTINGS_PATH = "/app/settings";
 
 // /app/timeclock — employee punch page. Pick your roster name,
 // clock in / out. The "who's currently clocked in?" panel below
@@ -42,6 +47,7 @@ export default function TimeClock() {
   const [notes, setNotes]             = useState("");
   const toast = useToast();
   const toastApiError = useApiErrorToast();
+  const t = useT();
 
   const openByEmp = useMemo(() => {
     const map = new Map<number, TimeClockEntryRow>();
@@ -75,7 +81,7 @@ export default function TimeClock() {
     const empId = Number(pickedEmpId);
     const empName =
       roster.data?.employees.find((m) => m.id === empId)?.name
-        ?? `roster #${empId}`;
+        ?? t("clock.rosterNumber", { id: empId });
     try {
       // Optional WebAuthn pre-step. When the store requires a
       // passkey, fetch a challenge → run the OS prompt → echo
@@ -87,11 +93,7 @@ export default function TimeClock() {
       };
       if (passkeyRequired) {
         if (!passkeysSupported()) {
-          throw new Error(
-            "This store requires a passkey for time-clock punches, "
-            + "but this browser doesn't support WebAuthn. Use a modern "
-            + "Chrome / Safari / Firefox / Edge build.",
-          );
+          throw new Error(t("clock.noWebauthn"));
         }
         const challenge = await fetchPunchChallenge(empId);
         const assertion = await performPasskeyAssert(
@@ -110,16 +112,16 @@ export default function TimeClock() {
       }
       if (pickedIsOpen) {
         await clockOut.mutateAsync(punch);
-        toast({ message: `${empName} clocked out.`, tone: "success" });
+        toast({ message: t("clock.clockedOut", { name: empName }), tone: "success" });
       } else {
         await clockIn.mutateAsync(punch);
-        toast({ message: `${empName} clocked in.`, tone: "success" });
+        toast({ message: t("clock.clockedIn", { name: empName }), tone: "success" });
       }
       setNotes("");
       refresh();
     } catch (err) {
       toast({
-        message: apiErrorMessage(err, "Couldn't record the punch.", { anyError: true }),
+        message: apiErrorMessage(err, t("clock.punchFailed"), { anyError: true }),
         tone: "error",
       });
     }
@@ -128,9 +130,9 @@ export default function TimeClock() {
   if (roster.isError) {
     return (
       <PageShell maxWidth="56rem">
-        <PageHeader title="Time clock" />
+        <PageHeader title={navWord("Time clock")} />
         <ErrorState
-          message="Couldn't load the store roster."
+          message={t("schedule.rosterFailed")}
           onRetry={() => { void roster.refetch(); }}
         />
       </PageShell>
@@ -140,7 +142,7 @@ export default function TimeClock() {
   if (roster.isLoading) {
     return (
       <PageShell maxWidth="56rem">
-        <PageHeader title="Time clock" />
+        <PageHeader title={navWord("Time clock")} />
         <Loading />
       </PageShell>
     );
@@ -155,21 +157,20 @@ export default function TimeClock() {
       <PageCrumbs />
 
       <PageHeader
-        title="Time clock"
-        subtitle="Pick your name on the roster, then clock in or out. Shifts are logged in the store's local time."
+        title={navWord("Time clock")}
+        subtitle={t("clock.subtitle")}
       />
 
       {activeRoster.length === 0 && (
         <Empty>
-          No active roster members yet. An admin can add cashier
-          names from <code>/app/settings</code> → Team.
+          {tNodes("clock.noRoster", { path: <code>{SETTINGS_PATH}</code> })}
         </Empty>
       )}
 
       {activeRoster.length > 0 && (
         <Card>
           <form onSubmit={onSubmit} className={styles.form}>
-            <Field label="Roster name">
+            <Field label={t("payroll.rosterName")}>
               <Select
                 value={pickedEmpId === "" ? "" : String(pickedEmpId)}
                 onChange={(e) => {
@@ -178,15 +179,15 @@ export default function TimeClock() {
                 }}
                 required
               >
-                <option value="">— pick your name —</option>
+                <option value="">{t("clock.pickName")}</option>
                 {activeRoster.map((m) => {
                   const open = openByEmp.get(m.id);
                   return (
                     <option key={m.id} value={m.id}>
                       {m.name}{open ? (
                         open.break_started_at
-                          ? "  (on break)"
-                          : "  (clocked in)"
+                          ? `  ${t("clock.onBreak")}`
+                          : `  ${t("clock.clockedInTag")}`
                       ) : ""}
                     </option>
                   );
@@ -194,7 +195,7 @@ export default function TimeClock() {
               </Select>
             </Field>
             <Field
-              label={<>Notes (optional)<InfoTip text="Anything that explains the shift — covered for someone, came in late, etc." /></>}
+              label={<>{t("schedule.notesOptional")}<InfoTip text={t("clock.notesTip")} /></>}
             >
               <Input
                 type="text" maxLength={500}
@@ -221,20 +222,20 @@ export default function TimeClock() {
                         await stopBrk.mutateAsync({
                           store_employee_id: empId,
                         });
-                        toast({ message: "Back from break.", tone: "success" });
+                        toast({ message: t("clock.backFromBreak"), tone: "success" });
                       } else {
                         await startBrk.mutateAsync({
                           store_employee_id: empId,
                         });
-                        toast({ message: "Break started.", tone: "success" });
+                        toast({ message: t("clock.breakStarted"), tone: "success" });
                       }
                       refresh();
                     } catch (err) {
-                      toastApiError(err, "Couldn't update break.");
+                      toastApiError(err, t("clock.breakFailed"));
                     }
                   }}
                 >
-                  {pickedOnBreak ? "End break" : "Start break"}
+                  {pickedOnBreak ? t("clock.endBreak") : t("clock.startBreak")}
                 </Button>
               )}
               <Button
@@ -247,7 +248,7 @@ export default function TimeClock() {
                   || clockOut.isPending
                 }
               >
-                {pickedIsOpen ? "Clock out" : "Clock in"}
+                {pickedIsOpen ? t("clock.clockOut") : t("clock.clockIn")}
               </Button>
             </div>
           </form>
@@ -255,22 +256,22 @@ export default function TimeClock() {
       )}
 
       <Card>
-        <h2 className={styles.panelTitle}>Currently clocked in</h2>
+        <h2 className={styles.panelTitle}>{t("clock.current")}</h2>
         {status.isLoading && <Loading />}
         {status.isError && (
           <ErrorState
-            message="Couldn't load current shifts."
+            message={t("clock.currentFailed")}
             onRetry={() => { void status.refetch(); }}
           />
         )}
         {status.data && status.data.open_entries.length === 0 && (
-          <EmptyState title="Nobody's on the clock right now." />
+          <EmptyState title={t("clock.nobody")} />
         )}
         {status.data && status.data.open_entries.length > 0 && (
           <Table>
             <thead>
               <tr>
-                {["Roster name", "Clocked in", "Notes"].map((h) => (
+                {[t("payroll.rosterName"), t("clock.clockedInCol"), t("payroll.notes")].map((h) => (
                   <th key={h} style={thStyle}>{h}</th>
                 ))}
               </tr>

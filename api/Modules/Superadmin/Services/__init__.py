@@ -18,6 +18,7 @@ from api.Modules.Superadmin.Services.anomalies import (
 )
 from api.Modules.Superadmin.Services.dashboard import (
     compute_mrr,
+    platform_summary,
     superadmin_dashboard_context,
 )
 from api.Modules.Superadmin.Services.reports import (
@@ -77,6 +78,7 @@ __all__ = [
     "refunds",
     "retention_queue",
     "signup_funnel",
+    "platform_summary",
     "superadmin_dashboard_context",
     "suspended_stores",
     "time_to_convert",

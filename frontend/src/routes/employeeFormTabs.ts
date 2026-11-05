@@ -3,11 +3,14 @@
 // the resolution rules are unit-testable without mounting the
 // whole form.
 
+import type { MessageKey } from "../i18n";
+
+/** `label` is a translator key; the form shows `t(label)`. */
 export const EMPLOYEE_TABS = [
-  { key: "profile", label: "Profile" },
-  { key: "payroll", label: "Payroll" },
-  { key: "login",   label: "Login & access" },
-] as const;
+  { key: "profile", label: "employee.tabProfile" },
+  { key: "payroll", label: "employee.tabPayroll" },
+  { key: "login",   label: "employee.tabLogin" },
+] as const satisfies readonly { key: string; label: MessageKey }[];
 
 export type EmployeeTabKey = (typeof EMPLOYEE_TABS)[number]["key"];
 

@@ -1,6 +1,6 @@
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { TIMECLOCK_STATUS_TONES, usePaystub } from "../api/timeclock";
+import { TIMECLOCK_STATUS_TONES, timeClockStatusLabel, usePaystub } from "../api/timeclock";
 import { useStoreInfo } from "../api/account";
 import { formatTimestamp } from "../lib/datetime";
 import {
@@ -11,6 +11,7 @@ import { getCurrentIdentity } from "../lib/auth";
 import { fmtHours, fmtMoney2 } from "../lib/formatters";
 import styles from "./TimeClockPaystub.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tNodes, useT } from "../i18n";
 
 // /app/admin/timeclock/paystub/:id?from=YYYY-MM-DD&to=YYYY-MM-DD
 //
@@ -28,6 +29,7 @@ export default function TimeClockPaystub() {
 
   const identity = getCurrentIdentity();
   const { data: storeInfo } = useStoreInfo();
+  const t = useT();
 
   const canView = identity?.role === "admin"
                   || identity?.role === "owner"
@@ -40,7 +42,7 @@ export default function TimeClockPaystub() {
   if (!canView) {
     return (
       <PageShell>
-        <ErrorState message="Admin or owner only." />
+        <ErrorState message={t("payroll.adminOnly")} />
       </PageShell>
     );
   }
@@ -49,7 +51,7 @@ export default function TimeClockPaystub() {
     return (
       <PageShell>
         <ErrorState
-          message="This paystub link is missing its pay period. Open it from the Payroll page."
+          message={t("paystub.missingPeriod")}
         />
       </PageShell>
     );
@@ -62,39 +64,39 @@ export default function TimeClockPaystub() {
     return (
       <PageShell>
         <ErrorState
-          message={apiErrorMessage(error, "Couldn't load paystub.")}
+          message={apiErrorMessage(error, t("paystub.loadFailed"))}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
     );
   }
 
-  const storeName = storeInfo?.store?.name ?? "Store";
+  const storeName = storeInfo?.store?.name ?? t("paystub.store");
 
   return (
     <PageShell maxWidth="48rem">
-      <PageCrumbs current="Paystub" />
+      <PageCrumbs current={t("paystub.title")} />
       <div className={styles.printbar}>
         <Button onClick={() => window.print()} tone="primary">
-          Print
+          {t("paystub.print")}
         </Button>
         <Button tone="secondary" onClick={() => window.history.back()}>
-          Back
+          {t("common.back")}
         </Button>
       </div>
 
       <div className={styles.paystub}>
         <div className={styles.header}>
           <div>
-            <div className={styles.headerLeft}>Paystub</div>
+            <div className={styles.headerLeft}>{t("paystub.title")}</div>
             <div className={styles.headerSub}>
-              {storeName} · pay period {data.from_date} → {data.to_date}
+              {t("paystub.period", { store: storeName, from: data.from_date, to: data.to_date })}
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontWeight: 600 }}>{data.employee_name}</div>
             <div className={styles.headerSub}>
-              Roster #{data.store_employee_id}
+              {t("paystub.rosterNumber", { id: data.store_employee_id })}
             </div>
           </div>
         </div>
@@ -102,17 +104,17 @@ export default function TimeClockPaystub() {
         <div className={styles.summary}>
           <KpiGrid minWidth="12rem">
             <KpiCard
-              label="Approved hours"
+              label={t("payroll.approvedHours")}
               value={fmtHours(data.approved_hours)}
             />
             <KpiCard
-              label="Hourly rate"
+              label={t("employee.hourlyRate")}
               value={data.hourly_rate > 0
                 ? fmtMoney2(data.hourly_rate)
                 : "—"}
             />
             <KpiCard
-              label="Gross pay"
+              label={t("paystub.grossPay")}
               tone="positive" colorValue
               value={data.hourly_rate > 0
                 ? fmtMoney2(data.gross_pay)
@@ -125,18 +127,18 @@ export default function TimeClockPaystub() {
           <table className={styles.shifts}>
             <thead>
               <tr>
-                <th>Time in</th>
-              <th>Time out</th>
-              <th>Hours</th>
-              <th>Status</th>
-              <th>Notes</th>
+                <th>{t("payroll.timeIn")}</th>
+              <th>{t("payroll.timeOut")}</th>
+              <th>{t("paystub.hours")}</th>
+              <th>{t("common.status")}</th>
+              <th>{t("payroll.notes")}</th>
             </tr>
           </thead>
           <tbody>
             {data.shifts.length === 0 && (
               <tr>
                 <td colSpan={5}>
-                  <em>No shifts in this window.</em>
+                  <em>{t("payroll.noShifts")}</em>
                 </td>
               </tr>
             )}
@@ -154,7 +156,7 @@ export default function TimeClockPaystub() {
                   {fmtHours(s.hours_worked)}
                 </td>
                 <td>
-                  <Pill tone={TIMECLOCK_STATUS_TONES[s.status]}>{s.status}</Pill>
+                  <Pill tone={TIMECLOCK_STATUS_TONES[s.status]}>{timeClockStatusLabel(s.status)}</Pill>
                 </td>
                 <td>{s.notes || "—"}</td>
               </tr>
@@ -164,10 +166,10 @@ export default function TimeClockPaystub() {
         </div>
 
         <div className={styles.footer}>
-          Only <strong>approved</strong> shifts count toward gross pay.
-          Pending / rejected / open rows appear in the itemised list
-          so the operator can spot anything the admin still needs to
-          review. Generated {formatTimestamp(new Date().toISOString())}.
+          {tNodes("paystub.footer", {
+            approved: <strong>{t("paystub.approved")}</strong>,
+            when: formatTimestamp(new Date().toISOString()),
+          })}
         </div>
       </div>
     </PageShell>

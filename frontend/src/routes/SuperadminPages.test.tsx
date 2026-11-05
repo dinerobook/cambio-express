@@ -2,6 +2,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import Dashboard from "./Dashboard";
 import SuperadminAuditLog from "./SuperadminAuditLog";
 import SuperadminBilling from "./SuperadminBilling";
 import SuperadminControls from "./SuperadminControls";
@@ -213,23 +214,71 @@ describe("SuperadminBilling", () => {
 });
 
 describe("SuperadminControls", () => {
-  it("renders platform metrics and the hubs", async () => {
+  // The superadmin answer of /dashboard/summary: exactly the ten tiles.
+  const SUMMARY = {
+    role: "superadmin", total_stores: 42, active_stores: 37, trial_stores: 5,
+    paid_stores: 30, inactive_stores: 2, mrr_total: 1234, arr_total: 14808,
+    new_stores_30d: 6, cancellations_30d: 1, retention_queue: 3,
+  };
+
+  function tile(label: string) {
+    return screen.getByText(label).parentElement as HTMLElement;
+  }
+
+  it("renders every platform figure and the hubs", async () => {
+    mockFetch({ "GET /api/v2/dashboard/summary": { body: SUMMARY } });
+    renderRoute(<SuperadminControls />);
+    expect(await screen.findByText("42")).toBeInTheDocument();
+    expect(within(tile("Active")).getByText("37")).toBeInTheDocument();
+    expect(within(tile("Trial")).getByText("5")).toBeInTheDocument();
+    expect(within(tile("Paid")).getByText("30")).toBeInTheDocument();
+    expect(within(tile("Inactive")).getByText("2")).toBeInTheDocument();
+    expect(within(tile("Retention queue")).getByText("3")).toBeInTheDocument();
+    expect(within(tile("MRR")).getByText("$1,234")).toBeInTheDocument();
+    expect(within(tile("ARR")).getByText("$14,808")).toBeInTheDocument();
+    expect(within(tile("New (30d)")).getByText("6")).toBeInTheDocument();
+    expect(within(tile("Cancellations (30d)")).getByText("1")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Audit log/ })).toBeInTheDocument();
+  });
+
+  it("shows zero figures as 0, not a dash", async () => {
     mockFetch({
       "GET /api/v2/dashboard/summary": {
-        body: { role: "superadmin", total_stores: 42, mrr_total: 1234, retention_queue: 2 },
+        body: { ...SUMMARY, mrr_total: 0, arr_total: 0, retention_queue: 0 },
       },
     });
     renderRoute(<SuperadminControls />);
     expect(await screen.findByText("42")).toBeInTheDocument();
-    expect(screen.getByText("$1,234")).toBeInTheDocument();
+    expect(within(tile("MRR")).getByText("$0")).toBeInTheDocument();
+    expect(within(tile("Retention queue")).getByText("0")).toBeInTheDocument();
+  });
+
+  it("shows no platform figures for a store-shaped answer", async () => {
+    const calls = mockFetch({
+      "GET /api/v2/dashboard/summary": { body: { role: "admin" } },
+    });
+    renderRoute(<SuperadminControls />);
+    await vi.waitFor(() => expect(callsTo(calls, "GET /api/v2/dashboard/summary")).toHaveLength(1));
+    expect(screen.queryByText("Overview")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Audit log/ })).toBeInTheDocument();
   });
 
-  it("offers a retry when the metrics fail", async () => {
-    mockFetch({ "GET /api/v2/dashboard/summary": { status: 500, body: {} } });
+  it("offers a retry when the metrics fail, and recovers", async () => {
+    const { state, handler } = failThenServe(SUMMARY);
+    mockFetch({ "GET /api/v2/dashboard/summary": handler });
     renderRoute(<SuperadminControls />);
     expect(await screen.findByText("Couldn't load metrics for the overview.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    state.fail = false;
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("42")).toBeInTheDocument();
+  });
+});
+
+describe("Dashboard as superadmin", () => {
+  it("sends the superadmin to the platform dashboard", () => {
+    mockFetch({ "GET /api/v2/dashboard/summary": { body: { role: "superadmin" } } });
+    renderRoute(<Dashboard />);
+    expect(screen.getByText("Navigated to /superadmin/dashboard")).toBeInTheDocument();
   });
 });
 
