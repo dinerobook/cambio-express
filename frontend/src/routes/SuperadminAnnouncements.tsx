@@ -13,7 +13,7 @@ import {
 import {
   Alert, Button, Card, Checkbox, ConfirmDialog, Empty, ErrorState, Field,
   FormActions, Input, Loading, PageHeader, PageShell, Pill, SectionTitle,
-  Select, Table, TableStates, tdStyle, Textarea, thStyle,
+  Select, Textarea, DataTable, type DataColumn,
 } from "../components/ui";
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { useSuperadminStores } from "../api/superadmin";
@@ -71,16 +71,14 @@ export default function SuperadminAnnouncements() {
           Banners shown to every user across the app. Disable to hide
           without deleting; delete to remove permanently.
         </p>
-        <TableStates
+        <DataTable
+          columns={announcementColumns(refresh)}
+          rows={data?.rows}
+          rowKey={(r) => r.id}
           isLoading={isLoading} isError={isError} error={error}
-          isEmpty={!data || data.rows.length === 0}
           onRetry={() => { void refetch(); }}
           emptyTitle="No announcements yet."
-          rows={3} cols={4}
         />
-        {data && data.rows.length > 0 && (
-          <AnnouncementsTable rows={data.rows} onChanged={refresh} />
-        )}
       </Card>
     </PageShell>
   );
@@ -311,34 +309,53 @@ function StorePicker({
   );
 }
 
-function AnnouncementsTable({
-  rows, onChanged,
-}: {
-  rows: AnnouncementRow[];
-  onChanged: () => void;
-}) {
-  return (
-    <Table>
-      <thead>
-        <tr>
-          {[
-            "Message", "Level", "Status", "Audience", "Posted", "Expires",
-            "Broadcast", "Actions",
-          ].map((h, i) => (
-            <th key={i} style={thStyle}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <Row key={r.id} row={r} onChanged={onChanged} />
-        ))}
-      </tbody>
-    </Table>
-  );
+/** The history list as the kit ``<DataTable>``. */
+function announcementColumns(onChanged: () => void): DataColumn<AnnouncementRow>[] {
+  return [
+    {
+      key: "message", header: "Message",
+      render: (r) => <span className={styles.cellWide}>{r.message}</span>,
+    },
+    {
+      key: "level", header: "Level",
+      render: (r) => (
+        <Pill tone={ANNOUNCEMENT_LEVEL_TONES[r.level] ?? "neutral"}>{r.level}</Pill>
+      ),
+    },
+    { key: "status", header: "Status", render: (r) => <StatusCell row={r} /> },
+    { key: "audience", header: "Audience", render: (r) => <AudienceCell row={r} /> },
+    {
+      key: "posted", header: "Posted",
+      render: (r) => <span className={styles.dateCell}>{formatDate(r.created_at)}</span>,
+    },
+    {
+      key: "expires", header: "Expires",
+      render: (r) => (r.expires_at
+        ? <span className={styles.dateCell}>{formatDate(r.expires_at)}</span>
+        : <span className={styles.dash}>—</span>),
+    },
+    { key: "broadcast", header: "Broadcast", render: (r) => <BroadcastCell row={r} /> },
+    {
+      key: "actions", header: "Actions", label: "",
+      render: (r) => <ActionsCell row={r} onChanged={onChanged} />,
+    },
+  ];
 }
 
-function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }) {
+function StatusCell({ row }: { row: AnnouncementRow }) {
+  if (row.is_visible) return <Pill tone="accent">live</Pill>;
+  if (!row.is_active) return <Pill tone="neutral">disabled</Pill>;
+  if (isScheduledForFuture(row.starts_at)) {
+    return (
+      <Pill tone="info">
+        scheduled · {formatScheduleHint(row.starts_at)}
+      </Pill>
+    );
+  }
+  return <Pill tone="warning">expired</Pill>;
+}
+
+function ActionsCell({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   // A refused delete keeps its dialog open, so its error shows there.
@@ -371,70 +388,29 @@ function Row({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }
   }
 
   return (
-    <tr>
-      <td style={{ ...tdStyle, verticalAlign: "top" }} className={styles.cellWide}>
-        {row.message}
-      </td>
-      <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        <Pill tone={ANNOUNCEMENT_LEVEL_TONES[row.level] ?? "neutral"}>{row.level}</Pill>
-      </td>
-      <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        {row.is_visible ? (
-          <Pill tone="accent">live</Pill>
-        ) : !row.is_active ? (
-          <Pill tone="neutral">disabled</Pill>
-        ) : isScheduledForFuture(row.starts_at) ? (
-          <Pill tone="info">
-            scheduled · {formatScheduleHint(row.starts_at)}
-          </Pill>
-        ) : (
-          <Pill tone="warning">expired</Pill>
-        )}
-      </td>
-      <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        <AudienceCell row={row} />
-      </td>
-      <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        <span className={styles.dateCell}>
-          {formatDate(row.created_at)}
-        </span>
-      </td>
-      <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        {row.expires_at ? (
-          <span className={styles.dateCell}>
-            {formatDate(row.expires_at)}
-          </span>
-        ) : (
-          <span className={styles.dash}>—</span>
-        )}
-      </td>
-      <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        <BroadcastCell row={row} />
-      </td>
-      <td style={{ ...tdStyle, verticalAlign: "top" }}>
-        <div className={styles.actionsRow}>
-          <Button tone="secondary" size="sm" busy={busy} onClick={onToggle}>
-            {row.is_active ? "Disable" : "Enable"}
-          </Button>
-          <Button tone="danger" size="sm" busy={busy}
-            onClick={() => setConfirmingDelete(true)}>
-            Delete
-          </Button>
-        </div>
-        {err && <span className={styles.rowError}>{err}</span>}
-        <ConfirmDialog
-          open={confirmingDelete}
-          title="Delete this announcement?"
-          message="Delete this announcement permanently? Operators who haven't dismissed it yet will lose the message."
-          confirmLabel="Delete"
-          confirmTone="danger"
-          busy={busy}
-          error={deleteErr}
-          onConfirm={() => { void doDelete(); }}
-          onCancel={() => { setConfirmingDelete(false); setDeleteErr(null); }}
-        />
-      </td>
-    </tr>
+    <>
+      <div className={styles.actionsRow}>
+        <Button tone="secondary" size="sm" busy={busy} onClick={onToggle}>
+          {row.is_active ? "Disable" : "Enable"}
+        </Button>
+        <Button tone="danger" size="sm" busy={busy}
+          onClick={() => setConfirmingDelete(true)}>
+          Delete
+        </Button>
+      </div>
+      {err && <span className={styles.rowError}>{err}</span>}
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete this announcement?"
+        message="Delete this announcement permanently? Operators who haven't dismissed it yet will lose the message."
+        confirmLabel="Delete"
+        confirmTone="danger"
+        busy={busy}
+        error={deleteErr}
+        onConfirm={() => { void doDelete(); }}
+        onCancel={() => { setConfirmingDelete(false); setDeleteErr(null); }}
+      />
+    </>
   );
 }
 

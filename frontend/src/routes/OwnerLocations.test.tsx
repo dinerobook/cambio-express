@@ -4,6 +4,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OwnerLocations from "./OwnerLocations";
+import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
@@ -36,10 +37,12 @@ function LocationProbe() {
 
 function renderPage(url = "/owner/locations") {
   return render(
-    <MemoryRouter initialEntries={[url]}>
-      <OwnerLocations />
-      <LocationProbe />
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={[url]}>
+        <OwnerLocations />
+        <LocationProbe />
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 

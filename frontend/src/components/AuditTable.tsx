@@ -1,5 +1,5 @@
 import type { AdminAuditRow } from "../api/admin";
-import { formatTimestamp } from "../lib/datetime";
+import { csvTimestamp, formatTimestamp } from "../lib/datetime";
 import { DataTable, type DataColumn, type DataTableProps } from "./ui";
 import { AuditActionBadge } from "./AuditActionBadge";
 import styles from "./AuditTable.module.css";
@@ -39,7 +39,7 @@ export function AuditTable({
 } & Pick<
   DataTableProps<AuditTableRow>,
   | "isLoading" | "isError" | "error" | "onRetry" | "errorMessage"
-  | "emptyTitle" | "emptyBody" | "page"
+  | "emptyTitle" | "emptyBody" | "page" | "exportCsv"
 >) {
   return (
     <DataTable
@@ -57,6 +57,7 @@ export function AuditTable({
 const WHEN: DataColumn<AuditTableRow> = {
   key: "when", header: "When",
   render: (r) => <span className={styles.monoMuted}>{formatTimestamp(r.ts)}</span>,
+  csv: (r) => csvTimestamp(r.ts),
 };
 
 const ACTOR: DataColumn<AuditTableRow> = {
@@ -67,14 +68,17 @@ const ACTOR: DataColumn<AuditTableRow> = {
       {r.user_role && <span className={styles.userRole}>({r.user_role})</span>}
     </>
   ),
+  csv: (r) => (r.user_role ? `${r.user_name ?? ""} (${r.user_role})`.trim() : r.user_name),
 };
 
 const STORE: DataColumn<AuditTableRow> = {
   key: "store", header: "Store", render: (r) => r.store_name || "—",
+  csv: (r) => r.store_name,
 };
 
 const REST: DataColumn<AuditTableRow>[] = [
-  { key: "action", header: "Action", render: (r) => <AuditActionBadge action={r.action} /> },
+  { key: "action", header: "Action", render: (r) => <AuditActionBadge action={r.action} />,
+    csv: (r) => r.action },
   {
     key: "target", header: "Target",
     render: (r) => (
@@ -83,10 +87,12 @@ const REST: DataColumn<AuditTableRow>[] = [
         {r.target_label && <span className={styles.targetLabel}>{r.target_label}</span>}
       </span>
     ),
+    csv: (r) => [r.target_type, r.target_label].filter(Boolean).join(" "),
   },
   {
     key: "details", header: "Details",
     render: (r) => <span className={styles.detailCell}>{r.summary || "—"}</span>,
+    csv: (r) => r.summary,
   },
 ];
 

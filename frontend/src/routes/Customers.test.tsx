@@ -160,6 +160,14 @@ describe("Customers CSV export", () => {
     expect(filename).toBe(`customers_${todayIso()}.csv`);
   });
 
+  it("says so when the export fails instead of doing nothing", async () => {
+    downloadCsv.mockRejectedValueOnce(new ApiError(403, "Not allowed", null));
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(await screen.findByText("Not allowed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeEnabled();
+  });
+
   it("hides Export CSV without customers.update", () => {
     withPerms(["customers.update"]);
     renderPage();

@@ -34,6 +34,15 @@ describe("source guards", () => {
     expect(offenders(/\buseBlocker\(/, ["/UnsavedChangesHost.tsx"])).toEqual([]);
   });
 
+  it("builds CSV files and saves downloads in one place each", () => {
+    // UI-STANDARDS §7 "Export": a list's CSV is the kit DataTable's
+    // `exportCsv` (lib/csv.ts writes the file: plain-number money,
+    // store-time dates, formulas defused, BOM). A page that glues
+    // its own `text/csv` Blob or anchor download skips all of that.
+    expect(offenders(/text\/csv/, ["./csv.ts", "/lib/csv.ts"])).toEqual([]);
+    expect(offenders(/URL\.createObjectURL\(/, ["./api.ts", "/lib/api.ts"])).toEqual([]);
+  });
+
   it("never derives a calendar day from the UTC clock", () => {
     // `toISOString().slice(0, 10)` names the UTC day: tomorrow for a
     // US store after ~7pm. Use todayIso / toIsoDate / daysAgoIso.

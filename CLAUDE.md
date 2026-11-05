@@ -123,7 +123,9 @@ is in the file named after the arrow.
     → `api/Modules/Auth/CLAUDE.md`
 14. **Every paginated table live-searches** through
     `useUrlFilterState` (300 ms, 2-char minimum, filters in the URL)
-    on the kit `<DataTable>`. → `frontend/CLAUDE.md`
+    on the kit `<DataTable>`; CSV export is its opt-in `exportCsv`
+    (every matching row, store time, `reports.read`), never a page's
+    own button. → `frontend/CLAUDE.md`, UI-STANDARDS §7
 15. **Rate limiting** on every auth, password-reset and webhook route,
     keyed by `client_ip` (rightmost `X-Forwarded-For`). → `api/CLAUDE.md`
 16. **Slow work goes through `api.Core.Jobs.enqueue(...)`** with

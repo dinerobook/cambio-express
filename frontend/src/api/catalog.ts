@@ -25,7 +25,7 @@ export function useVendors(includeInactive = false) {
   });
 }
 
-export function useItems(params: {
+export interface ItemListQuery {
   q: string;
   page: number;
   departmentId: string;
@@ -34,7 +34,11 @@ export function useItems(params: {
   sort?: string;
   dir?: string;
   perPage?: number;
-}) {
+}
+
+/** One page of the price book — the request the page and its CSV
+ *  export both make. */
+export function fetchItemsPage(params: ItemListQuery): Promise<ItemList> {
   const qs = new URLSearchParams({ page: String(params.page) });
   if (params.perPage) qs.set("per_page", String(params.perPage));
   if (params.sort) qs.set("sort", params.sort);
@@ -43,9 +47,13 @@ export function useItems(params: {
   if (params.departmentId) qs.set("department_id", params.departmentId);
   if (params.vendorId) qs.set("vendor_id", params.vendorId);
   if (params.includeInactive) qs.set("include_inactive", "1");
+  return api<ItemList>(`/api/v2/catalog/items?${qs}`);
+}
+
+export function useItems(params: ItemListQuery) {
   return useQuery<ItemList>({
     queryKey: ["catalog", "items", params],
-    queryFn: () => api<ItemList>(`/api/v2/catalog/items?${qs}`),
+    queryFn: () => fetchItemsPage(params),
     placeholderData: (prev) => prev,
   });
 }
@@ -88,7 +96,7 @@ export type InvoiceWrite = components["schemas"]["InvoiceWriteRequest"];
 export type InvoiceUpdate = components["schemas"]["InvoiceUpdateRequest"];
 type InvoiceResponse = components["schemas"]["InvoiceResponse"];
 
-export function useInvoices(params: {
+export interface InvoiceListQuery {
   q: string;
   page: number;
   vendorId: string;
@@ -96,7 +104,11 @@ export function useInvoices(params: {
   sort?: string;
   dir?: string;
   perPage?: number;
-}) {
+}
+
+/** One page of the purchase invoices list — the request the page and
+ *  its CSV export both make. */
+export function fetchInvoicesPage(params: InvoiceListQuery): Promise<InvoiceList> {
   const qs = new URLSearchParams({ page: String(params.page) });
   if (params.perPage) qs.set("per_page", String(params.perPage));
   if (params.sort) qs.set("sort", params.sort);
@@ -104,9 +116,13 @@ export function useInvoices(params: {
   if (params.q) qs.set("q", params.q);
   if (params.vendorId) qs.set("vendor_id", params.vendorId);
   if (params.status) qs.set("status", params.status);
+  return api<InvoiceList>(`/api/v2/catalog/invoices?${qs}`);
+}
+
+export function useInvoices(params: InvoiceListQuery) {
   return useQuery<InvoiceList>({
     queryKey: ["catalog", "invoices", params],
-    queryFn: () => api<InvoiceList>(`/api/v2/catalog/invoices?${qs}`),
+    queryFn: () => fetchInvoicesPage(params),
     placeholderData: (prev) => prev,
   });
 }

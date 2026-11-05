@@ -31,6 +31,12 @@ export const es: Record<MessageKey, string> = {
   "pager.previous": "← Anterior",
   "pager.next": "Siguiente →",
 
+  // ── Shared list table (DataTable) ────────────────────────────
+  "table.exportCsv": "Exportar CSV",
+  "table.exporting": "Exportando…",
+  "table.exportFailed": "No se pudo exportar. Inténtelo de nuevo.",
+  "table.exportTooLarge": "Esta lista tiene {count} filas, más de las {max} que caben en una exportación. Acote la búsqueda o las fechas e inténtelo de nuevo.",
+
   // ── Unsaved changes guard ────────────────────────────────────
   "unsaved.pill": "Cambios sin guardar",
   "unsaved.title": "¿Descartar los cambios sin guardar?",
@@ -745,6 +751,7 @@ export const es: Record<MessageKey, string> = {
   "dash.transfersLabel": "Envíos:",
 
   // ── ACH batches ─────────────────────────────────────────────
+  "batch.transferCount": "Cantidad de envíos",
   "batch.reference": "Referencia",
   "batch.transfers": "Envíos",
   "batch.cardCreditInline": "{amount} de crédito por tarjeta de débito",
@@ -808,6 +815,7 @@ export const es: Record<MessageKey, string> = {
   "customer.typeTwo": "Escriba al menos 2 caracteres para buscar.",
   "customer.searchPlaceholder": "Nombre, teléfono, …",
   "customer.searchFailed": "La búsqueda falló",
+  "customer.empty": "No hay clientes.",
   "customer.noMatch": "Ningún cliente coincide con «{q}».",
   "customer.mergeMode": "Modo de unión",
   "customer.mergeHelp": "Elija dos clientes. El primero es el que se queda: su registro se conserva. Los envíos del segundo pasan al primero y su registro se elimina.",
@@ -888,6 +896,8 @@ export const es: Record<MessageKey, string> = {
   "returnCheck.checkNumber": "Número de cheque",
   "returnCheck.payerBank": "Banco del emisor",
   "returnCheck.invalidAmount": "Monto no válido",
+  "returnCheck.csvFee": "Cargo por cheque devuelto",
+  "returnCheck.csvPayments": "Pagos",
   "returnCheck.feeOptional": "Cargo por cheque devuelto (opcional)",
   "returnCheck.invalidFee": "Cargo no válido",
   "returnCheck.create": "Crear cheque devuelto",
@@ -991,6 +1001,7 @@ export const es: Record<MessageKey, string> = {
   "employee.updateFailed": "No se pudo actualizar el empleado.",
   "employee.recordCreated": "Ficha de empleado creada.",
   "employee.recordCreateFailed": "No se pudo crear la ficha de empleado.",
+  "employee.accountType": "Tipo de cuenta",
   "employee.rate": "Tarifa",
   "employee.perHour": "{amount}/h",
   "employee.hired": "Contratado",

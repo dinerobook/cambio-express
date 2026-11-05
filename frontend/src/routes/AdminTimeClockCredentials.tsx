@@ -14,7 +14,7 @@ import { apiErrorMessage } from "../lib/api";
 import { passkeysSupported, performPasskeyRegister } from "../lib/webauthn";
 import {
   Alert, Card, ConfirmDialog, EmptyState, ErrorState, Loading,
-  PageHeader, PageShell, Pill, RowActions, Table, tdStyle, thStyle,
+  PageHeader, PageShell, Pill, RowActions, DataTable,
 } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
@@ -156,66 +156,62 @@ export default function AdminTimeClockCredentials() {
       )}
       {data && data.rows.length > 0 && (
         <Card>
-          <Table>
-            <thead>
-              <tr>
-                {[
-                  t("schedule.cashier"), t("common.status"), t("punch.registered"),
-                  t("punch.lastUsed"), "",
-                ].map((h) => (
-                  <th key={h} style={thStyle}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.store_employee_id}>
-                  <td style={tdStyle}>
-                    <strong>{r.employee_name}</strong>
-                  </td>
-                  <td style={tdStyle}>
-                    {r.has_passkey
-                      ? <Pill tone="success">{t("punch.registered")}</Pill>
-                      : <Pill tone="warning">{timeClockStatusLabel("pending")}</Pill>}
-                  </td>
-                  <td style={tdStyle}>
-                    <span className={styles.mono}>
-                      {r.registered_at
-                        ? formatDate(r.registered_at)
-                        : "—"}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>
-                    <span className={styles.mono}>
-                      {r.last_used_at
-                        ? formatDate(r.last_used_at)
-                        : "—"}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>
-                    <RowActions
-                      title={r.employee_name}
-                      actions={[
-                        {
-                          label: r.has_passkey ? t("punch.reenroll") : t("punch.enroll"),
-                          tone: r.has_passkey ? "secondary" : "primary",
-                          busy: busyEmpId === r.store_employee_id,
-                          disabled: !browserSupports || busyEmpId !== null,
-                          onClick: () => register(r),
-                        },
-                        {
-                          label: t("punch.remove"),
-                          hidden: !r.has_passkey,
-                          disabled: busyEmpId !== null,
-                          onClick: () => setPendingRemove(r),
-                        },
-                      ]}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <DataTable
+            columns={[
+              {
+                key: "cashier", header: t("schedule.cashier"),
+                render: (r) => <strong>{r.employee_name}</strong>,
+              },
+              {
+                key: "status", header: t("common.status"),
+                render: (r) => (r.has_passkey
+                  ? <Pill tone="success">{t("punch.registered")}</Pill>
+                  : <Pill tone="warning">{timeClockStatusLabel("pending")}</Pill>),
+              },
+              {
+                key: "registered", header: t("punch.registered"),
+                render: (r) => (
+                  <span className={styles.mono}>
+                    {r.registered_at ? formatDate(r.registered_at) : "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "last", header: t("punch.lastUsed"),
+                render: (r) => (
+                  <span className={styles.mono}>
+                    {r.last_used_at ? formatDate(r.last_used_at) : "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "actions", header: "", label: "",
+                render: (r) => (
+                  <RowActions
+                    title={r.employee_name}
+                    actions={[
+                      {
+                        label: r.has_passkey ? t("punch.reenroll") : t("punch.enroll"),
+                        tone: r.has_passkey ? "secondary" : "primary",
+                        busy: busyEmpId === r.store_employee_id,
+                        disabled: !browserSupports || busyEmpId !== null,
+                        onClick: () => register(r),
+                      },
+                      {
+                        label: t("punch.remove"),
+                        hidden: !r.has_passkey,
+                        disabled: busyEmpId !== null,
+                        onClick: () => setPendingRemove(r),
+                      },
+                    ]}
+                  />
+                ),
+              },
+            ]}
+            rows={data.rows}
+            rowKey={(r) => r.store_employee_id}
+            emptyTitle={t("punch.noRoster")}
+          />
         </Card>
       )}
 

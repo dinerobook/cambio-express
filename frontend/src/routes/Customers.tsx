@@ -9,13 +9,14 @@ import {
 } from "../api/customers";
 import { apiErrorMessage, downloadCsv } from "../lib/api";
 import { hasPermission } from "../lib/permissions";
+import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { maskPhone } from "../lib/format";
 import {
-  Alert, Button, Card, Checkbox, Empty, EmptyState, ErrorState, Field,
-  Input, Modal, PageHeader, PageShell, Section, space, Table, tdStyle, thStyle,
+  Alert, Button, Card, Checkbox, DataTable, Empty, EmptyState, ErrorState, Field,
+  Input, Modal, PageHeader, PageShell, Section, space,
   Loading,
-  useToast,
+  useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./Customers.module.css";
 import { todayIso } from "../lib/datetime";
@@ -67,6 +68,7 @@ export default function Customers() {
   const [merging, setMerging] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const toast = useToast();
+  const toastApiError = useApiErrorToast();
 
   function exitMergeMode() {
     setMergeMode(false);
@@ -95,11 +97,13 @@ export default function Customers() {
   async function onExport() {
     setExporting(true);
     try {
-      const today = todayIso();
       await downloadCsv(
         "/api/v2/customers/export.csv",
-        `customers_${today}.csv`,
+        `customers_${todayIso()}.csv`,
       );
+    } catch (e) {
+      // A refused or failed download used to vanish silently.
+      toastApiError(e, "Export failed. Please try again.");
     } finally {
       setExporting(false);
     }
@@ -410,69 +414,64 @@ function CustomerTable({
   onTogglePick: (row: CustomerRow) => void;
 }) {
   const t = useT();
-  const columns = [
-    t("transfer.name"), t("transfer.phone"), t("customer.dob"),
-    t("transfer.address"), t("customer.homeStore"),
+  const pickColumn: DataColumn<CustomerRow>[] = mergeMode ? [{
+    key: "pick", header: t("customer.pick"), label: "",
+    render: (c) => {
+      const picked = picks.some((p) => p.id === c.id);
+      return (
+        <Checkbox
+          checked={picked}
+          disabled={!picked && picks.length >= 2}
+          onChange={() => onTogglePick(c)}
+          aria-describedby={undefined}
+        >
+          <span className="sr-only">{t("customer.selectForMerge", { name: c.full_name })}</span>
+        </Checkbox>
+      );
+    },
+  }] : [];
+  const columns: DataColumn<CustomerRow>[] = [
+    ...pickColumn,
+    {
+      key: "name", header: t("transfer.name"),
+      render: (c) => (
+        <>
+          <strong>{c.full_name}</strong>
+          {picks.some((p) => p.id === c.id) && (
+            <span className={styles.pickedTag}>
+              {" "}· {picks[0]?.id === c.id ? t("customer.winner") : t("customer.loser")}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: "phone", header: t("transfer.phone"),
+      render: (c) => (
+        <span
+          className={styles.phone}
+          title={t("customer.fullNumberTip")}
+        >
+          {c.phone_country} {maskPhone(c.phone_number)}
+        </span>
+      ),
+    },
+    { key: "dob", header: t("customer.dob"), render: (c) => <span className={styles.dob}>{c.dob || "—"}</span> },
+    { key: "address", header: t("transfer.address"), render: (c) => c.address || "—" },
+    {
+      key: "home", header: t("customer.homeStore"),
+      render: (c) => (
+        <span className={styles.muted}>{c.home_store_name || t("customer.thisStore")}</span>
+      ),
+    },
   ];
-  const headers = mergeMode ? [t("customer.pick"), ...columns] : columns;
   return (
-    <Table>
-      <thead>
-        <tr>
-          {headers.map((h) => (
-            <th key={h} style={thStyle}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((c) => {
-          const picked = picks.find((p) => p.id === c.id);
-          const disabled = !picked && picks.length >= 2;
-          return (
-            <tr key={c.id} className={picked ? styles.rowPicked : undefined}>
-              {mergeMode && (
-                <td style={tdStyle}>
-                  <Checkbox
-                    checked={!!picked}
-                    disabled={disabled}
-                    onChange={() => onTogglePick(c)}
-                    aria-describedby={undefined}
-                  >
-                    <span className="sr-only">{t("customer.selectForMerge", { name: c.full_name })}</span>
-                  </Checkbox>
-                </td>
-              )}
-              <td style={tdStyle}>
-                <strong>{c.full_name}</strong>
-                {picked && (
-                  <span className={styles.pickedTag}>
-                    {" "}· {picks[0]?.id === c.id ? t("customer.winner") : t("customer.loser")}
-                  </span>
-                )}
-              </td>
-              <td style={tdStyle}>
-                <span
-                  className={styles.phone}
-                  title={t("customer.fullNumberTip")}
-                >
-                  {c.phone_country} {maskPhone(c.phone_number)}
-                </span>
-              </td>
-              <td style={tdStyle}>
-                <span className={styles.dob}>
-                  {c.dob || "—"}
-                </span>
-              </td>
-              <td style={tdStyle}>{c.address || "—"}</td>
-              <td style={tdStyle}>
-                <span className={styles.muted}>
-                  {c.home_store_name || t("customer.thisStore")}
-                </span>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </Table>
+    <DataTable
+      columns={columns}
+      rows={rows}
+      rowKey={(c) => c.id}
+      rowClassName={(c) => (picks.some((p) => p.id === c.id) ? styles.rowPicked : undefined)}
+      emptyTitle={t("customer.empty")}
+    />
   );
 }

@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ReturnChecks from "./ReturnChecks";
+import { ToastProvider } from "../components/ui";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 
@@ -42,15 +43,17 @@ function renderPage(path = "/return-checks") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route
-            path="/return-checks"
-            element={<><ReturnChecks /><LocationProbe /></>}
-          />
-          <Route path="/return-checks/:id/edit" element={<div>edit page</div>} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route
+              path="/return-checks"
+              element={<><ReturnChecks /><LocationProbe /></>}
+            />
+            <Route path="/return-checks/:id/edit" element={<div>edit page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }

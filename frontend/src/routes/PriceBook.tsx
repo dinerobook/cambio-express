@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createItem, createVendor, updateItem, updateVendor,
-  useItems, useVendors,
+  fetchItemsPage, useItems, useVendors,
   type PriceBookItem, type Vendor,
 } from "../api/catalog";
 import {
@@ -14,6 +14,7 @@ import { useDepartments, type Department } from "../api/dayclose";
 import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
+import { csvMoney } from "../lib/csv";
 import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import DepartmentsManager from "../components/DepartmentsManager";
@@ -87,15 +88,16 @@ function ItemsTab() {
     pageSizeKey: "price-book",
     defaultSort: { key: "name", direction: "asc" },
   });
-  const items = useItems({
+  const listQuery = {
     q: filters.params.q,
-    page: filters.page,
     departmentId: filters.params.department_id,
     vendorId: filters.params.vendor_id,
     includeInactive: filters.params.inactive === "1",
     sort: filters.sort?.key,
     dir: filters.sort?.direction,
-    perPage: filters.perPage,
+  };
+  const items = useItems({
+    ...listQuery, page: filters.page, perPage: filters.perPage,
   });
   const departments = useDepartments();
   const vendors = useVendors();
@@ -133,19 +135,24 @@ function ItemsTab() {
           )}
         </>
       ),
+      csv: (i) => i.pos_code,
     },
-    { key: "name", header: "Item", sortKey: "name", render: (i) => i.name },
-    { key: "department", header: "Department", render: (i) => i.department_name || "—" },
-    { key: "vendor", header: "Vendor", render: (i) => i.vendor_name || "—" },
+    { key: "name", header: "Item", sortKey: "name", render: (i) => i.name, csv: (i) => i.name },
+    { key: "department", header: "Department", render: (i) => i.department_name || "—",
+      csv: (i) => i.department_name },
+    { key: "vendor", header: "Vendor", render: (i) => i.vendor_name || "—", csv: (i) => i.vendor_name },
     {
       key: "price", header: "Price", align: "right", sortKey: "price", sortFirst: "desc",
       render: (i) => fmtMoney2(i.price),
+      csv: (i) => csvMoney(i.price),
     },
     {
       key: "cost", header: "Cost", align: "right", sortKey: "cost", sortFirst: "desc",
       render: (i) => (i.cost > 0 ? fmtMoney2(i.cost) : "—"),
+      csv: (i) => (i.cost > 0 ? csvMoney(i.cost) : ""),
     },
-    { key: "tax", header: "Tax", render: (i) => (i.is_taxable ? "Taxable" : "—") },
+    { key: "tax", header: "Tax", render: (i) => (i.is_taxable ? "Taxable" : "—"),
+      csv: (i) => (i.is_taxable ? "Taxable" : "") },
     {
       key: "status", header: "Status",
       render: (i) => (
@@ -153,6 +160,7 @@ function ItemsTab() {
           {i.is_active ? "active" : "inactive"}
         </Pill>
       ),
+      csv: (i) => (i.is_active ? "Active" : "Inactive"),
     },
     ...(canManage ? [{
       key: "actions", header: "", label: "", align: "right" as const,
@@ -275,6 +283,10 @@ function ItemsTab() {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "price-book",
+            fetchPage: (page, perPage) => fetchItemsPage({ ...listQuery, page, perPage }),
           }}
         />
       </Card>

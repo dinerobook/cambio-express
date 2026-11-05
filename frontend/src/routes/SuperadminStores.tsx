@@ -3,19 +3,20 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   bulkStoreAction,
+  fetchSuperadminStoresPage,
   useSuperadminStoresPage,
   type SuperadminStoreRow,
 } from "../api/superadmin";
 import { planTone } from "../api/billing";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate } from "../lib/datetime";
+import { csvDate, formatDate } from "../lib/datetime";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
   Alert, Button, ButtonLink, Checkbox,
   Card, DataTable, Empty, Input, PageHeader, PageShell, Pill,
-  Select, useToast, type DataColumn,
+  Select, useToast, type CsvColumn, type DataColumn,
 } from "../components/ui";
 import styles from "./SuperadminStores.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
@@ -33,12 +34,13 @@ export default function SuperadminStores() {
     defaultSort: { key: "created", direction: "desc" },
   });
   const q = filters.params.q;
-  const { data, isLoading, isError, error, refetch } = useSuperadminStoresPage({
+  const listQuery = {
     q: q.length >= 2 ? q : "",
     sort: filters.sort?.key,
     dir: filters.sort?.direction,
-    page: filters.page,
-    perPage: filters.perPage,
+  };
+  const { data, isLoading, isError, error, refetch } = useSuperadminStoresPage({
+    ...listQuery, page: filters.page, perPage: filters.perPage,
   });
   const qc = useQueryClient();
   const toast = useToast();
@@ -148,6 +150,11 @@ export default function SuperadminStores() {
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
           }}
+          exportCsv={{
+            filename: "stores",
+            fetchPage: (page, perPage) => fetchSuperadminStoresPage({ ...listQuery, page, perPage }),
+            extraColumns: STORE_CSV_EXTRAS,
+          }}
         />
       </Card>
     </PageShell>
@@ -179,6 +186,7 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
     },
     {
       key: "store", header: "Store", sortKey: "name",
+      csv: (r) => r.name,
       render: (r) => (
         <div>
           <div className={styles.storeName}>{r.name}</div>
@@ -192,6 +200,7 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
     {
       key: "plan", header: "Plan", sortKey: "plan",
       render: (r) => <PlanPill plan={r.plan} cycle={r.billing_cycle} />,
+      csv: (r) => planLabel(r.plan),
     },
     {
       key: "status", header: "Status", sortKey: "status", sortFirst: "desc",
@@ -200,8 +209,12 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
           {r.is_active ? "Active" : "Inactive"}
         </Pill>
       ),
+      csv: (r) => (r.is_active ? "Active" : "Inactive"),
     },
-    { key: "trial", header: "Trial / retention", render: (r) => <TrialCell row={r} /> },
+    { key: "trial", header: "Trial / retention", render: (r) => <TrialCell row={r} />,
+      csv: (r) => (r.data_retention_until
+        ? `Purge ${csvDate(r.data_retention_until)}`
+        : r.plan === "trial" && r.trial_ends_at ? `Trial ends ${csvDate(r.trial_ends_at)}` : "") },
     {
       key: "stripe", header: "Stripe",
       render: (r) => (r.stripe_customer_id ? (
@@ -211,10 +224,12 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
       ) : (
         <span className={styles.dash}>—</span>
       )),
+      csv: (r) => r.stripe_customer_id,
     },
     {
       key: "created", header: "Created", sortKey: "created", sortFirst: "desc",
       render: (r) => <span className={styles.monoMuted}>{formatDate(r.created_at)}</span>,
+      csv: (r) => csvDate(r.created_at),
     },
     {
       key: "view", header: "", label: "", align: "right",
@@ -227,11 +242,22 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
   ];
 }
 
+/** The file carries the store's address fields the Store cell packs
+ *  under the name. */
+const STORE_CSV_EXTRAS: CsvColumn<SuperadminStoreRow>[] = [
+  { header: "Slug", csv: (r) => r.slug },
+  { header: "Email", csv: (r) => r.email },
+  { header: "Billing cycle", csv: (r) => r.billing_cycle },
+];
+
+function planLabel(plan: string): string {
+  return plan.charAt(0).toUpperCase() + plan.slice(1);
+}
+
 function PlanPill({ plan, cycle }: { plan: string; cycle: string }) {
-  const label = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
     <Pill tone={planTone(plan)}>
-      {label}{cycle ? ` · ${cycle}` : ""}
+      {planLabel(plan)}{cycle ? ` · ${cycle}` : ""}
     </Pill>
   );
 }

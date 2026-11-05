@@ -1,8 +1,21 @@
-import { Fragment, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  Fragment, useState, type KeyboardEvent, type MouseEvent, type ReactNode,
+} from "react";
 
+import { canDo } from "../../lib/access";
+import {
+  buildCsv, csvFilename, CsvTooLargeError, CSV_MAX_ROWS, fetchAllPages,
+  saveCsv, type CsvPage, type CsvValue,
+} from "../../lib/csv";
+import { cardLabel, exportTable } from "./dataTableCsv";
+import { apiErrorMessage } from "../../lib/api";
+import { fmtNumber } from "../../lib/formatters";
+import { useT } from "../../i18n";
+import { Button } from "./Button";
 import { Pager } from "./Pager";
 import { Table } from "./Table";
 import { TableStates } from "./TableStates";
+import { useToast } from "./Toast";
 import { tdStyle, thStyle } from "./tokens";
 import styles from "./DataTable.module.css";
 
@@ -21,6 +34,45 @@ export interface DataColumn<T> {
   /** Label shown beside the value in the phone card view when
    *  ``header`` is not plain text. Empty hides the label. */
   label?: string;
+  /** The cell's value in the CSV export, as data: a number or
+   *  ``csvMoney(...)`` for money, ``csvTimestamp`` / ``csvDate`` for
+   *  dates, plain words for the rest. A column without it (actions,
+   *  checkboxes) is left out of the file. */
+  csv?: (row: T) => CsvValue;
+  /** CSV column name when ``header`` is not plain text (falls back
+   *  to ``label``). */
+  csvHeader?: string;
+}
+
+/** A column that exists only in the CSV file. */
+export interface CsvColumn<T> {
+  header: string;
+  csv: (row: T) => CsvValue;
+}
+
+/** Opt-in "Export CSV" for a list (UI-STANDARDS §7 "Export"). The
+ *  file holds every row the list's current search, filters and sort
+ *  match — not only the page on screen — with the columns that have
+ *  a ``csv`` value, headed in the person's language. */
+export interface DataTableExport<T> {
+  /** File name stem: "transfers" saves ``transfers-2026-11-05.csv``
+   *  (the store's day). */
+  filename: string;
+  /** One page of the SAME list the table shows, with the page's
+   *  current filters and sort (the endpoint's envelope). The export
+   *  walks every page with it. */
+  fetchPage?: (page: number, perPage: number) => Promise<CsvPage<T>>;
+  /** For a list the browser already holds whole (sorted and
+   *  filtered, before ``pageOf``): exported as given. */
+  allRows?: T[];
+  /** Data the file should carry that the table has no column for
+   *  (a transfer's fee and tax behind its total), after the table's
+   *  own columns. */
+  extraColumns?: CsvColumn<T>[];
+  /** "resource.action" a person needs to see the button. Exporting
+   *  takes data out of the app, so it is the Data export page's
+   *  right, ``reports.read``, unless a list says otherwise. */
+  perm?: string;
 }
 
 export interface DataTableSort {
@@ -91,12 +143,15 @@ export interface DataTableProps<T> {
   expandedRow?: (row: T) => ReactNode;
   /** Optional ``<tfoot>`` content (totals rows). */
   footer?: ReactNode;
+  /** Adds the "Export CSV" button above the table. */
+  exportCsv?: DataTableExport<T>;
 }
 
 export function DataTable<T>({
   columns, rows, rowKey, onRowClick, rowLabel, rowClassName,
   isLoading = false, isError = false, error, onRetry,
   errorMessage, emptyTitle, emptyBody, page, sort, expandedRow, footer,
+  exportCsv,
 }: DataTableProps<T>) {
   const list = rows ?? [];
   const states = (
@@ -116,6 +171,11 @@ export function DataTable<T>({
 
   return (
     <div className={styles.root}>
+      {exportCsv && canDo(exportCsv.perm ?? EXPORT_PERM) && (
+        <div className={styles.toolbar}>
+          <ExportButton spec={exportCsv} columns={columns} rowKey={rowKey} />
+        </div>
+      )}
       <Table>
         <thead>
           <tr>
@@ -193,6 +253,50 @@ export function DataTable<T>({
   );
 }
 
+const EXPORT_PERM = "reports.read";
+
+function ExportButton<T>({
+  spec, columns, rowKey,
+}: {
+  spec: DataTableExport<T>;
+  columns: DataColumn<T>[];
+  rowKey: (row: T, index: number) => string | number;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    setBusy(true);
+    try {
+      const all = spec.fetchPage
+        ? await fetchAllPages(spec.fetchPage)
+        : spec.allRows ?? [];
+      const { headers, data } = exportTable(
+        columns, all, rowKey, spec.extraColumns,
+      );
+      saveCsv(buildCsv(headers, data), csvFilename(spec.filename));
+    } catch (err) {
+      toast({
+        tone: "error",
+        message: err instanceof CsvTooLargeError
+          ? t("table.exportTooLarge", {
+            count: fmtNumber(err.total), max: fmtNumber(CSV_MAX_ROWS),
+          })
+          : apiErrorMessage(err, t("table.exportFailed")),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Button tone="secondary" size="sm" busy={busy} onClick={() => { void run(); }}>
+      {busy ? t("table.exporting") : t("table.exportCsv")}
+    </Button>
+  );
+}
+
 const CONTROLS = "a, button, input, select, textarea, label, [role='menu'], [role='dialog']";
 
 function insideControl(target: EventTarget, row: HTMLElement): boolean {
@@ -205,10 +309,6 @@ function insideControl(target: EventTarget, row: HTMLElement): boolean {
   return hit != null && hit !== row && row.contains(hit);
 }
 
-function cardLabel<T>(c: DataColumn<T>): string {
-  if (c.label != null) return c.label;
-  return typeof c.header === "string" ? c.header : "";
-}
 
 function HeaderCell<T>({
   column, sort,

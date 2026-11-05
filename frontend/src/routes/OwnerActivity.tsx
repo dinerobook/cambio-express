@@ -11,17 +11,23 @@ import type { components } from "../api/openapi";
 type ActivityRow = components["schemas"]["OwnerActivityRow"];
 type ActivityResponse = components["schemas"]["OwnerActivityListResponse"];
 
-function useOwnerActivity(q: string, page: number, perPage: number) {
-  const identity = getCurrentIdentity();
+/** One page of the owner's activity stream — the request the page
+ *  and its CSV export both make. */
+function fetchOwnerActivity(q: string, page: number, perPage: number) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   params.set("page", String(page));
   params.set("per_page", String(perPage));
+  return api<ActivityResponse>(`/api/v2/owner/activity?${params}`);
+}
+
+function useOwnerActivity(q: string, page: number, perPage: number) {
+  const identity = getCurrentIdentity();
   return useQuery<ActivityResponse>({
     // The server admits the superadmin too, for support.
     enabled: identity?.role === "owner" || identity?.role === "superadmin",
     queryKey: ["owner-activity", q, page, perPage],
-    queryFn: () => api<ActivityResponse>(`/api/v2/owner/activity?${params}`),
+    queryFn: () => fetchOwnerActivity(q, page, perPage),
     placeholderData: (prev) => prev,
   });
 }
@@ -64,6 +70,12 @@ export default function OwnerActivity() {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "activity",
+            fetchPage: (p, n) => fetchOwnerActivity(filters.params.q, p, n).then((r) => ({
+              ...r, rows: r.rows.map(toAuditTableRow),
+            })),
           }}
         />
       </Card>

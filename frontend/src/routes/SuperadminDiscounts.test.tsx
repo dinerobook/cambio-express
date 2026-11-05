@@ -75,7 +75,9 @@ describe("SuperadminDiscounts", () => {
     expect(within(spring).getByText("Redeemable")).toBeInTheDocument();
     const old = screen.getByText("OLDCODE").closest("tr")!;
     expect(within(old).getByText("Disabled")).toBeInTheDocument();
-    expect(screen.getByText(/2 codes total/)).toBeInTheDocument();
+    // The shared list count, like every list (UI-STANDARDS §7).
+    expect(screen.getByText("Showing 1–2 of 2")).toBeInTheDocument();
+    expect(screen.getByText(/managed in the Stripe Dashboard/)).toBeInTheDocument();
   });
 
   it("shows the empty state when Stripe has no codes", () => {

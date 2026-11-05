@@ -1,4 +1,5 @@
 import {
+  fetchAdminAuditLog,
   useAdminAuditLog,
   type AdminAuditUserOption,
 } from "../api/admin";
@@ -111,6 +112,10 @@ export default function AdminAuditLog() {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
             perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "audit-log",
+            fetchPage: (p, n) => fetchAdminAuditLog(p, target, action, user, n),
           }}
         />
       </Card>

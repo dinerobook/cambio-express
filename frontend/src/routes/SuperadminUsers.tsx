@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   changeUserRole,
   createPlatformUser,
+  fetchSuperadminUsers,
   forcePasswordReset,
   resetUser2FA,
   revokeUserSessions,
@@ -15,7 +16,8 @@ import {
 import { RolePill } from "../components/RolePill";
 import { apiErrorMessage } from "../lib/api";
 import { startImpersonation } from "../lib/impersonation";
-import { formatDate } from "../lib/datetime";
+import { csvTimestamp, formatDate } from "../lib/datetime";
+import { roleLabel } from "../api/roles";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
   Alert,
@@ -77,10 +79,13 @@ export default function SuperadminUsers() {
   } | null>(null);
   const [newRole, setNewRole] = useState("");
 
+  const listQuery = {
+    q: q.length >= 2 ? q : undefined, role: role || undefined,
+    store_id: storeFilter,
+  };
   const { data, isLoading, isError, error: fetchError, refetch } =
     useSuperadminUsers({
-      q: q.length >= 2 ? q : undefined, role: role || undefined,
-      store_id: storeFilter, page: filters.page, perPage: filters.perPage,
+      ...listQuery, page: filters.page, perPage: filters.perPage,
     });
 
   function refresh() {
@@ -233,6 +238,14 @@ export default function SuperadminUsers() {
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
           }}
+          exportCsv={{
+            filename: "users",
+            fetchPage: (page, perPage) => fetchSuperadminUsers({ ...listQuery, page, perPage }),
+            extraColumns: [
+              { header: "Username", csv: (u) => u.username },
+              { header: "Email", csv: (u) => u.email },
+            ],
+          }}
         />
       </Card>
 
@@ -324,13 +337,15 @@ function userColumns({ busyId, onAction, onChangeRole }: {
           </div>
         </div>
       ),
+      csv: (u) => u.full_name || u.username,
     },
-    { key: "role", header: "Role", render: (u) => <RolePill role={u.role} /> },
+    { key: "role", header: "Role", render: (u) => <RolePill role={u.role} />, csv: (u) => roleLabel(u.role) },
     {
       key: "store", header: "Store",
       render: (u) => (u.store_name
         ? <span>{u.store_name}</span>
         : <span className={styles.monoMuted}>—</span>),
+      csv: (u) => u.store_name,
     },
     {
       key: "status", header: "Status",
@@ -339,12 +354,14 @@ function userColumns({ busyId, onAction, onChangeRole }: {
           {u.is_active ? "Active" : "Inactive"}
         </Pill>
       ),
+      csv: (u) => (u.is_active ? "Active" : "Inactive"),
     },
     {
       key: "2fa", header: "2FA",
       render: (u) => (u.has_2fa
         ? <Pill tone="success">Enrolled</Pill>
         : <span className={styles.monoMuted}>—</span>),
+      csv: (u) => (u.has_2fa ? "Enrolled" : ""),
     },
     {
       key: "last", header: "Last login",
@@ -353,6 +370,7 @@ function userColumns({ busyId, onAction, onChangeRole }: {
           {u.last_login_at ? formatDate(u.last_login_at) : "Never"}
         </span>
       ),
+      csv: (u) => (u.last_login_at ? csvTimestamp(u.last_login_at) : "Never"),
     },
     {
       key: "actions", header: "Actions", label: "", align: "right",
