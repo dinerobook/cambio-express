@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useProfile, useSessionStatus, useStoreInfo } from "../api/account";
 import { useTicketsUnread } from "../api/support";
-import { canAccess } from "../lib/access";
+import { ACCOUNTANT_ROLE, canAccess } from "../lib/access";
 import { getCurrentIdentity, syncPermissions } from "../lib/auth";
 import { useSignOut } from "../lib/useSignOut";
 import StoreGate from "./StoreGate";
@@ -18,7 +18,9 @@ import { HelpCenter } from "./HelpCenter";
 import { InstallAppButton } from "./InstallAppButton";
 import { NotificationBell } from "./NotificationBell";
 import { filterNavForRole, SUPPORT_LINK } from "./navConfig";
-import { isOwnerSession } from "../api/switchStore";
+import {
+  isAccountantSession, isOwnerSession, useMyStores,
+} from "../api/switchStore";
 import { SlimSidebar } from "./SlimSidebar";
 import SwitchStoreModal from "./SwitchStoreModal";
 import ThemeToggle from "./ThemeToggle";
@@ -214,7 +216,9 @@ function Topbar({
           <path d="M4 18h16" />
         </svg>
       </button>
-      {isOwnerSession() && <StoreSwitchChip identity={identity} />}
+      {(isOwnerSession() || isAccountantSession()) && (
+        <StoreSwitchChip identity={identity} />
+      )}
       <span style={topbarSpacer} />
       <TrialChip />
       {referralCode && <ReferralBadge code={referralCode} />}
@@ -278,10 +282,12 @@ function TrialChip() {
   );
 }
 
-// Owner store-context chip (U-2, single-dashboard principle):
-// shows which store the owner is currently viewing and opens the
-// Switch Store modal. Rendered only for owner sessions — base
-// owner logins ("Enter a store") and owner-context store views.
+// Store-context chip (U-2, single-dashboard principle): shows
+// which store is in view and opens the Switch Store modal. Owner
+// sessions always get it — base owner logins ("Enter a store") and
+// owner-context store views. An accountant gets it only once their
+// sign-in is linked to two or more stores (their own login at each,
+// see the Auth INVARIANTS "Linked accountant logins").
 function StoreSwitchChip({
   identity,
 }: {
@@ -290,7 +296,11 @@ function StoreSwitchChip({
   const [open, setOpen] = useState(false);
   const session = useSessionStatus();
   const t = useT();
-  const inStore = identity?.role === "admin" && identity?.owner_id != null;
+  const accountant = identity?.role === ACCOUNTANT_ROLE;
+  const linked = useMyStores(accountant);
+  if (accountant && (linked.data?.stores.length ?? 0) < 2) return null;
+  const inStore = accountant
+    || (identity?.role === "admin" && identity?.owner_id != null);
   const label = inStore
     ? (session.data?.store_name || t("shell.switchStore"))
     : t("shell.enterStore");
