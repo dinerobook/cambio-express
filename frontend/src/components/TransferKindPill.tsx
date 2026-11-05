@@ -1,5 +1,6 @@
 import { Pill } from "./ui";
 import { isDebitCard, isPayout } from "../lib/transferKinds";
+import { useT } from "../i18n";
 
 /** Marks the transfers that don't move cash the usual way: a payout
  *  (cash out to a recipient) or a debit card send (no cash in). A
@@ -12,7 +13,8 @@ export default function TransferKindPill({
   serviceType: string | null | undefined;
   paymentMethod: string | null | undefined;
 }) {
-  if (isPayout(serviceType)) return <Pill tone="info">Payout</Pill>;
-  if (isDebitCard(paymentMethod)) return <Pill tone="info">Debit card</Pill>;
+  const t = useT();
+  if (isPayout(serviceType)) return <Pill tone="info">{t("transfer.servicePayout")}</Pill>;
+  if (isDebitCard(paymentMethod)) return <Pill tone="info">{t("transfer.debitCard")}</Pill>;
   return null;
 }

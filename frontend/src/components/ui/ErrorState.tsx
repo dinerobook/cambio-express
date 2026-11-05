@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { useT } from "../../i18n";
 import { Button } from "./Button";
 import { fontSize, space, toneTokens } from "./tokens";
 
@@ -18,6 +19,7 @@ export function ErrorState({
   onRetry?: () => void;
   busy?: boolean;
 }) {
+  const t = useT();
   const c = toneTokens.error;
   return (
     <div
@@ -50,7 +52,7 @@ export function ErrorState({
       </div>
       {onRetry && (
         <Button tone="danger" busy={busy} onClick={onRetry}>
-          {busy ? "Retrying…" : "Retry"}
+          {busy ? t("common.retrying") : t("common.retry")}
         </Button>
       )}
     </div>

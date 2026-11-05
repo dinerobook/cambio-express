@@ -35,6 +35,12 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "This payback is linked to a return check. Remove it from Books → Return Checks (delete the payment).": "daily.serverPaybackRemove",
   "A settle-by date needs the entry marked as coming back.": "daily.serverSettleByNeedsMark",
   "A return can't itself be marked as coming back.": "daily.serverReturnMarked",
+  // Transfers
+  "Transfer not found": "transfer.serverNotFound",
+  "This store has business-hours enforcement on. Transfers can only be logged during the configured open hours — update them on /app/settings if this should be allowed.": "transfer.serverOutOfHours",
+  "A payout is paid to the recipient in cash, so it can't be paid by debit card.": "transfer.serverPayoutCard",
+  "A payout has no fee: the recipient is paid the full amount.": "transfer.serverPayoutFee",
+  "An employee from the store roster must be selected as Processed by before saving.": "transfer.serverEmployeeRequired",
 };
 
 /** The server's `message` in the current language when known. A 429
@@ -43,6 +49,6 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
 export function translateServerMessage(message: string, status?: number): string {
   if (getLanguage() === "en") return message;
   if (status === 429) return t("common.tooManyAttempts");
-  const key = SERVER_MESSAGES[message.trim()];
-  return key ? t(key) : message;
+  const text = message.trim();
+  return Object.hasOwn(SERVER_MESSAGES, text) ? t(SERVER_MESSAGES[text]) : message;
 }

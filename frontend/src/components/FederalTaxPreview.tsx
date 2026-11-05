@@ -1,6 +1,8 @@
 import { previewFederalTax } from "../api/transfers";
 import { fmtMoney2 } from "../lib/formatters";
 import { Field, Input, space, tokens } from "./ui";
+import { useT } from "../i18n";
+import { serviceLabel } from "../lib/transferKinds";
 
 // Read-only client-side preview of the federal tax the server is
 // about to compute. Mirrors the rule in
@@ -22,6 +24,7 @@ export default function FederalTaxPreview({
   paymentMethod: string;
   rate: number;
 }) {
+  const t = useT();
   if (paymentMethod === "debit_card") return null;
   const tax = previewFederalTax({
     sendAmount, serviceType, country, paymentMethod, rate,
@@ -32,8 +35,8 @@ export default function FederalTaxPreview({
     <Field
       label={
         rate > 0
-          ? `Federal tax preview (${pct}%, server recomputes)`
-          : "Federal tax preview"
+          ? t("transfer.taxPreviewRate", { pct })
+          : t("transfer.taxPreview")
       }
     >
       <Input
@@ -55,9 +58,9 @@ export default function FederalTaxPreview({
           fontSize: "0.75rem",
           color: tokens.textMuted,
         }}>
-          Exempt — {country === "United States"
-            ? "domestic recipient"
-            : `${serviceType} service`}
+          {country === "United States"
+            ? t("transfer.exemptDomestic")
+            : t("transfer.exemptService", { service: serviceLabel(serviceType) })}
         </span>
       )}
     </Field>

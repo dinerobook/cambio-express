@@ -6,7 +6,10 @@ import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import { AppLink, Button, ErrorState, Loading } from "../components/ui";
 import styles from "./TransferReceipt.module.css";
-import { isDebitCard, isPayout, transferWording } from "../lib/transferKinds";
+import {
+  isDebitCard, isPayout, serviceLabel, statusLabel, transferWording,
+} from "../lib/transferKinds";
+import { useT } from "../i18n";
 
 // /app/transfers/{id}/receipt — printable transfer receipt.
 //
@@ -37,6 +40,7 @@ import { isDebitCard, isPayout, transferWording } from "../lib/transferKinds";
 // operator's browser print dialog produces a clean page.
 
 export default function TransferReceipt() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const transferId = Number(id);
   const { data, isLoading, isError, error, refetch } =
@@ -47,19 +51,22 @@ export default function TransferReceipt() {
   useEffect(() => {
     if (!data) return;
     const original = document.title;
-    document.title = `Receipt ${data.transfer.confirm_number || `#${data.transfer.id}`} — ${data.store.name}`;
+    document.title = t("transfer.receiptDocTitle", {
+      ref: data.transfer.confirm_number || `#${data.transfer.id}`,
+      store: data.store.name,
+    });
     return () => { document.title = original; };
-  }, [data]);
+  }, [data, t]);
 
   if (!Number.isFinite(transferId)) {
     return (
       <div className={styles.page}>
         <div className={styles.shellChrome}>
           <AppLink to="/transfers" className={styles.backLink}>
-            ← Back to transfers
+            {t("transfer.backToList")}
           </AppLink>
         </div>
-        <ErrorState message="Invalid transfer id in URL." />
+        <ErrorState message={t("transfer.invalidId")} />
       </div>
     );
   }
@@ -68,7 +75,7 @@ export default function TransferReceipt() {
       <div className={styles.page}>
         <div className={styles.shellChrome}>
           <AppLink to="/transfers" className={styles.backLink}>
-            ← Back to transfers
+            {t("transfer.backToList")}
           </AppLink>
         </div>
         <Loading />
@@ -80,12 +87,12 @@ export default function TransferReceipt() {
       <div className={styles.page}>
         <div className={styles.shellChrome}>
           <AppLink to="/transfers" className={styles.backLink}>
-            ← Back to transfers
+            {t("transfer.backToList")}
           </AppLink>
         </div>
         <ErrorState
           message={
-            `Couldn't load receipt. ${apiErrorMessage(error, "")}`.trimEnd()
+            `${t("transfer.receiptLoadFailed")} ${apiErrorMessage(error, "")}`.trimEnd()
           }
           onRetry={() => { void refetch(); }}
         />
@@ -103,18 +110,18 @@ export default function TransferReceipt() {
       {/* Chrome — hidden in print so only the receipt card prints. */}
       <div className={styles.shellChrome}>
         <AppLink to={`/transfers/${transfer.id}/edit`} className={styles.backLink}>
-          ← Back to transfer
+          {t("transfer.backToTransfer")}
         </AppLink>
         <Button
           tone="primary"
           size="sm"
           onClick={() => window.print()}
         >
-          Print receipt
+          {t("transfer.printReceipt")}
         </Button>
       </div>
 
-      <article className={styles.receipt} aria-label="Transfer receipt">
+      <article className={styles.receipt} aria-label={t("transfer.receipt")}>
         <header className={styles.header}>
           {store.receipt_logo_url ? (
             <img
@@ -137,20 +144,20 @@ export default function TransferReceipt() {
             </div>
             {store.receipt_tax_id && (
               <div className={styles.storeLine}>
-                Tax ID: {store.receipt_tax_id}
+                {t("transfer.taxId", { id: store.receipt_tax_id })}
               </div>
             )}
           </div>
         </header>
 
         <div className={styles.titleBar}>
-          <span className={styles.title}>Transfer receipt</span>
+          <span className={styles.title}>{t("transfer.receipt")}</span>
           <span className={styles.meta}>
             {transfer.send_date}
             {transfer.confirm_number && (
-              <> · Confirmation #{transfer.confirm_number}</>
+              <> · {t("transfer.confirmationRef", { number: transfer.confirm_number })}</>
             )}
-            <> · {transfer.status}</>
+            <> · {statusLabel(transfer.status)}</>
           </span>
         </div>
 
@@ -183,17 +190,17 @@ export default function TransferReceipt() {
         <table className={styles.amounts}>
           <thead>
             <tr>
-              <th>Service</th>
-              <th>Company</th>
+              <th>{t("transfer.service")}</th>
+              <th>{t("transfer.company")}</th>
               <th className={styles.numCol}>{words.amount}</th>
-              <th className={styles.numCol}>Fee</th>
-              <th className={styles.numCol}>Federal tax</th>
-              <th className={styles.numCol}>Total</th>
+              <th className={styles.numCol}>{t("transfer.fee")}</th>
+              <th className={styles.numCol}>{t("transfer.federalTax")}</th>
+              <th className={styles.numCol}>{t("transfer.total")}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>{transfer.service_type}</td>
+              <td>{serviceLabel(transfer.service_type)}</td>
               <td>{transfer.company}</td>
               <td className={styles.numCol}>
                 {fmtMoney2(transfer.send_amount)}
@@ -215,10 +222,10 @@ export default function TransferReceipt() {
         <div className={styles.totalBlock}>
           <span className={styles.totalLabel}>
             {payout
-              ? "Paid to customer in cash"
+              ? t("transfer.paidToCustomerCash")
               : isDebitCard(transfer.payment_method)
-                ? "Customer paid by debit card"
-                : "Customer paid"}
+                ? t("transfer.customerPaidCard")
+                : t("transfer.customerPaid")}
           </span>
           <span className={styles.totalAmount}>{total}</span>
         </div>
@@ -227,32 +234,24 @@ export default function TransferReceipt() {
           <div className={styles.signatureRow}>
             <span className={styles.signatureLine} />
             <span className={styles.signatureLabel}>
-              Cashier{transfer.employee_name && ` (${transfer.employee_name})`}
+              {transfer.employee_name
+                ? t("transfer.cashierNamed", { name: transfer.employee_name })
+                : t("transfer.cashier")}
             </span>
           </div>
           <div className={styles.signatureRow}>
             <span className={styles.signatureLine} />
             <span className={styles.signatureLabel}>
-              Customer
+              {t("transfer.customer")}
             </span>
           </div>
         </section>
 
         <footer className={styles.footer}>
-          {store.receipt_footer || (payout ? (
-            <>
-              The customer received the amount above in cash. Keep this
-              receipt for your records.
-            </>
-          ) : (
-            <>
-              Funds will arrive at the destination country per the
-              sending company's standard delivery window. Keep this
-              receipt for your records.
-            </>
-          ))}
+          {store.receipt_footer
+            || (payout ? t("transfer.footerPayout") : t("transfer.footerSend"))}
           <div className={styles.footerMeta}>
-            Powered by DineroBook
+            {t("transfer.poweredBy")}
           </div>
         </footer>
       </article>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { apiErrorMessage } from "../../lib/api";
+import { useT } from "../../i18n";
 import { EmptyState } from "./Empty";
 import { ErrorState } from "./ErrorState";
 import { TableSkeleton } from "./Table";
@@ -49,6 +50,7 @@ export function TableStates({
   rows?: number;
   cols?: number;
 }) {
+  const t = useT();
   if (isLoading) {
     return <TableSkeleton rows={rows} cols={cols} />;
   }
@@ -57,7 +59,7 @@ export function TableStates({
       <ErrorState
         message={
           errorMessage ??
-          (apiErrorMessage(error, "Could not load data"))
+          (apiErrorMessage(error, t("common.loadFailed")))
         }
         onRetry={onRetry}
       />

@@ -24,10 +24,12 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  SERVICES, STATUSES, isPayout, transferWording,
+  DEFAULT_SERVICE, DEFAULT_STATUS, SERVICES, STATUSES, isPayout,
+  serviceLabel, statusLabel, transferWording,
 } from "../lib/transferKinds";
 import styles from "./EditTransfer.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tIfKey, useT } from "../i18n";
 
 
 // ── Validation schema ──────────────────────────────────────────
@@ -36,14 +38,15 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // is still the source of truth — Zod here is for instant client
 // feedback + type narrowing.
 
+// Messages are translator keys, shown with tIfKey() (see NewTransfer).
 const editSchema = z.object({
-  send_date: z.string().min(1, "Date is required"),
-  company: z.string().min(1, "Pick a company"),
+  send_date: z.string().min(1, "transfer.dateRequired"),
+  company: z.string().min(1, "transfer.pickCompany"),
   service_type: z.enum(SERVICES),
   payment_method: z.enum(["cash", "debit_card"]),
   status: z.enum(STATUSES),
 
-  sender_name: z.string().min(1, "Name is required"),
+  sender_name: z.string().min(1, "transfer.nameRequired"),
   sender_phone_country: z.string(),
   sender_phone: z.string(),
   sender_address: z.string(),
@@ -54,12 +57,12 @@ const editSchema = z.object({
   recipient_name: z.string(),
   recipient_phone: z.string(),
 
-  send_amount: z.number().positive("Amount must be > 0"),
-  fee: z.number().min(0, "Fee must be ≥ 0"),
+  send_amount: z.number().positive("transfer.amountPositive"),
+  fee: z.number().min(0, "transfer.feeNotNegative"),
   confirm_number: z.string(),
 
   employee_id: z
-    .number({ message: "Pick an employee" })
+    .number({ message: "transfer.pickEmployee" })
     .int()
     .positive(),
 
@@ -71,9 +74,9 @@ type EditFormValues = z.infer<typeof editSchema>;
 const defaultValues: EditFormValues = {
   send_date: "",
   company: "",
-  service_type: "Money Transfer",
+  service_type: DEFAULT_SERVICE,
   payment_method: "cash",
-  status: "Sent",
+  status: DEFAULT_STATUS,
   sender_name: "",
   sender_phone_country: "+1",
   sender_phone: "",
@@ -92,6 +95,7 @@ const defaultValues: EditFormValues = {
 
 
 export default function EditTransfer() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const transferId = id ? Number(id) : NaN;
   const navigate = useNavigate();
@@ -117,35 +121,35 @@ export default function EditTransfer() {
   // through intermediate states.
   useEffect(() => {
     if (!detail.data) return;
-    const t = detail.data.transfer;
+    const row = detail.data.transfer;
     reset({
-      send_date: t.send_date,
+      send_date: row.send_date,
       // Company + country stay exactly as saved, even when Settings
       // has since dropped them (StoreListField still offers them).
-      company: t.company,
-      service_type: (SERVICES as readonly string[]).includes(t.service_type)
-        ? (t.service_type as (typeof SERVICES)[number])
-        : "Money Transfer",
-      payment_method: t.payment_method === "debit_card" ? "debit_card" : "cash",
-      status: (STATUSES as readonly string[]).includes(t.status)
-        ? (t.status as (typeof STATUSES)[number])
-        : "Sent",
+      company: row.company,
+      service_type: (SERVICES as readonly string[]).includes(row.service_type)
+        ? (row.service_type as (typeof SERVICES)[number])
+        : DEFAULT_SERVICE,
+      payment_method: row.payment_method === "debit_card" ? "debit_card" : "cash",
+      status: (STATUSES as readonly string[]).includes(row.status)
+        ? (row.status as (typeof STATUSES)[number])
+        : DEFAULT_STATUS,
       // Every field the PUT replaces is hydrated from the detail, so
       // saving an edit never blanks what the operator did not touch.
-      sender_name: t.sender_name || "",
-      sender_phone_country: t.sender_phone_country || "+1",
-      sender_phone: t.sender_phone || "",
-      sender_address: t.sender_address || "",
-      sender_dob: t.sender_dob || "",
-      customer_id: t.customer_id ?? null,
-      country: t.country || "",
-      recipient_name: t.recipient_name || "",
-      recipient_phone: t.recipient_phone || "",
-      send_amount: t.send_amount,
-      fee: t.fee,
-      confirm_number: t.confirm_number || "",
-      employee_id: (t.employee_id ?? undefined) as unknown as number,
-      batch_id: t.batch_id || "",
+      sender_name: row.sender_name || "",
+      sender_phone_country: row.sender_phone_country || "+1",
+      sender_phone: row.sender_phone || "",
+      sender_address: row.sender_address || "",
+      sender_dob: row.sender_dob || "",
+      customer_id: row.customer_id ?? null,
+      country: row.country || "",
+      recipient_name: row.recipient_name || "",
+      recipient_phone: row.recipient_phone || "",
+      send_amount: row.send_amount,
+      fee: row.fee,
+      confirm_number: row.confirm_number || "",
+      employee_id: (row.employee_id ?? undefined) as unknown as number,
+      batch_id: row.batch_id || "",
     });
   }, [detail.data, reset]);
 
@@ -154,7 +158,7 @@ export default function EditTransfer() {
     stored?.employee_id != null
     && roster.data
     && !roster.data.employees.some((e) => e.id === stored.employee_id)
-      ? { id: stored.employee_id, name: stored.employee_name || "Former employee" }
+      ? { id: stored.employee_id, name: stored.employee_name || t("transfer.formerEmployee") }
       : null;
 
   const sendAmount = useWatch({ control, name: "send_amount" });
@@ -179,7 +183,7 @@ export default function EditTransfer() {
   // Warn before losing unsaved edits: browser prompt on close/refresh +
   // an in-app discard confirm on Cancel, via the shared guard.
   const guard = useUnsavedGuard(isDirty && !isSubmitting, {
-    message: "You have unsaved edits on this transfer. Leave without saving?",
+    message: t("transfer.unsavedMessage"),
   });
   function onCancel() {
     guard.confirmLeave(() => navigate(`/transfers/${transferId}`));
@@ -196,11 +200,11 @@ export default function EditTransfer() {
         status_notes: stored?.status_notes ?? "",
         internal_notes: stored?.internal_notes ?? "",
       });
-      toast({ message: "Transfer updated.", tone: "success" });
+      toast({ message: t("transfer.updated"), tone: "success" });
       guard.proceed(() => navigate(`/transfers/${result.transfer.id}`, { replace: true }));
     } catch (err) {
       setError("root", {
-        message: apiErrorMessage(err, "Could not save the changes. Please try again."),
+        message: apiErrorMessage(err, t("transfer.updateFailed")),
       });
     }
   }
@@ -208,8 +212,8 @@ export default function EditTransfer() {
   if (identity?.store_id == null) {
     return (
       <PageShell maxWidth="62rem">
-        <PageHeader title="Edit transfer" />
-        <p>Sign in as a store admin to edit transfers.</p>
+        <PageHeader title={t("transfer.editTitle")} />
+        <p>{t("transfer.editSignIn")}</p>
       </PageShell>
     );
   }
@@ -217,7 +221,7 @@ export default function EditTransfer() {
   if (!Number.isFinite(transferId)) {
     return (
       <PageShell maxWidth="62rem">
-        <p>Invalid transfer ID.</p>
+        <p>{t("transfer.invalidId")}</p>
       </PageShell>
     );
   }
@@ -235,7 +239,7 @@ export default function EditTransfer() {
       <PageShell maxWidth="62rem">
         <ErrorState
           message={
-            apiErrorMessage(detail.error, "Could not load this transfer.")
+            apiErrorMessage(detail.error, t("transfer.loadFailed"))
           }
           onRetry={() => { void detail.refetch(); }}
         />
@@ -245,15 +249,18 @@ export default function EditTransfer() {
 
   return (
     <PageShell maxWidth="62rem">
-      <PageCrumbs via={[{ label: `Transfer #${transferId}`, to: `/transfers/${transferId}` }]} current="Edit" />
+      <PageCrumbs
+        via={[{ label: t("transfer.number", { id: transferId }), to: `/transfers/${transferId}` }]}
+        current={t("transfer.edit")}
+      />
       <PageHeader
-        title={`Edit transfer #${transferId}`}
-        subtitle="Federal tax is recomputed server-side on save."
+        title={t("transfer.editNumber", { id: transferId })}
+        subtitle={t("transfer.editSubtitle")}
       />
 
       {choices.isError && (
         <ErrorState
-          message="Could not load the store's companies and countries."
+          message={t("transfer.choicesFailed")}
           onRetry={() => { void choices.refetch(); }}
         />
       )}
@@ -263,9 +270,9 @@ export default function EditTransfer() {
         className="ds-form"
       >
         <Card>
-          <Section title="When + how">
+          <Section title={t("transfer.whenHow")}>
             <div className={styles.grid}>
-              <Field label="Date" highlight={!!errors.send_date}>
+              <Field label={t("transfer.date")} highlight={!!errors.send_date}>
                 <Controller
                   name="send_date"
                   control={control}
@@ -284,24 +291,24 @@ export default function EditTransfer() {
                 name="company"
                 render={({ field }) => (
                   <StoreListField
-                    label="Company"
+                    label={t("transfer.company")}
                     options={companies}
                     value={field.value}
                     onChange={field.onChange}
                     loading={choices.isLoading || choices.isError}
-                    error={errors.company?.message}
-                    emptyText="No money transfer companies are switched on. Add or turn one on in"
+                    error={tIfKey(errors.company?.message)}
+                    emptyText={t("transfer.noCompanies")}
                   />
                 )}
               />
-              <Field label="Service">
+              <Field label={t("transfer.service")}>
                 <Select {...register("service_type")}>
-                  {SERVICES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {SERVICES.map((c) => <option key={c} value={c}>{serviceLabel(c)}</option>)}
                 </Select>
               </Field>
-              <Field label="Status">
+              <Field label={t("transfer.status")}>
                 <Select {...register("status")}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
                 </Select>
               </Field>
             </div>
@@ -323,7 +330,7 @@ export default function EditTransfer() {
         <Card>
           <Section title={words.customer}>
             <div className={styles.grid}>
-              <Field label="Full name" highlight={!!errors.sender_name}>
+              <Field label={t("transfer.fullName")} highlight={!!errors.sender_name}>
                 <Controller
                   control={control}
                   name="sender_name"
@@ -348,24 +355,24 @@ export default function EditTransfer() {
                   )}
                 />
               </Field>
-              <Field label="Phone country">
+              <Field label={t("transfer.phoneCountry")}>
                 <Input
                   type="text"
                   placeholder="+1"
                   {...register("sender_phone_country")}
                 />
               </Field>
-              <Field label="Phone">
+              <Field label={t("transfer.phone")}>
                 <Input type="tel" {...register("sender_phone")} />
               </Field>
-              <Field label="Address">
+              <Field label={t("transfer.address")}>
                 <Input type="text" {...register("sender_address")} />
               </Field>
             </div>
             {customerId != null && (
               <p className={styles.note}>
-                <Pill tone="info">Linked to customer #{customerId}</Pill>
-                <InfoTip text="This sender is linked to the customer directory — edits to their details here sync back to their customer record." />
+                <Pill tone="info">{t("transfer.linkedCustomer", { id: customerId })}</Pill>
+                <InfoTip text={t("transfer.linkedCustomerTip")} />
               </p>
             )}
           </Section>
@@ -395,7 +402,7 @@ export default function EditTransfer() {
                     value={field.value}
                     onChange={field.onChange}
                     loading={choices.isLoading || choices.isError}
-                    emptyText="No countries on the store's list. Add them in"
+                    emptyText={t("transfer.noCountries")}
                   />
                 )}
               />
@@ -410,7 +417,7 @@ export default function EditTransfer() {
         </Card>
 
         <Card>
-          <Section title="Amounts">
+          <Section title={t("transfer.amounts")}>
             <div className={styles.grid}>
               <Controller
                 control={control}
@@ -420,7 +427,7 @@ export default function EditTransfer() {
                     label={words.amount}
                     value={field.value ?? 0}
                     onChange={field.onChange}
-                    error={errors.send_amount?.message}
+                    error={tIfKey(errors.send_amount?.message)}
                   />
                 )}
               />
@@ -430,10 +437,10 @@ export default function EditTransfer() {
                   name="fee"
                   render={({ field }) => (
                     <MoneyInput
-                      label="Fee"
+                      label={t("transfer.fee")}
                       value={field.value ?? 0}
                       onChange={field.onChange}
-                      error={errors.fee?.message}
+                      error={tIfKey(errors.fee?.message)}
                     />
                   )}
                 />
@@ -445,7 +452,7 @@ export default function EditTransfer() {
                 paymentMethod={paymentMethod}
                 rate={choices.data?.federal_tax_rate ?? 0}
               />
-              <Field label="Confirmation #">
+              <Field label={t("transfer.confirmNumber")}>
                 <Input type="text" {...register("confirm_number")} />
               </Field>
             </div>
@@ -453,9 +460,9 @@ export default function EditTransfer() {
         </Card>
 
         <Card>
-          <Section title="Processed by">
+          <Section title={t("transfer.processedBy")}>
             <div className={styles.grid}>
-              <Field label="Employee" highlight={!!errors.employee_id}>
+              <Field label={t("transfer.employee")} highlight={!!errors.employee_id}>
                 <Select
                   {...register("employee_id", {
                     setValueAs: (v) => v === "" ? null : Number(v),
@@ -463,7 +470,7 @@ export default function EditTransfer() {
                   required
                   disabled={roster.isLoading}
                 >
-                  <option value="">— Select —</option>
+                  <option value="">{t("transfer.selectPlaceholder")}</option>
                   {roster.data?.employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>{emp.name}</option>
                   ))}
@@ -472,19 +479,19 @@ export default function EditTransfer() {
                       so saving an edit does not move the attribution. */}
                   {formerEmployee && (
                     <option value={formerEmployee.id}>
-                      {formerEmployee.name} (former)
+                      {t("transfer.formerSuffix", { name: formerEmployee.name })}
                     </option>
                   )}
                 </Select>
                 {errors.employee_id && (
                   <span className={styles.fieldError}>
-                    {errors.employee_id.message}
+                    {tIfKey(errors.employee_id.message)}
                   </span>
                 )}
               </Field>
             </div>
             <p className={styles.note}>
-              Required: the cashier who took the cash for this transfer.
+              {t("transfer.employeeRequiredNote")}
             </p>
           </Section>
         </Card>
@@ -498,10 +505,10 @@ export default function EditTransfer() {
             onClick={onCancel}
             disabled={isSubmitting}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={isSubmitting}>
-            {isSubmitting ? "Saving…" : "Save changes"}
+            {isSubmitting ? t("transfer.saving") : t("transfer.saveChanges")}
           </Button>
         </FormActions>
       </form>

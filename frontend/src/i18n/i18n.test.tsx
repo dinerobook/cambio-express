@@ -3,15 +3,19 @@ import { describe, expect, it } from "vitest";
 
 import {
   getLanguage, initLanguageFromDevice, intlLocale, isLanguage,
-  reconcileLanguage, setLanguage, t, tn, useT,
+  reconcileLanguage, setLanguage, t, tIfKey, tn, useT,
 } from "./index";
 import { en, type MessageKey } from "./en";
 import { es } from "./es";
 import { translateServerMessage, SERVER_MESSAGES } from "./serverMessages";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import {
-  formatDate, formatMonthYear, formatTime, weekdayNamesShort,
+  formatDate, formatMonthYear, formatTime, weekdayNameLong, weekdayNamesShort,
 } from "../lib/datetime";
+import {
+  PAYOUT_SERVICE, SERVICES, STATUSES, serviceLabel, statusLabel,
+  transferWording,
+} from "../lib/transferKinds";
 import { fmtMoney2 } from "../lib/formatters";
 
 // The translator's contract (UI-STANDARDS §10): English by default
@@ -29,8 +33,9 @@ const SAME_IN_BOTH: MessageKey[] = [
   "login.copyright",
   // A brand name, and words Spanish spells the same.
   "daily.boostMobile", "daily.total", "daily.totalCaps", "daily.totalLabel",
-  // Only placeholders: "{count} {label}".
-  "daily.countOpen",
+  "transfer.total",
+  // Only placeholders and symbols: "{count} {label}", "{label} (USD)".
+  "daily.countOpen", "transfer.inUsd", "transfer.outOfHoursOpen",
 ];
 
 describe("word lists", () => {
@@ -229,11 +234,52 @@ describe("counts and month words", () => {
     expect(weekdayNamesShort()[0]).toMatch(/^dom/);
   });
 
-  it("daily book server sentences come back in Spanish", () => {
+  it("every listed server sentence comes back in Spanish", () => {
     act(() => setLanguage("es"));
     for (const [sentence, key] of Object.entries(SERVER_MESSAGES)) {
       expect(translateServerMessage(sentence, 400)).toBe(es[key]);
     }
     expect(translateServerMessage("Something else", 400)).toBe("Something else");
+    expect(translateServerMessage("constructor", 400)).toBe("constructor");
+  });
+});
+
+describe("stored values and form errors", () => {
+  it("shows stored services and statuses in the language, never changing them", () => {
+    expect(SERVICES.map(serviceLabel)).toEqual([...SERVICES]);
+    expect(STATUSES.map(statusLabel)).toEqual([...STATUSES]);
+    act(() => setLanguage("es"));
+    expect(serviceLabel("Money Transfer")).toBe("Envío de dinero");
+    expect(serviceLabel(PAYOUT_SERVICE)).toBe("Pago a beneficiario");
+    expect(statusLabel("Sent")).toBe("Enviado");
+    // A value from an older row or another system is shown as stored.
+    expect(serviceLabel("Western Union Plus")).toBe("Western Union Plus");
+    expect(statusLabel("")).toBe("—");
+    expect(serviceLabel(null)).toBe("—");
+  });
+
+  it("re-reads the transfer wording each call", () => {
+    expect(transferWording("Money Transfer").customer).toBe("Sender");
+    act(() => setLanguage("es"));
+    expect(transferWording("Money Transfer").customer).toBe("Remitente");
+    expect(transferWording(PAYOUT_SERVICE).amount).toBe("Monto pagado");
+  });
+
+  it("tIfKey translates a key and passes other text through", () => {
+    expect(tIfKey(undefined)).toBeUndefined();
+    expect(tIfKey("transfer.nameRequired")).toBe("Name is required");
+    expect(tIfKey("Something typed by hand")).toBe("Something typed by hand");
+    expect(tIfKey("constructor")).toBe("constructor");
+    expect(serviceLabel("toString")).toBe("toString");
+    act(() => setLanguage("es"));
+    expect(tIfKey("transfer.nameRequired")).toBe("El nombre es obligatorio");
+  });
+
+  it("names a weekday in full in the language, Monday first", () => {
+    expect(weekdayNameLong(0)).toBe("Monday");
+    expect(weekdayNameLong(6)).toBe("Sunday");
+    act(() => setLanguage("es"));
+    expect(weekdayNameLong(0)).toBe("lunes");
+    expect(weekdayNameLong(5)).toBe("sábado");
   });
 });

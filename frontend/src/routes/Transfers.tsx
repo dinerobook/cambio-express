@@ -6,7 +6,7 @@ import {
 } from "../api/transfers";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
-import { fmtMoney2, fmtCount } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   ButtonLink, Card, DataTable, DateInput, Empty, Field, Input,
   PageHeader, PageShell, Pill, Select, type DataColumn,
@@ -14,8 +14,12 @@ import {
 import styles from "./Transfers.module.css";
 import { formatTime } from "../lib/datetime";
 import TransferKindPill from "../components/TransferKindPill";
-import { SERVICES, isPayout } from "../lib/transferKinds";
+import {
+  SERVICES, STATUSES, isPayout, serviceLabel, statusLabel,
+} from "../lib/transferKinds";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { navWord } from "../i18n/navWords";
+import { t, tn, useT, type Translate } from "../i18n";
 
 // Poll the transfers list this often so two cashiers sharing one
 // employee login on different machines see each other's edits
@@ -36,26 +40,31 @@ const POLL_INTERVAL_MS = 20_000;
 // same controller as the dashboard's recent-transfers card, just
 // with full filters + pagination wired up.
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All statuses" },
-  { value: "Sent", label: "Sent" },
-  { value: "Pending", label: "Pending" },
-  { value: "Cancelled", label: "Cancelled" },
-  { value: "Returned", label: "Returned" },
-];
-
-const SERVICE_OPTIONS = [
-  { value: "", label: "All services" },
-  ...SERVICES.map((s) => ({ value: s, label: s })),
-];
-
-const PAID_BY_OPTIONS = [
-  { value: "", label: "Cash or card" },
-  { value: "cash", label: "Cash" },
-  { value: "debit_card", label: "Debit card" },
-];
+// Filter values are what the API filters on (English); the option
+// text is in the person's language. Built during render so a language
+// change re-reads them.
+function filterOptions(t: Translate) {
+  return {
+    status: [
+      { value: "", text: t("transfer.allStatuses") },
+      ...STATUSES.map((s) => ({ value: s, text: statusLabel(s) })),
+    ],
+    service: [
+      { value: "", text: t("transfer.allServices") },
+      ...SERVICES.map((s) => ({ value: s, text: serviceLabel(s) })),
+    ],
+    paidBy: [
+      { value: "", text: t("transfer.cashOrCard") },
+      { value: "cash", text: t("transfer.cash") },
+      { value: "debit_card", text: t("transfer.debitCard") },
+    ],
+  };
+}
 
 export default function Transfers() {
+  const t = useT();
+  // Built each render (cheap), so a language switch re-reads them.
+  const columns = transferColumns(t);
   const identity = getCurrentIdentity();
   const filters = useUrlFilterState({
     q: "",
@@ -101,12 +110,8 @@ export default function Transfers() {
     return (
       <PageShell>
         <PageCrumbs />
-        <PageHeader title="Transfers" />
-        <Empty>
-          Sign in as a store admin to view this store's transfers.
-          Owner umbrellas + superadmin store-picker land in a
-          follow-up PR.
-        </Empty>
+        <PageHeader title={navWord("Transfers")} />
+        <Empty>{t("transfer.listSignIn")}</Empty>
       </PageShell>
     );
   }
@@ -119,19 +124,19 @@ export default function Transfers() {
       <PageCrumbs />
 
       <PageHeader
-        title="Transfers"
-        subtitle={data
-          ? `${fmtCount(data.total, "transfer")}`
-          : "—"}
+        title={navWord("Transfers")}
+        subtitle={data ? tn("transfer.count", data.total, fmtNumber) : "—"}
         actions={(
           <div className={styles.headerActions}>
             {data && dataUpdatedAt > 0 && (
               <Pill tone="accent">
-                {isFetching ? "Syncing…" : `Live · synced ${formatSyncTime(dataUpdatedAt)}`}
+                {isFetching
+                  ? t("transfer.syncing")
+                  : t("transfer.liveSynced", { time: formatSyncTime(dataUpdatedAt) })}
               </Pill>
             )}
-            <ButtonLink to="/transfers/new" tone="primary" size="sm"> 
-              + New transfer
+            <ButtonLink to="/transfers/new" tone="primary" size="sm">
+              {t("transfer.newButton")}
             </ButtonLink>
           </div>
         )}
@@ -151,12 +156,12 @@ export default function Transfers() {
 
       <Card>
         <DataTable
-          columns={TRANSFER_COLUMNS}
+          columns={columns}
           rows={data?.rows}
           rowKey={(r) => r.id}
           onRowClick={(r) => navigate(`/transfers/${r.id}`)}
-          rowLabel={(r) => `Open transfer from ${r.sender_name}`}
-          emptyTitle="No transfers match these filters."
+          rowLabel={(r) => t("transfer.openFrom", { name: r.sender_name })}
+          emptyTitle={t("transfer.noMatches")}
           isLoading={isLoading}
           isError={isError}
           error={error}
@@ -191,75 +196,78 @@ interface FilterBarProps {
 function FilterBar({
   q, onQChange, dateFrom, dateTo, status, service, paidBy, onSet, busy,
 }: FilterBarProps) {
+  const t = useT();
+  const options = filterOptions(t);
   return (
     <Card className="ds-filter-bar">
-      <Field label="Search">
+      <Field label={t("transfer.search")}>
         <Input
           type="search"
           value={q}
           onChange={(e) => onQChange(e.target.value)}
-          placeholder="sender, recipient, confirm #, country, batch"
+          placeholder={t("transfer.searchPlaceholder")}
         />
       </Field>
-      <Field label="From">
+      <Field label={t("transfer.from")}>
         <DateInput
           value={dateFrom}
           onChange={(e) => onSet("date_from", e.target.value)}
         />
       </Field>
-      <Field label="To">
+      <Field label={t("transfer.to")}>
         <DateInput
           value={dateTo}
           onChange={(e) => onSet("date_to", e.target.value)}
         />
       </Field>
-      <Field label="Status">
+      <Field label={t("transfer.status")}>
         <Select
           value={status}
           onChange={(e) => onSet("status", e.target.value)}
         >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
+          {options.status.map((s) => (
+            <option key={s.value} value={s.value}>{s.text}</option>
           ))}
         </Select>
       </Field>
-      <Field label="Service">
+      <Field label={t("transfer.service")}>
         <Select
           value={service}
           onChange={(e) => onSet("service", e.target.value)}
         >
-          {SERVICE_OPTIONS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
+          {options.service.map((s) => (
+            <option key={s.value} value={s.value}>{s.text}</option>
           ))}
         </Select>
       </Field>
-      <Field label="Paid by">
+      <Field label={t("transfer.paidBy")}>
         <Select
           value={paidBy}
           onChange={(e) => onSet("paid_by", e.target.value)}
         >
-          {PAID_BY_OPTIONS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
+          {options.paidBy.map((s) => (
+            <option key={s.value} value={s.value}>{s.text}</option>
           ))}
         </Select>
       </Field>
       {/* Subtle in-flight indicator without shifting layout. */}
-      {busy && <span className={styles.filterBusy}>Updating…</span>}
+      {busy && <span className={styles.filterBusy}>{t("transfer.updating")}</span>}
     </Card>
   );
 }
 
-const TRANSFER_COLUMNS: DataColumn<TransferRow>[] = [
-  { key: "date", header: "Date", sortKey: "date", sortFirst: "desc",
+function transferColumns(t: Translate): DataColumn<TransferRow>[] {
+  return [
+  { key: "date", header: t("transfer.date"), sortKey: "date", sortFirst: "desc",
     render: (r) => <span className={styles.monoMuted}>{r.send_date}</span> },
-  { key: "company", header: "Company", sortKey: "company", render: (r) => r.company },
-  { key: "sender", header: "Sender", sortKey: "sender", render: (r) => r.sender_name },
-  { key: "recipient", header: "Recipient", sortKey: "recipient", render: (r) => r.recipient_name || "—" },
-  { key: "country", header: "Country", sortKey: "country", render: (r) => r.country || "—" },
-  { key: "confirm", header: "Confirmation #", sortKey: "confirm",
+  { key: "company", header: t("transfer.company"), sortKey: "company", render: (r) => r.company },
+  { key: "sender", header: t("transfer.sender"), sortKey: "sender", render: (r) => r.sender_name },
+  { key: "recipient", header: t("transfer.recipient"), sortKey: "recipient", render: (r) => r.recipient_name || "—" },
+  { key: "country", header: t("transfer.country"), sortKey: "country", render: (r) => r.country || "—" },
+  { key: "confirm", header: t("transfer.confirmNumber"), sortKey: "confirm",
     render: (r) => <span className={styles.monoMuted}>{r.confirm_number || "—"}</span> },
-  { key: "status", header: "Status", sortKey: "status", render: (r) => r.status },
-  { key: "total", header: "Total", align: "right", sortKey: "total", sortFirst: "desc",
+  { key: "status", header: t("transfer.status"), sortKey: "status", render: (r) => statusLabel(r.status) },
+  { key: "total", header: t("transfer.total"), align: "right", sortKey: "total", sortFirst: "desc",
     render: (r) => (
       <span className={styles.kindAmount}>
         <TransferKindPill
@@ -272,7 +280,8 @@ const TRANSFER_COLUMNS: DataColumn<TransferRow>[] = [
         </span>
       </span>
     ) },
-];
+  ];
+}
 
 
 // Format the TanStack Query `dataUpdatedAt` timestamp for the
@@ -282,6 +291,6 @@ const TRANSFER_COLUMNS: DataColumn<TransferRow>[] = [
 function formatSyncTime(ms: number): string {
   if (!ms) return "—";
   const diff = Date.now() - ms;
-  if (diff < 60_000) return "just now";
+  if (diff < 60_000) return t("transfer.justNow");
   return formatTime(new Date(ms));
 }

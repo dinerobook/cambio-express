@@ -1,5 +1,6 @@
 import { Checkbox, fontSize, space, tokens } from "./ui";
 import type { PaymentMethod } from "../lib/transferKinds";
+import { useT } from "../i18n";
 
 /** "Paid by debit card" on the new + edit transfer forms. A boolean
  *  attribute of the record, so a Checkbox (UI-STANDARDS §1); the form
@@ -11,6 +12,7 @@ export default function DebitCardCheckbox({
   onChange: (next: PaymentMethod) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   return (
     <div style={{ marginTop: space.md }}>
       <Checkbox
@@ -18,14 +20,13 @@ export default function DebitCardCheckbox({
         onChange={(checked) => onChange(checked ? "debit_card" : "cash")}
         disabled={disabled}
       >
-        Paid by debit card
+        {t("transfer.paidByCard")}
         <span style={{
           display: "block",
           fontSize: fontSize.xs,
           color: tokens.textMuted,
         }}>
-          On the company's card terminal: no cash goes in the drawer, and
-          it stays out of this company's cash drop.
+          {t("transfer.paidByCardHint")}
         </span>
       </Checkbox>
     </div>

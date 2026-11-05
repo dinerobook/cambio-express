@@ -437,8 +437,11 @@ export interface OpenStatus {
    *  empty string when the store is closed today. */
   todayLabel: string;
   /** Day-of-week label for the row we looked at (``"Monday"``
-   *  etc.) — useful for the pill tooltip. */
+   *  etc.) — useful for the pill tooltip. English. */
   dayLabel: string;
+  /** The same day as a number, Monday = 0: show it in the person's
+   *  language with ``weekdayNameLong``. */
+  dayIndex: number;
 }
 
 
@@ -446,6 +449,16 @@ const DAY_NAMES = [
   "Monday", "Tuesday", "Wednesday", "Thursday",
   "Friday", "Saturday", "Sunday",
 ] as const;
+
+/** A weekday's full name in the person's language, Monday = 0 (the
+ *  store-hours numbering, ``OpenStatus.dayIndex``): ``Monday`` /
+ *  ``lunes``. */
+export function weekdayNameLong(dayIndex: number): string {
+  // 2026-11-02 is a Monday.
+  return new Intl.DateTimeFormat(intlLocale(), {
+    weekday: "long", timeZone: "UTC",
+  }).format(new Date(Date.UTC(2026, 10, 2 + dayIndex, 12)));
+}
 
 /** Resolve whether the store is open right now per its 7-day
  *  schedule, evaluated in the store's local timezone. Returns
@@ -478,7 +491,7 @@ export function getOpenStatus(
   if (!row) return null;
   const dayLabel = DAY_NAMES[weekdayIdx];
   if (row.closed) {
-    return { open: false, todayLabel: "", dayLabel };
+    return { open: false, todayLabel: "", dayLabel, dayIndex: weekdayIdx };
   }
   const openMin  = _toMinutes(row.open);
   const closeMin = _toMinutes(row.close);
@@ -490,6 +503,7 @@ export function getOpenStatus(
     open: nowMin >= openMin && nowMin < closeMin,
     todayLabel: `${row.open} - ${row.close}`,
     dayLabel,
+    dayIndex: weekdayIdx,
   };
 }
 

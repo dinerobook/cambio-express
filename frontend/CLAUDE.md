@@ -215,8 +215,11 @@ Moving a screen into Spanish: translate it, add a Spanish render test
 with `englishLeftovers()` (`src/test/i18n.ts`), add it to
 `COVERED_FILES`. Names people typed are never translated. Counts go
 through `tn()` (plural rules), config tables hold `MessageKey` labels
-rendered with `t()`, month headings use `formatMonthYear()`. Full rules
-and the glossary: UI-STANDARDS §10.
+rendered with `t()`, month headings use `formatMonthYear()`. Stored
+values (a transfer's service or status) stay English in the data and
+show through `serviceLabel()` / `statusLabel()`; zod messages are keys
+shown with `tIfKey()`; table columns are built during render so they
+follow a language switch. Full rules and the glossary: UI-STANDARDS §10.
 
 ## OpenAPI → TypeScript types
 The SPA reads request / response shapes from `src/api/openapi.d.ts`,

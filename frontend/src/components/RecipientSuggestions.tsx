@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "../lib/api";
 import type { components } from "../api/openapi";
+import { useT } from "../i18n";
 
 // Recipient suggestion chips above the recipient_name input on
 // the transfer form.
@@ -35,6 +36,7 @@ interface Props {
 export default function RecipientSuggestions({
   customerId, storeId, onPick,
 }: Props) {
+  const t = useT();
   const [rows, setRows] = useState<RecentRecipientRow[]>([]);
 
   useEffect(() => {
@@ -64,15 +66,15 @@ export default function RecipientSuggestions({
   if (rows.length === 0) return null;
 
   return (
-    <div style={containerStyle} role="group" aria-label="Recent recipients">
-      <span style={labelStyle}>Recent:</span>
+    <div style={containerStyle} role="group" aria-label={t("transfer.recentRecipients")}>
+      <span style={labelStyle}>{t("transfer.recent")}</span>
       {rows.map((r, i) => (
         <button
           key={`${r.name}-${r.country}-${r.phone}-${i}`}
           type="button"
           onClick={() => onPick(r)}
           style={chipStyle}
-          title={`${r.name} · ${r.country} · ${r.phone || "no phone"}`}
+          title={`${r.name} · ${r.country} · ${r.phone || t("transfer.noPhone")}`}
         >
           {r.name}
         </button>
