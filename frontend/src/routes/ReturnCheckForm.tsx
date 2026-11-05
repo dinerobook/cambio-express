@@ -7,7 +7,10 @@ import {
   createReturnCheckPayment,
   deleteReturnCheckPayment,
   markFraud,
+  RETURN_CHECK_PAYMENT_METHODS,
   RETURN_CHECK_STATUS_TONES,
+  paymentMethodLabel,
+  returnCheckStatusLabel,
   markLoss,
   reopenReturnCheck,
   updateReturnCheck,
@@ -30,15 +33,29 @@ import {
 import styles from "./ReturnCheckForm.module.css";
 import { todayIso } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tNodes, useT, type MessageKey } from "../i18n";
 
-const PAYMENT_METHODS: Array<{ value: string; label: string }> = [
-  { value: "cash",        label: "Cash"        },
-  { value: "check",       label: "Check"       },
-  { value: "zelle",       label: "Zelle"       },
-  { value: "wire",        label: "Wire"        },
-  { value: "money_order", label: "Money order" },
-  { value: "other",       label: "Other"       },
-];
+/** A status change: what it does and the words its button and
+ *  confirm popup use. */
+interface Transition {
+  fn: (id: number) => Promise<unknown>;
+  label: MessageKey;
+  title: MessageKey;
+  failed: MessageKey;
+  reopen: boolean;
+}
+const MARK_LOSS = {
+  fn: markLoss, label: "returnCheck.markLoss", title: "returnCheck.markLossTitle",
+  failed: "returnCheck.markLossFailed", reopen: false,
+} as const satisfies Transition;
+const MARK_FRAUD = {
+  fn: markFraud, label: "returnCheck.markFraud", title: "returnCheck.markFraudTitle",
+  failed: "returnCheck.markFraudFailed", reopen: false,
+} as const satisfies Transition;
+const REOPEN = {
+  fn: reopenReturnCheck, label: "returnCheck.reopen", title: "returnCheck.reopenTitle",
+  failed: "returnCheck.reopenFailed", reopen: true,
+} as const satisfies Transition;
 
 // Combined New/Edit form for return checks at /app/return-checks/new
 // and /app/return-checks/:id/edit. Edit variant also surfaces
@@ -49,6 +66,7 @@ const PAYMENT_METHODS: Array<{ value: string; label: string }> = [
 // up PR — here we only show what's already on file.
 
 export default function ReturnCheckForm() {
+  const t = useT();
   const { id } = useParams<{ id?: string }>();
   const isEdit = id !== undefined;
   const rcId = isEdit ? Number(id) : NaN;
@@ -99,7 +117,7 @@ export default function ReturnCheckForm() {
   const isDirty = JSON.stringify(form) !== JSON.stringify(baseline);
   // Browser prompt on close/refresh + in-app discard confirm on Cancel.
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved edits on this return check. Leave without saving?",
+    message: t("returnCheck.unsavedMessage"),
   });
 
   function leave() {
@@ -131,13 +149,13 @@ export default function ReturnCheckForm() {
       // the list shows the old row until the cache goes stale.
       void queryClient.invalidateQueries({ queryKey: ["return-checks"] });
       toast({
-        message: isEdit ? "Return check updated." : "Return check recorded.",
+        message: isEdit ? t("returnCheck.updated") : t("returnCheck.recorded"),
         tone: "success",
       });
       guard.proceed(() => navigate("/return-checks", { replace: true }));
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setError(apiErrorMessage(err, t("returnCheck.saveFailed")));
         if (err.body && typeof err.body === "object" && "detail" in err.body) {
           const d = (err.body as Record<string, unknown>).detail;
           if (
@@ -147,7 +165,7 @@ export default function ReturnCheckForm() {
           }
         }
       } else {
-        setError("Could not save return check.");
+        setError(t("returnCheck.saveFailed"));
       }
     } finally {
       setBusy(false);
@@ -158,12 +176,12 @@ export default function ReturnCheckForm() {
   // pending action carries the API fn + the human label so the
   // dialog body can render the right wording.
   const [pendingTransition, setPendingTransition] =
-    useState<{ fn: (id: number) => Promise<unknown>; label: string } | null>(null);
+    useState<Transition | null>(null);
   const [transitionError, setTransitionError] = useState<string | null>(null);
 
   async function doTransition() {
     if (!isEdit || !pendingTransition) return;
-    const { fn, label } = pendingTransition;
+    const { fn, failed } = pendingTransition;
     setTransitionError(null); setBusy(true);
     try {
       await fn(rcId);
@@ -172,7 +190,7 @@ export default function ReturnCheckForm() {
       setPendingTransition(null);
     } catch (err) {
       setTransitionError(
-        apiErrorMessage(err, `Could not ${label.toLowerCase()}.`),
+        apiErrorMessage(err, t(failed)),
       );
     } finally {
       setBusy(false);
@@ -182,8 +200,8 @@ export default function ReturnCheckForm() {
   if (identity?.store_id == null) {
     return (
       <PageShell maxWidth="62rem">
-        <PageHeader title={isEdit ? "Edit returned check" : "New returned check"} />
-        <p>Sign in as a store admin to manage returned checks.</p>
+        <PageHeader title={isEdit ? t("returnCheck.editTitle") : t("returnCheck.newTitle")} />
+        <p>{t("returnCheck.formSignIn")}</p>
       </PageShell>
     );
   }
@@ -191,9 +209,9 @@ export default function ReturnCheckForm() {
   if (isEdit && detail.isError && !detail.data) {
     return (
       <PageShell maxWidth="62rem">
-        <PageHeader title={`Returned check #${rcId}`} />
+        <PageHeader title={t("returnCheck.number", { id: rcId })} />
         <ErrorState
-          message="Could not load this returned check."
+          message={t("returnCheck.loadFailed")}
           onRetry={() => void detail.refetch()}
           busy={detail.isFetching}
         />
@@ -215,24 +233,24 @@ export default function ReturnCheckForm() {
   return (
     <PageShell maxWidth="62rem">
 
-      <PageCrumbs current={isEdit ? "Edit returned check" : "New returned check"} />
+      <PageCrumbs current={isEdit ? t("returnCheck.editTitle") : t("returnCheck.newTitle")} />
 
       <PageHeader
-        title={isEdit ? `Returned check #${rcId}` : "New returned check"}
-        subtitle="Track a bounced check from a customer and any partial recovery."
+        title={isEdit ? t("returnCheck.number", { id: rcId }) : t("returnCheck.newTitle")}
+        subtitle={t("returnCheck.subtitle")}
       />
 
       {isEdit && (
         <div className={styles.statusBar}>
           <div className={styles.statusBarInfo}>
             <Pill tone={RETURN_CHECK_STATUS_TONES[status] ?? "neutral"} dot>
-              {status.charAt(0).toUpperCase() + status.slice(1)}
+              {returnCheckStatusLabel(status)}
             </Pill>
             <span className={styles.statusMeta}>
-              Recovered{" "}
-              <span className={styles.mono}>{fmtMoney2(recovered)}</span>
-              {" of "}
-              <span className={styles.mono}>{fmtMoney2(totalDue)}</span>
+              {tNodes("returnCheck.recoveredOf", {
+                recovered: <span className={styles.mono}>{fmtMoney2(recovered)}</span>,
+                total: <span className={styles.mono}>{fmtMoney2(totalDue)}</span>,
+              })}
             </span>
           </div>
           <div className={styles.transitionRow}>
@@ -240,17 +258,17 @@ export default function ReturnCheckForm() {
               <>
                 <Button
                   tone="danger" size="sm"
-                  onClick={() => setPendingTransition({ fn: markLoss, label: "Mark loss" })}
+                  onClick={() => setPendingTransition(MARK_LOSS)}
                   disabled={busy}
                 >
-                  Mark loss
+                  {t(MARK_LOSS.label)}
                 </Button>
                 <Button
                   tone="danger" size="sm"
-                  onClick={() => setPendingTransition({ fn: markFraud, label: "Mark fraud" })}
+                  onClick={() => setPendingTransition(MARK_FRAUD)}
                   disabled={busy}
                 >
-                  Mark fraud
+                  {t(MARK_FRAUD.label)}
                 </Button>
               </>
             )}
@@ -261,10 +279,10 @@ export default function ReturnCheckForm() {
             {(status === "loss" || status === "fraud") && (
               <Button
                 tone="secondary" size="sm"
-                onClick={() => setPendingTransition({ fn: reopenReturnCheck, label: "Reopen" })}
+                onClick={() => setPendingTransition(REOPEN)}
                 disabled={busy}
               >
-                Reopen
+                {t(REOPEN.label)}
               </Button>
             )}
           </div>
@@ -273,7 +291,7 @@ export default function ReturnCheckForm() {
 
       {isEdit && (
         <Card>
-          <SectionTitle>Recovery payments</SectionTitle>
+          <SectionTitle>{t("returnCheck.recoveryPayments")}</SectionTitle>
           {status === "pending" && (
             <RecordPaymentForm
               rcId={rcId}
@@ -283,13 +301,14 @@ export default function ReturnCheckForm() {
           )}
           {(status === "loss" || status === "fraud") && (
             <p className={styles.statusLine}>
-              This check is closed as <strong>{status}</strong>.
-              Reopen above to record additional payments.
+              {tNodes("returnCheck.closedAs", {
+                status: <strong>{returnCheckStatusLabel(status).toLowerCase()}</strong>,
+              })}
             </p>
           )}
           {payments.isLoading && <Loading />}
           {payments.data && payments.data.payments.length === 0 && (
-            <EmptyState title="No recovery payments recorded." />
+            <EmptyState title={t("returnCheck.noPayments")} />
           )}
           {payments.data && payments.data.payments.length > 0 && (
             <PaymentsTable
@@ -306,47 +325,47 @@ export default function ReturnCheckForm() {
         className="ds-form"
       >
         <Card>
-          <SectionTitle>Check details</SectionTitle>
+          <SectionTitle>{t("returnCheck.checkDetails")}</SectionTitle>
           <div className={styles.fieldGrid}>
-            <Field label="Bounced on" highlight={field === "bounced_on"}>
+            <Field label={t("returnCheck.bouncedOn")} highlight={field === "bounced_on"}>
               <DateInput required
                 value={form.bounced_on}
                 onChange={(e) => set("bounced_on", e.target.value)} />
             </Field>
-            <Field label="Customer name" highlight={field === "customer_name"}>
+            <Field label={t("returnCheck.customerName")} highlight={field === "customer_name"}>
               <Input type="text" required
                 value={form.customer_name}
                 onChange={(e) => set("customer_name", e.target.value)} />
             </Field>
-            <Field label="Company name" highlight={field === "company_name"}>
+            <Field label={t("returnCheck.companyName")} highlight={field === "company_name"}>
               <Input type="text" required
                 value={form.company_name}
                 onChange={(e) => set("company_name", e.target.value)} />
             </Field>
-            <Field label="Check number">
+            <Field label={t("returnCheck.checkNumber")}>
               <Input type="text"
                 value={form.check_number ?? ""}
                 onChange={(e) => set("check_number", e.target.value)} />
             </Field>
-            <Field label="Payer bank">
+            <Field label={t("returnCheck.payerBank")}>
               <Input type="text"
                 value={form.payer_bank ?? ""}
                 onChange={(e) => set("payer_bank", e.target.value)} />
             </Field>
             <MoneyInput
-              label="Amount"
+              label={t("dash.amount")}
               value={form.amount}
               onChange={(v) => set("amount", v)}
-              error={field === "amount" ? "Invalid amount" : undefined}
+              error={field === "amount" ? t("returnCheck.invalidAmount") : undefined}
             />
             <MoneyInput
-              label="Return check fee (optional)"
+              label={t("returnCheck.feeOptional")}
               value={form.return_check_fee ?? 0}
               onChange={(v) => set("return_check_fee", v)}
-              error={field === "return_check_fee" ? "Invalid fee" : undefined}
+              error={field === "return_check_fee" ? t("returnCheck.invalidFee") : undefined}
             />
           </div>
-          <Field label="Notes (optional)">
+          <Field label={t("batch.notes")}>
             <Textarea
               value={form.notes ?? ""}
               onChange={(e) => set("notes", e.target.value)}
@@ -359,29 +378,27 @@ export default function ReturnCheckForm() {
 
         <FormActions guard={guard}>
           <Button type="button" tone="secondary" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="submit" busy={busy}
             disabled={busy || !form.customer_name || !form.company_name || !form.bounced_on}
           >
-            {busy ? "Saving…" : isEdit ? "Save changes" : "Create return check"}
+            {busy ? t("transfer.saving") : isEdit ? t("transfer.saveChanges") : t("returnCheck.create")}
           </Button>
         </FormActions>
       </form>
 
       <ConfirmDialog
         open={pendingTransition != null}
-        title={`${pendingTransition?.label ?? ""} this return check?`}
+        title={pendingTransition ? t(pendingTransition.title) : ""}
         message={
-          pendingTransition?.label === "Reopen"
-            ? "Re-opens this check for collection.  Payments stay; you can mark it again later."
-            : "Marks the check as a final outcome.  You can re-open it later if needed."
+          pendingTransition?.reopen
+            ? t("returnCheck.reopenMessage")
+            : t("returnCheck.finalMessage")
         }
-        confirmLabel={pendingTransition?.label ?? "Confirm"}
-        confirmTone={
-          pendingTransition?.label === "Reopen" ? "primary" : "danger"
-        }
+        confirmLabel={pendingTransition ? t(pendingTransition.label) : t("common.confirm")}
+        confirmTone={pendingTransition?.reopen ? "primary" : "danger"}
         busy={busy}
         error={transitionError}
         onConfirm={() => { void doTransition(); }}
@@ -399,10 +416,11 @@ function RecordPaymentForm({
   remaining: number;
   disabled: boolean;
 }) {
+  const t = useT();
   const qc = useQueryClient();
   const [paidOn,  setPaidOn]  = useState(() => todayIso());
   const [amount,  setAmount]  = useState(0);
-  const [method,  setMethod]  = useState<string>(PAYMENT_METHODS[0].value);
+  const [method,  setMethod]  = useState<string>(RETURN_CHECK_PAYMENT_METHODS[0]);
   const [note,    setNote]    = useState("");
   const [busy,    setBusy]    = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -415,12 +433,12 @@ function RecordPaymentForm({
     e.preventDefault();
     setError(null);
     if (!Number.isFinite(amount) || amount <= 0) {
-      setError("Amount must be greater than zero.");
+      setError(t("daily.amountPositive"));
       return;
     }
     const amt = amount;
     if (cap <= 0) {
-      setError("Return check is already fully recovered.");
+      setError(t("returnCheck.fullyRecovered"));
       return;
     }
     setBusy(true);
@@ -438,7 +456,7 @@ function RecordPaymentForm({
       setAmount(0); setNote("");
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not record payment."),
+        apiErrorMessage(err, t("returnCheck.recordFailed")),
       );
     } finally {
       setBusy(false);
@@ -448,7 +466,7 @@ function RecordPaymentForm({
   return (
     <form onSubmit={onSubmit} className={styles.paymentForm}>
       <div className={styles.paymentFormGrid}>
-        <Field label="Date">
+        <Field label={t("transfer.date")}>
           <DateInput
             required
             value={paidOn}
@@ -457,30 +475,30 @@ function RecordPaymentForm({
           />
         </Field>
         <MoneyInput
-          label="Amount"
-          hint={cap > 0 ? `Up to ${fmtMoney2(cap)} remaining.` : undefined}
+          label={t("dash.amount")}
+          hint={cap > 0 ? t("returnCheck.upTo", { amount: fmtMoney2(cap) }) : undefined}
           value={amount}
           onChange={setAmount}
           disabled={busy || disabled || cap <= 0}
         />
-        <Field label="Method">
+        <Field label={t("returnCheck.method")}>
           <Select
             value={method}
             onChange={(e) => setMethod(e.target.value)}
             disabled={busy || disabled}
           >
-            {PAYMENT_METHODS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+            {RETURN_CHECK_PAYMENT_METHODS.map((m) => (
+              <option key={m} value={m}>{paymentMethodLabel(m)}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Note (optional)">
+        <Field label={t("returnCheck.noteOptional")}>
           <Input
             type="text" maxLength={200}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             disabled={busy || disabled}
-            placeholder="e.g. paid in cash at counter"
+            placeholder={t("returnCheck.notePlaceholder")}
           />
         </Field>
       </div>
@@ -490,7 +508,7 @@ function RecordPaymentForm({
           type="submit" busy={busy}
           disabled={busy || disabled || cap <= 0 || !amount}
         >
-          {busy ? "Recording…" : "Record payment"}
+          {busy ? t("returnCheck.recording") : t("returnCheck.recordPayment")}
         </Button>
       </div>
     </form>
@@ -505,6 +523,7 @@ function PaymentsTable({
   rcId: number;
   canDelete: boolean;
 }) {
+  const t = useT();
   const qc = useQueryClient();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -524,7 +543,7 @@ function PaymentsTable({
       setPendingRemove(null);
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not remove payment."),
+        apiErrorMessage(err, t("returnCheck.removeFailed")),
       );
     } finally {
       setBusyId(null);
@@ -536,11 +555,11 @@ function PaymentsTable({
       <Table>
         <thead>
           <tr>
-            <th style={thStyle}>Paid on</th>
-            <th style={{ ...thStyle, textAlign: "right" }}>Amount</th>
-            <th style={thStyle}>Method</th>
-            <th style={thStyle}>Notes</th>
-            {canDelete && <th style={thStyle} aria-label="actions" />}
+            <th style={thStyle}>{t("returnCheck.paidOn")}</th>
+            <th style={{ ...thStyle, textAlign: "right" }}>{t("dash.amount")}</th>
+            <th style={thStyle}>{t("returnCheck.method")}</th>
+            <th style={thStyle}>{t("returnCheck.notes")}</th>
+            {canDelete && <th style={thStyle} aria-label={t("common.actions")} />}
           </tr>
         </thead>
         <tbody>
@@ -552,7 +571,7 @@ function PaymentsTable({
               <td style={{ ...tdStyle, textAlign: "right" }}>
                 <span className={styles.mono}>{fmtMoney2(p.amount)}</span>
               </td>
-              <td style={tdStyle}>{p.method || "—"}</td>
+              <td style={tdStyle}>{paymentMethodLabel(p.method)}</td>
               <td style={tdStyle}>{p.notes || "—"}</td>
               {canDelete && (
                 <td style={{ ...tdStyle, textAlign: "right" }}>
@@ -563,7 +582,7 @@ function PaymentsTable({
                     disabled={busyId !== null}
                     onClick={() => setPendingRemove(p)}
                   >
-                    {busyId === p.id ? "Removing…" : "Remove"}
+                    {busyId === p.id ? t("returnCheck.removing") : t("returnCheck.remove")}
                   </Button>
                 </td>
               )}
@@ -573,15 +592,15 @@ function PaymentsTable({
       </Table>
       <ConfirmDialog
         open={pendingRemove != null}
-        title="Remove this payment?"
+        title={t("returnCheck.removeTitle")}
         message={
           pendingRemove
-            ? `Remove the ${fmtMoney2(pendingRemove.amount)} payment from `
-              + `${pendingRemove.paid_on}?  The audit trail keeps the original `
-              + "entry but the recovered total goes back down."
+            ? t("returnCheck.removeMessage", {
+                amount: fmtMoney2(pendingRemove.amount), date: pendingRemove.paid_on,
+              })
             : ""
         }
-        confirmLabel="Remove"
+        confirmLabel={t("returnCheck.remove")}
         confirmTone="danger"
         busy={busyId != null}
         error={error}

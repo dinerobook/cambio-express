@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useActiveAnnouncements } from "../api/announcements";
+import { useT } from "../i18n";
 import type { ActiveAnnouncementRow } from "../api/announcements";
 
 // Global banner zone for /api/v2/announcements/active. Renders
@@ -172,6 +173,7 @@ function BannerRow({
   row: ActiveAnnouncementRow;
   onDismiss: () => void;
 }) {
+  const t = useT();
   const c = palette[row.level] ?? palette.info;
   return (
     <div
@@ -194,7 +196,7 @@ function BannerRow({
       </span>
       <button
         type="button"
-        aria-label="Dismiss announcement"
+        aria-label={t("announcement.dismiss")}
         onClick={onDismiss}
         style={{
           appearance: "none",

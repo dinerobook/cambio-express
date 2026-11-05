@@ -7,28 +7,29 @@ import {
   useBatch,
   type BatchRow,
   type BatchWriteBody,
+  BATCH_STATUSES,
+  batchStatusLabel,
 } from "../api/batches";
-import { ApiError } from "../lib/api";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, Button, Card, Checkbox, DateInput, ErrorState,
   Field, FormActions, Input, KpiCard, KpiGrid, Loading, MoneyInput,
   PageHeader, PageShell, Section, Select, Textarea, useToast,
 } from "../components/ui";
-import { fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { useTransferChoices } from "../api/transfers";
 import StoreListField from "../components/StoreListField";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./BatchForm.module.css";
 import { todayIso } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tn, useT } from "../i18n";
 
 // Combined New/Edit form for ACH batches at /app/batches/new
 // and /app/batches/:id/edit. Mirrors the legacy batch_form.html
 // Jinja form. Server handles unique-ref check + cross-tenant
 // 404 + admin-role gate.
-
-const STATUSES = ["Pending", "Cleared", "Returned", "Held"];
 
 // Blank new-batch form. A factory (not a const) so `form` and
 // `baseline` each get an independent copy with the same values —
@@ -41,13 +42,14 @@ function makeBlankBatch(): BatchWriteBody {
     batch_ref:      "",
     ach_amount:     0,
     transfer_dates: "",
-    status:         "Pending",
+    status:         BATCH_STATUSES[0],
     reconciled:     false,
     notes:          "",
   };
 }
 
 export default function BatchForm() {
+  const t = useT();
   const { id } = useParams<{ id?: string }>();
   const isEdit = id !== undefined;
   const batchId = isEdit ? Number(id) : NaN;
@@ -99,7 +101,7 @@ export default function BatchForm() {
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(baseline);
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved edits on this batch. Leave without saving?",
+    message: t("batch.unsavedMessage"),
   });
 
   function set<K extends keyof BatchWriteBody>(
@@ -121,14 +123,14 @@ export default function BatchForm() {
         ? await updateBatch(batchId, body)
         : await createBatch(body);
       toast({
-        message: isEdit ? "Batch updated." : "Batch created.",
+        message: isEdit ? t("batch.updated") : t("batch.created"),
         tone: "success",
       });
       guard.proceed(() => navigate(`/batches`, { replace: true }));
       void result;
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setError(apiErrorMessage(err, t("batch.saveFailed")));
         if (err.body && typeof err.body === "object" && "detail" in err.body) {
           const detail = (err.body as Record<string, unknown>).detail;
           if (
@@ -140,7 +142,7 @@ export default function BatchForm() {
           }
         }
       } else {
-        setError("Could not save batch.");
+        setError(t("batch.saveFailed"));
       }
     } finally {
       setBusy(false);
@@ -150,8 +152,8 @@ export default function BatchForm() {
   if (identity?.store_id == null) {
     return (
       <PageShell maxWidth="62rem">
-        <PageHeader title={isEdit ? "Edit batch" : "New ACH batch"} />
-        <p>Sign in as a store admin to manage ACH batches.</p>
+        <PageHeader title={isEdit ? t("batch.editTitle") : t("batch.newTitle")} />
+        <p>{t("batch.formSignIn")}</p>
       </PageShell>
     );
   }
@@ -163,16 +165,16 @@ export default function BatchForm() {
   return (
     <PageShell maxWidth="62rem">
 
-      <PageCrumbs current={isEdit ? "Edit batch" : "New batch"} />
+      <PageCrumbs current={isEdit ? t("batch.editTitle") : t("batch.newCrumb")} />
 
       <PageHeader
-        title={isEdit ? `Edit batch #${batchId}` : "New ACH batch"}
-        subtitle="Track an ACH withdrawal from a money-transfer company."
+        title={isEdit ? t("batch.editNumber", { id: batchId }) : t("batch.newTitle")}
+        subtitle={t("batch.subtitle")}
       />
 
       {choices.isError && (
         <ErrorState
-          message="Could not load the store's money transfer companies."
+          message={t("batch.companiesFailed")}
           onRetry={() => { void choices.refetch(); }}
         />
       )}
@@ -183,52 +185,54 @@ export default function BatchForm() {
       >
         <Card>
           <div className={styles.fieldGrid}>
-            <Field label="ACH date" highlight={field === "ach_date"}>
+            <Field label={t("batch.achDate")} highlight={field === "ach_date"}>
               <DateInput required
                 value={form.ach_date}
                 onChange={(e) => set("ach_date", e.target.value)} />
             </Field>
             <StoreListField
-              label="Company"
+              label={t("transfer.company")}
               options={companies}
               value={form.company}
               onChange={(v) => set("company", v)}
               loading={choices.isLoading || choices.isError}
-              emptyText="No money transfer companies are switched on. Add or turn one on in"
+              emptyText={t("transfer.noCompanies")}
             />
-            <Field label="Batch reference" highlight={field === "batch_ref"}>
+            <Field label={t("batch.batchReference")} highlight={field === "batch_ref"}>
               <Input type="text" required
                 value={form.batch_ref}
                 onChange={(e) => set("batch_ref", e.target.value)}
-                placeholder="From bank statement" />
+                placeholder={t("batch.refPlaceholder")} />
             </Field>
             <MoneyInput
-              label="ACH amount"
+              label={t("batch.achAmount")}
               value={form.ach_amount}
               onChange={(v) => set("ach_amount", v)}
             />
-            <Field label="Status">
+            <Field label={t("transfer.status")}>
               <Select value={form.status}
                 onChange={(e) => set("status", e.target.value)}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {BATCH_STATUSES.map((s) => (
+                  <option key={s} value={s}>{batchStatusLabel(s)}</option>
+                ))}
               </Select>
             </Field>
-            <Field label="Reconciled">
+            <Field label={t("batch.reconciled")}>
               <Checkbox
                 checked={form.reconciled}
                 onChange={(v) => set("reconciled", v)}
               >
-                Batch is reconciled
+                {t("batch.isReconciled")}
               </Checkbox>
             </Field>
-            <Field label="Transfer dates (optional)">
+            <Field label={t("batch.transferDates")}>
               <Input type="text"
                 value={form.transfer_dates}
                 onChange={(e) => set("transfer_dates", e.target.value)}
-                placeholder="e.g. 2026-03-10..14" />
+                placeholder={t("batch.transferDatesPlaceholder")} />
             </Field>
           </div>
-          <Field label="Notes (optional)">
+          <Field label={t("batch.notes")}>
             <Textarea
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
@@ -248,13 +252,13 @@ export default function BatchForm() {
             onClick={() => guard.confirmLeave(() => navigate("/batches"))}
             disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="submit" busy={busy}
             disabled={busy || !form.batch_ref || !form.ach_date}
           >
-            {busy ? "Saving…" : isEdit ? "Save changes" : "Create batch"}
+            {busy ? t("transfer.saving") : isEdit ? t("transfer.saveChanges") : t("batch.create")}
           </Button>
         </FormActions>
       </form>
@@ -267,47 +271,55 @@ export default function BatchForm() {
  *  card sends and payouts of its previous batch. Those linked HERE
  *  are credited on the company's next batch. */
 function ExpectedAch({ batch: b }: { batch: BatchRow }) {
+  const t = useT();
   const from = b.card_credit_from
-    ? `From batch ${b.card_credit_from}`
-    : "None from a previous batch";
-  const nextParts = [
-    b.card_credit_next > 0 && `${fmtMoney2(b.card_credit_next)} paid by debit card`,
-    b.payout_credit_next > 0 && `${fmtMoney2(b.payout_credit_next)} paid out`,
-  ].filter(Boolean);
-  const next = nextParts.join(" and ");
-  const verb = nextParts.length > 1 ? "are" : "is";
+    ? t("batch.fromBatch", { ref: b.card_credit_from })
+    : t("batch.noneFromPrevious");
+  const card = fmtMoney2(b.card_credit_next);
+  const payout = fmtMoney2(b.payout_credit_next);
+  const hasCard = b.card_credit_next > 0;
+  const hasPayout = b.payout_credit_next > 0;
+  // Whole phrases per case, never glued: word order and agreement
+  // differ between the languages.
+  const what = hasCard && hasPayout
+    ? t("batch.nextBoth", { card, payout })
+    : hasCard
+      ? t("batch.nextCard", { card })
+      : hasPayout
+        ? t("batch.nextPayout", { payout })
+        : "";
+  const parts = (hasCard ? 1 : 0) + (hasPayout ? 1 : 0);
   return (
-    <Section title="Expected ACH">
+    <Section title={t("batch.expectedAch")}>
       <KpiGrid minWidth="10rem">
         <KpiCard
-          label="Linked sends"
+          label={t("batch.linkedSends")}
           value={fmtMoney2(b.transfers_total)}
-          sub={`${b.transfer_count} transfer${b.transfer_count === 1 ? "" : "s"}`}
+          sub={tn("transfer.count", b.transfer_count, fmtNumber)}
         />
         <KpiCard
-          label="Debit card credit"
+          label={t("batch.cardCredit")}
           value={fmtMoney2(-b.card_credit)}
           sub={from}
         />
         <KpiCard
-          label="Payout credit"
+          label={t("batch.payoutCredit")}
           value={fmtMoney2(-b.payout_credit)}
           sub={from}
         />
-        <KpiCard label="Expected ACH" value={fmtMoney2(b.expected_ach)} tone="primary" />
+        <KpiCard label={t("batch.expectedAch")} value={fmtMoney2(b.expected_ach)} tone="primary" />
         <KpiCard
-          label="Variance"
+          label={t("batch.variance")}
           value={fmtMoney2(b.variance)}
           tone={b.variance < 0 ? "negative" : "neutral"}
-          sub="ACH amount less expected"
+          sub={t("batch.varianceSub")}
         />
       </KpiGrid>
-      {next && (
+      {what && (
         <p className={styles.cardNote}>
-          {next} on this batch
           {b.card_credit_next_to
-            ? ` ${verb} credited on batch ${b.card_credit_next_to}.`
-            : ` ${verb} credited on this company's next ACH, once it is entered.`}
+            ? tn("batch.creditedOnBatch", parts, String, { what, ref: b.card_credit_next_to })
+            : tn("batch.creditedNext", parts, String, { what })}
         </p>
       )}
     </Section>

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { tokens } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
+import { useT } from "../i18n";
 
 // Catch-all for unknown SPA routes. Mounted twice in App.tsx — once
 // inside AuthedShell (so the chrome stays put when an authed user
@@ -14,9 +15,10 @@ import { getCurrentIdentity } from "../lib/auth";
 // (the marketing landing) made them feel logged out and was the
 // source of the "back went to login" UX bug.
 export default function NotFound() {
+  const t = useT();
   const identity = getCurrentIdentity();
   const target = identity ? "/dashboard" : "/login";
-  const label = identity ? "← Back to dashboard" : "← Back to sign in";
+  const label = identity ? t("notFound.backDashboard") : t("notFound.backSignIn");
   return (
     <main
       style={{
@@ -40,7 +42,7 @@ export default function NotFound() {
         404
       </h1>
       <p style={{ color: tokens.textMuted, margin: 0 }}>
-        That page hasn't been built yet.
+        {t("notFound.message")}
       </p>
       <Link
         to={target}
