@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import Employees from "./Employees";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Team → Employees. The hub where an admin deactivates people and
 // turns a bare login into an HR record. Pinned: the list, the
@@ -188,5 +190,30 @@ describe("Employees hub", () => {
     await userEvent.click(screen.getByRole("button", { name: /Next/ }));
     expect(screen.getByText("Person 55")).toBeInTheDocument();
     expect(screen.getByText("Showing 51–60 of 60")).toBeInTheDocument();
+  });
+});
+
+// Spanish (UI-STANDARDS §10): the list, its pills and its popup show
+// no English of their own; names and usernames stay as typed.
+describe("Employees hub in Spanish", () => {
+  it("lists people, logins and the deactivate popup in Spanish", async () => {
+    setLanguage("es");
+    mockFetch(routes());
+    const user = userEvent.setup();
+    renderRoute(<Employees />, { path: "/employees" });
+    expect(await screen.findByText("Ana")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Empleados" })).toBeInTheDocument();
+    expect(within(row("Ana")).getByText("$15.00/h")).toBeInTheDocument();
+    expect(within(row("Ana")).getByText("Empleado")).toBeInTheDocument();
+    expect(within(row("Gus")).getByText("Sin acceso")).toBeInTheDocument();
+    expect(within(row("Gus")).getByText("Inactivo")).toBeInTheDocument();
+    expect(within(row("Olga Owner")).getByText("Dueño")).toBeInTheDocument();
+    expect(screen.getByText("Accesos sin ficha de empleado")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["employee.", "common.", "role."])).toEqual([]);
+
+    await user.click(within(row("Ana")).getByRole("button", { name: "Desactivar" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("¿Desactivar a Ana?");
+    expect(englishLeftovers(dialog, ["employee.", "common."])).toEqual([]);
   });
 });

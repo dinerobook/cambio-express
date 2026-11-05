@@ -4,7 +4,8 @@ import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { api, apiErrorMessage } from "../lib/api";
 import { roleLabel, type PermMatrix } from "../api/roles";
 import { actionsFor, toggleMatrixCell } from "../lib/permissions";
-import { fmtCount } from "../lib/formatters";
+import { fmtNumber } from "../lib/formatters";
+import { tn, useT } from "../i18n";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
   Alert, Button, Card, Checkbox, ConfirmDialog, ErrorState, FormActions,
@@ -51,6 +52,7 @@ export function RolePermissionsEditor({
 }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const t = useT();
   const { data, isLoading, isError, error, refetch } = useQuery<RoleMatrixResponse>({
     enabled,
     queryKey,
@@ -80,7 +82,7 @@ export function RolePermissionsEditor({
   const changed = draft ? draft.roles.reduce((n, r) => n + changedCells(r), 0) : 0;
   const isDirty = changed > 0;
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have permission changes that are not saved. Leave without saving?",
+    message: t("permEditor.unsavedMessage"),
   });
 
   const canEdit = (role: string) =>
@@ -111,9 +113,9 @@ export function RolePermissionsEditor({
     setSaveError(null);
     try {
       loaded(await api<RoleMatrixResponse>(endpoint, { method: "PUT", json: { matrix } }));
-      toast({ message: `${fmtCount(changed, "permission")} updated.`, tone: "success" });
+      toast({ message: tn("permEditor.updated", changed, fmtNumber), tone: "success" });
     } catch (err) {
-      setSaveError(apiErrorMessage(err, "Could not save permissions."));
+      setSaveError(apiErrorMessage(err, t("permEditor.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -125,9 +127,9 @@ export function RolePermissionsEditor({
     try {
       loaded(await api<RoleMatrixResponse>(`${endpoint}/reset`, { method: "POST", json: { role } }));
       setResetting(null);
-      toast({ message: `${roleLabel(role)} permissions reset to the defaults.`, tone: "success" });
+      toast({ message: t("permEditor.resetDone", { role: roleLabel(role) }), tone: "success" });
     } catch (err) {
-      setResetError(apiErrorMessage(err, "Could not reset permissions."));
+      setResetError(apiErrorMessage(err, t("permEditor.resetFailed")));
     } finally {
       setBusy(false);
     }
@@ -137,7 +139,7 @@ export function RolePermissionsEditor({
   if (isError) {
     return (
       <ErrorState
-        message={apiErrorMessage(error, "Could not load permissions.")}
+        message={apiErrorMessage(error, t("permEditor.loadFailed"))}
         onRetry={() => { void refetch(); }}
       />
     );
@@ -159,15 +161,15 @@ export function RolePermissionsEditor({
             <div className={styles.roleHead}>
               <SectionTitle>
                 <RolePill role={role} />
-                {customized && <span className={styles.customized}>Customized</span>}
-                {!editable && <span className={styles.locked}>View only</span>}
+                {customized && <span className={styles.customized}>{t("permEditor.customized")}</span>}
+                {!editable && <span className={styles.locked}>{t("permEditor.viewOnly")}</span>}
               </SectionTitle>
               {editable && customized && (
                 <Button
                   tone="secondary" size="sm" disabled={busy}
                   onClick={() => { setResetError(null); setResetting(role); }}
                 >
-                  Reset to defaults
+                  {t("permEditor.resetDefaults")}
                 </Button>
               )}
             </div>
@@ -181,7 +183,7 @@ export function RolePermissionsEditor({
               disabled={!editable}
               ariaContext={role}
               trailingColumn={{
-                header: "All",
+                header: t("permEditor.all"),
                 render: (resource) => {
                   const all = actionsFor(resource, draft.actions).every(
                     (a) => draft.matrix[role]?.[resource]?.[a],
@@ -195,7 +197,7 @@ export function RolePermissionsEditor({
                         for (const a of actionsFor(resource, draft.actions)) next[a] = !all;
                         return next;
                       })}
-                      aria-label={`All actions — ${resource} (${role})`}
+                      aria-label={t("permEditor.allAria", { resource, role })}
                     />
                   );
                 },
@@ -211,18 +213,18 @@ export function RolePermissionsEditor({
           onClick={() => { if (data) setDraft(structuredClone(data)); }}
           disabled={!isDirty || busy}
         >
-          Discard changes
+          {t("permEditor.discard")}
         </Button>
         <Button onClick={() => { void save(); }} busy={busy} disabled={!isDirty || busy}>
-          Save permissions
+          {t("permEditor.save")}
         </Button>
       </FormActions>
 
       <ConfirmDialog
         open={resetting != null}
-        title={`Reset ${roleLabel(resetting ?? "").toLowerCase()} permissions?`}
-        message="This role's changes here are replaced with the platform defaults. People with this role are signed out and pick up the defaults when they sign back in."
-        confirmLabel="Reset to defaults"
+        title={t("permEditor.resetTitle", { role: roleLabel(resetting ?? "").toLowerCase() })}
+        message={t("permEditor.resetBody")}
+        confirmLabel={t("permEditor.resetDefaults")}
         confirmTone="danger"
         busy={busy}
         error={resetError}

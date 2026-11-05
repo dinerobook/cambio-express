@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   adminCreateEntry, adminDeleteEntry, adminUpdateEntry,
-  TIMECLOCK_STATUS_TONES, useAdminTimeClock, useTimeClockHistory,
+  TIMECLOCK_STATUS_TONES, timeClockStatusLabel, useAdminTimeClock, useTimeClockHistory,
   type TimeClockEntryRow, type TimeClockStatus,
 } from "../api/timeclock";
 import { useEmployees } from "../api/transfers";
@@ -25,6 +25,9 @@ import {
 import { getCurrentIdentity } from "../lib/auth";
 import styles from "./AdminTimeClock.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { roleLabel } from "../api/roles";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/admin/timeclock — payroll history view. Admins can:
 //   • Filter by date window + roster member
@@ -66,6 +69,7 @@ export default function AdminTimeClock() {
   const [pendingDelete, setPendingDelete] = useState<number | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const toast = useToast();
+  const t = useT();
 
   const data = useAdminTimeClock(
     from, to, empFilter === "" ? undefined : Number(empFilter),
@@ -99,8 +103,8 @@ export default function AdminTimeClock() {
   if (!canView) {
     return (
       <PageShell>
-        <PageHeader title="Payroll" />
-        <EmptyState title="Admin or owner only." />
+        <PageHeader title={navWord("Payroll")} />
+        <EmptyState title={t("payroll.adminOnly")} />
       </PageShell>
     );
   }
@@ -111,11 +115,11 @@ export default function AdminTimeClock() {
       <PageCrumbs />
 
       <PageHeader
-        title="Payroll"
-        subtitle="Approved hours feed payroll; pending shifts are still waiting on admin review."
+        title={navWord("Payroll")}
+        subtitle={t("payroll.subtitle")}
         actions={(
           <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-            + New entry
+            {t("payroll.newEntry")}
           </Button>
         )}
       />
@@ -124,19 +128,19 @@ export default function AdminTimeClock() {
 
       <Card>
         <div className={styles.filterRow}>
-          <Field label="From" style={{ minWidth: "10rem" }}>
+          <Field label={t("payroll.from")} style={{ minWidth: "10rem" }}>
             <DateInput
               value={from}
               onChange={(e) => setFrom(e.target.value)}
             />
           </Field>
-          <Field label="To (exclusive)" style={{ minWidth: "10rem" }}>
+          <Field label={t("payroll.toExclusive")} style={{ minWidth: "10rem" }}>
             <DateInput
               value={to}
               onChange={(e) => setTo(e.target.value)}
             />
           </Field>
-          <Field label="Employee" style={{ minWidth: "12rem" }}>
+          <Field label={t("payroll.employee")} style={{ minWidth: "12rem" }}>
             <Select
               value={empFilter === "" ? "" : String(empFilter)}
               onChange={(e) => {
@@ -144,7 +148,7 @@ export default function AdminTimeClock() {
                 setEmpFilter(v === "" ? "" : Number(v));
               }}
             >
-              <option value="">Everyone</option>
+              <option value="">{t("payroll.everyone")}</option>
               {(roster.data?.employees ?? []).map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
@@ -164,14 +168,14 @@ export default function AdminTimeClock() {
       {data.isError && (
         <Card>
           <ErrorState
-            message="Couldn't load payroll history."
+            message={t("payroll.loadFailed")}
             onRetry={() => { void data.refetch(); }}
           />
         </Card>
       )}
       {data.data && groups.length === 0 && !data.isLoading && (
         <Card>
-          <EmptyState title="No shifts in this window." />
+          <EmptyState title={t("payroll.noShifts")} />
         </Card>
       )}
       {data.data && groups.map((g) => (
@@ -187,8 +191,8 @@ export default function AdminTimeClock() {
             <thead>
               <tr>
                 {[
-                  "Time in", "Time out", "Total hours",
-                  "Late", "Status", "Adjusted", "",
+                  t("payroll.timeIn"), t("payroll.timeOut"), t("payroll.totalHours"),
+                  t("payroll.late"), t("common.status"), t("payroll.adjusted"), "",
                 ].map((h) => (
                   <th key={h} style={thStyle}>{h}</th>
                 ))}
@@ -207,7 +211,7 @@ export default function AdminTimeClock() {
                       <span className={styles.mono}>
                         {r.clock_out_at
                           ? formatTimestamp(r.clock_out_at)
-                          : <em className={styles.openTag}>in progress</em>}
+                          : <em className={styles.openTag}>{t("payroll.inProgress")}</em>}
                       </span>
                     </td>
                     <td style={tdStyle}>
@@ -232,23 +236,23 @@ export default function AdminTimeClock() {
                         title={`${r.employee_name} · ${formatDate(r.clock_in_at)}`}
                         actions={[
                           {
-                            label: "Edit", tone: "warning",
+                            label: t("common.edit"), tone: "warning",
                             perm: "time_clock.update",
                             onClick: () => setModal({ kind: "edit", row: r }),
                           },
                           {
-                            label: expandedHistoryId === r.id ? "Hide logs" : "Logs",
+                            label: expandedHistoryId === r.id ? t("payroll.hideLogs") : t("payroll.logs"),
                             tone: "logs",
                             onClick: () => setExpandedHistoryId(
                               expandedHistoryId === r.id ? null : r.id,
                             ),
                           },
                           {
-                            label: "Overview", tone: "info",
+                            label: t("payroll.overview"), tone: "info",
                             onClick: () => setEmpFilter(r.store_employee_id),
                           },
                           {
-                            label: "Delete", tone: "danger",
+                            label: t("payroll.delete"), tone: "danger",
                             perm: "time_clock.update",
                             onClick: () => setPendingDelete(r.id),
                           },
@@ -284,12 +288,9 @@ export default function AdminTimeClock() {
 
       <ConfirmDialog
         open={pendingDelete != null}
-        title="Delete this time-clock entry?"
-        message={
-          "Delete this time-clock entry?  The audit row survives, but "
-          + "the entry disappears from the payroll roll-up."
-        }
-        confirmLabel="Delete"
+        title={t("payroll.deleteTitle")}
+        message={t("payroll.deleteBody")}
+        confirmLabel={t("payroll.delete")}
         confirmTone="danger"
         busy={deleteBusy}
         onConfirm={async () => {
@@ -301,7 +302,7 @@ export default function AdminTimeClock() {
             refresh();
           } catch (e) {
             toast({
-              message: apiErrorMessage(e, "Couldn't delete."),
+              message: apiErrorMessage(e, t("payroll.deleteFailed")),
               tone: "error",
               duration: 5000,
             });
@@ -325,13 +326,14 @@ function KpiRow({
   const approved = data?.approved_hours ?? 0;
   const pending  = data?.pending_hours ?? 0;
   const total    = data?.total_hours ?? 0;
+  const t = useT();
   return (
     <KpiGrid minWidth="11rem">
-      <KpiCard label="Approved hours" value={fmtHours(approved)}
+      <KpiCard label={t("payroll.approvedHours")} value={fmtHours(approved)}
         tone="positive" colorValue />
-      <KpiCard label="Pending hours" value={fmtHours(pending)}
+      <KpiCard label={t("payroll.pendingHours")} value={fmtHours(pending)}
         tone="warning" colorValue />
-      <KpiCard label="Total hours (window)" value={fmtHours(total)}
+      <KpiCard label={t("payroll.windowHours")} value={fmtHours(total)}
         tone="primary" colorValue />
     </KpiGrid>
   );
@@ -351,18 +353,19 @@ function EmployeeGroupHeader({
   onOverview:      () => void;
   isFiltered:      boolean;
 }) {
+  const t = useT();
   return (
     <div className={styles.groupHeader}>
       <div className={styles.groupName}>
         {employeeName.toUpperCase()}
         <span className={styles.groupRange}>
-          {" — "}{from} to {to}
+          {" — "}{t("payroll.range", { from: formatDate(from), to: formatDate(to) })}
         </span>
       </div>
       <div className={styles.rowActions}>
         {!isFiltered && (
           <Button size="sm" tone="secondary" onClick={onOverview}>
-            Overview only
+            {t("payroll.overviewOnly")}
           </Button>
         )}
         <Button
@@ -373,7 +376,7 @@ function EmployeeGroupHeader({
             window.open(url, "_blank", "noopener");
           }}
         >
-          Print paystub
+          {t("payroll.printPaystub")}
         </Button>
       </div>
     </div>
@@ -385,19 +388,22 @@ function EmployeeGroupHeader({
 
 
 function StatusPill({ status }: { status: TimeClockStatus }) {
-  return <Pill tone={TIMECLOCK_STATUS_TONES[status]}>{status}</Pill>;
+  useT();
+  return <Pill tone={TIMECLOCK_STATUS_TONES[status]}>{timeClockStatusLabel(status)}</Pill>;
 }
 
 
 function AdjustedBadge({ adjusted }: { adjusted: boolean }) {
-  if (adjusted) return <Pill tone="info">Yes</Pill>;
-  return <span className={styles.subtle}>No</span>;
+  const t = useT();
+  if (adjusted) return <Pill tone="info">{t("payroll.yes")}</Pill>;
+  return <span className={styles.subtle}>{t("payroll.no")}</span>;
 }
 
 
 function LateBadge({
   lateMinutes, threshold,
 }: { lateMinutes: number | null; threshold: number }) {
+  const t = useT();
   // No planned shift to compare against — the entry was a back-fill
   // or an unscheduled punch.  Show "—" so the column reads cleanly.
   if (lateMinutes == null) {
@@ -405,9 +411,9 @@ function LateBadge({
   }
   // On time or early — a single muted glyph keeps the column quiet.
   if (lateMinutes <= threshold) {
-    return <span className={styles.subtle}>On time</span>;
+    return <span className={styles.subtle}>{t("payroll.onTime")}</span>;
   }
-  return <Pill tone="warning">{`Late ${lateMinutes}m`}</Pill>;
+  return <Pill tone="warning">{t("payroll.lateBy", { minutes: lateMinutes })}</Pill>;
 }
 
 
@@ -420,6 +426,7 @@ function LateThresholdSetting({ current }: { current: number }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
+  const t = useT();
   const [value, setValue] = useState(String(current));
   const [busy, setBusy] = useState(false);
   const dirty = value.trim() !== "" && Number(value) !== current;
@@ -433,9 +440,9 @@ function LateThresholdSetting({ current }: { current: number }) {
         queryClient.invalidateQueries({ queryKey: ["timeclock", "admin"] }),
         queryClient.invalidateQueries({ queryKey: ["admin", "store-info"] }),
       ]);
-      toast({ message: `Late threshold set to ${n} min.`, tone: "success" });
+      toast({ message: t("payroll.lateSet", { minutes: n }), tone: "success" });
     } catch (e) {
-      toastApiError(e, "Could not save.");
+      toastApiError(e, t("payroll.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -445,7 +452,7 @@ function LateThresholdSetting({ current }: { current: number }) {
     <Card>
       <div className={styles.lateRuleRow}>
         <Field
-          label={<>Mark clock-ins late after (minutes)<InfoTip text="Only clock-ins later than this past the planned shift start show the 'Late' pill below." /></>}
+          label={<>{t("payroll.lateLabel")}<InfoTip text={t("payroll.lateTip")} /></>}
           hint="0–240"
         >
           <Input
@@ -460,7 +467,7 @@ function LateThresholdSetting({ current }: { current: number }) {
           disabled={busy || !dirty}
           onClick={() => { void save(); }}
         >
-          Save
+          {t("payroll.save")}
         </Button>
       </div>
     </Card>
@@ -474,17 +481,18 @@ function LateThresholdSetting({ current }: { current: number }) {
 function HistoryPanel({ entryId }: { entryId: number }) {
   const { data, isLoading, isError, refetch } =
     useTimeClockHistory(entryId);
+  const t = useT();
   if (isLoading) return <Loading />;
   if (isError) {
     return (
       <ErrorState
-        message="Couldn't load entry history."
+        message={t("payroll.historyFailed")}
         onRetry={() => { void refetch(); }}
       />
     );
   }
   if (!data || data.rows.length === 0) {
-    return <Empty>No history yet.</Empty>;
+    return <Empty>{t("payroll.noHistory")}</Empty>;
   }
   return (
     <ul className={styles.historyList}>
@@ -494,8 +502,9 @@ function HistoryPanel({ entryId }: { entryId: number }) {
             <span className={styles.historyAction}>{h.action}</span>
             <span>{formatTimestamp(h.at)}</span>
             <span className={styles.historyActor}>
-              by {h.actor || "unknown"}{h.actor_role
-                ? ` (${h.actor_role})` : ""}
+              {h.actor_role
+                ? t("payroll.byRole", { actor: h.actor || t("payroll.unknown"), role: roleLabel(h.actor_role) })
+                : t("payroll.by", { actor: h.actor || t("payroll.unknown") })}
             </span>
           </div>
           <div className={styles.historySummary}>{h.summary}</div>
@@ -522,6 +531,7 @@ function EntryModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const isEdit = state.kind === "edit";
   const row    = state.kind === "edit" ? state.row : null;
 
@@ -558,7 +568,7 @@ function EntryModal({
         });
       } else {
         if (empId === "") {
-          setErr("Pick a roster member.");
+          setErr(t("payroll.pickMember"));
           setBusy(false); return;
         }
         await adminCreateEntry({
@@ -573,7 +583,7 @@ function EntryModal({
       onSaved();
     } catch (e2) {
       setErr(
-        apiErrorMessage(e2, "Couldn't save the entry."),
+        apiErrorMessage(e2, t("payroll.entrySaveFailed")),
       );
     } finally {
       setBusy(false);
@@ -584,12 +594,12 @@ function EntryModal({
     <Modal
       open={true}
       onClose={onClose}
-      title={isEdit ? "Edit entry" : "New entry"}
+      title={isEdit ? t("payroll.editEntry") : t("payroll.newEntryTitle")}
       disabled={busy}
     >
       <form onSubmit={onSubmit}>
         <div className={styles.modalGrid}>
-          <Field label="Roster name" style={{ gridColumn: "1 / -1" }}>
+          <Field label={t("payroll.rosterName")} style={{ gridColumn: "1 / -1" }}>
             <Select
               value={empId === "" ? "" : String(empId)}
               onChange={(e) => {
@@ -599,13 +609,13 @@ function EntryModal({
               required
               disabled={isEdit}   // can't reattribute on edit
             >
-              <option value="">— pick a roster member —</option>
+              <option value="">{t("payroll.pickPlaceholder")}</option>
               {roster.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Clock in">
+          <Field label={t("payroll.clockIn")}>
             <Input
               type="datetime-local" required
               value={clockIn}
@@ -613,8 +623,8 @@ function EntryModal({
             />
           </Field>
           <Field
-            label="Clock out (optional)"
-            hint="Leave blank for an open / in-progress entry."
+            label={t("payroll.clockOut")}
+            hint={t("payroll.clockOutHint")}
           >
             <Input
               type="datetime-local"
@@ -624,7 +634,7 @@ function EntryModal({
           </Field>
           {isEdit && (
             <Field
-              label={<>Status<InfoTip text="Only approved hours count toward payroll totals." /></>}
+              label={<>{t("common.status")}<InfoTip text={t("payroll.statusTip")} /></>}
               style={{ gridColumn: "1 / -1" }}
             >
               <Select
@@ -632,19 +642,19 @@ function EntryModal({
                 onChange={(e) =>
                   setStatus(e.target.value as TimeClockStatus)}
               >
-                <option value="pending">pending</option>
-                <option value="approved">approved</option>
-                <option value="rejected">rejected</option>
+                <option value="pending">{timeClockStatusLabel("pending")}</option>
+                <option value="approved">{timeClockStatusLabel("approved")}</option>
+                <option value="rejected">{timeClockStatusLabel("rejected")}</option>
               </Select>
             </Field>
           )}
-          <Field label="Notes" style={{ gridColumn: "1 / -1" }}>
+          <Field label={t("payroll.notes")} style={{ gridColumn: "1 / -1" }}>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               maxLength={500}
-              placeholder="Why this entry was back-filled / edited."
+              placeholder={t("payroll.notesPlaceholder")}
             />
           </Field>
         </div>
@@ -654,10 +664,10 @@ function EntryModal({
             type="button" tone="secondary"
             onClick={onClose} disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
-            {isEdit ? "Save changes" : "Create entry"}
+            {isEdit ? t("common.saveChanges") : t("payroll.createEntry")}
           </Button>
         </ModalActions>
       </form>

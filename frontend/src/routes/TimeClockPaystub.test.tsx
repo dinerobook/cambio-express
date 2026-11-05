@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import TimeClockPaystub from "./TimeClockPaystub";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The printable paystub: approved hours x rate = gross pay. The
 // numbers on it are what a cashier is paid, so pin that they are the
@@ -41,7 +43,7 @@ describe("Paystub", () => {
     expect(screen.getByText("$127.50")).toBeInTheDocument();
     expect(screen.getByText("$15.00")).toBeInTheDocument();
     expect(screen.getAllByText("8.50").length).toBeGreaterThan(0);
-    expect(screen.getByText("approved", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("Approved", { selector: "span" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/Cambio Uno · pay period 2026-10-01/)).toBeInTheDocument());
     expect(callsTo(calls, "GET /api/v2/admin/timeclock/paystub/3")[0].path)
       .toBe("/api/v2/admin/timeclock/paystub/3?from=2026-10-01&to=2026-10-15");
@@ -101,5 +103,20 @@ describe("Paystub", () => {
     fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Ana Pérez")).toBeInTheDocument();
+  });
+});
+
+describe("Paystub in Spanish", () => {
+  it("prints in Spanish with the numbers unchanged", async () => {
+    setLanguage("es");
+    mockFetch(routes());
+    renderRoute(<TimeClockPaystub />, { path: PATH, at: AT });
+    expect(await screen.findByText("Ana Pérez")).toBeInTheDocument();
+    expect(screen.getByText("$127.50")).toBeInTheDocument();
+    expect(screen.getByText("Aprobado", { selector: "span" })).toBeInTheDocument();
+    await waitFor(() => expect(
+      screen.getByText(/Cambio Uno · periodo de pago 2026-10-01/),
+    ).toBeInTheDocument());
+    expect(englishLeftovers(document.body, ["paystub.", "payroll.", "common."])).toEqual([]);
   });
 });

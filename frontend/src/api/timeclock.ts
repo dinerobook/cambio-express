@@ -4,6 +4,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { t, type MessageKey } from "../i18n";
 import type { PillTone } from "../components/ui";
 import type { components } from "./openapi";
 
@@ -16,6 +17,20 @@ export const TIMECLOCK_STATUS_TONES: Record<TimeClockStatus, PillTone> = {
   approved: "success",
   rejected: "negative",
 };
+
+const TIMECLOCK_STATUS_KEYS: Record<TimeClockStatus, MessageKey> = {
+  pending:  "timeclock.statusPending",
+  approved: "timeclock.statusApproved",
+  rejected: "timeclock.statusRejected",
+};
+
+/** A shift status in the person's language. Stored and sent in
+ *  English (UI-STANDARDS §10); an unknown value shows as stored. */
+export function timeClockStatusLabel(value: string): string {
+  return Object.hasOwn(TIMECLOCK_STATUS_KEYS, value)
+    ? t(TIMECLOCK_STATUS_KEYS[value as TimeClockStatus])
+    : value;
+}
 
 export interface TimeClockEntryRow {
   id:                number;

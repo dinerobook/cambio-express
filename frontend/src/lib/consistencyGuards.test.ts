@@ -224,7 +224,7 @@ describe("permission editors", () => {
   });
 
   it("names permission areas in sentence case, as the sidebar does", () => {
-    expect(Object.values(RESOURCE_LABELS).filter((l) => titleCased(l).length)).toEqual([]);
+    expect(Object.values(RESOURCE_LABELS).map((k) => en[k]).filter((l) => titleCased(l).length)).toEqual([]);
     // CSS capitalize turned "Money transfers" back into "Money Transfers".
     expect(matrixCss).not.toMatch(/text-transform:\s*capitalize/);
   });

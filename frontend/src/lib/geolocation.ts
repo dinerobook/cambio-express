@@ -1,7 +1,10 @@
 // Thin Promise wrapper around ``navigator.geolocation``. Surfaces
 // a typed error when the API is unavailable or the user denies
 // the permission prompt — both cases the time-clock punch flow
-// needs to differentiate from a successful read.
+// needs to differentiate from a successful read. Messages are in
+// the person's language (UI-STANDARDS §10).
+
+import { t } from "../i18n";
 
 export class GeolocationDeniedError extends Error {
   constructor(message: string) {
@@ -35,7 +38,7 @@ export function getCurrentCoordinates(
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       reject(new GeolocationUnavailableError(
-        "This browser does not expose the geolocation API.",
+        t("geo.unavailable"),
       ));
       return;
     }
@@ -50,13 +53,11 @@ export function getCurrentCoordinates(
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
           reject(new GeolocationDeniedError(
-            "Location permission denied. Allow the browser's "
-            + "location prompt and try again — required when the "
-            + "store has the geofence gate on.",
+            t("geo.denied"),
           ));
         } else {
           reject(new GeolocationUnavailableError(
-            err.message || "Could not read the current location.",
+            err.message || t("geo.failed"),
           ));
         }
       },

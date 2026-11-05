@@ -5,6 +5,7 @@ import {
   adminDeleteCredential,
   adminRegisterCredentialBegin,
   adminRegisterCredentialFinish,
+  timeClockStatusLabel,
   useTimeClockCredentials,
   type TimeClockCredentialRow,
 } from "../api/timeclock";
@@ -19,6 +20,8 @@ import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import styles from "./AdminTimeClockCredentials.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/admin/timeclock/credentials — admin enrolls a passkey
 // for each active roster member. Once every cashier is registered
@@ -34,6 +37,7 @@ export default function AdminTimeClockCredentials() {
   const { data: storeInfo } = useStoreInfo();
   const [busyEmpId, setBusyEmpId] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const t = useT();
 
   const canView = identity?.role === "admin"
                   || identity?.role === "owner"
@@ -60,7 +64,7 @@ export default function AdminTimeClockCredentials() {
       refresh();
     } catch (e) {
       setErr(
-        apiErrorMessage(e, "Couldn't register the passkey.", { anyError: true }),
+        apiErrorMessage(e, t("punch.registerFailed"), { anyError: true }),
       );
     } finally {
       setBusyEmpId(null);
@@ -82,7 +86,7 @@ export default function AdminTimeClockCredentials() {
       setPendingRemove(null);
     } catch (e) {
       setErr(
-        apiErrorMessage(e, "Couldn't remove the passkey."),
+        apiErrorMessage(e, t("punch.removeFailed")),
       );
     } finally {
       setBusyEmpId(null);
@@ -92,8 +96,8 @@ export default function AdminTimeClockCredentials() {
   if (!canView) {
     return (
       <PageShell maxWidth="56rem">
-        <PageHeader title="Punch credentials" />
-        <EmptyState title="Admin or owner only." />
+        <PageHeader title={navWord("Punch credentials")} />
+        <EmptyState title={t("payroll.adminOnly")} />
       </PageShell>
     );
   }
@@ -104,31 +108,28 @@ export default function AdminTimeClockCredentials() {
       <PageCrumbs />
 
       <PageHeader
-        title="Punch credentials"
-        subtitle="Enroll a passkey for each cashier — Windows Hello, Touch ID, Face ID, or a hardware key. Once everyone is registered, flip on Settings → Store → Block time-clock punches without a passkey."
+        title={navWord("Punch credentials")}
+        subtitle={t("punch.subtitle")}
       />
 
       {!browserSupports && (
         <Alert tone="warning">
-          This browser doesn't expose the WebAuthn API. Use a modern
-          Chrome / Safari / Firefox / Edge build to enroll passkeys.
+          {t("punch.noWebauthn")}
         </Alert>
       )}
 
       {gateOn && (
         <Alert tone="info">
-          Passkey gate is currently <strong>ON</strong>. Any cashier
-          without a registered passkey is blocked from clocking in or
-          out — make sure every active roster member appears as
-          <em> Registered</em> below before relying on this.
+          {tNodes("punch.gateOn", {
+            on: <strong>{t("punch.on")}</strong>,
+            registered: <em>{t("punch.registered")}</em>,
+          })}
         </Alert>
       )}
 
       {!gateOn && (
         <p className={styles.intro}>
-          The passkey requirement is currently <strong>off</strong> —
-          punches work without a passkey until you turn it on. You can
-          still enroll passkeys now so everyone is ready.
+          {tNodes("punch.gateOff", { off: <strong>{t("punch.off")}</strong> })}
         </p>
       )}
 
@@ -140,7 +141,7 @@ export default function AdminTimeClockCredentials() {
       {isError && (
         <Card>
           <ErrorState
-            message="Couldn't load roster credentials."
+            message={t("punch.loadFailed")}
             onRetry={() => { void refetch(); }}
           />
         </Card>
@@ -148,8 +149,8 @@ export default function AdminTimeClockCredentials() {
       {data && data.rows.length === 0 && !isLoading && (
         <Card>
           <EmptyState
-            title="No active roster members yet."
-            body="Add cashier names on Settings → Team first."
+            title={t("punch.noRoster")}
+            body={t("punch.noRosterBody")}
           />
         </Card>
       )}
@@ -159,8 +160,8 @@ export default function AdminTimeClockCredentials() {
             <thead>
               <tr>
                 {[
-                  "Cashier", "Status", "Registered",
-                  "Last used", "",
+                  t("schedule.cashier"), t("common.status"), t("punch.registered"),
+                  t("punch.lastUsed"), "",
                 ].map((h) => (
                   <th key={h} style={thStyle}>{h}</th>
                 ))}
@@ -174,8 +175,8 @@ export default function AdminTimeClockCredentials() {
                   </td>
                   <td style={tdStyle}>
                     {r.has_passkey
-                      ? <Pill tone="success">Registered</Pill>
-                      : <Pill tone="warning">Pending</Pill>}
+                      ? <Pill tone="success">{t("punch.registered")}</Pill>
+                      : <Pill tone="warning">{timeClockStatusLabel("pending")}</Pill>}
                   </td>
                   <td style={tdStyle}>
                     <span className={styles.mono}>
@@ -196,14 +197,14 @@ export default function AdminTimeClockCredentials() {
                       title={r.employee_name}
                       actions={[
                         {
-                          label: r.has_passkey ? "Re-enroll" : "Enroll passkey",
+                          label: r.has_passkey ? t("punch.reenroll") : t("punch.enroll"),
                           tone: r.has_passkey ? "secondary" : "primary",
                           busy: busyEmpId === r.store_employee_id,
                           disabled: !browserSupports || busyEmpId !== null,
                           onClick: () => register(r),
                         },
                         {
-                          label: "Remove",
+                          label: t("punch.remove"),
                           hidden: !r.has_passkey,
                           disabled: busyEmpId !== null,
                           onClick: () => setPendingRemove(r),
@@ -222,13 +223,11 @@ export default function AdminTimeClockCredentials() {
 
       <ConfirmDialog
         open={pendingRemove != null}
-        title="Remove this passkey?"
-        message={
-          `Remove ${pendingRemove?.employee_name ?? "this cashier"}'s `
-          + "registered passkey?  They'll need to re-enroll before "
-          + "they can clock in / out (if the store gate is on)."
-        }
-        confirmLabel="Remove"
+        title={t("punch.removeTitle")}
+        message={t("punch.removeBody", {
+          name: pendingRemove?.employee_name ?? t("punch.thisCashier"),
+        })}
+        confirmLabel={t("punch.remove")}
         confirmTone="danger"
         busy={busyEmpId === pendingRemove?.store_employee_id}
         onConfirm={() => { void doRemove(); }}

@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import RolesAccess from "./RolesAccess";
 import RoleEdit from "./RoleEdit";
 import { ToastProvider } from "../components/ui";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Team → Roles & access. Two things are worth pinning:
 //   1. The roles list counts people correctly across built-in
@@ -273,5 +275,48 @@ describe("The Lock / unlock days switch", () => {
     expect(
       screen.queryByLabelText("Employee, Lock / unlock days, View: no"),
     ).not.toBeInTheDocument();
+  });
+});
+
+// Spanish (UI-STANDARDS §10): role names, counts, both tabs and the
+// confirmation read in Spanish; saved role names and people stay as
+// typed.
+describe("Roles & access in Spanish", () => {
+  beforeEach(() => { setLanguage("es"); });
+  const P = ["roles.", "roleEdit.", "perm.", "common.", "role.", "userForm."];
+  // The fixture's saved roles are named "Shift lead" and "Nobody's
+  // role": typed names, which stay as typed in every language.
+  const leftovers = () => englishLeftovers(document.body, P)
+    .filter((w) => !["Shift lead", "role"].includes(w));
+
+  it("lists the roles with Spanish names and counts", () => {
+    renderAt("/team/roles");
+    const employee = screen.getByText("Empleado").closest("tr")!;
+    expect(within(employee).getByText("1 persona")).toBeInTheDocument();
+    const lead = screen.getByText("Shift lead").closest("tr")!;
+    expect(within(lead).getByText("2 personas")).toBeInTheDocument();
+    expect(within(lead).getByText("1 de 3")).toBeInTheDocument();
+    expect(screen.getByText("Administrador")).toBeInTheDocument();
+    expect(leftovers()).toEqual([]);
+  });
+
+  it("draws the by-area grid with Spanish areas and a Spanish legend", () => {
+    renderAt("/team/roles/by-area");
+    expect(screen.getByLabelText("Shift lead, Envíos de dinero, Ver: sí")).toBeInTheDocument();
+    expect(screen.getByLabelText("Shift lead, Envíos de dinero, Eliminar: no")).toBeInTheDocument();
+    // Editar and Eliminar would share "E"; delete gets its own letter.
+    expect(screen.getByText(/C crear · V ver · E editar · X eliminar/)).toBeInTheDocument();
+    expect(leftovers()).toEqual([]);
+  });
+
+  it("names the affected people in Spanish before saving", async () => {
+    const user = userEvent.setup();
+    renderAt("/team/roles/1");
+    await user.click(await screen.findByLabelText("Editar — Envíos de dinero (Shift lead)"));
+    await user.click(screen.getByText("Guardar rol"));
+    expect(await screen.findByText(
+      "Al guardar se actualiza el acceso de 2 personas: Amber, Ben. Se cerrará su sesión para que el cambio tome efecto.",
+    )).toBeInTheDocument();
+    expect(leftovers()).toEqual([]);
   });
 });
