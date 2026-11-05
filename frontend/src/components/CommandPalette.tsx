@@ -6,6 +6,11 @@ import { useSessionStatus } from "../api/account";
 import { getCurrentIdentity } from "../lib/auth";
 import { filterNavForRole } from "./navConfig";
 import styles from "./CommandPalette.module.css";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+/** The key cap, printed as on the keyboard in every language. */
+const ESC_KEY = "esc";
 
 interface CommandItem {
   label: string;
@@ -23,19 +28,22 @@ function buildItems(
     // Direct-link group (e.g. Reports): the group itself is the
     // destination, so add it as its own command entry.
     if (g.to) {
+      // Shown in the person's language; the English stays in the
+      // search words so either finds the page.
       items.push({
-        label: g.title,
+        label: navWord(g.title),
         to: g.to,
-        group: g.title,
-        keywords: g.title.toLowerCase(),
+        group: navWord(g.title),
+        keywords: `${g.title} ${navWord(g.title)}`.toLowerCase(),
       });
     }
     for (const item of g.items) {
       items.push({
-        label: item.label,
+        label: navWord(item.label),
         to: item.to,
-        group: g.title,
-        keywords: `${g.title} ${item.label}`.toLowerCase(),
+        group: navWord(g.title),
+        keywords: [g.title, item.label, navWord(g.title), navWord(item.label)]
+          .join(" ").toLowerCase(),
       });
     }
   }
@@ -43,6 +51,7 @@ function buildItems(
 }
 
 export function CommandPalette() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const identity = getCurrentIdentity();
@@ -80,15 +89,15 @@ export function CommandPalette() {
   return (
     <div className={styles.overlay} onClick={() => setOpen(false)}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <Command label="Navigate to…">
+        <Command label={t("palette.label")}>
           <Command.Input
             className={styles.input}
-            placeholder="Search pages, stores, users…"
+            placeholder={t("palette.placeholder")}
             autoFocus
           />
           <Command.List className={styles.list}>
             <Command.Empty className={styles.empty}>
-              No results found.
+              {t("palette.empty")}
             </Command.Empty>
             {Array.from(grouped.entries()).map(([group, groupItems]) => (
               <Command.Group key={group} heading={group} className={styles.groupHeading}>
@@ -108,12 +117,12 @@ export function CommandPalette() {
           </Command.List>
           <div className={styles.footer}>
             <span>
-              <span className={styles.kbd}>↑↓</span> navigate
-              <span className={styles.kbd}>↵</span> open
-              <span className={styles.kbd}>esc</span> close
+              <span className={styles.kbd}>↑↓</span> {t("palette.navigate")}
+              <span className={styles.kbd}>↵</span> {t("palette.open")}
+              <span className={styles.kbd}>{ESC_KEY}</span> {t("palette.close")}
             </span>
             <span>
-              <span className={styles.kbd}>⌘K</span> toggle
+              <span className={styles.kbd}>⌘K</span> {t("palette.toggle")}
             </span>
           </div>
         </Command>

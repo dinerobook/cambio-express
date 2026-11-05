@@ -56,6 +56,55 @@ export const COVERED_FILES = [
   "components/ui/Toast.tsx",
   "components/ui/InfoTip.tsx",
   "components/ui/RowActions.tsx",
+  // Step 4a: dashboard, customers, ACH batches, return checks
+  "routes/Dashboard.tsx",
+  "routes/Customers.tsx",
+  "routes/Batches.tsx",
+  "routes/BatchForm.tsx",
+  "routes/ReturnChecks.tsx",
+  "routes/ReturnCheckForm.tsx",
+  // The rest of the kit and the shell pieces every page can show
+  "components/ui/Tabs.tsx",
+  "components/ui/Modal.tsx",
+  "components/ui/DataTable.tsx",
+  "components/ui/CopyField.tsx",
+  "components/ui/PhoneField.tsx",
+  "components/ui/Field.tsx",
+  "components/ui/MoneyInput.tsx",
+  "components/ui/DateInput.tsx",
+  "components/ui/Empty.tsx",
+  "components/ui/Alert.tsx",
+  "components/ui/Button.tsx",
+  "components/ui/Tooltip.tsx",
+  "components/ui/Switch.tsx",
+  "components/ui/KpiCard.tsx",
+  "components/ui/IconButton.tsx",
+  "components/ui/Checkbox.tsx",
+  "components/ui/Pill.tsx",
+  "components/ui/PageHeader.tsx",
+  "components/ui/Section.tsx",
+  "components/ui/Table.tsx",
+  "components/ui/Select.tsx",
+  "components/ui/Textarea.tsx",
+  "components/ui/Input.tsx",
+  "components/StoreGate.tsx",
+  "components/RouteErrorBoundary.tsx",
+  "components/CommandPalette.tsx",
+  "components/HelpCenter.tsx",
+  "components/AnnouncementBanner.tsx",
+  "components/ImpersonationBanner.tsx",
+  "components/InstallAppButton.tsx",
+  "components/PeriodRollup.tsx",
+  "components/RegisterActivity.tsx",
+  "components/RequireAuth.tsx",
+  "components/Gate.tsx",
+  "components/Delta.tsx",
+  "components/DisplayTimezone.tsx",
+  "components/BrandLink.tsx",
+  "components/RolePill.tsx",
+  "routes/NotFound.tsx",
+  "routes/Home.tsx",
+  "routes/SectionHub.tsx",
 ];
 
 const sources = import.meta.glob(
@@ -79,6 +128,8 @@ function code(src: string): string {
 
 // Text that is not a word to translate: symbols, numbers, the brand.
 const NOT_WORDS = /^[\s$·|—–•…←→✓#%0-9.,:()+-]*$|^\$$|^DineroBook$/;
+// Acronyms read the same in both languages: MRR, ACH, CSV.
+const ACRONYM = /^[A-Z]{2,5}$/;
 // Examples that read the same in every language.
 const EXAMPLE = /^[\w.+-]+@[\w-]+\.[\w.]+$|^\+?[\d ()-]+$/;
 
@@ -92,13 +143,15 @@ function rawStrings(src: string): string[] {
     // Skip TypeScript, not JSX: generics and comparisons like
     // `useState<X | null>(null); … <` contain code punctuation.
     if (/[;=()&|]|=>/.test(text)) continue;
+    // An object key between two JSX values: `a: <b>x</b>, name: <b>`.
+    if (/^,?\s*\w+:$/.test(text)) continue;
     if (!NOT_WORDS.test(text)) found.push(text);
   }
   // Visible attributes: label="…", placeholder="…", title="…", …
   for (const m of body.matchAll(
     /\b(label|placeholder|title|aria-label|alt|confirmLabel|cancelLabel|message)="([^"]*[A-Za-z]{2}[^"]*)"/g,
   )) {
-    if (!EXAMPLE.test(m[2])) found.push(`${m[1]}="${m[2]}"`);
+    if (!EXAMPLE.test(m[2]) && !ACRONYM.test(m[2])) found.push(`${m[1]}="${m[2]}"`);
   }
   // The same attributes as a template: title={`Transfer #${id}`}.
   for (const m of body.matchAll(

@@ -4,6 +4,7 @@ import { HELP_REGISTRY, type HelpEntry } from "../lib/help/registry";
 import { searchHelp } from "../lib/help/search";
 import styles from "./HelpCenter.module.css";
 import { AppLink, Empty } from "./ui";
+import { useT } from "../i18n";
 
 
 /** Floating help bubble + searchable answer panel.
@@ -22,6 +23,7 @@ import { AppLink, Empty } from "./ui";
  *  before we wire the model.
  */
 export function HelpCenter() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,8 +60,8 @@ export function HelpCenter() {
         type="button"
         className={styles.bubble}
         onClick={() => setOpen(true)}
-        aria-label="Help"
-        title="Help"
+        aria-label={t("help.title")}
+        title={t("help.title")}
       >
         ?
       </button>
@@ -78,16 +80,16 @@ export function HelpCenter() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Help center"
+            aria-label={t("help.center")}
             className={styles.panel}
           >
             <div className={styles.panelHeader}>
-              <span className={styles.panelTitle}>Help</span>
+              <span className={styles.panelTitle}>{t("help.title")}</span>
               <button
                 type="button"
                 className={styles.closeBtn}
                 onClick={() => setOpen(false)}
-                aria-label="Close"
+                aria-label={t("common.close")}
               >
                 ×
               </button>
@@ -98,7 +100,7 @@ export function HelpCenter() {
                 ref={inputRef}
                 type="search"
                 className={styles.searchInput}
-                placeholder="Ask anything…  (e.g. how do I log a transfer)"
+                placeholder={t("help.placeholder")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 autoComplete="off"
@@ -109,8 +111,7 @@ export function HelpCenter() {
             <div className={styles.results}>
               {results.length === 0 && (
                 <Empty>
-                  No matches. Try a different word — most pages
-                  have a help entry that mentions the page title.
+                  {t("help.noMatches")}
                 </Empty>
               )}
               {results.map((entry) => (
@@ -123,8 +124,7 @@ export function HelpCenter() {
             </div>
 
             <div className={styles.footer}>
-              Don't see your question?  Mention it in the
-              support channel — answers land here next.
+              {t("help.footer")}
             </div>
           </div>
         </div>

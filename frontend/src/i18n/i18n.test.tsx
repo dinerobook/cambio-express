@@ -3,15 +3,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   getLanguage, initLanguageFromDevice, intlLocale, isLanguage,
-  reconcileLanguage, setLanguage, t, tIfKey, tn, useT,
+  reconcileLanguage, setLanguage, t, tIfKey, tn, tNodes, useT,
 } from "./index";
 import { en, type MessageKey } from "./en";
 import { es } from "./es";
 import { translateServerMessage, SERVER_MESSAGES } from "./serverMessages";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import {
-  formatDate, formatMonthYear, formatTime, weekdayNameLong, weekdayNamesShort,
+  formatDate, formatMonthYear, formatTime, monthName, weekdayNameLong,
+  weekdayNamesShort,
 } from "../lib/datetime";
+import { batchStatusLabel } from "../api/batches";
+import { paymentMethodLabel, returnCheckStatusLabel } from "../api/returnChecks";
 import {
   PAYOUT_SERVICE, SERVICES, STATUSES, serviceLabel, statusLabel,
   transferWording,
@@ -33,7 +36,7 @@ const SAME_IN_BOTH: MessageKey[] = [
   "login.copyright",
   // A brand name, and words Spanish spells the same.
   "daily.boostMobile", "daily.total", "daily.totalCaps", "daily.totalLabel",
-  "transfer.total",
+  "transfer.total", "returnCheck.methodZelle",
   // Only placeholders and symbols: "{count} {label}", "{label} (USD)".
   "daily.countOpen", "transfer.inUsd", "transfer.outOfHoursOpen",
 ];
@@ -281,5 +284,46 @@ describe("stored values and form errors", () => {
     act(() => setLanguage("es"));
     expect(weekdayNameLong(0)).toBe("lunes");
     expect(weekdayNameLong(5)).toBe("sábado");
+  });
+});
+
+describe("markup inside a sentence and more stored values", () => {
+  it("tNodes keeps the sentence whole and puts each node in its place", () => {
+    const { container } = render(
+      <p>{tNodes("customer.selectedTwo", { winner: <b>Ana</b>, loser: <b>Luis</b> })}</p>,
+    );
+    expect(container.textContent).toBe("Selected: Ana (winner) ← Luis (loser)");
+    expect(container.querySelectorAll("b")).toHaveLength(2);
+    act(() => setLanguage("es"));
+    const es = render(
+      <p>{tNodes("customer.selectedTwo", { winner: <b>Ana</b>, loser: <b>Luis</b> })}</p>,
+    );
+    expect(es.container.textContent).toBe("Seleccionados: Ana (se queda) ← Luis (se elimina)");
+  });
+
+  it("tNodes leaves an unknown placeholder visible", () => {
+    const { container } = render(<p>{tNodes("customer.selectedOne", {})}</p>);
+    expect(container.textContent).toContain("{winner}");
+  });
+
+  it("month names follow the language", () => {
+    expect(monthName(11)).toBe("November");
+    expect(monthName(5, "short")).toBe("May");
+    act(() => setLanguage("es"));
+    expect(monthName(11)).toBe("noviembre");
+    expect(monthName(11, "short")).toBe("nov");
+  });
+
+  it("batch and returned-check values read in Spanish, unknown ones as stored", () => {
+    expect(batchStatusLabel("Cleared")).toBe("Cleared");
+    expect(returnCheckStatusLabel("pending")).toBe("Pending");
+    expect(paymentMethodLabel("money_order")).toBe("Money order");
+    act(() => setLanguage("es"));
+    expect(batchStatusLabel("Cleared")).toBe("Acreditado");
+    expect(returnCheckStatusLabel("fraud")).toBe("Fraude");
+    expect(paymentMethodLabel("money_order")).toBe("Giro postal");
+    expect(batchStatusLabel("Bounced twice")).toBe("Bounced twice");
+    expect(paymentMethodLabel("constructor")).toBe("constructor");
+    expect(returnCheckStatusLabel(null)).toBe("—");
   });
 });

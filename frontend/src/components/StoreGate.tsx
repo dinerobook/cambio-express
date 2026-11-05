@@ -2,6 +2,7 @@ import { Button, ButtonLink } from "./ui";
 import styles from "./StoreGate.module.css";
 import { canAccess } from "../lib/access";
 import { BRAND_NAME } from "../lib/brand";
+import { tNodes, useT } from "../i18n";
 
 // Full-screen takeover shown when a store's users are gated out of the
 // app (PR C). Two reasons:
@@ -22,7 +23,9 @@ export interface StoreGateProps {
 }
 
 export default function StoreGate({ reason, storeName, onSignOut }: StoreGateProps) {
+  const t = useT();
   const frozen = reason === "frozen";
+  const store = storeName ? <strong>{storeName}</strong> : t("gate.thisStore");
   // Only a store admin can pay. An employee who lands here gets
   // told who to ask instead of a Re-subscribe button that would
   // bounce them.
@@ -51,39 +54,29 @@ export default function StoreGate({ reason, storeName, onSignOut }: StoreGatePro
         </div>
 
         <h1 className={styles.title}>
-          {frozen ? "Account suspended" : "Your subscription has ended"}
+          {frozen ? t("gate.suspendedTitle") : t("gate.endedTitle")}
         </h1>
 
         <p className={styles.body}>
           {frozen ? (
-            <>
-              {storeName ? <strong>{storeName}</strong> : "This store"} has been
-              suspended by the {BRAND_NAME} team. Please contact support to
-              restore access. Your data is safe.
-            </>
+            tNodes("gate.suspendedBody", { store, brand: BRAND_NAME })
           ) : canPay ? (
-            <>
-              Re-subscribe to regain access
-              {storeName ? <> to <strong>{storeName}</strong></> : null}. Your
-              books and history are safe — nothing is deleted while you decide.
-            </>
+            storeName
+              ? tNodes("gate.resubscribeBodyStore", { store })
+              : t("gate.resubscribeBody")
           ) : (
-            <>
-              {storeName ? <strong>{storeName}</strong> : "This store"} needs
-              its store admin to re-subscribe before anyone can sign back
-              in. Your books and history are safe — nothing is deleted.
-            </>
+            tNodes("gate.needsAdminBody", { store })
           )}
         </p>
 
         <div className={styles.actions}>
           {!frozen && canPay && (
             <ButtonLink to="/subscribe" tone="primary">
-              Re-subscribe
+              {t("gate.resubscribe")}
             </ButtonLink>
           )}
           <Button tone="secondary" onClick={onSignOut}>
-            Sign out
+            {t("gate.signOut")}
           </Button>
         </div>
       </div>

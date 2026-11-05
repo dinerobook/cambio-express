@@ -214,6 +214,15 @@ export function formatMonthYear(year: number, month: number): string {
   }).format(new Date(Date.UTC(year, month - 1, 1, 12)));
 }
 
+/** A month's name in the person's language, ``month`` 1-12:
+ *  ``monthName(11)`` → "November" / "noviembre"; ``"short"`` → "Nov"
+ *  / "nov". Use these in screens, not the English arrays below. */
+export function monthName(month: number, width: "long" | "short" = "long"): string {
+  return new Intl.DateTimeFormat(intlLocale(), {
+    month: width, timeZone: "UTC",
+  }).format(new Date(Date.UTC(2026, month - 1, 1, 12)));
+}
+
 /** Three-letter month names, same indexing as ``MONTH_NAMES``. */
 export const MONTH_NAMES_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",

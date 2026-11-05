@@ -11,6 +11,7 @@ import { api } from "../lib/api";
 import type { components } from "./openapi";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
+import { t, type MessageKey } from "../i18n";
 
 /** Batch status → Pill tone (UI-STANDARDS §3). Statuses are
  *  BatchForm's list; unknown values fall back to neutral. */
@@ -20,6 +21,26 @@ export const BATCH_STATUS_TONES: Record<string, PillTone> = {
   Returned: "negative",
   Held:     "info",
 };
+
+/** The statuses a batch can have. Stored and sent in English; shown
+ *  through ``batchStatusLabel`` (UI-STANDARDS §10). */
+export const BATCH_STATUSES = ["Pending", "Cleared", "Returned", "Held"] as const;
+
+const BATCH_STATUS_KEYS: Record<(typeof BATCH_STATUSES)[number], MessageKey> = {
+  Pending: "batch.statusPending",
+  Cleared: "batch.statusCleared",
+  Returned: "batch.statusReturned",
+  Held: "batch.statusHeld",
+};
+
+/** A stored batch status in the person's language; an unknown value
+ *  is shown as stored. */
+export function batchStatusLabel(value: string | null | undefined): string {
+  if (!value) return "—";
+  return Object.hasOwn(BATCH_STATUS_KEYS, value)
+    ? t(BATCH_STATUS_KEYS[value as keyof typeof BATCH_STATUS_KEYS])
+    : value;
+}
 
 /** One batch with its server-computed totals. `variance` is
  *  `ach_amount - expected_ach`; `expected_ach` is the linked sends

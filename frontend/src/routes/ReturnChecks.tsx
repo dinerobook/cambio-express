@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 
 import {
-  RETURN_CHECK_STATUS_TONES, useReturnChecks, type ReturnCheckRow,
+  RETURN_CHECK_STATUS_TONES, returnCheckStatusLabel, useReturnChecks,
+  type ReturnCheckRow,
 } from "../api/returnChecks";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
@@ -13,6 +14,7 @@ import {
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./ReturnChecks.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tn, useT, type MessageKey, type Translate } from "../i18n";
 
 // Bounced-check workflow list at /app/return-checks. Filter by
 // status pill, click any row (or the explicit Edit button) to
@@ -20,31 +22,33 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // payments, or transition the status (Mark loss / Mark fraud /
 // Reopen).
 
-const STATUSES: Array<{ slug: string; label: string }> = [
-  { slug: "",          label: "All"       },
-  { slug: "pending",   label: "Pending"   },
-  { slug: "recovered", label: "Recovered" },
-  { slug: "loss",      label: "Loss"      },
-  { slug: "fraud",     label: "Fraud"     },
+const STATUSES: Array<{ slug: string; label: MessageKey }> = [
+  { slug: "",          label: "returnCheck.all"             },
+  { slug: "pending",   label: "returnCheck.statusPending"   },
+  { slug: "recovered", label: "returnCheck.statusRecovered" },
+  { slug: "loss",      label: "returnCheck.statusLoss"      },
+  { slug: "fraud",     label: "returnCheck.statusFraud"     },
 ];
 
-const COLUMNS: DataColumn<ReturnCheckRow>[] = [
+// Built during render so the headings follow the language.
+function returnCheckColumns(t: Translate): DataColumn<ReturnCheckRow>[] {
+  return [
   {
-    key: "bounced", header: "Bounced", sortKey: "bounced", sortFirst: "desc",
+    key: "bounced", header: t("returnCheck.bounced"), sortKey: "bounced", sortFirst: "desc",
     render: (r) => <span className={styles.monoMuted}>{formatDate(r.bounced_on)}</span>,
   },
-  { key: "customer", header: "Customer", sortKey: "customer", render: (r) => r.customer_name },
+  { key: "customer", header: t("transfer.customer"), sortKey: "customer", render: (r) => r.customer_name },
   {
-    key: "check", header: "Check #", sortKey: "check",
+    key: "check", header: t("returnCheck.checkNumberShort"), sortKey: "check",
     render: (r) => <span className={styles.mono}>{r.check_number || "—"}</span>,
   },
-  { key: "bank", header: "Bank", sortKey: "bank", render: (r) => r.payer_bank || "—" },
+  { key: "bank", header: t("returnCheck.bank"), sortKey: "bank", render: (r) => r.payer_bank || "—" },
   {
-    key: "amount", header: "Amount", align: "right", sortKey: "amount", sortFirst: "desc",
+    key: "amount", header: t("dash.amount"), align: "right", sortKey: "amount", sortFirst: "desc",
     render: (r) => <span className={styles.mono}>{fmtMoney2(r.amount)}</span>,
   },
   {
-    key: "recovered", header: "Recovered", align: "right",
+    key: "recovered", header: t("returnCheck.statusRecovered"), align: "right",
     render: (r) => (
       <span>
         <span className={r.recovered_total >= r.amount + r.return_check_fee ? styles.recoveredFull : styles.mono}>
@@ -56,20 +60,23 @@ const COLUMNS: DataColumn<ReturnCheckRow>[] = [
       </span>
     ),
   },
-  { key: "status", header: "Status", sortKey: "status", render: (r) => <StatusPill status={r.status} /> },
+  { key: "status", header: t("transfer.status"), sortKey: "status", render: (r) => <StatusPill status={r.status} /> },
   {
     // The explicit, discoverable action; the whole row opens the
     // same page for a cashier who taps any cell.
     key: "edit", header: "", label: "", align: "right",
     render: (r) => (
       <ButtonLink to={`/return-checks/${r.id}/edit`} tone="secondary" size="sm">
-        Edit / record payment
+        {t("returnCheck.editOrPay")}
       </ButtonLink>
     ),
   },
-];
+  ];
+}
 
 export default function ReturnChecks() {
+  const t = useT();
+  const columns = returnCheckColumns(t);
   const identity = getCurrentIdentity();
   const navigate = useNavigate();
   const filters = useUrlFilterState({ status: "" }, {
@@ -89,8 +96,8 @@ export default function ReturnChecks() {
     return (
       <PageShell>
         <PageCrumbs />
-        <PageHeader title="Returned checks" />
-        <Empty>Sign in as a store admin to view return checks.</Empty>
+        <PageHeader title={t("returnCheck.listTitle")} />
+        <Empty>{t("returnCheck.listSignIn")}</Empty>
       </PageShell>
     );
   }
@@ -101,15 +108,17 @@ export default function ReturnChecks() {
       <PageCrumbs />
 
       <PageHeader
-        title="Returned checks"
+        title={t("returnCheck.listTitle")}
         subtitle={data
-          ? `${fmtNumber(data.total)} ${
-              status || "total"
-            } check${data.total === 1 ? "" : "s"}`
+          ? status
+            ? tn("returnCheck.countWithStatus", data.total, fmtNumber, {
+                status: returnCheckStatusLabel(status).toLowerCase(),
+              })
+            : tn("returnCheck.countTotal", data.total, fmtNumber)
           : "—"}
         actions={(
           <ButtonLink to="/return-checks/new" tone="primary" size="sm">
-            + New return check
+            {t("returnCheck.newButton")}
           </ButtonLink>
         )}
       />
@@ -121,21 +130,23 @@ export default function ReturnChecks() {
             active={status === s.slug}
             onClick={() => filters.setParam("status", s.slug)}
           >
-            {s.label}
+            {t(s.label)}
           </TabsButton>
         ))}
       </TabsBar>
 
       <Card>
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           rows={data?.rows}
           rowKey={(r) => r.id}
           onRowClick={(r) => navigate(`/return-checks/${r.id}/edit`)}
-          rowLabel={(r) => `Open return check from ${r.customer_name}`}
+          rowLabel={(r) => t("returnCheck.openFrom", { name: r.customer_name })}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle={`No return checks ${status ? `with status ${status}` : "yet"}.`}
+          emptyTitle={status
+            ? t("returnCheck.emptyWithStatus", { status: returnCheckStatusLabel(status).toLowerCase() })
+            : t("returnCheck.empty")}
           sort={filters.sort}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
@@ -150,7 +161,6 @@ export default function ReturnChecks() {
 
 function StatusPill({ status }: { status: string }) {
   const tone = RETURN_CHECK_STATUS_TONES[status] ?? "neutral";
-  const label = status.charAt(0).toUpperCase() + status.slice(1);
-  return <Pill tone={tone}>{label}</Pill>;
+  return <Pill tone={tone}>{returnCheckStatusLabel(status)}</Pill>;
 }
 

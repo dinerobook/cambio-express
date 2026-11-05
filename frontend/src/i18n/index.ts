@@ -16,7 +16,9 @@
 // English is the default everywhere. A person who never picks Spanish
 // sees exactly the app they saw before this file existed.
 
-import { useSyncExternalStore } from "react";
+import {
+  Fragment, createElement, useSyncExternalStore, type ReactNode,
+} from "react";
 
 import { en, type MessageKey } from "./en";
 import { es } from "./es";
@@ -109,6 +111,19 @@ export function t(key: MessageKey, vars?: MessageVars): string {
 }
 
 export type Translate = typeof t;
+
+/** `t` for a sentence with markup inside it ("Selected: <strong>Ana
+ *  </strong> (winner)"): each `{name}` is replaced by its node, so
+ *  the sentence stays whole in each language and only the pieces
+ *  are styled. Text-only values work too. */
+export function tNodes(key: MessageKey, vars: Record<string, ReactNode>): ReactNode[] {
+  const template = CATALOGS[current][key] || en[key];
+  return template.split(/(\{\w+\})/).filter((part) => part !== "").map((part, i) => {
+    const name = /^\{(\w+)\}$/.exec(part)?.[1];
+    const node = name !== undefined && Object.hasOwn(vars, name) ? vars[name] : part;
+    return createElement(Fragment, { key: i }, node);
+  });
+}
 
 /** For a message that may be a key: a form schema's error (zod keeps
  *  the text it was built with, so schemas store keys) or a field's
