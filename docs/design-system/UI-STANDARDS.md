@@ -716,7 +716,8 @@ gate, impersonation bar, command palette, help panel, announcement
 banner, install button, 404, and the rest of the kit); the team pages
 (employees and their form, logins, roles and access, role edit, the
 permission grids, payroll, schedule, punch credentials, the time
-clock and the paystub). Next: settings and account pages, bank,
+clock and the paystub); the Subscribe plan picker and the billing
+server messages it can show. Next: settings and account pages, bank,
 monthly and reports, owner and billing pages, platform pages, then
 emails. The help articles
 (`lib/help/registry.ts`) are still English.

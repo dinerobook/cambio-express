@@ -41,6 +41,13 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "A payout is paid to the recipient in cash, so it can't be paid by debit card.": "transfer.serverPayoutCard",
   "A payout has no fee: the recipient is paid the full amount.": "transfer.serverPayoutFee",
   "An employee from the store roster must be selected as Processed by before saving.": "transfer.serverEmployeeRequired",
+  // Subscribe (checkout and billing portal)
+  "Only store admins can manage billing.": "subscribe.serverAdminsOnly",
+  "Invalid plan selected.": "subscribe.serverInvalidPlan",
+  "No billing account on file. Subscribe to a plan first.": "subscribe.serverNoBillingAccount",
+  "Billing isn't configured on this server yet. An administrator needs to set STRIPE_SECRET_KEY in the deployment environment before this button works.": "subscribe.serverNotConfigured",
+  "Stripe's billing portal isn't configured yet. An admin needs to enable + save the Customer Portal in the Stripe Dashboard before this button works.": "subscribe.serverPortalNotConfigured",
+  "Payment service error. Please try again.": "subscribe.serverPaymentError",
   // ACH batches
   "Batch not found": "batch.serverNotFound",
   // Return checks

@@ -547,6 +547,21 @@ real world"; PRs #900–#901):**
   tables can't drift apart again. If Stripe's Price IDs and the
   catalog ever disagree, Stripe wins for the customer's card and
   the catalog is what needs correcting.
+- ✅ Yearly plan on Subscribe (2026-11-05) — the plan picker kept its
+  own price table (the fifth copy) and marked the tile matching
+  `Store.plan`, which is only the tier: a Pro-yearly store saw its
+  MONTHLY tile as "Current plan" and was offered a "switch" to the
+  plan it already paid for. The page now reads names and prices from
+  `/billing/pricing` (PLAN_CATALOG) and the current tile from the
+  summary's `plan_key` (`plan_key(plan, billing_cycle)`). The
+  `customer.subscription.updated` webhook was also ignored, so a
+  cadence or tier change made in the Stripe Billing Portal never
+  reached `Store.plan` / `billing_cycle`; it is now handled
+  (`_handle_subscription_updated`): it re-reads the LIVE
+  subscription, maps only the four configured Price IDs, and leaves
+  comped, unpaid, unknown-price and not-paid-plan stores untouched.
+  The Stripe endpoint must keep sending that event
+  (`docs/architecture/deployment.md` step 7 already lists it).
 - **Still NOT built: consolidated owner INVOICING** (one Stripe
   subscription, quantity = store count, one invoice). B-1 is the
   rollup VIEW only. Invoicing stays gated on the owner's

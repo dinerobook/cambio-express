@@ -14674,10 +14674,16 @@ export interface components {
             addons: components["schemas"]["SubscriptionAddon"][];
             /** Cancel At */
             cancel_at: string | null;
+            /** Cancel At Iso */
+            cancel_at_iso: string | null;
             /** Cancel At Period End */
             cancel_at_period_end: boolean;
+            /** Comped */
+            comped: boolean;
             /** Has Paid Plan */
             has_paid_plan: boolean;
+            /** Plan Key */
+            plan_key: string;
             /** Plan Label */
             plan_label: string;
             /** Plan Price */

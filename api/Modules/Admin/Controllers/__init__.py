@@ -657,6 +657,7 @@ def subscription_summary_route(
         plan_price_label, store_addon_keys, store_feature_enabled,
         store_has_paid_plan,
     )
+    from api.Modules.Billing.Services.plans import plan_key
     active_keys = store_addon_keys(store)
     addon_rows = []
     for key, addon in ADDONS_CATALOG.items():
@@ -683,6 +684,7 @@ def subscription_summary_route(
     # lightweight API call — Stripe caches it and responds in <100ms.
     cancel_at_period_end = False
     cancel_at: str | None = None
+    cancel_at_iso: str | None = None
     if store.stripe_subscription_id and store_has_paid_plan(store):
         try:
             import stripe
@@ -690,9 +692,12 @@ def subscription_summary_route(
             cancel_at_period_end = bool(sub.cancel_at_period_end)
             if cancel_at_period_end and sub.current_period_end:
                 from api.Core.Clock import utc_from_timestamp
-                cancel_at = utc_from_timestamp(
-                    sub.current_period_end
-                ).strftime("%B %d, %Y")
+                ends = utc_from_timestamp(sub.current_period_end)
+                cancel_at = ends.strftime("%B %d, %Y")
+                # The same instant for the SPA to word in the
+                # reader's language and the store's timezone;
+                # `cancel_at` is English-only.
+                cancel_at_iso = ends.isoformat()
         except Exception:
             pass
 
@@ -707,6 +712,7 @@ def subscription_summary_route(
             db.commit()  # persist a freshly minted code (flush-only helper)
             referral_code_str = rc.code
 
+    comped = store.comped_at is not None
     return {
         "store": {
             "id": store.id,
@@ -721,7 +727,16 @@ def subscription_summary_route(
             ),
         },
         "plan_label": plan_label(store.plan, store.billing_cycle),
-        "plan_price": plan_price_label(store.plan, store.billing_cycle),
+        # A comped store pays nothing, so its tier's price is not its
+        # bill: no price line rather than "$45 / month".
+        "plan_price": (
+            "" if comped else plan_price_label(store.plan, store.billing_cycle)
+        ),
+        # The catalog key ("pro_yearly"), so the Subscribe page marks
+        # the tile the store is actually billed on: `store.plan` is
+        # only the tier ("pro") for both cadences.
+        "plan_key": plan_key(store.plan, store.billing_cycle),
+        "comped": comped,
         "has_paid_plan": store_has_paid_plan(store),
         "trial_status": trial_status,
         "trial_days_left": trial_days_left,
@@ -731,6 +746,7 @@ def subscription_summary_route(
         "active_addon_count": len(active_keys),
         "cancel_at_period_end": cancel_at_period_end,
         "cancel_at": cancel_at,
+        "cancel_at_iso": cancel_at_iso,
         "referral_code": referral_code_str,
     }
 

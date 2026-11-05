@@ -301,6 +301,9 @@ def test_subscription_summary_shows_the_scheduled_cancel_date(client, test_store
     assert seen == ["sub_gap"]
     assert body["cancel_at_period_end"] is True
     assert body["cancel_at"] == "November 01, 2026"
+    # The same instant as a timestamp, for the SPA to show in the
+    # store's timezone and the reader's language (Oct 31 in the US).
+    assert body["cancel_at_iso"] == "2026-11-01T02:30:00"
 
 
 def test_subscription_summary_survives_a_stripe_outage(client, test_store_id, monkeypatch):
@@ -320,3 +323,69 @@ def test_subscription_summary_survives_a_stripe_outage(client, test_store_id, mo
     body = resp.get_json()
     assert body["cancel_at_period_end"] is False
     assert body["cancel_at"] is None
+    assert body["cancel_at_iso"] is None
+
+
+# ── Which plan the store is billed on (the Subscribe page) ──────
+# `Store.plan` is only the tier: "pro" for monthly AND yearly. The
+# summary names the catalog key so the Subscribe page marks the tile
+# the store actually pays for (it used to mark a yearly store's
+# monthly tile, and show it "$45 / month").
+
+
+def _billed(store_id, plan, cycle, **extra):
+    with db_session():
+        s = db.session.get(Store, store_id)
+        s.plan, s.billing_cycle = plan, cycle
+        for k, v in extra.items():
+            setattr(s, k, v)
+        db.session.commit()
+
+
+@pytest.mark.parametrize("plan,cycle,key,label,price", [
+    ("pro", "yearly", "pro_yearly", "Pro (yearly)", "$450 / year"),
+    ("basic", "yearly", "basic_yearly", "Basic (yearly)", "$350 / year"),
+    ("pro", "monthly", "pro", "Pro", "$45 / month"),
+    ("basic", "monthly", "basic", "Basic", "$35 / month"),
+    # A store from before billing_cycle was stamped reads as monthly.
+    ("pro", "", "pro", "Pro", "$45 / month"),
+])
+def test_subscription_summary_names_the_billed_plan(
+    client, test_store_id, plan, cycle, key, label, price,
+):
+    _billed(test_store_id, plan, cycle)
+    token = login_admin(client, test_store_id)
+    body = client.get("/api/v2/admin/subscription", headers=_h(token)).get_json()
+    assert body["store"]["plan"] == plan
+    assert body["plan_key"] == key
+    assert body["plan_label"] == label
+    assert body["plan_price"] == price
+    assert body["comped"] is False
+    assert body["has_paid_plan"] is True
+
+
+def test_subscription_summary_trial_key_matches_no_paid_tile(client, test_store_id):
+    token = login_admin(client, test_store_id)
+    body = client.get("/api/v2/admin/subscription", headers=_h(token)).get_json()
+    assert body["plan_key"] == "trial"
+    assert body["plan_price"] == ""
+    assert body["has_paid_plan"] is False
+
+
+def test_subscription_summary_comped_store_quotes_no_price(client, test_store_id):
+    from api.Core.Clock import utc_now
+    _billed(test_store_id, "pro", "comp", comped_at=utc_now(), comp_reason="beta")
+    token = login_admin(client, test_store_id)
+    body = client.get("/api/v2/admin/subscription", headers=_h(token)).get_json()
+    assert body["comped"] is True
+    assert body["plan_label"] == "Pro"
+    assert body["plan_price"] == ""
+
+
+def test_subscription_summary_refuses_an_employee(client, test_store_id):
+    """Billing state is an admin's page; a default employee lacks
+    settings.read and is refused."""
+    _billed(test_store_id, "pro", "yearly")
+    _, jwt = make_employee_client(test_store_id)
+    resp = client.get("/api/v2/admin/subscription", headers=_h(jwt))
+    assert resp.status_code == 403
