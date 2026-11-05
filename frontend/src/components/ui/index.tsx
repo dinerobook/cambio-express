@@ -73,7 +73,7 @@ export { Loading } from "./Loading";
 export { Pager } from "./Pager";
 export {
   DataTable, type DataColumn, type DataTablePage, type DataTableProps,
-  type DataTableSort,
+  type DataTableSort, type DataTableExport, type CsvColumn,
 } from "./DataTable";
 export {
   PeriodStepper, type PeriodStepperVariant, type PeriodUnit,

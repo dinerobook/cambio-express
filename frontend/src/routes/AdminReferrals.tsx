@@ -6,11 +6,11 @@ import {
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
-import { tn, tNodes, useT } from "../i18n";
+import { tn, tNodes, useT, type Translate } from "../i18n";
 import { formatDate } from "../lib/datetime";
 import {
   ButtonLink, Card, CopyButton, CopyField, Empty, ErrorState, KpiCard, KpiGrid, Loading,
-  Pill, space, Table, tdStyle, thStyle,
+  Pill, space, DataTable, type DataColumn,
 } from "../components/ui";
 import styles from "./AdminReferrals.module.css";
 
@@ -161,45 +161,47 @@ function HistoryTable({ rows }: { rows: ReferralRedemptionRow[] }) {
     );
   }
   return (
-    <Table>
-      <thead>
-        <tr>
-          {[t("referral.colDate"), t("referral.colStore"), t("referral.colYours"), t("referral.colTheirs")].map((h) => (
-            <th key={h} style={thStyle}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={`${r.referee_store_id}-${r.redeemed_at}`}>
-            <td style={tdStyle}>
-              <span className={styles.monoMuted}>
-                {r.redeemed_at ? formatDate(r.redeemed_at) : "—"}
-              </span>
-            </td>
-            <td style={tdStyle}>#{r.referee_store_id}</td>
-            <td style={tdStyle}>
-              {r.self_credit_applied ? (
-                <>
-                  <Pill tone="success">{t("referral.credited")}</Pill>
-                  {r.stripe_self_txn_id && (
-                    <span className={`${styles.monoMuted} ${styles.txnId}`}>
-                      {r.stripe_self_txn_id}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <Pill tone="warning">{t("referral.pending")}</Pill>
-              )}
-            </td>
-            <td style={tdStyle}>
-              {r.referee_credit_applied
-                ? <Pill tone="success">{t("referral.credited")}</Pill>
-                : <Pill tone="warning">{t("referral.pending")}</Pill>}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
+    <DataTable
+      columns={historyColumns(t)}
+      rows={rows}
+      rowKey={(r) => `${r.referee_store_id}-${r.redeemed_at}`}
+      emptyTitle={t("referral.emptyShort")}
+    />
   );
+}
+
+// Built during render so the headings follow the language.
+function historyColumns(t: Translate): DataColumn<ReferralRedemptionRow>[] {
+  return [
+    {
+      key: "date", header: t("referral.colDate"),
+      render: (r) => (
+        <span className={styles.monoMuted}>
+          {r.redeemed_at ? formatDate(r.redeemed_at) : "—"}
+        </span>
+      ),
+    },
+    { key: "store", header: t("referral.colStore"), render: (r) => `#${r.referee_store_id}` },
+    {
+      key: "yours", header: t("referral.colYours"),
+      render: (r) => (r.self_credit_applied ? (
+        <>
+          <Pill tone="success">{t("referral.credited")}</Pill>
+          {r.stripe_self_txn_id && (
+            <span className={`${styles.monoMuted} ${styles.txnId}`}>
+              {r.stripe_self_txn_id}
+            </span>
+          )}
+        </>
+      ) : (
+        <Pill tone="warning">{t("referral.pending")}</Pill>
+      )),
+    },
+    {
+      key: "theirs", header: t("referral.colTheirs"),
+      render: (r) => (r.referee_credit_applied
+        ? <Pill tone="success">{t("referral.credited")}</Pill>
+        : <Pill tone="warning">{t("referral.pending")}</Pill>),
+    },
+  ];
 }

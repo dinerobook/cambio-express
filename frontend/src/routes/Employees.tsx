@@ -8,7 +8,8 @@ import {
 } from "../api/employees";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate } from "../lib/datetime";
+import { csvDate, formatDate } from "../lib/datetime";
+import { csvMoney } from "../lib/csv";
 import { fmtMoney2 } from "../lib/formatters";
 import { pageOf, sortRows } from "../lib/pagination";
 import { accountTypeLabel } from "../lib/permissions";
@@ -127,15 +128,20 @@ export default function Employees() {
   }
 
   const columns: DataColumn<EmployeeRow>[] = [
-    { key: "name", header: t("common.name"), sortKey: "name", render: (r) => <strong>{r.name}</strong> },
-    { key: "login", header: t("employee.login"), sortKey: "login", render: (r) => <LoginCell row={r} /> },
+    { key: "name", header: t("common.name"), sortKey: "name", render: (r) => <strong>{r.name}</strong>,
+      csv: (r) => r.name },
+    { key: "login", header: t("employee.login"), sortKey: "login", render: (r) => <LoginCell row={r} />,
+      csv: (r) => r.login?.username ?? "" },
     {
       key: "rate", header: t("employee.rate"), sortKey: "rate", sortFirst: "desc",
       render: (r) => (r.hourly_rate > 0 ? t("employee.perHour", { amount: fmtMoney2(r.hourly_rate) }) : "—"),
+      csvHeader: t("employee.hourlyRate"),
+      csv: (r) => (r.hourly_rate > 0 ? csvMoney(r.hourly_rate) : ""),
     },
     {
       key: "hired", header: t("employee.hired"), sortKey: "hired", sortFirst: "desc",
       render: (r) => (r.hired_on ? formatDate(r.hired_on) : "—"),
+      csv: (r) => csvDate(r.hired_on),
     },
     {
       key: "status", header: t("common.status"), sortKey: "status", sortFirst: "desc",
@@ -144,6 +150,7 @@ export default function Employees() {
           {r.is_active ? t("common.active") : t("common.inactive")}
         </Pill>
       ),
+      csv: (r) => (r.is_active ? t("common.active") : t("common.inactive")),
     },
     {
       key: "actions", header: "", label: "", align: "right",
@@ -224,6 +231,13 @@ export default function Employees() {
             page: shown.page, totalPages: shown.totalPages, total: shown.total,
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "employees",
+            allRows: sorted,
+            extraColumns: [
+              { header: t("employee.accountType"), csv: (r) => (r.login ? accountTypeLabel(r.login.role) : "") },
+            ],
           }}
         />
       </Card>

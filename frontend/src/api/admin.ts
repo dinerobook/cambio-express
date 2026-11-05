@@ -14,23 +14,28 @@ export type AdminAuditUserOption = components["schemas"]["AdminAuditUserOption"]
 
 export type AdminAuditLogResponse = components["schemas"]["AdminAuditLogResponse"];
 
+/** One page of the store audit log — the request the page and its
+ *  CSV export both make. */
+export function fetchAdminAuditLog(
+  page: number, target: string, action: string, user: string,
+  perPage = 50,
+): Promise<AdminAuditLogResponse> {
+  const p = new URLSearchParams();
+  p.set("page", String(page));
+  p.set("per_page", String(perPage));
+  if (target) p.set("target", target);
+  if (action) p.set("action", action);
+  if (user)   p.set("user", user);
+  return api<AdminAuditLogResponse>(`/api/v2/admin/audit-log?${p.toString()}`);
+}
+
 export function useAdminAuditLog(
   page: number, target: string, action: string, user: string,
   perPage = 50,
 ) {
   return useQuery<AdminAuditLogResponse>({
     queryKey: ["admin", "audit-log", page, target, action, user, perPage],
-    queryFn: () => {
-      const p = new URLSearchParams();
-      p.set("page", String(page));
-      p.set("per_page", String(perPage));
-      if (target) p.set("target", target);
-      if (action) p.set("action", action);
-      if (user)   p.set("user", user);
-      return api<AdminAuditLogResponse>(
-        `/api/v2/admin/audit-log?${p.toString()}`,
-      );
-    },
+    queryFn: () => fetchAdminAuditLog(page, target, action, user, perPage),
     placeholderData: (prev) => prev,
   });
 }

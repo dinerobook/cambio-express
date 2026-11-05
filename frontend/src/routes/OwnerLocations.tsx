@@ -9,9 +9,10 @@ import {
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
-  Card, Empty, Input, PageHeader, PageShell,
-  Table, TableStates, TabsBar, TabsButton, tdStyle, thStyle,
+  Card, DataTable, Empty, Input, PageHeader, PageShell,
+  TabsBar, TabsButton, type DataColumn,
 } from "../components/ui";
+import { csvMoney } from "../lib/csv";
 import styles from "./OwnerLocations.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 
@@ -97,9 +98,11 @@ export default function OwnerLocations() {
       </div>
 
       <Card>
-        <TableStates
+        <DataTable
+          columns={STORE_COLUMNS}
+          rows={data && data.matched > 0 ? data.rows : data ? [] : undefined}
+          rowKey={(r) => r.store_id}
           isLoading={isLoading} isError={isError} error={error}
-          isEmpty={!data || data.matched === 0}
           onRetry={() => { void refetch(); }}
           emptyTitle={
             data && data.total === 0
@@ -111,76 +114,71 @@ export default function OwnerLocations() {
               ? "Ask each store admin to redeem an owner-connect code."
               : undefined
           }
+          exportCsv={data && {
+            filename: `locations-${period}`,
+            allRows: data.rows,
+          }}
         />
-        {data && data.matched > 0 && <StoreTable rows={data.rows} />}
       </Card>
     </PageShell>
   );
 }
 
-function StoreTable({ rows }: { rows: OwnerStoreRow[] }) {
-  return (
-    <Table>
-      <thead>
-        <tr>
-          {[
-            ["Store",      "left"],
-            ["Transfers",  "right"],
-            ["Volume",     "right"],
-            ["Over/Short", "right"],
-            ["Companies",  "left"],
-          ].map(([label, align], i) => (
-            <th
-              key={i}
-              style={{ ...thStyle, textAlign: align as "left" | "right" }}
-            >
-              {label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.store_id}>
-            <td style={tdStyle}>
-              <div className={styles.storeName}>{r.store_name}</div>
-              <div className={styles.storeSlug}>{r.store_slug}</div>
-            </td>
-            <td style={{ ...tdStyle, textAlign: "right" }}>
-              <span className={styles.mono}>{fmtNumber(r.transfer_count)}</span>
-            </td>
-            <td style={{ ...tdStyle, textAlign: "right" }}>
-              <span className={styles.mono}>{fmtMoney2(r.volume)}</span>
-            </td>
-            <td style={{ ...tdStyle, textAlign: "right" }}>
-              <span
-                className={
-                  r.over_short < 0
-                    ? styles.overShortNeg
-                    : r.over_short > 0
-                      ? styles.overShortPos
-                      : styles.overShortZero
-                }
-              >
-                {r.over_short >= 0 ? "+" : ""}{fmtMoney2(r.over_short)}
-              </span>
-            </td>
-            <td style={tdStyle}>
-              <div className={styles.companyChips}>
-                {r.companies.length === 0 ? (
-                  <span className={styles.dash}>—</span>
-                ) : (
-                  r.companies.slice(0, 5).map((c) => (
-                    <span key={c.company} className={styles.chip}>
-                      {c.company} · {c.count}
-                    </span>
-                  ))
-                )}
-              </div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
-}
+/** Each store's figures for the period as the kit ``<DataTable>``. */
+const STORE_COLUMNS: DataColumn<OwnerStoreRow>[] = [
+  {
+    key: "store", header: "Store",
+    render: (r) => (
+      <>
+        <div className={styles.storeName}>{r.store_name}</div>
+        <div className={styles.storeSlug}>{r.store_slug}</div>
+      </>
+    ),
+    csv: (r) => r.store_name,
+  },
+  {
+    key: "transfers", header: "Transfers", align: "right",
+    render: (r) => <span className={styles.mono}>{fmtNumber(r.transfer_count)}</span>,
+    csv: (r) => r.transfer_count,
+  },
+  {
+    key: "volume", header: "Volume", align: "right",
+    render: (r) => <span className={styles.mono}>{fmtMoney2(r.volume)}</span>,
+    csv: (r) => csvMoney(r.volume),
+  },
+  {
+    key: "overShort", header: "Over/Short", align: "right",
+    render: (r) => (
+      <span
+        className={
+          r.over_short < 0
+            ? styles.overShortNeg
+            : r.over_short > 0
+              ? styles.overShortPos
+              : styles.overShortZero
+        }
+      >
+        {r.over_short >= 0 ? "+" : ""}{fmtMoney2(r.over_short)}
+      </span>
+    ),
+    csv: (r) => csvMoney(r.over_short),
+  },
+  {
+    key: "companies", header: "Companies",
+    render: (r) => (
+      <div className={styles.companyChips}>
+        {r.companies.length === 0 ? (
+          <span className={styles.dash}>—</span>
+        ) : (
+          r.companies.slice(0, 5).map((c) => (
+            <span key={c.company} className={styles.chip}>
+              {c.company} · {c.count}
+            </span>
+          ))
+        )}
+      </div>
+    ),
+    // Every company in the file, not only the first five chips.
+    csv: (r) => r.companies.map((c) => `${c.company} ${c.count}`).join("; "),
+  },
+];

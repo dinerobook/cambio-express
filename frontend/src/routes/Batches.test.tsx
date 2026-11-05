@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Batches from "./Batches";
 import { BATCH_STATUS_TONES } from "../api/batches";
-import { Pill, type PillTone } from "../components/ui";
+import { Pill, ToastProvider, type PillTone } from "../components/ui";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 
@@ -58,11 +58,13 @@ function renderPage(path = "/batches") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="*" element={<><Batches /><LocationProbe /></>} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="*" element={<><Batches /><LocationProbe /></>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }

@@ -10,8 +10,8 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import {
   Alert, Button, Card, ConfirmDialog, ErrorState, InfoTip, Loading,
-  PageHeader, PageShell, Section, space, Table, tdStyle, thStyle, tokens,
-  useToast,
+  PageHeader, PageShell, Section, space, DataTable,
+  useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./AccountSessions.module.css";
 import { formatDate, formatShortDate, parseTimestamp } from "../lib/datetime";
@@ -138,27 +138,15 @@ export default function AccountSessions() {
         }
       >
         <Card>
-          <Table>
-            <thead>
-              <tr>
-                {[t("sessions.colDevice"), t("sessions.colLast"), t("sessions.colSignedIn"), "IP", ""]
-                  .map((h, i) => (
-                    <th key={i} style={thStyle}>{h}</th>
-                  ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((s) => (
-                <SessionRow
-                  key={s.session_id}
-                  session={s}
-                  busy={busy === s.session_id}
-                  disabled={busy !== null}
-                  onRevoke={() => { void onRevoke(s.session_id); }}
-                />
-              ))}
-            </tbody>
-          </Table>
+          <DataTable
+            columns={sessionColumns({
+              busyId: busy,
+              onRevoke: (id) => { void onRevoke(id); },
+            })}
+            rows={sessions}
+            rowKey={(s) => s.session_id}
+            emptyTitle={t("sessions.none")}
+          />
         </Card>
       </Section>
 
@@ -178,60 +166,72 @@ export default function AccountSessions() {
 }
 
 
-function SessionRow({
-  session, busy, disabled, onRevoke,
+/** Signed-in devices as the kit ``<DataTable>``, built during render
+ *  so the headings follow the language. The current session is
+ *  marked and can't be signed out from here. */
+function sessionColumns({
+  busyId, onRevoke,
 }: {
-  session: ActiveSessionRow;
-  busy: boolean;
-  disabled: boolean;
-  onRevoke: () => void;
-}) {
-  return (
-    <tr>
-      <td style={tdStyle}>
-        <div className={styles.deviceCell}>
-          <strong>{describeUserAgent(session.user_agent)}</strong>
-          {session.is_current && (
-            <span className={styles.currentTag}>{t("sessions.thisDevice")}</span>
-          )}
-        </div>
-        <div className={styles.uaRaw} title={session.user_agent || t("sessions.noUa")}>
-          {session.user_agent || t("sessions.noUa")}
-        </div>
-      </td>
-      <td style={tdStyle}>
-        <span className={styles.timestamp}>
-          {formatRelative(session.last_used_at)}
-        </span>
-      </td>
-      <td style={tdStyle}>
-        <span className={styles.timestamp}>
-          {formatRelative(session.started_at)}
-        </span>
-      </td>
-      <td style={tdStyle}>
-        <span style={{ fontFamily: tokens.fontMono, fontSize: "0.85rem" }}>
-          {session.ip_address || "—"}
-        </span>
-      </td>
-      <td style={tdStyle}>
-        {session.is_current ? (
-          <span className={styles.muted}>{t("sessions.current")}</span>
-        ) : (
-          <Button
-            tone="danger"
-            size="sm"
-            busy={busy}
-            disabled={disabled}
-            onClick={onRevoke}
-          >
-            {t("sessions.signOut")}
-          </Button>
-        )}
-      </td>
-    </tr>
-  );
+  /** The session being signed out ("others" while signing out the rest). */
+  busyId: string | null;
+  onRevoke: (sessionId: string) => void;
+}): DataColumn<ActiveSessionRow>[] {
+  return [
+    {
+      key: "device", header: t("sessions.colDevice"),
+      render: (session) => (
+        <>
+          <div className={styles.deviceCell}>
+            <strong>{describeUserAgent(session.user_agent)}</strong>
+            {session.is_current && (
+              <span className={styles.currentTag}>{t("sessions.thisDevice")}</span>
+            )}
+          </div>
+          <div className={styles.uaRaw} title={session.user_agent || t("sessions.noUa")}>
+            {session.user_agent || t("sessions.noUa")}
+          </div>
+        </>
+      ),
+    },
+    {
+      key: "last", header: t("sessions.colLast"),
+      render: (session) => (
+        <span className={styles.timestamp}>{formatRelative(session.last_used_at)}</span>
+      ),
+    },
+    {
+      key: "started", header: t("sessions.colSignedIn"),
+      render: (session) => (
+        <span className={styles.timestamp}>{formatRelative(session.started_at)}</span>
+      ),
+    },
+    {
+      key: "ip", header: IP_HEADER,
+      render: (session) => (
+        <span className={styles.ip}>{session.ip_address || "—"}</span>
+      ),
+    },
+    {
+      key: "actions", header: "", label: "",
+      render: (session) => (session.is_current ? (
+        <span className={styles.muted}>{t("sessions.current")}</span>
+      ) : (
+        <Button
+          tone="danger"
+          size="sm"
+          busy={busyId === session.session_id}
+          disabled={busyId !== null}
+          onClick={() => onRevoke(session.session_id)}
+        >
+          {t("sessions.signOut")}
+        </Button>
+      )),
+    },
+  ];
 }
+
+// The same in every language.
+const IP_HEADER = "IP";
 
 
 // Heuristic User-Agent → "Chrome on macOS" parser. Doesn't have to

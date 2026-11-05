@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { ACCOUNTANT_ROLE } from "../lib/access";
 import { api } from "../lib/api";
 import { getCurrentIdentity, persistLoginResponse } from "../lib/auth";
 import type { components } from "./openapi";
@@ -25,6 +26,13 @@ export function isOwnerSession(): boolean {
   const identity = getCurrentIdentity();
   return identity != null
     && (identity.role === "owner" || identity.owner_id != null);
+}
+
+/** True for a view-only accountant. Their switch (linked logins)
+ *  lists only the stores the sign-in is linked to, so the shell
+ *  shows the chip once there are two or more. */
+export function isAccountantSession(): boolean {
+  return getCurrentIdentity()?.role === ACCOUNTANT_ROLE;
 }
 
 export function useMyStores(enabled: boolean) {
@@ -55,10 +63,21 @@ export async function switchStore(
   const body = await api<SwitchStoreResult>("/api/v2/auth/switch-store", {
     method: "POST", json: { store_id: storeId },
   });
-  persistLoginResponse(body);
-  try {
-    window.localStorage.setItem(ACTIVE_STORE_KEY, String(body.store_id));
-  } catch { /* per-device convenience only */ }
+  persistLoginResponse({
+    ...body,
+    // Owners keep their refresh row; an accountant's switch moves
+    // the session onto another login's row (the PWA fallback
+    // follows it via persistLoginResponse).
+    refresh_jti: body.refresh_jti ?? undefined,
+  });
+  // Only an owner's base token needs the store re-entered after a
+  // silent refresh. An accountant's switch moved the refresh row
+  // itself, so a refresh already lands in the chosen store.
+  if (body.owner_id != null) {
+    try {
+      window.localStorage.setItem(ACTIVE_STORE_KEY, String(body.store_id));
+    } catch { /* per-device convenience only */ }
+  }
   return body;
 }
 

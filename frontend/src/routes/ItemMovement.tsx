@@ -1,6 +1,9 @@
 import { useState } from "react";
 
-import { useItemMovement, type ItemMovement as ItemMovementData } from "../api/posimport";
+import {
+  fetchItemMovementPage, useItemMovement, type ItemMovement as ItemMovementData,
+} from "../api/posimport";
+import { csvMoney } from "../lib/csv";
 import {
   Card, DataTable, DateInput, Field, InfoTip, Input,
   KpiCard, KpiGrid, PageHeader, PageShell, Pill,
@@ -21,14 +24,19 @@ type MovementRow = ItemMovementData["rows"][number];
 const MONO = { fontFamily: tokens.fontMono };
 
 const COLUMNS: DataColumn<MovementRow>[] = [
-  { key: "code", header: "Scan code", render: (r) => <span style={MONO}>{r.pos_code}</span> },
-  { key: "item", header: "Item", render: (r) => r.description || "—" },
-  { key: "qty", header: "Qty", align: "right", render: (r) => <span style={MONO}>{r.quantity.toLocaleString()}</span> },
-  { key: "dollars", header: "Dollars", align: "right", render: (r) => <span style={MONO}>{fmtMoney2(r.amount)}</span> },
-  { key: "avg", header: "Avg price", align: "right", render: (r) => <span style={MONO}>{fmtMoney2(r.avg_price)}</span> },
+  { key: "code", header: "Scan code", render: (r) => <span style={MONO}>{r.pos_code}</span>,
+    csv: (r) => r.pos_code },
+  { key: "item", header: "Item", render: (r) => r.description || "—", csv: (r) => r.description },
+  { key: "qty", header: "Qty", align: "right", render: (r) => <span style={MONO}>{r.quantity.toLocaleString()}</span>,
+    csv: (r) => r.quantity },
+  { key: "dollars", header: "Dollars", align: "right", render: (r) => <span style={MONO}>{fmtMoney2(r.amount)}</span>,
+    csv: (r) => csvMoney(r.amount) },
+  { key: "avg", header: "Avg price", align: "right", render: (r) => <span style={MONO}>{fmtMoney2(r.avg_price)}</span>,
+    csv: (r) => csvMoney(r.avg_price) },
   {
-    key: "flags", header: "", label: "",
+    key: "flags", header: "", label: "", csvHeader: "In price book",
     render: (r) => (!r.in_price_book ? <Pill tone="warning">not in price book</Pill> : null),
+    csv: (r) => (r.in_price_book ? "Yes" : "No"),
   },
 ];
 
@@ -39,12 +47,13 @@ export default function ItemMovement() {
   const filters = useUrlFilterState({
     q: "", start: defaults.start, end: defaults.end,
   }, { pageSizeKey: "item-movement" });
-  const movement = useItemMovement({
+  const listQuery = {
     start: filters.params.start,
     end: filters.params.end,
     q: filters.params.q,
-    page: filters.page,
-    perPage: filters.perPage,
+  };
+  const movement = useItemMovement({
+    ...listQuery, page: filters.page, perPage: filters.perPage,
   });
   const data = movement.data;
 
@@ -120,6 +129,10 @@ export default function ItemMovement() {
               page: data.page, totalPages: data.total_pages, total: data.total,
               onPage: filters.setPage,
               perPage: filters.perPage, onPerPage: filters.setPerPage,
+            }}
+            exportCsv={{
+              filename: `item-movement-${listQuery.start}-to-${listQuery.end}`,
+              fetchPage: (page, perPage) => fetchItemMovementPage({ ...listQuery, page, perPage }),
             }}
           />
         </Card>

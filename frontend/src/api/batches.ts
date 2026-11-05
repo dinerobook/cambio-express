@@ -96,24 +96,31 @@ export async function updateBatch(
 
 export type BatchLinkedTransferRow = components["schemas"]["BatchLinkedTransferRow"];
 
-export function useBatches({
+export interface BatchListQuery {
+  sort?: BatchSort; direction?: BatchDir; page?: number; perPage?: number;
+}
+
+/** One page of the ACH batches list — the request the list page and
+ *  its CSV export both make. */
+export function fetchBatchesPage({
   sort = "", direction = "desc", page = 1, perPage = 50,
-}: { sort?: BatchSort; direction?: BatchDir; page?: number; perPage?: number } = {}) {
+}: BatchListQuery = {}): Promise<BatchListResponse> {
+  const params = new URLSearchParams();
+  if (sort) params.set("sort", sort);
+  params.set("direction", direction);
+  params.set("page", String(page));
+  params.set("per_page", String(perPage));
+  return api<BatchListResponse>(`/api/v2/batches?${params.toString()}`);
+}
+
+export function useBatches(query: BatchListQuery = {}) {
   const identity = getCurrentIdentity();
   const enabled = identity?.store_id != null;
+  const { sort = "", direction = "desc", page = 1, perPage = 50 } = query;
   return useQuery<BatchListResponse>({
     enabled,
     queryKey: ["batches", "list", identity?.store_id, sort, direction, page, perPage],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (sort) params.set("sort", sort);
-      params.set("direction", direction);
-      params.set("page", String(page));
-      params.set("per_page", String(perPage));
-      return api<BatchListResponse>(
-        `/api/v2/batches?${params.toString()}`,
-      );
-    },
+    queryFn: () => fetchBatchesPage(query),
     placeholderData: (prev) => prev,
   });
 }

@@ -161,8 +161,35 @@ def revoke_session(
     for row in q.all():
         row.revoked_at = now
         affected += 1
+    if session_id != LEGACY_SESSION_ID and affected:
+        affected += _revoke_linked_rows(db, {session_id}, now)
     db.flush()
     return affected
+
+
+def _revoke_linked_rows(db: Session, session_ids: set[str], now: datetime) -> int:
+    """The same sign-ins' rows at the person's OTHER stores.
+
+    A session id spans several users only for linked accountant
+    logins (``Services/linked_logins.py``): one sign-in, one row
+    per store the password opened. Signing a device out from
+    Account → Devices ends that sign-in everywhere, the same as
+    logging out on it. The caller has already shown the session is
+    theirs (it revoked one of their own rows in it)."""
+    if not session_ids:
+        return 0
+    db.flush()  # the caller's own rows are already revoked
+    rows = (
+        db.query(RefreshToken)
+          .filter(
+              RefreshToken.session_id.in_(session_ids),
+              RefreshToken.revoked_at.is_(None),
+          )
+          .all()
+    )
+    for row in rows:
+        row.revoked_at = now
+    return len(rows)
 
 
 def revoke_other_sessions(
@@ -198,9 +225,13 @@ def revoke_other_sessions(
         ))
 
     affected = 0
+    ended: set[str] = set()
     for row in q.all():
         row.revoked_at = now
         affected += 1
+        if row.session_id:
+            ended.add(row.session_id)
+    affected += _revoke_linked_rows(db, ended, now)
     db.flush()
     return affected
 

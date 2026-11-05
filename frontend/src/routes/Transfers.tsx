@@ -1,15 +1,17 @@
 import { useNavigate } from "react-router-dom";
 
 import {
+  fetchTransfersPage,
   useTransfers,
   type TransferRow,
 } from "../api/transfers";
+import { csvMoney } from "../lib/csv";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   ButtonLink, Card, DataTable, DateInput, Empty, Field, Input,
-  PageHeader, PageShell, Pill, Select, type DataColumn,
+  PageHeader, PageShell, Pill, Select, type CsvColumn, type DataColumn,
 } from "../components/ui";
 import styles from "./Transfers.module.css";
 import { formatTime } from "../lib/datetime";
@@ -90,8 +92,8 @@ export default function Transfers() {
   // fire two queries back-to-back (one when the URL updates, one
   // from the next poll). draft.q !== undefined means a pending edit.
   const isTypingQuery = draft.q !== undefined && draft.q !== q;
-  const apiQuery = useTransfers({
-    page, perPage: filters.perPage,
+  // The list's filters and sort; the CSV export asks for the same.
+  const listQuery = {
     sort: filters.sort?.key, dir: filters.sort?.direction,
     q: q.length >= 2 ? q : undefined,
     date_from: dateFrom || undefined,
@@ -99,6 +101,10 @@ export default function Transfers() {
     status:    status || undefined,
     service:   service || undefined,
     paid_by:   paidBy || undefined,
+  };
+  const apiQuery = useTransfers({
+    ...listQuery,
+    page, perPage: filters.perPage,
     pollMs: isTypingQuery ? 0 : POLL_INTERVAL_MS,
   });
 
@@ -175,6 +181,13 @@ export default function Transfers() {
             onPerPage: filters.setPerPage,
           }}
           sort={filters.sort}
+          exportCsv={{
+            filename: "transfers",
+            fetchPage: (p, n) => fetchTransfersPage(
+              identity.store_id as number, { ...listQuery, page: p, perPage: n },
+            ),
+            extraColumns: transferCsvExtras(t),
+          }}
         />
       </Card>
     </PageShell>
@@ -259,14 +272,21 @@ function FilterBar({
 function transferColumns(t: Translate): DataColumn<TransferRow>[] {
   return [
   { key: "date", header: t("transfer.date"), sortKey: "date", sortFirst: "desc",
-    render: (r) => <span className={styles.monoMuted}>{r.send_date}</span> },
-  { key: "company", header: t("transfer.company"), sortKey: "company", render: (r) => r.company },
-  { key: "sender", header: t("transfer.sender"), sortKey: "sender", render: (r) => r.sender_name },
-  { key: "recipient", header: t("transfer.recipient"), sortKey: "recipient", render: (r) => r.recipient_name || "—" },
-  { key: "country", header: t("transfer.country"), sortKey: "country", render: (r) => r.country || "—" },
+    render: (r) => <span className={styles.monoMuted}>{r.send_date}</span>,
+    csv: (r) => r.send_date },
+  { key: "company", header: t("transfer.company"), sortKey: "company", render: (r) => r.company,
+    csv: (r) => r.company },
+  { key: "sender", header: t("transfer.sender"), sortKey: "sender", render: (r) => r.sender_name,
+    csv: (r) => r.sender_name },
+  { key: "recipient", header: t("transfer.recipient"), sortKey: "recipient", render: (r) => r.recipient_name || "—",
+    csv: (r) => r.recipient_name },
+  { key: "country", header: t("transfer.country"), sortKey: "country", render: (r) => r.country || "—",
+    csv: (r) => r.country },
   { key: "confirm", header: t("transfer.confirmNumber"), sortKey: "confirm",
-    render: (r) => <span className={styles.monoMuted}>{r.confirm_number || "—"}</span> },
-  { key: "status", header: t("transfer.status"), sortKey: "status", render: (r) => statusLabel(r.status) },
+    render: (r) => <span className={styles.monoMuted}>{r.confirm_number || "—"}</span>,
+    csv: (r) => r.confirm_number },
+  { key: "status", header: t("transfer.status"), sortKey: "status", render: (r) => statusLabel(r.status),
+    csv: (r) => statusLabel(r.status) },
   { key: "total", header: t("transfer.total"), align: "right", sortKey: "total", sortFirst: "desc",
     render: (r) => (
       <span className={styles.kindAmount}>
@@ -279,7 +299,23 @@ function transferColumns(t: Translate): DataColumn<TransferRow>[] {
           {fmtMoney2(isPayout(r.service_type) ? -r.total_collected : r.total_collected)}
         </span>
       </span>
-    ) },
+    ),
+    csv: (r) => csvMoney(isPayout(r.service_type) ? -r.total_collected : r.total_collected) },
+  ];
+}
+
+/** What the CSV carries beyond the columns: the parts of the total
+ *  (Transfers INVARIANTS: total = send + fee + federal tax), how it
+ *  was paid and who took it. */
+function transferCsvExtras(t: Translate): CsvColumn<TransferRow>[] {
+  return [
+    { header: t("transfer.service"), csv: (r) => serviceLabel(r.service_type) },
+    { header: t("transfer.paidBy"),
+      csv: (r) => (r.payment_method === "debit_card" ? t("transfer.debitCard") : t("transfer.cash")) },
+    { header: t("transfer.sendAmount"), csv: (r) => csvMoney(r.send_amount) },
+    { header: t("transfer.fee"), csv: (r) => csvMoney(r.fee) },
+    { header: t("transfer.federalTax"), csv: (r) => csvMoney(r.federal_tax) },
+    { header: t("transfer.employee"), csv: (r) => r.employee_name },
   ];
 }
 

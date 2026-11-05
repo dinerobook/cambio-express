@@ -33,6 +33,7 @@ from fastapi import Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from api.Core.Clock import resolve_period, store_local_today
+from api.Core.Csv import safe_row
 from api.Core.Database import get_db
 from api.Core.StoreScope import authorize_store_ids
 from api.Modules.Auth.Controllers import get_principal
@@ -106,9 +107,9 @@ def _emit_csv(
     buf = io.StringIO()
     w = csv.writer(buf)
     cols = columns(totals) if callable(columns) else columns
-    w.writerow(cols)
+    w.writerow(safe_row(cols))
     for r in rows:
-        w.writerow(row_fn(r))
+        w.writerow(safe_row(row_fn(r)))
     if totals_fn is not None:
         result = totals_fn(totals)
         totals_rows = (
@@ -118,7 +119,7 @@ def _emit_csv(
         if totals_rows:
             w.writerow([])
             for trow in totals_rows:
-                w.writerow(trow)
+                w.writerow(safe_row(trow))
     fname = f"{fname_prefix}_{d_from.isoformat()}_{d_to.isoformat()}.csv"
     return _csv_response(buf, fname)
 

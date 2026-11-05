@@ -294,10 +294,18 @@ export async function downloadFile(
   const blob = await resp.blob();
   const served = /filename="([^"]+)"/
     .exec(resp.headers.get("content-disposition") ?? "")?.[1];
+  saveBlob(blob, filename ?? served ?? fallbackName);
+}
+
+/** Hand a Blob built or fetched in the browser to the person as a
+ *  download named ``filename`` (a synthetic anchor click). The one
+ *  place the SPA saves a file; ``downloadFile`` and the table CSV
+ *  export (``lib/csv.ts``) both end here. */
+export function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename ?? served ?? fallbackName;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import {
-  deleteInvoice, updateInvoice, useInvoices, useVendors,
+  deleteInvoice, fetchInvoicesPage, updateInvoice, useInvoices, useVendors,
   type InvoiceRow,
 } from "../api/catalog";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
@@ -16,7 +16,8 @@ import {
   RowActions, Section, Select, useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./PurchaseInvoices.module.css";
-import { formatDate, todayIso } from "../lib/datetime";
+import { csvDate, formatDate, todayIso } from "../lib/datetime";
+import { csvMoney } from "../lib/csv";
 import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/purchase-invoices — vendor invoice log (P3-2). Key each
@@ -32,14 +33,15 @@ export default function PurchaseInvoices() {
     pageSizeKey: "purchase-invoices",
     defaultSort: { key: "date", direction: "desc" },
   });
-  const invoices = useInvoices({
+  const listQuery = {
     q: filters.params.q,
-    page: filters.page,
     vendorId: filters.params.vendor_id,
     status: filters.params.status,
     sort: filters.sort?.key,
     dir: filters.sort?.direction,
-    perPage: filters.perPage,
+  };
+  const invoices = useInvoices({
+    ...listQuery, page: filters.page, perPage: filters.perPage,
   });
   const vendors = useVendors();
   const qc = useQueryClient();
@@ -93,21 +95,26 @@ export default function PurchaseInvoices() {
     {
       key: "number", header: "Invoice #", sortKey: "number",
       render: (inv) => <span className={styles.mono}>{inv.invoice_number}</span>,
+      csv: (inv) => inv.invoice_number,
     },
-    { key: "vendor", header: "Vendor", render: (inv) => inv.vendor_name },
+    { key: "vendor", header: "Vendor", render: (inv) => inv.vendor_name, csv: (inv) => inv.vendor_name },
     {
       key: "date", header: "Date", sortKey: "date", sortFirst: "desc",
       render: (inv) => formatDate(inv.invoice_date),
+      csv: (inv) => csvDate(inv.invoice_date),
     },
     {
       key: "due", header: "Due", sortKey: "due", sortFirst: "desc",
       render: (inv) => (inv.due_date ? formatDate(inv.due_date) : "—"),
+      csv: (inv) => csvDate(inv.due_date),
     },
     {
       key: "total", header: "Total", align: "right", sortKey: "total", sortFirst: "desc",
       render: (inv) => <span className={styles.mono}>{fmtMoney2(inv.total)}</span>,
+      csv: (inv) => csvMoney(inv.total),
     },
-    { key: "lines", header: "Lines", align: "right", render: (inv) => inv.line_count },
+    { key: "lines", header: "Lines", align: "right", render: (inv) => inv.line_count,
+      csv: (inv) => inv.line_count },
     {
       key: "status", header: "Status", sortKey: "status",
       render: (inv) => (
@@ -117,6 +124,7 @@ export default function PurchaseInvoices() {
             : "open"}
         </Pill>
       ),
+      csv: (inv) => (inv.status === "paid" ? "Paid" : "Open"),
     },
     ...(canManage ? [{
       key: "actions", header: "", label: "", align: "right" as const,
@@ -225,6 +233,13 @@ export default function PurchaseInvoices() {
               page: data.page, totalPages: data.total_pages, total: data.total,
               onPage: filters.setPage,
               perPage: filters.perPage, onPerPage: filters.setPerPage,
+            }}
+            exportCsv={{
+              filename: "purchase-invoices",
+              fetchPage: (page, perPage) => fetchInvoicesPage({ ...listQuery, page, perPage }),
+              extraColumns: [
+                { header: "Paid on", csv: (inv) => csvDate(inv.paid_on) },
+              ],
             }}
           />
         </Card>

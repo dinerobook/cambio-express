@@ -1,0 +1,28 @@
+/* Platform → Discounts: the Stripe coupon list cells. */
+
+.code {
+  font-family: var(--db-font-mono);
+  font-weight: 600;
+}
+
+.mono {
+  font-family: var(--db-font-mono);
+}
+
+.muted {
+  color: var(--db-text-muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.expires {
+  font-size: 0.82rem;
+  color: var(--db-text-muted);
+}
+
+.note {
+  font-size: 0.82rem;
+  color: var(--db-text-muted);
+}

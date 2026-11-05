@@ -1,4 +1,5 @@
 import {
+  fetchSuperadminAuditLog,
   useSuperadminAuditLog,
   type SuperadminAuditRow,
 } from "../api/superadmin";
@@ -73,6 +74,12 @@ export default function SuperadminAuditLog() {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "platform-audit-log",
+            fetchPage: (p, n) => fetchSuperadminAuditLog(p, action, n).then((r) => ({
+              ...r, rows: r.rows.map(toAuditTableRow),
+            })),
           }}
         />
       </Card>

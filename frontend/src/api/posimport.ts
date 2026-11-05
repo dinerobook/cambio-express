@@ -115,24 +115,28 @@ export async function commitPriceBookSeed(): Promise<PriceBookSeedResult> {
 export type ItemMovement =
   components["schemas"]["ItemMovementResponse"];
 
-export function useItemMovement(params: {
+export interface ItemMovementQuery {
   start: string; end: string; q: string; page: number; perPage?: number;
-}) {
+}
+
+/** One page of item movement — the request the page and its CSV
+ *  export both make. */
+export function fetchItemMovementPage(params: ItemMovementQuery): Promise<ItemMovement> {
+  const p = new URLSearchParams({
+    start: params.start, end: params.end,
+    page: String(params.page),
+    per_page: String(params.perPage ?? 50),
+  });
+  if (params.q) p.set("q", params.q);
+  return api<ItemMovement>(`/api/v2/posimport/item-movement?${p.toString()}`);
+}
+
+export function useItemMovement(params: ItemMovementQuery) {
   return useQuery<ItemMovement>({
     enabled: Boolean(params.start && params.end),
     queryKey: ["posimport", "item-movement", params],
     placeholderData: (prev) => prev,
-    queryFn: () => {
-      const p = new URLSearchParams({
-        start: params.start, end: params.end,
-        page: String(params.page),
-        per_page: String(params.perPage ?? 50),
-      });
-      if (params.q) p.set("q", params.q);
-      return api<ItemMovement>(
-        `/api/v2/posimport/item-movement?${p.toString()}`,
-      );
-    },
+    queryFn: () => fetchItemMovementPage(params),
   });
 }
 
@@ -151,7 +155,7 @@ type PosTransactionListResponse =
 type PosTransactionDetailResponse =
   components["schemas"]["PosTransactionDetailResponse"];
 
-export function useTransactions(params: {
+export interface PosTransactionQuery {
   start: string;
   end: string;
   q?: string;
@@ -160,7 +164,9 @@ export function useTransactions(params: {
   voidedOnly?: boolean;
   page?: number;
   perPage?: number;
-}) {
+}
+
+function posTransactionsQs(params: PosTransactionQuery): string {
   const qs = new URLSearchParams({
     start: params.start,
     end: params.end,
@@ -171,13 +177,26 @@ export function useTransactions(params: {
   if (params.kind) qs.set("kind", params.kind);
   if (params.registerId) qs.set("register_id", params.registerId);
   if (params.voidedOnly) qs.set("voided_only", "true");
+  return qs.toString();
+}
+
+/** One page of POS transactions — the request the page and its CSV
+ *  export both make. */
+export function fetchPosTransactionsPage(
+  params: PosTransactionQuery,
+): Promise<PosTransactionListResponse> {
+  return api<PosTransactionListResponse>(
+    `/api/v2/posimport/transactions?${posTransactionsQs(params)}`,
+  );
+}
+
+export function useTransactions(params: PosTransactionQuery) {
+  const qs = posTransactionsQs(params);
   return useQuery<PosTransactionListResponse>({
     // Both dates must be present or the server 422s on the range.
     enabled: params.start.length === 10 && params.end.length === 10,
-    queryKey: ["posimport", "transactions", qs.toString()],
-    queryFn: () => api<PosTransactionListResponse>(
-      `/api/v2/posimport/transactions?${qs.toString()}`,
-    ),
+    queryKey: ["posimport", "transactions", qs],
+    queryFn: () => fetchPosTransactionsPage(params),
     placeholderData: (prev) => prev,
   });
 }

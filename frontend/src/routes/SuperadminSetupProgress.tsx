@@ -1,8 +1,9 @@
 import {
+  fetchSuperadminSetupProgress,
   useSuperadminSetupProgress,
   type SuperadminSetupProgressRow,
 } from "../api/superadmin";
-import { formatDate } from "../lib/datetime";
+import { csvDate, formatDate } from "../lib/datetime";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
   ButtonLink, Card, DataTable, Input, PageHeader, PageShell, Pill,
@@ -43,6 +44,7 @@ const COLUMNS: DataColumn<SuperadminSetupProgressRow>[] = [
         </div>
       </div>
     ),
+    csv: (r) => r.name,
   },
   {
     key: "signed_up", header: "Signed up",
@@ -56,6 +58,7 @@ const COLUMNS: DataColumn<SuperadminSetupProgressRow>[] = [
         )}
       </div>
     ) : <NotUsed />),
+    csv: (r) => csvDate(r.signed_up_on),
   },
   {
     key: "companies", header: "Companies",
@@ -64,6 +67,7 @@ const COLUMNS: DataColumn<SuperadminSetupProgressRow>[] = [
         {r.companies_added ? fmtCount(r.company_count, "company", "companies") : "Not added"}
       </Step>
     )),
+    csv: (r) => (r.companies_added === null ? "" : r.company_count),
   },
   {
     key: "charges", header: "Money order charge",
@@ -72,6 +76,8 @@ const COLUMNS: DataColumn<SuperadminSetupProgressRow>[] = [
         {`${r.money_order_charges_set} of ${r.money_order_companies} set`}
       </Step>
     )),
+    csv: (r) => (r.charges_set === null ? ""
+      : `${r.money_order_charges_set} of ${r.money_order_companies} set`),
   },
   {
     key: "bank", header: "Bank",
@@ -80,12 +86,14 @@ const COLUMNS: DataColumn<SuperadminSetupProgressRow>[] = [
         {r.bank_connected ? "Connected" : "Not connected"}
       </Step>
     ),
+    csv: (r) => (r.bank_connected ? "Connected" : "Not connected"),
   },
   {
     key: "locked", header: "First day locked",
     render: (r) => (r.first_locked_day
       ? <span className={styles.mono}>{formatDate(r.first_locked_day)}</span>
       : <Step done={false}>Not yet</Step>),
+    csv: (r) => csvDate(r.first_locked_day),
   },
   {
     key: "progress", header: "Progress", align: "right",
@@ -94,6 +102,7 @@ const COLUMNS: DataColumn<SuperadminSetupProgressRow>[] = [
         {`${r.steps_done} of ${r.steps_total}`}
       </Pill>
     ),
+    csv: (r) => `${r.steps_done} of ${r.steps_total}`,
   },
   {
     key: "view", header: "", label: "", align: "right",
@@ -157,6 +166,14 @@ export default function SuperadminSetupProgress() {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "setup-progress",
+            fetchPage: (page, perPage) => fetchSuperadminSetupProgress({ q, status, page, perPage }),
+            extraColumns: [
+              { header: "Slug", csv: (r) => r.slug },
+              { header: "Active", csv: (r) => (r.is_active ? "Yes" : "No") },
+            ],
           }}
         />
       </Card>

@@ -5,6 +5,7 @@ import {
   categorizeTransaction,
   categoryLabels,
   dailyBookSlugs,
+  fetchBankTransactions,
   lockedDayFromError,
   syncBankTransactions,
   uncategorizeTransaction,
@@ -33,12 +34,13 @@ import { hasPermission } from "../lib/permissions";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
-  formatDate, formatDateTime,
+  csvDate, formatDate, formatDateTime,
 } from "../lib/datetime";
+import { csvMoney } from "../lib/csv";
 import styles from "./BankTransactions.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { BooksCell, BooksSummary, PossibleDoublesCard } from "./BankMatching";
-import { canDismissRow } from "../lib/bankMatching";
+import { booksStatusLabel, canDismissRow } from "../lib/bankMatching";
 
 // Bank transactions at /app/bank-transactions. Filters: account,
 // sign, uncategorized-only, free-text search. Each row's category
@@ -265,6 +267,12 @@ export default function BankTransactions() {
               </span>
             ),
           }}
+          exportCsv={{
+            filename: "bank-transactions",
+            fetchPage: (page, perPage) => fetchBankTransactions({
+              ...filters, page, per_page: perPage,
+            }),
+          }}
         />
       </Card>
 
@@ -317,7 +325,7 @@ function TxnTable({
   onMakeRule: (row: BankTransactionRow) => void;
 } & Pick<
   DataTableProps<BankTransactionRow>,
-  "isLoading" | "isError" | "error" | "onRetry" | "sort" | "page"
+  "isLoading" | "isError" | "error" | "onRetry" | "sort" | "page" | "exportCsv"
 >) {
   const qc = useQueryClient();
   const identity = getCurrentIdentity();
@@ -343,16 +351,19 @@ function TxnTable({
     const booksColumn: DataColumn<BankTransactionRow>[] = matching ? [{
       key: "books", header: "Daily book",
       render: (r) => <BooksCell row={r} />,
+      csv: (r) => booksStatusLabel(r.books_status),
     }] : [];
     return [
       ...tickColumn,
       {
         key: "posted", header: "Posted", sortKey: "posted", sortFirst: "desc",
         render: (r) => <span className={styles.dateCell}>{formatDate(r.posted_at)}</span>,
+        csv: (r) => csvDate(r.posted_at),
       },
       {
         key: "description", header: "Description", sortKey: "description",
         render: (r) => r.description || "—",
+        csv: (r) => r.description,
       },
       {
         key: "account", header: "Account",
@@ -361,6 +372,7 @@ function TxnTable({
             {r.account_label || `Account ${r.account_id}`}
           </span>
         ),
+        csv: (r) => r.account_label || `Account ${r.account_id}`,
       },
       {
         key: "category", header: "Category", sortKey: "category",
@@ -374,6 +386,7 @@ function TxnTable({
             onMakeRule={() => onMakeRule(r)}
           />
         ),
+        csv: (r) => (r.category_slug ? labels.get(r.category_slug) ?? r.category_slug : ""),
       },
       ...booksColumn,
       {
@@ -383,6 +396,7 @@ function TxnTable({
             {r.amount_cents > 0 ? "+" : ""}{fmtMoney2(r.amount)}
           </span>
         ),
+        csv: (r) => csvMoney(r.amount),
       },
     ];
   }, [

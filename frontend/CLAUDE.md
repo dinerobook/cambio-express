@@ -132,6 +132,13 @@ Non-negotiables:
   `Alert`, `Pill`, `Pager`, `ModalActions`, `Table`, `DataTable`,
   `EmptyState`, `ErrorState`, `KpiCard`, `KpiGrid`, `FormActions`,
   `RowActions`. Reach for these before writing inline styles.
+- **Lists export through the table** (UI-STANDARDS §7 "Export").
+  A list that needs a CSV passes `exportCsv` to its `<DataTable>`
+  with a `csv` value on each data column and the page's own
+  request as `fetchPage` (one `fetchXPage` in `src/api/`, shared
+  with its `useQuery` hook) or `allRows`. The kit owns the button,
+  the paging walk, store-time dates, plain-number money, formula
+  defusing and the `reports.read` gate.
 - **Per-row actions** use `<RowActions>`: inline buttons on desktop, a
   bottom-sheet menu on narrow viewports (`@media (max-width: 36rem)`).
   The sheet renders through `createPortal` so `position: fixed` pins to
@@ -186,7 +193,12 @@ The view-only **Accountant** sees only the pages in `ACCOUNTANT_PAGES`
 (`src/lib/access.ts`), lands on Reports (`homePathFor`), and its
 Reports menu carries Monthly P&L and Data export (it has no
 dashboard). A page for accountants needs a line there AND on the
-server's list (`api/Core/Permissions/accountant.py`).
+server's list (`api/Core/Permissions/accountant.py`). Moving between
+stores is the ONE shared Switch Store popup (`SwitchStoreModal`) for
+owners and accountants alike; the accountant's chip shows only once
+their sign-in is linked to two or more stores, without the owner
+controls (Auth INVARIANTS "Linked accountant logins"). Never build a
+second store picker.
 
 ## Lists (root invariant 14)
 Every paginated table searches as you type — **never** a "type then

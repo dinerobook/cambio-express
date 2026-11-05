@@ -1,5 +1,5 @@
 import type { AdminAuditRow } from "../api/admin";
-import { formatTimestamp } from "../lib/datetime";
+import { csvTimestamp, formatTimestamp } from "../lib/datetime";
 import { DataTable, type DataColumn, type DataTableProps } from "./ui";
 import { AuditActionBadge } from "./AuditActionBadge";
 import styles from "./AuditTable.module.css";
@@ -42,7 +42,7 @@ export function AuditTable({
 } & Pick<
   DataTableProps<AuditTableRow>,
   | "isLoading" | "isError" | "error" | "onRetry" | "errorMessage"
-  | "emptyTitle" | "emptyBody" | "page"
+  | "emptyTitle" | "emptyBody" | "page" | "exportCsv"
 >) {
   useT(); // headings follow the language
   return (
@@ -58,11 +58,13 @@ export function AuditTable({
   );
 }
 
-// Built during render so the headings follow the language.
+// Built during render so the headings follow the language. The CSV
+// keeps the stored slugs, so a download reads the same in any language.
 function columnsFor(who: "actor" | "store" | "both"): DataColumn<AuditTableRow>[] {
   const WHEN: DataColumn<AuditTableRow> = {
     key: "when", header: t("audit.colWhen"),
     render: (r) => <span className={styles.monoMuted}>{formatTimestamp(r.ts)}</span>,
+    csv: (r) => csvTimestamp(r.ts),
   };
 
   const ACTOR: DataColumn<AuditTableRow> = {
@@ -73,14 +75,17 @@ function columnsFor(who: "actor" | "store" | "both"): DataColumn<AuditTableRow>[
         {r.user_role && <span className={styles.userRole}>({roleLabel(r.user_role)})</span>}
       </>
     ),
+    csv: (r) => (r.user_role ? `${r.user_name ?? ""} (${r.user_role})`.trim() : r.user_name),
   };
 
   const STORE: DataColumn<AuditTableRow> = {
     key: "store", header: t("audit.colStore"), render: (r) => r.store_name || "—",
+    csv: (r) => r.store_name,
   };
 
   const REST: DataColumn<AuditTableRow>[] = [
-    { key: "action", header: t("audit.action"), render: (r) => <AuditActionBadge action={r.action} /> },
+    { key: "action", header: t("audit.action"), render: (r) => <AuditActionBadge action={r.action} />,
+      csv: (r) => r.action },
     {
       key: "target", header: t("audit.target"),
       render: (r) => (
@@ -89,10 +94,12 @@ function columnsFor(who: "actor" | "store" | "both"): DataColumn<AuditTableRow>[
           {r.target_label && <span className={styles.targetLabel}>{r.target_label}</span>}
         </span>
       ),
+      csv: (r) => [r.target_type, r.target_label].filter(Boolean).join(" "),
     },
     {
       key: "details", header: t("audit.colDetails"),
       render: (r) => <span className={styles.detailCell}>{r.summary || "—"}</span>,
+      csv: (r) => r.summary,
     },
   ];
 

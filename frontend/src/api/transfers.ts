@@ -262,16 +262,42 @@ interface TransfersPageOptions extends TransferFilters {
   dir?: "asc" | "desc";
 }
 
+/** One page of the transfers list — the request the list page and
+ *  its CSV export both make. */
+export function fetchTransfersPage(
+  storeId: number,
+  {
+    page, perPage, q, date_from, date_to, status, service, paid_by,
+    sort = "date", dir = "desc",
+  }: Omit<TransfersPageOptions, "pollMs">,
+): Promise<TransferListResponse> {
+  const params = new URLSearchParams({
+    store_ids: String(storeId),
+    page: String(page),
+    per_page: String(perPage),
+    sort,
+    dir,
+  });
+  if (q) params.set("q", q);
+  if (date_from) params.set("date_from", date_from);
+  if (date_to) params.set("date_to", date_to);
+  if (status) params.set("status", status);
+  if (service) params.set("service", service);
+  if (paid_by) params.set("paid_by", paid_by);
+  return api<TransferListResponse>(`/api/v2/transfers?${params.toString()}`);
+}
+
 // Hook: paginated transfer list with filters. Powers the
 // /app/transfers page. Same backend endpoint as
 // `useRecentTransfers` — different query key + filters so
 // TanStack Query caches them independently.
-export function useTransfers({
-  page, perPage, q, date_from, date_to, status, service, paid_by, pollMs,
-  sort = "date", dir = "desc",
-}: TransfersPageOptions) {
+export function useTransfers({ pollMs, ...opts }: TransfersPageOptions) {
   const identity = getCurrentIdentity();
   const storeId = identity?.store_id;
+  const {
+    page, perPage, q, date_from, date_to, status, service, paid_by,
+    sort = "date", dir = "desc",
+  } = opts;
 
   return useQuery<TransferListResponse>({
     enabled: storeId !== null && storeId !== undefined,
@@ -282,24 +308,7 @@ export function useTransfers({
       q ?? "", date_from ?? "", date_to ?? "", status ?? "",
       service ?? "", paid_by ?? "", sort, dir,
     ],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        store_ids: String(storeId),
-        page: String(page),
-        per_page: String(perPage),
-        sort,
-        dir,
-      });
-      if (q) params.set("q", q);
-      if (date_from) params.set("date_from", date_from);
-      if (date_to) params.set("date_to", date_to);
-      if (status) params.set("status", status);
-      if (service) params.set("service", service);
-      if (paid_by) params.set("paid_by", paid_by);
-      return api<TransferListResponse>(
-        `/api/v2/transfers?${params.toString()}`,
-      );
-    },
+    queryFn: () => fetchTransfersPage(storeId as number, opts),
     // Keep showing the previous page's data while the next
     // page is loading — avoids a flash of "Loading..." that
     // makes pagination feel laggy.
