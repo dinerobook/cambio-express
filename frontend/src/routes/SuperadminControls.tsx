@@ -1,5 +1,5 @@
 
-import { useDashboardSummary } from "../api/dashboard";
+import { useDashboardSummary, type SuperadminDashboard } from "../api/dashboard";
 import { fmtMoney, fmtNumber } from "../lib/formatters";
 import { AppLink,
   ErrorState, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Section,
@@ -8,30 +8,16 @@ import styles from "./SuperadminControls.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/superadmin/controls — Platform hub. KPI tiles fed by the
-// existing /api/v2/dashboard/summary (superadmin-shaped payload),
+// superadmin answer of /api/v2/dashboard/summary (exactly these ten
+// figures; the full platform BI is /api/v2/superadmin/dashboard),
 // plus quick links into the dedicated SPA routes for Stores, Audit
 // Log, Announcements, Reports, Feature Flags, and Discounts.
 // TV catalog curation is the only remaining "Coming soon" item.
 
-interface SuperadminLite {
-  total_stores?: number;
-  active_stores?: number;
-  trial_stores?: number;
-  paid_stores?: number;
-  inactive_stores?: number;
-  mrr_total?: number;
-  arr_total?: number;
-  new_stores_30d?: number;
-  cancellations_30d?: number;
-  retention_queue?: number;
-  [key: string]: unknown;
-}
-
 export default function SuperadminControls() {
   const { data, isLoading, isError, refetch } = useDashboardSummary();
-  const d = (data && (data as SuperadminLite & { role: string }).role === "superadmin"
-    ? (data as SuperadminLite)
-    : null);
+  const d: SuperadminDashboard | null =
+    data?.role === "superadmin" ? data : null;
 
   return (
     <PageShell gap="1.25rem">
@@ -69,37 +55,21 @@ export default function SuperadminControls() {
             <KpiCard
               label="Inactive"
               value={fmtNumber(d.inactive_stores)}
-              tone={
-                typeof d.inactive_stores === "number" && d.inactive_stores > 0
-                  ? "negative"
-                  : "primary"
-              }
+              tone={d.inactive_stores > 0 ? "negative" : "primary"}
             />
             <KpiCard
               label="Retention queue"
               value={fmtNumber(d.retention_queue)}
-              tone={
-                typeof d.retention_queue === "number" && d.retention_queue > 0
-                  ? "warning"
-                  : "primary"
-              }
+              tone={d.retention_queue > 0 ? "warning" : "primary"}
             />
             <KpiCard
               label="MRR"
-              value={
-                typeof d.mrr_total === "number"
-                  ? fmtMoney(d.mrr_total)
-                  : "—"
-              }
+              value={fmtMoney(d.mrr_total)}
               tone="primary"
             />
             <KpiCard
               label="ARR"
-              value={
-                typeof d.arr_total === "number"
-                  ? fmtMoney(d.arr_total)
-                  : "—"
-              }
+              value={fmtMoney(d.arr_total)}
               tone="primary"
             />
             <KpiCard
@@ -110,11 +80,7 @@ export default function SuperadminControls() {
             <KpiCard
               label="Cancellations (30d)"
               value={fmtNumber(d.cancellations_30d)}
-              tone={
-                typeof d.cancellations_30d === "number" && d.cancellations_30d > 0
-                  ? "negative"
-                  : "primary"
-              }
+              tone={d.cancellations_30d > 0 ? "negative" : "primary"}
             />
           </KpiGrid>
         </Section>
