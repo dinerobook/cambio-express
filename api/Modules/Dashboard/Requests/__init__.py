@@ -215,14 +215,22 @@ class EmployeeDashboard(_Strict):
 # ── Superadmin ───────────────────────────────────────────────────
 
 
-class SuperadminDashboard(BaseModel):
-    """The platform context (``superadmin_dashboard_context``) with
-    the KPI aliases the SPA reads. Wide and loosely shaped: the SPA
-    reads a handful of keys, so the rest pass undocumented."""
-
-    model_config = ConfigDict(extra="allow")
+class SuperadminDashboard(_Strict):
+    """The ten figures the Platform → Controls overview shows
+    (``platform_summary``). The full platform BI is
+    ``GET /superadmin/dashboard``."""
 
     role: Literal["superadmin"]
+    total_stores: int
+    active_stores: int
+    trial_stores: int
+    paid_stores: int
+    inactive_stores: int
+    mrr_total: int
+    arr_total: float
+    new_stores_30d: int
+    cancellations_30d: int
+    retention_queue: int
 
 
 DashboardSummaryResponse = Annotated[

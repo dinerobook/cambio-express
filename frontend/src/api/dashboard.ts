@@ -31,8 +31,7 @@ export type AdminDashboard = Schemas["AdminDashboard"];
 export type EmployeeTodayRow = Schemas["EmployeeTodayRow"];
 export type EmployeeDashboard = Schemas["EmployeeDashboard"];
 
-/** The platform context: wide and loosely shaped, the page reads the
- *  handful of keys it needs. */
+/** The ten platform figures Platform → Controls shows. */
 export type SuperadminDashboard = Schemas["SuperadminDashboard"];
 
 export type DashboardSummary =

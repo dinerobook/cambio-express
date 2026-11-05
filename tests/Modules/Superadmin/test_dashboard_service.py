@@ -59,9 +59,12 @@ def test_dashboard_context_returns_required_keys():
             "plan_dist", "volume_by_company",
             "total_volume_30d", "total_transfers_30d",
             "top_referrers", "direct_signups", "referral_signups",
-            "activity", "stores",
+            "activity",
         }
         assert required.issubset(set(ctx.keys()))
+        # The full store list was built here for nobody to read; the
+        # Controls tiles no longer dump it (see platform_summary).
+        assert "stores" not in ctx
 
 
 def test_dashboard_context_signup_series_always_90_entries():

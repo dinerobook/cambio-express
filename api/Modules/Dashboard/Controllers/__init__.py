@@ -10,15 +10,16 @@ The payload branches on the caller's JWT role:
                batches, bank-account peek, today/this-month report
                status.
   - employee → today's transfers + same-day totals.
-  - superadmin → platform-wide BI (delegates to
-                 ``superadmin_dashboard_context``).
+  - superadmin → the ten platform figures on Platform → Controls
+                 (``platform_summary``); the full platform BI lives
+                 on ``GET /superadmin/dashboard``.
 """
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from api.Core.Clock import local_today, utc_now
+from api.Core.Clock import local_today
 from api.Core.Database import get_db
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Dashboard.Requests import DashboardSummaryResponse
@@ -734,78 +735,6 @@ def _employee_summary(
     }
 
 
-def _superadmin_summary(db: Session) -> dict[str, Any]:
-    """Delegate to the existing service. Two responsibilities:
-
-      1. Map ORM rows + datetimes into JSON-native primitives so
-         FastAPI's encoder can serialise without a custom encoder.
-      2. Adapt the legacy ``*_count`` / ``estimated_mrr`` field
-         names that ``superadmin_dashboard_context`` returns to
-         the ``*_stores`` / ``mrr_total`` shape the SPA expects.
-         Without the adapter the platform KPI tiles render as
-         "—" because the SPA reads keys that don't exist in the
-         response.
-    """
-    from api.Modules.Superadmin.Services.dashboard import (
-        superadmin_dashboard_context,
-    )
-    from api.Modules.Tenancy.Models import Store
-
-    ctx = superadmin_dashboard_context(db)
-
-    def _safe(v):
-        if isinstance(v, (datetime, date)):
-            return v.isoformat()
-        if isinstance(v, dict):
-            return {k: _safe(x) for k, x in v.items()}
-        if isinstance(v, list):
-            return [_safe(x) for x in v]
-        if hasattr(v, "__table__"):
-            return {c.name: _safe(getattr(v, c.name))
-                    for c in v.__table__.columns}
-        return v
-
-    out = {k: _safe(v) for k, v in ctx.items()}
-
-    # SPA-facing aliases. Don't drop the original ``*_count`` keys —
-    # any internal Python consumer keeps working — just publish the
-    # ``*_stores`` shape the React SuperadminControls + Dashboard
-    # routes read.
-    if "active_count" in out:
-        out.setdefault("active_stores", out["active_count"])
-    if "trial_count" in out:
-        out.setdefault("trial_stores", out["trial_count"])
-    if "paid_count" in out:
-        out.setdefault("paid_stores", out["paid_count"])
-    if "inactive_count" in out:
-        out.setdefault("inactive_stores", out["inactive_count"])
-    if "estimated_mrr" in out:
-        mrr = out["estimated_mrr"]
-        out.setdefault("mrr_total", mrr)
-        if isinstance(mrr, (int, float)):
-            # ARR = MRR × 12. Cheap derived value the SPA shows
-            # next to MRR on the Platform Controls overview.
-            out.setdefault("arr_total", float(mrr) * 12.0)
-    if "churn_30d" in out:
-        out.setdefault("cancellations_30d", out["churn_30d"])
-
-    # Retention queue: stores past cancellation, still inside the
-    # 180-day data-retention window. Counted live so the KPI tile
-    # always reflects current state (no separate flag to keep in
-    # sync).
-    now = utc_now()
-    out.setdefault(
-        "retention_queue",
-        db.query(Store)
-          .filter(
-              Store.data_retention_until.isnot(None),
-              Store.data_retention_until > now,
-          )
-          .count(),
-    )
-    return out
-
-
 @router.get(
     "/summary", response_model=None,
     responses={200: {"model": DashboardSummaryResponse}},
@@ -821,7 +750,10 @@ def dashboard_summary(
     """
     role = claims.get("role")
     if role == "superadmin":
-        return {"role": "superadmin", **_superadmin_summary(db)}
+        from api.Modules.Superadmin.Services.dashboard import (
+            platform_summary,
+        )
+        return {"role": "superadmin", **platform_summary(db)}
     store_id = claims.get("store_id")
     if not store_id:
         raise HTTPException(
