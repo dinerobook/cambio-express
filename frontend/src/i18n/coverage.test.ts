@@ -56,6 +56,8 @@ export const COVERED_FILES = [
   "components/ui/Toast.tsx",
   "components/ui/InfoTip.tsx",
   "components/ui/RowActions.tsx",
+  // Subscribe (plan picker)
+  "routes/Subscribe.tsx",
   // Step 4a: dashboard, customers, ACH batches, return checks
   "routes/Dashboard.tsx",
   "routes/Customers.tsx",
