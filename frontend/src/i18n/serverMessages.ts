@@ -41,6 +41,13 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "A payout is paid to the recipient in cash, so it can't be paid by debit card.": "transfer.serverPayoutCard",
   "A payout has no fee: the recipient is paid the full amount.": "transfer.serverPayoutFee",
   "An employee from the store roster must be selected as Processed by before saving.": "transfer.serverEmployeeRequired",
+  // ACH batches
+  "Batch not found": "batch.serverNotFound",
+  // Return checks
+  "Return check not found": "returnCheck.serverNotFound",
+  "Payment not found": "returnCheck.serverPaymentNotFound",
+  "Payment amount must be > 0.": "returnCheck.serverAmountPositive",
+  "Return check is already fully recovered.": "returnCheck.fullyRecovered",
 };
 
 /** The server's `message` in the current language when known. A 429

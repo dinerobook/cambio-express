@@ -2,6 +2,7 @@ import {
   useEffect, useId, useRef, useState,
   type CSSProperties, type ReactNode,
 } from "react";
+import { useT } from "../../i18n";
 
 import { Button, type ButtonTone } from "./Button";
 import { Input } from "./Input";
@@ -50,7 +51,7 @@ async function copyText(text: string): Promise<boolean> {
  *  already on screen in some other form (the big referral code);
  *  otherwise reach for `<CopyField>`. */
 export function CopyButton({
-  text, label = "Copy", tone = "secondary", size, className,
+  text, label, tone = "secondary", size, className,
   "aria-label": ariaLabel, onCopyFailed,
 }: {
   text: string;
@@ -63,6 +64,7 @@ export function CopyButton({
    *  Ctrl+C works straight away. */
   onCopyFailed?: () => void;
 }) {
+  const t = useT();
   const toast = useToast();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,7 +80,7 @@ export function CopyButton({
     if (!ok) {
       onCopyFailed?.();
       toast({
-        message: "Couldn't copy. Select the text and copy it by hand.",
+        message: t("common.copyFailed"),
         tone: "error",
       });
       return;
@@ -96,7 +98,7 @@ export function CopyButton({
     >
       {/* aria-live so a screen reader hears the confirmation that a
           sighted person sees as the label change. */}
-      <span aria-live="polite">{copied ? "Copied" : label}</span>
+      <span aria-live="polite">{copied ? t("common.copied") : (label ?? t("common.copy"))}</span>
     </Button>
   );
 }
@@ -113,7 +115,7 @@ export function CopyButton({
  *    (`min-width: 0`) so a long URL never pushes the buttons out of
  *    the card. */
 export function CopyField({
-  value, label, "aria-label": ariaLabel, copyLabel = "Copy",
+  value, label, "aria-label": ariaLabel, copyLabel,
   variant = "text", actions, buttonClassName, className,
 }: {
   value: string;

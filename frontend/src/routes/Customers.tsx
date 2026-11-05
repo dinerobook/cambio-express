@@ -20,6 +20,9 @@ import {
 import styles from "./Customers.module.css";
 import { todayIso } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { navWord } from "../i18n/navWords";
+import { tNodes, tn, useT } from "../i18n";
+import { fmtNumber } from "../lib/formatters";
 
 // Customer search at /app/customers. Live-search box; results
 // split into "exact matches" (phone/full-name match) and
@@ -37,6 +40,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // Search query lives in the URL query string so refresh + back
 // preserve state, just like the transfers list.
 export default function Customers() {
+  const t = useT();
   const identity = getCurrentIdentity();
   // 300ms debounce + 2-char minimum via the shared URL-filter hook
   // (CLAUDE.md "Table search UX") — same wiring as Transfers.
@@ -109,20 +113,18 @@ export default function Customers() {
     try {
       const result = await mergeCustomers(winner.id, loser.id);
       toast({
-        message:
-          `Merged "${loser.full_name}" into "${winner.full_name}"`
-          + (result.transfers_repointed
-            ? ` (${result.transfers_repointed} transfer${
-                result.transfers_repointed === 1 ? "" : "s"
-              } re-pointed)`
-            : ""),
+        message: result.transfers_repointed
+          ? tn("customer.mergedRepointed", result.transfers_repointed, fmtNumber, {
+              loser: loser.full_name, winner: winner.full_name,
+            })
+          : t("customer.merged", { loser: loser.full_name, winner: winner.full_name }),
         tone: "success",
       });
       exitMergeMode();
       await refetch();
     } catch (e) {
       setMergeError(
-        apiErrorMessage(e, "Merge failed."),
+        apiErrorMessage(e, t("customer.mergeFailed")),
       );
     } finally {
       setMerging(false);
@@ -133,8 +135,8 @@ export default function Customers() {
     return (
       <PageShell>
         <PageCrumbs />
-        <PageHeader title="Customers" />
-        <Empty>Sign in as a store admin to search this store's customers.</Empty>
+        <PageHeader title={navWord("Customers")} />
+        <Empty>{t("customer.signIn")}</Empty>
       </PageShell>
     );
   }
@@ -149,7 +151,7 @@ export default function Customers() {
             onClick={exitMergeMode}
             disabled={merging}
           >
-            Cancel merge
+            {t("customer.cancelMerge")}
           </Button>
         ) : (
           <Button
@@ -157,7 +159,7 @@ export default function Customers() {
             size="sm"
             onClick={() => setMergeMode(true)}
           >
-            Merge duplicates
+            {t("customer.mergeDuplicates")}
           </Button>
         )
       )}
@@ -169,7 +171,7 @@ export default function Customers() {
           disabled={exporting}
           onClick={onExport}
         >
-          {exporting ? "Exporting…" : "Export CSV"}
+          {exporting ? t("customer.exporting") : t("customer.exportCsv")}
         </Button>
       )}
     </>
@@ -181,16 +183,13 @@ export default function Customers() {
       <PageCrumbs />
 
       <PageHeader
-        title="Customers"
+        title={navWord("Customers")}
         subtitle={q.length >= 2
           ? data
-            ? `${data.matches.length} match${
-                data.matches.length === 1 ? "" : "es"
-              } · ${data.suggestions.length} suggestion${
-                data.suggestions.length === 1 ? "" : "s"
-              }`
-            : "Searching…"
-          : "Type at least 2 characters to search."}
+            ? `${tn("customer.matchCount", data.matches.length, fmtNumber)} · ${
+                tn("customer.suggestionCount", data.suggestions.length, fmtNumber)}`
+            : t("transfer.searching")
+          : t("customer.typeTwo")}
         actions={actions}
       />
 
@@ -204,12 +203,12 @@ export default function Customers() {
       )}
 
       <Card style={{ marginBottom: space.lg }}>
-        <Field label="Search">
+        <Field label={t("transfer.search")}>
           <Input
             type="search"
             value={filters.draft.q ?? q}
             onChange={(e) => filters.debounced("q", e.target.value)}
-            placeholder="Name, phone, …"
+            placeholder={t("customer.searchPlaceholder")}
           />
         </Field>
         {isFetching && <Loading />}
@@ -217,13 +216,13 @@ export default function Customers() {
 
       {isError && (
         <ErrorState
-          message={apiErrorMessage(error, "Search failed")}
+          message={apiErrorMessage(error, t("customer.searchFailed"))}
           onRetry={() => { void refetch(); }}
         />
       )}
 
       {data && data.matches.length > 0 && (
-        <Section title="Matches">
+        <Section title={t("transfer.matches")}>
           <Card>
             <CustomerTable
               rows={data.matches}
@@ -236,7 +235,7 @@ export default function Customers() {
       )}
 
       {data && data.suggestions.length > 0 && (
-        <Section title="Suggestions">
+        <Section title={t("transfer.suggestions")}>
           <Card>
             <CustomerTable
               rows={data.suggestions}
@@ -253,7 +252,7 @@ export default function Customers() {
         data.suggestions.length === 0 &&
         q.length >= 2 &&
         !isFetching && (
-          <EmptyState title={`No customers match "${q}".`} />
+          <EmptyState title={t("customer.noMatch", { q })} />
         )}
 
       {confirmOpen && picks.length === 2 && (
@@ -283,45 +282,40 @@ function MergeBanner({
   onClear: () => void;
   onProceed: () => void;
 }) {
+  const t = useT();
   return (
     <Card style={{ marginBottom: space.lg }}>
       <div className={styles.mergeBanner}>
         <div>
-          <strong>Merge mode</strong>
+          <strong>{t("customer.mergeMode")}</strong>
           <p className={styles.mergeBannerCopy}>
-            Pick two customers. The first becomes the winner — its
-            row stays. The second's transfers get re-pointed at the
-            winner, and the row is deleted.
+            {t("customer.mergeHelp")}
           </p>
           <p className={styles.mergeBannerCopy}>
-            Selected: {picks.length === 0 && "none yet"}
-            {picks.length === 1 && (
-              <>
-                <strong> {picks[0].full_name}</strong> (winner) — pick one more
-              </>
-            )}
-            {picks.length === 2 && (
-              <>
-                <strong> {picks[0].full_name}</strong> (winner) ←{" "}
-                <strong>{picks[1].full_name}</strong> (loser)
-              </>
-            )}
+            {picks.length === 0 && t("customer.selectedNone")}
+            {picks.length === 1 && tNodes("customer.selectedOne", {
+              winner: <strong>{picks[0].full_name}</strong>,
+            })}
+            {picks.length === 2 && tNodes("customer.selectedTwo", {
+              winner: <strong>{picks[0].full_name}</strong>,
+              loser: <strong>{picks[1].full_name}</strong>,
+            })}
           </p>
         </div>
         <div className={styles.mergeBannerActions}>
           {picks.length === 2 && (
             <>
               <Button tone="secondary" size="sm" onClick={onSwap}>
-                Swap winner / loser
+                {t("customer.swap")}
               </Button>
               <Button tone="primary" size="sm" onClick={onProceed}>
-                Review merge
+                {t("customer.reviewMerge")}
               </Button>
             </>
           )}
           {picks.length > 0 && (
             <Button tone="secondary" size="sm" onClick={onClear}>
-              Clear selection
+              {t("customer.clearSelection")}
             </Button>
           )}
         </div>
@@ -342,37 +336,35 @@ function MergeConfirmModal({
   onCancel:  () => void;
   onConfirm: () => void;
 }) {
+  const t = useT();
   return (
     <Modal
       open={true}
       onClose={onCancel}
-      title="Merge customers"
+      title={t("customer.mergeTitle")}
       size="lg"
       disabled={busy}
       actions={
         <>
           <Button tone="secondary" onClick={onSwap} disabled={busy}>
-            Swap winner / loser
+            {t("customer.swap")}
           </Button>
           <div style={{ flex: 1 }} />
           <Button tone="secondary" onClick={onCancel} disabled={busy}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button tone="primary" busy={busy} disabled={busy} onClick={onConfirm}>
-            {busy ? "Merging…" : "Merge"}
+            {busy ? t("customer.merging") : t("customer.merge")}
           </Button>
         </>
       }
     >
       <p className={styles.modalLead}>
-        This will re-point every transfer logged against the loser
-        to the winner, then delete the loser row. The action is
-        recorded in the operator audit log and can't be undone
-        from the UI.
+        {t("customer.mergeLead")}
       </p>
       <div className={styles.modalGrid}>
-        <MergeColumn label="Winner (kept)" customer={winner} kept />
-        <MergeColumn label="Loser (deleted)" customer={loser} kept={false} />
+        <MergeColumn label={t("customer.winnerKept")} customer={winner} kept />
+        <MergeColumn label={t("customer.loserDeleted")} customer={loser} kept={false} />
       </div>
       {error && <Alert tone="error">{error}</Alert>}
     </Modal>
@@ -387,21 +379,22 @@ function MergeColumn({
   customer: CustomerRow;
   kept: boolean;
 }) {
+  const t = useT();
   return (
     <div className={kept ? styles.mergeColKept : styles.mergeColDropped}>
       <p className={styles.mergeColLabel}>{label}</p>
       <p className={styles.mergeColName}>{customer.full_name}</p>
       <dl className={styles.mergeColDetails}>
-        <dt>Phone</dt>
+        <dt>{t("transfer.phone")}</dt>
         <dd>
           {customer.phone_country} {maskPhone(customer.phone_number)}
         </dd>
-        <dt>DOB</dt>
+        <dt>{t("customer.dob")}</dt>
         <dd>{customer.dob || "—"}</dd>
-        <dt>Address</dt>
+        <dt>{t("transfer.address")}</dt>
         <dd>{customer.address || "—"}</dd>
-        <dt>Home store</dt>
-        <dd>{customer.home_store_name || "(this store)"}</dd>
+        <dt>{t("customer.homeStore")}</dt>
+        <dd>{customer.home_store_name || t("customer.thisStore")}</dd>
       </dl>
     </div>
   );
@@ -416,9 +409,12 @@ function CustomerTable({
   picks: CustomerRow[];
   onTogglePick: (row: CustomerRow) => void;
 }) {
-  const headers = mergeMode
-    ? ["Pick", "Name", "Phone", "DOB", "Address", "Home store"]
-    : ["Name", "Phone", "DOB", "Address", "Home store"];
+  const t = useT();
+  const columns = [
+    t("transfer.name"), t("transfer.phone"), t("customer.dob"),
+    t("transfer.address"), t("customer.homeStore"),
+  ];
+  const headers = mergeMode ? [t("customer.pick"), ...columns] : columns;
   return (
     <Table>
       <thead>
@@ -442,7 +438,7 @@ function CustomerTable({
                     onChange={() => onTogglePick(c)}
                     aria-describedby={undefined}
                   >
-                    <span className="sr-only">Select {c.full_name} for merge</span>
+                    <span className="sr-only">{t("customer.selectForMerge", { name: c.full_name })}</span>
                   </Checkbox>
                 </td>
               )}
@@ -450,14 +446,14 @@ function CustomerTable({
                 <strong>{c.full_name}</strong>
                 {picked && (
                   <span className={styles.pickedTag}>
-                    {" "}· {picks[0]?.id === c.id ? "winner" : "loser"}
+                    {" "}· {picks[0]?.id === c.id ? t("customer.winner") : t("customer.loser")}
                   </span>
                 )}
               </td>
               <td style={tdStyle}>
                 <span
                   className={styles.phone}
-                  title="Open the customer for the full number"
+                  title={t("customer.fullNumberTip")}
                 >
                   {c.phone_country} {maskPhone(c.phone_number)}
                 </span>
@@ -470,7 +466,7 @@ function CustomerTable({
               <td style={tdStyle}>{c.address || "—"}</td>
               <td style={tdStyle}>
                 <span className={styles.muted}>
-                  {c.home_store_name || "(this store)"}
+                  {c.home_store_name || t("customer.thisStore")}
                 </span>
               </td>
             </tr>
