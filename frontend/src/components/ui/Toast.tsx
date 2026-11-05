@@ -4,6 +4,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { useT } from "../../i18n";
 import { toneTokens } from "./tokens";
 import styles from "./Toast.module.css";
 
@@ -76,6 +77,7 @@ export function useToast(): (input: ToastInput) => void {
  *  button; both trigger an exit animation before the row drops
  *  from the queue. */
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const t = useT();
   const [items, setItems] = useState<ToastRecord[]>([]);
 
   // Two-phase dismiss: flip to "exit" so CSS runs the slide-out
@@ -107,13 +109,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {typeof document !== "undefined" && createPortal(
         <div
           role="region"
-          aria-label="Notifications"
+          aria-label={t("common.notifications")}
           className={styles.region}
         >
-          {items.map((t) => (
+          {items.map((item) => (
             <ToastItem
-              key={t.id}
-              record={t}
+              key={item.id}
+              record={item}
               onStartDismiss={startDismiss}
               onFinalize={finalize}
             />
@@ -132,6 +134,7 @@ function ToastItem({
   onStartDismiss: (id: number) => void;
   onFinalize: (id: number) => void;
 }) {
+  const t = useT();
   const duration = record.duration ?? 3500;
 
   // Auto-dismiss timer.  duration:0 means sticky.
@@ -140,8 +143,8 @@ function ToastItem({
   // below removes the row.
   useEffect(() => {
     if (duration === 0 || record.state !== "enter") return;
-    const t = setTimeout(() => onStartDismiss(record.id), duration);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => onStartDismiss(record.id), duration);
+    return () => clearTimeout(timer);
   }, [duration, record.id, record.state, onStartDismiss]);
 
   // Exit-phase finalize.  Once `state === "exit"`, schedule the
@@ -151,8 +154,8 @@ function ToastItem({
   // stall) and gets suppressed under `prefers-reduced-motion`.
   useEffect(() => {
     if (record.state !== "exit") return;
-    const t = setTimeout(() => onFinalize(record.id), 200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => onFinalize(record.id), 200);
+    return () => clearTimeout(timer);
   }, [record.state, record.id, onFinalize]);
 
   const tone = record.tone ?? "success";
@@ -187,7 +190,7 @@ function ToastItem({
       <button
         type="button"
         onClick={() => onStartDismiss(record.id)}
-        aria-label="Dismiss"
+        aria-label={t("common.dismiss")}
         className={styles.dismissBtn}
       >
         ×

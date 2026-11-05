@@ -14,8 +14,11 @@ import {
 } from "../components/ui";
 import styles from "./TransferDetail.module.css";
 import TransferKindPill from "../components/TransferKindPill";
-import { isDebitCard, isPayout, transferWording } from "../lib/transferKinds";
+import {
+  isDebitCard, isPayout, serviceLabel, statusLabel, transferWording,
+} from "../lib/transferKinds";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { useT } from "../i18n";
 
 // Single-transfer detail page. Backed by /api/v2/transfers/{id}
 // — same shape as a row in the list, so the read-only detail
@@ -24,6 +27,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // editing migrates in SPA-N (write-side). Delete (transfers.delete,
 // store admins by default) clears a mistaken entry after a confirm.
 export default function TransferDetail() {
+  const t = useT();
   const params = useParams<{ id: string }>();
   const id = params.id ? Number(params.id) : undefined;
   const identity = getCurrentIdentity();
@@ -41,10 +45,10 @@ export default function TransferDetail() {
     try {
       await deleteTransfer(transferId);
       await queryClient.invalidateQueries({ queryKey: ["transfers"] });
-      toast({ message: "Transfer deleted.", tone: "success" });
+      toast({ message: t("transfer.deleted"), tone: "success" });
       navigate("/transfers", { replace: true });
     } catch (err) {
-      setDeleteError(apiErrorMessage(err, "Could not delete the transfer."));
+      setDeleteError(apiErrorMessage(err, t("transfer.deleteFailed")));
       setDeleting(false);
     }
   }
@@ -52,7 +56,7 @@ export default function TransferDetail() {
   if (Number.isNaN(id)) {
     return (
       <PageShell maxWidth="52rem" gap="1rem">
-        <Empty>Invalid transfer ID.</Empty>
+        <Empty>{t("transfer.invalidId")}</Empty>
       </PageShell>
     );
   }
@@ -60,7 +64,7 @@ export default function TransferDetail() {
   if (identity?.store_id == null) {
     return (
       <PageShell maxWidth="52rem" gap="1rem">
-        <Empty>Sign in as a store admin to view transfer details.</Empty>
+        <Empty>{t("transfer.detailSignIn")}</Empty>
       </PageShell>
     );
   }
@@ -77,7 +81,7 @@ export default function TransferDetail() {
     return (
       <PageShell maxWidth="52rem" gap="1rem">
         <ErrorState
-          message={apiErrorMessage(error, "Could not load transfer")}
+          message={apiErrorMessage(error, t("transfer.loadFailed"))}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
@@ -85,35 +89,35 @@ export default function TransferDetail() {
   }
 
   if (!data) return null;
-  const t = data.transfer;
-  const words = transferWording(t.service_type);
+  const row = data.transfer;
+  const words = transferWording(row.service_type);
 
   return (
     <PageShell maxWidth="52rem" gap="1rem">
-      <PageCrumbs current={`Transfer #${id}`} />
+      <PageCrumbs current={t("transfer.number", { id: String(id) })} />
 
 
       <PageHeader
-        title={`Transfer #${t.id}`}
+        title={t("transfer.number", { id: row.id })}
         subtitle={(
           <span style={{ fontFamily: tokens.fontMono }}>
-            {t.send_date} · {t.company} · {t.service_type}{" "}
+            {row.send_date} · {row.company} · {serviceLabel(row.service_type)}{" "}
             <TransferKindPill
-              serviceType={t.service_type}
-              paymentMethod={t.payment_method}
+              serviceType={row.service_type}
+              paymentMethod={row.payment_method}
             />
           </span>
         )}
         actions={(
           <>
-            <ButtonLink to={`/transfers/${t.id}/edit`} tone="secondary" size="sm">
-              Edit
+            <ButtonLink to={`/transfers/${row.id}/edit`} tone="secondary" size="sm">
+              {t("transfer.edit")}
             </ButtonLink>
             <Button
               tone="danger" size="sm" perm="transfers.delete"
               onClick={() => { setDeleteError(null); setConfirming(true); }}
             >
-              Delete
+              {t("transfer.delete")}
             </Button>
           </>
         )}
@@ -121,64 +125,62 @@ export default function TransferDetail() {
 
       <Section title={words.customer}>
         <Card padding="1.25rem 1.5rem">
-          <DetailRow label="Name" value={t.sender_name || "—"} />
+          <DetailRow label={t("transfer.name")} value={row.sender_name || "—"} />
         </Card>
       </Section>
 
       <Section title={words.other}>
         <Card padding="1.25rem 1.5rem">
-          <DetailRow label="Name" value={t.recipient_name || "—"} />
-          <DetailRow label={words.country} value={t.country || "—"} />
+          <DetailRow label={t("transfer.name")} value={row.recipient_name || "—"} />
+          <DetailRow label={words.country} value={row.country || "—"} />
         </Card>
       </Section>
 
-      <Section title="Amounts">
+      <Section title={t("transfer.amounts")}>
         <Card padding="1.25rem 1.5rem">
-          <DetailRow label={words.amount} value={fmtMoney2(t.send_amount)} mono />
-          {!isPayout(t.service_type) && (
+          <DetailRow label={words.amount} value={fmtMoney2(row.send_amount)} mono />
+          {!isPayout(row.service_type) && (
             <>
-              <DetailRow label="Fee"         value={fmtMoney2(t.fee)} mono />
-              <DetailRow label="Federal tax" value={fmtMoney2(t.federal_tax)} mono />
+              <DetailRow label={t("transfer.fee")} value={fmtMoney2(row.fee)} mono />
+              <DetailRow label={t("transfer.federalTax")} value={fmtMoney2(row.federal_tax)} mono />
               <DetailRow
-                label="Paid by"
-                value={isDebitCard(t.payment_method) ? "Debit card" : "Cash"}
+                label={t("transfer.paidBy")}
+                value={isDebitCard(row.payment_method) ? t("transfer.debitCard") : t("transfer.cash")}
               />
             </>
           )}
           <DetailRow
             label={words.total}
-            value={fmtMoney2(t.total_collected)}
+            value={fmtMoney2(row.total_collected)}
             mono
             emphasis
           />
         </Card>
       </Section>
 
-      <Section title="Status & references">
+      <Section title={t("transfer.statusRefs")}>
         <Card padding="1.25rem 1.5rem">
-          <DetailRow label="Status" value={t.status} />
-          <DetailRow label="Confirmation #" value={t.confirm_number || "—"} mono />
-          <DetailRow label="Batch ID"  value={t.batch_id || "—"} mono />
-          <DetailRow label="Employee"  value={t.employee_name || "—"} />
+          <DetailRow label={t("transfer.status")} value={statusLabel(row.status)} />
+          <DetailRow label={t("transfer.confirmNumber")} value={row.confirm_number || "—"} mono />
+          <DetailRow label={t("transfer.batchId")} value={row.batch_id || "—"} mono />
+          <DetailRow label={t("transfer.employee")} value={row.employee_name || "—"} />
         </Card>
       </Section>
 
       <ConfirmDialog
         open={confirming}
-        title={`Delete transfer #${t.id}?`}
-        message={(
-          <>
-            {t.sender_name || "?"} → {t.recipient_name || "?"},{" "}
-            {fmtMoney2(t.total_collected)} collected on {formatDate(t.send_date)}. It comes
-            off the transfer list, batches and reports. This can't be undone;
-            the activity log keeps a note of what was deleted.
-          </>
-        )}
-        confirmLabel="Delete transfer"
+        title={t("transfer.deleteTitle", { id: row.id })}
+        message={t("transfer.deleteMessage", {
+          sender: row.sender_name || "?",
+          recipient: row.recipient_name || "?",
+          amount: fmtMoney2(row.total_collected),
+          date: formatDate(row.send_date),
+        })}
+        confirmLabel={t("transfer.deleteConfirm")}
         confirmTone="danger"
         busy={deleting}
         error={deleteError}
-        onConfirm={() => { void doDelete(t.id); }}
+        onConfirm={() => { void doDelete(row.id); }}
         onCancel={() => setConfirming(false)}
       />
     </PageShell>

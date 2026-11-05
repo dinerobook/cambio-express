@@ -607,7 +607,26 @@ pick Spanish; the browser's own language is not used.
   buttons), so every page that uses them is covered at once. Month
   headings use `formatMonthYear()`, weekday headings
   `weekdayNamesShort()` (`lib/datetime.ts`), never the English
-  `MONTH_NAMES` arrays in a covered screen.
+  `MONTH_NAMES` arrays in a covered screen. A full weekday name is
+  `weekdayNameLong(dayIndex)` (Monday = 0).
+- **Stored values stay English; the screen shows a label.** A value
+  the API stores and filters on (a transfer's service "Money
+  Transfer", its status "Sent") is never translated in the data: the
+  form and filters still send the English value, and the screen shows
+  it through `serviceLabel()` / `statusLabel()`
+  (`lib/transferKinds.ts`), as `<option value="Sent">Enviado</option>`.
+  An unknown stored value is shown as stored. A new stored value needs
+  its label key there.
+- **Form schemas hold keys.** zod keeps the message it was built with,
+  so a schema's message is a translator key
+  (`z.string().min(1, "transfer.nameRequired")`) and the field shows
+  `tIfKey(errors.x?.message)`, which translates a key and passes any
+  other text through.
+- **Table columns are built during render** (`transferColumns(t)` in
+  the component body, not a module-level constant), so their headings
+  follow a language switch. The coverage guard also checks a column's
+  `header: "…"` and template attributes such as
+  ``title={`Transfer #${id}`}``.
 
 **Glossary** (use these words everywhere, so the same English word is
 always the same Spanish word):
@@ -642,6 +661,12 @@ always the same Spanish word):
 | Payroll / Purchases / Expenses | Nómina / Compras / Gastos |
 | Sales / Sales tax / Taxable | Ventas / Impuesto de venta / Gravable |
 | Payouts | Pagos a beneficiarios |
+| Payout (one transfer) | Pago a beneficiario |
+| Sender / Recipient | Remitente / Beneficiario |
+| Confirmation # | # de confirmación |
+| Processed by | Atendido por |
+| Batch (ACH) | Lote |
+| Receipt | Recibo |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -652,8 +677,11 @@ top bar, user menu, theme button), and the kit's loading text, pager,
 confirm buttons and unsaved-changes bar and prompt; the MSB daily
 book (month calendar, day editor, every box and popup, money owed,
 checks on hold, and its server messages), with the kit month calendar
-and day / week / month stepper. Next: transfers, then the rest of the
-app, then emails.
+and day / week / month stepper; transfers (the list, new and edit
+forms, detail page and delete popup, receipt, sender search and
+recent recipients, and their server messages), with the kit's table
+error, retry button, toasts, info tip and row actions. Next: the rest
+of the app, then emails.
 
 ## 11. The bell — one place for "something to do"
 

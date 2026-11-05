@@ -37,6 +37,25 @@ export const COVERED_FILES = [
   "routes/EditDailyBook.tsx",
   "routes/DailyBookSettlements.tsx",
   "routes/DailyBookTile.tsx",
+  // Transfers
+  "routes/Transfers.tsx",
+  "routes/NewTransfer.tsx",
+  "routes/EditTransfer.tsx",
+  "routes/TransferDetail.tsx",
+  "routes/TransferReceipt.tsx",
+  "components/TransferKindPill.tsx",
+  "components/DebitCardCheckbox.tsx",
+  "components/FederalTaxPreview.tsx",
+  "components/StoreListField.tsx",
+  "components/SenderAutocomplete.tsx",
+  "components/RecipientSuggestions.tsx",
+  "lib/transferKinds.ts",
+  // Kit pieces the transfer screens show
+  "components/ui/TableStates.tsx",
+  "components/ui/ErrorState.tsx",
+  "components/ui/Toast.tsx",
+  "components/ui/InfoTip.tsx",
+  "components/ui/RowActions.tsx",
 ];
 
 const sources = import.meta.glob(
@@ -81,9 +100,17 @@ function rawStrings(src: string): string[] {
   )) {
     if (!EXAMPLE.test(m[2])) found.push(`${m[1]}="${m[2]}"`);
   }
-  // Object-literal labels and error setters: label: "…", setError("…")
+  // The same attributes as a template: title={`Transfer #${id}`}.
   for (const m of body.matchAll(
-    /\b(label|title|message):\s*"([^"]*[A-Za-z]{2}[^"]*)"/g,
+    /\b(label|placeholder|title|aria-label|alt|confirmLabel|cancelLabel|message|current)=\{`([^`]*)`\}/g,
+  )) {
+    const words = m[2].replace(/\$\{[^}]*\}/g, "");
+    if (/[A-Za-z]{2}/.test(words)) found.push(`${m[1]}={\`${m[2]}\`}`);
+  }
+  // Object-literal labels and error setters: label: "…", setError("…")
+  // (`header` is a DataTable column's heading).
+  for (const m of body.matchAll(
+    /\b(label|title|message|header):\s*"([^"]*[A-Za-z]{2}[^"]*)"/g,
   )) {
     // A config table naming its words by translator key is fine.
     if (!(m[2] in en)) found.push(`${m[1]}: "${m[2]}"`);
@@ -91,7 +118,8 @@ function rawStrings(src: string): string[] {
   for (const m of body.matchAll(
     /\b(setError|setMsg|apiErrorMessage\([^,]+,)\s*\(?\s*"([^"]*[A-Za-z]{2}[^"]*)"/g,
   )) {
-    found.push(`${m[1]}("${m[2]}")`);
+    // react-hook-form's form-wide error slot is named "root".
+    if (m[2] !== "root") found.push(`${m[1]}("${m[2]}")`);
   }
   // A ternary between two English words: busy ? "Saving…" : "Save"
   // (capitalised, so CSS classes and option values don't count).
@@ -118,8 +146,11 @@ describe("translation guard", () => {
       `navLink={{ to: "/x", label: "Create an account" }}`,
       `setError("Passwords do not match.");`,
       `{busy ? "Saving…" : "Save changes"}`,
+      `{ key: "date", header: "Date" }`,
+      `<PageHeader title={\`Transfer #\${id}\`} />`,
     ].join("\n");
-    expect(rawStrings(sample)).toHaveLength(7);
+    expect(rawStrings(sample)).toHaveLength(10);
+    expect(rawStrings(`<Crumbs current={\`\${a} · \${b}\`} />`)).toEqual([]);
     expect(rawStrings(`<h2>{t("login.title")}</h2> // Sign in`)).toEqual([]);
   });
 });

@@ -110,6 +110,16 @@ export function t(key: MessageKey, vars?: MessageVars): string {
 
 export type Translate = typeof t;
 
+/** For a message that may be a key: a form schema's error (zod keeps
+ *  the text it was built with, so schemas store keys) or a field's
+ *  own text. A key is translated; anything else passes through. */
+export function tIfKey(message: string | undefined): string | undefined {
+  // Own keys only: "constructor" is `in` every object.
+  return message !== undefined && Object.hasOwn(en, message)
+    ? t(message as MessageKey)
+    : message;
+}
+
 /** Keys that come in a `.one` / `.other` pair ("daily.entries.one"). */
 export type PluralBase = {
   [K in MessageKey]: K extends `${infer B}.one`

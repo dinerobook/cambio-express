@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 import { canDo } from "../../lib/access";
+import { useT } from "../../i18n";
 import { Button, type ButtonTone } from "./Button";
 import styles from "./RowActions.module.css";
 
@@ -47,7 +48,7 @@ export interface RowActionItem {
  *  ("Entry on May 15 09:00").
  */
 export function RowActions({
-  actions, label = "Actions", title, mobileTriggerTone = "secondary",
+  actions, label: labelProp, title, mobileTriggerTone = "secondary",
 }: {
   actions: RowActionItem[];
   label?: string;
@@ -55,6 +56,8 @@ export function RowActions({
   /** Tone of the mobile "Actions" trigger button. */
   mobileTriggerTone?: ButtonTone;
 }) {
+  const t = useT();
+  const label = labelProp ?? t("common.actions");
   const [open, setOpen] = useState(false);
   const visible = actions.filter((a) => !a.hidden && (!a.perm || canDo(a.perm)));
   if (visible.length === 0) return null;

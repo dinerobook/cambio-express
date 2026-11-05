@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import { tokens } from "./tokens";
 import { Tooltip } from "./Tooltip";
 
@@ -18,13 +19,14 @@ import { Tooltip } from "./Tooltip";
  *      yesterday's cash drops + safe balance." /></span>
  */
 export function InfoTip({
-  text, label = "More info",
+  text, label,
 }: {
   /** The explanatory sentence(s) shown in the tooltip. */
   text: string;
   /** Accessible name for the icon button. */
   label?: string;
 }) {
+  const t = useT();
   return (
     <Tooltip label={text} multiline placement="top" delayMs={150}>
       {/* A focusable span with role="button", NOT a <button>.
@@ -38,7 +40,7 @@ export function InfoTip({
       <span
         role="button"
         tabIndex={0}
-        aria-label={label}
+        aria-label={label ?? t("common.moreInfo")}
         style={{
           display: "inline-flex",
           alignItems: "center",

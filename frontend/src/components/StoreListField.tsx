@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { AppLink, Field, Select } from "./ui";
 import { choicesWith } from "../lib/transferKinds";
+import { useT } from "../i18n";
 
 /** A picker over one of the store's own lists from Settings → General
  *  (money transfer companies, transfer countries), shared by the new
@@ -26,6 +27,7 @@ export default function StoreListField({
   emptyText: string;
   error?: ReactNode;
 }) {
+  const t = useT();
   const list = choicesWith(options ?? [], value);
   const empty = !loading && list.length === 0;
   return (
@@ -36,7 +38,7 @@ export default function StoreListField({
         <>
           {emptyText}{" "}
           <AppLink to="/settings/general" fallback="text">
-            Settings → General
+            {t("common.settingsGeneral")}
           </AppLink>
         </>
       ) : undefined}

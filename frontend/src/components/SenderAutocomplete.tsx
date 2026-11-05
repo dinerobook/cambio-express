@@ -4,6 +4,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { useCustomerSearch, type CustomerRow } from "../api/customers";
 import { Input } from "./ui";
 import styles from "./SenderAutocomplete.module.css";
+import { useT } from "../i18n";
 
 // Type-and-pick autocomplete for the sender name on the transfer
 // form. Wraps `useCustomerSearch` and a small popover.
@@ -41,6 +42,7 @@ interface Props {
 export default function SenderAutocomplete({
   value, onChange, onPick, onClearPickedId, required,
 }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -121,15 +123,15 @@ export default function SenderAutocomplete({
             if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
           }}
         >
-          <div role="listbox" aria-label="Existing customers">
+          <div role="listbox" aria-label={t("transfer.existingCustomers")}>
             {isFetching && (
-              <p className={styles.status}>Searching…</p>
+              <p className={styles.status}>{t("transfer.searching")}</p>
             )}
             {!isFetching && all.length === 0 && (
-              <p className={styles.status}>No matches.</p>
+              <p className={styles.status}>{t("transfer.noCustomerMatches")}</p>
             )}
             {matches.length > 0 && (
-              <SectionHeader>Matches</SectionHeader>
+              <SectionHeader>{t("transfer.matches")}</SectionHeader>
             )}
             {matches.map((row, i) => (
               <Row
@@ -141,7 +143,7 @@ export default function SenderAutocomplete({
               />
             ))}
             {suggestions.length > 0 && (
-              <SectionHeader>Suggestions</SectionHeader>
+              <SectionHeader>{t("transfer.suggestions")}</SectionHeader>
             )}
             {suggestions.map((row, j) => {
               const i = matches.length + j;
@@ -174,6 +176,7 @@ function Row({
   onMouseEnter: () => void;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -190,7 +193,7 @@ function Row({
           {row.phone_country} {row.phone_number || "—"}
         </span>
         {row.home_store_name && (
-          <span> · from {row.home_store_name}</span>
+          <span> · {t("transfer.fromStore", { store: row.home_store_name })}</span>
         )}
       </span>
     </button>

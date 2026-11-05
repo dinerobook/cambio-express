@@ -15,7 +15,7 @@ import {
   Section, Select, tokens, useToast,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
-import { getOpenStatus, todayIso } from "../lib/datetime";
+import { getOpenStatus, todayIso, weekdayNameLong } from "../lib/datetime";
 import {
   createTransfer,
   useEmployees,
@@ -25,9 +25,11 @@ import { useStoreInfo } from "../api/account";
 import { apiErrorMessage, newIdempotencyKey } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  SERVICES, STATUSES, defaultCountry, isPayout, transferWording,
+  DEFAULT_SERVICE, DEFAULT_STATUS, SERVICES, STATUSES, defaultCountry,
+  isPayout, serviceLabel, statusLabel, transferWording,
 } from "../lib/transferKinds";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tIfKey, useT } from "../i18n";
 
 // New transfer form at /app/transfers/new.
 //
@@ -61,14 +63,16 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // the OpenAPI → Zod generator lands (BACKLOG P1 #6 v2), this
 // hand-written schema is the first to retire.
 
+// Messages are translator keys: the screen shows them with tIfKey(),
+// so they read in the person's language when shown, not when built.
 const transferSchema = z.object({
-  send_date: z.string().min(1, "Date is required"),
-  company: z.string().min(1, "Pick a company"),
+  send_date: z.string().min(1, "transfer.dateRequired"),
+  company: z.string().min(1, "transfer.pickCompany"),
   service_type: z.enum(SERVICES),
   payment_method: z.enum(["cash", "debit_card"]),
   status: z.enum(STATUSES),
 
-  sender_name: z.string().min(1, "Name is required"),
+  sender_name: z.string().min(1, "transfer.nameRequired"),
   sender_phone_country: z.string(),
   sender_phone: z.string(),
   sender_address: z.string(),
@@ -80,14 +84,14 @@ const transferSchema = z.object({
   recipient_phone: z.string(),
 
   // MoneyInput hands the form numbers, so no coercion is needed.
-  send_amount: z.number().positive("Amount must be > 0"),
-  fee: z.number().min(0, "Fee must be ≥ 0"),
+  send_amount: z.number().positive("transfer.amountPositive"),
+  fee: z.number().min(0, "transfer.feeNotNegative"),
   confirm_number: z.string(),
 
   // Employee is required — surfaces as a field-level error if the
   // operator submits with the default ``— Select —`` option.
   employee_id: z
-    .number({ message: "Pick an employee" })
+    .number({ message: "transfer.pickEmployee" })
     .int()
     .positive(),
 });
@@ -101,9 +105,9 @@ const defaultValues = {
   send_date: todayIso(),
   // Company + country start on the store's lists once they load.
   company: "",
-  service_type: "Money Transfer" as const,
+  service_type: DEFAULT_SERVICE,
   payment_method: "cash" as const,
-  status: "Sent" as const,
+  status: DEFAULT_STATUS,
   sender_name: "",
   sender_phone_country: "+1",
   sender_phone: "",
@@ -121,6 +125,7 @@ const defaultValues = {
 
 
 export default function NewTransfer() {
+  const t = useT();
   const navigate = useNavigate();
   const toast = useToast();
   const identity = getCurrentIdentity();
@@ -141,7 +146,7 @@ export default function NewTransfer() {
   // Guard against losing a half-entered transfer: browser prompt on
   // hard navigation + a discard confirm on Cancel while dirty.
   const guard = useUnsavedGuard(isDirty && !isSubmitting, {
-    message: "You have unsaved edits on this transfer. Leave without saving?",
+    message: t("transfer.unsavedMessage"),
   });
 
   // ``useWatch`` (vs ``watch``) gets us a stable subscription to
@@ -194,11 +199,11 @@ export default function NewTransfer() {
     clearErrors("root");
     try {
       const result = await createTransfer(values, saveKey);
-      toast({ message: "Transfer saved.", tone: "success" });
+      toast({ message: t("transfer.saved"), tone: "success" });
       guard.proceed(() => navigate(`/transfers/${result.transfer.id}`, { replace: true }));
     } catch (err) {
       setError("root", {
-        message: apiErrorMessage(err, "Could not save the transfer. Please try again."),
+        message: apiErrorMessage(err, t("transfer.saveFailed")),
       });
     }
   }
@@ -206,9 +211,9 @@ export default function NewTransfer() {
   if (identity?.store_id == null) {
     return (
       <PageShell>
-        <PageHeader title="New transfer" />
+        <PageHeader title={t("transfer.newTitle")} />
         <p style={{ color: tokens.textMuted, textAlign: "center", padding: "1.5rem 0" }}>
-          Sign in as a store admin to create transfers.
+          {t("transfer.newSignIn")}
         </p>
       </PageShell>
     );
@@ -216,13 +221,10 @@ export default function NewTransfer() {
 
   return (
     <PageShell>
-      <PageCrumbs current="New transfer" />
+      <PageCrumbs current={t("transfer.newTitle")} />
       <PageHeader
-        title="New transfer"
-        subtitle={
-          "Federal tax preview updates as you type; the server "
-          + "recomputes the final value on save."
-        }
+        title={t("transfer.newTitle")}
+        subtitle={t("transfer.newSubtitle")}
       />
 
       <OutOfHoursNotice
@@ -232,7 +234,7 @@ export default function NewTransfer() {
 
       {choices.isError && (
         <ErrorState
-          message="Could not load the store's companies and countries."
+          message={t("transfer.choicesFailed")}
           onRetry={() => { void choices.refetch(); }}
         />
       )}
@@ -242,9 +244,9 @@ export default function NewTransfer() {
         className="ds-form"
       >
         <Card>
-          <Section title="When + how">
+          <Section title={t("transfer.whenHow")}>
             <Grid>
-              <Field label="Date" highlight={!!errors.send_date}>
+              <Field label={t("transfer.date")} highlight={!!errors.send_date}>
                 <Controller
                   name="send_date"
                   control={control}
@@ -263,27 +265,27 @@ export default function NewTransfer() {
                 name="company"
                 render={({ field }) => (
                   <StoreListField
-                    label="Company"
+                    label={t("transfer.company")}
                     options={companies}
                     value={field.value}
                     onChange={field.onChange}
                     loading={choices.isLoading || choices.isError}
-                    error={errors.company?.message}
-                    emptyText="No money transfer companies are switched on. Add or turn one on in"
+                    error={tIfKey(errors.company?.message)}
+                    emptyText={t("transfer.noCompanies")}
                   />
                 )}
               />
-              <Field label="Service">
+              <Field label={t("transfer.service")}>
                 <Select {...register("service_type")}>
                   {SERVICES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>{serviceLabel(c)}</option>
                   ))}
                 </Select>
               </Field>
-              <Field label="Status">
+              <Field label={t("transfer.status")}>
                 <Select {...register("status")}>
                   {STATUSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>{statusLabel(s)}</option>
                   ))}
                 </Select>
               </Field>
@@ -306,7 +308,7 @@ export default function NewTransfer() {
         <Card>
           <Section title={words.customer}>
             <Grid>
-              <Field label="Full name" highlight={!!errors.sender_name}>
+              <Field label={t("transfer.fullName")} highlight={!!errors.sender_name}>
                 <Controller
                   control={control}
                   name="sender_name"
@@ -333,24 +335,24 @@ export default function NewTransfer() {
                   )}
                 />
               </Field>
-              <Field label="Phone country">
+              <Field label={t("transfer.phoneCountry")}>
                 <Input
                   type="text"
                   placeholder="+1"
                   {...register("sender_phone_country")}
                 />
               </Field>
-              <Field label="Phone">
+              <Field label={t("transfer.phone")}>
                 <Input type="tel" {...register("sender_phone")} />
               </Field>
-              <Field label="Address">
+              <Field label={t("transfer.address")}>
                 <Input type="text" {...register("sender_address")} />
               </Field>
             </Grid>
             {customerId != null && (
               <p style={{ margin: "0.5rem 0 0" }}>
-                <Pill tone="info">Linked to customer #{customerId}</Pill>
-                <InfoTip text="This sender is linked to the customer directory — edits to their details here sync back to their customer record." />
+                <Pill tone="info">{t("transfer.linkedCustomer", { id: customerId })}</Pill>
+                <InfoTip text={t("transfer.linkedCustomerTip")} />
               </p>
             )}
           </Section>
@@ -387,7 +389,7 @@ export default function NewTransfer() {
                     value={field.value}
                     onChange={field.onChange}
                     loading={choices.isLoading || choices.isError}
-                    emptyText="No countries on the store's list. Add them in"
+                    emptyText={t("transfer.noCountries")}
                   />
                 )}
               />
@@ -402,17 +404,17 @@ export default function NewTransfer() {
         </Card>
 
         <Card>
-          <Section title="Amounts">
+          <Section title={t("transfer.amounts")}>
             <Grid>
               <Controller
                 control={control}
                 name="send_amount"
                 render={({ field }) => (
                   <MoneyInput
-                    label={`${words.amount} (USD)`}
+                    label={t("transfer.inUsd", { label: words.amount })}
                     value={field.value ?? 0}
                     onChange={field.onChange}
-                    error={errors.send_amount?.message}
+                    error={tIfKey(errors.send_amount?.message)}
                   />
                 )}
               />
@@ -422,10 +424,10 @@ export default function NewTransfer() {
                   name="fee"
                   render={({ field }) => (
                     <MoneyInput
-                      label="Fee (USD)"
+                      label={t("transfer.inUsd", { label: t("transfer.fee") })}
                       value={field.value ?? 0}
                       onChange={field.onChange}
-                      error={errors.fee?.message}
+                      error={tIfKey(errors.fee?.message)}
                     />
                   )}
                 />
@@ -437,7 +439,7 @@ export default function NewTransfer() {
                 paymentMethod={paymentMethod}
                 rate={choices.data?.federal_tax_rate ?? 0}
               />
-              <Field label="Confirmation #">
+              <Field label={t("transfer.confirmNumber")}>
                 <Input type="text" {...register("confirm_number")} />
               </Field>
             </Grid>
@@ -445,12 +447,12 @@ export default function NewTransfer() {
         </Card>
 
         <Card>
-          <Section title="Processed by">
+          <Section title={t("transfer.processedBy")}>
             <Grid>
               <Field
-                label="Employee"
+                label={t("transfer.employee")}
                 highlight={!!errors.employee_id}
-                error={errors.employee_id?.message}
+                error={tIfKey(errors.employee_id?.message)}
               >
                 <Select
                   {...register("employee_id", {
@@ -459,7 +461,7 @@ export default function NewTransfer() {
                   required
                   disabled={roster.isLoading}
                 >
-                  <option value="">— Select —</option>
+                  <option value="">{t("transfer.selectPlaceholder")}</option>
                   {roster.data?.employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name}
@@ -470,8 +472,7 @@ export default function NewTransfer() {
             </Grid>
             {roster.isError && (
               <Alert tone="error">
-                Couldn't load roster. Add cashiers via Settings → Team
-                on the legacy admin page.
+                {t("transfer.rosterFailed")}
               </Alert>
             )}
             {!roster.isLoading &&
@@ -479,8 +480,7 @@ export default function NewTransfer() {
               roster.data &&
               roster.data.employees.length === 0 && (
                 <Empty>
-                  No active employees on this store's roster yet. Add
-                  them under Settings → Team.
+                  {t("transfer.rosterEmpty")}
                 </Empty>
               )}
           </Section>
@@ -497,10 +497,10 @@ export default function NewTransfer() {
             onClick={() => guard.confirmLeave(() => navigate("/transfers"))}
             disabled={isSubmitting}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={isSubmitting}>
-            {isSubmitting ? "Saving…" : "Save transfer"}
+            {isSubmitting ? t("transfer.saving") : t("transfer.saveTransfer")}
           </Button>
         </FormActions>
       </form>
@@ -540,16 +540,17 @@ function OutOfHoursNotice({
   hours: NonNullable<ReturnType<typeof useStoreInfo>["data"]>["store"]["store_hours"] | undefined;
   storeTimezone: string | undefined;
 }) {
+  const t = useT();
   const status = getOpenStatus(hours, storeTimezone);
   if (!status || status.open) return null;
+  const day = weekdayNameLong(status.dayIndex);
   return (
     <Alert tone="warning">
-      Heads up — you're logging this outside the store's usual
-      business hours
-      ({status.todayLabel
-        ? `${status.dayLabel}: ${status.todayLabel}`
-        : `closed all day ${status.dayLabel}`}).
-      The transfer will still save normally.
+      {t("transfer.outOfHours", {
+        hours: status.todayLabel
+          ? t("transfer.outOfHoursOpen", { day, hours: status.todayLabel })
+          : t("transfer.outOfHoursClosed", { day }),
+      })}
     </Alert>
   );
 }
