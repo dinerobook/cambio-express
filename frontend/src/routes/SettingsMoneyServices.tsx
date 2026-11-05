@@ -14,6 +14,8 @@ import {
   MoneyInput, Pill, SectionTitle, Switch, useToast,
 } from "../components/ui";
 import styles from "./SettingsMoneyServices.module.css";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Settings → Money services (/settings/money-services). Everything
 // the money-transfer counter is set up with, apart from the store's
@@ -25,6 +27,7 @@ import styles from "./SettingsMoneyServices.module.css";
 export default function SettingsMoneyServices() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const t = useT();
   const identity = getCurrentIdentity();
   const { data, isLoading, isError, refetch } = useStoreInfo();
   const canEdit = hasPermission("settings", "update");
@@ -54,7 +57,7 @@ export default function SettingsMoneyServices() {
 
   const isDirty = baseline !== "" && snapshot(companies, countries) !== baseline;
   const guard = useUnsavedGuard(isDirty && !busy && canEdit, {
-    message: "You have unsaved money services settings. Leave without saving?",
+    message: t("money.unsavedMessage"),
   });
 
   function patch(i: number, change: Partial<MTCompanyEntry>) {
@@ -78,9 +81,9 @@ export default function SettingsMoneyServices() {
       // Money order charges change the Monthly P&L.
       await queryClient.invalidateQueries({ queryKey: ["monthly"] });
       setBaseline(snapshot(companies, countries));
-      toast({ message: "Money services saved.", tone: "success" });
+      toast({ message: t("money.saved"), tone: "success" });
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not save."));
+      setErr(apiErrorMessage(e, t("store.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -89,22 +92,22 @@ export default function SettingsMoneyServices() {
   if (identity?.store_id == null) {
     return (
       <Card>
-        <SectionTitle>Money services</SectionTitle>
+        <SectionTitle>{navWord("Money services")}</SectionTitle>
         <p className={styles.muted}>
-          Sign in to a store to manage its money transfer companies.
+          {t("money.signIn")}
         </p>
       </Card>
     );
   }
   if (isLoading) {
-    return <Card><SectionTitle>Money services</SectionTitle><Loading /></Card>;
+    return <Card><SectionTitle>{navWord("Money services")}</SectionTitle><Loading /></Card>;
   }
   if (isError || !data) {
     return (
       <Card>
-        <SectionTitle>Money services</SectionTitle>
+        <SectionTitle>{navWord("Money services")}</SectionTitle>
         <ErrorState
-          message="Could not load the money services settings."
+          message={t("money.loadFailed")}
           onRetry={() => { void refetch(); }}
         />
       </Card>
@@ -118,8 +121,8 @@ export default function SettingsMoneyServices() {
           Remove drops it from the roster entirely. */}
       <Card>
         <SectionTitle>
-          Money transfer companies
-          <InfoTip text="The companies on the daily book's Services box and the transfer form. Switch one off to hide it without losing its history; remove it to take it off the list. Money orders: only companies with it on appear on the daily book's Money orders tab." />
+          {t("money.companies")}
+          <InfoTip text={t("money.companiesTip")} />
         </SectionTitle>
         <ul className={styles.companyList}>
           {companies.map((c, i) => {
@@ -134,15 +137,15 @@ export default function SettingsMoneyServices() {
                   >
                     {c.name}
                   </Switch>
-                  {!c.enabled && <Pill tone="neutral">Hidden</Pill>}
+                  {!c.enabled && <Pill tone="neutral">{t("money.hidden")}</Pill>}
                 </span>
                 <Switch
                   checked={c.money_orders}
                   disabled={!canEdit || !c.enabled}
                   onChange={(next) => patch(i, { money_orders: next })}
-                  aria-label={`${c.name} sells money orders`}
+                  aria-label={t("money.sellsMo", { name: c.name })}
                 >
-                  Money orders
+                  {t("money.moneyOrders")}
                 </Switch>
                 {/* The charge only means something for a company that
                     sells money orders, so it is not shown otherwise. */}
@@ -155,12 +158,12 @@ export default function SettingsMoneyServices() {
                         disabled={!canEdit}
                         placeholder="0.00"
                         fullWidth
-                        aria-label={`${c.name} charge per money order`}
+                        aria-label={t("money.chargeAria", { name: c.name })}
                       />
                     </span>
                     <span className={styles.chargeLabel}>
-                      per money order
-                      <InfoTip text="What the company takes from your bank for each money order, on top of its face value. The Monthly P&L counts your money order fees minus this charge × the number of money orders entered on the daily book. Leave empty if the company charges nothing." />
+                      {t("money.perMo")}
+                      <InfoTip text={t("money.chargeTip")} />
                     </span>
                   </span>
                 ) : <span />}
@@ -173,7 +176,7 @@ export default function SettingsMoneyServices() {
                     setCompanies((list) => list.filter((_, j) => j !== i))
                   }
                 >
-                  Remove
+                  {t("money.remove")}
                 </Button>
               </li>
             );
@@ -181,7 +184,7 @@ export default function SettingsMoneyServices() {
         </ul>
         <AddNameRow
           kind="company"
-          placeholder="Add a company (e.g. Ria)"
+          placeholder={t("money.addCompany")}
           maxLength={30}
           existing={companies.map((c) => c.name)}
           disabled={!canEdit}
@@ -196,8 +199,8 @@ export default function SettingsMoneyServices() {
           transfers keep their country when it leaves this list. */}
       <Card>
         <SectionTitle>
-          Transfer countries
-          <InfoTip text="The countries on the transfer form, in this order. Removing one only takes it off the form: transfers already saved keep their country. Transfers to “United States” carry no federal tax." />
+          {t("money.countries")}
+          <InfoTip text={t("money.countriesTip")} />
         </SectionTitle>
         <div className={styles.countryList}>
           {countries.map((c, i) => (
@@ -207,7 +210,7 @@ export default function SettingsMoneyServices() {
                 type="button"
                 tone="ghost"
                 size="sm"
-                aria-label={`Remove ${c}`}
+                aria-label={t("money.removeCountry", { name: c })}
                 disabled={!canEdit || countries.length <= 1}
                 onClick={() =>
                   setCountries((list) => list.filter((_, j) => j !== i))
@@ -220,7 +223,7 @@ export default function SettingsMoneyServices() {
         </div>
         <AddNameRow
           kind="country"
-          placeholder="Add a country (e.g. Cuba)"
+          placeholder={t("money.addCountry")}
           maxLength={60}
           existing={countries}
           disabled={!canEdit}
@@ -233,7 +236,7 @@ export default function SettingsMoneyServices() {
       {canEdit && (
         <FormActions guard={guard}>
           <Button type="submit" busy={busy} disabled={busy || !isDirty}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? t("common.saving") : t("store.save")}
           </Button>
         </FormActions>
       )}
@@ -257,17 +260,20 @@ function AddNameRow({
 }) {
   const toast = useToast();
   const [value, setValue] = useState("");
-  const noun = kind === "company" ? "Company" : "Country";
+  const t = useT();
 
   function add() {
     const trimmed = value.trim();
     if (!trimmed) return;
     if (trimmed.includes(",")) {
-      toast({ message: `${noun} names can’t contain commas.`, tone: "info" });
+      toast({
+        message: kind === "company" ? t("money.companyComma") : t("money.countryComma"),
+        tone: "info",
+      });
       return;
     }
     if (existing.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
-      toast({ message: `${trimmed} is already on the list.`, tone: "info" });
+      toast({ message: t("money.alreadyListed", { name: trimmed }), tone: "info" });
       return;
     }
     onAdd(trimmed);
@@ -281,7 +287,7 @@ function AddNameRow({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
-        aria-label={kind === "company" ? "New company" : "New country"}
+        aria-label={kind === "company" ? t("money.newCompany") : t("money.newCountry")}
         maxLength={maxLength}
         disabled={disabled}
         onKeyDown={(e) => {
@@ -299,9 +305,9 @@ function AddNameRow({
         size="sm"
         disabled={disabled || !value.trim()}
         onClick={add}
-        aria-label={`Add ${kind}`}
+        aria-label={kind === "company" ? t("money.addCompanyAria") : t("money.addCountryAria")}
       >
-        Add
+        {t("money.add")}
       </Button>
     </div>
   );

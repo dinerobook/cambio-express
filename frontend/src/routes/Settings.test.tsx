@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import Settings from "./Settings";
+import { setLanguage } from "../i18n";
 
 // The reported bug: an employee saw a Billing tab whose content
 // hid itself. Tabs now come from the route table, so the set of
@@ -58,5 +59,16 @@ describe("<Settings> tabs follow route access", () => {
     signIn("superadmin", []);
     render(<MemoryRouter><Settings /></MemoryRouter>);
     expect(tabs()).toEqual(["Profile", "Security"]);
+  });
+});
+
+describe("<Settings> tabs in Spanish", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("a store admin's tabs read in Spanish", () => {
+    setLanguage("es");
+    signIn("admin", ["settings.read", "settings.update"]);
+    render(<MemoryRouter><Settings /></MemoryRouter>);
+    expect(tabs()).toEqual(["Perfil", "General", "Servicios de dinero", "Facturación", "Referidos", "Seguridad"]);
   });
 });

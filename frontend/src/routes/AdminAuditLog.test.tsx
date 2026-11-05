@@ -1,9 +1,11 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AdminAuditLog from "./AdminAuditLog";
 import { renderRoute } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Store audit log: filters, page and rows-per-page drive the query,
 // the shared pager says which rows are showing, and a failed load
@@ -91,5 +93,39 @@ describe("Admin audit log", () => {
     renderRoute(<AdminAuditLog />);
     await userEvent.setup().click(screen.getByRole("button", { name: /retry/i }));
     expect(refetch).toHaveBeenCalled();
+  });
+});
+
+describe("Admin audit log in Spanish", () => {
+  beforeEach(() => {
+    useAdminAuditLog.mockReset();
+    // The target label and summary are written by the server.
+    useAdminAuditLog.mockReturnValue(ok({ rows: [{ ...row, target_label: "Envío #41" }] }));
+  });
+
+  it("shows the title, filters, people and rows in Spanish", () => {
+    setLanguage("es");
+    renderRoute(<AdminAuditLog />);
+    expect(screen.getByRole("heading", { name: /Registro de auditoría/ })).toBeInTheDocument();
+    expect(screen.getByText("120 eventos")).toBeInTheDocument();
+    expect(screen.getByLabelText("Usuario")).toHaveDisplayValue("Cualquiera");
+    expect(screen.getByRole("option", { name: "Rosa (Empleado)" })).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("Actualizar")).toBeInTheDocument();
+    expect(screen.getByText("Actividad reciente")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["audit.", "role."])).toEqual([]);
+  });
+
+  it("offers Limpiar once a filter is set", () => {
+    setLanguage("es");
+    renderRoute(<AdminAuditLog />, { at: "/?action=lock" });
+    expect(screen.getByRole("button", { name: "Limpiar" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Acción")).toHaveDisplayValue("Cerrar");
+  });
+
+  it("an empty filter result says so in Spanish", () => {
+    setLanguage("es");
+    useAdminAuditLog.mockReturnValue(ok({ rows: [], total: 0, total_pages: 1 }));
+    renderRoute(<AdminAuditLog />);
+    expect(screen.getByText("Ninguna actividad coincide con estos filtros.")).toBeInTheDocument();
   });
 });

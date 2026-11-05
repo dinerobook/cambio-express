@@ -6,6 +6,8 @@ import { MemoryRouter } from "react-router-dom";
 
 import { SettingsGeneral } from "./Settings";
 import { ToastProvider } from "../components/ui/Toast";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The store's timezone (General tab) is the clock every date and
 // time in the app reads. With none saved, each device shows its own
@@ -130,5 +132,19 @@ describe("Settings → General timezone", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(updateStoreInfo).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText("Unsaved changes")).toBeNull());
+  });
+});
+
+describe("Settings → General in Spanish", () => {
+  it("the store form, hours and timezone read in Spanish", () => {
+    setLanguage("es");
+    useStoreInfo.mockReturnValue(store(""));
+    renderTab();
+    expect(screen.getByText(/Aún no hay zona horaria guardada/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre de la tienda")).toHaveValue("Store");
+    expect(screen.getByText("Horario de atención")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Detectar por la dirección" })).toBeInTheDocument();
+    expect(screen.getByText(/plan básico/)).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["store.", "ownerAccess."])).toEqual([]);
   });
 });

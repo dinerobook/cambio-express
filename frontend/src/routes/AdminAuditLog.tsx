@@ -6,18 +6,21 @@ import {
   Button, Card, Field, InfoTip, PageHeader, PageShell,
   Select, space,
 } from "../components/ui";
+import { roleLabel } from "../api/roles";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { AuditTable } from "../components/AuditTable";
 import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
 import styles from "./AdminAuditLog.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtCount } from "../lib/formatters";
+import { fmtNumber } from "../lib/formatters";
+import { tn, useT } from "../i18n";
 
 // /app/admin/audit-log — merged operator + transfer audit feed
 // for the JWT principal's store. Filters and page live in the URL
 // so the page is shareable; rows per page is the viewer's choice.
 
 export default function AdminAuditLog() {
+  const t = useT();
   const filters = useUrlFilterState(
     { target: "", action: "", user: "" },
     { pageSizeKey: "admin-audit-log" },
@@ -34,56 +37,56 @@ export default function AdminAuditLog() {
   return (
     <PageShell>
 
-      <PageCrumbs under="/reports" current="Audit log" />
+      <PageCrumbs under="/reports" current={t("audit.logTitle")} />
 
       <PageHeader
         title={
           <>
-            Audit log
-            <InfoTip text="Covers transfer creates, edits, status changes and deletes, daily-report locks and unlocks, and ACH batch creates and updates. Routine daily-report auto-saves aren't logged — the lock event captures who closed the day." />
+            {t("audit.logTitle")}
+            <InfoTip text={t("audit.logTip")} />
           </>
         }
-        subtitle="Every admin action across the store, newest first."
+        subtitle={t("audit.logSubtitle")}
       />
 
       <Card style={{ marginBottom: space.lg }}>
         <div className={styles.cardHeader}>
-          Filters
+          {t("audit.filters")}
           <span className={styles.cardHeaderCount}>
-            {data ? `${fmtCount(data.total, "event")}` : "—"}
+            {data ? tn("audit.events", data.total, fmtNumber) : "—"}
           </span>
         </div>
         <div className={styles.filtersRow}>
-          <Field label="Target" style={{ minWidth: "10rem" }}>
+          <Field label={t("audit.target")} style={{ minWidth: "10rem" }}>
             <Select
               value={target}
               onChange={(e) => setParam("target", e.target.value)}
             >
               {AUDIT_TARGET_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{t(o.label)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Action" style={{ minWidth: "10rem" }}>
+          <Field label={t("audit.action")} style={{ minWidth: "10rem" }}>
             <Select
               value={action}
               onChange={(e) => setParam("action", e.target.value)}
             >
               {AUDIT_ACTION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{t(o.label)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="User" style={{ minWidth: "10rem" }}>
+          <Field label={t("audit.user")} style={{ minWidth: "10rem" }}>
             <Select
               value={user}
               onChange={(e) => setParam("user", e.target.value)}
               disabled={!data}
             >
-              <option value="">Any</option>
+              <option value="">{t("audit.any")}</option>
               {(data?.store_users ?? []).map((u: AdminAuditUserOption) => (
                 <option key={u.id} value={String(u.id)}>
-                  {u.label}{u.role !== "admin" ? ` (${u.role})` : ""}
+                  {u.label}{u.role !== "admin" ? ` (${roleLabel(u.role)})` : ""}
                 </option>
               ))}
             </Select>
@@ -94,19 +97,19 @@ export default function AdminAuditLog() {
               size="sm"
               onClick={filters.reset}
             >
-              Clear
+              {t("audit.clear")}
             </Button>
           )}
         </div>
       </Card>
 
       <Card>
-        <div className={styles.cardHeader}>Recent activity</div>
+        <div className={styles.cardHeader}>{t("audit.recent")}</div>
         <AuditTable
           rows={data?.rows}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle="No activity matches these filters."
+          emptyTitle={t("audit.logEmpty")}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,

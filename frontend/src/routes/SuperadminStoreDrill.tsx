@@ -25,6 +25,7 @@ import {
 import { AuditTable } from "../components/AuditTable";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
+import { t as translate } from "../i18n";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
 import styles from "./SuperadminStoreDrill.module.css";
@@ -995,7 +996,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
               onChange={(e) => filters.setParam("activity_target", e.target.value)}
             >
               {AUDIT_TARGET_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{translate(o.label)}</option>
               ))}
             </Select>
           </Field>
@@ -1006,7 +1007,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
               onChange={(e) => filters.setParam("activity_action", e.target.value)}
             >
               {AUDIT_ACTION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{translate(o.label)}</option>
               ))}
             </Select>
           </Field>

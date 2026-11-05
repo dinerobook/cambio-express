@@ -8,12 +8,14 @@ import {
 } from "../api/switchStore";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import { fmtNumber } from "../lib/formatters";
 import {
   Alert, Button, EmptyState, ErrorState, Field, Input, Loading, Modal, Pill,
   Select,
   useToast,
 } from "./ui";
 import styles from "./SwitchStoreModal.module.css";
+import { useT } from "../i18n";
 
 // The owner's Switch Store modal (U-2 — single-dashboard
 // principle, patterned on the competitor's picker): search by
@@ -27,8 +29,9 @@ export default function SwitchStoreModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   return (
-    <Modal open={open} onClose={onClose} title="Switch store">
+    <Modal open={open} onClose={onClose} title={t("switchStore.title")}>
       {open && <SwitchStoreBody onClose={onClose} />}
     </Modal>
   );
@@ -40,6 +43,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const t = useT();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<"all" | "favorites">("all");
   const [favs, setFavs] = useState(favoriteStoreIds);
@@ -67,12 +71,12 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
     try {
       const result = await switchStore(storeId);
       qc.clear();  // every cached query belonged to the old scope
-      toast({ message: `Now viewing ${result.store_name}.`, tone: "success" });
+      toast({ message: t("switchStore.nowViewing", { name: result.store_name }), tone: "success" });
       onClose();
       navigate("/dashboard");
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not switch store."),
+        apiErrorMessage(err, t("switchStore.switchFailed")),
       );
     } finally {
       setBusy(false);
@@ -87,11 +91,11 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
     try {
       const row = await addOwnerStore({ name, business_type: newType });
       await qc.invalidateQueries({ queryKey: ["auth", "my-stores"] });
-      toast({ message: `${row.name} created.`, tone: "success" });
+      toast({ message: t("switchStore.created", { name: row.name }), tone: "success" });
       await enter(row.store_id);
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not create the store."),
+        apiErrorMessage(err, t("switchStore.createFailed")),
       );
       setBusy(false);
     }
@@ -106,7 +110,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
       onClose();
       navigate("/owner/dashboard");
     } catch {
-      setError("Could not return to the owner overview.");
+      setError(t("switchStore.ownerFailed"));
     } finally {
       setBusy(false);
     }
@@ -116,28 +120,28 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
     return (
       <div className={styles.body}>
         {error && <Alert tone="error">{error}</Alert>}
-        <Field label="Store name">
+        <Field label={t("switchStore.storeName")}>
           <Input
             autoFocus
-            placeholder="e.g. Lamar #2"
+            placeholder={t("switchStore.storeNamePh")}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             disabled={busy}
           />
         </Field>
         <Field
-          label="Business type"
-          hint="The new store starts its own 7-day trial and is added to your umbrella right away."
+          label={t("switchStore.businessType")}
+          hint={t("switchStore.businessTypeHint")}
         >
           <Select
             value={newType}
             onChange={(e) => setNewType(e.target.value)}
             disabled={busy}
           >
-            <option value="cstore">Convenience store</option>
-            <option value="gas_station">Gas station</option>
-            <option value="grocery">Grocery store</option>
-            <option value="msb_hybrid">Money services / hybrid</option>
+            <option value="cstore">{t("businessType.cstore")}</option>
+            <option value="gas_station">{t("businessType.gasStation")}</option>
+            <option value="grocery">{t("businessType.grocery")}</option>
+            <option value="msb_hybrid">{t("businessType.msbHybrid")}</option>
           </Select>
         </Field>
         <div className={styles.footer}>
@@ -146,13 +150,13 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
             disabled={busy || !newName.trim()}
             onClick={() => { void createStore(); }}
           >
-            {busy ? "Creating…" : "Create & enter →"}
+            {busy ? t("switchStore.creating") : t("switchStore.createEnter")}
           </Button>
           <Button
             tone="secondary" size="sm" disabled={busy}
             onClick={() => { setAdding(false); setError(null); }}
           >
-            Cancel
+            {t("switchStore.cancel")}
           </Button>
         </div>
       </div>
@@ -164,7 +168,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
       {error && <Alert tone="error">{error}</Alert>}
       <Input
         type="search"
-        placeholder="Search stores by name or address…"
+        placeholder={t("switchStore.searchPh")}
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -174,37 +178,37 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
           tone={tab === "all" ? "primary" : "secondary"}
           onClick={() => setTab("all")}
         >
-          All stores ({stores.data?.stores.length ?? 0})
+          {t("switchStore.allStores", { count: fmtNumber(stores.data?.stores.length ?? 0) })}
         </Button>
         <Button
           size="sm"
           tone={tab === "favorites" ? "primary" : "secondary"}
           onClick={() => setTab("favorites")}
         >
-          ★ Favorites ({favCount})
+          {t("switchStore.favorites", { count: fmtNumber(favCount) })}
         </Button>
         <Button
           size="sm" tone="secondary"
-          aria-label="Add a new store"
+          aria-label={t("switchStore.addAria")}
           onClick={() => { setAdding(true); setError(null); }}
         >
-          + Add store
+          {t("switchStore.add")}
         </Button>
       </div>
       {stores.isLoading && <Loading />}
       {stores.isError && (
         <ErrorState
-          message="Could not load your stores."
+          message={t("switchStore.loadFailed")}
           onRetry={() => { void stores.refetch(); }}
         />
       )}
       {stores.data && rows.length === 0 && (
         <EmptyState
-          title={tab === "favorites" ? "No favorites yet" : "No stores match"}
+          title={tab === "favorites" ? t("switchStore.noFavorites") : t("switchStore.noMatch")}
           body={
             tab === "favorites"
-              ? "Star a store to pin it here."
-              : "Try a different search."
+              ? t("switchStore.noFavoritesBody")
+              : t("switchStore.noMatchBody")
           }
         />
       )}
@@ -223,7 +227,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
             >
               <span className={styles.rowName}>
                 {s.name}
-                {s.is_current && <Pill tone="success">current</Pill>}
+                {s.is_current && <Pill tone="success">{t("switchStore.current")}</Pill>}
               </span>
               {s.address && (
                 <span className={styles.rowAddress}>{s.address}</span>
@@ -234,7 +238,8 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
               className={favs.has(s.store_id)
                 ? `${styles.star} ${styles.starOn}` : styles.star}
               aria-label={favs.has(s.store_id)
-                ? `Unfavorite ${s.name}` : `Favorite ${s.name}`}
+                ? t("switchStore.unfavorite", { name: s.name })
+                : t("switchStore.favorite", { name: s.name })}
               onClick={() =>
                 setFavs(new Set(toggleFavoriteStore(s.store_id)))
               }
@@ -255,7 +260,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
             tone="secondary" size="sm" disabled={busy}
             onClick={() => { void toOwnerView(); }}
           >
-            ← Owner overview
+            {t("switchStore.ownerOverview")}
           </Button>
         </div>
       )}

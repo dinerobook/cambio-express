@@ -9,6 +9,8 @@ import AdminReferrals from "./AdminReferrals";
 import SupportTickets from "./SupportTickets";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The personal account pages (and the store's referral page). Pinned
 // for each: the server's data renders, a failed load offers a retry,
@@ -38,6 +40,38 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 
+const SESSIONS = {
+  sessions: [
+    { session_id: "s-here", is_current: true, ip_address: "10.0.0.1",
+      user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Chrome/120.0",
+      started_at: "2026-10-01T15:00:00", last_used_at: "2026-10-01T15:00:00" },
+    { session_id: "s-phone", is_current: false, ip_address: "10.0.0.2",
+      user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Safari/604.1",
+      started_at: "2026-10-01T15:00:00", last_used_at: "2026-10-01T15:00:00" },
+  ],
+};
+
+const PREFS = {
+  role: "employee",
+  trial_toggle_applies: false, locked_day_digest_applies: false,
+  daily_summary_applies: false, high_variance_applies: false, store_offline_applies: false,
+  notify_trial_reminders: false, notify_announcement_email: false,
+  notify_locked_day_digest: false, notify_daily_summary: false,
+  notify_trial_reminders_push: false, notify_announcement_push: true,
+  notify_locked_day_digest_push: false, notify_daily_summary_push: false,
+  notify_high_variance: false, notify_high_variance_push: false,
+  notify_store_offline: false, notify_store_offline_push: false,
+  notify_ticket_updates: true, notify_ticket_updates_push: false,
+};
+
+const REF = {
+  code: "CAMBIO50", share_url: "https://dinerobook.com/signup?ref=CAMBIO50",
+  reward_self_cents: 10000, reward_referee_cents: 5000,
+  redeemed_count: 1, credits_earned_cents: 10000, is_active: true,
+  redemptions: [{ referee_store_id: 42, redeemed_at: "2026-10-01", self_credit_applied: true,
+    referee_credit_applied: false, stripe_self_txn_id: "cbtxn_1" }],
+};
+
 function failThenServe(body: unknown) {
   const state = { fail: true };
   const handler: MockHandler = () => (state.fail
@@ -47,16 +81,6 @@ function failThenServe(body: unknown) {
 }
 
 describe("AccountSessions", () => {
-  const SESSIONS = {
-    sessions: [
-      { session_id: "s-here", is_current: true, ip_address: "10.0.0.1",
-        user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Chrome/120.0",
-        started_at: "2026-10-01T15:00:00", last_used_at: "2026-10-01T15:00:00" },
-      { session_id: "s-phone", is_current: false, ip_address: "10.0.0.2",
-        user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Safari/604.1",
-        started_at: "2026-10-01T15:00:00", last_used_at: "2026-10-01T15:00:00" },
-    ],
-  };
 
   it("lists devices; only the other one can be signed out", async () => {
     mockFetch({ "GET /api/v2/auth/sessions": { body: SESSIONS } });
@@ -149,18 +173,6 @@ describe("AccountActivity", () => {
 });
 
 describe("AccountNotifications", () => {
-  const PREFS = {
-    role: "employee",
-    trial_toggle_applies: false, locked_day_digest_applies: false,
-    daily_summary_applies: false, high_variance_applies: false, store_offline_applies: false,
-    notify_trial_reminders: false, notify_announcement_email: false,
-    notify_locked_day_digest: false, notify_daily_summary: false,
-    notify_trial_reminders_push: false, notify_announcement_push: true,
-    notify_locked_day_digest_push: false, notify_daily_summary_push: false,
-    notify_high_variance: false, notify_high_variance_push: false,
-    notify_store_offline: false, notify_store_offline_push: false,
-    notify_ticket_updates: true, notify_ticket_updates_push: false,
-  };
 
   it("disables the toggles that don't apply to the role", async () => {
     mockFetch({ "GET /api/v2/auth/notifications": { body: PREFS } });
@@ -228,13 +240,6 @@ describe("AccountNotifications", () => {
 });
 
 describe("AdminReferrals", () => {
-  const REF = {
-    code: "CAMBIO50", share_url: "https://dinerobook.com/signup?ref=CAMBIO50",
-    reward_self_cents: 10000, reward_referee_cents: 5000,
-    redeemed_count: 1, credits_earned_cents: 10000, is_active: true,
-    redemptions: [{ referee_store_id: 42, redeemed_at: "2026-10-01", self_credit_applied: true,
-      referee_credit_applied: false, stripe_self_txn_id: "cbtxn_1" }],
-  };
 
   it("shows the code, credits and history", async () => {
     mockFetch({ "GET /api/v2/admin/referrals": { body: REF } });
@@ -331,5 +336,69 @@ describe("SupportTickets", () => {
     state.fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Receipt prints twice")).toBeInTheDocument();
+  });
+});
+
+describe("Account pages in Spanish", () => {
+  it("devices: the list, the sign-out and the popup read in Spanish", async () => {
+    setLanguage("es");
+    mockFetch({
+      "GET /api/v2/auth/sessions": { body: SESSIONS },
+      "DELETE /api/v2/auth/sessions/others": { body: { revoked: 1 } },
+    });
+    renderRoute(<AccountSessions />);
+    expect(await screen.findByText("Chrome en macOS")).toBeInTheDocument();
+    expect(screen.getByText("Safari en iPhone")).toBeInTheDocument();
+    expect(screen.getByText("Este dispositivo")).toBeInTheDocument();
+    expect(screen.getByText("2 dispositivos")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Última actividad" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["sessions."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar sesión en los demás" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("¿Cerrar sesión en los otros dispositivos?");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cerrar sesión en los demás" }));
+    expect(await screen.findByText("Se cerró 1 sesión más.")).toBeInTheDocument();
+  });
+
+  it("notifications: every row, toggle and the save read in Spanish", async () => {
+    setLanguage("es");
+    mockFetch({
+      "GET /api/v2/auth/notifications": { body: PREFS },
+      "PUT /api/v2/auth/notifications": { body: PREFS },
+    });
+    renderRoute(<AccountNotifications />);
+    expect(await screen.findByLabelText("Correo — Anuncios de la plataforma")).toBeEnabled();
+    expect(screen.getByText("Sus preferencias")).toBeInTheDocument();
+    expect(screen.getByText(/Su navegador no admite notificaciones/)).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["notify."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar preferencias" }));
+    expect(await screen.findByText("Preferencias de notificación guardadas.")).toBeInTheDocument();
+  });
+
+  it("referrals: the code, credits, how-it-works and history read in Spanish", async () => {
+    setLanguage("es");
+    mockFetch({ "GET /api/v2/admin/referrals": { body: REF } });
+    renderRoute(<AdminReferrals />);
+    expect(await screen.findByText("CAMBIO50")).toBeInTheDocument();
+    expect(screen.getByText("Su código de referido")).toBeInTheDocument();
+    expect(screen.getByText("ellos reciben $50 de descuento")).toBeInTheDocument();
+    expect(screen.getByText("usted recibe $100 de descuento")).toBeInTheDocument();
+    expect(screen.getByText("Acreditado")).toBeInTheDocument();
+    expect(screen.getByText("Pendiente")).toBeInTheDocument();
+    expect(screen.getByText("1 canje")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copiar código" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["referral."])).toEqual([]);
+  });
+
+  it("referrals: the paid-plan upsell and the employee refusal read in Spanish", async () => {
+    setLanguage("es");
+    mockFetch({ "GET /api/v2/admin/referrals": { status: 409, body: { detail: "x" } } });
+    const { unmount } = renderRoute(<AdminReferrals />);
+    expect(await screen.findByText("Active los referidos con un plan de pago")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver planes →" })).toBeInTheDocument();
+    unmount();
+    signInAs({ role: "employee" });
+    renderRoute(<AdminReferrals />);
+    expect(screen.getByText(/Necesita entrar como administrador/)).toBeInTheDocument();
   });
 });

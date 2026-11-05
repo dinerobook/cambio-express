@@ -1,9 +1,11 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AccountActivity from "./AccountActivity";
 import { renderRoute } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // "My activity": one person's feed across stores. Store column in
 // place of the actor; filters, page and rows-per-page in the query.
@@ -60,5 +62,33 @@ describe("My activity", () => {
     useMyActivity.mockReturnValue(ok({ rows: [], total: 0, total_pages: 1 }));
     renderRoute(<AccountActivity />);
     expect(screen.getByText(/Nothing here yet/)).toBeInTheDocument();
+  });
+});
+
+describe("My activity in Spanish", () => {
+  beforeEach(() => {
+    useMyActivity.mockReset();
+    // The target label and summary are written by the server.
+    useMyActivity.mockReturnValue(ok({ rows: [{ ...ok().data.rows[0], target_label: "Envío #7" }] }));
+  });
+
+  it("shows the filters, count and table in Spanish", () => {
+    setLanguage("es");
+    renderRoute(<AccountActivity />);
+    expect(screen.getByRole("heading", { name: /Mi actividad/ })).toBeInTheDocument();
+    expect(screen.getByText("60 eventos")).toBeInTheDocument();
+    expect(screen.getByLabelText("Objeto")).toHaveDisplayValue("Todos");
+    expect(screen.getByRole("option", { name: "Libro diario" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Cambio de estado" })).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("Crear")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("Envío")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["audit."])).toEqual([]);
+  });
+
+  it("says one event, not one events", () => {
+    setLanguage("es");
+    useMyActivity.mockReturnValue(ok({ rows: [], total: 1, total_pages: 1 }));
+    renderRoute(<AccountActivity />);
+    expect(screen.getByText("1 evento")).toBeInTheDocument();
   });
 });

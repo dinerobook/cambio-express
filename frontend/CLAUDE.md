@@ -222,7 +222,8 @@ shown with `tIfKey()`; table columns are built during render so they
 follow a language switch. A sentence with bold or a link inside uses
 `tNodes()`, never glued pieces. Roles, permission areas and shift
 statuses have label helpers too (`roleLabel()`, `resourceLabel()`,
-`timeClockStatusLabel()`); call them during render, never in a
+`timeClockStatusLabel()`, `auditActionLabel()`, `auditTargetLabel()`);
+call them during render, never in a
 module-level constant. Full rules and the glossary: UI-STANDARDS §10.
 
 ## OpenAPI → TypeScript types

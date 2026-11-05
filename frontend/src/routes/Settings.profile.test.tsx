@@ -6,6 +6,7 @@ import { SettingsProfile } from "./Settings";
 import { ApiError } from "../lib/api";
 import { renderRouteWithGuard } from "../test/renderRoute";
 import { getLanguage, setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Settings → Profile (your own name, email, phone, theme). Pinned:
 // the form loads clean, an edit shows the Unsaved changes bar and
@@ -138,5 +139,17 @@ describe("Settings → Profile language (UI-STANDARDS §10)", () => {
     setLanguage("es");
     renderTab();
     expect(screen.getByLabelText(/^Idioma \(Language\)/)).toHaveValue("es");
+  });
+});
+
+describe("Settings → Profile in Spanish", () => {
+  it("the form, the role and the account details read in Spanish", () => {
+    setLanguage("es");
+    renderTab();
+    expect(screen.getByText("Datos personales")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nombre para mostrar/)).toHaveValue("Ana Ruiz");
+    expect(screen.getByDisplayValue("Administrador")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar perfil" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["profile.", "role."])).toEqual([]);
   });
 });

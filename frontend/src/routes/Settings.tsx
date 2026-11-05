@@ -24,8 +24,13 @@ import { hasPermission } from "../lib/permissions";
 import { passkeysSupported } from "../lib/webauthn";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import {
-  getLanguage, isLanguage, LANGUAGE_NAMES, LANGUAGES, setLanguage, useT,
+  getLanguage, isLanguage, LANGUAGE_NAMES, LANGUAGES, setLanguage, t as translate,
+  tNodes, useT,
+  type MessageKey,
 } from "../i18n";
+import { navWord } from "../i18n/navWords";
+import { roleLabel } from "../api/roles";
+import { weekdayNameLong } from "../lib/datetime";
 import {
   Alert, Button, ButtonLink, Card, Checkbox, ConfirmDialog, Empty,
   ErrorState, Field, FormActions, InfoTip, Input, Loading, PageHeader,
@@ -48,6 +53,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 
 export default function Settings() {
   const identity = getCurrentIdentity();
+  const t = useT();
   // Which tabs show is NOT decided here. Each TabsLink hides itself
   // when the person cannot open its route (lib/access.ts), and the
   // route's <Gate> reads the same table — so a tab can never lead
@@ -59,15 +65,15 @@ export default function Settings() {
 
       <PageCrumbs />
 
-      <PageHeader title="Settings" subtitle={identity?.username || "—"} />
+      <PageHeader title={navWord("Settings")} subtitle={identity?.username || "—"} />
 
       <TabsBar>
-        <TabsLink to="/settings/profile">Profile</TabsLink>
-        <TabsLink to="/settings/general">General</TabsLink>
-        <TabsLink to="/settings/money-services">Money services</TabsLink>
-        <TabsLink to="/settings/billing">Billing</TabsLink>
-        <TabsLink to="/settings/referrals">Referrals</TabsLink>
-        <TabsLink to="/settings/security">Security</TabsLink>
+        <TabsLink to="/settings/profile">{t("settings.tabProfile")}</TabsLink>
+        <TabsLink to="/settings/general">{t("settings.tabGeneral")}</TabsLink>
+        <TabsLink to="/settings/money-services">{navWord("Money services")}</TabsLink>
+        <TabsLink to="/settings/billing">{navWord("Billing")}</TabsLink>
+        <TabsLink to="/settings/referrals">{t("settings.tabReferrals")}</TabsLink>
+        <TabsLink to="/settings/security">{t("settings.tabSecurity")}</TabsLink>
       </TabsBar>
 
       <Outlet />
@@ -111,6 +117,7 @@ export function SettingsSecurity() {
 function DataExportCard() {
   const [busy, setBusy] = useState(false);
   const toastApiError = useApiErrorToast();
+  const t = useT();
   async function handleExport() {
     setBusy(true);
     try {
@@ -121,7 +128,7 @@ function DataExportCard() {
         fallbackName: "dinerobook-data.json",
       });
     } catch (err) {
-      toastApiError(err, "Could not download your data.");
+      toastApiError(err, t("settings.exportFailed"));
     } finally {
       setBusy(false);
     }
@@ -129,11 +136,11 @@ function DataExportCard() {
   return (
     <Card>
       <SectionTitle>
-        Download your data
-        <InfoTip text="Exports a JSON file with your profile, notification preferences, session history, registered passkeys, and audit log entries." />
+        {t("settings.exportTitle")}
+        <InfoTip text={t("settings.exportTip")} />
       </SectionTitle>
       <Button onClick={() => { void handleExport(); }} busy={busy} type="button">
-        Download my data (JSON)
+        {t("settings.exportButton")}
       </Button>
     </Card>
   );
@@ -175,7 +182,7 @@ function ProfileCard() {
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(baseline);
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved edits to your profile. Leave without saving?",
+    message: t("profile.unsavedMessage"),
   });
 
   function set<K extends keyof ProfileUpdateBody>(
@@ -200,7 +207,7 @@ function ProfileCard() {
       setBaseline(draft);  // edits are now the saved state — clear dirty
       // The app switches language as soon as the choice is saved.
       if (isLanguage(draft.language)) setLanguage(draft.language);
-      toast({ message: "Profile updated.", tone: "success" });
+      toast({ message: t("profile.updated"), tone: "success" });
       queryClient.invalidateQueries({ queryKey: ["account", "profile"] });
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
@@ -208,12 +215,10 @@ function ProfileCard() {
         if (detail?.field_errors) {
           setFieldErrors(detail.field_errors);
         } else {
-          setServerError(err.message);
+          setServerError(apiErrorMessage(err, t("common.networkError")));
         }
-      } else if (err instanceof ApiError) {
-        setServerError(err.message);
       } else {
-        setServerError("Network error. Try again.");
+        setServerError(apiErrorMessage(err, t("common.networkError")));
       }
     } finally {
       setBusy(false);
@@ -221,14 +226,14 @@ function ProfileCard() {
   }
 
   if (isLoading) {
-    return <Card><SectionTitle>Personal info</SectionTitle><Loading /></Card>;
+    return <Card><SectionTitle>{t("profile.personalInfo")}</SectionTitle><Loading /></Card>;
   }
   if (isError || !data) {
     return (
       <Card>
-        <SectionTitle>Personal info</SectionTitle>
+        <SectionTitle>{t("profile.personalInfo")}</SectionTitle>
         <ErrorState
-          message={`Couldn't load your profile. ${apiErrorMessage(error, "")}`.trimEnd()}
+          message={`${t("profile.loadFailed")} ${apiErrorMessage(error, "")}`.trimEnd()}
           onRetry={() => { void refetch(); }}
         />
       </Card>
@@ -247,12 +252,9 @@ function ProfileCard() {
 
   return (
     <Card>
-      <SectionTitle>Personal info</SectionTitle>
+      <SectionTitle>{t("profile.personalInfo")}</SectionTitle>
       <p className={styles.profileLead}>
-        Used for things addressed to you personally — receipts,
-        password-reset emails, audit-log attribution. Your
-        {loginIsEmail ? " role is" : " username and role are"} set by
-        your store admin and shown here for reference.
+        {loginIsEmail ? t("profile.leadEmail") : t("profile.leadUsername")}
       </p>
 
       {serverError && <Alert tone="error">{serverError}</Alert>}
@@ -262,7 +264,7 @@ function ProfileCard() {
         autoComplete="off"
         style={{ display: "flex", flexDirection: "column", gap: space.lg, marginTop: space.lg }}
       >
-        <Field label="Display name *" error={fieldErrors.full_name}>
+        <Field label={t("profile.displayName")} error={fieldErrors.full_name}>
           <Input
             type="text" maxLength={120} required
             value={draft.full_name ?? ""}
@@ -272,11 +274,11 @@ function ProfileCard() {
         </Field>
 
         <Field
-          label="Email"
+          label={t("common.email")}
           error={fieldErrors.email}
           hint={loginIsEmail
-            ? "Your sign-in email. We also use it for password reset and account notices."
-            : "We use this for password reset and account notices. Leave blank if you'd rather not receive email."}
+            ? t("profile.emailHintLogin")
+            : t("profile.emailHint")}
         >
           <Input
             type="email" maxLength={255}
@@ -288,7 +290,7 @@ function ProfileCard() {
           />
         </Field>
 
-        <Field label="Phone" error={fieldErrors.phone}>
+        <Field label={t("common.phone")} error={fieldErrors.phone}>
           <Input
             type="tel" maxLength={40}
             autoComplete="tel"
@@ -306,7 +308,7 @@ function ProfileCard() {
             across the whole team. */}
 
         <Field
-          label={<>Appearance<InfoTip text="Follows you to every browser you sign in on. The topbar toggle is a quicker shortcut for the same setting." /></>}
+          label={<>{t("profile.appearance")}<InfoTip text={t("profile.appearanceTip")} /></>}
           error={fieldErrors.theme_preference}
         >
           <Switch
@@ -316,7 +318,7 @@ function ProfileCard() {
             }
             disabled={busy}
           >
-            Light theme (dark is the default)
+            {t("profile.lightTheme")}
           </Switch>
         </Field>
 
@@ -345,18 +347,16 @@ function ProfileCard() {
 
         <div className={styles.profileReadOnlyGrid}>
           {!loginIsEmail && (
-            <ProfileReadOnly label="Username" value={data.username} />
+            <ProfileReadOnly label={t("profile.username")} value={data.username} />
           )}
-          <ProfileReadOnly label="Role" value={
-            data.role.charAt(0).toUpperCase() + data.role.slice(1)
-          } />
-          <ProfileReadOnly label="Member since" value={memberSince} />
-          <ProfileReadOnly label="Last sign-in" value={lastLogin} />
+          <ProfileReadOnly label={t("employee.role")} value={roleLabel(data.role)} />
+          <ProfileReadOnly label={t("profile.memberSince")} value={memberSince} />
+          <ProfileReadOnly label={t("profile.lastSignIn")} value={lastLogin} />
         </div>
 
         <FormActions guard={guard}>
           <Button type="submit" busy={busy} disabled={busy || !isDirty}>
-            {busy ? "Saving…" : "Save profile"}
+            {busy ? t("common.saving") : t("profile.save")}
           </Button>
         </FormActions>
       </form>
@@ -390,6 +390,7 @@ function PasskeysCard() {
   const [pendingRemove, setPendingRemove] =
     useState<{ id: number; label: string } | null>(null);
   const supported = passkeysSupported();
+  const t = useT();
 
   if (identity == null) return null;
 
@@ -406,7 +407,7 @@ function PasskeysCard() {
       refresh();
       setPendingRemove(null);
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not remove device."));
+      setErr(apiErrorMessage(e, t("passkeys.removeFailed")));
     } finally {
       setBusyId(null);
     }
@@ -423,7 +424,7 @@ function PasskeysCard() {
       // navigator.credentials.create() rejects on cancel / wrong
       // device / etc. with browser-specific messages — surface
       // them as-is so users see the actual reason.
-      const msg = apiErrorMessage(e, "Could not create passkey.", { anyError: true });
+      const msg = apiErrorMessage(e, t("passkeys.createFailed"), { anyError: true });
       setErr(msg);
     } finally {
       setAddBusy(false);
@@ -434,50 +435,45 @@ function PasskeysCard() {
     <Card>
       <div className={styles.sectionHead}>
         <div style={{ flex: 1 }}>
-          <SectionTitle>Passkeys</SectionTitle>
+          <SectionTitle>{t("passkeys.title")}</SectionTitle>
         </div>
         {supported && !adding && (
           <Button
             tone="secondary" size="sm"
             onClick={() => { setAdding(true); setErr(null); }}
           >
-            + Add a passkey
+            {t("passkeys.add")}
           </Button>
         )}
       </div>
       <p className={styles.helpText}>
-        Sign in with your device (Touch ID, Face ID, Windows Hello,
-        or a hardware key) instead of a password. Passkeys are
-        phishing-resistant and count as two-factor auth, so a passkey
-        login skips the verification-code step.
+        {t("passkeys.help")}
       </p>
       {!supported && (
         <Alert tone="info">
-          This browser doesn't expose the WebAuthn API, so passkeys
-          aren't available here. Use a modern Chrome, Safari, Firefox,
-          or Edge build.
+          {t("passkeys.unsupported")}
         </Alert>
       )}
       {adding && (
         <div className={styles.addInset}>
-          <Field label="Nickname for this passkey">
+          <Field label={t("passkeys.nickname")}>
             <Input
               type="text" value={newName} maxLength={120}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. MacBook Touch ID"
+              placeholder={t("passkeys.nicknamePlaceholder")}
               autoFocus disabled={addBusy}
             />
           </Field>
           <div className={styles.addInsetActions}>
             <Button onClick={add} busy={addBusy} disabled={addBusy} size="sm">
-              {addBusy ? "Creating…" : "Create passkey"}
+              {addBusy ? t("passkeys.creating") : t("passkeys.create")}
             </Button>
             <Button
               tone="secondary" size="sm"
               onClick={() => { setAdding(false); setNewName(""); setErr(null); }}
               disabled={addBusy}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
           </div>
         </div>
@@ -485,12 +481,12 @@ function PasskeysCard() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message="Could not load passkeys."
+          message={t("passkeys.loadFailed")}
           onRetry={() => { void refetch(); }}
         />
       )}
       {data && data.passkeys.length === 0 && !isLoading && (
-        <Empty>No passkeys registered yet.</Empty>
+        <Empty>{t("passkeys.none")}</Empty>
       )}
       {data && data.passkeys.length > 0 && (
         <ul className={styles.list}>
@@ -498,12 +494,14 @@ function PasskeysCard() {
             <li key={p.id} className={styles.row}>
               <span className={styles.rowBody}>
                 <div className={styles.rowTitle}>
-                  {p.name || "Unnamed device"}
+                  {p.name || t("passkeys.unnamed")}
                 </div>
                 <div className={styles.rowMeta}>
-                  Added {formatDate(p.created_at)}
-                  {p.last_used_at &&
-                    ` · last used ${formatDate(p.last_used_at)}`}
+                  {p.last_used_at
+                    ? t("passkeys.addedUsed", {
+                        date: formatDate(p.created_at), used: formatDate(p.last_used_at),
+                      })
+                    : t("passkeys.added", { date: formatDate(p.created_at) })}
                 </div>
               </span>
               <Button
@@ -512,7 +510,7 @@ function PasskeysCard() {
                 busy={busyId === p.id}
                 disabled={busyId === p.id}
               >
-                {busyId === p.id ? "Removing…" : "Remove"}
+                {busyId === p.id ? t("passkeys.removing") : t("passkeys.remove")}
               </Button>
             </li>
           ))}
@@ -521,13 +519,11 @@ function PasskeysCard() {
       {err && <Alert tone="error">{err}</Alert>}
       <ConfirmDialog
         open={pendingRemove != null}
-        title="Remove this passkey?"
-        message={
-          `Remove "${pendingRemove?.label || "this device"}"? `
-          + "You can re-enroll it later if you change your mind, but "
-          + "anyone with this device will lose passkey access."
-        }
-        confirmLabel="Remove"
+        title={t("passkeys.removeTitle")}
+        message={t("passkeys.removeBody", {
+          name: pendingRemove?.label || t("passkeys.thisDevice"),
+        })}
+        confirmLabel={t("passkeys.remove")}
         confirmTone="danger"
         busy={busyId != null}
         onConfirm={() => { void doRemove(); }}
@@ -541,6 +537,7 @@ function SubscriptionCard() {
   const identity = getCurrentIdentity();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const t = useT();
   const canManage =
     identity?.role === "admin" ||
     identity?.role === "owner" ||
@@ -560,21 +557,20 @@ function SubscriptionCard() {
         window.location.assign("/app/subscribe");
         return;
       }
-      setErr(apiErrorMessage(e, "Could not open billing portal."));
+      setErr(apiErrorMessage(e, t("subscription.portalFailed")));
       setBusy(false);
     }
   }
 
   return (
     <Card>
-      <SectionTitle>Subscription</SectionTitle>
+      <SectionTitle>{t("subscription.title")}</SectionTitle>
       <p className={styles.subscriptionInfo}>
-        Change plan, update payment method, or cancel — all on Stripe's
-        secure billing portal. Trial stores can pick a plan instead.
+        {t("subscription.info")}
       </p>
       <div className={styles.actionsRow}>
         <ButtonLink to="/subscribe" tone="primary">
-          Choose / change plan
+          {t("subscription.choose")}
         </ButtonLink>
         <Button
           tone="secondary"
@@ -582,7 +578,7 @@ function SubscriptionCard() {
           busy={busy}
           disabled={busy}
         >
-          {busy ? "Opening…" : "Manage on Stripe"}
+          {busy ? t("subscription.opening") : t("subscription.manage")}
         </Button>
       </div>
       {err && <Alert tone="error">{err}</Alert>}
@@ -615,6 +611,7 @@ function StoreInfoCard() {
   // Last-saved snapshot (JSON) — the form is dirty when it drifts.
   const [baseline, setBaseline] = useState<string>("");
   const toast = useToast();
+  const t = useT();
 
   // Serialize every editable field into one comparable snapshot. Same
   // key order here + at hydrate so the dirty compare is stable.
@@ -675,7 +672,7 @@ function StoreInfoCard() {
     baseline !== ""
     && snapshot(hours, enforceHours) !== baseline;
   const guard = useUnsavedGuard(isDirty && !busy && canEdit, {
-    message: "You have unsaved store settings. Leave without saving?",
+    message: t("store.unsavedMessage"),
   });
 
   async function onSubmit(e: FormEvent) {
@@ -706,9 +703,9 @@ function StoreInfoCard() {
       });
       // Edits are now the saved state — clear the dirty flag.
       setBaseline(snapshot(hours, enforceHours));
-      toast({ message: "Store info saved.", tone: "success" });
+      toast({ message: t("store.saved"), tone: "success" });
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not save."));
+      setErr(apiErrorMessage(e, t("store.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -723,12 +720,9 @@ function StoreInfoCard() {
   if (identity?.role === "owner") {
     return (
       <Card>
-        <SectionTitle>Owner umbrella</SectionTitle>
+        <SectionTitle>{t("store.ownerTitle")}</SectionTitle>
         <p className={styles.muted}>
-          Per-store settings (name, address, tax rate, business
-          hours, time-clock policy) live inside each connected
-          store's own admin sign-in.  Umbrella-level controls
-          live on the Owner pages below.
+          {t("store.ownerBody")}
         </p>
         <div
           style={{
@@ -739,10 +733,10 @@ function StoreInfoCard() {
           }}
         >
           <ButtonLink to="/owner/cross-store-defaults" tone="secondary">
-            Cross-store defaults →
+            {t("store.crossDefaults")}
           </ButtonLink>
           <ButtonLink to="/owner/locations" tone="secondary">
-            Locations →
+            {t("store.locations")}
           </ButtonLink>
         </div>
       </Card>
@@ -752,9 +746,9 @@ function StoreInfoCard() {
   if (identity?.store_id == null) {
     return (
       <Card>
-        <SectionTitle>Store</SectionTitle>
+        <SectionTitle>{t("store.title")}</SectionTitle>
         <p className={styles.muted}>
-          Sign in as a store admin to manage store info.
+          {t("store.signInAsAdmin")}
         </p>
       </Card>
     );
@@ -763,7 +757,7 @@ function StoreInfoCard() {
   if (isLoading) {
     return (
       <Card>
-        <SectionTitle>Store</SectionTitle>
+        <SectionTitle>{t("store.title")}</SectionTitle>
         <Loading />
       </Card>
     );
@@ -771,9 +765,9 @@ function StoreInfoCard() {
   if (isError || !data) {
     return (
       <Card>
-        <SectionTitle>Store</SectionTitle>
+        <SectionTitle>{t("store.title")}</SectionTitle>
         <ErrorState
-          message="Could not load store info."
+          message={t("store.loadFailed")}
           onRetry={() => { void refetch(); }}
         />
       </Card>
@@ -789,37 +783,39 @@ function StoreInfoCard() {
       style={{ display: "flex", flexDirection: "column", gap: space.lg }}
     >
       <Card>
-        <SectionTitle>Store</SectionTitle>
+        <SectionTitle>{t("store.title")}</SectionTitle>
         <p className={styles.slugRow}>
-          Slug <code className={styles.slug}>{data.store.slug}</code>{" "}
-          · plan {data.store.plan}
+          {tNodes("store.slugPlan", {
+            slug: <code className={styles.slug}>{data.store.slug}</code>,
+            plan: planLabel(data.store.plan),
+          })}
         </p>
         <div className={styles.storeGrid}>
-          <Field label="Store name">
+          <Field label={t("store.name")}>
             <Input type="text" value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={!canEdit} required />
           </Field>
-          <Field label="Email">
+          <Field label={t("common.email")}>
             <Input type="email" value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={!canEdit} />
           </Field>
-          <Field label="Phone">
+          <Field label={t("common.phone")}>
             <Input type="tel" value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={!canEdit} />
           </Field>
-          <Field label="Address">
+          <Field label={t("store.address")}>
             <Input type="text" value={address}
               onChange={(e) => setAddress(e.target.value)}
               disabled={!canEdit} />
           </Field>
           <Field
-            label={<>Timezone<InfoTip text="Used for every date and time across the store — reports, audit trails, receipts. Set it once here; “Detect from address” suggests it from the address above." /></>}
+            label={<>{t("store.timezone")}<InfoTip text={t("store.timezoneTip")} /></>}
             hint={data.store.timezone
               ? undefined
-              : "No timezone saved yet, so each device shows its own time. Pick the store’s timezone (or detect it from the address) and save."}
+              : t("store.timezoneMissing")}
           >
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <Select
@@ -828,7 +824,7 @@ function StoreInfoCard() {
                 disabled={!canEdit}
                 style={{ flex: "1 1 auto" }}
               >
-                <option value="">Not set (each device’s own time)</option>
+                <option value="">{t("store.timezoneNone")}</option>
                 {(data.store.timezone_choices ?? []).map((tz) => (
                   <option key={tz} value={tz}>{tz}</option>
                 ))}
@@ -843,18 +839,18 @@ function StoreInfoCard() {
                   if (detected) {
                     setTimezone(detected);
                     toast({
-                      message: `Timezone set to ${detected} from the address. Adjust if needed, then save.`,
+                      message: t("store.timezoneDetected", { zone: detected }),
                       tone: "success",
                     });
                   } else {
                     toast({
-                      message: "Couldn’t detect a US state from the address — pick a timezone manually.",
+                      message: t("store.timezoneNotDetected"),
                       tone: "info",
                     });
                   }
                 }}
               >
-                Detect from address
+                {t("store.detect")}
               </Button>
             </div>
           </Field>
@@ -867,34 +863,34 @@ function StoreInfoCard() {
           mid-grid, which rendered as a stray one-column cell.) */}
       <Card>
         <SectionTitle>
-          Business / Legal
-          <InfoTip text="Compliance identity and tax rates — used on tax exports and filings. Leave blank if they match the store info above." />
+          {t("store.legalTitle")}
+          <InfoTip text={t("store.legalTip")} />
         </SectionTitle>
         <div className={styles.storeGrid}>
-          <Field label={<>Legal name<InfoTip text="Official business name for compliance filings." /></>}>
+          <Field label={<>{t("store.legalName")}<InfoTip text={t("store.legalNameTip")} /></>}>
             <Input type="text" value={legalName}
               onChange={(e) => setLegalName(e.target.value)}
               disabled={!canEdit} />
           </Field>
-          <Field label={<>EIN<InfoTip text="Federal employer identification number." /></>}>
-            <Input type="text" value={ein} placeholder="XX-XXXXXXX"
+          <Field label={<>{EIN}<InfoTip text={t("store.einTip")} /></>}>
+            <Input type="text" value={ein} placeholder={EIN_PATTERN}
               maxLength={20}
               onChange={(e) => setEin(e.target.value)}
               disabled={!canEdit} />
           </Field>
-          <Field label={<>Business address<InfoTip text="Legal address, if different from the store address." /></>}>
+          <Field label={<>{t("store.businessAddress")}<InfoTip text={t("store.businessAddressTip")} /></>}>
             <Input type="text" value={businessAddress}
               onChange={(e) => setBusinessAddress(e.target.value)}
               disabled={!canEdit} />
           </Field>
-          <Field label="Federal tax rate (%)">
+          <Field label={t("store.federalTaxRate")}>
             <Input type="number" step="0.01" min="0" max="100"
               value={taxRatePct}
               onChange={(e) => setTaxRatePct(e.target.value)}
               disabled={!canEdit} />
           </Field>
           <Field
-            label={<>Sales tax rate (%)<InfoTip text="Applied to a day's Taxable Sales in the daily book. When set, Sales Tax auto-calculates and can't be edited by hand. Leave at 0 to enter Sales Tax manually." /></>}
+            label={<>{t("store.salesTaxRate")}<InfoTip text={t("store.salesTaxTip")} /></>}
           >
             <Input type="number" step="0.01" min="0" max="100"
               value={salesTaxPct}
@@ -913,8 +909,8 @@ function StoreInfoCard() {
 
       <Card>
         <SectionTitle>
-          Business hours
-          <InfoTip text='One row per day (Monday-first). Toggle "Closed" to mark the day off; open and close times use 24-hour HH:MM format. Saving with no edits keeps the default Mon-Sat 9-6 / Sun closed template.' />
+          {t("store.hoursTitle")}
+          <InfoTip text={t("store.hoursTip")} />
         </SectionTitle>
         <StoreHoursEditor
           hours={hours}
@@ -927,11 +923,9 @@ function StoreInfoCard() {
             disabled={!canEdit}
             onChange={setEnforceHours}
           >
-            Block transfers outside these hours
+            {t("store.blockOutside")}
             <span className={styles.enforceHint}>
-              {" "}— refuses transfer saves with an error when
-              outside the open window. The soft warning on the New
-              Transfer form fires regardless of this toggle.
+              {" "}{t("store.blockOutsideHint")}
             </span>
           </Switch>
         </div>
@@ -942,7 +936,7 @@ function StoreInfoCard() {
       {canEdit && (
         <FormActions guard={guard}>
           <Button type="submit" busy={busy} disabled={busy || !name || !isDirty}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? t("common.saving") : t("store.save")}
           </Button>
         </FormActions>
       )}
@@ -957,6 +951,7 @@ function ChangePasswordCard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const t = useT();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -968,11 +963,11 @@ function ChangePasswordCard() {
         new_password:     next,
         confirm_password: confirm,
       });
-      toast({ message: "Password updated.", tone: "success" });
+      toast({ message: t("password.updated"), tone: "success" });
       setCurrent(""); setNext(""); setConfirm("");
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not update password."),
+        apiErrorMessage(err, t("password.updateFailed")),
       );
     } finally {
       setBusy(false);
@@ -981,9 +976,9 @@ function ChangePasswordCard() {
 
   return (
     <Card>
-      <SectionTitle>Change password</SectionTitle>
+      <SectionTitle>{t("password.title")}</SectionTitle>
       <form onSubmit={onSubmit} className={styles.passwordForm}>
-        <Field label="Current password">
+        <Field label={t("password.current")}>
           <Input
             type="password"
             autoComplete="current-password"
@@ -992,7 +987,7 @@ function ChangePasswordCard() {
             onChange={(e) => setCurrent(e.target.value)}
           />
         </Field>
-        <Field label="New password (≥ 8 chars)">
+        <Field label={t("password.new")}>
           <Input
             type="password"
             autoComplete="new-password"
@@ -1002,7 +997,7 @@ function ChangePasswordCard() {
             onChange={(e) => setNext(e.target.value)}
           />
         </Field>
-        <Field label="Confirm new password">
+        <Field label={t("password.confirm")}>
           <Input
             type="password"
             autoComplete="new-password"
@@ -1018,7 +1013,7 @@ function ChangePasswordCard() {
           busy={busy}
           disabled={busy || !current || !next || !confirm}
         >
-          {busy ? "Saving…" : "Update password"}
+          {busy ? t("common.saving") : t("password.update")}
         </Button>
       </form>
     </Card>
@@ -1027,10 +1022,21 @@ function ChangePasswordCard() {
 
 // ── Store hours ───────────────────────────────────────────────
 
-const DAY_LABELS = [
-  "Monday", "Tuesday", "Wednesday", "Thursday",
-  "Friday", "Saturday", "Sunday",
-] as const;
+// The same in every language: the IRS name for the number, its
+// shape, and the shape of a connect code.
+const EIN = "EIN";
+const EIN_PATTERN = "XX-XXXXXXX";
+const CODE_SAMPLE = "ABCD1234";
+
+// A stored plan in the person's language; unknown shows as stored.
+const PLAN_KEYS: Record<string, MessageKey> = {
+  trial: "store.planTrial", basic: "store.planBasic",
+  pro: "store.planPro", inactive: "store.planInactive",
+};
+
+function planLabel(plan: string): string {
+  return Object.hasOwn(PLAN_KEYS, plan) ? translate(PLAN_KEYS[plan]) : plan;
+}
 
 // Mirrors ``Services.store_hours.DEFAULT_HOURS`` so the UI can
 // hydrate a complete schedule when the column is NULL.
@@ -1053,6 +1059,7 @@ function StoreHoursEditor({
   onChange: (next: StoreHourEntry[]) => void;
   disabled: boolean;
 }) {
+  const t = useT();
   function setRow(idx: number, patch: Partial<StoreHourEntry>) {
     onChange(hours.map((h, i) => (i === idx ? { ...h, ...patch } : h)));
   }
@@ -1063,14 +1070,14 @@ function StoreHoursEditor({
           <span
             className={`${styles.hoursDay} ${row.closed ? styles.hoursClosed : ""}`}
           >
-            {DAY_LABELS[row.day]}
+            {weekdayNameLong(row.day)}
           </span>
           <Checkbox
             checked={row.closed}
             disabled={disabled}
             onChange={(next) => setRow(i, { closed: next })}
           >
-            Closed
+            {t("store.closed")}
           </Checkbox>
           <Input
             type="time"
@@ -1078,7 +1085,7 @@ function StoreHoursEditor({
             disabled={disabled || row.closed}
             className={styles.hoursTime}
             onChange={(e) => setRow(i, { open: e.target.value })}
-            aria-label={`${DAY_LABELS[row.day]} open time`}
+            aria-label={t("store.openTime", { day: weekdayNameLong(row.day) })}
           />
           <span className={styles.hoursDashCell}>—</span>
           <Input
@@ -1087,7 +1094,7 @@ function StoreHoursEditor({
             disabled={disabled || row.closed}
             className={styles.hoursTime}
             onChange={(e) => setRow(i, { close: e.target.value })}
-            aria-label={`${DAY_LABELS[row.day]} close time`}
+            aria-label={t("store.closeTime", { day: weekdayNameLong(row.day) })}
           />
         </Fragment>
       ))}
@@ -1102,6 +1109,7 @@ function OwnerAccessCard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linked, setLinked] = useState<string | null>(null);
+  const t = useT();
 
   async function handleRedeem(e: FormEvent) {
     e.preventDefault();
@@ -1112,9 +1120,9 @@ function OwnerAccessCard() {
       const result = await redeemConnectCode(code.trim());
       setLinked(result.owner_name);
       setCode("");
-      toast({ message: `Store linked to owner "${result.owner_name}"`, tone: "success" });
+      toast({ message: t("ownerAccess.linkedToast", { name: result.owner_name }), tone: "success" });
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not redeem code."));
+      setError(apiErrorMessage(err, t("ownerAccess.redeemFailed")));
     } finally {
       setBusy(false);
     }
@@ -1123,27 +1131,27 @@ function OwnerAccessCard() {
   return (
     <Card>
       <SectionTitle>
-        Owner access
-        <InfoTip text="If a multi-store owner gave you a connect code, enter it here to link this store to their umbrella." />
+        {t("ownerAccess.title")}
+        <InfoTip text={t("ownerAccess.tip")} />
       </SectionTitle>
       {linked && (
         <Alert tone="success">
-          Linked to owner: <strong>{linked}</strong>
+          {tNodes("ownerAccess.linked", { name: <strong>{linked}</strong> })}
         </Alert>
       )}
       {error && <Alert tone="error">{error}</Alert>}
       <form onSubmit={(e) => { void handleRedeem(e); }} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
-        <Field label="Connect code">
+        <Field label={t("ownerAccess.code")}>
           <Input
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="ABCD1234"
+            placeholder={CODE_SAMPLE}
             maxLength={8}
             style={{ fontFamily: "var(--db-font-mono)", letterSpacing: "0.15em", width: "12rem" }}
           />
         </Field>
         <Button type="submit" busy={busy} disabled={!code.trim()}>
-          Link store
+          {t("ownerAccess.link")}
         </Button>
       </form>
     </Card>

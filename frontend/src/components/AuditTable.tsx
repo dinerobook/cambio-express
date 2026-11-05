@@ -3,6 +3,9 @@ import { formatTimestamp } from "../lib/datetime";
 import { DataTable, type DataColumn, type DataTableProps } from "./ui";
 import { AuditActionBadge } from "./AuditActionBadge";
 import styles from "./AuditTable.module.css";
+import { auditTargetLabel } from "./auditFilters";
+import { t, useT } from "../i18n";
+import { roleLabel } from "../api/roles";
 
 /** One audit row as the table reads it. The store feeds
  *  (`Admin.Services.audit_log.list_audit_rows`) fill `user_*`; the
@@ -41,10 +44,11 @@ export function AuditTable({
   | "isLoading" | "isError" | "error" | "onRetry" | "errorMessage"
   | "emptyTitle" | "emptyBody" | "page"
 >) {
+  useT(); // headings follow the language
   return (
     <DataTable
       {...state}
-      columns={COLUMNS[who]}
+      columns={columnsFor(who)}
       rows={rows}
       // ts + target_id is unique enough; (source, ts) collisions can
       // happen across the same wallclock second, so the row's own
@@ -54,44 +58,45 @@ export function AuditTable({
   );
 }
 
-const WHEN: DataColumn<AuditTableRow> = {
-  key: "when", header: "When",
-  render: (r) => <span className={styles.monoMuted}>{formatTimestamp(r.ts)}</span>,
-};
+// Built during render so the headings follow the language.
+function columnsFor(who: "actor" | "store" | "both"): DataColumn<AuditTableRow>[] {
+  const WHEN: DataColumn<AuditTableRow> = {
+    key: "when", header: t("audit.colWhen"),
+    render: (r) => <span className={styles.monoMuted}>{formatTimestamp(r.ts)}</span>,
+  };
 
-const ACTOR: DataColumn<AuditTableRow> = {
-  key: "actor", header: "Actor",
-  render: (r) => (
-    <>
-      <strong>{r.user_name || "—"}</strong>
-      {r.user_role && <span className={styles.userRole}>({r.user_role})</span>}
-    </>
-  ),
-};
-
-const STORE: DataColumn<AuditTableRow> = {
-  key: "store", header: "Store", render: (r) => r.store_name || "—",
-};
-
-const REST: DataColumn<AuditTableRow>[] = [
-  { key: "action", header: "Action", render: (r) => <AuditActionBadge action={r.action} /> },
-  {
-    key: "target", header: "Target",
+  const ACTOR: DataColumn<AuditTableRow> = {
+    key: "actor", header: t("audit.colActor"),
     render: (r) => (
-      <span>
-        <span className={styles.targetType}>{r.target_type || "—"}</span>
-        {r.target_label && <span className={styles.targetLabel}>{r.target_label}</span>}
-      </span>
+      <>
+        <strong>{r.user_name || "—"}</strong>
+        {r.user_role && <span className={styles.userRole}>({roleLabel(r.user_role)})</span>}
+      </>
     ),
-  },
-  {
-    key: "details", header: "Details",
-    render: (r) => <span className={styles.detailCell}>{r.summary || "—"}</span>,
-  },
-];
+  };
 
-const COLUMNS = {
-  actor: [WHEN, ACTOR, ...REST],
-  store: [WHEN, STORE, ...REST],
-  both: [WHEN, STORE, ACTOR, ...REST],
-};
+  const STORE: DataColumn<AuditTableRow> = {
+    key: "store", header: t("audit.colStore"), render: (r) => r.store_name || "—",
+  };
+
+  const REST: DataColumn<AuditTableRow>[] = [
+    { key: "action", header: t("audit.action"), render: (r) => <AuditActionBadge action={r.action} /> },
+    {
+      key: "target", header: t("audit.target"),
+      render: (r) => (
+        <span>
+          <span className={styles.targetType}>{r.target_type ? auditTargetLabel(r.target_type) : "—"}</span>
+          {r.target_label && <span className={styles.targetLabel}>{r.target_label}</span>}
+        </span>
+      ),
+    },
+    {
+      key: "details", header: t("audit.colDetails"),
+      render: (r) => <span className={styles.detailCell}>{r.summary || "—"}</span>,
+    },
+  ];
+
+  if (who === "store") return [WHEN, STORE, ...REST];
+  if (who === "both") return [WHEN, STORE, ACTOR, ...REST];
+  return [WHEN, ACTOR, ...REST];
+}
