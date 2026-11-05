@@ -193,6 +193,8 @@ def test_route_list_is_view_only_and_narrow():
         ("POST", "/auth/passkeys/register/begin"),
         ("POST", "/auth/passkeys/register/finish"),
         ("DELETE", "/auth/passkeys/{passkey_id}"),
+        # Moves their own sign-in to their own login at another store.
+        ("POST", "/auth/switch-store"),
     }
     for m, p in reachable:
         if (m, p) in own_account_writes:

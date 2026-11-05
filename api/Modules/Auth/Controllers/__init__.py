@@ -16,7 +16,9 @@ from sqlalchemy.orm import Session
 import os
 import jwt
 
-from api.Core.Permissions.accountant import require_accountant_route
+from api.Core.Permissions.accountant import (
+    ACCOUNTANT_ROLE, require_accountant_route,
+)
 from api.Core.Database import get_db
 from api.Core.RateLimit import limiter as _rate_limiter
 from api.Modules.Auth.Models import User
@@ -394,6 +396,7 @@ def _to_login_response(
     response: Response | None = None,
     db: Session | None = None,
     request: Request | None = None,
+    linked_user_ids: list[int] | None = None,
 ) -> LoginResponse:
     """Translate a Service result (full or pending) into the
     polymorphic ``LoginResponse`` shape. Centralised so every
@@ -407,6 +410,11 @@ def _to_login_response(
          request) and set the ``db_refresh_token`` cookie.
       2. Re-mint the access token with the new ``sid`` claim and
          set the ``db_access_token`` cookie.
+
+    ``linked_user_ids`` (an accountant's other stores that the same
+    password opened, ``Services/linked_logins.py``) each get a
+    refresh row in the SAME session, so the in-app store switch can
+    move between them without another sign-in.
 
     Body still carries ``access_token`` for backward compat with
     non-SPA callers (curl, scripts, tests).
@@ -436,6 +444,15 @@ def _to_login_response(
             user_agent=_client_user_agent(request),
             ip_address=_client_ip_address(request),
         )
+        if linked_user_ids:
+            from api.Modules.Auth.Services.linked_logins import link_session
+            link_session(
+                db, session_id=issued.session_id,
+                user_ids=list(linked_user_ids),
+                ttl_seconds=_refresh_ttl,
+                user_agent=_client_user_agent(request),
+                ip_address=_client_ip_address(request),
+            )
         # Re-mint the access token now that we have a session_id
         # so every authed request can identify its own session
         # cheaply (no extra DB lookup).
@@ -553,6 +570,19 @@ def login_route(
     # /login routes did this via app._record_login; the SPA path
     # mirrors it here so the report doesn't go dark on migrated users.
     _record_login_event(db, result.user_id, method="password")
+    # An accountant signing in to one store also links every other
+    # accountant login the same password opens (the store picker
+    # sends them here with the store they chose), so the store
+    # switch works without signing in again.
+    linked: list[int] = []
+    if isinstance(result, LoginResult):
+        from api.Modules.Auth.Services.linked_logins import (
+            linked_accountant_ids,
+        )
+        linked = linked_accountant_ids(
+            db, user_id=result.user_id, role=result.role,
+            username=body.username, password=body.password,
+        )
     # If we authed against a specific store (per-store login flow),
     # remember it in the cookie so legacy /-route fallbacks redirect
     # the user to their store's URL on next visit.
@@ -562,7 +592,9 @@ def login_route(
         if store is not None and store.slug:
             _set_last_store_slug_cookie(response, store.slug)
     db.commit()
-    return _to_login_response(result, response, db, request)
+    return _to_login_response(
+        result, response, db, request, linked_user_ids=linked,
+    )
 
 
 @router.get(
@@ -783,8 +815,10 @@ def logout_route(
     matching refresh chain is already burned.
     """
     if db_refresh_token:
-        from api.Modules.Auth.Services.refresh import revoke as _revoke
-        _revoke(db, jti=db_refresh_token)
+        # The whole sign-in, not just this row: a linked accountant
+        # sign-in holds one row per store (``revoke_session_chain``).
+        from api.Modules.Auth.Services.refresh import revoke_session_chain
+        revoke_session_chain(db, jti=db_refresh_token)
         db.commit()
     _clear_access_token_cookie(response)
     _clear_refresh_token_cookie(response)
@@ -2232,8 +2266,14 @@ def my_stores_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> MyStoresResponse:
     """The stores this owner can switch into — feeds the Switch
-    Store modal (name + address search happens client-side)."""
+    Store modal (name + address search happens client-side).
+
+    An accountant gets the stores their sign-in is linked to
+    (``Services/linked_logins.py``), their current one included;
+    one row means there is nothing to switch to."""
     from api.Modules.Tenancy.Models import Store
+    if claims.get("role") == ACCOUNTANT_ROLE:
+        return _accountant_my_stores(db, claims)
     owner = _resolve_switching_owner(db, claims)
     ids = _owner_switchable_store_ids(db, owner)
     current = claims.get("store_id")
@@ -2320,10 +2360,15 @@ def switch_store_route(
     claims: dict[str, Any] = Depends(get_principal),
 ) -> SwitchStoreResponse:
     """Enter one of the owner's stores: issue a store-scoped admin
-    token so the owner gets the exact store view their team sees."""
+    token so the owner gets the exact store view their team sees.
+
+    An accountant switches to their own login at another store
+    instead (``_accountant_switch_store``)."""
     from api.Core.Audit import audit_operator
     from api.Core.Permissions import permissions_for as _perms_for
     from api.Modules.Tenancy.Models import Store
+    if claims.get("role") == ACCOUNTANT_ROLE:
+        return _accountant_switch_store(db, claims, body.store_id, response)
     owner = _resolve_switching_owner(db, claims)
     if body.store_id not in _owner_switchable_store_ids(db, owner):
         raise HTTPException(status_code=404, detail="Store not found")
@@ -2367,4 +2412,103 @@ def switch_store_route(
         full_name=owner.full_name or "",
         permissions=issuer.permissions,
         owner_id=owner.id,
+    )
+
+
+# ── Accountant store switching (linked logins) ──
+#
+# An accountant has one login per store. Signing in links every
+# other accountant login the same password opens to the browser
+# session (``Services/linked_logins.py``). Switching moves the
+# session onto the login at the chosen store: a token for THAT
+# user row (its own role, store and fixed grants), and the refresh
+# cookie of that row, so a silent refresh keeps the chosen store.
+# Nothing is derived or widened; the person only ever holds a
+# token for a login the store gave them.
+
+
+def _accountant_my_stores(
+    db: Session, claims: dict[str, Any],
+) -> MyStoresResponse:
+    from api.Modules.Auth.Services.linked_logins import linked_logins
+    current = claims.get("store_id")
+    return MyStoresResponse(stores=[
+        SwitchableStoreRow(
+            store_id=link.store.id,
+            name=link.store.name or "",
+            slug=link.store.slug or "",
+            address=link.store.address or "",
+            is_current=(current is not None and int(current) == link.store.id),
+            is_home=False,
+        )
+        for link in linked_logins(db, claims)
+    ])
+
+
+def _accountant_switch_store(
+    db: Session, claims: dict[str, Any], store_id: int, response: Response,
+) -> SwitchStoreResponse:
+    """Move this browser session onto the accountant's own login at
+    ``store_id``. 404 when the sign-in is not linked to a live
+    accountant login there (never linked, signed out there, the
+    login was switched off or given another role, or the store was
+    disabled): the same answer for each, so nothing is told about
+    another store's people."""
+    from api.Core.Audit import audit_operator
+    from api.Modules.Auth.Services.linked_logins import linked_logins
+    from api.Modules.Auth.Services.refresh import DEFAULT_REFRESH_TOKEN_TTL_SECONDS
+    link = next(
+        (l for l in linked_logins(db, claims) if l.store.id == store_id),
+        None,
+    )
+    if link is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    user, store, row = link.user, link.store, link.refresh
+    perms = permissions_for(
+        user.role, db, store_id=user.store_id, user_id=user.id,
+    )
+    issuer = JWTIssuer(
+        sub=user.id,
+        role=user.role,
+        store_id=user.store_id,
+        permissions=perms,
+        full_name=user.full_name or "",
+        username=user.username or "",
+        session_id=row.session_id,
+    )
+    token = issue_access_token(issuer)
+    _set_access_token_cookie(response, token)
+    remaining = int((row.expires_at - utc_now()).total_seconds())
+    _set_refresh_token_cookie(
+        response, row.jti,
+        max_age_seconds=max(
+            60, min(DEFAULT_REFRESH_TOKEN_TTL_SECONDS, remaining),
+        ),
+    )
+    from_store = claims.get("store_id")
+    audit_operator(
+        db, claims,
+        store_id=store.id,
+        actor=user,
+        target_type="store",
+        action="accountant_switch_store",
+        target_id=str(store.id),
+        summary=(
+            f"accountant switched in from store {from_store}"
+            if from_store is not None else "accountant switched in"
+        ),
+    )
+    db.commit()
+    return SwitchStoreResponse(
+        access_token=token,
+        store_id=store.id,
+        store_name=store.name or "",
+        role=user.role,
+        expires_in=DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+        user_id=user.id,
+        username=user.username or "",
+        full_name=user.full_name or "",
+        permissions=perms,
+        owner_id=None,
+        refresh_jti=row.jti,
     )

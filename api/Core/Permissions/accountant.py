@@ -41,6 +41,12 @@ ACCOUNTANT_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("DELETE", "/auth/sessions/{session_id}"),
     ("GET", "/auth/activity"),
     ("GET", "/auth/account/export"),
+    # The in-app store switch: their own login at another store
+    # their sign-in is linked to (Auth Services/linked_logins.py).
+    # The routes answer an accountant from its own branch; adding a
+    # store (POST /auth/my-stores) stays owner-only.
+    ("GET", "/auth/my-stores"),
+    ("POST", "/auth/switch-store"),
     # Settings → Security: their own passkeys.
     ("GET", "/auth/passkeys"),
     ("POST", "/auth/passkeys/register/begin"),

@@ -65,4 +65,12 @@ class SwitchStoreResponse(BaseModel):
     username: str
     full_name: str
     permissions: list[str]
-    owner_id: int
+    # The owner behind an owner-context store token. None when an
+    # accountant switched to their own login at another store
+    # (linked logins): that token is the accountant's own.
+    owner_id: int | None = None
+    # The refresh row now behind the session (accountant switch
+    # only: the session moved onto another login, so the SPA's
+    # PWA fallback must follow it). None for owners, whose
+    # refresh row never changes.
+    refresh_jti: str | None = None

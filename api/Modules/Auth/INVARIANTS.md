@@ -471,7 +471,8 @@ test_support_role.py`:
 The store's bookkeeper or CPA (idea D1, 2026-11-04). A normal
 per-store `User` row with `role="accountant"`; several of an
 owner's stores = one login per store (owner "Add user to stores"),
-and the sign-in store picker chooses. No table, no new token kind.
+the sign-in store picker chooses, and the in-app switch moves
+between them ("Linked accountant logins" below). No table, no new token kind.
 Pinned by `tests/Core/test_accountant_role.py` (grant, deny on
 EVERY route, revoke, store isolation, rank rule) and
 `frontend/src/lib/accountant.test.tsx`.
@@ -498,6 +499,47 @@ EVERY route, revoke, store isolation, rank rule) and
   actor an accountant ranks below everyone and manages no one.
 - **Scope.** `authorize_store_ids` treats an accountant like an
   employee: the token's store only.
+
+### Linked accountant logins — the in-app store switch
+
+One sign-in, every store the accountant's password opens, switched
+from the top bar without signing out (2026-11-05). Code:
+`Services/linked_logins.py`; tests:
+`tests/Modules/Auth/test_accountant_store_switch.py`. No table, no
+column, no new token kind: a link is a refresh row.
+
+- **Proof is the password, at sign-in.** When an accountant signs in
+  through `/auth/login` (the picker's second step), every OTHER
+  active `role="accountant"` login that the same identifier AND
+  password open, at a store that is not disabled, gets a refresh row
+  with the SAME `session_id` (`linked_accountant_ids` +
+  `link_session`, from `_to_login_response`). An identifier match
+  alone never links: a store admin can create an accountant login
+  with anybody's e-mail, and must not reach another store with it.
+- **Accountant to accountant only.** Other roles link nothing and
+  keep the owner-only answer on `/auth/my-stores` and
+  `/auth/switch-store` (403).
+- **The switch** (`/auth/switch-store` on an accountant token, which
+  needs `sid`) mints a token for the TARGET login itself (its own
+  id, role, store and fixed grants; `owner_id` null), sets the
+  access cookie AND moves the refresh cookie onto that login's row,
+  so a silent refresh keeps the chosen store. The target must be an
+  active accountant login at an active store with a live row in
+  this session; anything else is the same opaque 404. Each switch
+  writes an `accountant_switch_store` operator-audit row at the
+  store entered. `/auth/my-stores` lists the linked stores, the
+  current one marked; one row means nothing to switch to.
+- **Each store keeps its own say.** A link is that store's login's
+  refresh row, so its admin ends it the usual ways (deactivate,
+  change role, reset password, revoke sessions) and the other
+  stores are untouched. Impersonation tokens carry no `sid` and
+  switch nowhere.
+- **One sign-in ends together.** `/auth/logout` revokes every row
+  of the session (`refresh.revoke_session_chain`); Account →
+  Devices "sign out" and "sign out other devices" end the chosen
+  sessions at every linked store (`sessions._revoke_linked_rows`),
+  only once the caller has shown the session is theirs. A session
+  id spans several users ONLY through this link.
 
 ## The login flow — what's actually wired today
 

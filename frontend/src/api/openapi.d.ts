@@ -1258,6 +1258,10 @@ export interface paths {
          * My Stores Route
          * @description The stores this owner can switch into — feeds the Switch
          *     Store modal (name + address search happens client-side).
+         *
+         *     An accountant gets the stores their sign-in is linked to
+         *     (``Services/linked_logins.py``), their current one included;
+         *     one row means there is nothing to switch to.
          */
         get: operations["my_stores_route_auth_my_stores_get"];
         put?: never;
@@ -1808,6 +1812,9 @@ export interface paths {
          * Switch Store Route
          * @description Enter one of the owner's stores: issue a store-scoped admin
          *     token so the owner gets the exact store view their team sees.
+         *
+         *     An accountant switches to their own login at another store
+         *     instead (``_accountant_switch_store``).
          */
         post: operations["switch_store_route_auth_switch_store_post"];
         delete?: never;
@@ -15986,9 +15993,11 @@ export interface components {
             /** Full Name */
             full_name: string;
             /** Owner Id */
-            owner_id: number;
+            owner_id?: number | null;
             /** Permissions */
             permissions: string[];
+            /** Refresh Jti */
+            refresh_jti?: string | null;
             /** Role */
             role: string;
             /** Store Id */

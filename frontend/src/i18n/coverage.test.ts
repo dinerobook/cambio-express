@@ -25,6 +25,7 @@ export const COVERED_FILES = [
   "components/NotificationBell.tsx",
   "components/UnsavedChangesHost.tsx",
   "components/PageCrumbs.tsx",
+  "components/SwitchStoreModal.tsx",
   // Kit pieces every screen shows
   "components/ui/Breadcrumbs.tsx",
   "components/ui/FormActions.tsx",

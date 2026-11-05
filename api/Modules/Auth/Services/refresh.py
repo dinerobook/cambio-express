@@ -286,6 +286,40 @@ def revoke(session: Session, *, jti: str) -> bool:
     return True
 
 
+def revoke_session_chain(session: Session, *, jti: str) -> int:
+    """Sign a whole browser sign-in out: the row ``jti`` names plus
+    every live row that shares its ``session_id``. Called from
+    ``/auth/logout``.
+
+    A session id is one sign-in on one browser. It spans several
+    users only for linked accountant logins (one row per store the
+    password opened, ``Services/linked_logins.py``), and signing
+    out must end all of them, or the next person on that browser
+    could switch back into a store. Rows without a session id
+    (legacy) are revoked alone, as before. Returns the number of
+    rows revoked."""
+    row = _lookup_active(session, jti)
+    if row is None:
+        return 0
+    now = _now()
+    if not row.session_id:
+        if row.revoked_at is not None:
+            return 0
+        row.revoked_at = now
+        session.flush()
+        return 1
+    count = (
+        session.query(RefreshToken)
+        .filter(
+            RefreshToken.session_id == row.session_id,
+            RefreshToken.revoked_at.is_(None),
+        )
+        .update({"revoked_at": now}, synchronize_session="fetch")
+    )
+    session.flush()
+    return int(count)
+
+
 __all__ = [
     "DEFAULT_REFRESH_TOKEN_TTL_SECONDS",
     "SUPPORT_REFRESH_TOKEN_TTL_SECONDS",
@@ -298,5 +332,6 @@ __all__ = [
     "issue",
     "reuse",
     "revoke",
+    "revoke_session_chain",
     "rotate",
 ]

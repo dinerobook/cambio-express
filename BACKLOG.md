@@ -567,9 +567,8 @@ relationship.
 
 ## Nice to have (post-launch)
 - [ ] **Accountant follow-ups (D1 shipped 2026-11-04 as one login per
-      store).** Not built, ask the owner first: an in-app "switch
-      store" for accountants (today they sign out and pick the store
-      at sign-in); a one-click "remove from all my stores" for the
+      store; the in-app store switch shipped 2026-11-05 as linked logins).**
+      Not built, ask the owner first: a one-click "remove from all my stores" for the
       owner; MSB daily book view-only for accountants (owner left it
       off); Store reports (retail) for accountants — the server list
       only carries `/reports/*`, `/monthly/*` and the tax pack.

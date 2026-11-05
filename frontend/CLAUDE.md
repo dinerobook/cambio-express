@@ -186,7 +186,12 @@ The view-only **Accountant** sees only the pages in `ACCOUNTANT_PAGES`
 (`src/lib/access.ts`), lands on Reports (`homePathFor`), and its
 Reports menu carries Monthly P&L and Data export (it has no
 dashboard). A page for accountants needs a line there AND on the
-server's list (`api/Core/Permissions/accountant.py`).
+server's list (`api/Core/Permissions/accountant.py`). Moving between
+stores is the ONE shared Switch Store popup (`SwitchStoreModal`) for
+owners and accountants alike; the accountant's chip shows only once
+their sign-in is linked to two or more stores, without the owner
+controls (Auth INVARIANTS "Linked accountant logins"). Never build a
+second store picker.
 
 ## Lists (root invariant 14)
 Every paginated table searches as you type — **never** a "type then

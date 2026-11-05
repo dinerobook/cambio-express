@@ -520,6 +520,13 @@ This is enforced by the kit, not by per-page checks:
   them home with `homePathFor` (Reports for an accountant, the
   dashboard for everyone else). A page that shows several downloads
   hides each one the viewer's sign-in would be refused (Data export).
+- **One store switch.** Whoever may move between stores (an owner, or
+  an accountant whose sign-in is linked to several stores) does it
+  through the top-bar store chip and the shared Switch Store popup
+  (`SwitchStoreModal`). The chip appears only when there is somewhere
+  to go; controls a role cannot use (+ Add store, Owner overview) are
+  hidden, and a switch lands on that person's home page
+  (`homePathFor`).
 - **Tests sign someone in.** `src/test/setup.ts` seeds a
   full-permission admin before every test, so an isolated component
   renders its controls. A test about a narrower person overwrites
