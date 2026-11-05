@@ -680,8 +680,9 @@ checks on hold, and its server messages), with the kit month calendar
 and day / week / month stepper; transfers (the list, new and edit
 forms, detail page and delete popup, receipt, sender search and
 recent recipients, and their server messages), with the kit's table
-error, retry button, toasts, info tip and row actions. Next: the rest
-of the app, then emails.
+error, retry button, toasts, info tip and row actions; the Subscribe
+plan picker (and the billing server messages it can show). Next: the
+rest of the app, then emails.
 
 ## 11. The bell — one place for "something to do"
 

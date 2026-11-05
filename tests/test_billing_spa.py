@@ -3,7 +3,9 @@
 The /subscribe pricing page and the /admin/subscription tabbed
 billing page both 301 to React. The SPA fetches:
 
-  - Subscribe.tsx → static plan tiles, then /api/v2/billing/checkout
+  - Subscribe.tsx → /api/v2/billing/pricing for the plan tiles,
+    /api/v2/admin/subscription for the current plan (`plan_key`),
+    then /api/v2/billing/checkout or /api/v2/billing/portal
   - AdminSubscription.tsx → /api/v2/admin/subscription for the
     page state, /api/v2/billing/portal for Manage / Cancel actions,
     and /api/v2/admin/addons/<key>/toggle for add-on flips.

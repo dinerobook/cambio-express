@@ -4,6 +4,8 @@ The Flask `/webhooks/stripe` route now delegates almost everything
 to this module:
   - `verify_webhook_signature` — pure HMAC + JSON parse.
   - `derive_plan_from_price`   — Price ID → (plan, billing_cycle).
+  - `known_plan_from_price`    — the same, or None for a price we
+                                 don't sell (no fallback guess).
   - `handle_stripe_event`      — dispatch + per-event side-effects
                                  across Billing.Services.
 
@@ -26,6 +28,7 @@ from api.Modules.Billing.Services.cancellation import (
     find_store_by_subscription_id,
 )
 from api.Modules.Billing.Services.checkout import resolve_price_ids
+from api.Modules.Billing.Services.store_state import store_has_paid_plan
 from api.Modules.Billing.Services.referrals import (
     apply_pending_referral_credits,
     ensure_referral_code,
@@ -63,6 +66,24 @@ def verify_webhook_signature(
         raise InvalidWebhookSignatureError(str(e)) from e
 
 
+def known_plan_from_price(price_id: str) -> tuple[str, str] | None:
+    """Map a Stripe Price ID to `(plan, billing_cycle)`, or None when
+    it is not one of the four Price IDs configured for checkout.
+
+    `basic_yearly` -> `("basic", "yearly")`; `pro` -> `("pro",
+    "monthly")`. No guessing: a plan CHANGE must never be made from a
+    price we don't recognise.
+    """
+    if not price_id:
+        return None
+    for key, configured in resolve_price_ids().items():
+        if configured and configured == price_id:
+            if key.endswith("_yearly"):
+                return key.removesuffix("_yearly"), "yearly"
+            return key, "monthly"
+    return None
+
+
 def derive_plan_from_price(
     price_id: str,
 ) -> tuple[str, str]:
@@ -81,12 +102,7 @@ def derive_plan_from_price(
     Both fields are derived from the same Price ID lookup so they
     can't drift between the plan flip and the cycle flip.
     """
-    prices = resolve_price_ids()
-    basic_ids = {prices["basic"], prices["basic_yearly"]} - {""}
-    yearly_ids = {prices["basic_yearly"], prices["pro_yearly"]} - {""}
-    plan = "basic" if price_id in basic_ids else "pro"
-    cycle = "yearly" if price_id in yearly_ids else "monthly"
-    return plan, cycle
+    return known_plan_from_price(price_id) or ("pro", "monthly")
 
 
 def handle_stripe_event(
@@ -102,6 +118,12 @@ def handle_stripe_event(
           customer/subscription IDs, clear any cancellation state,
           mint the store's own referral code, and apply pending
           referee credits if the store was referred.
+      - `customer.subscription.updated`:
+          the customer switched plan or cadence in the Stripe
+          Billing Portal (Pro monthly -> Pro yearly, Basic -> Pro);
+          re-read the plan and cycle from the live subscription so
+          the store's plan, label and price follow what Stripe
+          bills.
       - `customer.subscription.deleted`:
           mark the store inactive + start the retention countdown.
       - `financial_connections.account.refreshed_transactions`:
@@ -123,6 +145,8 @@ def handle_stripe_event(
 
     if event_type == "checkout.session.completed":
         _handle_checkout_session_completed(db, event)
+    elif event_type == "customer.subscription.updated":
+        _handle_subscription_updated(db, event)
     elif event_type == "customer.subscription.deleted":
         _handle_subscription_deleted(db, event, retention_days=retention_days)
     elif event_type == "financial_connections.account.refreshed_transactions":
@@ -183,6 +207,65 @@ def _handle_checkout_session_completed(
     except Exception as e:
         logger.warning("referral hook error for store %s: %s", store.id, e)
 
+    db.commit()
+
+
+# Subscription states that still bill the customer for its price.
+# `canceled` / `incomplete_expired` belong to the deleted event;
+# `incomplete` / `unpaid` never (or no longer) pay for the price.
+_BILLING_STATUSES = ("active", "trialing", "past_due")
+
+
+def _handle_subscription_updated(
+    db: Session, event: dict[str, Any],
+) -> None:
+    """Plan or cadence changed in the Billing Portal: follow Stripe.
+
+    Before this handler the event was ignored, so a store that moved
+    from Pro monthly to Pro yearly in the portal kept
+    `billing_cycle = "monthly"` and its subscription and Subscribe
+    pages went on calling it "Pro, $45 / month".
+
+    The LIVE subscription is read rather than the event's snapshot:
+    Stripe does not promise delivery order, and an older `updated`
+    event arriving late must not put the store back on its old plan.
+    Every doubt leaves the store exactly as it is:
+      - no store for the subscription (another Stripe mode);
+      - a comped store (the superadmin owns its plan, `end_comp`
+        re-derives it);
+      - a store not on a paid plan (checkout / cancellation own
+        those moves);
+      - Stripe unreachable, a non-billing status, or a price we
+        don't sell (no "pro" guess here, unlike checkout: the
+        customer already has access).
+    """
+    sub_id = (event.get("data") or {}).get("object", {}).get("id", "")
+    if not sub_id:
+        return
+    store = find_store_by_subscription_id(db, sub_id)
+    if store is None:
+        return
+    if store.comped_at is not None or not store_has_paid_plan(store):
+        return
+    try:
+        sub = stripe.Subscription.retrieve(sub_id)
+        status = sub["status"]
+        price_id = sub["items"]["data"][0]["price"]["id"]
+    except Exception as e:
+        logger.error("Stripe sub retrieve error on update %s: %s", sub_id, e)
+        return
+    if status not in _BILLING_STATUSES:
+        return
+    derived = known_plan_from_price(price_id)
+    if derived is None:
+        logger.warning(
+            "subscription %s moved to unknown price %s; plan left as is",
+            sub_id, price_id,
+        )
+        return
+    if (store.plan, store.billing_cycle) == derived:
+        return
+    store.plan, store.billing_cycle = derived
     db.commit()
 
 

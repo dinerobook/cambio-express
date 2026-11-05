@@ -17898,13 +17898,32 @@
             ],
             "title": "Cancel At"
           },
+          "cancel_at_iso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel At Iso"
+          },
           "cancel_at_period_end": {
             "title": "Cancel At Period End",
+            "type": "boolean"
+          },
+          "comped": {
+            "title": "Comped",
             "type": "boolean"
           },
           "has_paid_plan": {
             "title": "Has Paid Plan",
             "type": "boolean"
+          },
+          "plan_key": {
+            "title": "Plan Key",
+            "type": "string"
           },
           "plan_label": {
             "title": "Plan Label",
@@ -17970,6 +17989,8 @@
           "store",
           "plan_label",
           "plan_price",
+          "plan_key",
+          "comped",
           "has_paid_plan",
           "trial_status",
           "trial_days_left",
@@ -17979,6 +18000,7 @@
           "active_addon_count",
           "cancel_at_period_end",
           "cancel_at",
+          "cancel_at_iso",
           "referral_code"
         ],
         "title": "SubscriptionSummaryResponse",

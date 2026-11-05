@@ -41,6 +41,10 @@ class SubscriptionSummaryResponse(_Strict):
     store: SubscriptionStore
     plan_label: str
     plan_price: str
+    # PLAN_CATALOG key the store is billed on ("basic", "pro_yearly",
+    # "trial", …); "" when the plan is unknown.
+    plan_key: str
+    comped: bool
     has_paid_plan: bool
     trial_status: str | None
     trial_days_left: int | None
@@ -50,6 +54,8 @@ class SubscriptionSummaryResponse(_Strict):
     active_addon_count: int
     cancel_at_period_end: bool
     cancel_at: str | None
+    # Naive-UTC ISO timestamp of the same moment as `cancel_at`.
+    cancel_at_iso: str | None
     referral_code: str | None
 
 

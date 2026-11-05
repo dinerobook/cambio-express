@@ -56,6 +56,8 @@ export const COVERED_FILES = [
   "components/ui/Toast.tsx",
   "components/ui/InfoTip.tsx",
   "components/ui/RowActions.tsx",
+  // Subscribe (plan picker)
+  "routes/Subscribe.tsx",
 ];
 
 const sources = import.meta.glob(
