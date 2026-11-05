@@ -56,10 +56,6 @@
   flex-wrap: wrap;
 }
 
-.historyRow {
-  background: var(--db-fill-neutral);
-}
-
 .historyList {
   list-style: none;
   margin: 0;

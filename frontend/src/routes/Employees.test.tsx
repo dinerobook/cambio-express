@@ -190,3 +190,34 @@ describe("Employees hub", () => {
     expect(screen.getByText("Showing 51–60 of 60")).toBeInTheDocument();
   });
 });
+
+describe("Employees CSV export", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("exports the whole roster in the list's sort, not just the page", async () => {
+    const saved: Blob[] = [];
+    let last: Blob | null = null;
+    vi.spyOn(URL, "createObjectURL").mockImplementation((b) => { last = b as Blob; return "blob:x"; });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => { saved.push(last!); });
+    mockFetch(routes());
+    renderRoute(<Employees />, { path: "/employees", at: "/employees?sort=name&dir=desc" });
+    await screen.findByText("Ana");
+    await userEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(saved).toHaveLength(1);
+    const lines = (await saved[0].text()).replace(/^\uFEFF/, "").split("\r\n");
+    expect(lines.slice(0, 4)).toEqual([
+      "Name,Login,Hourly rate,Hired,Status,Account type",
+      "Olga Owner,olga,,,Active,Owner",
+      "Gus,,,,Inactive,",
+      "Ana,ana,15.00,2026-01-05,Active,Employee",
+    ]);
+  });
+
+  it("is hidden without Reports access", async () => {
+    signInAs({ without: ["reports.read"] });
+    mockFetch(routes());
+    renderRoute(<Employees />, { path: "/employees" });
+    await screen.findByText("Ana");
+    expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
+  });
+});

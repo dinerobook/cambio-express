@@ -10,19 +10,18 @@ import { formatDate } from "../lib/datetime";
 import {
   Button,
   Card,
-  EmptyState,
-  ErrorState,
-  Loading,
+  DataTable,
   PageHeader,
   PageShell,
   Pill,
-  Table,
   useToast,
+  type DataColumn,
 } from "../components/ui";
 import { PageCrumbs } from "../components/PageCrumbs";
+import styles from "./SuperadminDiscounts.module.css";
 
 export default function SuperadminDiscounts() {
-  const { data, isLoading, isError, refetch } = useDiscounts();
+  const { data, isLoading, isError, error, refetch } = useDiscounts();
   const qc = useQueryClient();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
@@ -48,86 +47,79 @@ export default function SuperadminDiscounts() {
         subtitle="Stripe coupon codes — toggle visibility, view redemptions"
       />
 
-      {isLoading && <Loading />}
-      {isError && (
-        <ErrorState
-          message="Could not load discount codes."
+      <Card>
+        <DataTable
+          columns={discountColumns(handleToggle)}
+          rows={data?.rows}
+          rowKey={(row) => row.id}
+          isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
+          errorMessage="Could not load discount codes."
+          emptyTitle="No discount codes"
+          emptyBody="Coupon codes created in Stripe will appear here."
+          page={data && {
+            page: 1, totalPages: 1, total: data.total, onPage: () => {},
+            leading: (
+              <span className={styles.note}>
+                Coupon creation is managed in the Stripe Dashboard.
+              </span>
+            ),
+          }}
         />
-      )}
-
-      {data && data.rows.length === 0 && (
-        <EmptyState
-          title="No discount codes"
-          body="Coupon codes created in Stripe will appear here."
-        />
-      )}
-
-      {data && data.rows.length > 0 && (
-        <Card>
-          <Table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Value</th>
-                <th>Duration</th>
-                <th>Redeemed</th>
-                <th>Expires</th>
-                <th>Status</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((row) => (
-                <tr key={row.id}>
-                  <td style={{ fontFamily: "var(--db-font-mono)", fontWeight: 600 }}>
-                    {row.code}
-                  </td>
-                  <td>{row.value_label}</td>
-                  <td style={{ fontSize: "0.85rem" }}>
-                    {row.duration === "repeating" && row.duration_in_months
-                      ? `${row.duration_in_months} mo`
-                      : row.duration}
-                  </td>
-                  <td style={{ fontFamily: "var(--db-font-mono)" }}>
-                    {row.redeemed_count}
-                    {row.max_redemptions != null && (
-                      <span style={{ color: "var(--db-text-muted)" }}>
-                        {" "}/ {row.max_redemptions}
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ fontSize: "0.82rem", color: "var(--db-text-muted)" }}>
-                    {formatDate(row.expires_at)}
-                  </td>
-                  <td>
-                    {row.is_redeemable ? (
-                      <Pill tone="accent">Redeemable</Pill>
-                    ) : row.is_active ? (
-                      <Pill tone="warning">Capped / expired</Pill>
-                    ) : (
-                      <Pill tone="neutral">Disabled</Pill>
-                    )}
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <Button
-                      size="sm"
-                      tone="secondary"
-                      onClick={() => { void handleToggle(row); }}
-                    >
-                      {row.is_active ? "Disable" : "Enable"}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          <div style={{ padding: "0.75rem 1rem", fontSize: "0.82rem", color: "var(--db-text-muted)" }}>
-            {data.total} code{data.total !== 1 ? "s" : ""} total.
-            Coupon creation is managed in the Stripe Dashboard.
-          </div>
-        </Card>
-      )}
+      </Card>
     </PageShell>
   );
+}
+
+/** The Stripe coupon list as the kit ``<DataTable>``. */
+function discountColumns(
+  onToggle: (row: DiscountCodeRow) => Promise<void>,
+): DataColumn<DiscountCodeRow>[] {
+  return [
+    { key: "code", header: "Code", render: (r) => <span className={styles.code}>{r.code}</span> },
+    { key: "value", header: "Value", render: (r) => r.value_label },
+    {
+      key: "duration", header: "Duration",
+      render: (r) => (
+        <span className={styles.small}>
+          {r.duration === "repeating" && r.duration_in_months
+            ? `${r.duration_in_months} mo`
+            : r.duration}
+        </span>
+      ),
+    },
+    {
+      key: "redeemed", header: "Redeemed",
+      render: (r) => (
+        <span className={styles.mono}>
+          {r.redeemed_count}
+          {r.max_redemptions != null && (
+            <span className={styles.muted}>{" "}/ {r.max_redemptions}</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "expires", header: "Expires",
+      render: (r) => <span className={styles.expires}>{formatDate(r.expires_at)}</span>,
+    },
+    {
+      key: "status", header: "Status",
+      render: (r) => (r.is_redeemable ? (
+        <Pill tone="accent">Redeemable</Pill>
+      ) : r.is_active ? (
+        <Pill tone="warning">Capped / expired</Pill>
+      ) : (
+        <Pill tone="neutral">Disabled</Pill>
+      )),
+    },
+    {
+      key: "actions", header: "Actions", label: "", align: "right",
+      render: (r) => (
+        <Button size="sm" tone="secondary" onClick={() => { void onToggle(r); }}>
+          {r.is_active ? "Disable" : "Enable"}
+        </Button>
+      ),
+    },
+  ];
 }

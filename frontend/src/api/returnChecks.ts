@@ -61,23 +61,32 @@ export interface ReturnCheckList {
   total_pages: number;
 }
 
-export function useReturnChecks({
-  status = "", sort = "bounced", dir = "desc", page = 1, perPage = 50,
-}: {
+export interface ReturnCheckListQuery {
   status?: string; sort?: string; dir?: "asc" | "desc";
   page?: number; perPage?: number;
-} = {}) {
+}
+
+/** One page of the returned checks list — the request the list page
+ *  and its CSV export both make. */
+export function fetchReturnChecksPage({
+  status = "", sort = "bounced", dir = "desc", page = 1, perPage = 50,
+}: ReturnCheckListQuery = {}): Promise<ReturnCheckList> {
+  const qs = new URLSearchParams({
+    sort, dir, page: String(page), per_page: String(perPage),
+  });
+  if (status) qs.set("status", status);
+  return api<ReturnCheckList>(`/api/v2/return-checks?${qs.toString()}`);
+}
+
+export function useReturnChecks(query: ReturnCheckListQuery = {}) {
   const identity = getCurrentIdentity();
+  const {
+    status = "", sort = "bounced", dir = "desc", page = 1, perPage = 50,
+  } = query;
   return useQuery<ReturnCheckList>({
     enabled: identity?.store_id != null,
     queryKey: ["return-checks", "list", identity?.store_id, status, sort, dir, page, perPage],
-    queryFn: () => {
-      const qs = new URLSearchParams({
-        sort, dir, page: String(page), per_page: String(perPage),
-      });
-      if (status) qs.set("status", status);
-      return api<ReturnCheckList>(`/api/v2/return-checks?${qs.toString()}`);
-    },
+    queryFn: () => fetchReturnChecksPage(query),
     placeholderData: (prev) => prev,
   });
 }

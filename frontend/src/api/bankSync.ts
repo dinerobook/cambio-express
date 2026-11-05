@@ -110,30 +110,36 @@ export function useBankRules(enabledOnly = false) {
   });
 }
 
+/** One page of the bank transactions list — the request the page and
+ *  its CSV export both make. */
+export function fetchBankTransactions(
+  filters: BankTransactionFilters,
+): Promise<BankTransactionListResponse> {
+  const p = new URLSearchParams();
+  if (filters.posted_from)        p.set("posted_from",   filters.posted_from);
+  if (filters.posted_to)          p.set("posted_to",     filters.posted_to);
+  if (filters.account_id)         p.set("account_id",    filters.account_id);
+  if (filters.category_slug)      p.set("category_slug", filters.category_slug);
+  if (filters.sign)               p.set("sign",          filters.sign);
+  if (filters.q)                  p.set("q",             filters.q);
+  if (filters.uncategorized_only) p.set("uncategorized_only", "true");
+  if (filters.books)              p.set("books",    filters.books);
+  if (filters.sort)               p.set("sort",     filters.sort);
+  if (filters.dir)                p.set("dir",      filters.dir);
+  if (filters.page)               p.set("page",     String(filters.page));
+  if (filters.per_page)           p.set("per_page", String(filters.per_page));
+  const qs = p.toString();
+  return api<BankTransactionListResponse>(
+    `/api/v2/bank/transactions${qs ? `?${qs}` : ""}`,
+  );
+}
+
 export function useBankTransactions(filters: BankTransactionFilters) {
   const identity = getCurrentIdentity();
   return useQuery<BankTransactionListResponse>({
     enabled: identity?.store_id != null,
     queryKey: ["bank", "transactions", identity?.store_id, filters],
-    queryFn: () => {
-      const p = new URLSearchParams();
-      if (filters.posted_from)        p.set("posted_from",   filters.posted_from);
-      if (filters.posted_to)          p.set("posted_to",     filters.posted_to);
-      if (filters.account_id)         p.set("account_id",    filters.account_id);
-      if (filters.category_slug)      p.set("category_slug", filters.category_slug);
-      if (filters.sign)               p.set("sign",          filters.sign);
-      if (filters.q)                  p.set("q",             filters.q);
-      if (filters.uncategorized_only) p.set("uncategorized_only", "true");
-      if (filters.books)              p.set("books",    filters.books);
-      if (filters.sort)               p.set("sort",     filters.sort);
-      if (filters.dir)                p.set("dir",      filters.dir);
-      if (filters.page)               p.set("page",     String(filters.page));
-      if (filters.per_page)           p.set("per_page", String(filters.per_page));
-      const qs = p.toString();
-      return api<BankTransactionListResponse>(
-        `/api/v2/bank/transactions${qs ? `?${qs}` : ""}`,
-      );
-    },
+    queryFn: () => fetchBankTransactions(filters),
     placeholderData: (prev) => prev,
   });
 }

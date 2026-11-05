@@ -55,7 +55,7 @@
 /* Pinned header: the table scrolls inside a box no taller than
  * ~70% of the screen, so the sticky <th> (thStyle) has a scroll
  * container to stick to. The kit <Table>'s own wrapper is that box. */
-.root > div {
+.root > div:not(.toolbar) {
   max-height: 70vh;
   overflow-y: auto;
 }
@@ -63,7 +63,7 @@
 /* Phone view: each row is a card of "label  value" lines. Inline
  * th/td styles come from the kit tokens, hence !important. */
 @media (max-width: 36rem) {
-  .root > div {
+  .root > div:not(.toolbar) {
     max-height: none;
     overflow: visible !important;
   }
@@ -119,4 +119,14 @@
   .root tfoot {
     display: block;
   }
+}
+
+/* The row of list tools above the table (``exportCsv``). Right
+ * aligned and always the same height, so nothing below it moves. */
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }

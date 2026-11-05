@@ -30,6 +30,7 @@ export const COVERED_FILES = [
   "components/ui/FormActions.tsx",
   "components/ui/Loading.tsx",
   "components/ui/Pager.tsx",
+  "components/ui/DataTable.tsx",
   "components/ui/MonthCalendar.tsx",
   "components/ui/PeriodStepper.tsx",
   // Daily book

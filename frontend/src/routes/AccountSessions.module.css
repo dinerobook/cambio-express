@@ -46,3 +46,8 @@
   font-size: 0.85rem;
   line-height: 1.55;
 }
+
+.ip {
+  font-family: var(--db-font-mono);
+  font-size: 0.85rem;
+}

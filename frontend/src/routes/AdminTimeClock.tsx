@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -15,10 +15,10 @@ import {
   daysAgoIso, formatDate, formatTimestamp, utcToZonedInput, zonedInputToUtcIso,
 } from "../lib/datetime";
 import {
-  Alert, Button, Card, ConfirmDialog, DateInput, EmptyState, ErrorState,
+  Alert, Button, Card, ConfirmDialog, DataTable, DateInput, EmptyState, ErrorState,
   Field, InfoTip, Input, KpiCard, KpiGrid,
-  Loading, Modal, PageHeader, PageShell, Pill, RowActions, Select, Table,
-  TableSkeleton, Textarea, tdStyle, thStyle, useToast,
+  Loading, Modal, PageHeader, PageShell, Pill, RowActions, Select,
+  TableSkeleton, Textarea, useToast, type DataColumn,
   Empty,
   ModalActions,
 } from "../components/ui";
@@ -183,90 +183,24 @@ export default function AdminTimeClock() {
             onOverview={() => setEmpFilter(g.storeEmployeeId)}
             isFiltered={empFilter === g.storeEmployeeId}
           />
-          <Table>
-            <thead>
-              <tr>
-                {[
-                  "Time in", "Time out", "Total hours",
-                  "Late", "Status", "Adjusted", "",
-                ].map((h) => (
-                  <th key={h} style={thStyle}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {g.rows.map((r) => (
-                <Fragment key={r.id}>
-                  <tr>
-                    <td style={tdStyle}>
-                      <span className={styles.mono}>
-                        {formatTimestamp(r.clock_in_at)}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <span className={styles.mono}>
-                        {r.clock_out_at
-                          ? formatTimestamp(r.clock_out_at)
-                          : <em className={styles.openTag}>in progress</em>}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <span className={styles.totalCell}>
-                        {fmtHours(r.hours_worked)}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <LateBadge
-                        lateMinutes={r.late_minutes}
-                        threshold={data.data?.late_threshold_minutes ?? 5}
-                      />
-                    </td>
-                    <td style={tdStyle}>
-                      <StatusPill status={r.status} />
-                    </td>
-                    <td style={tdStyle}>
-                      <AdjustedBadge adjusted={r.adjusted} />
-                    </td>
-                    <td style={tdStyle}>
-                      <RowActions
-                        title={`${r.employee_name} · ${formatDate(r.clock_in_at)}`}
-                        actions={[
-                          {
-                            label: "Edit", tone: "warning",
-                            perm: "time_clock.update",
-                            onClick: () => setModal({ kind: "edit", row: r }),
-                          },
-                          {
-                            label: expandedHistoryId === r.id ? "Hide logs" : "Logs",
-                            tone: "logs",
-                            onClick: () => setExpandedHistoryId(
-                              expandedHistoryId === r.id ? null : r.id,
-                            ),
-                          },
-                          {
-                            label: "Overview", tone: "info",
-                            onClick: () => setEmpFilter(r.store_employee_id),
-                          },
-                          {
-                            label: "Delete", tone: "danger",
-                            perm: "time_clock.update",
-                            onClick: () => setPendingDelete(r.id),
-                          },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                  {expandedHistoryId === r.id && (
-                    <tr className={styles.historyRow}>
-                      <td colSpan={7} style={tdStyle}>
-                        <HistoryPanel entryId={r.id} />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </Table>
+          <DataTable
+            columns={entryColumns({
+              lateThreshold: data.data?.late_threshold_minutes ?? 5,
+              expandedHistoryId,
+              onEdit: (r) => setModal({ kind: "edit", row: r }),
+              onToggleLogs: (r) => setExpandedHistoryId(
+                expandedHistoryId === r.id ? null : r.id,
+              ),
+              onOverview: (r) => setEmpFilter(r.store_employee_id),
+              onDelete: (r) => setPendingDelete(r.id),
+            })}
+            rows={g.rows}
+            rowKey={(r) => r.id}
+            expandedRow={(r) => (
+              expandedHistoryId === r.id ? <HistoryPanel entryId={r.id} /> : null
+            )}
+            emptyTitle="No shifts in this window."
+          />
         </Card>
       ))}
 
@@ -313,6 +247,79 @@ export default function AdminTimeClock() {
       />
     </PageShell>
   );
+}
+
+
+// ── Entry table ─────────────────────────────────────────────
+
+
+/** One roster member's shifts as the kit ``<DataTable>``; "Logs"
+ *  opens the entry's change history under its row. */
+function entryColumns({
+  lateThreshold, expandedHistoryId, onEdit, onToggleLogs, onOverview, onDelete,
+}: {
+  lateThreshold: number;
+  expandedHistoryId: number | null;
+  onEdit: (r: TimeClockEntryRow) => void;
+  onToggleLogs: (r: TimeClockEntryRow) => void;
+  onOverview: (r: TimeClockEntryRow) => void;
+  onDelete: (r: TimeClockEntryRow) => void;
+}): DataColumn<TimeClockEntryRow>[] {
+  return [
+    {
+      key: "in", header: "Time in",
+      render: (r) => <span className={styles.mono}>{formatTimestamp(r.clock_in_at)}</span>,
+    },
+    {
+      key: "out", header: "Time out",
+      render: (r) => (
+        <span className={styles.mono}>
+          {r.clock_out_at
+            ? formatTimestamp(r.clock_out_at)
+            : <em className={styles.openTag}>in progress</em>}
+        </span>
+      ),
+    },
+    {
+      key: "hours", header: "Total hours",
+      render: (r) => <span className={styles.totalCell}>{fmtHours(r.hours_worked)}</span>,
+    },
+    {
+      key: "late", header: "Late",
+      render: (r) => <LateBadge lateMinutes={r.late_minutes} threshold={lateThreshold} />,
+    },
+    { key: "status", header: "Status", render: (r) => <StatusPill status={r.status} /> },
+    { key: "adjusted", header: "Adjusted", render: (r) => <AdjustedBadge adjusted={r.adjusted} /> },
+    {
+      key: "actions", header: "", label: "",
+      render: (r) => (
+        <RowActions
+          title={`${r.employee_name} · ${formatDate(r.clock_in_at)}`}
+          actions={[
+            {
+              label: "Edit", tone: "warning",
+              perm: "time_clock.update",
+              onClick: () => onEdit(r),
+            },
+            {
+              label: expandedHistoryId === r.id ? "Hide logs" : "Logs",
+              tone: "logs",
+              onClick: () => onToggleLogs(r),
+            },
+            {
+              label: "Overview", tone: "info",
+              onClick: () => onOverview(r),
+            },
+            {
+              label: "Delete", tone: "danger",
+              perm: "time_clock.update",
+              onClick: () => onDelete(r),
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 }
 
 

@@ -5,6 +5,21 @@
 import type { BankTransactionRow } from "../api/bankSync";
 import { fmtCount } from "./formatters";
 
+/** The Daily book column's word for each books status — the pill on
+ *  the Bank page and the cell in its CSV export. */
+export const BOOKS_STATUS_LABELS = {
+  matched: "Matched",
+  added: "Added from bank",
+  suggested: "Check match",
+  not_on_books: "Not on books",
+  dismissed: "Dismissed",
+} as const;
+
+/** ``BOOKS_STATUS_LABELS`` for any status; blank when there is none. */
+export function booksStatusLabel(status: string | null | undefined): string {
+  return (BOOKS_STATUS_LABELS as Record<string, string>)[status ?? ""] ?? "";
+}
+
 /** A row an admin can still dismiss: nothing on the books for it
  *  yet (a possible match, not on the books, or untagged). The
  *  server applies the same rule and skips anything else. */

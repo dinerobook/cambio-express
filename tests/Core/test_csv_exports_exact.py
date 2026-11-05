@@ -139,6 +139,30 @@ def test_customers_csv_bytes(client, test_store_id):
     )
 
 
+def test_customers_csv_defuses_formula_names(client, test_store_id):
+    """A customer saved as "=cmd|..." (typed at the counter) leaves the
+    export as text, not a live spreadsheet formula; the "+52" country
+    code is a number and is left alone."""
+    from api.Modules.Customers.Models import Customer
+    stamp = datetime(2026, 5, 1, 12, 0)
+    with db_session():
+        db.session.add(Customer(
+            store_id=test_store_id, full_name="=cmd|' /C calc'!A0",
+            phone_country="+52", phone_number="5512345678",
+            address="@SUM(A1)", created_at=stamp, updated_at=stamp,
+        ))
+        db.session.commit()
+    resp = client.get(
+        "/api/v2/customers/export.csv",
+        headers=_h(login_admin(client, test_store_id)),
+    )
+    assert resp.status_code == 200, resp.text
+    row = list(csv.reader(io.StringIO(resp.text)))[1]
+    assert row[0] == "'=cmd|' /C calc'!A0"
+    assert row[1] == "+52"
+    assert row[4] == "'@SUM(A1)"
+
+
 def test_customers_csv_refused_without_a_store_scope(client):
     """A token with no store (superadmin) has no directory to dump."""
     from tests.conftest import login_superadmin

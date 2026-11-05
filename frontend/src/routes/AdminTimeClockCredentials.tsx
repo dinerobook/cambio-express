@@ -13,7 +13,7 @@ import { apiErrorMessage } from "../lib/api";
 import { passkeysSupported, performPasskeyRegister } from "../lib/webauthn";
 import {
   Alert, Card, ConfirmDialog, EmptyState, ErrorState, Loading,
-  PageHeader, PageShell, Pill, RowActions, Table, tdStyle, thStyle,
+  PageHeader, PageShell, Pill, RowActions, DataTable,
 } from "../components/ui";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
@@ -155,66 +155,62 @@ export default function AdminTimeClockCredentials() {
       )}
       {data && data.rows.length > 0 && (
         <Card>
-          <Table>
-            <thead>
-              <tr>
-                {[
-                  "Cashier", "Status", "Registered",
-                  "Last used", "",
-                ].map((h) => (
-                  <th key={h} style={thStyle}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.store_employee_id}>
-                  <td style={tdStyle}>
-                    <strong>{r.employee_name}</strong>
-                  </td>
-                  <td style={tdStyle}>
-                    {r.has_passkey
-                      ? <Pill tone="success">Registered</Pill>
-                      : <Pill tone="warning">Pending</Pill>}
-                  </td>
-                  <td style={tdStyle}>
-                    <span className={styles.mono}>
-                      {r.registered_at
-                        ? formatDate(r.registered_at)
-                        : "—"}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>
-                    <span className={styles.mono}>
-                      {r.last_used_at
-                        ? formatDate(r.last_used_at)
-                        : "—"}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>
-                    <RowActions
-                      title={r.employee_name}
-                      actions={[
-                        {
-                          label: r.has_passkey ? "Re-enroll" : "Enroll passkey",
-                          tone: r.has_passkey ? "secondary" : "primary",
-                          busy: busyEmpId === r.store_employee_id,
-                          disabled: !browserSupports || busyEmpId !== null,
-                          onClick: () => register(r),
-                        },
-                        {
-                          label: "Remove",
-                          hidden: !r.has_passkey,
-                          disabled: busyEmpId !== null,
-                          onClick: () => setPendingRemove(r),
-                        },
-                      ]}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <DataTable
+            columns={[
+              {
+                key: "cashier", header: "Cashier",
+                render: (r) => <strong>{r.employee_name}</strong>,
+              },
+              {
+                key: "status", header: "Status",
+                render: (r) => (r.has_passkey
+                  ? <Pill tone="success">Registered</Pill>
+                  : <Pill tone="warning">Pending</Pill>),
+              },
+              {
+                key: "registered", header: "Registered",
+                render: (r) => (
+                  <span className={styles.mono}>
+                    {r.registered_at ? formatDate(r.registered_at) : "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "last", header: "Last used",
+                render: (r) => (
+                  <span className={styles.mono}>
+                    {r.last_used_at ? formatDate(r.last_used_at) : "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "actions", header: "", label: "",
+                render: (r) => (
+                  <RowActions
+                    title={r.employee_name}
+                    actions={[
+                      {
+                        label: r.has_passkey ? "Re-enroll" : "Enroll passkey",
+                        tone: r.has_passkey ? "secondary" : "primary",
+                        busy: busyEmpId === r.store_employee_id,
+                        disabled: !browserSupports || busyEmpId !== null,
+                        onClick: () => register(r),
+                      },
+                      {
+                        label: "Remove",
+                        hidden: !r.has_passkey,
+                        disabled: busyEmpId !== null,
+                        onClick: () => setPendingRemove(r),
+                      },
+                    ]}
+                  />
+                ),
+              },
+            ]}
+            rows={data.rows}
+            rowKey={(r) => r.store_employee_id}
+            emptyTitle="No active roster members yet."
+          />
         </Card>
       )}
 

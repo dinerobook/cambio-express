@@ -74,20 +74,29 @@ export function useSuperadminStores() {
 /** One page of the platform stores list: server search over name /
  *  slug / email, sort and paging. Pickers that need every store keep
  *  ``useSuperadminStores``. */
-export function useSuperadminStoresPage(opts: {
+export interface SuperadminStoresQuery {
   q: string; sort?: string; dir?: string; page: number; perPage: number;
-}) {
+}
+
+/** One page of Platform → Stores — the request the page and its CSV
+ *  export both make. */
+export function fetchSuperadminStoresPage(
+  opts: SuperadminStoresQuery,
+): Promise<SuperadminStoreListResponse> {
+  const { q, sort = "", dir = "desc", page, perPage } = opts;
+  const qs = new URLSearchParams({
+    q, sort, dir, page: String(page), per_page: String(perPage),
+  });
+  return api<SuperadminStoreListResponse>(`/api/v2/superadmin/stores?${qs}`);
+}
+
+export function useSuperadminStoresPage(opts: SuperadminStoresQuery) {
   const identity = getCurrentIdentity();
   const { q, sort = "", dir = "desc", page, perPage } = opts;
   return useQuery<SuperadminStoreListResponse>({
     enabled: identity?.role === "superadmin",
     queryKey: ["superadmin", "stores", identity?.user_id, "page", q, sort, dir, page, perPage],
-    queryFn: () => {
-      const qs = new URLSearchParams({
-        q, sort, dir, page: String(page), per_page: String(perPage),
-      });
-      return api<SuperadminStoreListResponse>(`/api/v2/superadmin/stores?${qs}`);
-    },
+    queryFn: () => fetchSuperadminStoresPage(opts),
     placeholderData: (prev) => prev,
   });
 }
@@ -98,20 +107,28 @@ export type SuperadminSetupProgressResponse = components["schemas"]["SuperadminS
 
 /** Platform → Setup progress: each store's four setup steps.
  *  ``status`` is ``open`` (not finished), ``done`` or ``all``. */
-export function useSuperadminSetupProgress(opts: {
+export interface SuperadminSetupProgressQuery {
   q: string; status: string; page: number; perPage: number;
-}) {
+}
+
+/** One page of Platform → Setup progress — the request the page and
+ *  its CSV export both make. */
+export function fetchSuperadminSetupProgress(
+  { q, status, page, perPage }: SuperadminSetupProgressQuery,
+): Promise<SuperadminSetupProgressResponse> {
+  const qs = new URLSearchParams({
+    q, status, page: String(page), per_page: String(perPage),
+  });
+  return api<SuperadminSetupProgressResponse>(`/api/v2/superadmin/setup-progress?${qs}`);
+}
+
+export function useSuperadminSetupProgress(opts: SuperadminSetupProgressQuery) {
   const identity = getCurrentIdentity();
   const { q, status, page, perPage } = opts;
   return useQuery<SuperadminSetupProgressResponse>({
     enabled: identity?.role === "superadmin",
     queryKey: ["superadmin", "setup-progress", identity?.user_id, q, status, page, perPage],
-    queryFn: () => {
-      const qs = new URLSearchParams({
-        q, status, page: String(page), per_page: String(perPage),
-      });
-      return api<SuperadminSetupProgressResponse>(`/api/v2/superadmin/setup-progress?${qs}`);
-    },
+    queryFn: () => fetchSuperadminSetupProgress(opts),
     placeholderData: (prev) => prev,
   });
 }
@@ -158,6 +175,20 @@ export async function updateSuperadminStore(
 }
 
 
+/** One page of the platform audit log — the request the page and
+ *  its CSV export both make. */
+export function fetchSuperadminAuditLog(
+  page = 1, action = "", perPage = 50,
+): Promise<SuperadminAuditListResponse> {
+  const p = new URLSearchParams();
+  p.set("page", String(page));
+  p.set("per_page", String(perPage));
+  if (action) p.set("action", action);
+  return api<SuperadminAuditListResponse>(
+    `/api/v2/superadmin/audit-log?${p.toString()}`,
+  );
+}
+
 export function useSuperadminAuditLog(
   page = 1, action = "", perPage = 50,
 ) {
@@ -165,15 +196,7 @@ export function useSuperadminAuditLog(
   return useQuery<SuperadminAuditListResponse>({
     enabled: identity?.role === "superadmin",
     queryKey: ["superadmin", "audit-log", identity?.user_id, page, action, perPage],
-    queryFn: () => {
-      const p = new URLSearchParams();
-      p.set("page", String(page));
-      p.set("per_page", String(perPage));
-      if (action) p.set("action", action);
-      return api<SuperadminAuditListResponse>(
-        `/api/v2/superadmin/audit-log?${p.toString()}`,
-      );
-    },
+    queryFn: () => fetchSuperadminAuditLog(page, action, perPage),
     placeholderData: (prev) => prev,
   });
 }
@@ -220,10 +243,15 @@ export function useSuperadminDashboard() {
 export type SuperadminUserRow = Schemas["SuperadminUserRow"];
 type SuperadminUserListResponse = Schemas["SuperadminUserListResponse"];
 
-export function useSuperadminUsers(opts: {
+export interface SuperadminUsersQuery {
   q?: string; role?: string; store_id?: number; page?: number; perPage?: number;
-}) {
-  const identity = getCurrentIdentity();
+}
+
+/** One page of Platform → Users — the request the page and its CSV
+ *  export both make. */
+export function fetchSuperadminUsers(
+  opts: SuperadminUsersQuery,
+): Promise<SuperadminUserListResponse> {
   const params = new URLSearchParams();
   if (opts.q) params.set("q", opts.q);
   if (opts.role) params.set("role", opts.role);
@@ -231,11 +259,15 @@ export function useSuperadminUsers(opts: {
   if (opts.page && opts.page > 1) params.set("page", String(opts.page));
   if (opts.perPage) params.set("per_page", String(opts.perPage));
   const qs = params.toString() ? `?${params}` : "";
+  return api<SuperadminUserListResponse>(`/api/v2/superadmin/users${qs}`);
+}
+
+export function useSuperadminUsers(opts: SuperadminUsersQuery) {
+  const identity = getCurrentIdentity();
   return useQuery<SuperadminUserListResponse>({
     enabled: identity?.role === "superadmin",
     queryKey: ["superadmin", "users", opts.q, opts.role, opts.store_id, opts.page, opts.perPage],
-    queryFn: () =>
-      api<SuperadminUserListResponse>(`/api/v2/superadmin/users${qs}`),
+    queryFn: () => fetchSuperadminUsers(opts),
     placeholderData: (prev) => prev,
   });
 }

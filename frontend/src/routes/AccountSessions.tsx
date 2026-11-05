@@ -10,8 +10,8 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import {
   Alert, Button, Card, ConfirmDialog, ErrorState, InfoTip, Loading,
-  PageHeader, PageShell, Section, space, Table, tdStyle, thStyle, tokens,
-  useToast,
+  PageHeader, PageShell, Section, space, DataTable,
+  useToast, type DataColumn,
 } from "../components/ui";
 import styles from "./AccountSessions.module.css";
 import { formatDate, formatShortDate, parseTimestamp } from "../lib/datetime";
@@ -139,27 +139,15 @@ export default function AccountSessions() {
         }
       >
         <Card>
-          <Table>
-            <thead>
-              <tr>
-                {["Device", "Last activity", "Signed in", "IP", ""]
-                  .map((h, i) => (
-                    <th key={i} style={thStyle}>{h}</th>
-                  ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((s) => (
-                <SessionRow
-                  key={s.session_id}
-                  session={s}
-                  busy={busy === s.session_id}
-                  disabled={busy !== null}
-                  onRevoke={() => { void onRevoke(s.session_id); }}
-                />
-              ))}
-            </tbody>
-          </Table>
+          <DataTable
+            columns={sessionColumns({
+              busyId: busy,
+              onRevoke: (id) => { void onRevoke(id); },
+            })}
+            rows={sessions}
+            rowKey={(s) => s.session_id}
+            emptyTitle="No signed-in devices."
+          />
         </Card>
       </Section>
 
@@ -179,59 +167,67 @@ export default function AccountSessions() {
 }
 
 
-function SessionRow({
-  session, busy, disabled, onRevoke,
+/** Signed-in devices as the kit ``<DataTable>``. The current
+ *  session is marked and can't be signed out from here. */
+function sessionColumns({
+  busyId, onRevoke,
 }: {
-  session: ActiveSessionRow;
-  busy: boolean;
-  disabled: boolean;
-  onRevoke: () => void;
-}) {
-  return (
-    <tr>
-      <td style={tdStyle}>
-        <div className={styles.deviceCell}>
-          <strong>{describeUserAgent(session.user_agent)}</strong>
-          {session.is_current && (
-            <span className={styles.currentTag}>This device</span>
-          )}
-        </div>
-        <div className={styles.uaRaw} title={session.user_agent || "(no User-Agent)"}>
-          {session.user_agent || "(no User-Agent)"}
-        </div>
-      </td>
-      <td style={tdStyle}>
-        <span className={styles.timestamp}>
-          {formatRelative(session.last_used_at)}
-        </span>
-      </td>
-      <td style={tdStyle}>
-        <span className={styles.timestamp}>
-          {formatRelative(session.started_at)}
-        </span>
-      </td>
-      <td style={tdStyle}>
-        <span style={{ fontFamily: tokens.fontMono, fontSize: "0.85rem" }}>
-          {session.ip_address || "—"}
-        </span>
-      </td>
-      <td style={tdStyle}>
-        {session.is_current ? (
-          <span className={styles.muted}>Current</span>
-        ) : (
-          <Button
-            tone="danger"
-            size="sm"
-            busy={busy}
-            disabled={disabled}
-            onClick={onRevoke}
-          >
-            Sign out
-          </Button>
-        )}
-      </td>
-    </tr>
-  );
+  /** The session being signed out ("others" while signing out the rest). */
+  busyId: string | null;
+  onRevoke: (sessionId: string) => void;
+}): DataColumn<ActiveSessionRow>[] {
+  return [
+    {
+      key: "device", header: "Device",
+      render: (session) => (
+        <>
+          <div className={styles.deviceCell}>
+            <strong>{describeUserAgent(session.user_agent)}</strong>
+            {session.is_current && (
+              <span className={styles.currentTag}>This device</span>
+            )}
+          </div>
+          <div className={styles.uaRaw} title={session.user_agent || "(no User-Agent)"}>
+            {session.user_agent || "(no User-Agent)"}
+          </div>
+        </>
+      ),
+    },
+    {
+      key: "last", header: "Last activity",
+      render: (session) => (
+        <span className={styles.timestamp}>{formatRelative(session.last_used_at)}</span>
+      ),
+    },
+    {
+      key: "started", header: "Signed in",
+      render: (session) => (
+        <span className={styles.timestamp}>{formatRelative(session.started_at)}</span>
+      ),
+    },
+    {
+      key: "ip", header: "IP",
+      render: (session) => (
+        <span className={styles.ip}>{session.ip_address || "—"}</span>
+      ),
+    },
+    {
+      key: "actions", header: "", label: "",
+      render: (session) => (session.is_current ? (
+        <span className={styles.muted}>Current</span>
+      ) : (
+        <Button
+          tone="danger"
+          size="sm"
+          busy={busyId === session.session_id}
+          disabled={busyId !== null}
+          onClick={() => onRevoke(session.session_id)}
+        >
+          Sign out
+        </Button>
+      )),
+    },
+  ];
 }
 
 

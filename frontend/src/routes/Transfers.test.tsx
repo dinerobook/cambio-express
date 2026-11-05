@@ -2,9 +2,10 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Transfers from "./Transfers";
+import { ToastProvider } from "../components/ui";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 
@@ -14,10 +15,15 @@ import { TEST_ADMIN } from "../test/setup";
 // create one.
 
 const useTransfers = vi.fn();
+const fetchTransfersPage = vi.fn();
 
 vi.mock("../api/transfers", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/transfers")>();
-  return { ...real, useTransfers: (...a: unknown[]) => useTransfers(...a) };
+  return {
+    ...real,
+    useTransfers: (...a: unknown[]) => useTransfers(...a),
+    fetchTransfersPage: (...a: unknown[]) => fetchTransfersPage(...a),
+  };
 });
 
 const rows = [
@@ -55,15 +61,17 @@ function renderPage(path = "/transfers") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route
-            path="/transfers"
-            element={<><Transfers /><LocationProbe /></>}
-          />
-          <Route path="/transfers/:id" element={<div>detail page</div>} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route
+              path="/transfers"
+              element={<><Transfers /><LocationProbe /></>}
+            />
+            <Route path="/transfers/:id" element={<div>detail page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -236,5 +244,88 @@ describe("Transfers list", () => {
       expect(screen.getByTestId("search").textContent).toContain("paid_by=debit_card"));
     expect(screen.getByTestId("search").textContent).not.toContain("page=2");
     expect(lastArgs()).toMatchObject({ service: "Payout", paid_by: "debit_card" });
+  });
+});
+
+describe("Transfers CSV export", () => {
+  /** What the export saved, instead of a real download. */
+  function captureDownloads() {
+    const saved: { name: string; blob: Blob }[] = [];
+    let last: Blob | null = null;
+    vi.spyOn(URL, "createObjectURL").mockImplementation((b) => { last = b as Blob; return "blob:x"; });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      saved.push({ name: this.download, blob: last! });
+    });
+    return saved;
+  }
+
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  beforeEach(() => {
+    setCurrentIdentity(TEST_ADMIN);
+    fetchTransfersPage.mockReset();
+    useTransfers.mockReturnValue(result({
+      data: { rows, total: 3, page: 1, per_page: 2, total_pages: 2, page_amount: 0 },
+    }));
+  });
+
+  it("exports every page the current filters match, with the total's parts", async () => {
+    const saved = captureDownloads();
+    fetchTransfersPage.mockImplementation((_store: number, q: { page: number }) => Promise.resolve({
+      rows: q.page === 1 ? rows : [{ ...rows[0], id: 3, sender_name: "Luis Mora", service_type: "Payout", payment_method: "debit_card" }],
+      total: 3, page: q.page, per_page: 100, total_pages: 2, page_amount: 0,
+    }));
+    renderPage("/transfers?status=Sent&q=ma&date_from=2026-10-01&sort=total&dir=asc");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Export CSV" }));
+    await waitFor(() => expect(saved).toHaveLength(1));
+
+    // The same filters and sort as the list, 100 rows at a time.
+    expect(fetchTransfersPage).toHaveBeenCalledTimes(2);
+    expect(fetchTransfersPage.mock.calls[0][1]).toMatchObject({
+      status: "Sent", q: "ma", date_from: "2026-10-01", sort: "total", dir: "asc",
+      page: 1, perPage: 100,
+    });
+    expect(fetchTransfersPage.mock.calls[1][1]).toMatchObject({ page: 2, status: "Sent" });
+
+    expect(saved[0].name).toMatch(/^transfers-\d{4}-\d{2}-\d{2}\.csv$/);
+    const lines = (await saved[0].blob.text()).replace(/^\uFEFF/, "").split("\r\n");
+    expect(lines[0]).toBe(
+      "Date,Company,Sender,Recipient,Country,Confirmation #,Status,Total,"
+      + "Service,Paid by,Send amount,Fee,Federal tax,Employee",
+    );
+    expect(lines[1]).toBe(
+      "2026-10-03,Intermex,Maria Lopez,Juan Garcia,Mexico,ABC123,Sent,1017.50,"
+      + "Money Transfer,Cash,1000.00,7.50,10.00,Rosa",
+    );
+    // A payout is cash going out: negative, like on screen.
+    expect(lines[3]).toContain("Luis Mora");
+    expect(lines[3]).toContain(",-1017.50,Payout,Debit card,");
+    expect(lines).toHaveLength(5);
+  });
+
+  it("is not offered to a cashier without Reports access", () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee", permissions: ["transfers.read", "transfers.create"],
+    });
+    renderPage();
+    expect(screen.getByText("Maria Lopez")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
+  });
+
+  it("is offered once Reports access is granted", () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee", permissions: ["transfers.read", "reports.read"],
+    });
+    renderPage();
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+  });
+
+  it("toasts a failed export and saves nothing", async () => {
+    const saved = captureDownloads();
+    fetchTransfersPage.mockRejectedValue(new Error("network"));
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(await screen.findByText("Export failed. Please try again.")).toBeInTheDocument();
+    expect(saved).toHaveLength(0);
   });
 });

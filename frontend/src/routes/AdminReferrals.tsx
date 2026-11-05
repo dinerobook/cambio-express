@@ -9,7 +9,7 @@ import { fmtMoney, fmtMoney2, fmtCount } from "../lib/formatters";
 import { formatDate } from "../lib/datetime";
 import {
   ButtonLink, Card, CopyButton, CopyField, Empty, ErrorState, KpiCard, KpiGrid, Loading,
-  Pill, space, Table, tdStyle, thStyle,
+  Pill, space, DataTable, type DataColumn,
 } from "../components/ui";
 import styles from "./AdminReferrals.module.css";
 
@@ -168,45 +168,44 @@ function HistoryTable({ rows }: { rows: ReferralRedemptionRow[] }) {
     );
   }
   return (
-    <Table>
-      <thead>
-        <tr>
-          {["Date", "Referred store", "Your credit", "Their credit"].map((h) => (
-            <th key={h} style={thStyle}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={`${r.referee_store_id}-${r.redeemed_at}`}>
-            <td style={tdStyle}>
-              <span className={styles.monoMuted}>
-                {r.redeemed_at ? formatDate(r.redeemed_at) : "—"}
-              </span>
-            </td>
-            <td style={tdStyle}>#{r.referee_store_id}</td>
-            <td style={tdStyle}>
-              {r.self_credit_applied ? (
-                <>
-                  <Pill tone="success">Credited</Pill>
-                  {r.stripe_self_txn_id && (
-                    <span className={`${styles.monoMuted} ${styles.txnId}`}>
-                      {r.stripe_self_txn_id}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <Pill tone="warning">Pending</Pill>
-              )}
-            </td>
-            <td style={tdStyle}>
-              {r.referee_credit_applied
-                ? <Pill tone="success">Credited</Pill>
-                : <Pill tone="warning">Pending</Pill>}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
+    <DataTable
+      columns={HISTORY_COLUMNS}
+      rows={rows}
+      rowKey={(r) => `${r.referee_store_id}-${r.redeemed_at}`}
+      emptyTitle="No referrals yet."
+    />
   );
 }
+
+const HISTORY_COLUMNS: DataColumn<ReferralRedemptionRow>[] = [
+  {
+    key: "date", header: "Date",
+    render: (r) => (
+      <span className={styles.monoMuted}>
+        {r.redeemed_at ? formatDate(r.redeemed_at) : "—"}
+      </span>
+    ),
+  },
+  { key: "store", header: "Referred store", render: (r) => `#${r.referee_store_id}` },
+  {
+    key: "yours", header: "Your credit",
+    render: (r) => (r.self_credit_applied ? (
+      <>
+        <Pill tone="success">Credited</Pill>
+        {r.stripe_self_txn_id && (
+          <span className={`${styles.monoMuted} ${styles.txnId}`}>
+            {r.stripe_self_txn_id}
+          </span>
+        )}
+      </>
+    ) : (
+      <Pill tone="warning">Pending</Pill>
+    )),
+  },
+  {
+    key: "theirs", header: "Their credit",
+    render: (r) => (r.referee_credit_applied
+      ? <Pill tone="success">Credited</Pill>
+      : <Pill tone="warning">Pending</Pill>),
+  },
+];

@@ -63,3 +63,41 @@ def test_build_csv_with_unicode():
     assert "López" in result
     assert "日本語" in result
     assert "café" in result
+
+
+# ── Formula defusing (CSV injection) ────────────────────────────
+#
+# A cell a spreadsheet would run as a formula is written as text
+# with a leading apostrophe; numbers and signed amounts stay as they
+# are so a column still adds up. The SPA's table export applies the
+# same rule (frontend/src/lib/csv.ts).
+
+from api.Core.Csv import safe_cell, safe_row  # noqa: E402
+
+
+def test_safe_cell_defuses_formula_starts():
+    assert safe_cell('=HYPERLINK("http://x","y")') == '\'=HYPERLINK("http://x","y")'
+    assert safe_cell("+1 555 0100") == "'+1 555 0100"
+    assert safe_cell("@SUM(A1)") == "'@SUM(A1)"
+    assert safe_cell("-cmd") == "'-cmd"
+    assert safe_cell("\tx") == "'\tx"
+    assert safe_cell("\rx") == "'\rx"
+
+
+def test_safe_cell_keeps_numbers_and_plain_text():
+    assert safe_cell("-12.50") == "-12.50"
+    assert safe_cell("+3") == "+3"
+    assert safe_cell(-12.5) == -12.5
+    assert safe_cell(0) == 0
+    assert safe_cell(None) is None
+    assert safe_cell("Maria Lopez") == "Maria Lopez"
+    assert safe_cell("") == ""
+
+
+def test_safe_row_applies_to_every_cell():
+    assert safe_row(["=1+1", 2, "ok"]) == ["'=1+1", 2, "ok"]
+
+
+def test_build_csv_defuses_formulas_in_rows_and_headers():
+    result = build_csv(["=evil"], [["=2+2"], ["-5.00"], ["@x"]])
+    assert result.split("\r\n")[:4] == ["'=evil", "'=2+2", "-5.00", "'@x"]

@@ -88,6 +88,27 @@ def test_transfers_csv_rows_totals_and_money_identity(client, test_store_id):
     assert totals[5] == "1" and float(totals[6]) == 500.0
 
 
+def test_transfers_csv_defuses_a_formula_typed_as_a_name(client, test_store_id):
+    """A sender typed as a spreadsheet formula comes out as text (a
+    leading apostrophe), so opening the report in Excel runs nothing.
+    The amounts in the same row stay plain numbers."""
+    with db_session():
+        _add_transfer(test_store_id, send_amount=100.0, fee=2.0,
+                      federal_tax=1.0, sender='=HYPERLINK("http://x")')
+    h = _h(login_admin(client, test_store_id))
+    resp = client.get(
+        f"/api/v2/reports/transfers.csv?from=2026-08-01&to=2026-08-31"
+        f"&store_ids={test_store_id}", headers=h,
+    )
+    assert resp.status_code == 200, resp.text
+    rows = _rows(resp.text)
+    data = [r for r in rows[1:] if r and r[0] == "2026-08-10"]
+    assert len(data) == 1
+    assert '\'=HYPERLINK("http://x")' in data[0]
+    assert not any(cell.startswith("=") for r in rows for cell in r)
+    assert float(data[0][9]) == 103.0
+
+
 def test_transfers_csv_excludes_rows_outside_window(client, test_store_id):
     with db_session():
         _add_transfer(test_store_id, send_amount=100.0, fee=1.0,

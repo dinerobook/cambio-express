@@ -1,15 +1,16 @@
 import { useNavigate } from "react-router-dom";
 
 import {
-  RETURN_CHECK_STATUS_TONES, returnCheckStatusLabel, useReturnChecks,
+  RETURN_CHECK_STATUS_TONES, fetchReturnChecksPage, returnCheckStatusLabel, useReturnChecks,
   type ReturnCheckRow,
 } from "../api/returnChecks";
+import { csvMoney } from "../lib/csv";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate } from "../lib/datetime";
+import { csvDate, formatDate } from "../lib/datetime";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   ButtonLink, Card, DataTable, Empty, PageHeader,
-  PageShell, Pill, TabsBar, TabsButton, type DataColumn,
+  PageShell, Pill, TabsBar, TabsButton, type CsvColumn, type DataColumn,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./ReturnChecks.module.css";
@@ -36,16 +37,21 @@ function returnCheckColumns(t: Translate): DataColumn<ReturnCheckRow>[] {
   {
     key: "bounced", header: t("returnCheck.bounced"), sortKey: "bounced", sortFirst: "desc",
     render: (r) => <span className={styles.monoMuted}>{formatDate(r.bounced_on)}</span>,
+    csv: (r) => csvDate(r.bounced_on),
   },
-  { key: "customer", header: t("transfer.customer"), sortKey: "customer", render: (r) => r.customer_name },
+  { key: "customer", header: t("transfer.customer"), sortKey: "customer", render: (r) => r.customer_name,
+    csv: (r) => r.customer_name },
   {
     key: "check", header: t("returnCheck.checkNumberShort"), sortKey: "check",
     render: (r) => <span className={styles.mono}>{r.check_number || "—"}</span>,
+    csv: (r) => r.check_number,
   },
-  { key: "bank", header: t("returnCheck.bank"), sortKey: "bank", render: (r) => r.payer_bank || "—" },
+  { key: "bank", header: t("returnCheck.bank"), sortKey: "bank", render: (r) => r.payer_bank || "—",
+    csv: (r) => r.payer_bank },
   {
     key: "amount", header: t("dash.amount"), align: "right", sortKey: "amount", sortFirst: "desc",
     render: (r) => <span className={styles.mono}>{fmtMoney2(r.amount)}</span>,
+    csv: (r) => csvMoney(r.amount),
   },
   {
     key: "recovered", header: t("returnCheck.statusRecovered"), align: "right",
@@ -59,8 +65,10 @@ function returnCheckColumns(t: Translate): DataColumn<ReturnCheckRow>[] {
         )}
       </span>
     ),
+    csv: (r) => csvMoney(r.recovered_total),
   },
-  { key: "status", header: t("transfer.status"), sortKey: "status", render: (r) => <StatusPill status={r.status} /> },
+  { key: "status", header: t("transfer.status"), sortKey: "status", render: (r) => <StatusPill status={r.status} />,
+    csv: (r) => returnCheckStatusLabel(r.status) },
   {
     // The explicit, discoverable action; the whole row opens the
     // same page for a cashier who taps any cell.
@@ -74,6 +82,13 @@ function returnCheckColumns(t: Translate): DataColumn<ReturnCheckRow>[] {
   ];
 }
 
+function csvExtras(t: Translate): CsvColumn<ReturnCheckRow>[] {
+  return [
+    { header: t("returnCheck.csvFee"), csv: (r) => csvMoney(r.return_check_fee) },
+    { header: t("returnCheck.csvPayments"), csv: (r) => r.payment_count },
+  ];
+}
+
 export default function ReturnChecks() {
   const t = useT();
   const columns = returnCheckColumns(t);
@@ -84,12 +99,11 @@ export default function ReturnChecks() {
     defaultSort: { key: "bounced", direction: "desc" },
   });
   const status = filters.params.status;
+  const listQuery = {
+    status, sort: filters.sort?.key, dir: filters.sort?.direction,
+  };
   const { data, isLoading, isError, error, refetch } = useReturnChecks({
-    status,
-    sort: filters.sort?.key,
-    dir: filters.sort?.direction,
-    page: filters.page,
-    perPage: filters.perPage,
+    ...listQuery, page: filters.page, perPage: filters.perPage,
   });
 
   if (identity?.store_id == null) {
@@ -152,6 +166,11 @@ export default function ReturnChecks() {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "returned-checks",
+            fetchPage: (page, perPage) => fetchReturnChecksPage({ ...listQuery, page, perPage }),
+            extraColumns: csvExtras(t),
           }}
         />
       </Card>

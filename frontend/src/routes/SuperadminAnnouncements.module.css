@@ -30,6 +30,7 @@
 }
 
 .cellWide {
+  display: inline-block;
   max-width: 32rem;
 }
 

@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { useTransactions, type PosTransactionRow } from "../api/posimport";
+import {
+  fetchPosTransactionsPage, useTransactions, type PosTransactionRow,
+} from "../api/posimport";
+import { csvMoney } from "../lib/csv";
 import { AppLink,
   Card, Checkbox, DataTable, DateInput, Field, InfoTip,
   Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill,
@@ -9,7 +12,7 @@ import { AppLink,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
-import { daysAgoIso, formatTimestamp } from "../lib/datetime";
+import { csvTimestamp, daysAgoIso, formatTimestamp } from "../lib/datetime";
 import styles from "./Transactions.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 
@@ -39,6 +42,7 @@ const COLUMNS: DataColumn<PosTransactionRow>[] = [
   {
     key: "time", header: "Time",
     render: (t) => (t.receipt_at ? formatTimestamp(t.receipt_at) : t.business_date),
+    csv: (t) => (t.receipt_at ? csvTimestamp(t.receipt_at) : t.business_date),
   },
   {
     key: "ticket", header: "Ticket",
@@ -47,14 +51,25 @@ const COLUMNS: DataColumn<PosTransactionRow>[] = [
         {t.transaction_no || `#${t.id}`}
       </AppLink>
     ),
+    csv: (t) => t.transaction_no || `#${t.id}`,
   },
-  { key: "register", header: "Register", render: (t) => t.register_id || "—" },
-  { key: "cashier", header: "Cashier", render: (t) => t.cashier_id || "—" },
-  { key: "items", header: "Items", align: "right", render: (t) => <span style={MONO}>{t.item_count}</span> },
-  { key: "tax", header: "Tax", align: "right", render: (t) => <span style={MONO}>{fmtMoney2(t.tax)}</span> },
-  { key: "total", header: "Total", align: "right", render: (t) => <span style={MONO}>{fmtMoney2(t.grand_total)}</span> },
+  { key: "register", header: "Register", render: (t) => t.register_id || "—", csv: (t) => t.register_id },
+  { key: "cashier", header: "Cashier", render: (t) => t.cashier_id || "—", csv: (t) => t.cashier_id },
+  { key: "items", header: "Items", align: "right", render: (t) => <span style={MONO}>{t.item_count}</span>,
+    csv: (t) => t.item_count },
+  { key: "tax", header: "Tax", align: "right", render: (t) => <span style={MONO}>{fmtMoney2(t.tax)}</span>,
+    csv: (t) => csvMoney(t.tax) },
+  { key: "total", header: "Total", align: "right", render: (t) => <span style={MONO}>{fmtMoney2(t.grand_total)}</span>,
+    csv: (t) => csvMoney(t.grand_total) },
   {
-    key: "flags", header: "", label: "",
+    key: "flags", header: "", label: "", csvHeader: "Flags",
+    csv: (t) => [
+      t.kind && t.kind !== "sale" ? t.kind : "",
+      t.has_voided_line ? "voided item" : "",
+      t.training_mode ? "training" : "",
+      t.offline ? "offline" : "",
+      t.suspended ? "suspended" : "",
+    ].filter(Boolean).join("; "),
     render: (t) => (
       <div className={styles.flags}>
         {t.kind && t.kind !== "sale" && <Pill tone="neutral">{t.kind}</Pill>}
@@ -74,14 +89,15 @@ export default function Transactions() {
     q: "", kind: "", voided: "",
     start: defaults.start, end: defaults.end,
   }, { pageSizeKey: "pos-transactions" });
-  const list = useTransactions({
+  const listQuery = {
     start: filters.params.start,
     end: filters.params.end,
     q: filters.params.q,
     kind: filters.params.kind,
     voidedOnly: filters.params.voided === "1",
-    page: filters.page,
-    perPage: filters.perPage,
+  };
+  const list = useTransactions({
+    ...listQuery, page: filters.page, perPage: filters.perPage,
   });
   const data = list.data;
 
@@ -179,6 +195,10 @@ export default function Transactions() {
               page: data.page, totalPages: data.total_pages, total: data.total,
               onPage: filters.setPage,
               perPage: filters.perPage, onPerPage: filters.setPerPage,
+            }}
+            exportCsv={{
+              filename: `pos-transactions-${listQuery.start}-to-${listQuery.end}`,
+              fetchPage: (page, perPage) => fetchPosTransactionsPage({ ...listQuery, page, perPage }),
             }}
           />
         </Card>

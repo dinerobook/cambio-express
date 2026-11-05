@@ -5,7 +5,7 @@ import { EMAIL_EVENT_TONES } from "../api/superadmin";
 import { getCurrentIdentity } from "../lib/auth";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import {
-  formatDate, formatTimestamp,
+  csvTimestamp, formatDate, formatTimestamp,
 } from "../lib/datetime";
 import {
   Card, DataTable, Input, PageHeader, PageShell, Pill,
@@ -30,7 +30,7 @@ const EVENT_TYPES = [
 ];
 
 const COLUMNS: DataColumn<EmailEventRow>[] = [
-  { key: "to", header: "Recipient", render: (e) => e.to_addr },
+  { key: "to", header: "Recipient", render: (e) => e.to_addr, csv: (e) => e.to_addr },
   {
     key: "event", header: "Event",
     render: (e) => (
@@ -38,12 +38,14 @@ const COLUMNS: DataColumn<EmailEventRow>[] = [
         {e.event_type.replace("email.", "")}
       </Pill>
     ),
+    csv: (e) => e.event_type.replace("email.", ""),
   },
   {
     key: "bounce", header: "Bounce",
     render: (e) => (e.bounce_type
       ? <Pill tone="negative">{e.bounce_type}</Pill>
       : <span className={styles.monoMuted}>—</span>),
+    csv: (e) => e.bounce_type,
   },
   {
     key: "message", header: "Message ID",
@@ -52,25 +54,36 @@ const COLUMNS: DataColumn<EmailEventRow>[] = [
         {e.message_id ? e.message_id.slice(0, 16) + "…" : "—"}
       </span>
     ),
+    // The file carries the whole id the cell shortens.
+    csv: (e) => e.message_id,
   },
   {
     key: "time", header: "Time",
     render: (e) => <span className={styles.monoMuted}>{formatTimestamp(e.created_at)}</span>,
+    csv: (e) => csvTimestamp(e.created_at),
   },
 ];
 
-function useEmailLog(opts: { q?: string; event_type?: string; page?: number; perPage?: number }) {
-  const identity = getCurrentIdentity();
+interface EmailLogQuery { q?: string; event_type?: string; page?: number; perPage?: number }
+
+/** One page of the email log — the request the page and its CSV
+ *  export both make. */
+function fetchEmailLog(opts: EmailLogQuery): Promise<EmailLogData> {
   const params = new URLSearchParams();
   if (opts.q) params.set("q", opts.q);
   if (opts.event_type) params.set("event_type", opts.event_type);
   if (opts.page && opts.page > 1) params.set("page", String(opts.page));
   if (opts.perPage) params.set("per_page", String(opts.perPage));
   const qs = params.toString() ? `?${params}` : "";
+  return api<EmailLogData>(`/api/v2/superadmin/email-log${qs}`);
+}
+
+function useEmailLog(opts: EmailLogQuery) {
+  const identity = getCurrentIdentity();
   return useQuery<EmailLogData>({
     enabled: identity?.role === "superadmin",
     queryKey: ["superadmin", "email-log", opts.q, opts.event_type, opts.page, opts.perPage],
-    queryFn: () => api<EmailLogData>(`/api/v2/superadmin/email-log${qs}`),
+    queryFn: () => fetchEmailLog(opts),
     placeholderData: (prev) => prev,
   });
 }
@@ -81,9 +94,9 @@ export default function SuperadminEmailLog() {
   const filters = useUrlFilterState({ q: "", event_type: "" }, { pageSizeKey: "email-log" });
   const q = filters.params.q.trim();
   const eventType = filters.params.event_type;
+  const listQuery = { q: q || undefined, event_type: eventType || undefined };
   const { data, isLoading, isError, error, refetch } = useEmailLog({
-    q: q || undefined, event_type: eventType || undefined,
-    page: filters.page, perPage: filters.perPage,
+    ...listQuery, page: filters.page, perPage: filters.perPage,
   });
 
   return (
@@ -127,6 +140,10 @@ export default function SuperadminEmailLog() {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "email-log",
+            fetchPage: (page, perPage) => fetchEmailLog({ ...listQuery, page, perPage }),
           }}
         />
       </Card>

@@ -300,6 +300,7 @@ Known shared components, and what they own:
 | `describeAppliedRule` (`lib/bankRules`) | your own "N tagged, N booked, N skipped (day locked)" toast text |
 | `MoneyInput` | `<input type="number">` + your own cents parsing |
 | `DataTable` (+ `useUrlFilterState({ pageSizeKey, defaultSort })`) | any list page's `<table>`, header row, loading / empty / error states, clickable `<tr onClick>`, sort buttons, or `<Pager>` wiring — see "Lists" in §7 |
+| `DataTable` `exportCsv` (+ `csv` on columns, `lib/csv.ts`) | a page-local "Export CSV" button, a hand-built CSV string, `toFixed(2)` money or a `formatDate` cell in a file — see "Export" in §7 |
 | `pageOf` / `sortRows` (`lib/pagination`) | slicing or sorting a whole list in the browser by hand |
 | `Table`, `TableStates` | small tables inside a form or box (receipt lines, the daily-book boxes) — not list pages |
 | `PermissionMatrixTable` | a per-route permission grid |
@@ -394,6 +395,31 @@ needed if the kit had been checked first.
     "label  value" lines (`label` on a column whose header is not
     plain text, `""` to hide it). Do not wrap a DataTable in an
     `overflowX: auto` div.
+  - **Export.** A list whose rows someone would take to a
+    spreadsheet or an accountant gets `exportCsv` — never a page's
+    own CSV button. Give each data column a `csv` value (money as
+    `csvMoney`, dates as `csvTimestamp` / `csvDate`, words for
+    pills), `extraColumns` for parts a cell packs together (a
+    transfer's fee and tax behind its total), and either
+    `fetchPage` (the SAME request the list makes, from a shared
+    `fetchXPage` in `api/`) or `allRows` (a list the browser holds
+    whole, sorted, before `pageOf`). The kit then puts "Export CSV"
+    above the table and writes every row the current search,
+    filters and sort match — not just the page on screen — in the
+    store's timezone, headed in the person's language, UTF-8 with
+    a BOM, formulas defused, capped at 10,000 rows with a "narrow
+    the list" toast. The button needs `reports.read` (the Data
+    export page's right) unless the list names its own `perm`.
+    Action-only lists (sessions, discounts, passkeys) and the
+    customer directory (its own server export, `customers.update`)
+    have none. Server CSVs defuse formulas the same way
+    (`api/Core/Csv.py` `safe_cell`).
+  - **Every list is a DataTable**, including a short one inside a
+    settings page (referrals, sign-in sessions, invite codes) or
+    one table per group (Payroll's per-person shifts, with the
+    change log as `expandedRow`). Only a table that is part of a
+    form or a report layout (daily book boxes, P&L lines, the
+    permission grid, receipts) keeps the bare `<Table>`.
 - A permission that is one on/off switch rather than an area (e.g.
   "Lock / unlock days") is a single-switch resource: listed in
   `RESOURCE_ACTIONS` (`lib/permissions.ts`) and the server's

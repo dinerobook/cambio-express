@@ -25,7 +25,7 @@ import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
 import { fmtCount, fmtMoney2 } from "../lib/formatters";
-import { canDismissRow, dayGap } from "../lib/bankMatching";
+import { BOOKS_STATUS_LABELS, canDismissRow, dayGap } from "../lib/bankMatching";
 import { hasPermission } from "../lib/permissions";
 import styles from "./BankTransactions.module.css";
 
@@ -40,11 +40,11 @@ import styles from "./BankTransactions.module.css";
 // dismissed).
 
 const PILL: Record<string, { label: string; tone: PillTone }> = {
-  matched:      { label: "Matched",        tone: "accent" },
-  added:        { label: "Added from bank", tone: "accent" },
-  suggested:    { label: "Check match",    tone: "warning" },
-  not_on_books: { label: "Not on books",   tone: "neutral" },
-  dismissed:    { label: "Dismissed",      tone: "neutral" },
+  matched:      { label: BOOKS_STATUS_LABELS.matched,      tone: "accent" },
+  added:        { label: BOOKS_STATUS_LABELS.added,        tone: "accent" },
+  suggested:    { label: BOOKS_STATUS_LABELS.suggested,    tone: "warning" },
+  not_on_books: { label: BOOKS_STATUS_LABELS.not_on_books, tone: "neutral" },
+  dismissed:    { label: BOOKS_STATUS_LABELS.dismissed,    tone: "neutral" },
 };
 
 function entryText(e: MatchedEntry): string {

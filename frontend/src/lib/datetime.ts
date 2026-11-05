@@ -542,3 +542,28 @@ function formatTzAbbrev(d: Date, tz?: string): string {
     return "";
   }
 }
+
+
+/** A timestamp for a CSV cell: ``2026-10-09 14:05`` on the store's
+ *  wall clock (24-hour, sortable, no zone words a spreadsheet would
+ *  read as text). A bare ``YYYY-MM-DD`` day stays that day. Empty
+ *  or unparseable input gives ``""`` (an empty cell, never "—"). */
+export function csvTimestamp(
+  iso: string | null | undefined, o: TzOpt = {},
+): string {
+  if (!iso) return "";
+  if (_DATE_ONLY.test(iso.trim())) return iso.trim();
+  const d = parseTimestamp(iso);
+  if (!d) return "";
+  const p = zonedParts(d, zoneFor(o.timeZone));
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${p.year}-${two(p.month)}-${two(p.day)} ${two(p.hour)}:${two(p.minute)}`;
+}
+
+/** The store-local calendar day of a timestamp (or a bare day) for a
+ *  CSV cell: ``2026-10-09``. ``""`` when empty. */
+export function csvDate(
+  iso: string | null | undefined, o: TzOpt = {},
+): string {
+  return csvTimestamp(iso, o).slice(0, 10);
+}

@@ -10,8 +10,8 @@ import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
 import { AppLink,
   Alert, Button, Card, ConfirmDialog, CopyField, ErrorState, Loading, PageHeader, PageShell,
-  Section, Table, tdStyle, thStyle,
-  Empty,
+  Section, DataTable,
+  Empty, type DataColumn,
 } from "../components/ui";
 import styles from "./OwnerConnect.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
@@ -164,26 +164,12 @@ export default function OwnerConnect() {
       >
         <Card>
           {redeemed.length > 0 ? (
-            <Table>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Code</th>
-                  <th style={thStyle}>Store</th>
-                  <th style={thStyle}>Redeemed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {redeemed.map((r) => (
-                  <tr key={r.id}>
-                    <td style={tdStyle} className={styles.mono}>{r.code}</td>
-                    <td style={tdStyle}>{r.used_by_store_name || "—"}</td>
-                    <td style={tdStyle} className={styles.cellMuted}>
-                      {formatDate(r.used_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+            <DataTable
+              columns={REDEEMED_COLUMNS}
+              rows={redeemed}
+              rowKey={(r) => r.id}
+              emptyTitle="No codes redeemed yet."
+            />
           ) : (
             <Empty>
               No codes redeemed yet. Stores you've connected will show
@@ -230,3 +216,11 @@ export default function OwnerConnect() {
 }
 
 
+const REDEEMED_COLUMNS: DataColumn<OwnerConnectCodeRow>[] = [
+  { key: "code", header: "Code", render: (r) => <span className={styles.mono}>{r.code}</span> },
+  { key: "store", header: "Store", render: (r) => r.used_by_store_name || "—" },
+  {
+    key: "redeemed", header: "Redeemed",
+    render: (r) => <span className={styles.cellMuted}>{formatDate(r.used_at)}</span>,
+  },
+];

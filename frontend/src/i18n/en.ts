@@ -27,6 +27,12 @@ export const en = {
   "pager.previous": "← Previous",
   "pager.next": "Next →",
 
+  // ── Shared list table (DataTable) ────────────────────────────
+  "table.exportCsv": "Export CSV",
+  "table.exporting": "Exporting…",
+  "table.exportFailed": "Export failed. Please try again.",
+  "table.exportTooLarge": "This list has {count} rows, more than the {max} one export can hold. Narrow the search or dates and try again.",
+
   // ── Unsaved changes guard ────────────────────────────────────
   "unsaved.pill": "Unsaved changes",
   "unsaved.title": "Discard unsaved changes?",
@@ -690,6 +696,7 @@ export const en = {
   "dash.qlReportsDesc": "MRR/ARR, churn, adoption.",
 
   // ── ACH batches ─────────────────────────────────────────────
+  "batch.transferCount": "Transfer count",
   "batch.reference": "Reference",
   "batch.transfers": "Transfers",
   "batch.cardCreditInline": "{amount} debit card credit",
@@ -753,6 +760,7 @@ export const en = {
   "customer.typeTwo": "Type at least 2 characters to search.",
   "customer.searchPlaceholder": "Name, phone, …",
   "customer.searchFailed": "Search failed",
+  "customer.empty": "No customers.",
   "customer.noMatch": "No customers match \"{q}\".",
   "customer.mergeMode": "Merge mode",
   "customer.mergeHelp": "Pick two customers. The first becomes the winner — its row stays. The second's transfers get re-pointed at the winner, and the row is deleted.",
@@ -833,6 +841,8 @@ export const en = {
   "returnCheck.checkNumber": "Check number",
   "returnCheck.payerBank": "Payer bank",
   "returnCheck.invalidAmount": "Invalid amount",
+  "returnCheck.csvFee": "Return check fee",
+  "returnCheck.csvPayments": "Payments",
   "returnCheck.feeOptional": "Return check fee (optional)",
   "returnCheck.invalidFee": "Invalid fee",
   "returnCheck.create": "Create return check",

@@ -8,7 +8,8 @@ import {
 } from "../api/employees";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate } from "../lib/datetime";
+import { csvDate, formatDate } from "../lib/datetime";
+import { csvMoney } from "../lib/csv";
 import { fmtMoney2 } from "../lib/formatters";
 import { pageOf, sortRows } from "../lib/pagination";
 import { accountTypeLabel } from "../lib/permissions";
@@ -124,15 +125,20 @@ export default function Employees() {
   }
 
   const columns: DataColumn<EmployeeRow>[] = [
-    { key: "name", header: "Name", sortKey: "name", render: (r) => <strong>{r.name}</strong> },
-    { key: "login", header: "Login", sortKey: "login", render: (r) => <LoginCell row={r} /> },
+    { key: "name", header: "Name", sortKey: "name", render: (r) => <strong>{r.name}</strong>,
+      csv: (r) => r.name },
+    { key: "login", header: "Login", sortKey: "login", render: (r) => <LoginCell row={r} />,
+      csv: (r) => r.login?.username ?? "" },
     {
       key: "rate", header: "Rate", sortKey: "rate", sortFirst: "desc",
       render: (r) => (r.hourly_rate > 0 ? `${fmtMoney2(r.hourly_rate)}/hr` : "—"),
+      csvHeader: "Hourly rate",
+      csv: (r) => (r.hourly_rate > 0 ? csvMoney(r.hourly_rate) : ""),
     },
     {
       key: "hired", header: "Hired", sortKey: "hired", sortFirst: "desc",
       render: (r) => (r.hired_on ? formatDate(r.hired_on) : "—"),
+      csv: (r) => csvDate(r.hired_on),
     },
     {
       key: "status", header: "Status", sortKey: "status", sortFirst: "desc",
@@ -141,6 +147,7 @@ export default function Employees() {
           {r.is_active ? "Active" : "Inactive"}
         </Pill>
       ),
+      csv: (r) => (r.is_active ? "Active" : "Inactive"),
     },
     {
       key: "actions", header: "", label: "", align: "right",
@@ -221,6 +228,13 @@ export default function Employees() {
             page: shown.page, totalPages: shown.totalPages, total: shown.total,
             onPage: filters.setPage,
             perPage: filters.perPage, onPerPage: filters.setPerPage,
+          }}
+          exportCsv={{
+            filename: "employees",
+            allRows: sorted,
+            extraColumns: [
+              { header: "Account type", csv: (r) => (r.login ? accountTypeLabel(r.login.role) : "") },
+            ],
           }}
         />
       </Card>

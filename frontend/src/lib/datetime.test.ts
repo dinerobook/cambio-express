@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   MONTH_NAMES, MONTH_NAMES_SHORT, daysAgoIso, formatDate, formatDateCompact,
@@ -6,7 +6,7 @@ import {
   getDisplayTimezone, monthStartIso, parseTimestamp, setDisplayTimezone,
   storeNow, toIsoDate, todayIso, utcToZonedInput, zonedInputToUtcIso,
   WEEKDAY_NAMES_SHORT, daysInMonth, formatWeekRange, isoDate, mondayOfIso,
-  monthRangeIso, shiftMonth, weekdayOfIso,
+  monthRangeIso, shiftMonth, weekdayOfIso, csvDate, csvTimestamp,
 } from "./datetime";
 
 describe("formatDate", () => {
@@ -267,5 +267,29 @@ describe("calendar periods", () => {
   it("formatWeekRange names the seven days and the start's year", () => {
     expect(formatWeekRange("2026-10-05")).toBe("Oct 5 – Oct 11, 2026");
     expect(formatWeekRange("2025-12-29")).toBe("Dec 29 – Jan 4, 2025");
+  });
+});
+
+describe("csvTimestamp / csvDate", () => {
+  afterEach(() => setDisplayTimezone(null));
+
+  it("writes the store's wall clock, 24-hour and sortable", () => {
+    setDisplayTimezone("America/Chicago");
+    // Server timestamps are naive UTC.
+    expect(csvTimestamp("2026-11-06T03:05:00")).toBe("2026-11-05 21:05");
+    expect(csvDate("2026-11-06T03:05:00")).toBe("2026-11-05");
+  });
+
+  it("keeps a bare calendar day as that day", () => {
+    setDisplayTimezone("Pacific/Honolulu");
+    expect(csvTimestamp("2026-11-05")).toBe("2026-11-05");
+    expect(csvDate("2026-11-05")).toBe("2026-11-05");
+  });
+
+  it("is an empty cell for missing or bad input, never a dash", () => {
+    expect(csvTimestamp(null)).toBe("");
+    expect(csvTimestamp("")).toBe("");
+    expect(csvTimestamp("not a date")).toBe("");
+    expect(csvDate(undefined)).toBe("");
   });
 });

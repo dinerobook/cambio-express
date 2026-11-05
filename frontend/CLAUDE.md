@@ -132,6 +132,13 @@ Non-negotiables:
   `Alert`, `Pill`, `Pager`, `ModalActions`, `Table`, `DataTable`,
   `EmptyState`, `ErrorState`, `KpiCard`, `KpiGrid`, `FormActions`,
   `RowActions`. Reach for these before writing inline styles.
+- **Lists export through the table** (UI-STANDARDS §7 "Export").
+  A list that needs a CSV passes `exportCsv` to its `<DataTable>`
+  with a `csv` value on each data column and the page's own
+  request as `fetchPage` (one `fetchXPage` in `src/api/`, shared
+  with its `useQuery` hook) or `allRows`. The kit owns the button,
+  the paging walk, store-time dates, plain-number money, formula
+  defusing and the `reports.read` gate.
 - **Per-row actions** use `<RowActions>`: inline buttons on desktop, a
   bottom-sheet menu on narrow viewports (`@media (max-width: 36rem)`).
   The sheet renders through `createPortal` so `position: fixed` pins to
