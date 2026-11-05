@@ -5,6 +5,7 @@ import {
   parsePhoneNumber,
   type CountryCode,
 } from "libphonenumber-js";
+import { useT } from "../../i18n";
 
 import { Input } from "./Input";
 import { Select } from "./Select";
@@ -28,17 +29,17 @@ import { Select } from "./Select";
 // Curated list — US first (default), then the common remittance
 // destinations this product serves. Calling codes are derived from
 // libphonenumber-js so they can't drift.
-const COUNTRIES: { iso: CountryCode; name: string; flag: string }[] = [
-  { iso: "US", name: "United States", flag: "🇺🇸" },
-  { iso: "MX", name: "Mexico", flag: "🇲🇽" },
-  { iso: "GT", name: "Guatemala", flag: "🇬🇹" },
-  { iso: "HN", name: "Honduras", flag: "🇭🇳" },
-  { iso: "SV", name: "El Salvador", flag: "🇸🇻" },
-  { iso: "NI", name: "Nicaragua", flag: "🇳🇮" },
-  { iso: "CO", name: "Colombia", flag: "🇨🇴" },
-  { iso: "DO", name: "Dominican Rep.", flag: "🇩🇴" },
-  { iso: "IN", name: "India", flag: "🇮🇳" },
-  { iso: "PH", name: "Philippines", flag: "🇵🇭" },
+const COUNTRIES: { iso: CountryCode; flag: string }[] = [
+  { iso: "US", flag: "🇺🇸" },
+  { iso: "MX", flag: "🇲🇽" },
+  { iso: "GT", flag: "🇬🇹" },
+  { iso: "HN", flag: "🇭🇳" },
+  { iso: "SV", flag: "🇸🇻" },
+  { iso: "NI", flag: "🇳🇮" },
+  { iso: "CO", flag: "🇨🇴" },
+  { iso: "DO", flag: "🇩🇴" },
+  { iso: "IN", flag: "🇮🇳" },
+  { iso: "PH", flag: "🇵🇭" },
 ];
 
 function callingCode(iso: CountryCode): string {
@@ -84,6 +85,7 @@ export function PhoneField({
   placeholder = "(555) 123-4567",
   "aria-invalid": ariaInvalid,
 }: PhoneFieldProps) {
+  const t = useT();
   const [country, setCountry] = useState<CountryCode>(defaultCountry);
   const [display, setDisplay] = useState("");
   // Tracks the last E.164 we emitted so an external `value` sync doesn't
@@ -141,7 +143,7 @@ export function PhoneField({
   return (
     <div style={{ display: "flex", gap: "0.5rem" }}>
       <Select
-        aria-label="Country code"
+        aria-label={t("common.countryCode")}
         value={country}
         disabled={disabled}
         onChange={(e) => onCountryChange(e.target.value as CountryCode)}

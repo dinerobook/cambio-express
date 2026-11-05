@@ -3,15 +3,23 @@ import { describe, expect, it } from "vitest";
 
 import {
   getLanguage, initLanguageFromDevice, intlLocale, isLanguage,
-  reconcileLanguage, setLanguage, t, tIfKey, tn, useT,
+  reconcileLanguage, setLanguage, t, tIfKey, tn, tNodes, useT,
 } from "./index";
 import { en, type MessageKey } from "./en";
 import { es } from "./es";
 import { translateServerMessage, SERVER_MESSAGES } from "./serverMessages";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import {
-  formatDate, formatMonthYear, formatTime, weekdayNameLong, weekdayNamesShort,
+  formatDate, formatMonthYear, formatTime, monthName, weekdayNameLong,
+  weekdayNamesShort,
 } from "../lib/datetime";
+import { batchStatusLabel } from "../api/batches";
+import { roleLabel } from "../api/roles";
+import { timeClockStatusLabel } from "../api/timeclock";
+import {
+  actionLabel, actionShort, groupResources, resourceLabel,
+} from "../components/PermissionMatrixTable";
+import { paymentMethodLabel, returnCheckStatusLabel } from "../api/returnChecks";
 import {
   PAYOUT_SERVICE, SERVICES, STATUSES, serviceLabel, statusLabel,
   transferWording,
@@ -33,7 +41,9 @@ const SAME_IN_BOTH: MessageKey[] = [
   "login.copyright",
   // A brand name, and words Spanish spells the same.
   "daily.boostMobile", "daily.total", "daily.totalCaps", "daily.totalLabel",
-  "transfer.total",
+  "transfer.total", "returnCheck.methodZelle", "roles.tabRoles", "roles.no", "payroll.no",
+  // One-letter chips: C, V and E start the same word in both.
+  "perm.actCreateShort", "perm.actReadShort", "perm.actUpdateShort",
   // Only placeholders and symbols: "{count} {label}", "{label} (USD)".
   "daily.countOpen", "transfer.inUsd", "transfer.outOfHoursOpen",
 ];
@@ -281,5 +291,86 @@ describe("stored values and form errors", () => {
     act(() => setLanguage("es"));
     expect(weekdayNameLong(0)).toBe("lunes");
     expect(weekdayNameLong(5)).toBe("sábado");
+  });
+});
+
+describe("markup inside a sentence and more stored values", () => {
+  it("tNodes keeps the sentence whole and puts each node in its place", () => {
+    const { container } = render(
+      <p>{tNodes("customer.selectedTwo", { winner: <b>Ana</b>, loser: <b>Luis</b> })}</p>,
+    );
+    expect(container.textContent).toBe("Selected: Ana (winner) ← Luis (loser)");
+    expect(container.querySelectorAll("b")).toHaveLength(2);
+    act(() => setLanguage("es"));
+    const es = render(
+      <p>{tNodes("customer.selectedTwo", { winner: <b>Ana</b>, loser: <b>Luis</b> })}</p>,
+    );
+    expect(es.container.textContent).toBe("Seleccionados: Ana (se queda) ← Luis (se elimina)");
+  });
+
+  it("tNodes leaves an unknown placeholder visible", () => {
+    const { container } = render(<p>{tNodes("customer.selectedOne", {})}</p>);
+    expect(container.textContent).toContain("{winner}");
+  });
+
+  it("month names follow the language", () => {
+    expect(monthName(11)).toBe("November");
+    expect(monthName(5, "short")).toBe("May");
+    act(() => setLanguage("es"));
+    expect(monthName(11)).toBe("noviembre");
+    expect(monthName(11, "short")).toBe("nov");
+  });
+
+  it("batch and returned-check values read in Spanish, unknown ones as stored", () => {
+    expect(batchStatusLabel("Cleared")).toBe("Cleared");
+    expect(returnCheckStatusLabel("pending")).toBe("Pending");
+    expect(paymentMethodLabel("money_order")).toBe("Money order");
+    act(() => setLanguage("es"));
+    expect(batchStatusLabel("Cleared")).toBe("Acreditado");
+    expect(returnCheckStatusLabel("fraud")).toBe("Fraude");
+    expect(paymentMethodLabel("money_order")).toBe("Giro postal");
+    expect(batchStatusLabel("Bounced twice")).toBe("Bounced twice");
+    expect(paymentMethodLabel("constructor")).toBe("constructor");
+    expect(returnCheckStatusLabel(null)).toBe("—");
+  });
+});
+
+describe("roles, permission areas and shift statuses", () => {
+  it("names roles in the language; Admin is never called super", () => {
+    expect(roleLabel("admin")).toBe("Admin");
+    expect(roleLabel("owner")).toBe("Owner");
+    act(() => setLanguage("es"));
+    expect(roleLabel("admin")).toBe("Administrador");
+    expect(roleLabel("employee")).toBe("Empleado");
+    expect(roleLabel("owner")).toBe("Dueño");
+    expect(roleLabel("accountant")).toBe("Contador");
+    // Unknown and inherited names show as stored.
+    expect(roleLabel("cook")).toBe("cook");
+    expect(roleLabel("toString")).toBe("toString");
+  });
+
+  it("names permission areas, actions and groups; the chips stay distinct", () => {
+    expect(resourceLabel("transfers")).toBe("Money transfers");
+    expect(actionLabel("read")).toBe("View");
+    expect(actionShort("delete")).toBe("D");
+    act(() => setLanguage("es"));
+    expect(resourceLabel("transfers")).toBe("Envíos de dinero");
+    expect(resourceLabel("constructor")).toBe("constructor");
+    expect(actionLabel("update")).toBe("Editar");
+    expect(actionLabel("delete")).toBe("Eliminar");
+    const letters = ["create", "read", "update", "delete"].map(actionShort);
+    expect(new Set(letters).size).toBe(4);
+    expect(groupResources(["transfers", "mystery"])).toEqual([
+      { key: "perm.groupMoneyServices", title: "Servicios de dinero", resources: ["transfers"] },
+      { key: "other", title: "Otros", resources: ["mystery"] },
+    ]);
+  });
+
+  it("names a shift status; the stored value stays English", () => {
+    expect(timeClockStatusLabel("approved")).toBe("Approved");
+    act(() => setLanguage("es"));
+    expect(timeClockStatusLabel("pending")).toBe("Pendiente");
+    expect(timeClockStatusLabel("rejected")).toBe("Rechazado");
+    expect(timeClockStatusLabel("hasOwnProperty")).toBe("hasOwnProperty");
   });
 });

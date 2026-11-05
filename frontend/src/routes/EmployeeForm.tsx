@@ -22,6 +22,7 @@ import {
 } from "./employeeFormTabs";
 import styles from "./EmployeeForm.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { useT, type MessageKey } from "../i18n";
 
 // /app/employees/new + /app/employees/:id/edit — the person form
 // of the unified Employees hub (E-2). Split across tabs (E-3) so
@@ -40,12 +41,13 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // The tab list + `?tab=` resolution rules live in
 // ./employeeFormTabs.ts so they can be unit-tested on their own.
 
-const SCHEDULES = [
-  { value: "", label: "Not set" },
-  { value: "weekly", label: "Weekly" },
-  { value: "biweekly", label: "Biweekly" },
-  { value: "semimonthly", label: "Semimonthly" },
-  { value: "monthly", label: "Monthly" },
+// `value` is stored; `label` is a translator key.
+const SCHEDULES: { value: string; label: MessageKey }[] = [
+  { value: "", label: "employee.scheduleNotSet" },
+  { value: "weekly", label: "employee.scheduleWeekly" },
+  { value: "biweekly", label: "employee.scheduleBiweekly" },
+  { value: "semimonthly", label: "employee.scheduleSemimonthly" },
+  { value: "monthly", label: "employee.scheduleMonthly" },
 ];
 
 interface Draft {
@@ -77,6 +79,7 @@ export default function EmployeeForm() {
   const toast = useToast();
   const toastApiError = useApiErrorToast();
   const list = useEmployees();
+  const t = useT();
 
   const existing = useMemo(
     () => list.data?.rows.find((r) => r.id === empId) ?? null,
@@ -123,7 +126,7 @@ export default function EmployeeForm() {
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(baseline);
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved edits on this employee. Leave without saving?",
+    message: t("employee.unsavedMessage"),
   });
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
@@ -142,7 +145,7 @@ export default function EmployeeForm() {
     // focusable"), which reads as a dead Save button. Instead we
     // surface the error and switch to the tab that owns it.
     if (!draft.name.trim()) {
-      setNameError("Enter the employee's full name.");
+      setNameError(t("employee.nameRequired"));
       goTab("profile");
       return;
     }
@@ -166,7 +169,7 @@ export default function EmployeeForm() {
         if (draft.date_of_birth) body.date_of_birth = draft.date_of_birth;
         else body.clear_date_of_birth = true;
         await updateEmployee(empId, body);
-        toast({ message: "Employee updated.", tone: "success" });
+        toast({ message: t("employee.updated"), tone: "success" });
       } else {
         const body: EmployeeCreateBody = {
           name: draft.name.trim(),
@@ -180,13 +183,13 @@ export default function EmployeeForm() {
         if (draft.hired_on) body.hired_on = draft.hired_on;
         if (draft.date_of_birth) body.date_of_birth = draft.date_of_birth;
         await createEmployee(body);
-        toast({ message: "Employee created.", tone: "success" });
+        toast({ message: t("employee.created"), tone: "success" });
       }
       refresh();
       guard.proceed(() => navigate("/employees"));
     } catch (err) {
       setServerError(
-        apiErrorMessage(err, "Could not save the employee."),
+        apiErrorMessage(err, t("employee.saveFailed")),
       );
     } finally {
       setBusy(false);
@@ -198,11 +201,11 @@ export default function EmployeeForm() {
     setBusy(true);
     try {
       await linkEmployeeLogin(empId, Number(linkPick));
-      toast({ message: "Login linked.", tone: "success" });
+      toast({ message: t("employee.loginLinked"), tone: "success" });
       setLinkPick("");
       refresh();
     } catch (err) {
-      toastApiError(err, "Could not link the login.");
+      toastApiError(err, t("employee.linkFailed"));
     } finally {
       setBusy(false);
     }
@@ -213,10 +216,10 @@ export default function EmployeeForm() {
     setBusy(true);
     try {
       await unlinkEmployeeLogin(empId);
-      toast({ message: "Login unlinked.", tone: "success" });
+      toast({ message: t("employee.loginUnlinked"), tone: "success" });
       refresh();
     } catch (err) {
-      toastApiError(err, "Could not unlink the login.");
+      toastApiError(err, t("employee.unlinkFailed"));
     } finally {
       setBusy(false);
       setConfirmUnlink(false);
@@ -226,7 +229,7 @@ export default function EmployeeForm() {
   if (isEdit && list.isLoading) {
     return (
       <PageShell maxWidth="44rem">
-        <PageHeader title="Edit employee" />
+        <PageHeader title={t("employee.editTitle")} />
         <Loading />
       </PageShell>
     );
@@ -234,9 +237,9 @@ export default function EmployeeForm() {
   if (isEdit && (list.isError || (list.data && !existing))) {
     return (
       <PageShell maxWidth="44rem">
-        <PageHeader title="Edit employee" />
+        <PageHeader title={t("employee.editTitle")} />
         <ErrorState
-          message="Couldn't load this employee."
+          message={t("employee.loadFailed")}
           onRetry={() => { void list.refetch(); }}
         />
       </PageShell>
@@ -245,19 +248,19 @@ export default function EmployeeForm() {
 
   return (
     <PageShell maxWidth="44rem">
-      <PageCrumbs current={isEdit ? "Edit employee" : "Add employee"} />
-      <PageHeader title={isEdit ? "Edit employee" : "Add employee"} />
+      <PageCrumbs current={isEdit ? t("employee.editTitle") : t("employee.addTitle")} />
+      <PageHeader title={isEdit ? t("employee.editTitle") : t("employee.addTitle")} />
 
       {serverError && <Alert tone="error">{serverError}</Alert>}
 
       <TabsBar>
-        {visibleEmployeeTabs(isEdit).map((t) => (
+        {visibleEmployeeTabs(isEdit).map((tb) => (
           <TabsButton
-            key={t.key}
-            active={tab === t.key}
-            onClick={() => goTab(t.key)}
+            key={tb.key}
+            active={tab === tb.key}
+            onClick={() => goTab(tb.key)}
           >
-            {t.label}
+            {t(tb.label)}
           </TabsButton>
         ))}
       </TabsBar>
@@ -265,8 +268,8 @@ export default function EmployeeForm() {
       <form onSubmit={onSubmit} className="ds-form">
         {tab === "profile" && (
           <Card>
-            <Section title="Basic info">
-              <Field label="Full name *" error={nameError}>
+            <Section title={t("employee.basicInfo")}>
+              <Field label={t("employee.fullName")} error={nameError}>
                 <Input
                   type="text" maxLength={120}
                   value={draft.name}
@@ -277,7 +280,7 @@ export default function EmployeeForm() {
                   disabled={busy}
                 />
               </Field>
-              <Field label="Date of birth">
+              <Field label={t("employee.dob")}>
                 <DateInput
                   value={draft.date_of_birth}
                   onChange={(e) => set("date_of_birth", e.target.value)}
@@ -290,13 +293,13 @@ export default function EmployeeForm() {
                   onChange={(v) => set("is_active", v)}
                   disabled={busy}
                 >
-                  Employee is active
+                  {t("employee.isActive")}
                 </Checkbox>
               )}
             </Section>
 
-            <Section title="Contact">
-              <Field label="Email">
+            <Section title={t("employee.contact")}>
+              <Field label={t("common.email")}>
                 <Input
                   type="email" maxLength={255}
                   value={draft.email}
@@ -304,7 +307,7 @@ export default function EmployeeForm() {
                   disabled={busy}
                 />
               </Field>
-              <Field label="Phone">
+              <Field label={t("common.phone")}>
                 <Input
                   type="tel" maxLength={40}
                   value={draft.phone}
@@ -312,7 +315,7 @@ export default function EmployeeForm() {
                   disabled={busy}
                 />
               </Field>
-              <Field label="Address line 1">
+              <Field label={t("employee.address1")}>
                 <Input
                   type="text" maxLength={255}
                   value={draft.address_line1}
@@ -320,7 +323,7 @@ export default function EmployeeForm() {
                   disabled={busy}
                 />
               </Field>
-              <Field label="Address line 2">
+              <Field label={t("employee.address2")}>
                 <Input
                   type="text" maxLength={255}
                   value={draft.address_line2}
@@ -334,29 +337,29 @@ export default function EmployeeForm() {
 
         {tab === "payroll" && (
           <Card>
-            <Section title="Payroll">
+            <Section title={t("employee.tabPayroll")}>
               <MoneyInput
-                label="Hourly rate"
-                hint="Used by the time-clock payroll rollup and paystubs."
+                label={t("employee.hourlyRate")}
+                hint={t("employee.hourlyRateHint")}
                 value={draft.hourly_rate}
                 onChange={(next) => set("hourly_rate", next)}
                 disabled={busy}
               />
-              <Field label="Hired on">
+              <Field label={t("employee.hiredOn")}>
                 <DateInput
                   value={draft.hired_on}
                   onChange={(e) => set("hired_on", e.target.value)}
                   disabled={busy}
                 />
               </Field>
-              <Field label="Payroll schedule">
+              <Field label={t("employee.payrollSchedule")}>
                 <Select
                   value={draft.payroll_schedule}
                   onChange={(e) => set("payroll_schedule", e.target.value)}
                   disabled={busy}
                 >
                   {SCHEDULES.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
+                    <option key={s.value} value={s.value}>{t(s.label)}</option>
                   ))}
                 </Select>
               </Field>
@@ -366,7 +369,7 @@ export default function EmployeeForm() {
 
         {tab === "login" && isEdit && (
           <Card>
-            <Section title="Login">
+            <Section title={t("employee.login")}>
               {existing?.login ? (
                 <div className={styles.stack}>
                   <div>
@@ -375,12 +378,12 @@ export default function EmployeeForm() {
                       {accountTypeLabel(existing.login.role)}
                     </Pill>{" "}
                     <Pill tone={existing.login.is_active ? "accent" : "neutral"}>
-                      {existing.login.is_active ? "Active" : "Inactive"}
+                      {existing.login.is_active ? t("common.active") : t("common.inactive")}
                     </Pill>
                     {existing.login.has_custom_permissions && (
                       <>
                         {" "}
-                        <Pill tone="neutral">Custom access</Pill>
+                        <Pill tone="neutral">{t("employee.customAccess")}</Pill>
                       </>
                     )}
                   </div>
@@ -392,7 +395,7 @@ export default function EmployeeForm() {
                         to={`/admin/users/${existing.login.user_id}/edit`}
                         tone="secondary" size="sm"
                       >
-                        Edit login &amp; access
+                        {t("employee.editLogin")}
                       </ButtonLink>
                     )}
                     <Button
@@ -400,26 +403,24 @@ export default function EmployeeForm() {
                       onClick={() => setConfirmUnlink(true)}
                       disabled={busy}
                     >
-                      Unlink login
+                      {t("employee.unlinkLogin")}
                     </Button>
                   </div>
                 </div>
               ) : (
                 <div className={styles.stack}>
                   <p className={styles.note}>
-                    No login attached — this person appears in
-                    attribution dropdowns and the time clock but
-                    can't sign in.
+                    {t("employee.noLoginNote")}
                   </p>
                   {loginOnly.length > 0 && (
-                    <Field label="Link an existing login">
+                    <Field label={t("employee.linkExisting")}>
                       <div className={styles.linkRow}>
                         <Select
                           value={linkPick}
                           onChange={(e) => setLinkPick(e.target.value)}
                           disabled={busy}
                         >
-                          <option value="">— Select —</option>
+                          <option value="">{t("common.selectPlaceholder")}</option>
                           {loginOnly.map((u) => (
                             <option key={u.user_id} value={u.user_id}>
                               {u.username}
@@ -432,7 +433,7 @@ export default function EmployeeForm() {
                           onClick={() => { void onLink(); }}
                           disabled={busy || !linkPick}
                         >
-                          Link
+                          {t("employee.link")}
                         </Button>
                       </div>
                     </Field>
@@ -442,7 +443,7 @@ export default function EmployeeForm() {
                       to={`/admin/users/new?employee=${empId}`}
                       tone="secondary" size="sm"
                     >
-                      Create a login for this employee
+                      {t("employee.createLogin")}
                     </ButtonLink>
                   </div>
                 </div>
@@ -453,25 +454,25 @@ export default function EmployeeForm() {
 
         <FormActions
           guard={guard}
-          note="Save changes stores every tab at once."
+          note={t("employee.saveNote")}
         >
           <Button
             type="button" tone="secondary"
             onClick={() => guard.confirmLeave(() => navigate("/employees"))}
             disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
-            {busy ? "Saving…" : (isEdit ? "Save changes" : "Create employee")}
+            {busy ? t("common.saving") : (isEdit ? t("common.saveChanges") : t("employee.create"))}
           </Button>
         </FormActions>
       </form>
       <ConfirmDialog
         open={confirmUnlink}
-        title="Unlink this login?"
-        message="Detach this login from the employee? The account itself stays active — deactivate it from the login form if they should lose access."
-        confirmLabel="Unlink"
+        title={t("employee.unlinkTitle")}
+        message={t("employee.unlinkBody")}
+        confirmLabel={t("employee.unlink")}
         confirmTone="danger"
         busy={busy}
         onConfirm={() => { void onUnlink(); }}

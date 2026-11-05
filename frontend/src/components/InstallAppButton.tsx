@@ -2,6 +2,7 @@ import { Tooltip } from "./ui";
 import { useInstallPrompt } from "../lib/installPrompt";
 import styles from "./InstallAppButton.module.css";
 import { BRAND_NAME } from "../lib/brand";
+import { useT } from "../i18n";
 
 /** Topbar button that triggers the browser's PWA install
  *  prompt. Self-hides when the install isn't available
@@ -9,15 +10,16 @@ import { BRAND_NAME } from "../lib/brand";
  *  ``beforeinstallprompt``, user dismissed and the browser
  *  hasn't re-armed the event). */
 export function InstallAppButton() {
+  const t = useT();
   const { canInstall, promptInstall } = useInstallPrompt();
   if (!canInstall) return null;
   return (
-    <Tooltip label={`Install ${BRAND_NAME} as a standalone app on this device`}>
+    <Tooltip label={t("install.tip", { brand: BRAND_NAME })}>
     <button
       type="button"
       className={styles.button}
       onClick={() => { void promptInstall(); }}
-      aria-label={`Install ${BRAND_NAME} as an app`}
+      aria-label={t("install.aria", { brand: BRAND_NAME })}
     >
       <svg
         width="16" height="16" viewBox="0 0 24 24"
@@ -29,7 +31,7 @@ export function InstallAppButton() {
         <polyline points="7 10 12 15 17 10" />
         <line x1="12" y1="15" x2="12" y2="3" />
       </svg>
-      <span className={styles.label}>Install app</span>
+      <span className={styles.label}>{t("install.label")}</span>
     </button>
     </Tooltip>
   );

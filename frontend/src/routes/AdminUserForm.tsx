@@ -25,6 +25,7 @@ import { areasGranted, emptyMatrix } from "../lib/roleTemplates";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./AdminUserForm.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tNodes, useT, type MessageKey } from "../i18n";
 
 // What this person can do — ONE picker. "role" = no overlay: they
 // follow the built-in role of their account type. `saved:<id>` =
@@ -80,13 +81,14 @@ const FALLBACK_ACTIONS = ["create", "read", "update", "delete"];
 
 // Human labels for the store-module flags (keys mirror the
 // backend's MODULE_FLAG_KEYS; the checkbox list only renders keys
-// present in the store's session-status `features`).
-const MODULE_LABELS: Record<string, string> = {
-  module_money_services: "Money services (transfers, batches, senders)",
-  module_lottery:        "Lottery",
-  module_day_close:      "Store daily book",
-  module_check_cashing:  "Check cashing & returned checks",
-  module_price_book:     "Price book & purchases",
+// present in the store's session-status `features`). Values are
+// translator keys; an unknown flag shows as stored.
+const MODULE_LABELS: Record<string, MessageKey> = {
+  module_money_services: "userForm.moduleMoneyServices",
+  module_lottery:        "userForm.moduleLottery",
+  module_day_close:      "userForm.moduleDayClose",
+  module_check_cashing:  "userForm.moduleCheckCashing",
+  module_price_book:     "userForm.modulePriceBook",
 };
 
 // /app/admin/users/new and /app/admin/users/:uid/edit — combined
@@ -110,7 +112,10 @@ export default function AdminUserForm() {
   const queryClient = useQueryClient();
   const navigate    = useNavigate();
   const toast = useToast();
+  const t = useT();
   const identity    = getCurrentIdentity();
+  const moduleLabel = (flag: string) =>
+    Object.hasOwn(MODULE_LABELS, flag) ? t(MODULE_LABELS[flag]) : flag;
 
   const detail  = useAdminUser(isEdit ? uid : null);
   // The roster carries which account types the viewer may hand
@@ -179,7 +184,7 @@ export default function AdminUserForm() {
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(baseline);
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved edits on this user. Leave without saving?",
+    message: t("userForm.unsavedMessage"),
   });
 
   const isSelf = useMemo(() => {
@@ -247,7 +252,7 @@ export default function AdminUserForm() {
   if (isEdit && detail.isLoading) {
     return (
       <PageShell maxWidth="36rem">
-        <PageHeader title="Edit user" />
+        <PageHeader title={t("userForm.editUser")} />
         <Loading />
       </PageShell>
     );
@@ -255,9 +260,9 @@ export default function AdminUserForm() {
   if (isEdit && (detail.isError || !detail.data)) {
     return (
       <PageShell maxWidth="36rem">
-        <PageHeader title="Edit user" />
+        <PageHeader title={t("userForm.editUser")} />
         <ErrorState
-          message={`Couldn't load this user. ${apiErrorMessage(detail.error, "")}`.trimEnd()}
+          message={`${t("userForm.loadFailed")} ${apiErrorMessage(detail.error, "")}`.trimEnd()}
           onRetry={() => { void detail.refetch(); }}
         />
       </PageShell>
@@ -269,12 +274,12 @@ export default function AdminUserForm() {
     // so there is no form to show.
     return (
       <PageShell maxWidth="36rem">
-        <PageCrumbs under="/employees" current="Edit login" />
-        <PageHeader title="Edit user" />
+        <PageCrumbs under="/employees" current={t("userForm.editLogin")} />
+        <PageHeader title={t("userForm.editUser")} />
         <Alert tone="info">
-          {detail.data.user.full_name || detail.data.user.username} has a
-          higher account type than yours, so their login and access
-          can only be changed by that person.
+          {t("userForm.outranks", {
+            name: detail.data.user.full_name || detail.data.user.username,
+          })}
         </Alert>
       </PageShell>
     );
@@ -351,7 +356,7 @@ export default function AdminUserForm() {
       // visit to /admin/users shows the updated row.
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       toast({
-        message: isEdit ? "Login updated." : "Login created.",
+        message: isEdit ? t("userForm.loginUpdated") : t("userForm.loginCreated"),
         tone: "success",
       });
       guard.proceed(() => navigate(
@@ -367,12 +372,10 @@ export default function AdminUserForm() {
         if (detailBody && typeof detailBody === "object" && detailBody.field_errors) {
           setFieldErrors(detailBody.field_errors);
         } else {
-          setServerError(err.message);
+          setServerError(apiErrorMessage(err, t("common.networkError")));
         }
-      } else if (err instanceof ApiError) {
-        setServerError(err.message);
       } else {
-        setServerError("Network error. Try again.");
+        setServerError(apiErrorMessage(err, t("common.networkError")));
       }
     } finally {
       setBusy(false);
@@ -382,14 +385,14 @@ export default function AdminUserForm() {
   return (
     <PageShell maxWidth="36rem">
 
-      <PageCrumbs under="/employees" current={isEdit ? "Edit login" : "Add login"} />
+      <PageCrumbs under="/employees" current={isEdit ? t("userForm.editLogin") : t("userForm.addLogin")} />
 
-      <PageHeader title={isEdit ? "Edit Login & Access" : "Add Login"} />
+      <PageHeader title={isEdit ? t("userForm.editTitle") : t("userForm.addTitle")} />
 
       <Card>
         <div className={styles.cardHeader}>
           <span className={styles.cardHeaderText}>
-            {isEdit ? "Update user account" : "Create a new user account"}
+            {isEdit ? t("userForm.updateAccount") : t("userForm.createAccount")}
           </span>
         </div>
 
@@ -403,12 +406,9 @@ export default function AdminUserForm() {
           {!isEdit ? (
             <>
               <Field
-                label="Email"
+                label={t("common.email")}
                 error={fieldErrors.email}
-                hint={
-                  "They sign in with this. Also where password-reset "
-                  + "links go."
-                }
+                hint={t("userForm.emailHint")}
               >
                 <Input
                   type="email" maxLength={255}
@@ -419,12 +419,9 @@ export default function AdminUserForm() {
                 />
               </Field>
               <Field
-                label="Mobile phone"
+                label={t("userForm.mobile")}
                 error={fieldErrors.phone}
-                hint={
-                  "Works as a sign-in too — useful for staff with no "
-                  + "email address. Either one is enough."
-                }
+                hint={t("userForm.mobileHint")}
               >
                 <Input
                   type="tel" maxLength={40}
@@ -437,8 +434,8 @@ export default function AdminUserForm() {
             </>
           ) : (
             <Field
-              label="Signs in with"
-              hint="Change this from the employee's Profile tab."
+              label={t("userForm.signsInWith")}
+              hint={t("userForm.signsInWithHint")}
             >
               <Input
                 type="text" disabled
@@ -448,10 +445,10 @@ export default function AdminUserForm() {
             </Field>
           )}
 
-          <Field label="Full name" error={fieldErrors.full_name}>
+          <Field label={t("userForm.fullName")} error={fieldErrors.full_name}>
             <Input
               type="text" maxLength={120}
-              placeholder="Employee's full name"
+              placeholder={t("userForm.fullNamePlaceholder")}
               value={draft.full_name}
               onChange={(e) => set("full_name", e.target.value)}
               disabled={busy}
@@ -459,9 +456,9 @@ export default function AdminUserForm() {
           </Field>
 
           <Field
-            label="Account type *"
+            label={t("userForm.accountType")}
             error={fieldErrors.role}
-            hint={isSelf ? "You can't change your own account type. Ask another admin to do it." : undefined}
+            hint={isSelf ? t("userForm.selfRole") : undefined}
           >
             <Select
               value={draft.role}
@@ -469,30 +466,27 @@ export default function AdminUserForm() {
               disabled={busy || isSelf}
             >
               {assignableRoles.includes("employee") && (
-                <option value="employee">Employee</option>
+                <option value="employee">{t("role.employee")}</option>
               )}
               {assignableRoles.includes("admin") && (
-                <option value="admin">Admin (full access)</option>
+                <option value="admin">{t("userForm.adminFull")}</option>
               )}
               {(assignableRoles.includes("accountant") || draft.role === "accountant") && (
-                <option value="accountant">Accountant (view only)</option>
+                <option value="accountant">{t("userForm.accountantViewOnly")}</option>
               )}
             </Select>
           </Field>
 
           {draft.role === "accountant" && (
             <Alert tone="info">
-              View only: reports, the monthly P&amp;L and the tax pack.
-              An accountant's access is fixed and can't be widened. To
-              give them several of your stores, add the same email at
-              each store; they pick the store when they sign in.
+              {t("userForm.accountantNote")}
             </Alert>
           )}
 
           {!isSelf && draft.role !== "accountant" && (
             <Field
-              label="Role"
-              hint="What this person can do, enforced on every request. Roles are set up on Team → Roles & access."
+              label={t("employee.role")}
+              hint={t("userForm.roleHint")}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
                 <Select
@@ -501,10 +495,10 @@ export default function AdminUserForm() {
                   disabled={busy}
                 >
                   <option value="role">
-                    {draft.role === "admin" ? "Admin (built-in)" : "Employee (built-in)"}
+                    {draft.role === "admin" ? t("userForm.adminBuiltin") : t("userForm.employeeBuiltin")}
                   </option>
                   {(accessRoles.data?.roles ?? []).length > 0 && (
-                    <optgroup label="Your roles">
+                    <optgroup label={t("userForm.yourRoles")}>
                       {(accessRoles.data?.roles ?? []).map((r) => (
                         <option key={r.id} value={`saved:${r.id}`}>
                           {r.name}
@@ -512,7 +506,7 @@ export default function AdminUserForm() {
                       ))}
                     </optgroup>
                   )}
-                  <option value="custom">Custom for this person only</option>
+                  <option value="custom">{t("userForm.customOnly")}</option>
                 </Select>
                 {draft.access !== "custom" && (
                   <RoleSummary
@@ -540,20 +534,15 @@ export default function AdminUserForm() {
                   && modulesOffForGrants(draft.perm, session.data?.features)
                     .map((flag) => (
                       <Alert key={flag} tone="warning">
-                        <strong>{MODULE_LABELS[flag] ?? flag}</strong> is
-                        turned off for this store, so those pages are
-                        hidden from everyone here and the boxes for
-                        that area will not show them. Turn the module
-                        on for the store first.
+                        {tNodes("userForm.moduleOff", {
+                          module: <strong>{moduleLabel(flag)}</strong>,
+                        })}
                       </Alert>
                     ))}
                 {draft.access === "custom" && draft.perm && (
                   <>
                     <Alert tone="info">
-                      Only this person gets these boxes. Editing a role
-                      won't change them. If several people need the same
-                      access, add it as a role on Roles &amp; access
-                      instead.
+                      {t("userForm.customNote")}
                     </Alert>
                     <PermissionMatrixTable
                       resources={resources}
@@ -561,7 +550,7 @@ export default function AdminUserForm() {
                       checked={(resource, action) => draft.perm?.[resource]?.[action] ?? false}
                       onToggle={togglePerm}
                       disabled={busy}
-                      resourceHeader="Area"
+                      resourceHeader={t("userForm.area")}
                       grouped
                     />
                   </>
@@ -572,9 +561,9 @@ export default function AdminUserForm() {
 
           {draft.role !== "accountant" && (
           <Field
-            label="Module access"
+            label={t("userForm.moduleAccess")}
             error={fieldErrors.module_access}
-            hint="Which of the store's modules this user sees. Restricting hides modules from their navigation; it cannot add one the store has off. The MSB daily book is not a module — take it away under Access above."
+            hint={t("userForm.moduleAccessHint")}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
               <Checkbox
@@ -582,7 +571,7 @@ export default function AdminUserForm() {
                 onChange={(v) => set("restrict", v)}
                 disabled={busy}
               >
-                Only selected modules (default: all store modules)
+                {t("userForm.onlySelected")}
               </Checkbox>
               {draft.restrict && (
                 <div style={{
@@ -602,7 +591,7 @@ export default function AdminUserForm() {
                         )}
                         disabled={busy}
                       >
-                        {MODULE_LABELS[key] ?? key}
+                        {moduleLabel(key)}
                       </Checkbox>
                     ))}
                 </div>
@@ -614,14 +603,14 @@ export default function AdminUserForm() {
           <Field
             label={
               isEdit
-                ? "Password (leave blank to keep current)"
-                : "Password *"
+                ? t("userForm.passwordKeep")
+                : t("userForm.passwordRequired")
             }
             error={fieldErrors.password}
           >
             <Input
               type="password" maxLength={200}
-              placeholder="Set password"
+              placeholder={t("userForm.passwordPlaceholder")}
               required={!isEdit}
               value={draft.password}
               onChange={(e) => set("password", e.target.value)}
@@ -633,14 +622,14 @@ export default function AdminUserForm() {
             <Field
               label=""
               error={fieldErrors.is_active}
-              hint={isSelf ? "You can't deactivate your own account. Ask another admin to do it." : undefined}
+              hint={isSelf ? t("userForm.selfActive") : undefined}
             >
               <Checkbox
                 checked={draft.is_active}
                 onChange={(v) => set("is_active", v)}
                 disabled={busy || isSelf}
               >
-                Account is active
+                {t("userForm.accountActive")}
               </Checkbox>
             </Field>
           )}
@@ -656,10 +645,10 @@ export default function AdminUserForm() {
               ))}
               disabled={busy}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" busy={busy} disabled={busy}>
-              {busy ? "Saving…" : (isEdit ? "Save changes" : "Create user")}
+              {busy ? t("common.saving") : (isEdit ? t("common.saveChanges") : t("userForm.createUser"))}
             </Button>
           </FormActions>
         </form>
@@ -678,10 +667,11 @@ function RoleSummary({
   granted: number;
   total: number;
 }) {
+  const t = useT();
   return (
     <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--db-text-muted)" }}>
-      {total > 0 && <>Can use {granted} of {total} areas. </>}
-      <AppLink to={to}>See {name ?? "this role"} in Roles &amp; access</AppLink>
+      {total > 0 && <>{t("userForm.canUse", { granted, total })} </>}
+      <AppLink to={to}>{t("userForm.seeRole", { name: name ?? t("userForm.thisRole") })}</AppLink>
     </p>
   );
 }

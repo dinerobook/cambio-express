@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import RoleEdit from "./RoleEdit";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, renderRouteWithGuard, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // One role's page (Team → Roles & access → a role). A save here
 // changes what people can do right away, so pin who may save at all
@@ -228,5 +230,36 @@ describe("RoleEdit — unsaved changes", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await userEvent.click(await screen.findByRole("button", { name: "Leave" }));
     expect(await screen.findByText("Navigated to /team/roles")).toBeInTheDocument();
+  });
+});
+
+describe("RoleEdit in Spanish", () => {
+  const P = ["roles.", "roleEdit.", "perm.", "common.", "role.", "userForm."];
+
+  it("shows a built-in role, its grid and its reset in Spanish", async () => {
+    setLanguage("es");
+    mockFetch(routes());
+    renderRoute(<RoleEdit />, { path: PATH, at: "/team/roles/employee" });
+    expect(await screen.findByRole("heading", { name: "Empleado" })).toBeInTheDocument();
+    expect(await screen.findByText("Libros")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ver — Envíos de dinero (Empleado)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restablecer valores de DineroBook" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, P)).toEqual([]);
+  });
+
+  it("starts a new role from a Spanish template list", async () => {
+    setLanguage("es");
+    mockFetch(routes());
+    renderRoute(<RoleEdit />, { path: PATH, at: "/team/roles/new" });
+    expect(await screen.findByRole("heading", { name: "Rol nuevo" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Nada marcado" })).toHaveValue("blank");
+    expect(englishLeftovers(document.body, P)).toEqual([]);
+  });
+
+  it("names a copy in Spanish", async () => {
+    setLanguage("es");
+    mockFetch(routes());
+    renderRoute(<RoleEdit />, { path: PATH, at: "/team/roles/new?copy=employee" });
+    expect(await screen.findByDisplayValue("Copia de Empleado")).toBeInTheDocument();
   });
 });

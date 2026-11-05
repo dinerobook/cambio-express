@@ -42,13 +42,16 @@ import { AppLink,
   Empty,
   type PillTone,
 } from "../components/ui";
-import { BATCH_STATUS_TONES } from "../api/batches";
+import { BATCH_STATUS_TONES, batchStatusLabel } from "../api/batches";
 import { TRANSFER_STATUS_TONES } from "../api/transfers";
+import { statusLabel } from "../lib/transferKinds";
+import { tn, useT } from "../i18n";
 import TransferKindPill from "../components/TransferKindPill";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  formatDateTime, formatShortDate, formatTime, getOpenStatus, MONTH_NAMES_SHORT,
+  formatDateTime, formatShortDate, formatTime, getOpenStatus, monthName,
+  weekdayNameLong,
 } from "../lib/datetime";
 import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
 
@@ -62,6 +65,7 @@ import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
 // SPA so owners who hit /app/dashboard directly (post-login,
 // bookmark, hard refresh) land on their own dashboard.
 export default function Dashboard() {
+  const t = useT();
   const identity = getCurrentIdentity();
   // Hooks must be called unconditionally before any early return —
   // the owner-redirect branch below uses `<Navigate>` to short-circuit
@@ -94,12 +98,7 @@ export default function Dashboard() {
     return <Navigate to="/superadmin/tickets" replace />;
   }
 
-  const title =
-    identity?.role === "superadmin"
-      ? "Platform dashboard"
-      : identity?.role === "employee"
-        ? "My dashboard"
-        : "Dashboard";
+  const title = identity?.role === "employee" ? t("dash.myTitle") : t("dash.title");
 
   return (
     <PageShell>
@@ -110,12 +109,15 @@ export default function Dashboard() {
           <span
             title={
               openStatus.todayLabel
-                ? `${openStatus.dayLabel}: ${openStatus.todayLabel}`
-                : `${openStatus.dayLabel}: closed all day`
+                ? t("transfer.outOfHoursOpen", {
+                    day: weekdayNameLong(openStatus.dayIndex),
+                    hours: openStatus.todayLabel,
+                  })
+                : t("dash.closedAllDay", { day: weekdayNameLong(openStatus.dayIndex) })
             }
           >
             <Pill tone={openStatus.open ? "accent" : "neutral"}>
-              {openStatus.open ? "Open now" : "Closed now"}
+              {openStatus.open ? t("dash.openNow") : t("dash.closedNow")}
             </Pill>
           </span>
         ) : undefined}
@@ -123,7 +125,7 @@ export default function Dashboard() {
 
       {isLoading && (
         <Card>
-          <Loading label="Loading dashboard…" />
+          <Loading label={t("dash.loading")} />
           <div style={{ marginTop: space.md }}>
             <TableSkeleton rows={4} cols={3} />
           </div>
@@ -133,10 +135,9 @@ export default function Dashboard() {
       {isError && (
         <ErrorState
           message={
-            <>
-              Couldn't load dashboard —{" "}
-              {apiErrorMessage(error, "unknown error")}
-            </>
+            t("dash.loadFailed", {
+              reason: apiErrorMessage(error, t("dash.unknownError")),
+            })
           }
           onRetry={() => refetch()}
         />
@@ -148,44 +149,47 @@ export default function Dashboard() {
 }
 
 function Body({ summary }: { summary: DashboardSummary }) {
+  const t = useT();
   if (summary.role === "admin") return <AdminPanel d={summary} />;
   if (summary.role === "employee") return <EmployeePanel d={summary} />;
-  if (summary.role === "superadmin") return <SuperadminPanel d={summary} />;
-  return <ErrorState message="Unrecognised role." />;
+  // A superadmin is sent to /superadmin/dashboard before this
+  // renders; their platform figures live on Platform → Controls.
+  return <ErrorState message={t("dash.unknownRole")} />;
 }
 
 // ── Admin ─────────────────────────────────────────────────────
 
 function AdminPanel({ d }: { d: AdminDashboard }) {
-  const monthName = MONTH_NAMES_SHORT[Number(d.today.slice(5, 7)) - 1];
+  const t = useT();
+  const month = monthName(Number(d.today.slice(5, 7)), "short");
   // Module-driven layout (P1-10 → D-1): the dashboard leads with
   // generic STORE numbers (sales, purchases, labor); each module
   // contributes its section; money services is one module section
   // among many, not the headline.
   const ms = d.modules.includes("module_money_services");
-  const hasTrend = d.sales?.trend.some((t) => t.amount > 0) ?? false;
+  const hasTrend = d.sales?.trend.some((p) => p.amount > 0) ?? false;
   return (
     <>
       <KpiGrid>
         {d.sales && (
           <>
             <KpiCard
-              label="Today's sales"
+              label={t("dash.todaySales")}
               value={fmtMoney2(d.sales.today)}
               sub={
                 <AppLink to="/store-book" className="ds-link" style={{ color: tokens.accent }}>
-                  Open daily book →
+                  {t("dash.openDailyBook")}
                 </AppLink>
               }
               tone="positive"
             />
             <KpiCard
-              label="Yesterday's sales"
+              label={t("dash.yesterdaySales")}
               value={fmtMoney2(d.sales.yesterday)}
               sub={formatShortDate(d.today)}
             />
             <KpiCard
-              label={`Sales (${monthName} to date)`}
+              label={t("dash.salesMonthToDate", { month })}
               value={fmtMoney2(d.sales.month_to_date)}
               tone="positive"
             />
@@ -193,7 +197,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
         )}
         {d.day_close && (
           <KpiCard
-            label="Drawer over / short"
+            label={t("dash.drawerOverShort")}
             value={
               d.day_close.over_short == null
                 ? "—"
@@ -201,8 +205,8 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
             }
             sub={
               d.day_close.uncounted_drawers > 0
-                ? `${d.day_close.uncounted_drawers} drawer(s) uncounted`
-                : "All drawers counted"
+                ? tn("dash.drawersUncounted", d.day_close.uncounted_drawers, fmtNumber)
+                : t("dash.allDrawersCounted")
             }
             tone={
               d.day_close.uncounted_drawers > 0
@@ -213,12 +217,12 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
         )}
         {d.lottery && (
           <KpiCard
-            label={`Lottery (${formatShortDate(d.lottery.date)})`}
+            label={t("dash.lotteryOn", { date: formatShortDate(d.lottery.date) })}
             value={fmtMoney2(d.lottery.value)}
             sub={
               d.lottery.uncounted_active_packs > 0
-                ? `${d.lottery.uncounted_active_packs} pack(s) uncounted`
-                : `${d.lottery.tickets_sold} tickets sold`
+                ? tn("dash.packsUncounted", d.lottery.uncounted_active_packs, fmtNumber)
+                : tn("dash.ticketsSold", d.lottery.tickets_sold, fmtNumber)
             }
             tone={
               d.lottery.uncounted_active_packs > 0 ? "warning" : "positive"
@@ -227,47 +231,50 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
         )}
         {d.purchases && (
           <KpiCard
-            label="Purchases (30d)"
+            label={t("dash.purchases30")}
             value={fmtMoney2(d.purchases.d30)}
             sub={
               <AppLink to="/purchase-invoices" className="ds-link" style={{ color: tokens.accent }}>
                 {d.purchases.open_count > 0
-                  ? `${d.purchases.open_count} open · ${fmtMoney2(d.purchases.open_total)} →`
-                  : "All invoices paid →"}
+                  ? t("dash.openInvoices", {
+                      count: fmtNumber(d.purchases.open_count),
+                      total: fmtMoney2(d.purchases.open_total),
+                    })
+                  : t("dash.allInvoicesPaid")}
               </AppLink>
             }
             tone={d.purchases.open_count > 0 ? "warning" : "positive"}
           />
         )}
         <KpiCard
-          label="Clocked in now"
+          label={t("dash.clockedInNow")}
           value={fmtNumber(d.clocked_in.length)}
           sub={
             <AppLink to="/admin/timeclock" className="ds-link" style={{ color: tokens.accent }}>
               {d.clocked_in.length > 0
                 ? d.clocked_in.map((c) => c.name).slice(0, 3).join(", ")
-                : "Open time clock →"}
+                : t("dash.openTimeClock")}
             </AppLink>
           }
           tone={d.clocked_in.length > 0 ? "positive" : "neutral"}
         />
         <KpiCard
-          label="Bank accounts"
+          label={t("dash.bankAccounts")}
           value={
             d.stripe_accounts.length > 0
-              ? `Stripe · ${d.stripe_accounts.length}`
-              : "Not connected"
+              ? `Stripe · ${fmtNumber(d.stripe_accounts.length)}`
+              : t("dash.notConnected")
           }
           sub={
             d.stripe_accounts.length > 0 ? (
               d.stripe_accounts[0].last_balance_as_of ? (
-                `Last sync: ${formatDateTime(d.stripe_accounts[0].last_balance_as_of)}`
+                t("dash.lastSync", { time: formatDateTime(d.stripe_accounts[0].last_balance_as_of) })
               ) : (
                 "—"
               )
             ) : (
               <AppLink to="/bank" className="ds-link" style={{ color: tokens.accent }}>
-                Connect via Stripe →
+                {t("dash.connectStripe")}
               </AppLink>
             )
           }
@@ -275,11 +282,11 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
         />
         {d.kpis.net_income_month != null && (
           <KpiCard
-            label={`Net income (${monthName})`}
+            label={t("dash.netIncome", { month })}
             value={fmtMoney(d.kpis.net_income_month)}
             sub={
               <AppLink to="/monthly" className="ds-link" style={{ color: tokens.accent }}>
-                View P&amp;L →
+                {t("dash.viewPL")}
               </AppLink>
             }
             tone={d.kpis.net_income_month >= 0 ? "positive" : "negative"}
@@ -288,22 +295,22 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
       </KpiGrid>
 
       {(d.sales || d.purchases) && (
-        <Section title="Sales & purchases">
+        <Section title={t("dash.salesPurchases")}>
           <Card>
             <Table>
               <thead>
                 <tr>
-                  <th style={dashThStyle}>Days</th>
-                  {d.sales && <th style={dashThStyle}>Sales</th>}
-                  {d.purchases && <th style={dashThStyle}>Purchases</th>}
+                  <th style={dashThStyle}>{t("dash.days")}</th>
+                  {d.sales && <th style={dashThStyle}>{t("dash.sales")}</th>}
+                  {d.purchases && <th style={dashThStyle}>{t("dash.purchases")}</th>}
                 </tr>
               </thead>
               <tbody>
                 {([
-                  ["Last 24 hrs", d.sales?.today, d.purchases?.today],
-                  ["7 days", d.sales?.d7, d.purchases?.d7],
-                  ["15 days", d.sales?.d15, d.purchases?.d15],
-                  ["30 days", d.sales?.d30, d.purchases?.d30],
+                  [t("dash.last24h"), d.sales?.today, d.purchases?.today],
+                  [t("dash.nDays", { n: 7 }), d.sales?.d7, d.purchases?.d7],
+                  [t("dash.nDays", { n: 15 }), d.sales?.d15, d.purchases?.d15],
+                  [t("dash.nDays", { n: 30 }), d.sales?.d30, d.purchases?.d30],
                 ] as Array<[string, number | undefined, number | undefined]>).map(
                   ([label, sales, purchases]) => (
                     <tr key={label}>
@@ -328,15 +335,15 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
       )}
 
       {d.sales && hasTrend && (
-        <Section title="Daily sales — last 14 days">
+        <Section title={t("dash.dailySales14")}>
           <Card>
             <div style={{ height: "16rem" }}>
               <Line
                 data={{
-                  labels: d.sales.trend.map((t) => formatShortDate(t.date)),
+                  labels: d.sales.trend.map((p) => formatShortDate(p.date)),
                   datasets: [{
-                    label: "Sales ($)",
-                    data: d.sales.trend.map((t) => t.amount),
+                    label: t("dash.salesDollars"),
+                    data: d.sales.trend.map((p) => p.amount),
                     borderColor: chartSeries().accent,
                     backgroundColor: seriesFill("positive", 0.1),
                     fill: true,
@@ -345,7 +352,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                   }],
                 }}
                 options={{
-                  ...moneyChartOptions("Sales"),
+                  ...moneyChartOptions(t("dash.sales")),
                   maintainAspectRatio: false,
                 }}
               />
@@ -361,15 +368,15 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
 
       {d.sales?.hourly && (
         <Section
-          title="Hourly sales"
+          title={t("dash.hourlySales")}
           actions={
             <span style={{
               fontSize: fontSize.sm, color: tokens.textMuted,
               fontFamily: tokens.fontMono,
             }}>
               {d.sales.hourly.previous_total != null
-                && `Prev ${fmtMoney2(d.sales.hourly.previous_total)} · `}
-              Current {fmtMoney2(d.sales.hourly.current_total)}
+                && `${t("dash.prevTotal", { amount: fmtMoney2(d.sales.hourly.previous_total) })} · `}
+              {t("dash.currentTotal", { amount: fmtMoney2(d.sales.hourly.current_total) })}
             </span>
           }
         >
@@ -381,7 +388,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                   datasets: [
                     ...(d.sales.hourly.previous
                       ? [{
-                          label: `Previous (${formatShortDate(d.sales.hourly.previous_date ?? "")})`,
+                          label: t("dash.previousOn", { date: formatShortDate(d.sales.hourly.previous_date ?? "") }),
                           data: d.sales.hourly.previous,
                           borderColor: chartSeries().neutral,
                           borderDash: [6, 4],
@@ -392,7 +399,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                         }]
                       : []),
                     {
-                      label: `Current (${formatShortDate(d.sales.hourly.current_date)})`,
+                      label: t("dash.currentOn", { date: formatShortDate(d.sales.hourly.current_date) }),
                       data: d.sales.hourly.current,
                       borderColor: chartSeries().accent,
                       backgroundColor: seriesFill("positive", 0.12),
@@ -403,7 +410,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                   ],
                 }}
                 options={{
-                  ...moneyChartOptions("Sales"),
+                  ...moneyChartOptions(t("dash.sales")),
                   maintainAspectRatio: false,
                 }}
               />
@@ -414,10 +421,10 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
 
       {d.clocked_in.length > 0 && (
         <Section
-          title={`Clocked in (${d.clocked_in.length})`}
+          title={t("dash.clockedInCount", { count: fmtNumber(d.clocked_in.length) })}
           actions={
             <ButtonLink to="/admin/timeclock" tone="secondary" size="sm">
-              Time clock
+              {t("dash.timeClock")}
             </ButtonLink>
           }
         >
@@ -426,7 +433,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
               {d.clocked_in.map((c) => (
                 <Pill key={`${c.name}-${c.clock_in_at}`} tone="accent">
                   {c.name}
-                  {c.clock_in_at ? ` · since ${formatTime(c.clock_in_at)}` : ""}
+                  {c.clock_in_at ? ` · ${t("dash.since", { time: formatTime(c.clock_in_at) })}` : ""}
                 </Pill>
               ))}
             </div>
@@ -445,7 +452,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
       <RecentReceipts receipts={d.recent_receipts} />
 
       {d.day_close && d.day_close.top_departments.length > 0 && (
-        <Section title={`Department sales (${formatShortDate(d.day_close.date)})`}>
+        <Section title={t("dash.departmentSales", { date: formatShortDate(d.day_close.date) })}>
           <div
             style={{
               display: "grid",
@@ -453,13 +460,13 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
               gap: space.lg,
             }}
           >
-            {d.day_close.top_departments.map((t) => (
-              <Card key={t.name}>
+            {d.day_close.top_departments.map((dept) => (
+              <Card key={dept.name}>
                 <div style={{ fontWeight: 600, marginBottom: space.sm }}>
-                  {t.name}
+                  {dept.name}
                 </div>
                 <div style={{ fontFamily: tokens.fontMono, fontSize: "1.4rem" }}>
-                  {fmtMoney2(t.amount)}
+                  {fmtMoney2(dept.amount)}
                 </div>
               </Card>
             ))}
@@ -468,31 +475,31 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
       )}
 
       {ms && (
-      <Section title="Money services">
+      <Section title={t("dash.moneyServices")}>
         <KpiGrid>
-          <KpiCard label="Total transfers" value={fmtNumber(d.kpis.total_transfers)} sub="All time" />
+          <KpiCard label={t("dash.totalTransfers")} value={fmtNumber(d.kpis.total_transfers)} sub={t("dash.allTime")} />
           <KpiCard
-            label="Today's transfers"
+            label={t("dash.todayTransfers")}
             value={fmtNumber(d.kpis.today_transfers)}
             sub={formatShortDate(d.today)}
             tone="positive"
           />
           <KpiCard
-            label="Unreconciled ACH"
+            label={t("dash.unreconciledAch")}
             value={fmtNumber(d.kpis.pending_ach)}
-            sub={d.kpis.pending_ach > 0 ? "Needs attention" : "All clear"}
+            sub={d.kpis.pending_ach > 0 ? t("dash.needsAttention") : t("dash.allClear")}
             tone={d.kpis.pending_ach > 0 ? "negative" : "positive"}
           />
           <KpiCard
-            label="Today's MSB daily book"
-            value={d.kpis.today_report_entered ? "Entered" : "Pending"}
+            label={t("dash.todayMsbBook")}
+            value={d.kpis.today_report_entered ? t("dash.entered") : t("dash.pending")}
             sub={
               <AppLink
                 to={`/daily/edit?date=${d.today}`}
                 className="ds-link"
                 style={{ color: tokens.accent }}
               >
-                {d.kpis.today_report_entered ? "Edit report" : "Enter now →"}
+                {d.kpis.today_report_entered ? t("dash.editReport") : t("dash.enterNow")}
               </AppLink>
             }
             tone={d.kpis.today_report_entered ? "positive" : "warning"}
@@ -502,7 +509,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
       )}
 
       {ms && (
-      <Section title="This month by company">
+      <Section title={t("dash.monthByCompany")}>
         <div
           style={{
             display: "grid",
@@ -521,19 +528,19 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                 }}
               >
                 <span style={{ fontWeight: 600 }}>{c.company}</span>
-                <Pill>{c.count} transfers</Pill>
+                <Pill>{tn("transfer.count", c.count, fmtNumber)}</Pill>
               </header>
               <div style={{ fontFamily: tokens.fontMono, fontSize: "1.6rem" }}>
                 {fmtMoney2(c.total)}
               </div>
               <div style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>
-                Fees: {fmtMoney2(c.fees)}
+                {t("dash.fees", { amount: fmtMoney2(c.fees) })}
               </div>
             </Card>
           ))}
           {d.company_stats.length === 0 && (
             <Card>
-              <Empty>No companies enabled for this store yet.</Empty>
+              <Empty>{t("dash.noCompanies")}</Empty>
             </Card>
           )}
         </div>
@@ -557,13 +564,16 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
               marginBottom: space.md,
             }}
           >
-            <span style={{ fontWeight: 600 }}>Recent transfers</span>
-            <ButtonLink to="/transfers" tone="secondary" size="sm">View all</ButtonLink>
+            <span style={{ fontWeight: 600 }}>{t("dash.recentTransfers")}</span>
+            <ButtonLink to="/transfers" tone="secondary" size="sm">{t("common.viewAll")}</ButtonLink>
           </header>
           <Table>
             <thead>
               <tr>
-                {["Date", "Sender", "Company", "Amount", "Status"].map((h) => (
+                {[
+                  t("transfer.date"), t("transfer.sender"), t("transfer.company"),
+                  t("dash.amount"), t("transfer.status"),
+                ].map((h) => (
                   <th key={h} style={dashThStyle}>
                     {h}
                   </th>
@@ -571,16 +581,19 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
               </tr>
             </thead>
             <tbody>
-              {d.recent_transfers.map((t) => (
-                <tr key={t.id}>
-                  <td style={dashTdStyle}>{formatShortDate(t.send_date)}</td>
-                  <td style={dashTdStyle}>{t.sender_name}</td>
-                  <td style={dashTdStyle}>{t.company}</td>
+              {d.recent_transfers.map((row) => (
+                <tr key={row.id}>
+                  <td style={dashTdStyle}>{formatShortDate(row.send_date)}</td>
+                  <td style={dashTdStyle}>{row.sender_name}</td>
+                  <td style={dashTdStyle}>{row.company}</td>
                   <td style={{ ...dashTdStyle, fontFamily: tokens.fontMono }}>
-                    {fmtMoney2(t.send_amount)}
+                    {fmtMoney2(row.send_amount)}
                   </td>
                   <td style={dashTdStyle}>
-                    <StatusPill value={t.status} tones={TRANSFER_STATUS_TONES} />
+                    <StatusPill
+                      value={row.status} text={statusLabel(row.status)}
+                      tones={TRANSFER_STATUS_TONES}
+                    />
                   </td>
                 </tr>
               ))}
@@ -594,7 +607,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                       color: tokens.textMuted,
                     }}
                   >
-                    No transfers yet
+                    {t("dash.noTransfers")}
                   </td>
                 </tr>
               )}
@@ -614,13 +627,16 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                 marginBottom: space.md,
               }}
             >
-              <span style={{ fontWeight: 600 }}>Recent ACH batches</span>
-              <ButtonLink to="/batches" tone="secondary" size="sm">View all</ButtonLink>
+              <span style={{ fontWeight: 600 }}>{t("dash.recentBatches")}</span>
+              <ButtonLink to="/batches" tone="secondary" size="sm">{t("common.viewAll")}</ButtonLink>
             </header>
             <Table>
               <thead>
                 <tr>
-                  {["Date", "Company", "ACH amount", "Variance", "Status"].map((h) => (
+                  {[
+                    t("transfer.date"), t("transfer.company"), t("batch.achAmount"),
+                    t("batch.variance"), t("transfer.status"),
+                  ].map((h) => (
                     <th key={h} style={dashThStyle}>
                       {h}
                     </th>
@@ -639,7 +655,10 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                       {fmtMoney2(b.variance)}
                     </td>
                     <td style={dashTdStyle}>
-                      <StatusPill value={b.status} tones={BATCH_STATUS_TONES} />
+                      <StatusPill
+                        value={b.status} text={batchStatusLabel(b.status)}
+                        tones={BATCH_STATUS_TONES}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -653,7 +672,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                         color: tokens.textMuted,
                       }}
                     >
-                      No batches yet
+                      {t("dash.noBatches")}
                     </td>
                   </tr>
                 )}
@@ -671,11 +690,11 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                 marginBottom: space.md,
               }}
             >
-              <span style={{ fontWeight: 600 }}>Bank accounts</span>
-              <ButtonLink to="/bank" tone="secondary" size="sm">View all</ButtonLink>
+              <span style={{ fontWeight: 600 }}>{t("dash.bankAccounts")}</span>
+              <ButtonLink to="/bank" tone="secondary" size="sm">{t("common.viewAll")}</ButtonLink>
             </header>
             {d.stripe_accounts.length === 0 ? (
-              <Empty>No bank connected yet.</Empty>
+              <Empty>{t("dash.noBank")}</Empty>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: space.sm }}>
                 {d.stripe_accounts.map((a) => (
@@ -691,7 +710,7 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
                   >
                     <div>
                       <div style={{ fontWeight: 600 }}>
-                        {a.display_name || "Account"}
+                        {a.display_name || t("dash.account")}
                         {a.last4 ? ` ••${a.last4}` : ""}
                       </div>
                       <div style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>
@@ -715,39 +734,40 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
 // ── Employee ──────────────────────────────────────────────────
 
 function EmployeePanel({ d }: { d: EmployeeDashboard }) {
+  const t = useT();
   const ms = d.modules.includes("module_money_services");
   return (
     <>
       <KpiGrid>
         {ms && (
           <KpiCard
-            label="Today's transfers"
+            label={t("dash.todayTransfers")}
             value={fmtNumber(d.totals.count)}
             sub={formatShortDate(d.today)}
           />
         )}
         {d.day_close && (
           <KpiCard
-            label={`Store sales (${formatShortDate(d.day_close.date)})`}
+            label={t("dash.storeSalesOn", { date: formatShortDate(d.day_close.date) })}
             value={fmtMoney2(d.day_close.gross_sales)}
             sub={
               <AppLink to="/store-book" className="ds-link" style={{ color: tokens.accent }}>
-                Open daily book →
+                {t("dash.openDailyBook")}
               </AppLink>
             }
           />
         )}
         {d.lottery && (
           <KpiCard
-            label="Lottery counts"
+            label={t("dash.lotteryCounts")}
             value={
               d.lottery.uncounted_active_packs > 0
-                ? `${d.lottery.uncounted_active_packs} pending`
-                : "Done"
+                ? t("dash.nPending", { count: fmtNumber(d.lottery.uncounted_active_packs) })
+                : t("dash.done")
             }
             sub={
               <AppLink to="/lottery" className="ds-link" style={{ color: tokens.accent }}>
-                Count packs →
+                {t("dash.countPacks")}
               </AppLink>
             }
             tone={
@@ -763,10 +783,10 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
 
       {ms && (
       <Section
-        title="Today's transfers"
+        title={t("dash.todayTransfers")}
         actions={
           <ButtonLink to="/transfers/new" tone="primary" size="sm">
-            + New transfer
+            {t("transfer.newButton")}
           </ButtonLink>
         }
       >
@@ -775,54 +795,57 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
             <thead>
               <tr>
                 {[
-                  "Time",
-                  "Sender",
-                  "Company",
-                  "Amount",
-                  "Fee",
-                  "Recipient",
-                  "Country",
-                  "Confirmation #",
-                  "Status",
+                  t("dash.time"),
+                  t("transfer.sender"),
+                  t("transfer.company"),
+                  t("dash.amount"),
+                  t("transfer.fee"),
+                  t("transfer.recipient"),
+                  t("transfer.country"),
+                  t("transfer.confirmNumber"),
+                  t("transfer.status"),
                   "",
-                ].map((h) => (
-                  <th key={h} style={dashThStyle}>
+                ].map((h, i) => (
+                  <th key={i} style={dashThStyle}>
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {d.today_transfers.map((t) => (
-                <tr key={t.id}>
+              {d.today_transfers.map((row) => (
+                <tr key={row.id}>
                   <td style={dashTdStyle}>
-                    {t.created_at ? formatTime(t.created_at) : "—"}
+                    {row.created_at ? formatTime(row.created_at) : "—"}
                   </td>
-                  <td style={dashTdStyle}>{t.sender_name}</td>
-                  <td style={dashTdStyle}>{t.company}</td>
+                  <td style={dashTdStyle}>{row.sender_name}</td>
+                  <td style={dashTdStyle}>{row.company}</td>
                   <td style={{ ...dashTdStyle, fontFamily: tokens.fontMono }}>
-                    {fmtMoney2(t.send_amount)}{" "}
+                    {fmtMoney2(row.send_amount)}{" "}
                     <TransferKindPill
-                      serviceType={t.service_type}
-                      paymentMethod={t.payment_method}
+                      serviceType={row.service_type}
+                      paymentMethod={row.payment_method}
                     />
                   </td>
                   <td style={{ ...dashTdStyle, fontFamily: tokens.fontMono }}>
-                    {fmtMoney2(t.fee)}
+                    {fmtMoney2(row.fee)}
                   </td>
-                  <td style={dashTdStyle}>{t.recipient_name || "—"}</td>
-                  <td style={dashTdStyle}>{t.country || "—"}</td>
-                  <td style={dashTdStyle}>{t.confirm_number || "—"}</td>
+                  <td style={dashTdStyle}>{row.recipient_name || "—"}</td>
+                  <td style={dashTdStyle}>{row.country || "—"}</td>
+                  <td style={dashTdStyle}>{row.confirm_number || "—"}</td>
                   <td style={dashTdStyle}>
-                    <StatusPill value={t.status} tones={TRANSFER_STATUS_TONES} />
+                    <StatusPill
+                      value={row.status} text={statusLabel(row.status)}
+                      tones={TRANSFER_STATUS_TONES}
+                    />
                   </td>
                   <td style={dashTdStyle}>
                     <AppLink
-                      to={`/transfers/${t.id}/edit`}
+                      to={`/transfers/${row.id}/edit`}
                       className="ds-link"
                       style={{ color: tokens.accent, fontSize: fontSize.sm }}
                     >
-                      Edit
+                      {t("transfer.edit")}
                     </AppLink>
                   </td>
                 </tr>
@@ -838,7 +861,7 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
                       padding: `${space.xl} 0`,
                     }}
                   >
-                    Nothing logged today — log the first one to get started.
+                    {t("dash.nothingToday")}
                   </td>
                 </tr>
               )}
@@ -860,7 +883,7 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
           >
             <div>
               <span style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>
-                Today Total Sent:
+                {t("dash.todayTotalSent")}
               </span>{" "}
               <strong style={{ fontFamily: tokens.fontMono }}>
                 {fmtMoney2(d.totals.sent)}
@@ -869,7 +892,7 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
             {d.totals.paid_out > 0 && (
               <div>
                 <span style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>
-                  Paid Out:
+                  {t("dash.paidOut")}
                 </span>{" "}
                 <strong style={{ fontFamily: tokens.fontMono }}>
                   {fmtMoney2(d.totals.paid_out)}
@@ -878,7 +901,7 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
             )}
             <div>
               <span style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>
-                Fees Collected:
+                {t("dash.feesCollected")}
               </span>{" "}
               <strong style={{ fontFamily: tokens.fontMono }}>
                 {fmtMoney2(d.totals.fees)}
@@ -886,9 +909,9 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
             </div>
             <div>
               <span style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>
-                Transfers:
+                {t("dash.transfersLabel")}
               </span>{" "}
-              <strong>{d.totals.count}</strong>
+              <strong>{fmtNumber(d.totals.count)}</strong>
             </div>
           </div>
         </Card>
@@ -897,86 +920,14 @@ function EmployeePanel({ d }: { d: EmployeeDashboard }) {
   );
 }
 
-// ── Superadmin ────────────────────────────────────────────────
-
-interface SuperadminContextLite {
-  total_stores?: number;
-  active_stores?: number;
-  trial_stores?: number;
-  paid_stores?: number;
-  inactive_stores?: number;
-  mrr_total?: number;
-  arr_total?: number;
-  new_stores_30d?: number;
-  cancellations_30d?: number;
-  [key: string]: unknown;
-}
-
-function SuperadminPanel({ d }: { d: SuperadminContextLite & { role: string } }) {
-  return (
-    <>
-      <KpiGrid>
-        <KpiCard label="Total stores" value={fmtNumber(d.total_stores)} sub="All time" />
-        <KpiCard label="Active" value={fmtNumber(d.active_stores)} tone="positive" />
-        <KpiCard label="Trial" value={fmtNumber(d.trial_stores)} tone="warning" />
-        <KpiCard label="Paid" value={fmtNumber(d.paid_stores)} tone="positive" />
-        <KpiCard
-          label="MRR"
-          value={typeof d.mrr_total === "number" ? fmtMoney(d.mrr_total) : "—"}
-          tone="positive"
-        />
-        <KpiCard
-          label="ARR"
-          value={typeof d.arr_total === "number" ? fmtMoney(d.arr_total) : "—"}
-          tone="positive"
-        />
-        <KpiCard label="New (last 30 days)" value={fmtNumber(d.new_stores_30d)} tone="positive" />
-        <KpiCard
-          label="Cancellations (30d)"
-          value={fmtNumber(d.cancellations_30d)}
-          tone={
-            typeof d.cancellations_30d === "number" && d.cancellations_30d > 0
-              ? "negative"
-              : "positive"
-          }
-        />
-      </KpiGrid>
-
-      <Section title="Quick links">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: space.md,
-          }}
-        >
-          <QuickLink to="/superadmin/stores" title="Stores" desc="Browse, edit, impersonate." />
-          <QuickLink to="/superadmin/audit-log" title="Audit log" desc="Every platform admin action." />
-          <QuickLink to="/superadmin/announcements" title="Announcements" desc="Global banners + push." />
-          <QuickLink to="/superadmin/reports" title="Platform reports" desc="MRR/ARR, churn, adoption." />
-        </div>
-      </Section>
-    </>
-  );
-}
-
-function QuickLink({ to, title, desc }: { to: string; title: string; desc: string }) {
-  return (
-    <AppLink to={to} style={{ textDecoration: "none", color: "inherit" }}>
-      <Card interactive padding={space.lg}>
-        <div style={{ fontWeight: 600, marginBottom: space.xs }}>{title}</div>
-        <div style={{ color: tokens.textMuted, fontSize: fontSize.sm }}>{desc}</div>
-      </Card>
-    </AppLink>
-  );
-}
-
 // ── Helpers ───────────────────────────────────────────────────
 
+/** A stored status's pill: the tone comes from the stored (English)
+ *  value, the words from its label in the person's language. */
 function StatusPill({
-  value, tones,
-}: { value: string | null; tones: Record<string, PillTone> }) {
-  return <Pill tone={(value && tones[value]) || "neutral"}>{value}</Pill>;
+  value, text, tones,
+}: { value: string | null; text: string; tones: Record<string, PillTone> }) {
+  return <Pill tone={(value && tones[value]) || "neutral"}>{text}</Pill>;
 }
 
 // Local table cell styles — extends the DS tokens with the dense

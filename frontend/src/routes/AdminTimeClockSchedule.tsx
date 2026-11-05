@@ -17,10 +17,12 @@ import {
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./AdminTimeClockSchedule.module.css";
 import {
-  WEEKDAY_NAMES_SHORT, addDaysIso, formatWeekRange, mondayOfIso, todayIso,
+  addDaysIso, formatWeekRange, mondayOfIso, todayIso, weekdayNamesShort,
   weekdayOfIso,
 } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/admin/timeclock/schedule — admin shift planner.
 //
@@ -41,6 +43,7 @@ export default function AdminTimeClockSchedule() {
   const weekEnd     = addDaysIso(weekStart, 7);
   const shifts      = useShifts(weekStart, weekEnd);
   const toast = useToast();
+  const t = useT();
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ["timeclock", "shifts"] });
@@ -59,9 +62,9 @@ export default function AdminTimeClockSchedule() {
   if (roster.isError) {
     return (
       <PageShell>
-        <PageHeader title="Schedule" />
+        <PageHeader title={navWord("Schedule")} />
         <ErrorState
-          message="Couldn't load the store roster."
+          message={t("schedule.rosterFailed")}
           onRetry={() => { void roster.refetch(); }}
         />
       </PageShell>
@@ -70,7 +73,7 @@ export default function AdminTimeClockSchedule() {
   if (roster.isLoading) {
     return (
       <PageShell>
-        <PageHeader title="Schedule" />
+        <PageHeader title={navWord("Schedule")} />
         <Loading />
       </PageShell>
     );
@@ -83,8 +86,8 @@ export default function AdminTimeClockSchedule() {
       <PageCrumbs />
 
       <PageHeader
-        title="Schedule"
-        subtitle="Plan shifts for your team — one row per scheduled shift. Actual punches stay tracked on the payroll history page."
+        title={navWord("Schedule")}
+        subtitle={t("schedule.subtitle")}
       />
 
       <Card>
@@ -95,7 +98,7 @@ export default function AdminTimeClockSchedule() {
           onPrev={() => setWeekStart(addDaysIso(weekStart, -7))}
           onNext={() => setWeekStart(addDaysIso(weekStart, 7))}
           onToday={() => setWeekStart(mondayOfIso(todayIso()))}
-          todayLabel="This week"
+          todayLabel={t("schedule.thisWeek")}
         >
           <div className={styles.weekLabel}>
             {formatWeekRange(weekStart)}
@@ -106,8 +109,8 @@ export default function AdminTimeClockSchedule() {
       {activeRoster.length === 0 ? (
         <Card>
           <EmptyState
-            title="No roster members yet."
-            body="Add cashier names from /app/settings → Team before scheduling shifts."
+            title={t("schedule.noRoster")}
+            body={t("schedule.noRosterBody")}
           />
         </Card>
       ) : shifts.isLoading ? (
@@ -116,7 +119,7 @@ export default function AdminTimeClockSchedule() {
         // A failed load is not an empty week: an empty grid would
         // invite the admin to re-plan shifts that already exist.
         <ErrorState
-          message="Couldn't load this week's shifts."
+          message={t("schedule.loadFailed")}
           onRetry={() => { void shifts.refetch(); }}
           busy={shifts.isFetching}
         />
@@ -157,18 +160,19 @@ function DayColumn({
   onError: (msg: string) => void;
 }) {
   const [adding, setAdding] = useState(false);
+  const t = useT();
   const isToday = date === todayIso();
   return (
     <div className={`${styles.dayCol}${isToday ? " " + styles.dayColToday : ""}`}>
       <div className={styles.dayHeader}>
         <span className={styles.dayName}>
-          {WEEKDAY_NAMES_SHORT[weekdayOfIso(date)]}
+          {weekdayNamesShort()[weekdayOfIso(date)]}
         </span>
         <span className={styles.dayDate}>{Number(date.slice(8, 10))}</span>
       </div>
       <div className={styles.dayBody}>
         {shifts.length === 0 && !adding && (
-          <div className={styles.empty}>No shifts</div>
+          <div className={styles.empty}>{t("schedule.noShifts")}</div>
         )}
         {shifts.map((s) => (
           <ShiftCard
@@ -189,7 +193,7 @@ function DayColumn({
             type="button" tone="secondary"
             onClick={() => setAdding(true)}
           >
-            + Add shift
+            {t("schedule.addShift")}
           </Button>
         )}
       </div>
@@ -209,15 +213,16 @@ function ShiftCard({
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const t = useT();
 
   async function doDelete() {
     setBusy(true);
     try {
       await deleteShift(shift.id);
-      onSaved(`Deleted ${shift.employee_name}'s shift.`);
+      onSaved(t("schedule.deleted", { name: shift.employee_name }));
       setConfirmingDelete(false);
     } catch (err) {
-      onError(apiErrorMessage(err, "Could not delete the shift."));
+      onError(apiErrorMessage(err, t("schedule.deleteFailed")));
     } finally {
       setBusy(false);
     }
@@ -249,25 +254,23 @@ function ShiftCard({
           type="button" className={styles.linkBtn}
           onClick={() => setEditing(true)}
         >
-          Edit
+          {t("common.edit")}
         </button>
         <button
           type="button" className={styles.linkBtn}
           onClick={() => setConfirmingDelete(true)}
           disabled={busy}
         >
-          {busy ? "…" : "Delete"}
+          {busy ? "…" : t("payroll.delete")}
         </button>
       </div>
       <ConfirmDialog
         open={confirmingDelete}
-        title="Delete this shift?"
-        message={
-          `Delete the ${trimSeconds(shift.start_time)} shift for `
-          + `${shift.employee_name}? The roster row stays; only this `
-          + "planned shift is removed."
-        }
-        confirmLabel="Delete"
+        title={t("schedule.deleteTitle")}
+        message={t("schedule.deleteBody", {
+          time: trimSeconds(shift.start_time), name: shift.employee_name,
+        })}
+        confirmLabel={t("payroll.delete")}
         confirmTone="danger"
         busy={busy}
         onConfirm={() => { void doDelete(); }}
@@ -299,9 +302,10 @@ function ShiftForm({
   );
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const { dirty } = useDirtyBaseline({ empId, startTime, endTime, notes });
   const guard = useUnsavedGuard(dirty && !busy, {
-    message: "You have an unsaved shift. Leave without saving?",
+    message: t("schedule.unsavedMessage"),
   });
 
   async function onSubmit(e: FormEvent) {
@@ -317,7 +321,7 @@ function ShiftForm({
           end_time:   endTime,
           notes,
         });
-        onSaved(`Updated ${updated.employee_name}'s shift.`);
+        onSaved(t("schedule.updated", { name: updated.employee_name }));
       } else {
         const created = await createShift({
           store_employee_id: Number(empId),
@@ -326,10 +330,10 @@ function ShiftForm({
           end_time:   endTime,
           notes,
         });
-        onSaved(`Scheduled ${created.employee_name}.`);
+        onSaved(t("schedule.scheduled", { name: created.employee_name }));
       }
     } catch (err) {
-      onError(apiErrorMessage(err, "Could not save the shift."));
+      onError(apiErrorMessage(err, t("schedule.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -337,7 +341,7 @@ function ShiftForm({
 
   return (
     <form onSubmit={onSubmit} className={styles.form}>
-      <Field label="Cashier">
+      <Field label={t("schedule.cashier")}>
         <Select
           value={empId === "" ? "" : String(empId)}
           onChange={(e) => {
@@ -346,21 +350,21 @@ function ShiftForm({
           }}
           required
         >
-          <option value="">— pick —</option>
+          <option value="">{t("schedule.pick")}</option>
           {roster.map((m) => (
             <option key={m.id} value={m.id}>{m.name}</option>
           ))}
         </Select>
       </Field>
       <div className={styles.formTimeRow}>
-        <Field label="Start">
+        <Field label={t("schedule.start")}>
           <Input
             type="time" value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
             required
           />
         </Field>
-        <Field label="End">
+        <Field label={t("schedule.end")}>
           <Input
             type="time" value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
@@ -368,7 +372,7 @@ function ShiftForm({
           />
         </Field>
       </div>
-      <Field label="Notes (optional)">
+      <Field label={t("schedule.notesOptional")}>
         <Input
           type="text" maxLength={500}
           value={notes}
@@ -380,10 +384,10 @@ function ShiftForm({
           type="button" tone="secondary"
           onClick={() => guard.confirmLeave(onCancel)} disabled={busy}
         >
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" busy={busy} disabled={busy || empId === ""}>
-          {existing ? "Save" : "Add"}
+          {existing ? t("payroll.save") : t("schedule.add")}
         </Button>
       </FormActions>
     </form>
@@ -394,8 +398,8 @@ function ShiftForm({
 // The week maths (mondayOfIso / addDaysIso / formatWeekRange) lives
 // in lib/datetime, shared with every other period page.
 
-function trimSeconds(t: string): string {
+function trimSeconds(hms: string): string {
   // "09:00:00" → "09:00".  Backend returns HH:MM:SS from Python
   // ``time.isoformat()``; we display HH:MM only.
-  return t.length >= 5 ? t.slice(0, 5) : t;
+  return hms.length >= 5 ? hms.slice(0, 5) : hms;
 }
