@@ -608,7 +608,14 @@ pick Spanish; the browser's own language is not used.
   headings use `formatMonthYear()`, weekday headings
   `weekdayNamesShort()` (`lib/datetime.ts`), never the English
   `MONTH_NAMES` arrays in a covered screen. A full weekday name is
-  `weekdayNameLong(dayIndex)` (Monday = 0).
+  `weekdayNameLong(dayIndex)` (Monday = 0) and a month on its own
+  `monthName(month, "long" | "short")`.
+- **Markup inside a sentence uses `tNodes()`**:
+  `tNodes("customer.selectedOne", { winner: <strong>{name}</strong> })`
+  keeps the sentence whole in each language and styles only the
+  piece, instead of gluing "Selected: " + `<strong>` + " (winner)".
+  A sentence whose wording changes with a case (one credit or two,
+  a verb that agrees) gets one key per case, never joined fragments.
 - **Stored values stay English; the screen shows a label.** A value
   the API stores and filters on (a transfer's service "Money
   Transfer", its status "Sent") is never translated in the data: the
@@ -616,7 +623,11 @@ pick Spanish; the browser's own language is not used.
   it through `serviceLabel()` / `statusLabel()`
   (`lib/transferKinds.ts`), as `<option value="Sent">Enviado</option>`.
   An unknown stored value is shown as stored. A new stored value needs
-  its label key there.
+  its label key there. The same holds for a batch status
+  (`batchStatusLabel()`, `api/batches.ts`), a returned check's status
+  and payment method (`returnCheckStatusLabel()`,
+  `paymentMethodLabel()`, `api/returnChecks.ts`); a status pill takes
+  its tone from the stored value and its words from the label.
 - **Form schemas hold keys.** zod keeps the message it was built with,
   so a schema's message is a translator key
   (`z.string().min(1, "transfer.nameRequired")`) and the field shows
@@ -666,7 +677,12 @@ always the same Spanish word):
 | Confirmation # | # de confirmación |
 | Processed by | Atendido por |
 | Batch (ACH) | Lote |
-| Receipt | Recibo |
+| Receipt (transfer) | Recibo |
+| Receipt (register / POS) | Ticket |
+| Dashboard | Panel |
+| Returned check | Cheque devuelto |
+| Cleared / Held (ACH batch) | Acreditado / Retenido |
+| Time clock | Reloj checador |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -680,9 +696,15 @@ checks on hold, and its server messages), with the kit month calendar
 and day / week / month stepper; transfers (the list, new and edit
 forms, detail page and delete popup, receipt, sender search and
 recent recipients, and their server messages), with the kit's table
-error, retry button, toasts, info tip and row actions; the Subscribe
-plan picker (and the billing server messages it can show). Next: the
-rest of the app, then emails.
+error, retry button, toasts, info tip and row actions; the store and
+employee dashboards, customers and merge, ACH batches, returned checks
+and their payments, and the shell pieces every page can show (store
+gate, impersonation bar, command palette, help panel, announcement
+banner, install button, 404, and the rest of the kit); the Subscribe
+plan picker and the billing server messages it can show. Next: settings
+and team, bank, monthly and reports, owner and billing pages,
+platform pages, then emails. The help articles
+(`lib/help/registry.ts`) are still English.
 
 ## 11. The bell — one place for "something to do"
 

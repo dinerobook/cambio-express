@@ -2,12 +2,13 @@ import { useNavigate } from "react-router-dom";
 
 import {
   BATCH_STATUS_TONES,
+  batchStatusLabel,
   useBatches,
   type BatchRow,
   type BatchSort,
 } from "../api/batches";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney2, fmtCount } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   ButtonLink, Card, DataTable, Empty, PageHeader, PageShell, Pill,
   type DataColumn,
@@ -15,6 +16,8 @@ import {
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./Batches.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { navWord } from "../i18n/navWords";
+import { tn, useT, type Translate } from "../i18n";
 
 // Read-only ACH batches list at /app/batches. Sort by clicking
 // column headers (URL-driven). Variance cell colored red when
@@ -24,41 +27,43 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // Create / edit / link-transfers stays on the legacy Jinja
 // /batches/* routes until subsequent PRs migrate them.
 
-const COLUMNS: DataColumn<BatchRow>[] = [
+// Built during render so the headings follow the language.
+function batchColumns(t: Translate): DataColumn<BatchRow>[] {
+  return [
   {
-    key: "date", header: "Date", sortKey: "ach_date", sortFirst: "desc",
+    key: "date", header: t("transfer.date"), sortKey: "ach_date", sortFirst: "desc",
     render: (r) => <span className={styles.monoMuted}>{r.ach_date}</span>,
   },
-  { key: "company", header: "Company", sortKey: "company", render: (r) => r.company },
+  { key: "company", header: t("transfer.company"), sortKey: "company", render: (r) => r.company },
   {
-    key: "ref", header: "Reference", sortKey: "batch_ref",
+    key: "ref", header: t("batch.reference"), sortKey: "batch_ref",
     render: (r) => <span className={styles.mono}>{r.batch_ref}</span>,
   },
   {
-    key: "amount", header: "ACH amount", align: "right", sortKey: "ach_amount", sortFirst: "desc",
+    key: "amount", header: t("batch.achAmount"), align: "right", sortKey: "ach_amount", sortFirst: "desc",
     render: (r) => <span className={styles.mono}>{fmtMoney2(r.ach_amount)}</span>,
   },
   {
-    key: "transfers", header: "Transfers",
+    key: "transfers", header: t("batch.transfers"),
     render: (r) => (
       <span>
         <span className={styles.mono}>{fmtMoney2(r.transfers_total)}</span>
-        <span className={styles.transferCount}>({r.transfer_count})</span>
+        <span className={styles.transferCount}>({fmtNumber(r.transfer_count)})</span>
         {r.card_credit > 0 && (
           <span className={styles.cardCredit}>
-            {fmtMoney2(-r.card_credit)} debit card credit
+            {t("batch.cardCreditInline", { amount: fmtMoney2(-r.card_credit) })}
           </span>
         )}
         {r.payout_credit > 0 && (
           <span className={styles.cardCredit}>
-            {fmtMoney2(-r.payout_credit)} payout credit
+            {t("batch.payoutCreditInline", { amount: fmtMoney2(-r.payout_credit) })}
           </span>
         )}
       </span>
     ),
   },
   {
-    key: "variance", header: "Variance",
+    key: "variance", header: t("batch.variance"),
     render: (r) => (
       <span className={r.variance < 0 ? styles.varianceNeg : styles.variancePos}>
         {r.variance >= 0 ? "+" : ""}{fmtMoney2(r.variance)}
@@ -66,12 +71,15 @@ const COLUMNS: DataColumn<BatchRow>[] = [
     ),
   },
   {
-    key: "status", header: "Status", sortKey: "status",
-    render: (r) => <Pill tone={BATCH_STATUS_TONES[r.status] ?? "neutral"}>{r.status}</Pill>,
+    key: "status", header: t("transfer.status"), sortKey: "status",
+    render: (r) => <Pill tone={BATCH_STATUS_TONES[r.status] ?? "neutral"}>{batchStatusLabel(r.status)}</Pill>,
   },
-];
+  ];
+}
 
 export default function Batches() {
+  const t = useT();
+  const columns = batchColumns(t);
   const identity = getCurrentIdentity();
   const navigate = useNavigate();
   const filters = useUrlFilterState({}, {
@@ -91,8 +99,8 @@ export default function Batches() {
   if (identity?.store_id == null) {
     return (
       <PageShell>
-        <PageHeader title="ACH batches" />
-        <Empty>Sign in as a store admin to view ACH batches.</Empty>
+        <PageHeader title={navWord("ACH batches")} />
+        <Empty>{t("batch.listSignIn")}</Empty>
       </PageShell>
     );
   }
@@ -103,25 +111,25 @@ export default function Batches() {
       <PageCrumbs />
 
       <PageHeader
-        title="ACH batches"
-        subtitle={data ? `${fmtCount(total, "batch", "batches")}` : "—"}
+        title={navWord("ACH batches")}
+        subtitle={data ? tn("batch.count", total, fmtNumber) : "—"}
         actions={(
           <ButtonLink to="/batches/new" tone="primary" size="sm">
-            + New batch
+            {t("batch.newButton")}
           </ButtonLink>
         )}
       />
 
       <Card>
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           rows={data?.rows}
           rowKey={(r) => r.id}
           onRowClick={(r) => navigate(`/batches/${r.id}/edit`)}
-          rowLabel={(r) => `Open batch ${r.batch_ref}`}
+          rowLabel={(r) => t("batch.open", { ref: r.batch_ref })}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle="No ACH batches yet."
+          emptyTitle={t("batch.empty")}
           sort={sort}
           page={data && {
             page: data.page ?? 1, totalPages: data.total_pages ?? 1, total,

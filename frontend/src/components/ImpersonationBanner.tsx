@@ -5,6 +5,7 @@ import { getCurrentIdentity } from "../lib/auth";
 import { stopImpersonation } from "../lib/impersonation";
 import { Button } from "./ui";
 import styles from "./ImpersonationBanner.module.css";
+import { t as translate, useT } from "../i18n";
 
 // Shown above every authed page while a superadmin is signed in AS
 // a customer (`session-status.impersonation` is set — the token
@@ -21,7 +22,7 @@ export function ImpersonationBanner() {
   const identity = getCurrentIdentity();
   return (
     <ImpersonationBannerView
-      actingAs={identity?.full_name || identity?.username || "this user"}
+      actingAs={identity?.full_name || identity?.username || translate("impersonation.thisUser")}
       role={identity?.role ?? ""}
       storeName={data.store_name}
       byName={data.impersonation.by_name}
@@ -43,6 +44,7 @@ export function ImpersonationBannerView({
   readOnly?: boolean;
   onExit: () => Promise<void> | void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   async function exit() {
     setBusy(true);
@@ -58,7 +60,7 @@ export function ImpersonationBannerView({
       data-read-only={readOnly ? "true" : undefined}
     >
       <span className={styles.eyebrow}>
-        {readOnly ? "Viewing as a customer (read-only)" : "Signed in as a customer"}
+        {readOnly ? t("impersonation.viewing") : t("impersonation.signedIn")}
       </span>
       <span>
         <span className={styles.who}>{actingAs}</span>
@@ -67,12 +69,14 @@ export function ImpersonationBannerView({
       </span>
       <span className={styles.muted}>
         {readOnly
-          ? "Every save is blocked on this session; nothing is written in their name."
-          : `Everything you do here is recorded against them${byName ? ` with “via superadmin ${byName}”` : ""}.`}
+          ? t("impersonation.readOnlyNote")
+          : byName
+            ? t("impersonation.recordedBy", { name: byName })
+            : t("impersonation.recorded")}
       </span>
       <span className={styles.spacer} />
       <Button size="sm" tone="secondary" busy={busy} disabled={busy} onClick={() => { void exit(); }}>
-        {readOnly ? "Exit view" : "Exit impersonation"}
+        {readOnly ? t("impersonation.exitView") : t("impersonation.exit")}
       </Button>
     </div>
   );

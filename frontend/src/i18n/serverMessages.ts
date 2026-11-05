@@ -48,6 +48,13 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Billing isn't configured on this server yet. An administrator needs to set STRIPE_SECRET_KEY in the deployment environment before this button works.": "subscribe.serverNotConfigured",
   "Stripe's billing portal isn't configured yet. An admin needs to enable + save the Customer Portal in the Stripe Dashboard before this button works.": "subscribe.serverPortalNotConfigured",
   "Payment service error. Please try again.": "subscribe.serverPaymentError",
+  // ACH batches
+  "Batch not found": "batch.serverNotFound",
+  // Return checks
+  "Return check not found": "returnCheck.serverNotFound",
+  "Payment not found": "returnCheck.serverPaymentNotFound",
+  "Payment amount must be > 0.": "returnCheck.serverAmountPositive",
+  "Return check is already fully recovered.": "returnCheck.fullyRecovered",
 };
 
 /** The server's `message` in the current language when known. A 429

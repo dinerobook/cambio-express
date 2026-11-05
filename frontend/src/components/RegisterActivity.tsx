@@ -8,6 +8,7 @@ import { AppLink,
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { formatTimestamp } from "../lib/datetime";
 import styles from "./RegisterActivity.module.css";
+import { useT } from "../i18n";
 
 // What the register did (D-4) — the numbers a manager scans for
 // trouble. Shared by the admin and employee dashboards; a cashier
@@ -22,55 +23,56 @@ export function RegisterActivityTiles({
 }: {
   register: RegisterActivityBlock | null;
 }) {
+  const t = useT();
   if (!register) return null;
   const hasFuel = register.fuel_gallons > 0 || register.fuel_sales > 0;
   return (
     <KpiGrid>
       <KpiCard
-        label="Receipts"
+        label={t("register.receipts")}
         value={fmtNumber(register.receipts)}
         sub={
           <AppLink to="/transactions" className="ds-link"
             style={{ color: tokens.accent }}
           >
-            {register.is_today ? "Today" : register.date} →
+            {register.is_today ? t("register.today") : register.date} →
           </AppLink>
         }
       />
       <KpiCard
-        label="Total rung"
+        label={t("register.totalRung")}
         value={fmtMoney2(register.total_rung)}
         tone="positive"
       />
       <KpiCard
-        label="Voided tickets"
+        label={t("register.voidedTickets")}
         value={fmtNumber(register.voided_tickets)}
         sub={
           register.voided_tickets > 0 ? (
             <AppLink to="/transactions?voided=1" className="ds-link"
               style={{ color: tokens.accent }}
             >
-              Review them →
+              {t("register.reviewThem")}
             </AppLink>
-          ) : "None"
+          ) : t("register.none")
         }
         tone={register.voided_tickets > 0 ? "warning" : "positive"}
       />
       <KpiCard
-        label="Refunds"
+        label={t("register.refunds")}
         value={fmtNumber(register.refunds)}
         tone={register.refunds > 0 ? "warning" : "positive"}
       />
       {hasFuel && (
         <>
           <KpiCard
-            label="Fuel gallons"
+            label={t("register.fuelGallons")}
             value={register.fuel_gallons.toLocaleString(undefined, {
               maximumFractionDigits: 2,
             })}
           />
           <KpiCard
-            label="Fuel sales"
+            label={t("register.fuelSales")}
             value={fmtMoney2(register.fuel_sales)}
             tone="positive"
           />
@@ -81,15 +83,16 @@ export function RegisterActivityTiles({
 }
 
 export function RecentReceipts({ receipts }: { receipts: ReceiptRow[] }) {
+  const t = useT();
   if (receipts.length === 0) return null;
   return (
     <Section
-      title="Latest receipts"
+      title={t("register.latestReceipts")}
       actions={
         <AppLink to="/transactions" className="ds-link"
           style={{ color: tokens.accent }}
         >
-          All transactions →
+          {t("register.allTransactions")}
         </AppLink>
       }
     >
@@ -105,19 +108,19 @@ export function RecentReceipts({ receipts }: { receipts: ReceiptRow[] }) {
                 <span className={styles.receiptNo}>
                   {r.transaction_no || `#${r.id}`}
                 </span>
-                {r.has_voided_line && <Pill tone="warning">void</Pill>}
+                {r.has_voided_line && <Pill tone="warning">{t("register.void")}</Pill>}
               </div>
               <dl className={styles.receiptBody}>
                 <div className={styles.receiptRow}>
-                  <dt>Cashier</dt>
+                  <dt>{t("transfer.cashier")}</dt>
                   <dd>{r.cashier_id || "—"}</dd>
                 </div>
                 <div className={styles.receiptRow}>
-                  <dt>Register</dt>
+                  <dt>{t("register.register")}</dt>
                   <dd>{r.register_id || "—"}</dd>
                 </div>
                 <div className={styles.receiptRow}>
-                  <dt>Total</dt>
+                  <dt>{t("transfer.total")}</dt>
                   <dd className={styles.receiptTotal}>
                     {fmtMoney2(r.total)}
                   </dd>

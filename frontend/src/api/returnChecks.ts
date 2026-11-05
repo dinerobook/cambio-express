@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
 import type { components } from "./openapi";
+import { t, type MessageKey } from "../i18n";
 
 /** Return-check status → Pill tone (UI-STANDARDS §3). */
 export const RETURN_CHECK_STATUS_TONES: Record<string, PillTone> = {
@@ -14,6 +15,42 @@ export const RETURN_CHECK_STATUS_TONES: Record<string, PillTone> = {
   loss:      "negative",
   fraud:     "negative",
 };
+
+const RETURN_CHECK_STATUS_KEYS: Record<string, MessageKey> = {
+  pending: "returnCheck.statusPending",
+  recovered: "returnCheck.statusRecovered",
+  loss: "returnCheck.statusLoss",
+  fraud: "returnCheck.statusFraud",
+};
+
+/** A stored return-check status ("pending") in the person's
+ *  language; an unknown value is shown as stored. */
+export function returnCheckStatusLabel(value: string | null | undefined): string {
+  if (!value) return "—";
+  return Object.hasOwn(RETURN_CHECK_STATUS_KEYS, value)
+    ? t(RETURN_CHECK_STATUS_KEYS[value])
+    : value;
+}
+
+/** How a customer paid back a returned check. Values are stored. */
+export const RETURN_CHECK_PAYMENT_METHODS = [
+  "cash", "check", "zelle", "wire", "money_order", "other",
+] as const;
+
+const PAYMENT_METHOD_KEYS: Record<string, MessageKey> = {
+  cash: "returnCheck.methodCash",
+  check: "returnCheck.methodCheck",
+  zelle: "returnCheck.methodZelle",
+  wire: "returnCheck.methodWire",
+  money_order: "returnCheck.methodMoneyOrder",
+  other: "returnCheck.methodOther",
+};
+
+/** A stored payment method ("money_order") in the person's language. */
+export function paymentMethodLabel(value: string | null | undefined): string {
+  if (!value) return "—";
+  return Object.hasOwn(PAYMENT_METHOD_KEYS, value) ? t(PAYMENT_METHOD_KEYS[value]) : value;
+}
 
 export type ReturnCheckRow = components["schemas"]["ReturnCheckRow"];
 
