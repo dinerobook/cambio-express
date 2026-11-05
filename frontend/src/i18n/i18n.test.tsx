@@ -14,6 +14,11 @@ import {
   weekdayNamesShort,
 } from "../lib/datetime";
 import { batchStatusLabel } from "../api/batches";
+import { roleLabel } from "../api/roles";
+import { timeClockStatusLabel } from "../api/timeclock";
+import {
+  actionLabel, actionShort, groupResources, resourceLabel,
+} from "../components/PermissionMatrixTable";
 import { paymentMethodLabel, returnCheckStatusLabel } from "../api/returnChecks";
 import {
   PAYOUT_SERVICE, SERVICES, STATUSES, serviceLabel, statusLabel,
@@ -36,7 +41,9 @@ const SAME_IN_BOTH: MessageKey[] = [
   "login.copyright",
   // A brand name, and words Spanish spells the same.
   "daily.boostMobile", "daily.total", "daily.totalCaps", "daily.totalLabel",
-  "transfer.total", "returnCheck.methodZelle",
+  "transfer.total", "returnCheck.methodZelle", "roles.tabRoles", "roles.no", "payroll.no",
+  // One-letter chips: C, V and E start the same word in both.
+  "perm.actCreateShort", "perm.actReadShort", "perm.actUpdateShort",
   // Only placeholders and symbols: "{count} {label}", "{label} (USD)".
   "daily.countOpen", "transfer.inUsd", "transfer.outOfHoursOpen",
 ];
@@ -325,5 +332,45 @@ describe("markup inside a sentence and more stored values", () => {
     expect(batchStatusLabel("Bounced twice")).toBe("Bounced twice");
     expect(paymentMethodLabel("constructor")).toBe("constructor");
     expect(returnCheckStatusLabel(null)).toBe("—");
+  });
+});
+
+describe("roles, permission areas and shift statuses", () => {
+  it("names roles in the language; Admin is never called super", () => {
+    expect(roleLabel("admin")).toBe("Admin");
+    expect(roleLabel("owner")).toBe("Owner");
+    act(() => setLanguage("es"));
+    expect(roleLabel("admin")).toBe("Administrador");
+    expect(roleLabel("employee")).toBe("Empleado");
+    expect(roleLabel("owner")).toBe("Dueño");
+    expect(roleLabel("accountant")).toBe("Contador");
+    // Unknown and inherited names show as stored.
+    expect(roleLabel("cook")).toBe("cook");
+    expect(roleLabel("toString")).toBe("toString");
+  });
+
+  it("names permission areas, actions and groups; the chips stay distinct", () => {
+    expect(resourceLabel("transfers")).toBe("Money transfers");
+    expect(actionLabel("read")).toBe("View");
+    expect(actionShort("delete")).toBe("D");
+    act(() => setLanguage("es"));
+    expect(resourceLabel("transfers")).toBe("Envíos de dinero");
+    expect(resourceLabel("constructor")).toBe("constructor");
+    expect(actionLabel("update")).toBe("Editar");
+    expect(actionLabel("delete")).toBe("Eliminar");
+    const letters = ["create", "read", "update", "delete"].map(actionShort);
+    expect(new Set(letters).size).toBe(4);
+    expect(groupResources(["transfers", "mystery"])).toEqual([
+      { key: "perm.groupMoneyServices", title: "Servicios de dinero", resources: ["transfers"] },
+      { key: "other", title: "Otros", resources: ["mystery"] },
+    ]);
+  });
+
+  it("names a shift status; the stored value stays English", () => {
+    expect(timeClockStatusLabel("approved")).toBe("Approved");
+    act(() => setLanguage("es"));
+    expect(timeClockStatusLabel("pending")).toBe("Pendiente");
+    expect(timeClockStatusLabel("rejected")).toBe("Rechazado");
+    expect(timeClockStatusLabel("hasOwnProperty")).toBe("hasOwnProperty");
   });
 });

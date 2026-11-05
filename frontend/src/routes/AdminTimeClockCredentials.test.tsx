@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminTimeClockCredentials from "./AdminTimeClockCredentials";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Passkey enrollment for the time clock. Once the store's gate is on,
 // a cashier without a registered passkey cannot clock in, so the
@@ -140,5 +142,22 @@ describe("Time-clock credentials", () => {
     renderRoute(<AdminTimeClockCredentials />);
     expect(await screen.findByText("Couldn't load roster credentials.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+});
+
+describe("Time-clock credentials in Spanish", () => {
+  it("lists passkeys, the gate notice and the remove popup in Spanish", async () => {
+    setLanguage("es");
+    mockFetch(routes());
+    renderRoute(<AdminTimeClockCredentials />);
+    expect(await screen.findByText("Registrado", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("Pendiente")).toBeInTheDocument();
+    expect(await screen.findByText(/El requisito de llave de acceso está/)).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["punch.", "payroll.", "common."])).toEqual([]);
+    const ana = screen.getByText("Ana").closest("tr")!;
+    await userEvent.click(within(ana).getByRole("button", { name: "Quitar" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("¿Quitar la llave registrada de Ana?");
+    expect(englishLeftovers(dialog, ["punch.", "common."])).toEqual([]);
   });
 });

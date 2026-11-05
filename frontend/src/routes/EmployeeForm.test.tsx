@@ -1,10 +1,12 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import EmployeeForm from "./EmployeeForm";
 import { ApiError } from "../lib/api";
 import { renderRouteWithGuard } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Team → Employee (add / edit). The page-level form had no tests.
 // Pinned: create sends the profile and returns to the roster without
@@ -101,5 +103,29 @@ describe("EmployeeForm", () => {
     act(() => { void router.navigate("/dashboard"); });
     await user.click(await screen.findByRole("button", { name: "Leave" }));
     expect(await screen.findByText("Navigated to /dashboard")).toBeInTheDocument();
+  });
+});
+
+describe("EmployeeForm in Spanish", () => {
+  it("shows every tab, its error and the save button in Spanish", async () => {
+    setLanguage("es");
+    const user = userEvent.setup();
+    renderEdit();
+    expect(await screen.findByRole("heading", { name: "Editar empleado" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["employee.", "common."])).toEqual([]);
+    await user.clear(screen.getByLabelText(/^Nombre completo/));
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByText("Escriba el nombre completo del empleado.")).toBeInTheDocument();
+    expect(updateEmployee).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("tab", { name: "Nómina" }));
+    const schedule = screen.getByLabelText("Frecuencia de pago");
+    // The stored value stays English; the words are Spanish.
+    expect(within(schedule).getByRole("option", { name: "Semanal" })).toHaveValue("weekly");
+    expect(englishLeftovers(document.body, ["employee.", "common."])).toEqual([]);
+
+    await user.click(screen.getByRole("tab", { name: "Acceso y permisos" }));
+    expect(screen.getByText(/Sin acceso vinculado/)).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["employee.", "common."])).toEqual([]);
   });
 });

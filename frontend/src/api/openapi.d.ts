@@ -14943,18 +14943,36 @@ export interface components {
         };
         /**
          * SuperadminDashboard
-         * @description The platform context (``superadmin_dashboard_context``) with
-         *     the KPI aliases the SPA reads. Wide and loosely shaped: the SPA
-         *     reads a handful of keys, so the rest pass undocumented.
+         * @description The ten figures the Platform → Controls overview shows
+         *     (``platform_summary``). The full platform BI is
+         *     ``GET /superadmin/dashboard``.
          */
         SuperadminDashboard: {
+            /** Active Stores */
+            active_stores: number;
+            /** Arr Total */
+            arr_total: number;
+            /** Cancellations 30D */
+            cancellations_30d: number;
+            /** Inactive Stores */
+            inactive_stores: number;
+            /** Mrr Total */
+            mrr_total: number;
+            /** New Stores 30D */
+            new_stores_30d: number;
+            /** Paid Stores */
+            paid_stores: number;
+            /** Retention Queue */
+            retention_queue: number;
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             role: "superadmin";
-        } & {
-            [key: string]: unknown;
+            /** Total Stores */
+            total_stores: number;
+            /** Trial Stores */
+            trial_stores: number;
         };
         /** SuperadminDashboardResponse */
         SuperadminDashboardResponse: {

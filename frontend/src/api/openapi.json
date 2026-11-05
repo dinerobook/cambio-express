@@ -18640,17 +18640,67 @@
         "type": "object"
       },
       "SuperadminDashboard": {
-        "additionalProperties": true,
-        "description": "The platform context (``superadmin_dashboard_context``) with\nthe KPI aliases the SPA reads. Wide and loosely shaped: the SPA\nreads a handful of keys, so the rest pass undocumented.",
+        "additionalProperties": false,
+        "description": "The ten figures the Platform \u2192 Controls overview shows\n(``platform_summary``). The full platform BI is\n``GET /superadmin/dashboard``.",
         "properties": {
+          "active_stores": {
+            "title": "Active Stores",
+            "type": "integer"
+          },
+          "arr_total": {
+            "title": "Arr Total",
+            "type": "number"
+          },
+          "cancellations_30d": {
+            "title": "Cancellations 30D",
+            "type": "integer"
+          },
+          "inactive_stores": {
+            "title": "Inactive Stores",
+            "type": "integer"
+          },
+          "mrr_total": {
+            "title": "Mrr Total",
+            "type": "integer"
+          },
+          "new_stores_30d": {
+            "title": "New Stores 30D",
+            "type": "integer"
+          },
+          "paid_stores": {
+            "title": "Paid Stores",
+            "type": "integer"
+          },
+          "retention_queue": {
+            "title": "Retention Queue",
+            "type": "integer"
+          },
           "role": {
             "const": "superadmin",
             "title": "Role",
             "type": "string"
+          },
+          "total_stores": {
+            "title": "Total Stores",
+            "type": "integer"
+          },
+          "trial_stores": {
+            "title": "Trial Stores",
+            "type": "integer"
           }
         },
         "required": [
-          "role"
+          "role",
+          "total_stores",
+          "active_stores",
+          "trial_stores",
+          "paid_stores",
+          "inactive_stores",
+          "mrr_total",
+          "arr_total",
+          "new_stores_30d",
+          "cancellations_30d",
+          "retention_queue"
         ],
         "title": "SuperadminDashboard",
         "type": "object"

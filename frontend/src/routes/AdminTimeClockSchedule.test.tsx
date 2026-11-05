@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminTimeClockSchedule from "./AdminTimeClockSchedule";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // A week whose shifts failed to load must say so (with Retry), not
 // render seven empty "No shifts" columns that invite the admin to
@@ -129,5 +131,22 @@ describe("AdminTimeClockSchedule", () => {
       await user.click(await screen.findByRole("button", { name: "Leave" }));
       expect(screen.queryByLabelText("Cashier")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("AdminTimeClockSchedule in Spanish", () => {
+  it("shows the week, its days and the shift form in Spanish", async () => {
+    setLanguage("es");
+    useShifts.mockReturnValue({
+      data: { rows: [] }, isLoading: false, isError: false, isFetching: false, refetch,
+    });
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Horario" })).toBeInTheDocument();
+    expect(screen.getAllByText("Sin turnos")).toHaveLength(7);
+    expect(screen.getByText("lun")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["schedule.", "payroll.", "common."])).toEqual([]);
+    await userEvent.click(screen.getAllByRole("button", { name: "+ Agregar turno" })[0]);
+    expect(screen.getByLabelText("Cajero")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["schedule.", "payroll.", "common."])).toEqual([]);
   });
 });
