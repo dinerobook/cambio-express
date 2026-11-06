@@ -25,32 +25,19 @@ from sqlalchemy.orm import Session
 from api.Modules.Billing.Services.trial import (
     get_trial_status,
 )
+from api.Modules.Notifications.Services.email_text import (
+    EN, email_date, email_language, email_t,
+)
 from api.Modules.Notifications.Services.smtp import send_email
 from api.Modules.Notifications.Services.templates import render_email_template
 from api.Core.Clock import utc_now
 
 
-TRIAL_REMINDER_SUBJECT = "Your DineroBook trial ends in {days} days"
-
-TRIAL_REMINDER_BODY = """\
-Hi {name},
-
-Just a heads-up that your DineroBook trial for "{store_name}" ends on
-{trial_end_date}. That's {days} days from today.
-
-To keep your books, reports, and transfer history, subscribe before
-then:
-    {subscribe_url}
-
-No action is required if you'd rather let the trial expire; we keep
-your data for 180 days after cancellation so you can come back.
-
-Don't want trial reminders anymore? Turn them off on your
-notifications page:
-    {notifications_url}
-
-— DineroBook
-"""
+# Subject, body and push words live in email_text.py ("trial.*"), in
+# English and Spanish; each recipient gets their own language. The
+# English texts keep their old names for callers that import them.
+TRIAL_REMINDER_SUBJECT = EN["trial.subject"]
+TRIAL_REMINDER_BODY = EN["trial.body"]
 
 
 def stores_due_for_reminder(db: Session, now: datetime | None = None) -> list[Any]:
@@ -146,12 +133,14 @@ def run(
     sent = 0
     for store in stores_due_for_reminder(session, now):
         days_left = max(0, (store.trial_ends_at - now).days)
-        trial_end_str = store.trial_ends_at.strftime("%B %d, %Y")
         subscribe_url = f"{base_url}/subscribe"
         notifications_url = f"{base_url}/account/notifications"
         any_sent = False
         for u in eligible_recipients(session, store):
-            body = TRIAL_REMINDER_BODY.format(
+            lang = email_language(u)
+            trial_end_str = email_date(store.trial_ends_at, lang)
+            body = email_t(
+                lang, "trial.body",
                 name=u.full_name or u.username,
                 store_name=store.name,
                 trial_end_date=trial_end_str,
@@ -161,9 +150,10 @@ def run(
             )
             html = render_email_template(
                 "emails/trial_reminder.html",
-                preheader=(
-                    f"Your DineroBook trial for {store.name} "
-                    f"ends on {trial_end_str}."
+                lang=lang,
+                preheader=email_t(
+                    lang, "trial.preheader",
+                    store_name=store.name, trial_end_date=trial_end_str,
                 ),
                 name=u.full_name or "",
                 store_name=store.name,
@@ -174,7 +164,7 @@ def run(
                 year=now.year,
                 base_url=base_url,
             )
-            subject = TRIAL_REMINDER_SUBJECT.format(days=days_left)
+            subject = email_t(lang, "trial.subject", days=days_left)
             send_email(session, u.email, subject, body, html)
             # Fan out a Web Push too — best-effort, gated on the
             # per-kind toggle so a user who opted out of trial-
@@ -190,9 +180,10 @@ def run(
                         session,
                         user_id=int(u.id),
                         title=subject,
-                        body=(
-                            f"Your DineroBook trial for "
-                            f"{store.name} ends on {trial_end_str}."
+                        body=email_t(
+                            lang, "trial.preheader",
+                            store_name=store.name,
+                            trial_end_date=trial_end_str,
                         ),
                         url="/app/admin/subscription",
                         tag=f"trial_reminder:{store.id}",

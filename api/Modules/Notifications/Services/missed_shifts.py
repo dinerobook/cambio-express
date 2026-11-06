@@ -137,13 +137,10 @@ def _employee_name(db: Session, store_employee_id: int) -> str:
     return str(row.name) if row is not None else f"#{store_employee_id}"
 
 
-def _fmt_time(t: time) -> str:
-    """``time(9, 0)`` → ``"9:00 AM"``.  Drops leading zero on the
-    hour for readability; AM/PM in 12-hour for the most common US
-    operator base.  i18n is a separate backlog item."""
-    h = t.hour % 12 or 12
-    suffix = "AM" if t.hour < 12 else "PM"
-    return f"{h}:{t.minute:02d} {suffix}"
+def _fmt_time(t: time, lang: str = "en") -> str:
+    """``time(9, 0)`` → ``"9:00 AM"`` / ``"9:00 a. m."``."""
+    from api.Modules.Notifications.Services.email_text import email_time
+    return email_time(t, lang)
 
 
 def _format_digest_body(
@@ -152,6 +149,7 @@ def _format_digest_body(
     store_name: str,
     on_date: date,
     missed: list[Any],
+    lang: str = "en",
 ) -> tuple[str, str]:
     """Return ``(subject, plain_body)`` for the digest email.
 
@@ -159,26 +157,26 @@ def _format_digest_body(
     shift times, not a full report.  Plain-text only for v1; an
     HTML template can drop in once we have a Jinja file for it.
     """
-    date_str = on_date.strftime("%a %b %d, %Y")
-    subject = f"{store_name} — {len(missed)} missed shift" + (
-        "s" if len(missed) != 1 else ""
-    ) + f" · {date_str}"
+    from api.Modules.Notifications.Services.email_text import (
+        email_date, email_t, email_tn,
+    )
+    date_str = email_date(on_date, lang, english="%a %b %d, %Y", weekday=True)
+    subject = email_tn(
+        lang, "shifts.subject", len(missed), store_name=store_name, date=date_str,
+    )
     lines = [
-        f"Missed shifts on {date_str} at {store_name}:",
+        email_t(lang, "shifts.lead", date=date_str, store_name=store_name),
         "",
     ]
     for s in missed:
         name = _employee_name(db, int(s.store_employee_id))
-        lines.append(
-            f"  · {name} — scheduled {_fmt_time(s.start_time)} to "
-            f"{_fmt_time(s.end_time)}",
-        )
+        lines.append(email_t(
+            lang, "shifts.line", name=name,
+            start=_fmt_time(s.start_time, lang), end=_fmt_time(s.end_time, lang),
+        ))
     lines += [
         "",
-        "No clock-in recorded for these cashiers on the planned "
-        "date.  Re-schedule or back-fill via the admin time-clock "
-        "page if the punch was actually made on a different "
-        "terminal.",
+        email_t(lang, "shifts.advice"),
     ]
     return subject, "\n".join(lines)
 
@@ -204,6 +202,9 @@ def run(
     """
     from api.Modules.Notifications.Services.push import (
         send_push, user_wants_push,
+    )
+    from api.Modules.Notifications.Services.email_text import (
+        email_language, email_t, email_tn,
     )
     from api.Modules.Notifications.Services.smtp import send_email
     from api.Modules.Tenancy.Models import Store
@@ -241,13 +242,16 @@ def run(
             setattr(store, "missed_shifts_sent_for", on_date)
             continue
         recipients = eligible_recipients(db, store)
-        subject, body = _format_digest_body(
-            db,
-            store_name=str(store.name or "Your store"),
-            on_date=on_date,
-            missed=misses,
-        )
         for u in recipients:
+            # Each recipient reads the digest in their own language.
+            lang = email_language(u)
+            subject, body = _format_digest_body(
+                db,
+                store_name=str(store.name or email_t(lang, "shifts.yourStore")),
+                on_date=on_date,
+                missed=misses,
+                lang=lang,
+            )
             send_email(db, str(u.email), subject, body)
             try:
                 # Ride the `daily_summary` push toggle — the
@@ -264,9 +268,7 @@ def run(
                         db,
                         user_id=int(u.id),
                         title=subject,
-                        body=f"{len(misses)} missed shift"
-                             + ("s" if len(misses) != 1 else "")
-                             + " — tap to review.",
+                        body=email_tn(lang, "shifts.push", len(misses)),
                         url="/app/admin/timeclock/schedule",
                         tag=f"missed_shifts:{store.id}:{on_date.isoformat()}",
                     )

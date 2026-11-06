@@ -30,6 +30,9 @@ from sqlalchemy.orm import Session
 
 from api.Modules.Notifications.Services.format import fmt_money_2 as _fmt_money_2
 from api.Modules.Notifications.Services.smtp import send_email
+from api.Modules.Notifications.Services.email_text import (
+    EN, email_date, email_language, email_t,
+)
 from api.Modules.Notifications.Services.templates import render_email_template
 from typing import Any
 from api.Core.Clock import utc_now
@@ -38,29 +41,11 @@ from api.Core.Clock import utc_now
 _log = logging.getLogger(__name__)
 
 
-LOCKED_DAY_SUBJECT = "Daily book locked — {store_name}, {date_human}"
-
-
-LOCKED_DAY_BODY = """\
-Hi {name},
-
-The daily book for "{store_name}" on {date_human} was just locked
-by {locked_by}.
-
-  Receipts          {receipts}
-  Disbursements     {disbursements}
-  Over / short      {over_short}
-  Net position      {net}
-
-Open the day in DineroBook:
-    {view_url}
-
-You're getting this digest because you're listed as an owner or
-admin of {store_name}. Turn it off on your notifications page:
-    {notifications_url}
-
-— DineroBook
-"""
+# Subject, body, preheader and push words live in email_text.py
+# ("locked.*"), in English and Spanish; each recipient gets their own
+# language. The English texts keep their old names for importers.
+LOCKED_DAY_SUBJECT = EN["locked.subject"]
+LOCKED_DAY_BODY = EN["locked.body"]
 
 
 def eligible_recipients(db: Session, store: Any) -> list[Any]:
@@ -121,16 +106,14 @@ def run(session: Session, report: Any, base_url: str | None = None) -> int:
     from api.Core.Urls import get_base_url
     base_url = (base_url or get_base_url()).rstrip("/")
     date_iso = report.report_date.isoformat() if report.report_date else ""
-    date_human = (
-        report.report_date.strftime("%B %d, %Y")
-        if report.report_date else ""
-    )
     locked_by_user = (
         session.get(User, report.locked_by) if report.locked_by else None
     )
+    # None = no locker on record: each reader gets "an admin" in
+    # their own language below.
     locked_by_name = (
         (locked_by_user.full_name or locked_by_user.username)
-        if locked_by_user else "an admin"
+        if locked_by_user else None
     )
     view_url = f"{base_url}/app/daily/edit?date={date_iso}"
     notifications_url = f"{base_url}/app/account/notifications"
@@ -151,11 +134,17 @@ def run(session: Session, report: Any, base_url: str | None = None) -> int:
 
     sent = 0
     for u in recipients:
-        body = LOCKED_DAY_BODY.format(
+        lang = email_language(u)
+        date_human = (
+            email_date(report.report_date, lang) if report.report_date else ""
+        )
+        locked_by = locked_by_name or email_t(lang, "locked.anAdmin")
+        body = email_t(
+            lang, "locked.body",
             name=u.full_name or u.username,
             store_name=store.name,
             date_human=date_human,
-            locked_by=locked_by_name,
+            locked_by=locked_by,
             receipts=_fmt_money_2(receipts),
             disbursements=_fmt_money_2(disbursements),
             over_short=_fmt_money_2(over_short),
@@ -166,14 +155,15 @@ def run(session: Session, report: Any, base_url: str | None = None) -> int:
         try:
             html = render_email_template(
                 "emails/locked_day_digest.html",
-                preheader=(
-                    f"Daily book locked for {store.name} on "
-                    f"{date_human}. Net {_fmt_money_2(net)}."
+                lang=lang,
+                preheader=email_t(
+                    lang, "locked.preheader", store_name=store.name,
+                    date_human=date_human, net=_fmt_money_2(net),
                 ),
                 name=u.full_name or "",
                 store_name=store.name,
                 date_human=date_human,
-                locked_by=locked_by_name,
+                locked_by=locked_by,
                 receipts=_fmt_money_2(receipts),
                 disbursements=_fmt_money_2(disbursements),
                 over_short=_fmt_money_2(over_short),
@@ -184,7 +174,8 @@ def run(session: Session, report: Any, base_url: str | None = None) -> int:
                 year=utc_now().year,
                 base_url=base_url,
             )
-            subject = LOCKED_DAY_SUBJECT.format(
+            subject = email_t(
+                lang, "locked.subject",
                 store_name=store.name, date_human=date_human,
             )
             if send_email(session, u.email, subject, body, html):
@@ -201,9 +192,9 @@ def run(session: Session, report: Any, base_url: str | None = None) -> int:
                         session,
                         user_id=int(u.id),
                         title=subject,
-                        body=(
-                            f"Locked by {locked_by_name}. "
-                            f"Net {_fmt_money_2(net)}."
+                        body=email_t(
+                            lang, "locked.pushBody",
+                            locked_by=locked_by, net=_fmt_money_2(net),
                         ),
                         url=f"/app/daily/edit?date={date_iso}",
                         tag=f"locked_day_digest:{store.id}:{date_iso}",
