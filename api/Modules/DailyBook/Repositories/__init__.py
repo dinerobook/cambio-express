@@ -8,16 +8,18 @@ from api.Modules.DailyBook.Repositories.line_items import (
     sum_line_items_by_kind,
 )
 from api.Modules.DailyBook.Repositories.reports import (
-    find_prior_report,
     find_report_by_date,
     get_report_by_id,
+    iter_reports_after,
+    iter_reports_before,
     list_reports_in_period,
 )
 
 __all__ = [
-    "find_prior_report",
     "find_report_by_date",
     "get_report_by_id",
+    "iter_reports_after",
+    "iter_reports_before",
     "list_line_items",
     "list_reports_in_period",
     "sum_line_items_by_kind",

@@ -5,7 +5,7 @@ store per day. Lookup is almost always by either the unique
 `(store, date)` pair or by `id` after a write.
 """
 from datetime import date
-from typing import Iterable
+from typing import Iterable, Iterator
 
 from sqlalchemy.orm import Session
 
@@ -28,29 +28,56 @@ def find_report_by_date(
     )
 
 
-def find_prior_report(
-    db: Session, store_id: int, before_date: date,
-) -> DailyReport | None:
-    """Most recent DailyReport for this store strictly before
-    ``before_date``. Powers the forward-balance carry: today's
-    opening cash is derived from the previous logged day's
-    (outside_cash_drops + safe_balance). Returns ``None`` when the
-    store has no earlier report — that's the "first day" case where
-    the operator seeds the forward balance manually.
+def iter_reports_before(
+    db: Session, store_id: int, before_date: date, *, batch: int = 32,
+) -> Iterator[DailyReport]:
+    """This store's DailyReport rows strictly before ``before_date``,
+    newest first, fetched a batch at a time. Powers the
+    forward-balance carry, which walks back to the previous day the
+    operator actually kept (``Services/reports.py::find_kept_prior``)
+    — almost always the first row, so one small query."""
+    offset = 0
+    while True:
+        rows = (
+            db.query(DailyReport)
+              .filter(
+                  DailyReport.store_id == store_id,
+                  DailyReport.report_date < before_date,
+              )
+              .order_by(DailyReport.report_date.desc())
+              .offset(offset)
+              .limit(batch)
+              .all()
+        )
+        yield from rows
+        if len(rows) < batch:
+            return
+        offset += batch
 
-    "Previous logged day", not "yesterday": a store closed Sunday
-    carries Saturday's close into Monday. Rows are only created when
-    a day is actually saved / locked (a bare GET never creates one),
-    so this skips gaps automatically."""
-    return (
-        db.query(DailyReport)
-          .filter(
-              DailyReport.store_id == store_id,
-              DailyReport.report_date < before_date,
-          )
-          .order_by(DailyReport.report_date.desc())
-          .first()
-    )
+
+def iter_reports_after(
+    db: Session, store_id: int, after_date: date, *, batch: int = 8,
+) -> Iterator[DailyReport]:
+    """This store's DailyReport rows strictly after ``after_date``,
+    oldest first, a batch at a time — the days whose carry a change
+    on ``after_date`` can move (``refresh_carry``)."""
+    offset = 0
+    while True:
+        rows = (
+            db.query(DailyReport)
+              .filter(
+                  DailyReport.store_id == store_id,
+                  DailyReport.report_date > after_date,
+              )
+              .order_by(DailyReport.report_date.asc())
+              .offset(offset)
+              .limit(batch)
+              .all()
+        )
+        yield from rows
+        if len(rows) < batch:
+            return
+        offset += batch
 
 
 def get_report_by_id(
