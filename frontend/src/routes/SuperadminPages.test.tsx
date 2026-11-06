@@ -598,3 +598,90 @@ describe("platform pages in Spanish", () => {
     expect(screen.getByRole("heading", { name: "Reportes de la plataforma" })).toBeInTheDocument();
   });
 });
+
+describe("platform pages in Spanish, part 2", () => {
+  beforeEach(() => { setLanguage("es"); });
+
+  it("reads billing in Spanish, the purge preview and popup included", async () => {
+    mockFetch({
+      "GET /api/v2/superadmin/billing-overview": { body: {
+        expiring_soon: [{ store_id: 1, name: "Uno", slug: "uno", plan: "trial",
+          email: "uno@x.test", trial_ends_at: "2026-10-20" }],
+        in_grace: [],
+        retention_queue: [{ store_id: 2, name: "Dos", slug: "dos", plan: "inactive", email: "", days_left: 1 }],
+        recent_cancels: [{ store_id: 3, name: "Tres", slug: "tres", plan: "basic", email: "", canceled_at: "2026-10-01" }],
+        webhook_stats: {},
+      } },
+      "GET /api/v2/superadmin/retention-dry-run": { body: { now: "", store_count: 1, total_child_rows: 1,
+        stores: [{ store_id: 2, name: "Dos", slug: "dos", canceled_at: "", data_retention_until: "",
+          row_count: 1, row_counts: { transfers: 1 } }] } },
+    });
+    renderRoute(<SuperadminBilling />);
+    expect(await screen.findByText("Queda 1 día")).toBeInTheDocument();
+    expect(screen.getByText("tres · Basic")).toBeInTheDocument();
+    expect(screen.getByText("No hay tiendas en período de gracia.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Ver el impacto" }));
+    expect(await screen.findByText("Se borraría 1 tienda (1 fila relacionada)")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saBill."])).toEqual([]);
+    await userEvent.click(screen.getAllByRole("button", { name: "Pausar el plazo" })[0]);
+    const dialog = await screen.findByRole("dialog", { name: "¿Pausar el plazo de retención?" });
+    expect(englishLeftovers(dialog, ["saBill."])).toEqual([]);
+  });
+
+  it("reads the dashboard in Spanish; server activity words it knows translate", async () => {
+    mockFetch({ "GET /api/v2/superadmin/dashboard": { body: {
+      total_stores: 15, active_count: 12, trial_count: 1, paid_count: 11, inactive_count: 3,
+      estimated_mrr: 450, new_stores_30d: 2, new_stores_delta: 1, churn_30d: 0, churn_delta: 0,
+      basic_count: 6, pro_count: 5, basic_monthly: 5, basic_yearly: 1, pro_monthly: 4, pro_yearly: 1,
+      basic_monthly_mrr: 150, basic_yearly_mrr: 25, pro_monthly_mrr: 240, pro_yearly_mrr: 35,
+      signup_labels: [], signup_direct: [], signup_referral: [], plan_dist: [],
+      volume_by_company: [], total_volume_30d: 0, total_transfers_30d: 1, top_referrers: [],
+      direct_signups: 0, referral_signups: 0,
+      activity: [
+        { when: "2026-10-09T15:00:00", kind: "signup", store_name: "Nueva", detail: "via referral", plan: "trial" },
+        { when: "2026-10-08T15:00:00", kind: "refund", store_name: "Vieja", detail: "manual note", plan: "pro" },
+      ],
+      mrr_trend: { labels: [], values: [] },
+    } } });
+    renderRoute(<SuperadminDashboard />);
+    expect(await screen.findByText("Tiendas activas")).toBeInTheDocument();
+    expect(screen.getByText("+1 frente a los 30 d anteriores")).toBeInTheDocument();
+    expect(screen.getByText("1 envío")).toBeInTheDocument();
+    expect(screen.getByText("registro")).toBeInTheDocument();
+    expect(screen.getByText("por referido")).toBeInTheDocument();
+    // Words the SPA doesn't list show as sent.
+    expect(screen.getByText("refund")).toBeInTheDocument();
+    expect(screen.getByText("manual note")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saDash."])).toEqual([]);
+  });
+
+  it("reads the store form in Spanish, the default admin name in Spanish too", async () => {
+    const calls = mockFetch({ "POST /api/v2/superadmin/stores": { body: { store: { id: 9 } } } });
+    renderRoute(<SuperadminStoreForm />, { path: "/superadmin/stores/new" });
+    expect(screen.getByRole("heading", { name: "Agregar una tienda nueva" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Gasolinera" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Prueba" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saForm."])).toEqual([]);
+    await userEvent.type(screen.getByLabelText(/Nombre del negocio/), "Cambio Tres");
+    await userEvent.type(screen.getByLabelText(/Identificador para la URL/), "cambio-tres");
+    await userEvent.type(screen.getByLabelText(/Contraseña del administrador/), "s3cret-pass!");
+    await userEvent.click(screen.getByRole("button", { name: "Crear tienda" }));
+    expect(await screen.findByText("Tienda Cambio Tres creada.")).toBeInTheDocument();
+    expect(callsTo(calls, "POST /api/v2/superadmin/stores")[0].body).toMatchObject({
+      admin_name: "Administrador de la tienda",
+    });
+  });
+
+  it("reads the platform report list in Spanish", async () => {
+    mockFetch({ "GET /api/v2/superadmin/reports": { body: { categories: [
+      { key: "platform_health", label: "Platform health", icon: "", reports: [
+        { key: "dau_mau", label: "Daily / monthly actives", description: "DAU + MAU per day from the LoginEvent feed, plus stickiness.",
+          url: "/superadmin/reports/dau-mau", status: "ready" },
+      ] },
+    ] } } });
+    renderRoute(<SuperadminReports />);
+    expect(await screen.findByText("Activos diarios / mensuales")).toBeInTheDocument();
+    expect(screen.getByText("Estado de la plataforma")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["reportCat.", "reportName.", "reportDesc."])).toEqual([]);
+  });
+});

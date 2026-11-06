@@ -20,6 +20,8 @@ import { firstError, zEmailOptional, zPhoneOptional } from "../lib/validators";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SuperadminStoreForm.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { planLabel } from "../api/billing";
+import { useT, type MessageKey } from "../i18n";
 
 // /app/superadmin/stores/new + /app/superadmin/stores/:id/edit
 //
@@ -33,25 +35,21 @@ import { PageCrumbs } from "../components/PageCrumbs";
 //   { detail: { field, message } }
 // The SPA renders inline next to the offending input.
 
-const PLAN_OPTIONS: { value: string; label: string }[] = [
-  { value: "trial",    label: "Trial" },
-  { value: "basic",    label: "Basic" },
-  { value: "pro",      label: "Pro" },
-  { value: "inactive", label: "Inactive" },
-];
+const PLAN_OPTIONS = ["trial", "basic", "pro", "inactive"];
 
 // Which kind of business the store is — drives module defaults
 // (module_money_services et al.) through the feature-flag bundles.
-const BUSINESS_TYPE_OPTIONS = [
-  { value: "cstore",      label: "Convenience store" },
-  { value: "gas_station", label: "Gas station" },
-  { value: "grocery",     label: "Grocery store" },
-  { value: "msb_hybrid",  label: "Money services / hybrid" },
+const BUSINESS_TYPE_OPTIONS: { value: string; label: MessageKey }[] = [
+  { value: "cstore",      label: "switchStore.typeCstore" },
+  { value: "gas_station", label: "switchStore.typeGasStation" },
+  { value: "grocery",     label: "switchStore.typeGrocery" },
+  { value: "msb_hybrid",  label: "switchStore.typeMsbHybrid" },
 ];
 
 const SPAN_2 = { gridColumn: "1 / -1" } as const;
 
 export default function SuperadminStoreForm() {
+  const t = useT();
   const identity = getCurrentIdentity();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -76,8 +74,9 @@ export default function SuperadminStoreForm() {
   // the Store model definition).
   const [federalTaxRate, setFederalTaxRate] = useState<string>("0.01");
 
-  // Initial admin user — create only.
-  const [adminName,     setAdminName]     = useState("Store Admin");
+  // Initial admin user — create only. The default name is written
+  // in the reader's language: once saved it is the person's own name.
+  const [adminName,     setAdminName]     = useState(() => t("saForm.defaultAdmin"));
   const [initialRole,   setInitialRole]   = useState("admin");
   const [adminUsername, setAdminUsername] = useState("admin");
   const [adminPassword, setAdminPassword] = useState("");
@@ -132,7 +131,7 @@ export default function SuperadminStoreForm() {
 
   const isDirty = baseline !== null && snapshot !== baseline;
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved edits on this store. Leave without saving?",
+    message: t("saForm.unsaved"),
   });
   const leaveToStores = () =>
     guard.confirmLeave(() => navigate("/superadmin/stores"));
@@ -140,8 +139,8 @@ export default function SuperadminStoreForm() {
   if (identity?.role !== "superadmin") {
     return (
       <PageShell maxWidth="44rem">
-        <PageHeader title={isEdit ? "Edit store" : "Add store"} />
-        <ErrorState message="Superadmin scope required." />
+        <PageHeader title={isEdit ? t("saForm.editTitle") : t("saForm.addTitle")} />
+        <ErrorState message={t("sa.scopeRequired")} />
       </PageShell>
     );
   }
@@ -149,7 +148,7 @@ export default function SuperadminStoreForm() {
   if (isEdit && detailQuery.isLoading) {
     return (
       <PageShell maxWidth="44rem">
-        <PageHeader title="Edit store" />
+        <PageHeader title={t("saForm.editTitle")} />
         <Loading />
       </PageShell>
     );
@@ -158,9 +157,9 @@ export default function SuperadminStoreForm() {
     const err = detailQuery.error;
     return (
       <PageShell maxWidth="44rem">
-        <PageHeader title="Edit store" />
+        <PageHeader title={t("saForm.editTitle")} />
         <ErrorState
-          message={`Couldn't load the store. ${apiErrorMessage(err, "")}`.trimEnd()}
+          message={t("saForm.loadFailed", { reason: apiErrorMessage(err, "") }).trimEnd()}
           onRetry={() => { void detailQuery.refetch(); }}
         />
       </PageShell>
@@ -203,7 +202,7 @@ export default function SuperadminStoreForm() {
       }
       setServerError(err.message);
     } else {
-      setServerError("Network error. Try again.");
+      setServerError(t("common.networkError"));
     }
   }
 
@@ -245,7 +244,7 @@ export default function SuperadminStoreForm() {
         // the canonical normalized values (lowercased slug, etc.).
         queryClient.invalidateQueries({ queryKey: ["superadmin", "store", storeId] });
         queryClient.invalidateQueries({ queryKey: ["superadmin", "stores"] });
-        toast({ message: "Store updated.", tone: "success" });
+        toast({ message: t("saForm.updated"), tone: "success" });
       } else {
         const body: SuperadminStoreCreateBody = {
           name:           name.trim(),
@@ -256,13 +255,13 @@ export default function SuperadminStoreForm() {
           plan,
           business_type:  bizType,
           admin_username: adminUsername.trim() || "admin",
-          admin_name:     adminName.trim() || "Store Admin",
+          admin_name:     adminName.trim() || t("saForm.defaultAdmin"),
           admin_password: adminPassword,
           initial_role:   initialRole,
         };
         await createSuperadminStore(body);
         queryClient.invalidateQueries({ queryKey: ["superadmin", "stores"] });
-        toast({ message: `Store ${body.name} created.`, tone: "success" });
+        toast({ message: t("saForm.created", { name: body.name }), tone: "success" });
         guard.proceed(() => navigate("/superadmin/stores"));
       }
     } catch (err) {
@@ -272,22 +271,28 @@ export default function SuperadminStoreForm() {
     }
   }
 
+  const loadedName = detailQuery.data?.store.name;
   const heading = isEdit
-    ? `Edit store${detailQuery.data?.store.name ? ` — ${detailQuery.data.store.name}` : ""}`
-    : "Add new store";
+    ? (loadedName ? t("saForm.editHeading", { name: loadedName }) : t("saForm.editTitle"))
+    : t("saForm.newHeading");
   const cardTitle = isEdit
-    ? "Update business account"
-    : "Create a new business account";
+    ? t("saForm.updateCard")
+    : t("saForm.createCard");
 
   return (
     <PageShell maxWidth="44rem">
       <div className={styles.headerRow}>
 
-        <PageCrumbs via={isEdit && storeId ? [{ label: name || `Store #${storeId}`, to: `/superadmin/stores/${storeId}/drill` }] : []} current={isEdit ? "Edit" : "New store"} />
+        <PageCrumbs
+          via={isEdit && storeId
+            ? [{ label: name || t("saForm.storeNo", { id: storeId }), to: `/superadmin/stores/${storeId}/drill` }]
+            : []}
+          current={isEdit ? t("saForm.crumbEdit") : t("saForm.crumbNew")}
+        />
 
         <PageHeader title={heading} />
         <Button type="button" tone="secondary" onClick={leaveToStores}>
-          ← Back to stores
+          {t("saForm.back")}
         </Button>
       </div>
 
@@ -299,34 +304,34 @@ export default function SuperadminStoreForm() {
         </div>
 
         <form onSubmit={onSubmit} autoComplete="off">
-          <div className={styles.sectionTitle}>Business info</div>
+          <div className={styles.sectionTitle}>{t("saForm.businessInfo")}</div>
 
           <div className={styles.formGrid}>
-            <Field label="Business name *" error={fieldErrors.name}>
+            <Field label={t("saForm.name")} error={fieldErrors.name}>
               <Input
                 type="text" required maxLength={120}
                 value={name}
                 onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
-                placeholder="e.g. Austin Money Center"
+                placeholder={t("saForm.namePlaceholder")}
                 disabled={busy}
               />
             </Field>
 
             <Field
-              label="URL slug *"
+              label={t("saForm.slug")}
               error={fieldErrors.slug}
-              hint="Lowercase, dashes for spaces. Used in store-scoped URLs."
+              hint={t("saForm.slugHint")}
             >
               <Input
                 type="text" required maxLength={60}
                 value={slug}
                 onChange={(e) => { setSlug(e.target.value); clearFieldError("slug"); }}
-                placeholder="e.g. austin-money-center"
+                placeholder={t("saForm.slugPlaceholder")}
                 disabled={busy}
               />
             </Field>
 
-            <Field label="Email" error={fieldErrors.email}>
+            <Field label={t("common.email")} error={fieldErrors.email}>
               <Input
                 type="email" maxLength={120}
                 value={email}
@@ -337,9 +342,9 @@ export default function SuperadminStoreForm() {
             </Field>
 
             <Field
-              label="Phone"
+              label={t("common.phone")}
               error={fieldErrors.phone}
-              hint="US numbers are 10 digits; pick another country for international."
+              hint={t("saForm.phoneHint")}
             >
               <PhoneField
                 value={phone}
@@ -349,45 +354,45 @@ export default function SuperadminStoreForm() {
               />
             </Field>
 
-            <Field label="Address" error={fieldErrors.address} style={SPAN_2}>
+            <Field label={t("store.address")} error={fieldErrors.address} style={SPAN_2}>
               <Input
                 type="text" maxLength={255}
                 value={address}
                 onChange={(e) => { setAddress(e.target.value); clearFieldError("address"); }}
-                placeholder="Full address"
+                placeholder={t("saForm.addressPlaceholder")}
                 disabled={busy}
               />
             </Field>
 
-            <Field label="Business type" error={fieldErrors.business_type}>
+            <Field label={t("saForm.bizType")} error={fieldErrors.business_type}>
               <Select
                 value={bizType}
                 onChange={(e) => { setBizType(e.target.value); clearFieldError("business_type"); }}
                 disabled={busy}
               >
                 {BUSINESS_TYPE_OPTIONS.map((b) => (
-                  <option key={b.value} value={b.value}>{b.label}</option>
+                  <option key={b.value} value={b.value}>{t(b.label)}</option>
                 ))}
               </Select>
             </Field>
 
-            <Field label="Plan" error={fieldErrors.plan}>
+            <Field label={t("saStores.colPlan")} error={fieldErrors.plan}>
               <Select
                 value={plan}
                 onChange={(e) => { setPlan(e.target.value); clearFieldError("plan"); }}
                 disabled={busy}
               >
                 {PLAN_OPTIONS.map((p) => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
+                  <option key={p} value={p}>{planLabel(p)}</option>
                 ))}
               </Select>
             </Field>
 
             {isEdit && (
               <Field
-                label="Federal tax rate"
+                label={t("saForm.taxRate")}
                 error={fieldErrors.federal_tax_rate}
-                hint="Decimal, 0.01 = 1%. Applied to every transfer at save time."
+                hint={t("saForm.taxHint")}
               >
                 <Input
                   type="number" step="0.0001" min="0" max="1"
@@ -404,9 +409,9 @@ export default function SuperadminStoreForm() {
 
           {!isEdit && (
             <>
-              <div className={styles.sectionTitle}>Admin login for this store</div>
+              <div className={styles.sectionTitle}>{t("saForm.adminLogin")}</div>
               <div className={styles.formGrid}>
-                <Field label="Admin full name" error={fieldErrors.admin_name}>
+                <Field label={t("saForm.adminName")} error={fieldErrors.admin_name}>
                   <Input
                     type="text" maxLength={120}
                     value={adminName}
@@ -414,12 +419,12 @@ export default function SuperadminStoreForm() {
                       setAdminName(e.target.value);
                       clearFieldError("admin_name");
                     }}
-                    placeholder="Store owner name"
+                    placeholder={t("saForm.adminNamePlaceholder")}
                     disabled={busy}
                   />
                 </Field>
 
-                <Field label="Admin username *" error={fieldErrors.admin_username}>
+                <Field label={t("saForm.adminUsername")} error={fieldErrors.admin_username}>
                   <Input
                     type="text" required maxLength={80}
                     value={adminUsername}
@@ -432,23 +437,21 @@ export default function SuperadminStoreForm() {
                 </Field>
 
                 <Field
-                  label="Initial user role"
-                  hint={initialRole === "owner"
-                    ? "Owner: this login can switch stores, connect more locations, and manage users — use for concierge onboarding."
-                    : "Admin: a store-scoped login (the legacy default)."}
+                  label={t("saForm.initialRole")}
+                  hint={initialRole === "owner" ? t("saForm.ownerHint") : t("saForm.adminHint")}
                 >
                   <Select
                     value={initialRole}
                     onChange={(e) => setInitialRole(e.target.value)}
                     disabled={busy}
                   >
-                    <option value="admin">Store admin</option>
-                    <option value="owner">Owner (recommended)</option>
+                    <option value="admin">{t("saForm.roleAdmin")}</option>
+                    <option value="owner">{t("saForm.roleOwner")}</option>
                   </Select>
                 </Field>
 
                 <Field
-                  label="Admin password *"
+                  label={t("saForm.password")}
                   error={fieldErrors.admin_password}
                   style={SPAN_2}
                 >
@@ -459,7 +462,7 @@ export default function SuperadminStoreForm() {
                       setAdminPassword(e.target.value);
                       clearFieldError("admin_password");
                     }}
-                    placeholder="Set a strong password"
+                    placeholder={t("saForm.passwordPlaceholder")}
                     autoComplete="new-password"
                     disabled={busy}
                   />
@@ -470,7 +473,7 @@ export default function SuperadminStoreForm() {
 
           <FormActions guard={guard}>
             <Button type="button" tone="secondary" onClick={leaveToStores}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="submit"
@@ -478,8 +481,8 @@ export default function SuperadminStoreForm() {
               disabled={busy || !name || !slug || (!isEdit && !adminPassword)}
             >
               {busy
-                ? (isEdit ? "Saving…" : "Creating…")
-                : (isEdit ? "Save changes" : "Create store")}
+                ? (isEdit ? t("common.saving") : t("saForm.creating"))
+                : (isEdit ? t("common.saveChanges") : t("saForm.create"))}
             </Button>
           </FormActions>
         </form>

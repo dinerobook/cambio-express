@@ -9,6 +9,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 import type { AnnouncementRow } from "../api/announcements";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Platform banners (and optional email blast to every opted-in
 // user). Pinned: superadmin only; the create body (trimmed message,
@@ -214,5 +216,27 @@ describe("SuperadminAnnouncements", () => {
     await waitFor(() => expect(createAnnouncement).toHaveBeenCalled());
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
     expect(screen.getByLabelText("Message")).toHaveValue("Rates updated");
+  });
+
+  it("reads in Spanish: the form, store picker and history", async () => {
+    state.data!.rows.push(ann(3, "Odd level", { level: "critical" }));
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Anuncios" })).toBeInTheDocument();
+    expect(within(rowOf("Maintenance Friday")).getByText("visible")).toBeInTheDocument();
+    expect(within(rowOf("Maintenance Friday")).getByText("información")).toBeInTheDocument();
+    expect(within(rowOf("Maintenance Friday")).getByText("Todas las tiendas")).toBeInTheDocument();
+    const old = rowOf("Old notice");
+    expect(within(old).getByText("desactivado")).toBeInTheDocument();
+    expect(within(old).getByText("1 tienda")).toBeInTheDocument();
+    expect(within(old).getByText("pendiente")).toBeInTheDocument();
+    // A level the SPA doesn't list shows as sent.
+    expect(within(rowOf("Odd level")).getByText("critical")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Tiendas específicas" }));
+    expect(screen.getByRole("checkbox", { name: /South Prueba/ })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saAnn."])).toEqual([]);
+    await userEvent.type(screen.getByLabelText("Mensaje"), "Hola");
+    await userEvent.click(screen.getByRole("button", { name: "Publicar aviso" }));
+    expect(await screen.findByText("Elija al menos una tienda o cambie a Todas las tiendas.")).toBeInTheDocument();
   });
 });

@@ -8,6 +8,8 @@ import SuperadminFeatureFlags from "./SuperadminFeatureFlags";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import type { FeatureFlagRow, StoreOverrideRow } from "../api/featureFlags";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Feature flags gate whole features per store (CLAUDE.md invariant
 // #6). Pinned: the toggle flips the GLOBAL default to its opposite,
@@ -171,5 +173,29 @@ describe("SuperadminFeatureFlags", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Leave" }));
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument());
+  });
+
+  it("reads in Spanish: the table, overrides, the delete popup and the form", async () => {
+    overrides = [{
+      store_id: 4, store_slug: "north", store_name: "North", flag_key: "bank_sync",
+      enabled: true, updated_at: "2026-01-02T00:00:00",
+    }];
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Funciones" })).toBeInTheDocument();
+    expect(within(rowOf("bank_sync")).getByText("SÍ")).toBeInTheDocument();
+    expect(within(rowOf("addon_tv")).getByText("NO")).toBeInTheDocument();
+    await userEvent.click(within(rowOf("bank_sync")).getByRole("button", { name: "Desactivar" }));
+    expect(await screen.findByText("bank_sync → desactivada")).toBeInTheDocument();
+    await userEvent.click(within(rowOf("bank_sync")).getByRole("button", { name: "Ajustes por tienda" }));
+    expect(screen.getByPlaceholderText("ID de la tienda")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saFlags."])).toEqual([]);
+    await userEvent.click(within(rowOf("addon_tv")).getByRole("button", { name: "Eliminar" }));
+    const dialog = await screen.findByRole("dialog", { name: "¿Eliminar esta función?" });
+    expect(englishLeftovers(dialog, ["saFlags."])).toEqual([]);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await userEvent.click(screen.getByRole("button", { name: "+ Nueva función" }));
+    expect(screen.getByRole("button", { name: "Crear función" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saFlags."])).toEqual([]);
   });
 });

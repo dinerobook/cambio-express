@@ -10,6 +10,7 @@ import { api, apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { getCurrentIdentity } from "../lib/auth";
 import { formatDate } from "../lib/datetime";
+import { planLabel } from "../api/billing";
 import {
   Alert, Button, Card, ConfirmDialog, EmptyState,
   ErrorState, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pill,
@@ -19,6 +20,11 @@ import styles from "./SuperadminBilling.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
 import type { components } from "../api/openapi";
+import { tn, tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+// The purge job's name, as an operator greps for it.
+const PURGE_JOB = "purge_expired_stores";
 
 type BillingData = components["schemas"]["SuperadminBillingOverviewResponse"];
 
@@ -32,6 +38,7 @@ function useBillingOverview() {
 }
 
 export default function SuperadminBilling() {
+  const t = useT();
   const { data, isLoading, isError, error, refetch } = useBillingOverview();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
@@ -51,7 +58,7 @@ export default function SuperadminBilling() {
       setDryRun(res);
     } catch (err) {
       setDryRunError(
-        apiErrorMessage(err, "Dry-run failed."),
+        apiErrorMessage(err, t("saBill.dryRunFailed")),
       );
     } finally {
       setDryRunBusy(false);
@@ -64,7 +71,7 @@ export default function SuperadminBilling() {
     try {
       await clearStoreRetention(clearTarget.storeId);
       toast({
-        message: `Retention timer cleared for ${clearTarget.name}.`,
+        message: t("saBill.cleared", { name: clearTarget.name }),
         tone: "success",
       });
       setClearTarget(null);
@@ -73,7 +80,7 @@ export default function SuperadminBilling() {
       // change.
       if (dryRun) await runDryRun();
     } catch (err) {
-      toastApiError(err, "Failed.");
+      toastApiError(err, t("saBill.failed"));
     } finally {
       setClearBusy(false);
     }
@@ -83,14 +90,14 @@ export default function SuperadminBilling() {
     <PageShell gap="1.25rem">
       <PageCrumbs />
       <PageHeader
-        title="Billing"
-        subtitle="Trial expirations, cancellations, and retention queue"
+        title={navWord("Billing")}
+        subtitle={t("saBill.subtitle")}
       />
 
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={apiErrorMessage(error, "Could not load billing data")}
+          message={apiErrorMessage(error, t("saBill.loadFailed"))}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -99,32 +106,32 @@ export default function SuperadminBilling() {
         <>
           <KpiGrid>
             <KpiCard
-              label="Expiring soon"
+              label={t("saBill.expiringSoon")}
               value={data.expiring_soon.length}
               tone={data.expiring_soon.length > 0 ? "warning" : "neutral"}
             />
             <KpiCard
-              label="In grace period"
+              label={t("saBill.inGrace")}
               value={data.in_grace.length}
               tone={data.in_grace.length > 0 ? "warning" : "neutral"}
             />
             <KpiCard
-              label="Retention queue"
+              label={t("saCtl.retention")}
               value={data.retention_queue.length}
               tone={data.retention_queue.length > 0 ? "negative" : "neutral"}
             />
             <KpiCard
-              label="Cancels (30d)"
+              label={t("saBill.cancels30")}
               value={data.recent_cancels.length}
               tone={data.recent_cancels.length > 0 ? "negative" : "positive"}
             />
           </KpiGrid>
 
           <div className={styles.grid}>
-            <Section title="Trials expiring soon">
+            <Section title={t("saBill.trialsExpiring")}>
               <Card>
                 {data.expiring_soon.length === 0 ? (
-                  <EmptyState title="No trials expiring soon." />
+                  <EmptyState title={t("saBill.noTrials")} />
                 ) : (
                   data.expiring_soon.map((s) => (
                     <div key={s.store_id} className={styles.storeRow}>
@@ -134,7 +141,7 @@ export default function SuperadminBilling() {
                       </div>
                       <div className={styles.badge}>
                         <Pill tone="warning">
-                          Ends {formatDate(s.trial_ends_at)}
+                          {t("saBill.ends", { date: formatDate(s.trial_ends_at) })}
                         </Pill>
                       </div>
                     </div>
@@ -143,10 +150,10 @@ export default function SuperadminBilling() {
               </Card>
             </Section>
 
-            <Section title="In grace period">
+            <Section title={t("saBill.inGrace")}>
               <Card>
                 {data.in_grace.length === 0 ? (
-                  <EmptyState title="No stores in grace period." />
+                  <EmptyState title={t("saBill.noGrace")} />
                 ) : (
                   data.in_grace.map((s) => (
                     <div key={s.store_id} className={styles.storeRow}>
@@ -156,7 +163,7 @@ export default function SuperadminBilling() {
                       </div>
                       <div className={styles.badge}>
                         <Pill tone="warning">
-                          Grace ends {formatDate(s.grace_ends_at)}
+                          {t("saBill.graceEnds", { date: formatDate(s.grace_ends_at) })}
                         </Pill>
                       </div>
                     </div>
@@ -167,10 +174,10 @@ export default function SuperadminBilling() {
           </div>
 
           <div className={styles.grid}>
-            <Section title="Retention queue (pending purge)">
+            <Section title={t("saBill.queueTitle")}>
               <Card>
                 {data.retention_queue.length === 0 ? (
-                  <EmptyState title="No stores pending data purge." />
+                  <EmptyState title={t("saBill.noQueue")} />
                 ) : (
                   data.retention_queue.map((s) => (
                     <div key={s.store_id} className={styles.storeRow}>
@@ -186,10 +193,10 @@ export default function SuperadminBilling() {
                             storeId: s.store_id, name: s.name,
                           })}
                         >
-                          Pause clock
+                          {t("saBill.pause")}
                         </Button>
                         <Pill tone="negative">
-                          {s.days_left} days left
+                          {s.days_left == null ? "—" : tn("saBill.daysLeft", s.days_left, fmtNumber)}
                         </Pill>
                       </div>
                     </div>
@@ -198,16 +205,16 @@ export default function SuperadminBilling() {
               </Card>
             </Section>
 
-            <Section title="Recent cancellations (30d)">
+            <Section title={t("saBill.recentCancels")}>
               <Card>
                 {data.recent_cancels.length === 0 ? (
-                  <EmptyState title="No cancellations in the last 30 days." />
+                  <EmptyState title={t("saBill.noCancels")} />
                 ) : (
                   data.recent_cancels.map((s) => (
                     <div key={s.store_id} className={styles.storeRow}>
                       <div>
                         <div className={styles.storeName}>{s.name}</div>
-                        <div className={styles.storeMeta}>{s.slug} · {s.plan}</div>
+                        <div className={styles.storeMeta}>{s.slug} · {planLabel(s.plan)}</div>
                       </div>
                       <span className={styles.monoMuted}>
                         {formatDate(s.canceled_at)}
@@ -220,7 +227,7 @@ export default function SuperadminBilling() {
           </div>
 
           {Object.keys(data.webhook_stats).length > 0 && (
-            <Section title="Stripe webhook health (7d)">
+            <Section title={t("saBill.webhooks")}>
               <Card>
                 <KpiGrid minWidth="120px">
                   {Object.entries(data.webhook_stats).map(([status, count]) => (
@@ -236,11 +243,10 @@ export default function SuperadminBilling() {
             </Section>
           )}
 
-          <Section title="Retention purge — dry run">
+          <Section title={t("saBill.dryRunTitle")}>
             <Card>
               <p className={styles.dryRunIntro}>
-                Preview what <code>purge_expired_stores</code> would delete on
-                its next run. Read-only — clicking does not commit any change.
+                {tNodes("saBill.dryRunIntro", { job: <code>{PURGE_JOB}</code> })}
               </p>
               <div className={styles.dryRunActions}>
                 <Button
@@ -248,17 +254,15 @@ export default function SuperadminBilling() {
                   onClick={() => { void runDryRun(); }}
                   disabled={dryRunBusy}
                 >
-                  {dryRunBusy ? "Running…" : (dryRun ? "Refresh preview" : "Preview impact")}
+                  {dryRunBusy
+                    ? t("saBill.running")
+                    : (dryRun ? t("saBill.refresh") : t("saBill.preview"))}
                 </Button>
                 {dryRun && (
                   <span className={styles.dryRunSummary}>
-                    <strong>{dryRun.store_count}</strong> store
-                    {dryRun.store_count === 1 ? "" : "s"} would be deleted
-                    {" ("}
-                    <strong>{fmtNumber(dryRun.total_child_rows)}</strong>
-                    {" "}
-                    child row{dryRun.total_child_rows === 1 ? "" : "s"}
-                    {")"}
+                    {tn("saBill.wouldDelete", dryRun.store_count, fmtNumber, {
+                      rows: tn("saBill.childRows", dryRun.total_child_rows, fmtNumber),
+                    })}
                   </span>
                 )}
               </div>
@@ -272,7 +276,7 @@ export default function SuperadminBilling() {
                       <div>
                         <div className={styles.storeName}>{s.name}</div>
                         <div className={styles.storeMeta}>
-                          {s.slug} · {fmtNumber(s.row_count)} rows
+                          {s.slug} · {tn("saBill.rows", s.row_count, fmtNumber)}
                           {" "}({Object.entries(s.row_counts)
                             .filter(([, n]) => n > 0)
                             .map(([k, n]) => `${k}: ${n}`)
@@ -287,7 +291,7 @@ export default function SuperadminBilling() {
                             storeId: s.store_id, name: s.name,
                           })}
                         >
-                          Pause clock
+                          {t("saBill.pause")}
                         </Button>
                       </div>
                     </div>
@@ -295,7 +299,7 @@ export default function SuperadminBilling() {
                 </div>
               )}
               {dryRun && dryRun.stores.length === 0 && (
-                <EmptyState title="Nothing would be deleted right now." />
+                <EmptyState title={t("saBill.nothing")} />
               )}
             </Card>
           </Section>
@@ -304,13 +308,9 @@ export default function SuperadminBilling() {
 
       <ConfirmDialog
         open={clearTarget != null}
-        title="Pause the retention clock?"
-        message={
-          clearTarget
-            ? `Clear the retention timer for "${clearTarget.name}"? The purge cron will leave it alone. This does NOT reactivate the Stripe subscription.`
-            : ""
-        }
-        confirmLabel="Pause clock"
+        title={t("saBill.pauseTitle")}
+        message={clearTarget ? t("saBill.pauseBody", { name: clearTarget.name }) : ""}
+        confirmLabel={t("saBill.pause")}
         confirmTone="primary"
         busy={clearBusy}
         onConfirm={() => { void doClearRetention(); }}

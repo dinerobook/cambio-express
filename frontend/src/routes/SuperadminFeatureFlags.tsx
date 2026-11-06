@@ -22,8 +22,14 @@ import {
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { formatDate } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+// A sample flag key: keys are code, the same in every language.
+const KEY_SAMPLE = "addon_my_feature";
 
 export default function SuperadminFeatureFlags() {
+  const t = useT();
   const { data, isLoading, isError, refetch } = useFeatureFlags();
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
@@ -33,11 +39,11 @@ export default function SuperadminFeatureFlags() {
     <PageShell gap="1.25rem">
       <PageCrumbs />
       <PageHeader
-        title="Feature flags"
-        subtitle="Platform-wide flags with per-store overrides"
+        title={navWord("Feature flags")}
+        subtitle={t("saFlags.subtitle")}
         actions={
           <Button onClick={() => setCreating(true)} disabled={creating}>
-            + New flag
+            {t("saFlags.new")}
           </Button>
         }
       />
@@ -55,15 +61,15 @@ export default function SuperadminFeatureFlags() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message="Could not load feature flags."
+          message={t("saFlags.loadFailed")}
           onRetry={() => { void refetch(); }}
         />
       )}
 
       {data && data.rows.length === 0 && !creating && (
         <EmptyState
-          title="No feature flags"
-          body="Create a flag to gate features per-store."
+          title={t("saFlags.emptyTitle")}
+          body={t("saFlags.emptyBody")}
         />
       )}
 
@@ -72,11 +78,11 @@ export default function SuperadminFeatureFlags() {
           <Table>
             <thead>
               <tr>
-                <th>Key</th>
-                <th>Label</th>
-                <th>Default</th>
-                <th>Created</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
+                <th>{t("saFlags.colKey")}</th>
+                <th>{t("saFlags.colLabel")}</th>
+                <th>{t("saFlags.colDefault")}</th>
+                <th>{t("saFlags.colCreated")}</th>
+                <th style={{ textAlign: "right" }}>{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -112,6 +118,7 @@ function FlagRow({
   onToggleExpand: () => void;
   onRefresh: () => void;
 }) {
+  const t = useT();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
   const [busy, setBusy] = useState(false);
@@ -122,9 +129,12 @@ function FlagRow({
     try {
       await toggleFeatureFlag(flag.key, !flag.enabled_by_default);
       onRefresh();
-      toast({ message: `${flag.key} → ${!flag.enabled_by_default ? "enabled" : "disabled"}`, tone: "success" });
+      toast({
+        message: t(flag.enabled_by_default ? "saFlags.toggledOff" : "saFlags.toggledOn", { key: flag.key }),
+        tone: "success",
+      });
     } catch (err) {
-      toastApiError(err, "Toggle failed");
+      toastApiError(err, t("saFlags.toggleFailed"));
     } finally {
       setBusy(false);
     }
@@ -135,9 +145,9 @@ function FlagRow({
     try {
       await deleteFeatureFlag(flag.key);
       onRefresh();
-      toast({ message: `${flag.key} deleted`, tone: "success" });
+      toast({ message: t("saFlags.deleted", { key: flag.key }), tone: "success" });
     } catch (err) {
-      toastApiError(err, "Delete failed");
+      toastApiError(err, t("saFlags.deleteFailed"));
     } finally {
       setBusy(false);
       setConfirmingDelete(false);
@@ -153,7 +163,7 @@ function FlagRow({
         <td>{flag.label || <span style={{ color: "var(--db-text-muted)" }}>—</span>}</td>
         <td>
           <Pill tone={flag.enabled_by_default ? "accent" : "neutral"}>
-            {flag.enabled_by_default ? "ON" : "OFF"}
+            {flag.enabled_by_default ? t("saFlags.on") : t("saFlags.off")}
           </Pill>
         </td>
         <td style={{ fontSize: "0.82rem", color: "var(--db-text-muted)" }}>
@@ -164,15 +174,15 @@ function FlagRow({
             title={flag.key}
             actions={[
               {
-                label: flag.enabled_by_default ? "Disable" : "Enable",
+                label: flag.enabled_by_default ? t("saFlags.disable") : t("saFlags.enable"),
                 onClick: handleToggle, disabled: busy,
               },
               {
-                label: expanded ? "Hide overrides" : "Overrides",
+                label: expanded ? t("saFlags.hideOverrides") : t("saFlags.overrides"),
                 onClick: onToggleExpand,
               },
               {
-                label: "Delete", tone: "danger",
+                label: t("common.delete"), tone: "danger",
                 onClick: () => setConfirmingDelete(true),
                 disabled: busy,
               },
@@ -180,9 +190,9 @@ function FlagRow({
           />
           <ConfirmDialog
             open={confirmingDelete}
-            title="Delete this feature flag?"
-            message={`Delete flag "${flag.key}"? This also removes all per-store overrides.`}
-            confirmLabel="Delete"
+            title={t("saFlags.deleteTitle")}
+            message={t("saFlags.deleteBody", { key: flag.key })}
+            confirmLabel={t("common.delete")}
             confirmTone="danger"
             busy={busy}
             onConfirm={() => { void handleDelete(); }}
@@ -202,6 +212,7 @@ function FlagRow({
 }
 
 function OverridesPanel({ flagKey }: { flagKey: string }) {
+  const t = useT();
   const { data, isLoading } = useStoreOverrides(flagKey);
   const qc = useQueryClient();
   const toast = useToast();
@@ -212,9 +223,14 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
     try {
       await setStoreOverride(flagKey, storeId, enabled);
       void qc.invalidateQueries({ queryKey: ["feature-flag-overrides", flagKey] });
-      toast({ message: `Store ${storeId} override → ${enabled ? "ON" : "OFF"}`, tone: "success" });
+      toast({
+        message: t("saFlags.overrideSet", {
+          id: storeId, state: enabled ? t("saFlags.on") : t("saFlags.off"),
+        }),
+        tone: "success",
+      });
     } catch (err) {
-      toastApiError(err, "Failed");
+      toastApiError(err, t("saFlags.failed"));
     }
   }
 
@@ -222,9 +238,9 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
     try {
       await clearStoreOverride(flagKey, storeId);
       void qc.invalidateQueries({ queryKey: ["feature-flag-overrides", flagKey] });
-      toast({ message: `Override cleared for store ${storeId}`, tone: "success" });
+      toast({ message: t("saFlags.overrideCleared", { id: storeId }), tone: "success" });
     } catch (err) {
-      toastApiError(err, "Failed");
+      toastApiError(err, t("saFlags.failed"));
     }
   }
 
@@ -238,12 +254,12 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
   return (
     <div style={{ padding: "1rem 1.5rem", background: "var(--db-surface-2)" }}>
       <div style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: "0.5rem" }}>
-        Per-store overrides for <code>{flagKey}</code>
+        {tNodes("saFlags.overridesFor", { key: <code>{flagKey}</code> })}
       </div>
       {isLoading && <Loading />}
       {data && data.rows.length === 0 && (
         <div style={{ fontSize: "0.82rem", color: "var(--db-text-muted)", marginBottom: "0.5rem" }}>
-          No overrides — all stores use the global default.
+          {t("saFlags.noOverrides")}
         </div>
       )}
       {data && data.rows.length > 0 && (
@@ -251,9 +267,9 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
           <Table style={{ fontSize: "0.85rem" }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left" }}>Store</th>
-                <th>Override</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
+                <th style={{ textAlign: "left" }}>{t("saFlags.colStore")}</th>
+                <th>{t("saFlags.colOverride")}</th>
+                <th style={{ textAlign: "right" }}>{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -262,7 +278,7 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
                   <td>{o.store_name} <span style={{ color: "var(--db-text-muted)" }}>({o.store_slug})</span></td>
                   <td>
                     <Pill tone={o.enabled ? "accent" : "neutral"}>
-                      {o.enabled ? "ON" : "OFF"}
+                      {o.enabled ? t("saFlags.on") : t("saFlags.off")}
                     </Pill>
                   </td>
                   <td style={{ textAlign: "right" }}>
@@ -270,11 +286,11 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
                       title={`${o.store_name} (${o.store_slug})`}
                       actions={[
                         {
-                          label: "Flip",
+                          label: t("saFlags.flip"),
                           onClick: () => handleSet(o.store_id, !o.enabled),
                         },
                         {
-                          label: "Clear", tone: "danger",
+                          label: t("saFlags.clear"), tone: "danger",
                           onClick: () => handleClear(o.store_id),
                         },
                       ]}
@@ -291,12 +307,12 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
           style={{ width: "8rem" }}
           type="number"
           min={1}
-          placeholder="Store ID"
+          placeholder={t("saFlags.storeId")}
           value={addStoreId}
           onChange={(e) => setAddStoreId(e.target.value)}
         />
         <Button size="sm" onClick={() => { void handleAdd(); }}>
-          Add override
+          {t("saFlags.addOverride")}
         </Button>
       </div>
     </div>
@@ -310,6 +326,7 @@ function CreateFlagForm({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const toast = useToast();
   const [key, setKey] = useState("");
   const [label, setLabel] = useState("");
@@ -319,7 +336,7 @@ function CreateFlagForm({
   const [error, setError] = useState<string | null>(null);
   const { dirty } = useDirtyBaseline({ key, label, description, enabled });
   const guard = useUnsavedGuard(dirty && !busy, {
-    message: "You have a flag you haven't created. Leave without creating?",
+    message: t("saFlags.unsaved"),
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -334,10 +351,10 @@ function CreateFlagForm({
         description: description.trim() || undefined,
         enabled_by_default: enabled,
       });
-      toast({ message: `Flag "${key}" created`, tone: "success" });
+      toast({ message: t("saFlags.created", { key }), tone: "success" });
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not create flag."));
+      setError(apiErrorMessage(err, t("saFlags.createFailed")));
     } finally {
       setBusy(false);
     }
@@ -346,34 +363,34 @@ function CreateFlagForm({
   return (
     <Card>
       <form onSubmit={(e) => { void handleSubmit(e); }} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <div style={{ fontWeight: 600 }}>New feature flag</div>
+        <div style={{ fontWeight: 600 }}>{t("saFlags.formTitle")}</div>
         {error && <Alert tone="error">{error}</Alert>}
-        <Field label="Key" hint="Lowercase + underscores only (e.g. addon_tv_display)">
+        <Field label={t("saFlags.colKey")} hint={t("saFlags.keyHint")}>
           <Input
             value={key}
             onChange={(e) => setKey(e.target.value)}
             pattern="^[a-z0-9_]+$"
             required
-            placeholder="addon_my_feature"
+            placeholder={KEY_SAMPLE}
           />
         </Field>
-        <Field label="Label">
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="My feature" />
+        <Field label={t("saFlags.colLabel")}>
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("saFlags.labelPlaceholder")} />
         </Field>
-        <Field label="Description">
+        <Field label={t("saFlags.description")}>
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
         </Field>
         <Checkbox checked={enabled} onChange={setEnabled}>
-          Enabled by default
+          {t("saFlags.enabledDefault")}
         </Checkbox>
         <FormActions guard={guard}>
           <Button
             tone="secondary" type="button"
             onClick={() => guard.confirmLeave(onCancel)}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
-          <Button type="submit" busy={busy}>Create flag</Button>
+          <Button type="submit" busy={busy}>{t("saFlags.create")}</Button>
         </FormActions>
       </form>
     </Card>
