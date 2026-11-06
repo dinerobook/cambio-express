@@ -13,23 +13,23 @@ export default function PeriodComparison() {
   return (
     <ReportDrilldown
       apiSlug="period-comparison"
-      title="Period comparison"
-      resultUnit={["metric", "metrics"]}
+      title="reportName.period_comparison"
+      resultUnit="rep.unit.metric"
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/period-comparison.csv`}
       kpis={[
-        { label: "Current period", tone: "primary",
+        { label: "rep.currentPeriod", tone: "primary",
           value: t => (t.current_label as string) || "—" },
-        { label: "Prior period",   tone: "muted",
+        { label: "rep.priorPeriod",   tone: "muted",
           value: t => (t.prior_label as string) || "—" },
       ]}
       columns={[
-        { label: "Metric",     field: "label" },
-        { label: "Current",    field: r => fmtCell(r), align: "right", mono: true },
-        { label: "Prior",      field: r => fmtCell(r, "prior"), align: "right", mono: true },
-        { label: "Change",          field: r => fmtCell(r, "delta"),
+        { label: "rep.metric",     field: "label" },
+        { label: "rep.current",    field: r => fmtCell(r), align: "right", mono: true },
+        { label: "rep.prior",      field: r => fmtCell(r, "prior"), align: "right", mono: true },
+        { label: "rep.change",          field: r => fmtCell(r, "delta"),
           align: "right", mono: true },
-        { label: "% Change",   field: r => `${(Number(r.pct ?? 0) * 100).toFixed(1)}%`,
+        { label: "rep.pctChange",   field: r => `${(Number(r.pct ?? 0) * 100).toFixed(1)}%`,
           align: "right", mono: true },
       ]}
     />

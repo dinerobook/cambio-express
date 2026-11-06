@@ -235,8 +235,10 @@ follow a language switch. A sentence with bold or a link inside uses
 `tNodes()`, never glued pieces. Roles, permission areas and shift
 statuses have label helpers too (`roleLabel()`, `resourceLabel()`,
 `timeClockStatusLabel()`, `auditActionLabel()`, `auditTargetLabel()`,
-`booksStatusLabel()`, `postOffsetLabel()`);
-call them during render, never in a
+`booksStatusLabel()`, `postOffsetLabel()`, `monthlyLineName()`). A
+report page hands `ReportDrilldown` keys, not words (`title`,
+`resultUnit`, each KPI and column `label`), and it says them. Call
+the helpers during render, never in a
 module-level constant. Full rules and the glossary: UI-STANDARDS §10.
 
 ## OpenAPI → TypeScript types

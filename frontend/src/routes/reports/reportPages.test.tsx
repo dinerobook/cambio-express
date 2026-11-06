@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockFetch, type MockHandler } from "../../test/fetchMock";
 import { renderRoute, signInAs } from "../../test/renderRoute";
+import { setLanguage } from "../../i18n";
+import { englishLeftovers } from "../../test/i18n";
 
 // Every drill-down report page under routes/reports/ is a thin
 // config over components/ReportDrilldown. One table-driven test
@@ -67,6 +69,24 @@ describe("report drill-down pages", () => {
       expect(url.searchParams.get("from")).toBe("2026-10-01");
       expect(url.searchParams.get("to")).toBe("2026-10-13");
       expect(url.searchParams.get("store_ids")).toBe("1");
+    });
+
+    it("reads in Spanish: title, KPIs, columns, count and buttons", async () => {
+      reports({ body: { rows: [ROW], totals: TOTALS } });
+      setLanguage("es");
+      renderRoute(<Page />, { path: "/reports/x" });
+      await screen.findByRole("table");
+      expect(screen.getByRole("button", { name: "Exportar CSV" })).toBeInTheDocument();
+      expect(screen.getByText("Desde")).toBeInTheDocument();
+      expect(englishLeftovers(document.body, ["rep.", "reportName."])).toEqual([]);
+    });
+
+    it("says an empty period and a failed load in Spanish", async () => {
+      reports({ status: 500, body: { detail: "Servidor caído." } });
+      setLanguage("es");
+      renderRoute(<Page />, { path: "/reports/x" });
+      expect(await screen.findByText("No se pudo cargar el reporte: Servidor caído."))
+        .toBeInTheDocument();
     });
 
     it("shows the empty state for a period with no rows", async () => {

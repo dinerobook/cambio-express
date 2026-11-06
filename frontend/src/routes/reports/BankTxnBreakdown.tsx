@@ -9,25 +9,25 @@ export default function BankTxnBreakdown() {
   return (
     <ReportDrilldown
       apiSlug="bank-transactions-breakdown"
-      title="Bank transactions breakdown"
-      resultUnit={["category", "categories"]}
+      title="reportName.bank_txn_breakdown"
+      resultUnit="rep.unit.category"
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/bank-transactions-breakdown.csv`}
       kpis={[
-        { label: "Inflows",          tone: "primary",
+        { label: "rep.inflows",          tone: "primary",
           value: t => fmtMoney2(Number(t.inflow ?? 0)) },
-        { label: "Outflows",         tone: "neon",
+        { label: "rep.outflows",         tone: "neon",
           value: t => fmtMoney2(Number(t.outflow ?? 0)) },
-        { label: "Net",              tone: "muted",
+        { label: "rep.net",              tone: "muted",
           value: t => fmtMoney2(Number(t.amount ?? 0)) },
-        { label: "Transaction count", tone: "muted",
+        { label: "rep.transactionCount", tone: "muted",
           value: t => fmtNumber(Number(t.count ?? 0)) },
       ]}
       columns={[
-        { label: "Category", field: "label" },
-        { label: "Count",    field: r => fmtNumber(Number(r.count)), align: "right", mono: true },
-        { label: "Signed",   field: r => fmtMoney2(Number(r.signed)),       align: "right", mono: true },
-        { label: "Amount",   field: r => fmtMoney2(Number(r.amount)),       align: "right", mono: true },
+        { label: "rep.category", field: "label" },
+        { label: "rep.count",    field: r => fmtNumber(Number(r.count)), align: "right", mono: true },
+        { label: "rep.signed",   field: r => fmtMoney2(Number(r.signed)),       align: "right", mono: true },
+        { label: "rep.amount",   field: r => fmtMoney2(Number(r.amount)),       align: "right", mono: true },
       ]}
     />
   );

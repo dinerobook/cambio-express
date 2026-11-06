@@ -2,7 +2,8 @@ import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import {
-  MONTHLY_LINES, MONTHLY_SOURCE_LABELS, monthlyLineSource,
+  MONTHLY_LINES, MONTHLY_SECTION_LABELS, MONTHLY_SOURCE_LABELS,
+  monthlyLineName, monthlyLineSource,
   useLoggedMonths, useMonthly, type MonthlyLine, type MonthlyRow,
 } from "../api/monthly";
 import { Delta } from "../components/Delta";
@@ -16,10 +17,10 @@ import {
   type PillTone,
 } from "../components/ui";
 import styles from "./Monthly.module.css";
-import {
-  MONTH_NAMES_SHORT, shiftMonth, storeNow,
-} from "../lib/datetime";
+import { monthName, shiftMonth, storeNow } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Monthly P&L at /app/monthly?year=Y&month=M.
 //
@@ -64,7 +65,14 @@ const SOURCE_TONES: Record<ReturnType<typeof monthlyLineSource>, PillTone> = {
   daily: "info", bank: "info", returns: "info", typed: "neutral",
 };
 
+/** "Nov 2026" / "nov 2026": the short month name in the person's
+ *  language, then the year. */
+function shortMonthYear(year: number, month: number): string {
+  return `${monthName(month, "short")} ${year}`;
+}
+
 export default function Monthly() {
+  useT(); // re-render on a language switch
   const identity = getCurrentIdentity();
   const [sp, setSP] = useSearchParams();
   const months = useLoggedMonths();
@@ -105,21 +113,21 @@ export default function Monthly() {
   if (identity?.store_id == null) {
     return (
       <PageShell gap="1rem">
-        <PageHeader title="Monthly P&L" />
-        <Empty>Sign in as a store admin to view monthly P&amp;L.</Empty>
+        <PageHeader title={navWord("Monthly P&L")} />
+        <Empty>{t("pl.signInView")}</Empty>
       </PageShell>
     );
   }
 
-  const monthLabel = year && month ? `${MONTH_NAMES_SHORT[month - 1]} ${year}` : "—";
+  const monthLabel = year && month ? shortMonthYear(year, month) : "—";
 
   return (
     <PageShell gap="1rem">
 
-      <PageCrumbs under="/reports" current="Monthly P&L" />
+      <PageCrumbs under="/reports" current={navWord("Monthly P&L")} />
 
       <PageHeader
-        title="Monthly P&L"
+        title={navWord("Monthly P&L")}
         subtitle={<span className={styles.mono}>{monthLabel}</span>}
         actions={(
           <div className={styles.actions}>
@@ -130,7 +138,7 @@ export default function Monthly() {
                 onNext={() => goTo(shiftMonth(year, month, 1))}
               >
                 <Select
-                  aria-label="Month"
+                  aria-label={t("pl.month")}
                   value={`${year}-${month}`}
                   onChange={(e) => {
                     const [y, m] = e.target.value.split("-").map(Number);
@@ -143,14 +151,14 @@ export default function Monthly() {
                       key={`${m.year}-${m.month}`}
                       value={`${m.year}-${m.month}`}
                     >
-                      {MONTH_NAMES_SHORT[m.month - 1]} {m.year}
+                      {shortMonthYear(m.year, m.month)}
                     </option>
                   ))}
                 </Select>
               </PeriodStepper>
             )}
             <ButtonLink to="/monthly/categories" tone="secondary" size="sm">
-              Categories
+              {t("pl.categoriesButton")}
             </ButtonLink>
             {year && month && (
               <ButtonLink
@@ -158,7 +166,7 @@ export default function Monthly() {
                 tone="primary"
                 size="sm"
               >
-                Edit
+                {t("common.edit")}
               </ButtonLink>
             )}
           </div>
@@ -168,7 +176,7 @@ export default function Monthly() {
       {detail.isLoading && <Loading />}
       {detail.isError && (
         <ErrorState
-          message={apiErrorMessage(detail.error, "Could not load monthly report")}
+          message={apiErrorMessage(detail.error, t("pl.loadFailed"))}
           onRetry={() => { void detail.refetch(); }}
         />
       )}
@@ -176,11 +184,11 @@ export default function Monthly() {
         && year && month && (
         <Card>
           <EmptyState
-            title={`Nothing recorded for ${monthLabel} yet.`}
-            body="Enter a day in the daily book and this month's P&L fills in by itself."
+            title={t("pl.nothingYet", { month: monthLabel })}
+            body={t("pl.nothingYetBody")}
             cta={(
               <ButtonLink to="/daily" tone="secondary" size="sm">
-                Open the daily book
+                {t("pl.openDaily")}
               </ButtonLink>
             )}
           />
@@ -191,7 +199,7 @@ export default function Monthly() {
           r={detail.data.report}
           labels={detail.data.labels}
           previous={previous.data?.report ?? null}
-          previousLabel={prev ? MONTH_NAMES_SHORT[prev.month - 1] : ""}
+          previousLabel={prev ? monthName(prev.month, "short") : ""}
         />
       )}
     </PageShell>
@@ -212,71 +220,70 @@ function ReportContent({
     : null;
   const vsPrev = (now: number, before: number | undefined) =>
     previous && before !== undefined
-      ? <Delta value={now - before} money suffix={` vs ${previousLabel}`} />
+      ? <Delta value={now - before} money suffix={t("pl.vsPrevious", { month: previousLabel })} />
       : undefined;
 
   return (
     <>
       <p className={styles.status}>
-        <Pill tone="accent" dot>Live</Pill>
+        <Pill tone="accent" dot>{t("pl.live")}</Pill>
         <span>
           {r.days_entered > 0
-            ? `Built from ${fmtNumber(r.days_entered)} day${r.days_entered === 1 ? "" : "s"} entered in the daily books. It updates as you enter more.`
-            : "No daily book days this month. Showing what was saved."}
-          {!r.saved && r.days_entered > 0
-            && " Rent, payroll tax and other lines the daily book can't know are added under Edit."}
+            ? tn("pl.builtFrom", r.days_entered, fmtNumber)
+            : t("pl.noDays")}
+          {!r.saved && r.days_entered > 0 && t("pl.addUnderEdit")}
         </span>
       </p>
 
       <KpiGrid minWidth="12rem">
         <KpiCard
-          label="Total income"
+          label={t("pl.totalIncome")}
           value={fmtMoney2(r.total_income)}
           tone="positive"
           sub={vsPrev(r.total_income, previous?.total_income)}
         />
         <KpiCard
-          label="Total expenses"
+          label={t("pl.totalExpenses")}
           value={fmtMoney2(r.total_expenses)}
           sub={vsPrev(r.total_expenses, previous?.total_expenses)}
         />
         <KpiCard
-          label="Net profit"
+          label={t("pl.netProfit")}
           value={fmtMoney2(r.net_profit)}
           tone={r.net_profit >= 0 ? "positive" : "negative"}
           colorValue
           sub={(
             <span className={styles.subStack}>
-              {margin != null && <span>{margin}% of income</span>}
+              {margin != null && <span>{t("pl.ofIncome", { pct: margin })}</span>}
               {vsPrev(r.net_profit, previous?.net_profit)}
             </span>
           )}
         />
         {r.cash_carry_forward !== 0 && (
           <KpiCard
-            label="Cash carry forward"
+            label={t("pl.line.cash_carry_forward")}
             value={fmtMoney2(r.cash_carry_forward)}
           />
         )}
       </KpiGrid>
 
       <div className={styles.statements}>
-        <Section title="Income">
+        <Section title={t(MONTHLY_SECTION_LABELS.Income)}>
           <Statement
             r={r} labels={labels} lines={INCOME_LINES}
-            total={r.total_income} totalLabel="Total income"
+            total={r.total_income} totalLabel="pl.totalIncome"
           />
         </Section>
-        <Section title="Expenses">
+        <Section title={t(MONTHLY_SECTION_LABELS.Expenses)}>
           <Statement
             r={r} labels={labels} lines={EXPENSE_LINES}
-            total={r.total_expenses} totalLabel="Total expenses"
+            total={r.total_expenses} totalLabel="pl.totalExpenses"
           />
         </Section>
       </div>
 
       {r.notes && (
-        <Section title="Notes">
+        <Section title={t("pl.notes")}>
           <Card>
             <p className={styles.notes}>{r.notes}</p>
           </Card>
@@ -297,21 +304,22 @@ function Statement({
   labels: Record<string, string>;
   lines: MonthlyLine[];
   total: number;
-  totalLabel: string;
+  totalLabel: MessageKey;
 }) {
+  const t = useT();
   const shown = lines.filter((l) => Number(r[l.key]) !== 0);
   const hidden = lines.length - shown.length;
   return (
     <Card>
       {shown.length === 0 ? (
-        <Empty>Nothing yet this month.</Empty>
+        <Empty>{t("pl.nothingThisMonth")}</Empty>
       ) : (
         <Table>
           <thead>
             <tr>
-              <th style={thStyle}>Line</th>
-              <th style={thStyle}>From</th>
-              <th style={thStyleRight}>Amount</th>
+              <th style={thStyle}>{t("pl.colLine")}</th>
+              <th style={thStyle}>{t("pl.colFrom")}</th>
+              <th style={thStyleRight}>{t("pl.colAmount")}</th>
             </tr>
           </thead>
           <tbody>
@@ -321,18 +329,19 @@ function Statement({
                 <tr key={l.key}>
                   <td style={tdStyle}>
                     <span className={styles.lineName}>
-                      {labels[l.key] || l.label}
+                      {monthlyLineName(l.key, labels[l.key])}
                     </span>
                     {l.key === "money_order_fees" && r.money_order_charges > 0 && (
                       <span className={styles.lineNote}>
-                        After {fmtMoney2(r.money_order_charges)} company charges
-                        on {fmtNumber(r.money_order_count)} money orders
+                        {tn("pl.moCharges", r.money_order_count, fmtNumber, {
+                          amount: fmtMoney2(r.money_order_charges),
+                        })}
                       </span>
                     )}
                   </td>
                   <td style={tdStyle}>
                     <Pill tone={SOURCE_TONES[source]}>
-                      {MONTHLY_SOURCE_LABELS[source]}
+                      {t(MONTHLY_SOURCE_LABELS[source])}
                     </Pill>
                   </td>
                   <td style={tdStyleRight} className={styles.amount}>
@@ -345,7 +354,7 @@ function Statement({
           <tfoot>
             <tr>
               <td style={tdStyle} className={styles.totalCell} colSpan={2}>
-                {totalLabel}
+                {t(totalLabel)}
               </td>
               <td style={tdStyleRight} className={`${styles.amount} ${styles.totalCell}`}>
                 {fmtMoney2(total)}
@@ -356,7 +365,7 @@ function Statement({
       )}
       {hidden > 0 && (
         <p className={styles.footnote}>
-          {hidden} line{hidden === 1 ? "" : "s"} at $0 not shown.
+          {tn("pl.hiddenLines", hidden, fmtNumber)}
         </p>
       )}
     </Card>

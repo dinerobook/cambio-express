@@ -10,6 +10,8 @@ import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // P&L categories: the store names its own lines. Pinned here:
 //   - Each line shows the store's current name (or empty = default).
@@ -177,5 +179,36 @@ describe("MonthlyCategories", () => {
     expect(await screen.findByText(
       "You have unsaved P&L line names. Leave without saving?",
     )).toBeInTheDocument();
+  });
+});
+
+describe("MonthlyCategories in Spanish", () => {
+  beforeEach(() => {
+    updateMonthlyLabels.mockReset();
+    updateMonthlyLabels.mockResolvedValue(data);
+    useMonthlyLabels.mockReset();
+    useMonthlyLabels.mockReturnValue({
+      data, isLoading: false, isFetching: false, isError: false, refetch: vi.fn(),
+    });
+  });
+
+  it("names the shipped lines in Spanish and leaves the store's own as typed", async () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Categorías del P&L" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre para Boost Mobile")).toHaveValue("Top-ups");
+    expect(screen.getByLabelText("Nombre para No gravables")).toHaveValue("");
+    expect(screen.getByLabelText("Nombre para Otro gasto 1"))
+      .toHaveAttribute("placeholder", "Otro gasto 1");
+    expect(screen.getAllByText("Espacio libre")).toHaveLength(2);
+    expect(screen.getByText(/La caja registradora llena esta línea/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "reglas bancarias" }))
+      .toHaveAttribute("href", "/bank/rules");
+    expect(englishLeftovers(document.body, ["cat.", "pl."])).toEqual([]);
+
+    await userEvent.type(screen.getByLabelText("Nombre para Otro gasto 1"), "Cargo");
+    expect(screen.getByText("En uso")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Guardar nombres" }));
+    await waitFor(() => expect(updateMonthlyLabels).toHaveBeenCalledWith({ other_expense_1: "Cargo" }));
   });
 });

@@ -14,16 +14,25 @@ import styles from "./ReportDrilldown.module.css";
 import { formatDate, monthStartIso, todayIso } from "../lib/datetime";
 import { PageCrumbs } from "./PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
+import {
+  t, tn, useT, type MessageKey, type MessageVars, type PluralBase,
+} from "../i18n";
+
+// Every word a report page hands in is a key (`rep.*`,
+// `reportName.*`): this component says it in the person's language.
+// Row values are the server's and show as sent.
 
 export interface KpiSpec {
-  label: string;
+  label: MessageKey;
+  /** Placeholders in the label ("Above {amount}"). */
+  labelVars?: MessageVars;
   tone?: "primary" | "neon" | "muted" | "warning" | "negative";
   // Extracted from totals.
   value: (totals: AggregatedTotals) => React.ReactNode;
 }
 
 export interface ColumnSpec {
-  label: string;
+  label: MessageKey;
   // Field name on the row OR a render function.
   field: keyof AggregatedRow | ((r: AggregatedRow) => React.ReactNode);
   align?: "left" | "right";
@@ -33,10 +42,10 @@ export interface ColumnSpec {
 interface ReportDrilldownProps {
   // API path slug ("sales-by-company", "cashier-productivity", …).
   apiSlug: string;
-  // Page title.
-  title: string;
-  // "company" / "companies", "row" / "rows" — used in the result count.
-  resultUnit: [string, string];
+  // Page title (the report's name in the registry, `reportName.*`).
+  title: MessageKey;
+  // The result count's noun ("3 companies"), a `.one` / `.other` pair.
+  resultUnit: PluralBase;
   // KPI strip across the top.
   kpis: KpiSpec[];
   // Column config for the row table.
@@ -56,6 +65,7 @@ export function ReportDrilldown({
   apiSlug, title, resultUnit, kpis, columns, csvUrl, backTo,
   extraParams,
 }: ReportDrilldownProps) {
+  useT(); // re-render on a language switch
   const [params, setParams] = useSearchParams();
   const [from, setFrom] = useState(() => params.get("from") || monthStartIso());
   const [to, setTo] = useState(() => params.get("to") || todayIso());
@@ -74,7 +84,6 @@ export function ReportDrilldown({
   });
 
   const rowCount = data?.rows.length ?? 0;
-  const unit = rowCount === 1 ? resultUnit[0] : resultUnit[1];
 
   // Append the period (+ store_ids + any extraParams) to the CSV
   // URL so the download matches the visible filter. The FastAPI
@@ -87,10 +96,10 @@ export function ReportDrilldown({
 
   return (
     <PageShell gap="1.25rem">
-      <PageCrumbs under={backTo} current={title} />
+      <PageCrumbs under={backTo} current={t(title)} />
       <div>
         <PageHeader
-          title={title}
+          title={t(title)}
           actions={(
             <div className={styles.actionRow}>
               <form
@@ -101,7 +110,7 @@ export function ReportDrilldown({
                 }}
               >
                 <label className={styles.inputLabel}>
-                  <span>From</span>
+                  <span>{t("rep.from")}</span>
                   <DateInput
                     value={from}
                     onChange={(e) => setFrom(e.target.value)}
@@ -109,7 +118,7 @@ export function ReportDrilldown({
                   />
                 </label>
                 <label className={styles.inputLabel}>
-                  <span>To</span>
+                  <span>{t("rep.to")}</span>
                   <DateInput
                     value={to}
                     onChange={(e) => setTo(e.target.value)}
@@ -123,13 +132,13 @@ export function ReportDrilldown({
                   void downloadCsv(csvHref, csvFilename(csvUrl, from, to));
                 }}
               >
-                Export CSV
+                {t("rep.exportCsv")}
               </Button>
               <Button
                 tone="secondary" size="sm"
                 onClick={() => window.print()}
               >
-                Print / PDF
+                {t("rep.print")}
               </Button>
             </div>
           )}
@@ -138,7 +147,7 @@ export function ReportDrilldown({
 
       {storeIds.length === 0 && (
         <p className={styles.muted}>
-          Sign in to a store to see this report.
+          {t("rep.signIn")}
         </p>
       )}
 
@@ -147,7 +156,7 @@ export function ReportDrilldown({
           {kpis.map((k) => (
             <KpiCard
               key={k.label}
-              label={k.label}
+              label={t(k.label, k.labelVars)}
               value={k.value(data.totals)}
               tone={k.tone ?? "neutral"}
             />
@@ -161,7 +170,7 @@ export function ReportDrilldown({
         </span>
         {data && (
           <span className={styles.muted}>
-            {fmtNumber(rowCount)} {unit}
+            {tn(resultUnit, rowCount, fmtNumber)}
           </span>
         )}
       </div>
@@ -169,13 +178,15 @@ export function ReportDrilldown({
       {isLoading && <TableSkeleton rows={5} cols={columns.length || 4} />}
       {isError && (
         <ErrorState
-          message={`Couldn't load report — ${apiErrorMessage(error, "unknown error")}`}
+          message={t("rep.loadFailed", {
+            error: apiErrorMessage(error, t("rep.unknownError")),
+          })}
           onRetry={() => { void refetch(); }}
         />
       )}
 
       {data && data.rows.length === 0 && (
-        <EmptyState title="No data in this period." />
+        <EmptyState title={t("rep.noData")} />
       )}
 
       {data && data.rows.length > 0 && (
@@ -191,7 +202,7 @@ export function ReportDrilldown({
                     textAlign: c.align ?? (c.mono ? "right" : "left"),
                   }}
                 >
-                  {c.label}
+                  {t(c.label)}
                 </th>
               ))}
             </tr>

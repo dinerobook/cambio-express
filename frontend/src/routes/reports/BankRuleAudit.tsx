@@ -9,24 +9,24 @@ export default function BankRuleAudit() {
   return (
     <ReportDrilldown
       apiSlug="bank-rule-audit"
-      title="Bank rule audit log"
-      resultUnit={["rule", "rules"]}
+      title="reportName.bank_rule_audit"
+      resultUnit="rep.unit.rule"
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/bank-rule-audit.csv`}
       kpis={[
-        { label: "Active rules",  tone: "primary",
+        { label: "rep.activeRules",  tone: "primary",
           value: t => fmtNumber(Number(t.rules ?? 0)) },
-        { label: "Auto-tagged",   tone: "neon",
+        { label: "rep.autoTagged",   tone: "neon",
           value: t => fmtNumber(Number(t.count ?? 0)) },
-        { label: "Total amount",  tone: "muted",
+        { label: "rep.totalAmount",  tone: "muted",
           value: t => fmtMoney2(Number(t.amount ?? 0)) },
       ]}
       columns={[
-        { label: "Rule",   field: "label" },
-        { label: "Target", field: "target" },
-        { label: "Match",  field: "match",                                  mono: true },
-        { label: "Count",  field: r => fmtNumber(Number(r.count)),    align: "right", mono: true },
-        { label: "Amount", field: r => fmtMoney2(Number(r.amount)),          align: "right", mono: true },
+        { label: "rep.rule",   field: "label" },
+        { label: "rep.target", field: "target" },
+        { label: "rep.match",  field: "match",                                  mono: true },
+        { label: "rep.count",  field: r => fmtNumber(Number(r.count)),    align: "right", mono: true },
+        { label: "rep.amount", field: r => fmtMoney2(Number(r.amount)),          align: "right", mono: true },
       ]}
     />
   );

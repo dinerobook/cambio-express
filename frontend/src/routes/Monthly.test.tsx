@@ -7,6 +7,8 @@ import Monthly from "./Monthly";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Monthly P&L at /monthly?year=Y&month=M.
 //   - The URL month decides which report is requested; with none,
@@ -253,5 +255,56 @@ describe("Monthly P&L", () => {
     expect(screen.queryByRole("link", { name: "Edit" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Categories" })).not.toBeInTheDocument();
     // No daily book access either: the empty state's link would hide too.
+  });
+});
+
+describe("Monthly P&L in Spanish", () => {
+  beforeEach(() => {
+    useMonthly.mockReset();
+    useLoggedMonths.mockReset();
+    useLoggedMonths.mockReturnValue(ok({ months: [{ year: 2020, month: 3 }] }));
+  });
+
+  it("reads in Spanish, lines and sources included", () => {
+    useMonthly.mockReturnValue(ok({
+      report: { ...report, saved: false },
+      // The server sends the shipped English name for a line the store
+      // never renamed: it is shown in Spanish, not as sent.
+      labels: { taxable_sales: "Taxable sales" },
+    }));
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "P&L mensual" })).toBeInTheDocument();
+    expect(kpi("Total de ingresos")).toHaveTextContent("$1,055.50");
+    expect(kpi("Ganancia neta")).toHaveTextContent("de los ingresos");
+    expect(kpi("Efectivo que pasa al siguiente mes")).toHaveTextContent("$200.00");
+    expect(within(lineRow("Ventas gravables")).getByText("Libro diario")).toBeInTheDocument();
+    expect(within(lineRow("Boost Mobile")).getByText("Escrito a mano")).toBeInTheDocument();
+    expect(screen.getByText(/Hecho con 12 días registrados/)).toBeInTheDocument();
+    expect(screen.getByText(/se agregan en Editar/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ingresos" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Categorías" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["pl."])).toEqual([]);
+  });
+
+  it("keeps a name the store typed exactly as typed", () => {
+    useMonthly.mockReturnValue(ok({
+      report, labels: { other_expense_1: "Bank Fee" },
+    }));
+    setLanguage("es");
+    renderPage();
+    expect(lineRow("Bank Fee")).toHaveTextContent("$42.00");
+    expect(screen.queryByText("Otro gasto 1")).not.toBeInTheDocument();
+  });
+
+  it("says an empty month in Spanish", () => {
+    useMonthly.mockReturnValue(ok({ report: null, labels: {} }));
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByText(/Todavía no hay nada registrado en mar 2020/i))
+      .toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Abrir el libro diario" }))
+      .toHaveAttribute("href", "/daily");
+    expect(screen.getByRole("combobox", { name: "Mes" })).toBeInTheDocument();
   });
 });

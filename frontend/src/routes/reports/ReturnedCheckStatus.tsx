@@ -9,25 +9,25 @@ export default function ReturnedCheckStatus() {
   return (
     <ReportDrilldown
       apiSlug="returned-check-status"
-      title="Returned check status"
-      resultUnit={["status", "statuses"]}
+      title="reportName.returned_checks_status"
+      resultUnit="rep.unit.status"
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/returned-check-status.csv`}
       kpis={[
-        { label: "Total bounces", tone: "primary",
+        { label: "rep.totalBounces", tone: "primary",
           value: t => fmtNumber(Number(t.count ?? 0)) },
-        { label: "Total amount",  tone: "neon",
+        { label: "rep.totalAmount",  tone: "neon",
           value: t => fmtMoney2(Number(t.amount ?? 0)) },
-        { label: "Recovered",     tone: "muted",
+        { label: "rep.recovered",     tone: "muted",
           value: t => fmtMoney2(Number(t.recovered ?? 0)) },
-        { label: "Net gain/loss",       tone: "muted",
+        { label: "rep.netGainLoss",       tone: "muted",
           value: t => fmtMoney2(Number(t.net_gl ?? 0)) },
       ]}
       columns={[
-        { label: "Status",    field: "status" },
-        { label: "Count",     field: r => fmtNumber(Number(r.count)),     align: "right", mono: true },
-        { label: "Amount",    field: r => fmtMoney2(Number(r.amount)),           align: "right", mono: true },
-        { label: "Recovered", field: r => fmtMoney2(Number(r.recovered)),        align: "right", mono: true },
+        { label: "rep.status",    field: "status" },
+        { label: "rep.count",     field: r => fmtNumber(Number(r.count)),     align: "right", mono: true },
+        { label: "rep.amount",    field: r => fmtMoney2(Number(r.amount)),           align: "right", mono: true },
+        { label: "rep.recovered", field: r => fmtMoney2(Number(r.recovered)),        align: "right", mono: true },
       ]}
     />
   );

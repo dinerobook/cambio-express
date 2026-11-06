@@ -128,7 +128,7 @@ REPORT_CATEGORIES: list[dict[str, Any]] = [
         "reports": [
             {"key": "high_value_transfers",
              "label": "High-value transfers",
-             "description": "Transfers above a configurable threshold (default $3,000).",
+             "description": "Transfers above a configurable threshold (default $1,000).",
              "endpoint": "report_high_value_transfers"},
             {"key": "employee_activity",
              "label": "Employee activity",

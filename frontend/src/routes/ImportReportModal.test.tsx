@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImportReportModal } from "./ImportReportModal";
 import type { IntermexCommit, IntermexReport } from "../api/reportImport";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The Intermex daily-close import (switched off on the daily book until
 // it gets its own integration, but kept working): upload → review the
@@ -117,5 +119,33 @@ describe("ImportReportModal", () => {
     expect(await screen.findByText("Day is locked")).toBeInTheDocument();
     expect(onCommitted).not.toHaveBeenCalled();
     expect(screen.getByText("MX-1001")).toBeInTheDocument();
+  });
+});
+
+describe("ImportReportModal in Spanish", () => {
+  it("reviews and commits in Spanish", async () => {
+    parseIntermexReport.mockResolvedValue(report({ report_date: "2026-10-19" }));
+    commitIntermexReport.mockResolvedValue({
+      ...COMMIT, giros_committed: 2, matches_logged: false,
+    });
+    setLanguage("es");
+    renderModal();
+    expect(screen.getByText("Importar reporte de Intermex")).toBeInTheDocument();
+    expect(screen.getByText(/Lo leemos al momento/)).toBeInTheDocument();
+    expect(screen.getByLabelText("PDF del reporte de Intermex")).toBeInTheDocument();
+    upload();
+    expect(await screen.findByText("MX-1001")).toBeInTheDocument();
+    expect(screen.getByText("Todos los envíos cuadran")).toBeInTheDocument();
+    expect(screen.getByText(/pero usted está editando/)).toBeInTheDocument();
+    expect(screen.getByText("Envíos de dinero · 1")).toBeInTheDocument();
+    expect(screen.getByText(/0 giros postales · 0 pagos de facturas/)).toBeInTheDocument();
+    expect(screen.getByText("Bien")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["intermex."])).toEqual([]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar en envíos de dinero" }));
+    expect(await screen.findByText(/Se confirmaron 2 envíos a/)).toBeInTheDocument();
+    expect(screen.getByText(/Atención: tiene \$200.00 registrado/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Listo" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["intermex."])).toEqual([]);
   });
 });

@@ -9,24 +9,24 @@ export default function FeesVsTax() {
   return (
     <ReportDrilldown
       apiSlug="fees-vs-tax"
-      title="Fees vs. federal tax"
-      resultUnit={["line", "lines"]}
+      title="reportName.fees_vs_tax"
+      resultUnit="rep.unit.line"
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/fees-vs-tax.csv`}
       kpis={[
-        { label: "Total fees",     tone: "neon",
+        { label: "rep.totalFees",     tone: "neon",
           value: t => fmtMoney2(Number(t.fees ?? 0)) },
-        { label: "Federal tax",    tone: "muted",
+        { label: "rep.federalTax",    tone: "muted",
           value: t => fmtMoney2(Number(t.tax ?? 0)) },
-        { label: "Tax / fee ratio", tone: "muted",
+        { label: "rep.taxFeeRatio", tone: "muted",
           value: t => `${(Number(t.ratio ?? 0) * 100).toFixed(1)}%` },
-        { label: "Transfer count", tone: "muted",
+        { label: "rep.transferCount", tone: "muted",
           value: t => fmtNumber(Number(t.count ?? 0)) },
       ]}
       columns={[
-        { label: "Line",   field: "label" },
-        { label: "Amount", field: r => fmtMoney2(Number(r.amount)), align: "right", mono: true },
-        { label: "Note",   field: r => (r.note as string) || "" },
+        { label: "rep.line",   field: "label" },
+        { label: "rep.amount", field: r => fmtMoney2(Number(r.amount)), align: "right", mono: true },
+        { label: "rep.note",   field: r => (r.note as string) || "" },
       ]}
     />
   );
