@@ -390,29 +390,57 @@ together.
 forward_balance(today) = prior.outside_cash_drops + prior.safe_balance
 ```
 
-where `prior` is the most recent report with `report_date <` today
-(`find_prior_report` — "previous *logged* day", so a store closed
-Sunday carries Saturday's close into Monday; a bare GET never
-creates a row, so gaps are skipped, not zero-filled).
+where `prior` is the most recent earlier day whose cash was **counted**
+(`find_kept_prior` / `is_kept_day`: a safe balance, cash deposit or
+drop on it). "Previous *counted* day", not "yesterday" and not "the
+previous row": a store closed Sunday carries Saturday's close into
+Monday whether or not a Sunday row exists. A row with none of those
+figures is a day nobody closed — made only because something landed
+on that date (a return-check payment dated Sunday, a bank-feed entry,
+a lone entry, an empty closed day that was locked). Its zero safe
+means "never counted", so the carry passes **through** it; it used to
+read $0 from it and open the next day at $0 (review 2026-11-06). A
+counted day with an empty safe (everything deposited) still carries a
+real $0.
 
 Rules:
 
-- **First logged day** (no prior report): `forward_balance_auto` is
+- **First day** (no counted day before it): `forward_balance_auto` is
   `False`. The operator seeds the opening balance by hand and the
-  field is editable. This is the ONLY day it's editable.
+  field is editable. If no day was ever counted, the latest earlier
+  row holding a typed opening balance stands in as the prior (a first
+  day seeded before anything was counted).
 - **Every later day**: `forward_balance_auto` is `True`. The editor
   renders the field read-only; `update_daily_report` **ignores any
   client-sent `forward_balance` and forces the carried value**, so a
   stale or tampered form can't clobber it (same posture as the auto
   sales-tax field).
-- `summarize_report` overrides the stored column with the fresh
-  carry value on read and adjusts `total_receipts` / `net` by the
-  delta — so editing yesterday's drops/safe is reflected on today
-  even before today is re-saved. `carry_forward_from(prior)` is the
-  single source of the formula (Services/reports.py).
-- **`summarize_period` does NOT override** — the range report uses
-  the stored column (`forward_balance_auto` defaults `False` there).
-  Fine because the value was forced-correct at each day's save.
+- **Back-filling before the first day.** Saving a counted day earlier
+  than the store's first day makes it the new first day; the old first
+  day's typed opening balance is then **pinned** (an override, see
+  below) so the carry does not silently replace it. An uncounted
+  earlier day pins nothing — the old first day stays the first day.
+- **The stored columns are kept current** (`refresh_carry`). Every
+  writer that changes a day — the daily PUT, a line-item add / edit /
+  delete (cashier, Return Checks, bank feed: all through
+  `recompute_line_items_total`), the Services box (`replace_mt_breakdown`)
+  — re-stores that day's `forward_balance` + `over_short` AND those of
+  the days after it up to and including the next counted day (the
+  only days whose carry can move: the carry reads drops + safe, never
+  a forward balance). So the calendar (`summarize_period`), the
+  Monthly P&L's over/short line, the daily email and the owner
+  dashboards, which read the stored columns, agree with the day's own
+  page. A day first made by a line item stores the carry, not $0.
+- **A locked day is frozen** (owner, 2026-11-06: a locked day was
+  reconciled). `refresh_carry` skips it, and `summarize_report` /
+  `summarize_period` show its STORED opening cash even when an earlier
+  day is corrected later; `forward_balance_carry` still reports what
+  the chain would carry now. To take the correction: unlock, save.
+  `lock_report` stores the day's carry + over/short as it locks, so it
+  freezes the numbers on screen.
+- An unlocked day's read (`summarize_report`, and `summarize_period`
+  walking the range forward) uses the fresh carry, so it is right even
+  for a row stored before `refresh_carry` existed.
 - **`forward_balance` does NOT feed the Monthly P&L.** Monthly's
   `Services/daily_feed.py` sums purchases, expenses, payroll, sales
   and fee lines (see Monthly/INVARIANTS.md "Daily feed") — never `forward_balance`,

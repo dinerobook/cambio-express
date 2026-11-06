@@ -20,8 +20,9 @@ from sqlalchemy.orm import Session
 from api.Core.Money import to_cents, to_dollars
 from api.Modules.DailyBook.Models import DailyReport
 from api.Modules.DailyBook.Repositories import (
-    find_prior_report,
     find_report_by_date,
+    iter_reports_after,
+    iter_reports_before,
     list_reports_in_period,
 )
 from api.Core.Clock import utc_now
@@ -123,6 +124,77 @@ def carry_forward_from(prior: DailyReport) -> float:
     return float((prior.outside_cash_drops or 0) + (prior.safe_balance or 0))
 
 
+def is_kept_day(r: DailyReport) -> bool:
+    """True when someone counted the cash at this day's close: a safe
+    balance, a cash deposit or a drop is on it. The carry reads exactly
+    those figures (drops + safe), so only such a day can hand the next
+    one its opening cash.
+
+    Any other row is a day nobody closed — made only because something
+    landed on that date (a return-check payment dated Sunday, a
+    bank-feed entry, a lone entry, an empty closed day that was
+    locked). Its zero safe means "never counted", not "the safe is
+    empty", so the carry passes through it instead of reading $0 from
+    it (INVARIANTS.md "Forward-balance carry")."""
+    return any(int(getattr(r, col) or 0) != 0 for col in _KEPT_CENTS_COLUMNS)
+
+
+def find_kept_prior(
+    db: Session, store_id: int, before_date: date,
+) -> DailyReport | None:
+    """The day ``before_date`` carries its opening cash from: the
+    most recent earlier day whose cash was counted (``is_kept_day``). A store
+    closed Sunday carries Saturday's close into Monday whether or not
+    a row exists for Sunday.
+
+    When no earlier day was counted, the latest earlier row holding an
+    opening balance stands in — a store's first day the operator
+    seeded before counting anything. ``None`` means ``before_date`` is
+    the store's first day: its opening cash is typed by hand."""
+    seeded: DailyReport | None = None
+    for r in iter_reports_before(db, store_id, before_date):
+        if is_kept_day(r):
+            return r
+        if seeded is None and int(r.forward_balance_cents or 0) != 0:
+            seeded = r
+    return seeded
+
+
+def _apply_carry(db: Session, report: DailyReport) -> None:
+    """Store the day's opening cash (pinned, carried, or the first
+    day's typed seed) and the over/short that follows from it, so
+    every reader of the stored columns — the calendar, the Monthly
+    P&L's over/short line, the daily email, owner dashboards — sees
+    what the day's own page shows."""
+    if report.forward_balance_override_cents is not None:
+        # setattr: SQLAlchemy 1.x Column typing (see line_items.py).
+        setattr(report, "forward_balance_cents",
+                int(report.forward_balance_override_cents))
+    else:
+        prior = find_kept_prior(db, int(report.store_id), report.report_date)
+        if prior is not None:
+            report.forward_balance = carry_forward_from(prior)
+    report.over_short = report.computed_over_short
+
+
+def refresh_carry(db: Session, store_id: int, report_date: date) -> None:
+    """Call after anything on ``report_date`` changes. Re-stores that
+    day's opening cash + over/short, then those of the days after it
+    up to and including the next kept day — the only days whose carry
+    can move (the carry reads drops + safe, never a forward balance,
+    so it stops there). A LOCKED day is frozen: it was reconciled, so
+    it keeps its numbers (owner's rule, 2026-11-06). Caller commits."""
+    report = find_report_by_date(db, store_id, report_date)
+    if report is not None and report.locked_at is None:
+        _apply_carry(db, report)
+    for later in iter_reports_after(db, store_id, report_date):
+        if later.locked_at is None:
+            _apply_carry(db, later)
+        if is_kept_day(later):
+            break
+    db.flush()
+
+
 def _summarize(
     r: DailyReport, *, forward_auto: float | None = None,
 ) -> DailyReportSummary:
@@ -142,8 +214,13 @@ def _summarize(
     carry = None if forward_auto is None else float(forward_auto)
     if overridden:
         forward = to_dollars(int(override_cents))
+    elif carry is None or r.locked_at is not None:
+        # The first day keeps its typed seed; a locked day keeps the
+        # opening cash it was reconciled with, even when an earlier
+        # day is corrected later (the carry is still reported).
+        forward = stored_forward
     else:
-        forward = stored_forward if carry is None else carry
+        forward = carry
     forward_delta = forward - stored_forward
     base_receipts = float(r.total_receipts or 0)
     total_receipts = base_receipts + forward_delta
@@ -233,7 +310,9 @@ def _carry_only_summary(
         cash_purchases=0.0, cash_expense=0.0, check_purchases=0.0,
         check_expense=0.0, outside_cash_drops=0.0, checks_deposit=0.0,
         other_cash_out=0.0, checks_held=0.0, held_checks_deposited=0.0,
-        over_short=0.0,
+        # Nothing paid out or kept yet against the carried-in cash —
+        # the same figure the day stores once its first entry lands.
+        over_short=0.0 - forward,
         locked=False, notes="", locked_at="",
         total_receipts=forward, total_disbursements=0.0, net=forward,
     )
@@ -254,7 +333,7 @@ def summarize_report(
     the genuine first day, where the operator seeds the opening
     balance by hand (``forward_balance_auto=False`` once saved)."""
     r = find_report_by_date(db, store_id, report_date)
-    prior = find_prior_report(db, store_id, report_date)
+    prior = find_kept_prior(db, store_id, report_date)
     if r is None:
         if prior is None:
             return None
@@ -272,7 +351,24 @@ def summarize_period(
     """Date-range summary. Same row order as
     `list_reports_in_period`: report_date asc + id tie-break."""
     rows = list_reports_in_period(db, store_ids, d_from, d_to)
-    summaries = [_summarize(r) for r in rows]
+    # Same opening cash as each day's own page: carried from the kept
+    # day before it (walked forward through the range, one look-up
+    # per store for the day before the range).
+    kept_before: dict[int, DailyReport | None] = {}
+    summaries = []
+    for r in rows:
+        sid = int(r.store_id)
+        if sid not in kept_before:
+            kept_before[sid] = find_kept_prior(db, sid, d_from)
+        prior = kept_before[sid]
+        summaries.append(_summarize(
+            r,
+            forward_auto=None if prior is None else carry_forward_from(prior),
+        ))
+        if is_kept_day(r) or (
+            prior is None and int(r.forward_balance_cents or 0) != 0
+        ):
+            kept_before[sid] = r
     total_receipts = sum(s.total_receipts for s in summaries)
     total_disbursements = sum(s.total_disbursements for s in summaries)
     return PeriodSummary(
@@ -320,6 +416,12 @@ EDITABLE_REPORT_FIELDS: tuple[str, ...] = (
     "cash_deposit", "safe_balance",
 )
 
+# What makes a day "kept" (``is_kept_day``): the cash counted at its
+# close — what stayed in the safe, went to the bank, or was dropped.
+_KEPT_CENTS_COLUMNS: tuple[str, ...] = (
+    "safe_balance_cents", "cash_deposit_cents", "outside_cash_drops_cents",
+)
+
 
 class DailyReportLockedError(Exception):
     """Raised when a write touches a locked DailyReport. The
@@ -364,7 +466,12 @@ def update_daily_report(
     # opening cash, or `None` to release it back to the carry. Only
     # the very first logged day (no prior report) still honours a
     # plain operator-entered seed.
-    prior = find_prior_report(db, store_id, report_date)
+    prior = find_kept_prior(db, store_id, report_date)
+    # Saving a day BEFORE the store's first day makes it the new first
+    # day. The old first day's opening cash was typed by hand, not
+    # carried — pin it so the carry doesn't silently replace it
+    # (INVARIANTS.md "Forward-balance carry").
+    old_first = _first_day_after(db, store_id, report_date)
     for field in EDITABLE_REPORT_FIELDS:
         if field == "forward_balance" and prior is not None:
             continue
@@ -376,26 +483,36 @@ def update_daily_report(
         report.forward_balance_override_cents = (
             None if raw is None else to_cents(raw)
         )
-
-    if report.forward_balance_override_cents is not None:
-        # Pinned. The stored column carries the operator's number so
-        # every downstream reader (owner dashboards, tax export, the
-        # daily-summary email) sees the same opening balance the
-        # editor shows, without needing to know about overrides.
-        report.forward_balance_cents = int(
-            report.forward_balance_override_cents,
-        )
-    elif prior is not None:
-        report.forward_balance = carry_forward_from(prior)
     report.notes = notes or ""
-    # Over/Short is derived, not typed — recompute it from the freshly
-    # written fields so the stored column (read by the owner dashboards,
-    # tax export, and daily-summary email) is always the correct
-    # reconciliation.
-    report.over_short = report.computed_over_short
+    if old_first is not None and is_kept_day(report):
+        old_first.forward_balance_override_cents = int(
+            old_first.forward_balance_cents or 0,
+        )
+    # Store the opening cash (pinned → the operator's number, so every
+    # downstream reader sees what the editor shows; otherwise the
+    # carry, or the first day's typed seed) and the derived Over/Short
+    # — for this day and the days after it whose carry just moved.
+    refresh_carry(db, store_id, report_date)
     report.updated_at = utc_now()
     db.flush()
     return report
+
+
+def _first_day_after(
+    db: Session, store_id: int, report_date: date,
+) -> DailyReport | None:
+    """The store's first day when it comes after ``report_date``: the
+    next row after it that holds a typed opening balance, has no
+    kept day before it and is not pinned. ``None`` otherwise."""
+    for later in iter_reports_after(db, store_id, report_date):
+        if is_kept_day(later) or int(later.forward_balance_cents or 0) != 0:
+            if (
+                later.forward_balance_override_cents is None
+                and find_kept_prior(db, store_id, later.report_date) is None
+            ):
+                return later
+            return None
+    return None
 
 
 def lock_report(
@@ -409,6 +526,8 @@ def lock_report(
     so the user can lock an empty day on purpose."""
     report = ensure_daily_report(db, store_id, report_date)
     if report.locked_at is None:
+        # Freeze the numbers as they stand right now.
+        _apply_carry(db, report)
         now = utc_now()
         report.locked_at = now
         report.locked_by = locked_by_user_id

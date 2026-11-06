@@ -52,6 +52,7 @@ from sqlalchemy.orm import Session
 from api.Modules.DailyBook.Services.reports import (
     DailyReportLockedError,
     ensure_daily_report,
+    refresh_carry,
 )
 from api.Modules.DailyBook.Services.transfers_summary import (
     summarize_transfers_for_day,
@@ -409,8 +410,9 @@ def replace_mt_breakdown(
     if rows or services is not None:
         report.money_transfer = float(grand_total)
         # money_transfer feeds total_receipts, so the derived
-        # over_short reconciliation has to be refreshed with it.
-        report.over_short = report.computed_over_short
+        # over_short reconciliation has to be refreshed with it (and
+        # the stored opening cash, for a day this call created).
         report.updated_at = utc_now()
+        refresh_carry(db, store_id, report_date)
     db.flush()
     return float(grand_total)

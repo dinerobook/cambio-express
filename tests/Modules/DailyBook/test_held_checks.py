@@ -59,6 +59,19 @@ def _hold(client, sid, headers, amount=4000.0, d=FRI, **extra):
     return resp.get_json()
 
 
+def _opened(client, sid, headers):
+    """A counted day before the hold, so the days after it carry an
+    opening balance. Without one, a day after a hold-only Friday is
+    the store's first day (nothing was ever counted): its book reads
+    404 until the opening cash is typed (INVARIANTS.md
+    "Forward-balance carry")."""
+    resp = client.put(
+        f"/api/v2/daily/{sid}/{(FRI - timedelta(days=1)).isoformat()}",
+        json={"safe_balance": 1000.0}, headers=headers,
+    )
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+
+
 def _deposit(client, sid, headers, hold_id, amount, d=THU):
     return _add(client, sid, headers, d, kind="held_check_deposit",
                 amount=amount, settles_item_id=hold_id)
@@ -156,6 +169,7 @@ def test_deposit_by_before_the_hold_is_refused(client, test_store_id, admin):
 
 
 def test_partial_then_full_deposit_moves_no_cash(client, test_store_id, admin):
+    _opened(client, test_store_id, admin)
     hold = _hold(client, test_store_id, admin)
     before = _day(client, test_store_id, admin, WED)
 
@@ -191,6 +205,7 @@ def test_deposit_without_a_hold_is_refused(client, test_store_id, admin):
 
 
 def test_deposit_over_what_is_held_is_refused(client, test_store_id, admin):
+    _opened(client, test_store_id, admin)
     hold = _hold(client, test_store_id, admin, amount=100.0)
     assert _deposit(client, test_store_id, admin, hold["id"], 100.01).status_code == 422
     assert _day(client, test_store_id, admin, THU)["held_checks_deposited"] == 0.0

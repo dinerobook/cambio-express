@@ -14,7 +14,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.Modules.DailyBook.Models import DailyLineItem
-from api.Modules.DailyBook.Services.reports import ensure_daily_report
+from api.Modules.DailyBook.Services.reports import (
+    ensure_daily_report, refresh_carry,
+)
 from api.Core.Clock import utc_now
 from api.Core.Money import to_cents
 
@@ -285,10 +287,10 @@ def recompute_line_items_total(
     setattr(report, daily_report_field, float(total))
     # Over/Short is a derived reconciliation over these line-item totals
     # (drops, deposits, purchases, expenses…), so it has to be refreshed
-    # here too — not just on the report PUT. Keeps the stored column
-    # correct after a line-item add/edit/delete. (setattr to dodge the
-    # SQLAlchemy 1.x Column[float] typing trap, matching above.)
-    setattr(report, "over_short", report.computed_over_short)
+    # here too — not just on the report PUT — and so does the stored
+    # opening cash: a day first made by a line item must not keep a $0
+    # forward balance, and a drop moves the next day's carry.
+    # (setattr to dodge the SQLAlchemy 1.x Column[float] typing trap.)
     setattr(report, "updated_at", utc_now())
-    db.flush()
+    refresh_carry(db, store_id, report_date)
     return float(total)
