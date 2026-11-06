@@ -2,8 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  claimTicket, releaseTicket, TICKET_STATUS_TONES, updateTicket,
-  useAllTickets, type TicketRow,
+  claimTicket, releaseTicket, TICKET_CATEGORIES, TICKET_STATUSES, TICKET_STATUS_TONES,
+  ticketCategoryLabel, ticketStatusLabel, updateTicket, useAllTickets, type TicketRow,
 } from "../api/support";
 import { useSuperadminStores } from "../api/superadmin";
 import { getCurrentIdentity } from "../lib/auth";
@@ -18,23 +18,9 @@ import {
 import styles from "./SuperadminTickets.module.css";
 import { formatDateTime } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtCount } from "../lib/formatters";
-
-const CATEGORIES = [
-  { value: "", label: "All categories" },
-  { value: "bug", label: "Bug" },
-  { value: "feature", label: "Feature" },
-  { value: "question", label: "Question" },
-  { value: "feedback", label: "Feedback" },
-];
-
-const STATUSES = [
-  { value: "", label: "All statuses" },
-  { value: "open", label: "Open" },
-  { value: "in_progress", label: "In progress" },
-  { value: "resolved", label: "Resolved" },
-  { value: "closed", label: "Closed" },
-];
+import { fmtNumber } from "../lib/formatters";
+import { tn, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 
 const PRIORITY_TONES: Record<string, "negative" | "warning" | "info" | "neutral"> = {
@@ -49,6 +35,7 @@ const PRIORITY_TONES: Record<string, "negative" | "warning" | "info" | "neutral"
 // box is debounced 300 ms with the 2-char minimum every table search
 // in the SPA uses (CLAUDE.md "Table search UX").
 export default function SuperadminTickets() {
+  const t = useT();
   const filters = useUrlFilterState(
     { q: "", status: "", category: "", store_id: "" },
     { pageSizeKey: "superadmin-tickets" },
@@ -67,45 +54,50 @@ export default function SuperadminTickets() {
     <PageShell>
       <PageCrumbs />
       <PageHeader
-        title="Tickets"
+        title={navWord("Tickets")}
         subtitle={
           tickets.data
-            ? `${fmtCount(tickets.data.total, "ticket")}${filters.params.store_id || filters.params.q ? " matching" : " across all stores"}`
+            ? tn(
+              filters.params.store_id || filters.params.q ? "saTix.matching" : "saTix.tickets",
+              tickets.data.total, fmtNumber,
+            )
             : "—"
         }
         actions={(
           <div className={styles.filterRow}>
             <Input
               type="search"
-              aria-label="Search tickets"
-              placeholder="Search subject, sender, store…"
+              aria-label={t("saTix.searchLabel")}
+              placeholder={t("saTix.search")}
               value={filters.draft.q ?? filters.params.q}
               onChange={(e) => filters.debounced("q", e.target.value)}
               className={styles.searchInput}
             />
             <Select
-              aria-label="Store"
+              aria-label={t("saTix.store")}
               value={filters.params.store_id}
               onChange={(e) => filters.setParam("store_id", e.target.value)}
             >
-              <option value="">All stores</option>
+              <option value="">{t("saTix.allStores")}</option>
               {(stores.data?.rows ?? []).map((s) => (
                 <option key={s.store_id} value={String(s.store_id)}>{s.name}</option>
               ))}
             </Select>
             <Select
-              aria-label="Status"
+              aria-label={t("common.status")}
               value={filters.params.status}
               onChange={(e) => filters.setParam("status", e.target.value)}
             >
-              {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              <option value="">{t("saTix.allStatuses")}</option>
+              {TICKET_STATUSES.map((s) => <option key={s.value} value={s.value}>{t(s.label)}</option>)}
             </Select>
             <Select
-              aria-label="Category"
+              aria-label={t("support.colCategory")}
               value={filters.params.category}
               onChange={(e) => filters.setParam("category", e.target.value)}
             >
-              {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              <option value="">{t("saTix.allCategories")}</option>
+              {TICKET_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{t(c.label)}</option>)}
             </Select>
           </div>
         )}
@@ -114,17 +106,17 @@ export default function SuperadminTickets() {
       {tickets.isLoading && <Loading />}
       {tickets.isError && (
         <ErrorState
-          message="Could not load tickets."
+          message={t("support.loadFailed")}
           onRetry={() => { void tickets.refetch(); }}
         />
       )}
 
       {tickets.data && tickets.data.tickets.length === 0 && (
-        <EmptyState title="No tickets match the current filters." />
+        <EmptyState title={t("saTix.empty")} />
       )}
 
-      {tickets.data && tickets.data.tickets.map((t) => (
-        <TicketCard key={t.id} ticket={t} />
+      {tickets.data && tickets.data.tickets.map((row) => (
+        <TicketCard key={row.id} ticket={row} />
       ))}
 
       {tickets.data && tickets.data.tickets.length > 0 && (
@@ -142,35 +134,36 @@ export default function SuperadminTickets() {
   );
 }
 
-function TicketCard({ ticket: t }: { ticket: TicketRow }) {
+function TicketCard({ ticket: tk }: { ticket: TicketRow }) {
+  const t = useT();
   const qc = useQueryClient();
   const toast = useToast();
   // Collapsed by default — expanding shows the conversation thread
   // (which owns replies) plus the status/priority controls.
   const [expanded, setExpanded] = useState(false);
-  const [newStatus, setNewStatus] = useState(t.status);
-  const [newPriority, setNewPriority] = useState(t.priority || "");
+  const [newStatus, setNewStatus] = useState(tk.status);
+  const [newPriority, setNewPriority] = useState(tk.priority || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const identity = getCurrentIdentity();
   const claimedByMe =
-    t.assigned_to_user_id != null &&
-    t.assigned_to_user_id === identity?.user_id;
+    tk.assigned_to_user_id != null &&
+    tk.assigned_to_user_id === identity?.user_id;
 
   async function onClaimToggle() {
     setBusy(true);
     setError(null);
     try {
       if (claimedByMe) {
-        await releaseTicket(t.id);
-        toast({ message: "Claim released.", tone: "success" });
+        await releaseTicket(tk.id);
+        toast({ message: t("saTix.released"), tone: "success" });
       } else {
-        await claimTicket(t.id);
-        toast({ message: "Ticket claimed - it's yours.", tone: "success" });
+        await claimTicket(tk.id);
+        toast({ message: t("saTix.claimed"), tone: "success" });
       }
       void qc.invalidateQueries({ queryKey: ["tickets"] });
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not update the claim."));
+      setError(apiErrorMessage(err, t("saTix.claimFailed")));
     } finally {
       setBusy(false);
     }
@@ -182,15 +175,15 @@ function TicketCard({ ticket: t }: { ticket: TicketRow }) {
     setError(null);
     try {
       const body: Record<string, string> = {};
-      if (newStatus !== t.status) body.status = newStatus;
-      if (newPriority && newPriority !== (t.priority || "")) body.priority = newPriority;
+      if (newStatus !== tk.status) body.status = newStatus;
+      if (newPriority && newPriority !== (tk.priority || "")) body.priority = newPriority;
       if (Object.keys(body).length > 0) {
-        await updateTicket(t.id, body);
+        await updateTicket(tk.id, body);
         void qc.invalidateQueries({ queryKey: ["tickets"] });
-        toast({ message: "Ticket updated.", tone: "success" });
+        toast({ message: t("saTix.updated"), tone: "success" });
       }
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not update ticket."));
+      setError(apiErrorMessage(err, t("saTix.updateFailed")));
     } finally {
       setBusy(false);
     }
@@ -202,54 +195,54 @@ function TicketCard({ ticket: t }: { ticket: TicketRow }) {
         <div className={styles.headerRow}>
           <div className={styles.headerLeft}>
             <div className={styles.titleRow}>
-              <span className={styles.subject}>{t.subject}</span>
-              {t.unread_count > 0 && (
+              <span className={styles.subject}>{tk.subject}</span>
+              {tk.unread_count > 0 && (
                 <Pill tone="negative" dot>
-                  {t.unread_count} new
+                  {tn("saTix.new", tk.unread_count, fmtNumber)}
                 </Pill>
               )}
-              <Pill tone={TICKET_STATUS_TONES[t.status] ?? "neutral"}>
-                {t.status.replace("_", " ")}
+              <Pill tone={TICKET_STATUS_TONES[tk.status] ?? "neutral"}>
+                {ticketStatusLabel(tk.status)}
               </Pill>
-              {t.priority && (
-                <Pill tone={PRIORITY_TONES[t.priority] ?? "neutral"}>
-                  {t.priority}
+              {tk.priority && (
+                <Pill tone={PRIORITY_TONES[tk.priority] ?? "neutral"}>
+                  {tk.priority}
                 </Pill>
               )}
-              {t.assigned_to_name && (
+              {tk.assigned_to_name && (
                 <Pill tone={claimedByMe ? "success" : "info"}>
-                  {claimedByMe ? "Yours" : t.assigned_to_name}
+                  {claimedByMe ? t("saTix.yours") : tk.assigned_to_name}
                 </Pill>
               )}
             </div>
             <div className={styles.meta}>
-              {t.submitted_by} ·{" "}
-              <AppLink to={`/superadmin/stores/${t.store_id}`}>
-                {t.store_name || `Store #${t.store_id}`}
+              {tk.submitted_by} ·{" "}
+              <AppLink to={`/superadmin/stores/${tk.store_id}`}>
+                {tk.store_name || t("saTix.storeNo", { id: tk.store_id })}
               </AppLink>
-              {" "}· {formatDateTime(t.created_at)}
+              {" "}· {formatDateTime(tk.created_at)}
               {" · "}
-              <span className={styles.metaCat}>{t.category}</span>
+              <span className={styles.metaCat}>{ticketCategoryLabel(tk.category)}</span>
             </div>
           </div>
           <div className={styles.headerActions}>
             {/* Claim = "I'm working this" - visible to the whole
                 platform team so nobody double-handles a ticket. */}
-            {(t.assigned_to_user_id == null || claimedByMe) && (
+            {(tk.assigned_to_user_id == null || claimedByMe) && (
               <Button
                 tone="secondary" size="sm" busy={busy} disabled={busy}
                 onClick={() => { void onClaimToggle(); }}
               >
-                {claimedByMe ? "Release" : "Claim"}
+                {claimedByMe ? t("saTix.release") : t("saTix.claim")}
               </Button>
             )}
             <Button tone="secondary" size="sm" onClick={() => setExpanded((v) => !v)}>
-              {expanded ? "Collapse" : "Open conversation"}
+              {expanded ? t("saTix.collapse") : t("saTix.openConversation")}
             </Button>
           </div>
         </div>
 
-        {!expanded && <p className={styles.body}>{t.body}</p>}
+        {!expanded && <p className={styles.body}>{tk.body}</p>}
 
         {error && <Alert tone="error">{error}</Alert>}
 
@@ -257,25 +250,24 @@ function TicketCard({ ticket: t }: { ticket: TicketRow }) {
           <>
             {/* Replies live in the thread (staff replies dual-write
                 the legacy admin_reply column server-side). */}
-            <TicketThread ticket={t} viewerKind="staff" />
+            <TicketThread ticket={tk} viewerKind="staff" />
 
             <form onSubmit={onSave} className={styles.formInner}>
               <div className={styles.formGrid}>
-                <Field label="Status">
+                <Field label={t("common.status")}>
                   <Select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In progress</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="closed">Closed</option>
+                    {TICKET_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>{t(s.label)}</option>
+                    ))}
                   </Select>
                 </Field>
-                <Field label="Priority">
+                <Field label={t("saTix.priority")}>
                   <Select value={newPriority} onChange={(e) => setNewPriority(e.target.value)}>
-                    <option value="">— None —</option>
-                    <option value="P1">P1 — Critical</option>
-                    <option value="P2">P2 — High</option>
-                    <option value="P3">P3 — Medium</option>
-                    <option value="P4">P4 — Low</option>
+                    <option value="">{t("saTix.none")}</option>
+                    <option value="P1">{t("saTix.p1")}</option>
+                    <option value="P2">{t("saTix.p2")}</option>
+                    <option value="P3">{t("saTix.p3")}</option>
+                    <option value="P4">{t("saTix.p4")}</option>
                   </Select>
                 </Field>
                 <div className={styles.formActions}>
@@ -283,11 +275,11 @@ function TicketCard({ ticket: t }: { ticket: TicketRow }) {
                     type="submit" tone="secondary" busy={busy}
                     disabled={
                       busy ||
-                      (newStatus === t.status &&
-                        (newPriority || "") === (t.priority || ""))
+                      (newStatus === tk.status &&
+                        (newPriority || "") === (tk.priority || ""))
                     }
                   >
-                    {busy ? "Saving…" : "Update status"}
+                    {busy ? t("common.saving") : t("saTix.updateStatus")}
                   </Button>
                 </div>
               </div>

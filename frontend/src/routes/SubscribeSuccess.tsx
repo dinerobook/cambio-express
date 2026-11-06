@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useStoreInfo } from "../api/account";
+import { planLabel } from "../api/billing";
 import { getCurrentIdentity } from "../lib/auth";
 import { ButtonLink } from "../components/ui";
 import styles from "./SubscribeSuccess.module.css";
@@ -55,14 +56,14 @@ export default function SubscribeSuccess() {
 
 function Activated({ plan }: { plan: string }) {
   const t = useT();
-  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+  const label = planLabel(plan);
   return (
     <>
       <div className={`${styles.badge} ${styles.badgeSuccess}`}>
         <Check />
       </div>
-      <h1 className={styles.title}>{t("subOk.onPlan", { plan: planLabel })}</h1>
-      <p className={styles.lead}>{t("subOk.activeLead", { plan: planLabel })}</p>
+      <h1 className={styles.title}>{t("subOk.onPlan", { plan: label })}</h1>
+      <p className={styles.lead}>{t("subOk.activeLead", { plan: label })}</p>
       <ButtonLink to="/dashboard" tone="primary">
         {t("subOk.toDashboard")}
       </ButtonLink>

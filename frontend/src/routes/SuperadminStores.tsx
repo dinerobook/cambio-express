@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -7,7 +7,7 @@ import {
   useSuperadminStoresPage,
   type SuperadminStoreRow,
 } from "../api/superadmin";
-import { planTone } from "../api/billing";
+import { billingCycleLabel, planLabel, planTone } from "../api/billing";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { csvDate, formatDate } from "../lib/datetime";
@@ -20,7 +20,9 @@ import {
 } from "../components/ui";
 import styles from "./SuperadminStores.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtCount } from "../lib/formatters";
+import { fmtNumber } from "../lib/formatters";
+import { t as translate, tn, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Platform-wide stores list at /app/superadmin/stores — superadmin's
 // "what's going on across all customers?" view. Search, sort and
@@ -28,6 +30,7 @@ import { fmtCount } from "../lib/formatters";
 // the stores ticked on this page.
 
 export default function SuperadminStores() {
+  const t = useT();
   const identity = getCurrentIdentity();
   const filters = useUrlFilterState({ q: "" }, {
     pageSizeKey: "superadmin-stores",
@@ -55,12 +58,13 @@ export default function SuperadminStores() {
   const selection = useStoreSelection(visibleIds);
   const selected = selection.selected.filter((id) => visibleIds.includes(id));
 
-  const columns = useMemo(() => storeColumns({
+  // Built during render so the headers follow a language switch.
+  const columns = storeColumns({
     isSelected: selection.isSelected,
     allSelected: selection.allSelected,
     onToggle: selection.toggle,
     onToggleAll: selection.toggleAll,
-  }), [selection.isSelected, selection.allSelected, selection.toggle, selection.toggleAll]);
+  });
 
   async function runBulk() {
     if (selected.length === 0 || !bulkAction) return;
@@ -69,12 +73,12 @@ export default function SuperadminStores() {
     try {
       const action = bulkAction as "extend_trial" | "enable" | "disable";
       const res = await bulkStoreAction(selected, action);
-      toast({ message: `${res.count} store${res.count === 1 ? "" : "s"} updated.`, tone: "success" });
+      toast({ message: tn("saStores.updated", res.count, fmtNumber), tone: "success" });
       selection.clear();
       setBulkAction("");
       qc.invalidateQueries({ queryKey: ["superadmin", "stores"] });
     } catch (err) {
-      setBulkError(apiErrorMessage(err, "Bulk action failed."));
+      setBulkError(apiErrorMessage(err, t("saStores.bulkFailed")));
     } finally {
       setBulkBusy(false);
     }
@@ -83,8 +87,8 @@ export default function SuperadminStores() {
   if (identity?.role !== "superadmin") {
     return (
       <PageShell>
-        <PageHeader title="Stores" />
-        <Empty>Superadmin scope required.</Empty>
+        <PageHeader title={navWord("Stores")} />
+        <Empty>{t("sa.scopeRequired")}</Empty>
       </PageShell>
     );
   }
@@ -95,16 +99,16 @@ export default function SuperadminStores() {
       <PageCrumbs />
 
       <PageHeader
-        title="Stores"
+        title={navWord("Stores")}
         subtitle={data
-          ? `${fmtCount(data.total, "store")}${q.length >= 2 ? " match" : ""}`
+          ? tn(q.length >= 2 ? "saStores.matches" : "saStores.stores", data.total, fmtNumber)
           : "—"}
         actions={(
           <Input
             type="search"
             value={filters.draft.q ?? q}
-            placeholder="Search name, slug, email…"
-            aria-label="Search stores"
+            placeholder={t("saStores.search")}
+            aria-label={t("saStores.searchLabel")}
             onChange={(e) => filters.debounced("q", e.target.value)}
             style={{ maxWidth: "22rem" }}
           />
@@ -113,12 +117,14 @@ export default function SuperadminStores() {
 
       {selected.length > 0 && (
         <div className={styles.bulkBar}>
-          <span className={styles.bulkCount}>{selected.length} selected</span>
+          <span className={styles.bulkCount}>
+            {tn("saStores.selected", selected.length, fmtNumber)}
+          </span>
           <Select value={bulkAction} onChange={(e) => setBulkAction(e.target.value)}>
-            <option value="">— Choose action —</option>
-            <option value="extend_trial">Extend trial (+14d)</option>
-            <option value="enable">Enable</option>
-            <option value="disable">Disable</option>
+            <option value="">{t("saStores.chooseAction")}</option>
+            <option value="extend_trial">{t("saStores.extendTrial")}</option>
+            <option value="enable">{t("saStores.enable")}</option>
+            <option value="disable">{t("saStores.disable")}</option>
           </Select>
           <Button
             onClick={() => { void runBulk(); }}
@@ -126,10 +132,10 @@ export default function SuperadminStores() {
             disabled={!bulkAction || bulkBusy}
             size="sm"
           >
-            Apply
+            {t("saStores.apply")}
           </Button>
           <Button tone="secondary" size="sm" onClick={selection.clear}>
-            Clear
+            {t("saStores.clear")}
           </Button>
         </div>
       )}
@@ -143,7 +149,7 @@ export default function SuperadminStores() {
           rowKey={(r) => r.store_id}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle="No stores match these filters."
+          emptyTitle={t("saStores.empty")}
           sort={filters.sort}
           page={data && {
             page: data.page ?? 1, totalPages: data.total_pages ?? 1, total: data.total,
@@ -153,7 +159,7 @@ export default function SuperadminStores() {
           exportCsv={{
             filename: "stores",
             fetchPage: (page, perPage) => fetchSuperadminStoresPage({ ...listQuery, page, perPage }),
-            extraColumns: STORE_CSV_EXTRAS,
+            extraColumns: storeCsvExtras(),
           }}
         />
       </Card>
@@ -167,25 +173,26 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
   onToggle: (id: number) => void;
   onToggleAll: () => void;
 }): DataColumn<SuperadminStoreRow>[] {
+  const t = translate;
   return [
     {
       key: "select", label: "",
       header: (
         <Checkbox
           checked={allSelected} onChange={onToggleAll}
-          aria-label="Select all stores"
+          aria-label={t("saStores.selectAll")}
         />
       ),
       render: (r) => (
         <Checkbox
           checked={isSelected(r.store_id)}
           onChange={() => onToggle(r.store_id)}
-          aria-label={`Select ${r.name}`}
+          aria-label={t("saStores.selectOne", { name: r.name })}
         />
       ),
     },
     {
-      key: "store", header: "Store", sortKey: "name",
+      key: "store", header: t("saStores.colStore"), sortKey: "name",
       csv: (r) => r.name,
       render: (r) => (
         <div>
@@ -198,25 +205,26 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
       ),
     },
     {
-      key: "plan", header: "Plan", sortKey: "plan",
+      key: "plan", header: t("saStores.colPlan"), sortKey: "plan",
       render: (r) => <PlanPill plan={r.plan} cycle={r.billing_cycle} />,
       csv: (r) => planLabel(r.plan),
     },
     {
-      key: "status", header: "Status", sortKey: "status", sortFirst: "desc",
+      key: "status", header: t("common.status"), sortKey: "status", sortFirst: "desc",
       render: (r) => (
         <Pill tone={r.is_active ? "accent" : "neutral"}>
-          {r.is_active ? "Active" : "Inactive"}
+          {r.is_active ? t("common.active") : t("common.inactive")}
         </Pill>
       ),
-      csv: (r) => (r.is_active ? "Active" : "Inactive"),
+      csv: (r) => (r.is_active ? t("common.active") : t("common.inactive")),
     },
-    { key: "trial", header: "Trial / retention", render: (r) => <TrialCell row={r} />,
+    { key: "trial", header: t("saStores.colTrial"), render: (r) => <TrialCell row={r} />,
       csv: (r) => (r.data_retention_until
-        ? `Purge ${csvDate(r.data_retention_until)}`
-        : r.plan === "trial" && r.trial_ends_at ? `Trial ends ${csvDate(r.trial_ends_at)}` : "") },
+        ? t("saStores.purge", { date: csvDate(r.data_retention_until) })
+        : r.plan === "trial" && r.trial_ends_at
+          ? t("saStores.trialEnds", { date: csvDate(r.trial_ends_at) }) : "") },
     {
-      key: "stripe", header: "Stripe",
+      key: "stripe", header: STRIPE,
       render: (r) => (r.stripe_customer_id ? (
         <span className={styles.stripeId}>
           {r.stripe_customer_id.slice(0, 14)}…
@@ -227,7 +235,7 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
       csv: (r) => r.stripe_customer_id,
     },
     {
-      key: "created", header: "Created", sortKey: "created", sortFirst: "desc",
+      key: "created", header: t("saStores.colCreated"), sortKey: "created", sortFirst: "desc",
       render: (r) => <span className={styles.monoMuted}>{formatDate(r.created_at)}</span>,
       csv: (r) => csvDate(r.created_at),
     },
@@ -235,7 +243,7 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
       key: "view", header: "", label: "", align: "right",
       render: (r) => (
         <ButtonLink to={`/superadmin/stores/${r.store_id}/drill`} tone="secondary" size="sm">
-          View
+          {t("common.view")}
         </ButtonLink>
       ),
     },
@@ -244,36 +252,39 @@ function storeColumns({ isSelected, allSelected, onToggle, onToggleAll }: {
 
 /** The file carries the store's address fields the Store cell packs
  *  under the name. */
-const STORE_CSV_EXTRAS: CsvColumn<SuperadminStoreRow>[] = [
-  { header: "Slug", csv: (r) => r.slug },
-  { header: "Email", csv: (r) => r.email },
-  { header: "Billing cycle", csv: (r) => r.billing_cycle },
-];
-
-function planLabel(plan: string): string {
-  return plan.charAt(0).toUpperCase() + plan.slice(1);
+function storeCsvExtras(): CsvColumn<SuperadminStoreRow>[] {
+  const t = translate;
+  return [
+    { header: t("saSetup.colSlug"), csv: (r) => r.slug },
+    { header: t("common.email"), csv: (r) => r.email },
+    { header: t("saStores.colBillingCycle"), csv: (r) => billingCycleLabel(r.billing_cycle) },
+  ];
 }
+
+// A product name: the same in every language.
+const STRIPE = "Stripe";
 
 function PlanPill({ plan, cycle }: { plan: string; cycle: string }) {
   return (
     <Pill tone={planTone(plan)}>
-      {planLabel(plan)}{cycle ? ` · ${cycle}` : ""}
+      {planLabel(plan)}{cycle ? ` · ${billingCycleLabel(cycle)}` : ""}
     </Pill>
   );
 }
 
 function TrialCell({ row }: { row: SuperadminStoreRow }) {
+  const t = useT();
   if (row.data_retention_until) {
     return (
       <span className={styles.trialRetention}>
-        Purge {formatDate(row.data_retention_until)}
+        {t("saStores.purge", { date: formatDate(row.data_retention_until) })}
       </span>
     );
   }
   if (row.plan === "trial" && row.trial_ends_at) {
     return (
       <span className={styles.trialEnds}>
-        Trial ends {formatDate(row.trial_ends_at)}
+        {t("saStores.trialEnds", { date: formatDate(row.trial_ends_at) })}
       </span>
     );
   }

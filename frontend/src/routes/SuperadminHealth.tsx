@@ -15,8 +15,18 @@ import styles from "./SuperadminHealth.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
 import type { components } from "../api/openapi";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 type HealthData = components["schemas"]["SuperadminSystemHealthResponse"];
+
+// Product and setting names read the same in every language.
+const STRIPE = "Stripe";
+const PYTHON = "Python";
+const WEBAUTHN_RP_ID = "WebAuthn RP ID";
+const ENV_DATABASE_URL = "DATABASE_URL";
+const ENV_SECRET_KEY = "SECRET_KEY";
+const ENV_SENTRY_DSN = "SENTRY_DSN";
 
 function useSystemHealth() {
   const identity = getCurrentIdentity();
@@ -52,6 +62,7 @@ function Row({ label, value, status }: {
 }
 
 export default function SuperadminHealth() {
+  const t = useT();
   const { data, isLoading, isError, error, refetch } = useSystemHealth();
 
   return (
@@ -59,14 +70,14 @@ export default function SuperadminHealth() {
       <PageCrumbs />
 
       <PageHeader
-        title="Health"
-        subtitle="Real-time platform infrastructure status"
+        title={navWord("Health")}
+        subtitle={t("saHealth.subtitle")}
       />
 
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={apiErrorMessage(error, "Could not load health data")}
+          message={apiErrorMessage(error, t("saHealth.loadFailed"))}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -74,27 +85,27 @@ export default function SuperadminHealth() {
       {data && (
         <>
           <div className={styles.grid}>
-            <Section title="Database">
+            <Section title={t("saHealth.database")}>
               <Card>
                 <Row
-                  label="Connection"
-                  value={data.db.ok ? "Connected" : "Error"}
+                  label={t("saHealth.connection")}
+                  value={data.db.ok ? t("saHealth.connected") : t("saHealth.error")}
                   status={data.db.ok ? "ok" : "error"}
                 />
                 {data.db.error && (
                   <div className={styles.errorText}>{data.db.error}</div>
                 )}
-                <Row label="Total stores" value={fmtNumber(data.db.total_stores)} />
-                <Row label="Total users" value={fmtNumber(data.db.total_users)} />
-                <Row label="Total transfers" value={fmtNumber(data.db.total_transfers)} />
+                <Row label={t("saHealth.totalStores")} value={fmtNumber(data.db.total_stores)} />
+                <Row label={t("saHealth.totalUsers")} value={fmtNumber(data.db.total_users)} />
+                <Row label={t("saHealth.totalTransfers")} value={fmtNumber(data.db.total_transfers)} />
               </Card>
             </Section>
 
-            <Section title="Stripe">
+            <Section title={STRIPE}>
               <Card>
                 <Row
-                  label="API connection"
-                  value={data.stripe.ok ? "Connected" : "Not connected"}
+                  label={t("saHealth.apiConnection")}
+                  value={data.stripe.ok ? t("saHealth.connected") : t("saHealth.notConnected")}
                   status={data.stripe.ok ? "ok" : "error"}
                 />
                 {data.stripe.error && (
@@ -102,23 +113,23 @@ export default function SuperadminHealth() {
                 )}
                 {data.stripe.ok && (
                   <>
-                    <Row label="Account" value={data.stripe.account_id ?? "—"} />
+                    <Row label={t("saHealth.account")} value={data.stripe.account_id ?? "—"} />
                     <Row
-                      label="Mode"
+                      label={t("saHealth.mode")}
                       value={
                         <Pill tone={data.stripe.mode === "live" ? "success" : "warning"}>
-                          {data.stripe.mode ?? "unknown"}
+                          {data.stripe.mode ?? t("saHealth.unknown")}
                         </Pill>
                       }
                     />
                     <Row
-                      label="Key pair match"
-                      value={data.stripe.key_pair_match ? "Yes" : "MISMATCH"}
+                      label={t("saHealth.keyPair")}
+                      value={data.stripe.key_pair_match ? t("common.yes") : t("saHealth.mismatch")}
                       status={data.stripe.key_pair_match ? "ok" : "error"}
                     />
                     <Row
-                      label="Financial connections"
-                      value={data.stripe.fc_ok ? "Enabled" : "Not available"}
+                      label={t("saHealth.fc")}
+                      value={data.stripe.fc_ok ? t("saHealth.enabled") : t("saHealth.notAvailable")}
                       status={data.stripe.fc_ok ? "ok" : "muted"}
                     />
                   </>
@@ -128,7 +139,7 @@ export default function SuperadminHealth() {
                     <Row
                       key={key}
                       label={key}
-                      value={set ? "Set" : "Missing"}
+                      value={set ? t("saHealth.set") : t("saHealth.missing")}
                       status={set ? "ok" : "warn"}
                     />
                   ))}
@@ -138,8 +149,8 @@ export default function SuperadminHealth() {
                     {Object.entries(data.stripe.price_ok).map(([plan, ok]) => (
                       <Row
                         key={plan}
-                        label={`Price: ${plan}`}
-                        value={ok ? "Valid" : "Invalid"}
+                        label={t("saHealth.price", { plan })}
+                        value={ok ? t("saHealth.valid") : t("saHealth.invalid")}
                         status={ok ? "ok" : "warn"}
                       />
                     ))}
@@ -150,16 +161,16 @@ export default function SuperadminHealth() {
           </div>
 
           <div className={styles.grid}>
-            <Section title="Email / SMTP">
+            <Section title={t("saHealth.email")}>
               <Card>
                 <Row
-                  label="SMTP configured"
-                  value={data.email.configured ? "Yes" : "No"}
+                  label={t("saHealth.smtp")}
+                  value={data.email.configured ? t("common.yes") : t("common.no")}
                   status={data.email.configured ? "ok" : "warn"}
                 />
                 {data.email.status && (
                   <Row
-                    label="Last send"
+                    label={t("saHealth.lastSend")}
                     value={data.email.status}
                     status={data.email.status === "ok" ? "ok" : "warn"}
                   />
@@ -170,61 +181,61 @@ export default function SuperadminHealth() {
                 {data.email.recent_events && (
                   <>
                     {Object.entries(data.email.recent_events).map(([evt, count]) => (
-                      <Row key={evt} label={`7d ${evt}`} value={fmtNumber(count)} />
+                      <Row key={evt} label={t("saHealth.recent", { event: evt })} value={fmtNumber(count)} />
                     ))}
                   </>
                 )}
                 <Row
-                  label="Suppressed addresses"
+                  label={t("saHealth.suppressed")}
                   value={data.email.suppressed_count ?? 0}
                   status={(data.email.suppressed_count ?? 0) > 0 ? "warn" : "ok"}
                 />
               </Card>
             </Section>
 
-            <Section title="Infrastructure">
+            <Section title={t("saHealth.infra")}>
               <Card>
                 <Row
-                  label="Job queue"
-                  value={data.queue.enabled ? "Enabled (Redis)" : "Sync mode"}
+                  label={t("saHealth.queue")}
+                  value={data.queue.enabled ? t("saHealth.queueOn") : t("saHealth.queueSync")}
                   status={data.queue.enabled ? "ok" : "muted"}
                 />
                 <Row
-                  label="Redis configured"
-                  value={data.queue.redis_configured ? "Yes" : "No"}
+                  label={t("saHealth.redis")}
+                  value={data.queue.redis_configured ? t("common.yes") : t("common.no")}
                   status={data.queue.redis_configured ? "ok" : "muted"}
                 />
                 <Row
-                  label="Rate limiting"
-                  value={data.rate_limiting.enabled ? "Enabled" : "Disabled"}
+                  label={t("saHealth.rateLimit")}
+                  value={data.rate_limiting.enabled ? t("saHealth.enabled") : t("saHealth.disabled")}
                   status={data.rate_limiting.enabled ? "ok" : "warn"}
                 />
               </Card>
             </Section>
           </div>
 
-          <Section title="Environment">
+          <Section title={t("saHealth.environment")}>
             <Card>
               <div className={styles.envGrid}>
-                <Row label="Python" value={data.env.python_version} />
-                <Row label="Platform" value={data.env.platform} />
-                <Row label="Server time (UTC)" value={data.env.server_time.slice(0, 19)} />
+                <Row label={PYTHON} value={data.env.python_version} />
+                <Row label={t("saHealth.platform")} value={data.env.platform} />
+                <Row label={t("saHealth.serverTime")} value={data.env.server_time.slice(0, 19)} />
                 <Row
-                  label="DATABASE_URL"
-                  value={data.env.database_url_set ? "Set" : "Missing"}
+                  label={ENV_DATABASE_URL}
+                  value={data.env.database_url_set ? t("saHealth.set") : t("saHealth.missing")}
                   status={data.env.database_url_set ? "ok" : "error"}
                 />
                 <Row
-                  label="SECRET_KEY"
-                  value={data.env.secret_key_set ? "Set" : "Missing"}
+                  label={ENV_SECRET_KEY}
+                  value={data.env.secret_key_set ? t("saHealth.set") : t("saHealth.missing")}
                   status={data.env.secret_key_set ? "ok" : "error"}
                 />
                 <Row
-                  label="SENTRY_DSN"
-                  value={data.env.sentry_dsn_set ? "Set" : "Not set"}
+                  label={ENV_SENTRY_DSN}
+                  value={data.env.sentry_dsn_set ? t("saHealth.set") : t("saHealth.notSet")}
                   status={data.env.sentry_dsn_set ? "ok" : "muted"}
                 />
-                <Row label="WebAuthn RP ID" value={data.env.webauthn_rp_id} />
+                <Row label={WEBAUTHN_RP_ID} value={data.env.webauthn_rp_id} />
               </div>
             </Card>
           </Section>

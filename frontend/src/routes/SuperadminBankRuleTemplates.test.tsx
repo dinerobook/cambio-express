@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SuperadminBankRuleTemplates from "./SuperadminBankRuleTemplates";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Superadmin rule templates (BankSync INVARIANTS "Rule templates"):
 //   - every template reads as its rule sentence; a hidden one says off;
@@ -189,5 +191,20 @@ describe("Superadmin rule templates", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(await screen.findByText(/Database down|Could not delete template/)).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish: the list, the delete prompt and its toast", async () => {
+    setLanguage("es");
+    setup({ "DELETE /api/v2/superadmin/bank-rule-templates/9": { status: 204 } });
+    await screen.findByText("Intermex commission deposit");
+    expect(screen.getByRole("heading", { name: "Plantillas de reglas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Nueva plantilla" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saTpl."])).toEqual([]);
+    await userEvent.click(within(rowFor("Intermex commission deposit")).getByRole("button", { name: "Eliminar" }));
+    const dialog = await screen.findByRole("dialog", { name: "¿Eliminar esta plantilla?" });
+    expect(dialog).toHaveTextContent("¿Eliminar la plantilla \"Intermex commission deposit\"?");
+    expect(englishLeftovers(dialog, ["saTpl."])).toEqual([]);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+    expect(await screen.findByText("Plantilla eliminada.")).toBeInTheDocument();
   });
 });

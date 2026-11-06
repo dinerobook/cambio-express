@@ -18,6 +18,8 @@ import {
 } from "../components/ui";
 import { formValuesFromTemplateRow, templateBodyFromFormValues } from "../lib/bankRules";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/superadmin/bank-rule-templates — bank rules written once for
 // every store ("Intermex commission deposit", any transaction type).
@@ -30,6 +32,7 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 const LIST_KEY = ["superadmin", "bank-rule-templates"];
 
 export default function SuperadminBankRuleTemplates() {
+  const t = useT();
   const qc = useQueryClient();
   const templates = useAllRuleTemplates();
   const categories = useTemplateCategories();
@@ -53,9 +56,9 @@ export default function SuperadminBankRuleTemplates() {
       await deleteRuleTemplate(pendingDelete.id);
       await refresh();
       setPendingDelete(null);
-      toast({ message: "Template deleted.", tone: "success" });
+      toast({ message: t("saTpl.deleted"), tone: "success" });
     } catch (e) {
-      toastApiError(e, "Could not delete template.");
+      toastApiError(e, t("saTpl.deleteFailed"));
     } finally {
       setDeleteBusy(false);
     }
@@ -66,10 +69,10 @@ export default function SuperadminBankRuleTemplates() {
       <PageCrumbs />
 
       <PageHeader
-        title="Rule templates"
-        subtitle="Bank rules every store can use. Stores see the shown ones on their Bank rules page and add a copy to their own rules; changing a template here never changes a store's rule."
+        title={navWord("Rule templates")}
+        subtitle={t("saTpl.subtitle")}
         actions={
-          <Button onClick={() => setEditing("new")}>+ New template</Button>
+          <Button onClick={() => setEditing("new")}>{t("saTpl.new")}</Button>
         }
       />
 
@@ -77,25 +80,25 @@ export default function SuperadminBankRuleTemplates() {
         {templates.isLoading && <Loading />}
         {templates.isError && (
           <ErrorState
-            message="Could not load rule templates."
+            message={t("saTpl.loadFailed")}
             onRetry={() => { void templates.refetch(); }}
           />
         )}
         {!templates.isLoading && !templates.isError && rows.length === 0 && (
           <EmptyState
-            title="No templates yet"
-            body="Create one, for example a rule that tags the monthly Intermex commission deposit."
+            title={t("saTpl.emptyTitle")}
+            body={t("saTpl.emptyBody")}
           />
         )}
         {rows.length > 0 && (
           <BankRuleTemplateList
             rows={rows}
-            action={(t) => (
+            action={(row) => (
               <RowActions
-                title={t.name}
+                title={row.name}
                 actions={[
-                  { label: "Edit", onClick: () => setEditing(t) },
-                  { label: "Delete", tone: "danger", onClick: () => setPendingDelete(t) },
+                  { label: t("common.edit"), onClick: () => setEditing(row) },
+                  { label: t("common.delete"), tone: "danger", onClick: () => setPendingDelete(row) },
                 ]}
               />
             )}
@@ -106,7 +109,7 @@ export default function SuperadminBankRuleTemplates() {
       <Modal
         open={editing != null}
         onClose={() => setEditing(null)}
-        title={editing === "new" ? "New template" : "Edit template"}
+        title={editing === "new" ? t("saTpl.newTitle") : t("saTpl.editTitle")}
         size="lg"
       >
         {editing != null && (
@@ -124,7 +127,7 @@ export default function SuperadminBankRuleTemplates() {
                 setEditing(null);
                 await refresh();
                 toast({
-                  message: editing === "new" ? "Template created." : "Template saved.",
+                  message: editing === "new" ? t("saTpl.created") : t("saTpl.saved"),
                   tone: "success",
                 });
               },
@@ -135,12 +138,9 @@ export default function SuperadminBankRuleTemplates() {
 
       <ConfirmDialog
         open={pendingDelete != null}
-        title="Delete this template?"
-        message={
-          `Delete template "${pendingDelete?.name ?? ""}"? Stores stop seeing it; `
-          + "rules they already made from it stay as they are."
-        }
-        confirmLabel="Delete"
+        title={t("saTpl.deleteTitle")}
+        message={t("saTpl.deleteBody", { name: pendingDelete?.name ?? "" })}
+        confirmLabel={t("common.delete")}
         confirmTone="danger"
         busy={deleteBusy}
         onConfirm={() => { void doDelete(); }}

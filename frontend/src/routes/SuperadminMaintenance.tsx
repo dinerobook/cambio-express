@@ -11,6 +11,8 @@ import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SuperadminMaintenance.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import type { components } from "../api/openapi";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 type MaintenanceState = components["schemas"]["MaintenanceState"];
 
@@ -24,6 +26,7 @@ function useMaintenanceState() {
 }
 
 export default function SuperadminMaintenance() {
+  const t = useT();
   const { data, isLoading, isError, error: loadError, refetch } = useMaintenanceState();
   const qc = useQueryClient();
   const toast = useToast();
@@ -44,7 +47,7 @@ export default function SuperadminMaintenance() {
 
   const { dirty, markSaved } = useDirtyBaseline({ enabled, message }, hydrated);
   const guard = useUnsavedGuard(dirty && !busy, {
-    message: "You have unsaved maintenance settings. Leave without saving?",
+    message: t("saMaint.unsaved"),
   });
 
   async function save() {
@@ -59,12 +62,12 @@ export default function SuperadminMaintenance() {
       qc.invalidateQueries({ queryKey: ["superadmin", "maintenance"] });
       toast({
         message: enabled
-          ? "Maintenance mode ON — all users will see the banner."
-          : "Maintenance mode OFF.",
+          ? t("saMaint.onToast")
+          : t("saMaint.offToast"),
         tone: enabled ? "warning" : "success",
       });
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("saMaint.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -75,8 +78,8 @@ export default function SuperadminMaintenance() {
       <PageCrumbs />
 
       <PageHeader
-        title="Maintenance"
-        subtitle="Put the entire platform into maintenance with a single toggle"
+        title={navWord("Maintenance")}
+        subtitle={t("saMaint.subtitle")}
       />
 
       {isLoading && <Loading />}
@@ -85,7 +88,7 @@ export default function SuperadminMaintenance() {
         // No form without the real state: saving defaults would
         // switch a live maintenance window off and wipe its message.
         <ErrorState
-          message={apiErrorMessage(loadError, "Could not load maintenance mode.")}
+          message={apiErrorMessage(loadError, t("saMaint.loadFailed"))}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -93,32 +96,32 @@ export default function SuperadminMaintenance() {
       {data && (
         <Card>
           <div className={styles.toggleCard}>
-            <SectionTitle>Platform status</SectionTitle>
+            <SectionTitle>{t("saMaint.status")}</SectionTitle>
 
             <div className={styles.statusRow}>
               <div>
                 <span className={enabled ? styles.dotOn : styles.dotOff} />
                 <span className={styles.statusLabel}>
-                  {enabled ? "Maintenance mode is ON" : "Platform is operational"}
+                  {enabled ? t("saMaint.isOn") : t("saMaint.isOff")}
                 </span>
               </div>
               <Switch
                 checked={enabled}
                 onChange={setEnabled}
               >
-                {enabled ? "On" : "Off"}
+                {enabled ? t("saMaint.on") : t("saMaint.off")}
               </Switch>
             </div>
 
             <Field
-              label="Maintenance message"
-              hint="Shown to all logged-in users as a banner. Keep it short — e.g. 'Scheduled maintenance until 4 AM CST.'"
+              label={t("saMaint.message")}
+              hint={t("saMaint.messageHint")}
             >
               <Input
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="We'll be back shortly…"
+                placeholder={t("saMaint.placeholder")}
                 maxLength={500}
                 className={styles.messageInput}
               />
@@ -134,7 +137,7 @@ export default function SuperadminMaintenance() {
 
             <FormActions guard={guard}>
               <Button onClick={() => { void save(); }} busy={busy} disabled={busy}>
-                {busy ? "Saving…" : "Save"}
+                {busy ? t("common.saving") : t("common.save")}
               </Button>
             </FormActions>
           </div>

@@ -10,6 +10,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 import type { SuperadminStoreRow } from "../api/superadmin";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The platform-wide store list. Pinned: superadmin-only, server
 // search over name / slug / email (the mock filters like the server
@@ -214,5 +216,31 @@ describe("SuperadminStores", () => {
     await userEvent.selectOptions(screen.getByDisplayValue("— Choose action —"), "enable");
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(bulkStoreAction).toHaveBeenCalledWith([3], "enable"));
+  });
+
+  it("reads in Spanish: plans, the trial column and the bulk bar", async () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Tiendas" })).toBeInTheDocument();
+    expect(screen.getByText("3 tiendas")).toBeInTheDocument();
+    const alpha = screen.getByText("Alpha").closest("tr")!;
+    expect(alpha).toHaveTextContent("Prueba · mensual");
+    expect(alpha).toHaveTextContent("La prueba termina el");
+    const bravo = screen.getByText("Bravo").closest("tr")!;
+    expect(within(bravo).getByText("Inactivo")).toBeInTheDocument();
+    expect(bravo).toHaveTextContent("Se borra el");
+    await userEvent.click(screen.getByLabelText("Seleccionar Alpha"));
+    expect(screen.getByText("1 seleccionada")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Extender la prueba (+14 d)" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saStores.", "plan.", "sa."])).toEqual([]);
+    await userEvent.selectOptions(screen.getByDisplayValue("— Elija una acción —"), "enable");
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+    expect(await screen.findByText("2 tiendas actualizadas.")).toBeInTheDocument();
+  });
+
+  it("shows a plan or billing cycle it doesn't know as sent", () => {
+    state.data = { rows: [store(9, "Delta", { plan: "enterprise", billing_cycle: "weekly" })], total: 1 };
+    renderPage();
+    expect(screen.getByText("Delta").closest("tr")!).toHaveTextContent("Enterprise · weekly");
   });
 });

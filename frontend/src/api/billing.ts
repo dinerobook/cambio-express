@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import type { PillTone } from "../components/ui";
+import { t, type MessageKey } from "../i18n";
 import type { components } from "./openapi";
 
 /** Store.plan → Pill tone (UI-STANDARDS §3). A paying plan is live
@@ -23,6 +24,31 @@ export const PLAN_TONES: Record<string, PillTone> = {
 
 export function planTone(plan: string): PillTone {
   return PLAN_TONES[plan] ?? "neutral";
+}
+
+const PLAN_LABELS: Record<string, MessageKey> = {
+  trial:    "plan.trial",
+  basic:    "plan.basic",
+  pro:      "plan.pro",
+  inactive: "plan.inactive",
+};
+
+/** Store.plan in the reader's language ("trial" → "Prueba"); Basic
+ *  and Pro are product names. A plan the SPA doesn't list shows
+ *  capitalised, as sent. */
+export function planLabel(plan: string): string {
+  if (Object.hasOwn(PLAN_LABELS, plan)) return t(PLAN_LABELS[plan]);
+  return plan.charAt(0).toUpperCase() + plan.slice(1);
+}
+
+const CYCLE_LABELS: Record<string, MessageKey> = {
+  monthly: "plan.cycle.monthly",
+  yearly:  "plan.cycle.yearly",
+};
+
+/** Store.billing_cycle in the reader's language; unknown as sent. */
+export function billingCycleLabel(cycle: string): string {
+  return Object.hasOwn(CYCLE_LABELS, cycle) ? t(CYCLE_LABELS[cycle]) : cycle;
 }
 
 export interface CheckoutResponse {

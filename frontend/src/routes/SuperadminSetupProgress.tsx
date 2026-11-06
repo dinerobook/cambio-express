@@ -11,7 +11,9 @@ import {
 } from "../components/ui";
 import styles from "./SuperadminSetupProgress.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtCount } from "../lib/formatters";
+import { fmtNumber } from "../lib/formatters";
+import { t as translate, tn, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Platform → Setup progress. For each store: companies added, charge
 // per money order set, bank connected, first day locked — so a new
@@ -19,10 +21,10 @@ import { fmtCount } from "../lib/formatters";
 // A step that does not apply to a store (no Money services module, no
 // company selling money orders) shows a dash and is not counted.
 
-const STATUSES = [
-  { value: "open", label: "Not finished" },
-  { value: "done", label: "Finished" },
-  { value: "all", label: "All stores" },
+const STATUSES: { value: string; label: MessageKey }[] = [
+  { value: "open", label: "saSetup.open" },
+  { value: "done", label: "saSetup.done" },
+  { value: "all", label: "saSetup.all" },
 ];
 
 function Step({ done, children }: { done: boolean; children: string }) {
@@ -30,30 +32,49 @@ function Step({ done, children }: { done: boolean; children: string }) {
 }
 
 function NotUsed() {
-  return <span className={styles.dash} title="Does not apply to this store">—</span>;
+  const t = useT();
+  return <span className={styles.dash} title={t("saSetup.notApply")}>—</span>;
 }
 
-const COLUMNS: DataColumn<SuperadminSetupProgressRow>[] = [
+function chargesLabel(r: SuperadminSetupProgressRow): string {
+  return translate("saSetup.chargesSet", {
+    done: fmtNumber(r.money_order_charges_set), total: fmtNumber(r.money_order_companies),
+  });
+}
+
+function progressLabel(r: SuperadminSetupProgressRow): string {
+  return translate("saSetup.progress", {
+    done: fmtNumber(r.steps_done), total: fmtNumber(r.steps_total),
+  });
+}
+
+function setupColumns(): DataColumn<SuperadminSetupProgressRow>[] {
+  const t = translate;
+  const bankLabel = (r: SuperadminSetupProgressRow) =>
+    (r.bank_connected ? t("saSetup.connected") : t("saSetup.notConnected"));
+  return [
   {
-    key: "store", header: "Store",
+    key: "store", header: t("saSetup.colStore"),
     render: (r) => (
       <div className={styles.store}>
         <div className={styles.storeName}>{r.name}</div>
         <div className={styles.storeMeta}>
-          {r.slug}{r.is_active ? "" : " · inactive"}
+          {r.slug}{r.is_active ? "" : t("saSetup.inactive")}
         </div>
       </div>
     ),
     csv: (r) => r.name,
   },
   {
-    key: "signed_up", header: "Signed up",
+    key: "signed_up", header: t("saSetup.colSignedUp"),
     render: (r) => (r.signed_up_on ? (
       <div>
         <div className={styles.mono}>{formatDate(r.signed_up_on)}</div>
         {r.days_since_signup !== null && (
           <div className={styles.storeMeta}>
-            {r.days_since_signup === 0 ? "Today" : `${fmtCount(r.days_since_signup, "day")} ago`}
+            {r.days_since_signup === 0
+              ? t("saSetup.today")
+              : tn("saSetup.daysAgo", r.days_since_signup, fmtNumber)}
           </div>
         )}
       </div>
@@ -61,60 +82,63 @@ const COLUMNS: DataColumn<SuperadminSetupProgressRow>[] = [
     csv: (r) => csvDate(r.signed_up_on),
   },
   {
-    key: "companies", header: "Companies",
+    key: "companies", header: t("saSetup.colCompanies"),
     render: (r) => (r.companies_added === null ? <NotUsed /> : (
       <Step done={r.companies_added}>
-        {r.companies_added ? fmtCount(r.company_count, "company", "companies") : "Not added"}
+        {r.companies_added
+          ? tn("saSetup.companies", r.company_count, fmtNumber)
+          : t("saSetup.notAdded")}
       </Step>
     )),
     csv: (r) => (r.companies_added === null ? "" : r.company_count),
   },
   {
-    key: "charges", header: "Money order charge",
+    key: "charges", header: t("saSetup.colCharge"),
     render: (r) => (r.charges_set === null ? <NotUsed /> : (
       <Step done={r.charges_set}>
-        {`${r.money_order_charges_set} of ${r.money_order_companies} set`}
+        {chargesLabel(r)}
       </Step>
     )),
-    csv: (r) => (r.charges_set === null ? ""
-      : `${r.money_order_charges_set} of ${r.money_order_companies} set`),
+    csv: (r) => (r.charges_set === null ? "" : chargesLabel(r)),
   },
   {
-    key: "bank", header: "Bank",
+    key: "bank", header: t("saSetup.colBank"),
     render: (r) => (
       <Step done={r.bank_connected}>
-        {r.bank_connected ? "Connected" : "Not connected"}
+        {bankLabel(r)}
       </Step>
     ),
-    csv: (r) => (r.bank_connected ? "Connected" : "Not connected"),
+    csv: bankLabel,
   },
   {
-    key: "locked", header: "First day locked",
+    key: "locked", header: t("saSetup.colLocked"),
     render: (r) => (r.first_locked_day
       ? <span className={styles.mono}>{formatDate(r.first_locked_day)}</span>
-      : <Step done={false}>Not yet</Step>),
+      : <Step done={false}>{t("saSetup.notYet")}</Step>),
     csv: (r) => csvDate(r.first_locked_day),
   },
   {
-    key: "progress", header: "Progress", align: "right",
+    key: "progress", header: t("saSetup.colProgress"), align: "right",
     render: (r) => (
       <Pill tone={r.steps_done >= r.steps_total ? "accent" : "neutral"}>
-        {`${r.steps_done} of ${r.steps_total}`}
+        {progressLabel(r)}
       </Pill>
     ),
-    csv: (r) => `${r.steps_done} of ${r.steps_total}`,
+    csv: progressLabel,
   },
   {
     key: "view", header: "", label: "", align: "right",
     render: (r) => (
       <ButtonLink to={`/superadmin/stores/${r.store_id}/drill`} tone="secondary" size="sm">
-        View
+        {t("common.view")}
       </ButtonLink>
     ),
   },
-];
+  ];
+}
 
 export default function SuperadminSetupProgress() {
+  const t = useT();
   const filters = useUrlFilterState({ q: "", status: "open" }, { pageSizeKey: "setup-progress" });
   const q = filters.params.q.trim();
   const status = STATUSES.some((s) => s.value === filters.params.status)
@@ -127,25 +151,25 @@ export default function SuperadminSetupProgress() {
     <PageShell gap="1.25rem">
       <PageCrumbs />
       <PageHeader
-        title="Setup progress"
-        subtitle={data ? fmtCount(data.total, "store") : "—"}
+        title={navWord("Setup progress")}
+        subtitle={data ? tn("saSetup.stores", data.total, fmtNumber) : "—"}
         actions={(
           <div className={styles.filterRow}>
             <Input
               type="search"
               value={filters.draft.q ?? filters.params.q}
-              placeholder="Search stores…"
-              aria-label="Search stores"
+              placeholder={t("saSetup.search")}
+              aria-label={t("saSetup.searchLabel")}
               onChange={(e) => filters.debounced("q", e.target.value)}
               className={styles.searchInput}
             />
             <Select
               value={status}
-              aria-label="Setup"
+              aria-label={t("saSetup.filterLabel")}
               onChange={(e) => filters.setParam("status", e.target.value)}
             >
               {STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>{t(s.label)}</option>
               ))}
             </Select>
           </div>
@@ -154,14 +178,14 @@ export default function SuperadminSetupProgress() {
 
       <Card>
         <DataTable
-          columns={COLUMNS}
+          columns={setupColumns()}
           rows={data?.rows}
           rowKey={(r) => r.store_id}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
           emptyTitle={status === "open"
-            ? "Every store has finished setup."
-            : "No stores match the filters."}
+            ? t("saSetup.allDone")
+            : t("saSetup.noMatch")}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
@@ -171,8 +195,8 @@ export default function SuperadminSetupProgress() {
             filename: "setup-progress",
             fetchPage: (page, perPage) => fetchSuperadminSetupProgress({ q, status, page, perPage }),
             extraColumns: [
-              { header: "Slug", csv: (r) => r.slug },
-              { header: "Active", csv: (r) => (r.is_active ? "Yes" : "No") },
+              { header: t("saSetup.colSlug"), csv: (r) => r.slug },
+              { header: t("common.active"), csv: (r) => (r.is_active ? t("common.yes") : t("common.no")) },
             ],
           }}
         />

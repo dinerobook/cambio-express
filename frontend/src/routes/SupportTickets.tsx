@@ -2,7 +2,10 @@ import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { createTicket, TICKET_STATUS_TONES, useMyTickets, type TicketRow } from "../api/support";
+import {
+  createTicket, TICKET_CATEGORIES, TICKET_STATUS_TONES, ticketCategoryLabel, ticketStatusLabel,
+  useMyTickets, type TicketRow,
+} from "../api/support";
 import { TicketThread } from "../components/TicketThread";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
@@ -15,31 +18,7 @@ import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SupportTickets.module.css";
 import { formatDateTime } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { t, tn, useT, type MessageKey } from "../i18n";
-
-const CATEGORIES: { value: string; label: MessageKey }[] = [
-  { value: "bug", label: "support.catBug" },
-  { value: "feature", label: "support.catFeature" },
-  { value: "question", label: "support.catQuestion" },
-  { value: "feedback", label: "support.catFeedback" },
-];
-
-// A status the SPA does not list shows as the server sent it.
-const STATUS_LABELS: Record<string, MessageKey> = {
-  open: "support.statusOpen",
-  in_progress: "support.statusInProgress",
-  resolved: "support.statusResolved",
-  closed: "support.statusClosed",
-};
-
-function categoryLabel(value: string): string {
-  const c = CATEGORIES.find((x) => x.value === value);
-  return c ? t(c.label) : value;
-}
-
-function statusLabel(status: string): string {
-  return Object.hasOwn(STATUS_LABELS, status) ? t(STATUS_LABELS[status]) : status.replace("_", " ");
-}
+import { t, tn, useT } from "../i18n";
 
 // Built during render so the headings follow a language switch.
 const columns = (): DataColumn<TicketRow>[] => [
@@ -59,13 +38,13 @@ const columns = (): DataColumn<TicketRow>[] => [
   },
   {
     key: "category", header: t("support.colCategory"),
-    render: (row) => categoryLabel(row.category),
+    render: (row) => ticketCategoryLabel(row.category),
   },
   {
     key: "status", header: t("common.status"),
     render: (row) => (
       <Pill tone={TICKET_STATUS_TONES[row.status] ?? "neutral"}>
-        {statusLabel(row.status)}
+        {ticketStatusLabel(row.status)}
       </Pill>
     ),
   },
@@ -145,7 +124,7 @@ function SupportTicketsInner() {
               <div className={styles.formGrid}>
                 <Field label={t("support.colCategory")}>
                   <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-                    {CATEGORIES.map((c) => (
+                    {TICKET_CATEGORIES.map((c) => (
                       <option key={c.value} value={c.value}>{t(c.label)}</option>
                     ))}
                   </Select>

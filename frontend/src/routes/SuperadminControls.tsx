@@ -6,6 +6,8 @@ import { AppLink,
 } from "../components/ui";
 import styles from "./SuperadminControls.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/superadmin/controls — Platform hub. KPI tiles fed by the
 // superadmin answer of /api/v2/dashboard/summary (exactly these ten
@@ -15,6 +17,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // TV catalog curation is the only remaining "Coming soon" item.
 
 export default function SuperadminControls() {
+  const t = useT();
   const { data, isLoading, isError, refetch } = useDashboardSummary();
   const d: SuperadminDashboard | null =
     data?.role === "superadmin" ? data : null;
@@ -25,40 +28,40 @@ export default function SuperadminControls() {
       <PageCrumbs />
 
       <PageHeader
-        title="Controls"
-        subtitle="Stores, billing, anomalies, audit log, announcements, reports."
+        title={navWord("Controls")}
+        subtitle={t("saCtl.subtitle")}
       />
 
-      {isLoading && <Loading label="Loading platform metrics…" />}
+      {isLoading && <Loading label={t("saCtl.loading")} />}
       {isError && (
         <ErrorState
-          message="Couldn't load metrics for the overview."
+          message={t("saCtl.loadFailed")}
           onRetry={() => { void refetch(); }}
         />
       )}
 
       {d && (
-        <Section title="Overview">
+        <Section title={t("saCtl.overview")}>
           <KpiGrid minWidth="180px">
             <KpiCard
-              label="Total stores"
+              label={t("saCtl.totalStores")}
               value={fmtNumber(d.total_stores)}
               tone="primary"
             />
             <KpiCard
-              label="Active"
+              label={t("common.active")}
               value={fmtNumber(d.active_stores)}
               tone="positive"
             />
-            <KpiCard label="Trial" value={fmtNumber(d.trial_stores)} tone="warning" />
-            <KpiCard label="Paid" value={fmtNumber(d.paid_stores)} tone="positive" />
+            <KpiCard label={t("saCtl.trial")} value={fmtNumber(d.trial_stores)} tone="warning" />
+            <KpiCard label={t("saCtl.paid")} value={fmtNumber(d.paid_stores)} tone="positive" />
             <KpiCard
-              label="Inactive"
+              label={t("common.inactive")}
               value={fmtNumber(d.inactive_stores)}
               tone={d.inactive_stores > 0 ? "negative" : "primary"}
             />
             <KpiCard
-              label="Retention queue"
+              label={t("saCtl.retention")}
               value={fmtNumber(d.retention_queue)}
               tone={d.retention_queue > 0 ? "warning" : "primary"}
             />
@@ -73,12 +76,12 @@ export default function SuperadminControls() {
               tone="primary"
             />
             <KpiCard
-              label="New (30d)"
+              label={t("saCtl.new30")}
               value={fmtNumber(d.new_stores_30d)}
               tone="positive"
             />
             <KpiCard
-              label="Cancellations (30d)"
+              label={t("saCtl.cancel30")}
               value={fmtNumber(d.cancellations_30d)}
               tone={d.cancellations_30d > 0 ? "negative" : "primary"}
             />
@@ -86,41 +89,41 @@ export default function SuperadminControls() {
         </Section>
       )}
 
-      <Section title="Hubs">
+      <Section title={t("saCtl.hubs")}>
         <div className={styles.quickLinkGrid}>
           <QuickLink
             to="/superadmin/stores"
-            title="Stores"
-            desc="Browse, filter, edit. Per-store impersonate / extend / toggle."
+            title={navWord("Stores")}
+            desc={t("saCtl.storesDesc")}
           />
           <QuickLink
             to="/superadmin/audit-log"
-            title="Audit log"
-            desc="Every platform admin action. Filter by actor / target / action."
+            title={navWord("Audit log")}
+            desc={t("saCtl.auditDesc")}
           />
           <QuickLink
             to="/superadmin/announcements"
-            title="Announcements"
-            desc="Global banners + push notifications across every store."
+            title={navWord("Announcements")}
+            desc={t("saCtl.announceDesc")}
           />
           <QuickLink
             to="/superadmin/reports"
-            title="Platform reports"
-            desc="MRR/ARR, churn cohorts, adoption, payouts."
+            title={navWord("Platform reports")}
+            desc={t("saCtl.reportsDesc")}
           />
           <QuickLink
             to="/superadmin/discounts"
-            title="Discounts"
-            desc="Coupon codes — toggle visibility, view redemptions."
+            title={navWord("Discounts")}
+            desc={t("saCtl.discountsDesc")}
           />
           <QuickLink
             to="/superadmin/feature-flags"
-            title="Feature flags"
-            desc="Platform-wide flags + per-store overrides."
+            title={navWord("Feature flags")}
+            desc={t("saCtl.flagsDesc")}
           />
           <ComingSoon
-            title="TV catalogs"
-            desc="Curate the company and bank pickers shown on TV displays."
+            title={t("saCtl.tv")}
+            desc={t("saCtl.tvDesc")}
           />
         </div>
       </Section>
@@ -130,11 +133,12 @@ export default function SuperadminControls() {
 
 
 function ComingSoon({ title, desc }: { title: string; desc: string }) {
+  const t = useT();
   return (
     <div className={styles.quickLinkDisabled}>
       <div className={styles.quickLinkTitleRow}>
         {title}
-        <span className={styles.comingPill}>Coming soon</span>
+        <span className={styles.comingPill}>{t("reports.comingSoon")}</span>
       </div>
       <div className={styles.muted}>{desc}</div>
     </div>

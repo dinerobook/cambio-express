@@ -9,6 +9,8 @@ import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // One switch takes the whole platform down. Pinned: the form
 // hydrates from the server, Save posts the switch + trimmed message,
@@ -113,5 +115,18 @@ describe("SuperadminMaintenance", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Superadmin only.");
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish, and toasts the switch in Spanish", async () => {
+    serve(async () => ({ enabled: false, message: "" }));
+    setLanguage("es");
+    renderPage();
+    expect(await screen.findByText("La plataforma está funcionando")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Mantenimiento" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saMaint."])).toEqual([]);
+    await userEvent.click(screen.getByRole("switch"));
+    expect(screen.getByText("El modo de mantenimiento está ACTIVADO")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText("Modo de mantenimiento ACTIVADO: todos los usuarios verán el aviso.")).toBeInTheDocument();
   });
 });

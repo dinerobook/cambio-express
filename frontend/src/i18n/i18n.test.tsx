@@ -44,6 +44,7 @@ const SAME_IN_BOTH: MessageKey[] = [
     "sbDay.gal", "posTx.colTicket", "posTx.colTotal", "posTx.tickets", "posTx.ticketTitle", "posTx.gal", "move.no", "inv.colTotal", "invForm.auto", "daily.total", "daily.totalCaps", "daily.totalLabel",
   "transfer.total", "returnCheck.methodZelle", "roles.tabRoles", "roles.no", "payroll.no",
   "settings.tabGeneral", "store.planPro", "notify.colControl",
+  "common.no", "saHealth.error", "plan.basic", "plan.pro", "saStores.colPlan",
   // One-letter chips: C, V and E start the same word in both.
   "perm.actCreateShort", "perm.actReadShort", "perm.actUpdateShort",
   // Only placeholders and symbols: "{count} {label}", "{label} (USD)".

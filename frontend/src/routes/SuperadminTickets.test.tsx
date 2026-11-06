@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SuperadminTickets from "./SuperadminTickets";
 import { ToastProvider } from "../components/ui";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The platform ticket queue: search (debounced, 2-char minimum),
 // store filter and paging all live in the URL and reach the API
@@ -128,5 +130,44 @@ describe("<SuperadminTickets> filters", () => {
     renderAt("/superadmin/tickets?q=printer&status=open&store_id=1&page=3");
     expect(lastFilters()).toMatchObject({ q: "printer", status: "open", store_id: "1", page: 3 });
     expect(screen.getByRole("searchbox", { name: /search tickets/i })).toHaveValue("printer");
+  });
+});
+
+describe("<SuperadminTickets> in Spanish", () => {
+  it("reads in Spanish: filters, a ticket card and its controls", async () => {
+    useAllTickets.mockReturnValue({
+      data: {
+        tickets: [{ ...ticket(1, "Printer jams", "Cambio Express"), unread_count: 2, priority: "P2", status: "in_progress" }],
+        total: 1, page: 1, per_page: 50, total_pages: 1,
+      },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    setLanguage("es");
+    renderAt();
+    expect(screen.getByText("1 ticket en todas las tiendas")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Todas las categorías" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Todos los estados" })).toBeInTheDocument();
+    expect(screen.getByText("2 nuevos")).toBeInTheDocument();
+    expect(screen.getAllByText("En curso").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Reporte de falla").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Tomar" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saTix.", "support."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Abrir conversación" }));
+    expect(screen.getByRole("button", { name: "Actualizar estado" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "P2 — Alta" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saTix.", "support."])).toEqual([]);
+  });
+
+  it("shows a status or category it doesn't know as sent", () => {
+    useAllTickets.mockReturnValue({
+      data: {
+        tickets: [{ ...ticket(1, "Odd one", "Cambio Express"), status: "on_hold", category: "billing" }],
+        total: 1, page: 1, per_page: 50, total_pages: 1,
+      },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderAt();
+    expect(screen.getByText("on hold")).toBeInTheDocument();
+    expect(screen.getByText("billing")).toBeInTheDocument();
   });
 });
