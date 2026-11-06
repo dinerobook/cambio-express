@@ -8,6 +8,8 @@ import SuperadminUsers from "./SuperadminUsers";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import type { SuperadminUserRow } from "../api/superadmin";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Platform user admin: every account-level lever a superadmin has
 // (disable, reset password / 2FA, impersonate, revoke sessions,
@@ -217,7 +219,7 @@ describe("SuperadminUsers", () => {
     await userEvent.selectOptions(within(dialog).getByRole("combobox"), "owner");
     await userEvent.click(within(dialog).getByRole("button", { name: "Change role" }));
     await waitFor(() => expect(fns.changeUserRole).toHaveBeenCalledWith(3, "owner"));
-    expect(await screen.findByText("Role changed to owner.")).toBeInTheDocument();
+    expect(await screen.findByText("Role changed to Owner.")).toBeInTheDocument();
   });
 
   // A refused role change keeps the dialog open, so the refusal must show inside it.
@@ -246,5 +248,48 @@ describe("SuperadminUsers", () => {
       username: "helpdesk", full_name: "", email: "", password: "longpass1",
     }));
     expect(await screen.findByText('Support login "helpdesk" created.')).toBeInTheDocument();
+  });
+
+  describe("in Spanish", () => {
+    beforeEach(() => { setLanguage("es"); });
+
+    it("shows the list, the role names and the counts in Spanish", () => {
+      renderPage();
+      expect(screen.getByText("3 usuarios")).toBeInTheDocument();
+      expect(within(rowOf("ANA")).getByText("Configurada")).toBeInTheDocument();
+      expect(within(rowOf("LUIS")).getByRole("button", { name: "Activar" })).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Todos los roles")).toBeInTheDocument();
+      expect(englishLeftovers(document.body, ["saUsers.", "role."])).toEqual([]);
+    });
+
+    it("words each confirm and the role change in Spanish", async () => {
+      fns.changeUserRole.mockResolvedValue({ ok: true, role: "owner" });
+      renderPage();
+      let dialog = await pick("ANA", "Ver como (solo lectura)");
+      expect(dialog).toHaveTextContent('¿Ver la app como "ana"?');
+      expect(englishLeftovers(dialog, ["saUsers."])).toEqual([]);
+      await userEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+      dialog = await pick("LUIS", "Cambiar el rol");
+      expect(dialog).toHaveTextContent('Cambiar el rol de "luis" de Empleado a:');
+      await userEvent.selectOptions(within(dialog).getByRole("combobox"), "owner");
+      expect(englishLeftovers(dialog, ["saUsers.", "role."])).toEqual([]);
+      await userEvent.click(within(dialog).getByRole("button", { name: "Cambiar el rol" }));
+      expect(await screen.findByText("Rol cambiado a Dueño.")).toBeInTheDocument();
+    });
+
+    it("shows a single revoked session with the singular word", async () => {
+      fns.revokeUserSessions.mockResolvedValue({ ok: true, revoked_count: 1 });
+      renderPage();
+      const dialog = await pick("ANA", "Cerrar sesiones");
+      await userEvent.click(within(dialog).getByRole("button", { name: "Cerrar sesiones" }));
+      expect(await screen.findByText("Se cerró 1 sesión activa.")).toBeInTheDocument();
+    });
+
+    it("shows the support login form in Spanish", async () => {
+      renderPage();
+      await userEvent.click(screen.getByRole("button", { name: "Agregar acceso de soporte" }));
+      expect(screen.getByLabelText("Usuario")).toBeInTheDocument();
+      expect(englishLeftovers(document.body, ["saUsers."])).toEqual([]);
+    });
   });
 });

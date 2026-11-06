@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SuperadminStoreDrill from "./SuperadminStoreDrill";
 import { ToastProvider } from "../components/ui";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The superadmin store page's round-2 controls: a read-only "View
 // as" next to "Sign in as", the comp plan modal + "End comp", and
@@ -20,6 +22,7 @@ const creditStore = vi.fn();
 const toggleStoreActive = vi.fn();
 const unlinkOwnerFromStore = vi.fn();
 const useStoreOwnerLinks = vi.fn();
+let featureRows: unknown[] = [];
 
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
@@ -32,7 +35,7 @@ vi.mock("../api/superadmin", () => ({
   compStore: (...args: unknown[]) => compStore(...args),
   endComp: (...args: unknown[]) => endComp(...args),
   useStoreAuditLog: (...args: unknown[]) => useStoreAuditLog(...args),
-  useStoreFeatures: () => ({ data: { rows: [] }, isLoading: false, isError: false, refetch: vi.fn() }),
+  useStoreFeatures: () => ({ data: { rows: featureRows }, isLoading: false, isError: false, refetch: vi.fn() }),
   useStoreOwnerLinks: (...args: unknown[]) => useStoreOwnerLinks(...args),
   creditStore: (...args: unknown[]) => creditStore(...args),
   emailStore: vi.fn(), extendTrial: vi.fn(),
@@ -112,6 +115,7 @@ beforeEach(() => {
   toggleStoreActive.mockReset();
   unlinkOwnerFromStore.mockReset();
   permissions = NO_OVERRIDES;
+  featureRows = [];
   useStoreOwnerLinks.mockReset().mockReturnValue({
     data: { rows: [] }, isLoading: false, isError: false, refetch: vi.fn(),
   });
@@ -343,4 +347,107 @@ describe("<SuperadminStoreDrill> destructive actions ask first", () => {
     ));
     await waitFor(() => expect(screen.queryByText("Unsaved changes")).toBeNull());
   });
+
+describe("<SuperadminStoreDrill> in Spanish", () => {
+  beforeEach(() => { setLanguage("es"); });
+
+  it("shows a frozen, comped store with its team, transfers, modules and owners in Spanish", async () => {
+    api.mockImplementation((path: string) => {
+      if (String(path).endsWith("/drill")) {
+        const d = drill({
+          plan: "pro", billing_cycle: "monthly", comped: true, comped_at: "2026-10-01T00:00:00",
+          comp_reason: "Socio", stripe_customer_id: "cus_1", frozen: true,
+          frozen_at: "2026-10-02T00:00:00", frozen_reason: "Disputa", trial_status: "grace",
+        });
+        d.team.push({ ...d.team[0], id: 43, username: "luis", full_name: "Luis", is_active: false });
+        return Promise.resolve({
+          ...d,
+          roster: [{ id: 1, name: "Rosa", is_active: true }, { id: 2, name: "Pepe", is_active: false }],
+          recent_transfers: [
+            { id: 1, send_date: "2026-10-03", sender_name: "Ana", recipient_name: "Juan", company: "Intermex", send_amount: 200, status: "Sent" },
+            { id: 2, send_date: "2026-10-04", sender_name: "", recipient_name: "", company: "", send_amount: 50, status: "Cancelled" },
+            { id: 3, send_date: "2026-10-05", sender_name: "", recipient_name: "", company: "", send_amount: 75, status: "OnHold" },
+          ],
+        });
+      }
+      if (String(path).endsWith("/permissions")) return Promise.resolve(permissions);
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    featureRows = [
+      { key: "transfers", label: "Transfers", kind: "module", description: "", default: true, override: null, effective: true },
+      { key: "bank_sync", label: "bank_sync", kind: "flag", description: "", default: false, override: true, effective: true },
+    ];
+    useStoreOwnerLinks.mockReturnValue({
+      data: { rows: [{ owner_id: 9, username: "dueno", full_name: "", linked_at: "2026-09-02T00:00:00", is_active: false }] },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    useStoreAuditLog.mockReturnValue({
+      data: { rows: [], total: 1, page: 1, per_page: 50, total_pages: 1 },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    expect(screen.getByText("Pro (cortesía)")).toBeInTheDocument();
+    expect(screen.getByText(/Esta tienda está/)).toHaveTextContent("Motivo: Disputa.");
+    expect(screen.getByText(/Esta tienda tiene el plan Pro/)).toHaveTextContent("El cobro de Stripe está en pausa.");
+    expect(screen.getByText("período de gracia")).toBeInTheDocument();
+    expect(screen.getByText("mensual")).toBeInTheDocument();
+    expect(screen.getByText("Enviado")).toBeInTheDocument();
+    expect(screen.getByText("Cancelado")).toBeInTheDocument();
+    // A status the SPA doesn't list shows as sent.
+    expect(screen.getByText("OnHold")).toBeInTheDocument();
+    expect(screen.getByText("Módulo")).toBeInTheDocument();
+    expect(screen.getByText("Interruptor de la plataforma")).toBeInTheDocument();
+    expect(screen.getByText(/Cambiado \(predeterminado: desactivado\)/)).toBeInTheDocument();
+    expect(screen.getByText("Dueños (1)")).toBeInTheDocument();
+    expect(screen.getByText("1 evento")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saDrill.", "common.", "role.", "plan."])).toEqual([]);
+  });
+
+  it("an unknown trial status and plan show as sent", async () => {
+    mockDrill({ plan: "enterprise", trial_status: "paused" });
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    expect(screen.getByText("paused")).toBeInTheDocument();
+    expect(screen.getByText("Enterprise")).toBeInTheDocument();
+  });
+
+  it("words every popup and its toasts in Spanish", async () => {
+    compStore.mockResolvedValue({
+      ok: true, plan: "basic", billing_cycle: "comp", comped: true,
+      comped_at: "", comp_reason: "", stripe_paused: true, stripe_resumed: false,
+    });
+    toggleStoreActive.mockResolvedValue({ ok: true, is_active: false });
+    renderPage();
+    await screen.findByText("Maria Lopez");
+    for (const [button, title] of [
+      ["Escribir al administrador", "Escribir al administrador de Cambio Express"],
+      ["Dar crédito", "Crédito para Cambio Express"],
+      ["Congelar", "Congelar Cambio Express"],
+    ]) {
+      await userEvent.click(screen.getByRole("button", { name: button }));
+      const dialog = await screen.findByRole("dialog", { name: title });
+      expect(englishLeftovers(dialog, ["saDrill.", "common."])).toEqual([]);
+      await userEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Dar crédito" }));
+    const credit = await screen.findByRole("dialog", { name: "Crédito para Cambio Express" });
+    await userEvent.type(within(credit).getByRole("textbox", { name: /Monto/ }), "5000.01");
+    await userEvent.click(within(credit).getByRole("button", { name: "Dar crédito" }));
+    expect(await within(credit).findByText("Un solo crédito no puede pasar de $5,000.")).toBeInTheDocument();
+    await userEvent.click(within(credit).getByRole("button", { name: "Cancelar" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Plan de cortesía" }));
+    const comp = await screen.findByRole("dialog", { name: "Cortesía para Cambio Express" });
+    expect(englishLeftovers(comp, ["saDrill.", "common.", "plan."])).toEqual([]);
+    await userEvent.click(within(comp).getByRole("button", { name: "Dar la cortesía" }));
+    expect(await screen.findByText("Cortesía en Basic: el cobro de Stripe está en pausa.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Desactivar" }));
+    const confirm = await screen.findByRole("dialog", { name: "¿Desactivar esta tienda?" });
+    expect(confirm).toHaveTextContent("Todos los usuarios de Cambio Express quedan bloqueados");
+    await userEvent.click(within(confirm).getByRole("button", { name: "Desactivar la tienda" }));
+    expect(await screen.findByText("Tienda desactivada.")).toBeInTheDocument();
+  });
+});
 });

@@ -3,14 +3,15 @@ import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, apiErrorMessage } from "../lib/api";
-import { fmtMoney2, fmtCount, fmtNumber } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
   compStore, creditStore, emailStore, endComp, extendTrial, freezeStore,
   linkOwnerToStore, toggleStoreActive, unfreezeStore, unlinkOwnerFromStore,
   useStoreAuditLog, useStoreFeatures, useStoreOwnerLinks,
   type ImpersonationMode, type StoreFeatureRow,
 } from "../api/superadmin";
-import { planTone } from "../api/billing";
+import { billingCycleLabel, planLabel, planTone } from "../api/billing";
+import { statusLabel } from "../lib/transferKinds";
 import { RolePill } from "../components/RolePill";
 import { clearStoreOverride, setStoreOverride } from "../api/featureFlags";
 import { getCurrentIdentity } from "../lib/auth";
@@ -25,7 +26,7 @@ import {
 import { AuditTable } from "../components/AuditTable";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
-import { t as translate } from "../i18n";
+import { t as translate, tn, tNodes, useT, type MessageKey } from "../i18n";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
 import styles from "./SuperadminStoreDrill.module.css";
@@ -34,6 +35,28 @@ import { RolePermissionsEditor } from "../components/RolePermissionsEditor";
 import type { components } from "../api/openapi";
 
 type DrillData = components["schemas"]["SuperadminStoreDrillResponse"];
+
+// get_trial_status() values. One the SPA doesn't list shows as sent.
+const TRIAL_STATUS_KEYS: Record<string, MessageKey> = {
+  exempt: "saDrill.trial.exempt",
+  active: "saDrill.trial.active",
+  expiring_soon: "saDrill.trial.expiring_soon",
+  grace: "saDrill.trial.grace",
+  expired: "saDrill.trial.expired",
+};
+function trialStatusLabel(status: string): string {
+  return Object.hasOwn(TRIAL_STATUS_KEYS, status)
+    ? translate(TRIAL_STATUS_KEYS[status]) : status;
+}
+
+// A transfer's status pill colour. The stored values are "Sent" /
+// "Cancelled" (lib/transferKinds STATUSES); the older "Completed" /
+// "Canceled" spellings are kept so old rows colour the same.
+function transferTone(status: string): "success" | "negative" | "neutral" {
+  if (status === "Sent" || status === "Completed") return "success";
+  if (status === "Cancelled" || status === "Canceled") return "negative";
+  return "neutral";
+}
 
 function useStoreDrill(storeId: number | undefined) {
   const identity = getCurrentIdentity();
@@ -49,6 +72,7 @@ export default function SuperadminStoreDrill() {
   const params = useParams<{ id: string }>();
   const storeId = params.id ? Number(params.id) : undefined;
   const { data, isLoading, isError, error, refetch } = useStoreDrill(storeId);
+  const t = useT();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
   const [showEmail, setShowEmail] = useState(false);
@@ -93,8 +117,8 @@ export default function SuperadminStoreDrill() {
         const res = await endComp(id);
         toast({
           message: res.stripe_resumed
-            ? `Comp ended — billing resumed on the ${res.plan} plan.`
-            : `Comp ended — the store is on ${res.plan} now.`,
+            ? t("saDrill.compEndedResumed", { plan: planLabel(res.plan) })
+            : t("saDrill.compEnded", { plan: planLabel(res.plan) }),
           tone: "success",
         });
       } else {
@@ -105,7 +129,7 @@ export default function SuperadminStoreDrill() {
     } catch (e) {
       setPendingError(apiErrorMessage(
         e, pending === "end-comp"
-          ? "Could not end the comp." : "Could not disable the store.",
+          ? t("saDrill.endCompFailed") : t("saDrill.disableFailed"),
       ));
     } finally { setActionBusy(false); }
   }
@@ -113,7 +137,7 @@ export default function SuperadminStoreDrill() {
   async function toggleActiveNow(id: number) {
     const res = await toggleStoreActive(id);
     toast({
-      message: res.is_active ? "Store enabled." : "Store disabled.",
+      message: res.is_active ? t("saDrill.enabled") : t("saDrill.disabled"),
       tone: "success",
     });
   }
@@ -123,12 +147,15 @@ export default function SuperadminStoreDrill() {
     try {
       const res = await extendTrial(id, { days: Number(trialDays) });
       toast({
-        message: `Trial now ends ${formatDate(res.trial_ends_at)} (${res.trial_status.replace("_", " ")}).`,
+        message: t("saDrill.trialEnds", {
+          date: formatDate(res.trial_ends_at),
+          status: trialStatusLabel(res.trial_status),
+        }),
         tone: "success",
       });
       void refetch();
     } catch (e) {
-      toastApiError(e, "Could not extend the trial");
+      toastApiError(e, t("saDrill.extendFailed"));
     } finally { setActionBusy(false); }
   }
 
@@ -137,7 +164,7 @@ export default function SuperadminStoreDrill() {
     try {
       await startImpersonation(userId, mode);
     } catch (e) {
-      toastApiError(e, "Could not sign in as this user");
+      toastApiError(e, t("saDrill.impersonateFailed"));
       setActionBusy(false);
     }
   }
@@ -146,21 +173,21 @@ export default function SuperadminStoreDrill() {
     setActionBusy(true);
     try {
       await unfreezeStore(id);
-      toast({ message: "Store unfrozen.", tone: "success" });
+      toast({ message: t("saDrill.unfrozen"), tone: "success" });
       void refetch();
     } catch (e) {
-      toastApiError(e, "Failed to unfreeze");
+      toastApiError(e, t("saDrill.unfreezeFailed"));
     } finally { setActionBusy(false); }
   }
 
   return (
     <PageShell gap="1.25rem">
-      <PageCrumbs current={data?.store.name || `Store #${storeId}`} />
+      <PageCrumbs current={data?.store.name || t("saDrill.storeN", { id: String(storeId) })} />
 
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={apiErrorMessage(error, "Could not load store")}
+          message={apiErrorMessage(error, t("saDrill.loadFailed"))}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -176,27 +203,27 @@ export default function SuperadminStoreDrill() {
                   tone="secondary" size="sm"
                   onClick={() => setShowEmail(true)}
                 >
-                  Email admin
+                  {t("saDrill.emailAdmin")}
                 </Button>
                 <Button
                   tone="secondary" size="sm"
                   onClick={() => { setShowCredit(true); setCreditError(null); }}
                 >
-                  Credit account
+                  {t("saDrill.credit")}
                 </Button>
                 {data.store.frozen ? (
                   <Button
                     tone="secondary" size="sm" busy={actionBusy}
                     onClick={() => { void doUnfreeze(data.store.id); }}
                   >
-                    Unfreeze
+                    {t("saDrill.unfreeze")}
                   </Button>
                 ) : (
                   <Button
                     tone="danger" size="sm"
                     onClick={() => { setShowFreeze(true); setFreezeError(null); }}
                   >
-                    Freeze
+                    {t("saDrill.freeze")}
                   </Button>
                 )}
                 {data.store.comped ? (
@@ -205,26 +232,26 @@ export default function SuperadminStoreDrill() {
                     busy={actionBusy} disabled={actionBusy}
                     onClick={() => ask("end-comp")}
                   >
-                    End comp
+                    {t("saDrill.endComp")}
                   </Button>
                 ) : (
                   <Button
                     tone="secondary" size="sm"
                     onClick={() => { setShowComp(true); setCompError(null); }}
                   >
-                    Comp plan
+                    {t("saDrill.compPlan")}
                   </Button>
                 )}
                 {data.store.plan !== "basic" && data.store.plan !== "pro" && (
                   <span className={styles.trialControl}>
                     <Select
-                      aria-label="Trial extension"
+                      aria-label={t("saDrill.trialExtension")}
                       value={trialDays}
                       onChange={(e) => setTrialDays(e.target.value)}
                       disabled={actionBusy}
                     >
                       {[7, 14, 30, 60, 90].map((d) => (
-                        <option key={d} value={String(d)}>+{d} days</option>
+                        <option key={d} value={String(d)}>{t("saDrill.plusDays", { days: String(d) })}</option>
                       ))}
                     </Select>
                     <Button
@@ -232,7 +259,7 @@ export default function SuperadminStoreDrill() {
                       busy={actionBusy} disabled={actionBusy}
                       onClick={() => { void doExtendTrial(data.store.id); }}
                     >
-                      Extend trial
+                      {t("saDrill.extendTrial")}
                     </Button>
                   </span>
                 )}
@@ -248,17 +275,17 @@ export default function SuperadminStoreDrill() {
                       await toggleActiveNow(data.store.id);
                       void refetch();
                     } catch (e) {
-                      toastApiError(e, "Could not enable the store");
+                      toastApiError(e, t("saDrill.enableFailed"));
                     } finally { setActionBusy(false); }
                   }}
                 >
-                  {data.store.is_active ? "Disable" : "Enable"}
+                  {data.store.is_active ? t("saDrill.disable") : t("saDrill.enable")}
                 </Button>
                 <ButtonLink
                   to={`/superadmin/stores/${data.store.id}/edit`}
                   tone="secondary" size="sm"
                 >
-                  Edit
+                  {t("common.edit")}
                 </ButtonLink>
               </div>
             )}
@@ -266,72 +293,76 @@ export default function SuperadminStoreDrill() {
 
           {data.store.frozen && (
             <Alert tone="warning">
-              This store is <strong>frozen</strong> — its users are locked out
-              to a “suspended” screen until you unfreeze it.
-              {data.store.frozen_reason ? ` Reason: ${data.store.frozen_reason}.` : ""}
-              {data.store.frozen_at ? ` Since ${formatDate(data.store.frozen_at)}.` : ""}
+              {tNodes("saDrill.frozenAlert", { frozen: <strong>{t("saDrill.frozenWord")}</strong> })}
+              {data.store.frozen_reason ? t("saDrill.reason", { reason: data.store.frozen_reason }) : ""}
+              {data.store.frozen_at ? t("saDrill.since", { date: formatDate(data.store.frozen_at) }) : ""}
             </Alert>
           )}
 
           {data.store.comped && (
             <Alert tone="info">
-              This store is <strong>comped</strong> on the {data.store.plan} plan
-              {data.store.comped_at ? ` since ${formatDate(data.store.comped_at)}` : ""}
-              {data.store.stripe_customer_id ? "; Stripe collection is paused" : ""}.
-              {data.store.comp_reason ? ` Reason: ${data.store.comp_reason}.` : ""}
+              {tNodes("saDrill.compedAlert", {
+                comped: <strong>{t("saDrill.compedWord")}</strong>,
+                plan: planLabel(data.store.plan),
+              })}
+              {data.store.comped_at ? t("saDrill.compedSince", { date: formatDate(data.store.comped_at) }) : ""}
+              {data.store.stripe_customer_id ? t("saDrill.stripePaused") : ""}
+              {data.store.comp_reason ? t("saDrill.reason", { reason: data.store.comp_reason }) : ""}
             </Alert>
           )}
 
           <KpiGrid>
-            <KpiCard label="Plan" value={
+            <KpiCard label={t("saStores.colPlan")} value={
               <Pill tone={planTone(data.store.plan)}>
-                {data.store.comped ? `${data.store.plan} (comp)` : data.store.plan}
+                {data.store.comped
+                  ? t("saDrill.planComp", { plan: planLabel(data.store.plan) })
+                  : planLabel(data.store.plan)}
               </Pill>
             } />
-            <KpiCard label="Status" value={data.store.is_active ? "Active" : "Inactive"} tone={data.store.is_active ? "positive" : "muted"} />
-            <KpiCard label="Transfers (30d)" value={fmtNumber(data.stats_30d.transfer_count)} />
-            <KpiCard label="Volume (30d)" value={fmtMoney2(data.stats_30d.volume)} tone="positive" />
-            <KpiCard label="Fees (30d)" value={fmtMoney2(data.stats_30d.fees)} />
-            <KpiCard label="Team" value={data.team.length} />
+            <KpiCard label={t("common.status")} value={data.store.is_active ? t("common.active") : t("common.inactive")} tone={data.store.is_active ? "positive" : "muted"} />
+            <KpiCard label={t("saDrill.transfers30")} value={fmtNumber(data.stats_30d.transfer_count)} />
+            <KpiCard label={t("saDrill.volume30")} value={fmtMoney2(data.stats_30d.volume)} tone="positive" />
+            <KpiCard label={t("saDrill.fees30")} value={fmtMoney2(data.stats_30d.fees)} />
+            <KpiCard label={t("saDrill.team")} value={data.team.length} />
           </KpiGrid>
 
           <div className={styles.grid}>
-            <Section title="Store info">
+            <Section title={t("saDrill.storeInfo")}>
               <Card>
-                <InfoRow label="Email" value={data.store.email || "—"} />
-                <InfoRow label="Phone" value={data.store.phone || "—"} />
-                <InfoRow label="Address" value={data.store.address || "—"} />
-                <InfoRow label="Billing cycle" value={data.store.billing_cycle || "—"} />
-                <InfoRow label="Trial status" value={data.store.trial_status} />
-                <InfoRow label="Created" value={formatDate(data.store.created_at)} />
+                <InfoRow label={t("common.email")} value={data.store.email || "—"} />
+                <InfoRow label={t("common.phone")} value={data.store.phone || "—"} />
+                <InfoRow label={t("saDrill.address")} value={data.store.address || "—"} />
+                <InfoRow label={t("saDrill.billingCycle")} value={data.store.billing_cycle ? billingCycleLabel(data.store.billing_cycle) : "—"} />
+                <InfoRow label={t("saDrill.trialStatus")} value={trialStatusLabel(data.store.trial_status)} />
+                <InfoRow label={t("saDrill.created")} value={formatDate(data.store.created_at)} />
                 {data.store.trial_ends_at && (
-                  <InfoRow label="Trial ends" value={formatDate(data.store.trial_ends_at)} />
+                  <InfoRow label={t("saDrill.trialEndsLabel")} value={formatDate(data.store.trial_ends_at)} />
                 )}
                 {data.store.canceled_at && (
-                  <InfoRow label="Cancelled" value={formatDate(data.store.canceled_at)} />
+                  <InfoRow label={t("saDrill.cancelled")} value={formatDate(data.store.canceled_at)} />
                 )}
                 {data.store.stripe_customer_id && (
-                  <InfoRow label="Stripe customer" value={data.store.stripe_customer_id} />
+                  <InfoRow label={t("saDrill.stripeCustomer")} value={data.store.stripe_customer_id} />
                 )}
               </Card>
             </Section>
 
-            <Section title={`Team (${data.team.length})`}>
+            <Section title={t("saDrill.teamN", { count: String(data.team.length) })}>
               <Card>
                 {data.team.length === 0 ? (
-                  <EmptyState title="No team members." />
+                  <EmptyState title={t("saDrill.noTeam")} />
                 ) : (
                   data.team.map((u) => (
                     <div key={u.id} className={styles.teamRow}>
                       <div>
                         <div className={styles.teamName}>{u.full_name || u.username}</div>
                         <div className={styles.teamMeta}>
-                          {u.username} · {u.email || "no email"}
+                          {u.username} · {u.email || t("saDrill.noEmail")}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
                         <RolePill role={u.role} />
-                        {!u.is_active && <Pill tone="neutral">Inactive</Pill>}
+                        {!u.is_active && <Pill tone="neutral">{t("common.inactive")}</Pill>}
                         {u.is_active && (
                           <>
                             <Button
@@ -339,14 +370,14 @@ export default function SuperadminStoreDrill() {
                               busy={actionBusy} disabled={actionBusy}
                               onClick={() => { void doImpersonate(u.id, "read_only"); }}
                             >
-                              View as
+                              {t("saDrill.viewAs")}
                             </Button>
                             <Button
                               size="sm" tone="secondary"
                               busy={actionBusy} disabled={actionBusy}
                               onClick={() => { void doImpersonate(u.id, "full"); }}
                             >
-                              Sign in as
+                              {t("saDrill.signInAs")}
                             </Button>
                           </>
                         )}
@@ -363,13 +394,13 @@ export default function SuperadminStoreDrill() {
           <OwnerLinksSection storeId={storeId} />
 
           {data.roster.length > 0 && (
-            <Section title={`Employee roster (${data.roster.length})`}>
+            <Section title={t("saDrill.rosterN", { count: String(data.roster.length) })}>
               <Card>
                 <KpiGrid minWidth="120px">
                   {data.roster.map((e) => (
                     <KpiCard
                       key={e.id}
-                      label={e.is_active ? "Active" : "Inactive"}
+                      label={e.is_active ? t("common.active") : t("common.inactive")}
                       value={e.name}
                       tone={e.is_active ? "neutral" : "muted"}
                     />
@@ -379,37 +410,37 @@ export default function SuperadminStoreDrill() {
             </Section>
           )}
 
-          <Section title={`Recent transfers (${data.recent_transfers.length})`}>
+          <Section title={t("saDrill.recentN", { count: String(data.recent_transfers.length) })}>
             <Card>
               {data.recent_transfers.length === 0 ? (
-                <EmptyState title="No transfers yet." />
+                <EmptyState title={t("saDrill.noTransfers")} />
               ) : (
                 <Table>
                   <thead>
                     <tr>
-                      <th style={thStyle}>Date</th>
-                      <th style={thStyle}>Sender</th>
-                      <th style={thStyle}>Recipient</th>
-                      <th style={thStyle}>Company</th>
-                      <th style={{ ...thStyle, textAlign: "right" }}>Amount</th>
-                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>{t("saDrill.colDate")}</th>
+                      <th style={thStyle}>{t("saDrill.colSender")}</th>
+                      <th style={thStyle}>{t("saDrill.colRecipient")}</th>
+                      <th style={thStyle}>{t("saDrill.colCompany")}</th>
+                      <th style={{ ...thStyle, textAlign: "right" }}>{t("saDrill.colAmount")}</th>
+                      <th style={thStyle}>{t("common.status")}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.recent_transfers.map((t) => (
-                      <tr key={t.id}>
+                    {data.recent_transfers.map((tr) => (
+                      <tr key={tr.id}>
                         <td style={tdStyle}>
-                          <span className={styles.monoMuted}>{t.send_date}</span>
+                          <span className={styles.monoMuted}>{tr.send_date}</span>
                         </td>
-                        <td style={tdStyle}>{t.sender_name || "—"}</td>
-                        <td style={tdStyle}>{t.recipient_name || "—"}</td>
-                        <td style={tdStyle}>{t.company || "—"}</td>
+                        <td style={tdStyle}>{tr.sender_name || "—"}</td>
+                        <td style={tdStyle}>{tr.recipient_name || "—"}</td>
+                        <td style={tdStyle}>{tr.company || "—"}</td>
                         <td style={{ ...tdStyle, textAlign: "right" }}>
-                          <span className={styles.mono}>{fmtMoney2(t.send_amount)}</span>
+                          <span className={styles.mono}>{fmtMoney2(tr.send_amount)}</span>
                         </td>
                         <td style={tdStyle}>
-                          <Pill tone={t.status === "Completed" ? "success" : t.status === "Canceled" ? "negative" : "neutral"}>
-                            {t.status}
+                          <Pill tone={transferTone(tr.status)}>
+                            {statusLabel(tr.status)}
                           </Pill>
                         </td>
                       </tr>
@@ -422,7 +453,7 @@ export default function SuperadminStoreDrill() {
 
           <StoreActivitySection storeId={data.store.id} />
 
-          <Section title="Permissions">
+          <Section title={t("saDrill.permissions")}>
             <StorePermissionsPanel storeId={data.store.id} />
           </Section>
         </>
@@ -430,7 +461,7 @@ export default function SuperadminStoreDrill() {
 
       <Modal
         open={showComp}
-        title={`Comp ${data?.store.name ?? "store"}`}
+        title={t("saDrill.compTitle", { name: data?.store.name ?? t("saDrill.storeFallback") })}
         onClose={() => { setShowComp(false); setCompError(null); }}
       >
         <form
@@ -443,15 +474,15 @@ export default function SuperadminStoreDrill() {
               const res = await compStore(storeId, { plan: compPlan, reason: compReason.trim() });
               toast({
                 message: res.stripe_paused
-                  ? `Comped on ${res.plan} — Stripe billing paused.`
-                  : `Comped on ${res.plan}.`,
+                  ? t("saDrill.compedStripe", { plan: planLabel(res.plan) })
+                  : t("saDrill.comped", { plan: planLabel(res.plan) }),
                 tone: "success",
               });
               setShowComp(false);
               setCompReason("");
               void refetch();
             } catch (err) {
-              setCompError(apiErrorMessage(err, "Could not comp this store."));
+              setCompError(apiErrorMessage(err, t("saDrill.compFailed")));
             } finally {
               setCompBusy(false);
             }
@@ -459,25 +490,22 @@ export default function SuperadminStoreDrill() {
           style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
         >
           <p style={{ fontSize: "0.85rem", color: "var(--db-text-muted)", margin: 0 }}>
-            Gives the store a paid plan for free. If it pays through
-            Stripe, the subscription stays but collection is paused —
-            nothing is invoiced until you end the comp. A cancellation
-            from Stripe while comped does not take the plan away.
+            {t("saDrill.compLead")}
           </p>
-          <Field label="Plan">
+          <Field label={t("saStores.colPlan")}>
             <Select
               value={compPlan}
               onChange={(e) => setCompPlan(e.target.value === "basic" ? "basic" : "pro")}
             >
-              <option value="pro">Pro</option>
-              <option value="basic">Basic</option>
+              <option value="pro">{planLabel("pro")}</option>
+              <option value="basic">{planLabel("basic")}</option>
             </Select>
           </Field>
-          <Field label="Reason (optional)">
+          <Field label={t("saDrill.reasonOptional")}>
             <Input
               type="text" value={compReason}
               onChange={(e) => setCompReason(e.target.value)}
-              placeholder="Design partner, make-good, friends & family…"
+              placeholder={t("saDrill.compPlaceholder")}
               maxLength={200}
             />
           </Field>
@@ -487,10 +515,10 @@ export default function SuperadminStoreDrill() {
               tone="secondary" type="button"
               onClick={() => { setShowComp(false); setCompError(null); }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" busy={compBusy} disabled={compBusy}>
-              {compBusy ? "Applying…" : "Comp this store"}
+              {compBusy ? t("saDrill.applying") : t("saDrill.compThis")}
             </Button>
           </ModalActions>
         </form>
@@ -498,7 +526,7 @@ export default function SuperadminStoreDrill() {
 
       <Modal
         open={showEmail}
-        title={`Email ${data?.store.name ?? "store"} admin`}
+        title={t("saDrill.emailTitle", { name: data?.store.name ?? t("saDrill.storeFallback") })}
         onClose={() => { setShowEmail(false); setEmailError(null); }}
       >
         <form
@@ -509,31 +537,31 @@ export default function SuperadminStoreDrill() {
             setEmailError(null);
             try {
               const res = await emailStore(storeId, emailSubject.trim(), emailBody.trim());
-              toast({ message: `Sent to ${res.total} recipient(s).`, tone: "success" });
+              toast({ message: tn("saDrill.sent", res.total, fmtNumber), tone: "success" });
               setShowEmail(false);
               setEmailSubject("");
               setEmailBody("");
             } catch (err) {
-              setEmailError(apiErrorMessage(err, "Could not send."));
+              setEmailError(apiErrorMessage(err, t("saDrill.sendFailed")));
             } finally {
               setEmailBusy(false);
             }
           }}
           style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
         >
-          <Field label="Subject">
+          <Field label={t("saDrill.subject")}>
             <Input
               type="text" value={emailSubject}
               onChange={(e) => setEmailSubject(e.target.value)}
-              placeholder="Subject line…"
+              placeholder={t("saDrill.subjectPh")}
               maxLength={200} required
             />
           </Field>
-          <Field label="Message">
+          <Field label={t("saDrill.message")}>
             <Textarea
               value={emailBody}
               onChange={(e) => setEmailBody(e.target.value)}
-              placeholder="Your message to the store admin…"
+              placeholder={t("saDrill.messagePh")}
               rows={5} maxLength={5000} required
             />
           </Field>
@@ -544,10 +572,10 @@ export default function SuperadminStoreDrill() {
               onClick={() => { setShowEmail(false); setEmailError(null); }}
               type="button"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" busy={emailBusy} disabled={emailBusy}>
-              {emailBusy ? "Sending…" : "Send email"}
+              {emailBusy ? t("saDrill.sending") : t("saDrill.sendEmail")}
             </Button>
           </ModalActions>
         </form>
@@ -555,7 +583,7 @@ export default function SuperadminStoreDrill() {
 
       <Modal
         open={showFreeze}
-        title={`Freeze ${data?.store.name ?? "store"}`}
+        title={t("saDrill.freezeTitle", { name: data?.store.name ?? t("saDrill.storeFallback") })}
         onClose={() => { setShowFreeze(false); setFreezeError(null); }}
       >
         <form
@@ -566,12 +594,12 @@ export default function SuperadminStoreDrill() {
             setFreezeError(null);
             try {
               await freezeStore(storeId, freezeReason.trim());
-              toast({ message: "Store frozen.", tone: "success" });
+              toast({ message: t("saDrill.frozen"), tone: "success" });
               setShowFreeze(false);
               setFreezeReason("");
               void refetch();
             } catch (err) {
-              setFreezeError(apiErrorMessage(err, "Could not freeze."));
+              setFreezeError(apiErrorMessage(err, t("saDrill.freezeFailed")));
             } finally {
               setFreezeBusy(false);
             }
@@ -579,15 +607,13 @@ export default function SuperadminStoreDrill() {
           style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
         >
           <p style={{ fontSize: "0.85rem", color: "var(--db-text-muted)", margin: 0 }}>
-            Suspends the store. Its users are locked out to a “suspended,
-            contact support” screen — re-subscribing won’t lift it, only
-            an unfreeze here does. Their data is untouched.
+            {t("saDrill.freezeLead")}
           </p>
-          <Field label="Reason (optional)">
+          <Field label={t("saDrill.reasonOptional")}>
             <Input
               type="text" value={freezeReason}
               onChange={(e) => setFreezeReason(e.target.value)}
-              placeholder="Abuse, chargeback dispute, non-payment…"
+              placeholder={t("saDrill.freezePh")}
               maxLength={200}
             />
           </Field>
@@ -597,10 +623,10 @@ export default function SuperadminStoreDrill() {
               tone="secondary" type="button"
               onClick={() => { setShowFreeze(false); setFreezeError(null); }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" tone="danger" busy={freezeBusy} disabled={freezeBusy}>
-              {freezeBusy ? "Freezing…" : "Freeze store"}
+              {freezeBusy ? t("saDrill.freezing") : t("saDrill.freezeStore")}
             </Button>
           </ModalActions>
         </form>
@@ -608,7 +634,7 @@ export default function SuperadminStoreDrill() {
 
       <Modal
         open={showCredit}
-        title={`Credit ${data?.store.name ?? "store"}`}
+        title={t("saDrill.creditTitle", { name: data?.store.name ?? t("saDrill.storeFallback") })}
         onClose={() => { setShowCredit(false); setCreditError(null); }}
       >
         <form
@@ -619,12 +645,12 @@ export default function SuperadminStoreDrill() {
             // "12.5" input becomes 1250, not 1249.9999.
             const cents = Math.round(creditAmount * 100);
             if (!Number.isFinite(cents) || cents <= 0) {
-              setCreditError("Enter an amount greater than $0.");
+              setCreditError(t("saDrill.creditMin"));
               return;
             }
             // The cap the old number input enforced with max="5000".
             if (cents > 500_000) {
-              setCreditError("A single credit is capped at $5,000.");
+              setCreditError(t("saDrill.creditCap"));
               return;
             }
             setCreditBusy(true);
@@ -632,14 +658,17 @@ export default function SuperadminStoreDrill() {
             try {
               const res = await creditStore(storeId, cents, creditReason.trim());
               toast({
-                message: `Credited ${fmtMoney2(res.amount_cents / 100)} to ${data?.store.name ?? "store"}.`,
+                message: t("saDrill.credited", {
+                  amount: fmtMoney2(res.amount_cents / 100),
+                  name: data?.store.name ?? t("saDrill.storeFallback"),
+                }),
                 tone: "success",
               });
               setShowCredit(false);
               setCreditAmount(0);
               setCreditReason("");
             } catch (err) {
-              setCreditError(apiErrorMessage(err, "Could not issue credit."));
+              setCreditError(apiErrorMessage(err, t("saDrill.creditFailed")));
             } finally {
               setCreditBusy(false);
             }
@@ -647,23 +676,21 @@ export default function SuperadminStoreDrill() {
           style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
         >
           <p style={{ fontSize: "0.85rem", color: "var(--db-text-muted)", margin: 0 }}>
-            Adds a credit to this store's Stripe balance. Stripe applies
-            it to their next invoice automatically. The store must be on
-            a paid plan (have a Stripe customer).
+            {t("saDrill.creditLead")}
           </p>
           <MoneyInput
-            label="Amount (USD)"
+            label={t("saDrill.amountUsd")}
             value={creditAmount}
             onChange={setCreditAmount}
             placeholder="50.00"
             required
             fullWidth
           />
-          <Field label="Reason (optional)">
+          <Field label={t("saDrill.reasonOptional")}>
             <Input
               type="text" value={creditReason}
               onChange={(e) => setCreditReason(e.target.value)}
-              placeholder="Downtime make-good, billing dispute…"
+              placeholder={t("saDrill.creditPh")}
               maxLength={200}
             />
           </Field>
@@ -673,10 +700,10 @@ export default function SuperadminStoreDrill() {
               tone="secondary" type="button"
               onClick={() => { setShowCredit(false); setCreditError(null); }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" busy={creditBusy} disabled={creditBusy}>
-              {creditBusy ? "Issuing…" : "Issue credit"}
+              {creditBusy ? t("saDrill.issuing") : t("saDrill.issueCredit")}
             </Button>
           </ModalActions>
         </form>
@@ -684,11 +711,11 @@ export default function SuperadminStoreDrill() {
       <ConfirmDialog
         open={pending != null && data != null}
         title={pending === "end-comp"
-          ? "End this store's comp?" : "Disable this store?"}
+          ? t("saDrill.endCompTitle") : t("saDrill.disableTitle")}
         message={pending === "end-comp"
-          ? `${data?.store.name ?? "The store"} goes back to paying for its plan; Stripe billing resumes.`
-          : `Every user at ${data?.store.name ?? "the store"} is locked out until you enable it again.`}
-        confirmLabel={pending === "end-comp" ? "End comp" : "Disable store"}
+          ? t("saDrill.endCompMsg", { name: data?.store.name ?? t("saDrill.theStore") })
+          : t("saDrill.disableMsg", { name: data?.store.name ?? t("saDrill.storeFallback") })}
+        confirmLabel={pending === "end-comp" ? t("saDrill.endComp") : t("saDrill.disableStore")}
         confirmTone="danger"
         busy={actionBusy}
         error={pendingError}
@@ -712,6 +739,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 // the platform lets a store change are shown. The shared
 // RolePermissionsEditor owns the grid, save, reset and unsaved bar.
 function StorePermissionsPanel({ storeId }: { storeId: number }) {
+  const t = useT();
   return (
     <RolePermissionsEditor
       endpoint={`/api/v2/superadmin/stores/${storeId}/permissions`}
@@ -719,8 +747,7 @@ function StorePermissionsPanel({ storeId }: { storeId: number }) {
       hideLockedRoles
       intro={
         <p className={styles.permIntro}>
-          This store's own permission changes. A save takes effect at
-          once and signs out the people whose role changed.
+          {t("saDrill.permIntro")}
         </p>
       }
     />
@@ -741,12 +768,13 @@ function StorePermissionsPanel({ storeId }: { storeId: number }) {
 // its business-type bundle (modules) or the global default again.
 // A module change reaches the store's users on their next shell
 // load (session-status carries the live module list).
-const FEATURE_KIND_LABEL: Record<StoreFeatureRow["kind"], string> = {
-  module: "Module", addon: "Add-on", flag: "Platform flag",
+const FEATURE_KIND_LABEL: Record<StoreFeatureRow["kind"], MessageKey> = {
+  module: "saDrill.kindModule", addon: "saDrill.kindAddon", flag: "saDrill.kindFlag",
 };
 
 function StoreFeaturesSection({ storeId }: { storeId: number | undefined }) {
   const features = useStoreFeatures(storeId);
+  const t = useT();
   const qc = useQueryClient();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
@@ -765,11 +793,11 @@ function StoreFeaturesSection({ storeId }: { storeId: number | undefined }) {
       await setStoreOverride(row.key, storeId, enabled);
       refresh();
       toast({
-        message: `${row.label}: ${enabled ? "on" : "off"} for this store.`,
+        message: t(enabled ? "saDrill.featOn" : "saDrill.featOff", { label: row.label }),
         tone: "success",
       });
     } catch (e) {
-      toastApiError(e, "Could not change this setting");
+      toastApiError(e, t("saDrill.featFailed"));
     } finally {
       setBusyKey(null);
     }
@@ -781,9 +809,9 @@ function StoreFeaturesSection({ storeId }: { storeId: number | undefined }) {
     try {
       await clearStoreOverride(row.key, storeId);
       refresh();
-      toast({ message: `${row.label}: back to the default.`, tone: "success" });
+      toast({ message: t("saDrill.featReset", { label: row.label }), tone: "success" });
     } catch (e) {
-      toastApiError(e, "Could not reset this setting");
+      toastApiError(e, t("saDrill.featResetFailed"));
     } finally {
       setBusyKey(null);
     }
@@ -791,32 +819,32 @@ function StoreFeaturesSection({ storeId }: { storeId: number | undefined }) {
 
   const rows = features.data?.rows ?? [];
   return (
-    <Section title="Modules & add-ons">
+    <Section title={t("saDrill.modules")}>
       <Card>
         {features.isLoading && <Loading />}
         {features.isError && (
           <ErrorState
-            message="Could not load this store's modules."
+            message={t("saDrill.modulesFailed")}
             onRetry={() => { void features.refetch(); }}
           />
         )}
         {features.data && rows.length === 0 && (
-          <EmptyState title="No flags registered." />
+          <EmptyState title={t("saDrill.noFlags")} />
         )}
         {rows.map((row) => (
           <div key={row.key} className={styles.featureRow}>
             <div className={styles.featureText}>
               <div className={styles.teamName}>
                 {row.label}
-                <span className={styles.featureKind}>{FEATURE_KIND_LABEL[row.kind]}</span>
+                <span className={styles.featureKind}>{Object.hasOwn(FEATURE_KIND_LABEL, row.kind) ? t(FEATURE_KIND_LABEL[row.kind]) : row.kind}</span>
               </div>
               {row.description && (
                 <div className={styles.teamMeta}>{row.description}</div>
               )}
               <div className={styles.teamMeta}>
                 {row.override == null
-                  ? `Default for this store: ${row.default ? "on" : "off"}`
-                  : `Overridden (default ${row.default ? "on" : "off"})`}
+                  ? t(row.default ? "saDrill.defaultOn" : "saDrill.defaultOff")
+                  : t(row.default ? "saDrill.overriddenOn" : "saDrill.overriddenOff")}
                 {row.override != null && (
                   <>
                     {" · "}
@@ -826,7 +854,7 @@ function StoreFeaturesSection({ storeId }: { storeId: number | undefined }) {
                       disabled={busyKey === row.key}
                       onClick={() => { void reset(row); }}
                     >
-                      Reset to default
+                      {t("saDrill.resetDefault")}
                     </button>
                   </>
                 )}
@@ -835,7 +863,7 @@ function StoreFeaturesSection({ storeId }: { storeId: number | undefined }) {
             <Switch
               checked={row.effective}
               disabled={busyKey === row.key}
-              aria-label={`${row.label} for this store`}
+              aria-label={t("saDrill.forStore", { label: row.label })}
               onChange={(next) => { void setOverride(row, next); }}
             />
           </div>
@@ -848,6 +876,7 @@ function StoreFeaturesSection({ storeId }: { storeId: number | undefined }) {
 
 function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
   const links = useStoreOwnerLinks(storeId);
+  const t = useT();
   const qc = useQueryClient();
   const toast = useToast();
   const [username, setUsername] = useState("");
@@ -867,9 +896,9 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
       await linkOwnerToStore(storeId, username.trim());
       setUsername("");
       refresh();
-      toast({ message: "Owner connected.", tone: "success" });
+      toast({ message: t("saDrill.ownerConnected"), tone: "success" });
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not connect the owner."));
+      setError(apiErrorMessage(err, t("saDrill.connectFailed")));
     } finally {
       setBusy(false);
     }
@@ -888,9 +917,9 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
       await unlinkOwnerFromStore(storeId, ownerId);
       setDisconnecting(null);
       refresh();
-      toast({ message: `${name} disconnected.`, tone: "success" });
+      toast({ message: t("saDrill.disconnected", { name }), tone: "success" });
     } catch (err) {
-      setDisconnectError(apiErrorMessage(err, "Could not disconnect the owner."));
+      setDisconnectError(apiErrorMessage(err, t("saDrill.disconnectFailed")));
     } finally {
       setBusy(false);
     }
@@ -898,14 +927,14 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
 
   const rows = links.data?.rows ?? [];
   return (
-    <Section title={`Owners (${rows.length})`}>
+    <Section title={t("saDrill.ownersN", { count: String(rows.length) })}>
       <Card>
         {error && <Alert tone="error">{error}</Alert>}
         {links.isLoading && <Loading />}
         {rows.length === 0 && !links.isLoading && (
           <EmptyState
-            title="No owner connected."
-            body="Connect an existing owner login below, or create the store's initial user as an owner."
+            title={t("saDrill.noOwner")}
+            body={t("saDrill.noOwnerBody")}
           />
         )}
         {rows.map((r) => (
@@ -914,11 +943,11 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
               <div className={styles.teamName}>{r.full_name || r.username}</div>
               <div className={styles.teamMeta}>
                 {r.username}
-                {r.linked_at ? ` · linked ${formatDate(r.linked_at)}` : ""}
+                {r.linked_at ? t("saDrill.linked", { date: formatDate(r.linked_at) }) : ""}
               </div>
             </div>
             <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
-              {!r.is_active && <Pill tone="neutral">Inactive</Pill>}
+              {!r.is_active && <Pill tone="neutral">{t("common.inactive")}</Pill>}
               <Button
                 size="sm" tone="danger" disabled={busy}
                 onClick={() => {
@@ -926,14 +955,14 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
                   setDisconnecting({ ownerId: r.owner_id, name: r.username });
                 }}
               >
-                Disconnect
+                {t("saDrill.disconnect")}
               </Button>
             </div>
           </div>
         ))}
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", alignItems: "flex-end" }}>
           <div style={{ flex: 1 }}>
-            <Field label="Connect an owner by username">
+            <Field label={t("saDrill.connectLabel")}>
               <Input
                 placeholder="owner@example.com"
                 value={username}
@@ -946,15 +975,15 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
             tone="primary" disabled={busy || !username.trim()}
             onClick={() => { void add(); }}
           >
-            Connect
+            {t("saDrill.connect")}
           </Button>
         </div>
       </Card>
       <ConfirmDialog
         open={disconnecting != null}
-        title={`Disconnect ${disconnecting?.name ?? ""}?`}
-        message="The owner loses access to this store from their owner login."
-        confirmLabel="Disconnect"
+        title={t("saDrill.disconnectTitle", { name: disconnecting?.name ?? "" })}
+        message={t("saDrill.disconnectMsg")}
+        confirmLabel={t("saDrill.disconnect")}
         confirmTone="danger"
         busy={busy}
         error={disconnectError}
@@ -973,6 +1002,7 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
 // "who changed this" is answered from the store page. Rows written
 // during an impersonation carry "(via superadmin …)" in the actor.
 function StoreActivitySection({ storeId }: { storeId: number }) {
+  const t = useT();
   // Filters and page in the URL, like every list: refresh and Back
   // keep the superadmin where they were.
   const filters = useUrlFilterState(
@@ -986,41 +1016,41 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
   });
 
   return (
-    <Section title="Activity">
+    <Section title={t("saDrill.activity")}>
       <Card>
         <div className={styles.activityFilters}>
-          <Field label="Target" style={{ minWidth: "10rem" }}>
+          <Field label={t("saDrill.target")} style={{ minWidth: "10rem" }}>
             <Select
-              aria-label="Activity target"
+              aria-label={t("saDrill.activityTarget")}
               value={target}
               onChange={(e) => filters.setParam("activity_target", e.target.value)}
             >
               {AUDIT_TARGET_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{translate(o.label)}</option>
+                <option key={o.value} value={o.value}>{t(o.label)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Action" style={{ minWidth: "10rem" }}>
+          <Field label={t("saDrill.action")} style={{ minWidth: "10rem" }}>
             <Select
-              aria-label="Activity action"
+              aria-label={t("saDrill.activityAction")}
               value={action}
               onChange={(e) => filters.setParam("activity_action", e.target.value)}
             >
               {AUDIT_ACTION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{translate(o.label)}</option>
+                <option key={o.value} value={o.value}>{t(o.label)}</option>
               ))}
             </Select>
           </Field>
           <span className={styles.activityCount}>
-            {log.data ? `${fmtCount(log.data.total, "event")}` : ""}
+            {log.data ? tn("saEmail.events", log.data.total, fmtNumber) : ""}
           </span>
         </div>
         <AuditTable
           rows={log.data?.rows}
           isLoading={log.isLoading} isError={log.isError} error={log.error}
           onRetry={() => { void log.refetch(); }}
-          errorMessage="Could not load this store's activity."
-          emptyTitle="No activity matches these filters."
+          errorMessage={t("saDrill.activityFailed")}
+          emptyTitle={t("saDrill.noActivity")}
           page={log.data && {
             page: log.data.page, totalPages: log.data.total_pages, total: log.data.total,
             onPage: filters.setPage,
