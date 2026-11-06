@@ -41,6 +41,8 @@ import styles from "./BankTransactions.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { BooksCell, BooksSummary, PossibleDoublesCard } from "./BankMatching";
 import { booksStatusLabel, canDismissRow } from "../lib/bankMatching";
+import { t as translate, tn, tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Bank transactions at /app/bank-transactions. Filters: account,
 // sign, uncategorized-only, free-text search. Each row's category
@@ -69,6 +71,7 @@ export default function BankTransactions() {
   const qc = useQueryClient();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
+  const t = useT();
   const [syncing, setSyncing] = useState(false);
   const [ruleFor, setRuleFor] = useState<BankTransactionRow | null>(null);
 
@@ -105,8 +108,8 @@ export default function BankTransactions() {
   if (identity?.store_id == null) {
     return (
       <PageShell>
-        <PageHeader title="Bank transactions" />
-        <Empty>Sign in as a store admin to view bank transactions.</Empty>
+        <PageHeader title={navWord("Bank transactions")} />
+        <Empty>{t("bankTxn.signInAdmin")}</Empty>
       </PageShell>
     );
   }
@@ -119,11 +122,13 @@ export default function BankTransactions() {
       <PageCrumbs />
 
       <PageHeader
-        title="Bank transactions"
+        title={navWord("Bank transactions")}
         subtitle={
           txns.data
-            ? `${fmtNumber(txns.data.total)} transactions · ` +
-              `${fmtNumber(txns.data.uncategorized_count)} uncategorized`
+            ? t("bankTxn.subtitle", {
+              total: fmtNumber(txns.data.total),
+              uncategorized: fmtNumber(txns.data.uncategorized_count),
+            })
             : "—"
         }
         actions={
@@ -137,24 +142,24 @@ export default function BankTransactions() {
                 try {
                   const r = await syncBankTransactions();
                   toast({
-                    message: `Synced ${r.new_rows} new transaction${r.new_rows === 1 ? "" : "s"}.`,
+                    message: tn("bankTxn.synced", r.new_rows, fmtNumber),
                     tone: "success",
                   });
                   void qc.invalidateQueries({ queryKey: ["bank"] });
                 } catch (err) {
-                  toastApiError(err, "Sync failed.");
+                  toastApiError(err, t("bankTxn.syncFailed"));
                 } finally {
                   setSyncing(false);
                 }
               }}
             >
-              {syncing ? "Syncing…" : "Sync transactions"}
+              {syncing ? t("bankTxn.syncing") : t("bankTxn.sync")}
             </Button>
             <ButtonLink to="/bank/rules" tone="secondary" size="sm">
-              Rules
+              {t("bankTxn.rules")}
             </ButtonLink>
             <ButtonLink to="/bank" tone="secondary" size="sm">
-              Manage accounts
+              {t("bankTxn.manageAccounts")}
             </ButtonLink>
           </div>
         }
@@ -168,64 +173,64 @@ export default function BankTransactions() {
 
       <Card>
         <div className="ds-filter-bar">
-          <Field label="Search">
+          <Field label={t("bankTxn.search")}>
             <Input
               type="search"
               value={url.draft.q ?? params.q}
-              placeholder="Description…"
+              placeholder={t("bankTxn.searchPh")}
               onChange={(e) => url.debounced("q", e.target.value)}
             />
           </Field>
-          <Field label="Account">
+          <Field label={t("bankTxn.account")}>
             <Select
               value={filters.account_id ?? ""}
               onChange={(e) => setParam("account_id", e.target.value)}
             >
-              <option value="">All accounts</option>
+              <option value="">{t("bankTxn.allAccounts")}</option>
               {accounts.data?.rows.map((a) => (
                 <option key={a.id} value={a.id}>{a.label}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Category">
+          <Field label={t("bankTxn.category")}>
             <Select
               value={filters.category_slug ?? ""}
               onChange={(e) => setParam("category_slug", e.target.value)}
             >
-              <option value="">Any category</option>
+              <option value="">{t("bankTxn.anyCategory")}</option>
               <BankCategoryOptions groups={groups} />
             </Select>
           </Field>
-          <Field label="Sign">
+          <Field label={t("bankTxn.sign")}>
             <Select
               value={filters.sign ?? ""}
               onChange={(e) => setParam("sign", e.target.value as "credit" | "debit" | "")}
             >
-              <option value="">Any</option>
-              <option value="credit">Credit</option>
-              <option value="debit">Debit</option>
+              <option value="">{t("bankTxn.any")}</option>
+              <option value="credit">{t("bankTxn.credit")}</option>
+              <option value="debit">{t("bankTxn.debit")}</option>
             </Select>
           </Field>
-          <Field label="From">
+          <Field label={t("bankTxn.from")}>
             <DateInput
               value={filters.posted_from ?? ""}
               onChange={(e) => setParam("posted_from", e.target.value)}
             />
           </Field>
-          <Field label="To">
+          <Field label={t("bankTxn.to")}>
             <DateInput
               value={filters.posted_to ?? ""}
               onChange={(e) => setParam("posted_to", e.target.value)}
             />
           </Field>
-          <Field label="Filter">
+          <Field label={t("bankTxn.filter")}>
             <Checkbox
               checked={filters.uncategorized_only}
               onChange={(v) =>
                 setParam("uncategorized_only", v ? "1" : "")
               }
             >
-              Uncategorized only
+              {t("bankTxn.uncatOnly")}
             </Checkbox>
           </Field>
         </div>
@@ -260,7 +265,7 @@ export default function BankTransactions() {
             onPerPage: url.setPerPage,
             leading: (
               <span className={styles.pagerLead}>
-                Page total:{" "}
+                {t("bankTxn.pageTotal")}{" "}
                 <span style={monoStyle}>
                   {fmtMoney2(txns.data.page_total_cents / 100)}
                 </span>
@@ -279,15 +284,15 @@ export default function BankTransactions() {
       <Modal
         open={ruleFor != null}
         onClose={() => setRuleFor(null)}
-        title="Make a rule from this transaction"
+        title={t("bankTxn.ruleTitle")}
         size="lg"
       >
         {ruleFor && (
           <>
             <p className={styles.modalLead}>
-              Next time a transaction like <strong>{ruleFor.description || "this"}</strong>{" "}
-              comes in, it will be categorized for you. Adjust the match so it
-              is specific enough, then save.
+              {tNodes("bankTxn.ruleLead", {
+                desc: <strong>{ruleFor.description || t("bankTxn.this")}</strong>,
+              })}
             </p>
             <BankRuleForm
               key={ruleFor.id}
@@ -300,7 +305,7 @@ export default function BankTransactions() {
               onSaved={(resp) => {
                 setRuleFor(null);
                 toast({
-                  message: `Rule created.${describeAppliedRule(resp.applied)}`,
+                  message: `${t("bankTxn.ruleCreated")}${describeAppliedRule(resp.applied)}`,
                   tone: "success",
                 });
                 void qc.invalidateQueries({ queryKey: ["bank"] });
@@ -329,6 +334,7 @@ function TxnTable({
 >) {
   const qc = useQueryClient();
   const identity = getCurrentIdentity();
+  const t = useT();
   const labels = useMemo(() => categoryLabels(groups), [groups]);
   const bookable = useMemo(() => dailyBookSlugs(groups), [groups]);
   const columns = useMemo<DataColumn<BankTransactionRow>[]>(() => {
@@ -339,43 +345,43 @@ function TxnTable({
     }
     const canDismiss = matching && hasPermission("bank_dismiss", "update");
     const tickColumn: DataColumn<BankTransactionRow>[] = canDismiss ? [{
-      key: "tick", header: "Select",
+      key: "tick", header: t("bankTxn.select"),
       render: (r) => canDismissRow(r) ? (
         <Checkbox
-          aria-label={`Tick ${r.description || "transaction"} to dismiss`}
+          aria-label={t("bankTxn.tickAria", { desc: r.description || t("bankTxn.transaction") })}
           checked={ticked.includes(r.id)}
           onChange={(v) => onTick(r.id, v)}
         />
       ) : null,
     }] : [];
     const booksColumn: DataColumn<BankTransactionRow>[] = matching ? [{
-      key: "books", header: "Daily book",
+      key: "books", header: t("bankTxn.dailyBook"),
       render: (r) => <BooksCell row={r} />,
       csv: (r) => booksStatusLabel(r.books_status),
     }] : [];
     return [
       ...tickColumn,
       {
-        key: "posted", header: "Posted", sortKey: "posted", sortFirst: "desc",
+        key: "posted", header: t("bankTxn.posted"), sortKey: "posted", sortFirst: "desc",
         render: (r) => <span className={styles.dateCell}>{formatDate(r.posted_at)}</span>,
         csv: (r) => csvDate(r.posted_at),
       },
       {
-        key: "description", header: "Description", sortKey: "description",
+        key: "description", header: t("bankTxn.description"), sortKey: "description",
         render: (r) => r.description || "—",
         csv: (r) => r.description,
       },
       {
-        key: "account", header: "Account",
+        key: "account", header: t("bankTxn.account"),
         render: (r) => (
           <span className={styles.accountCell}>
-            {r.account_label || `Account ${r.account_id}`}
+            {r.account_label || t("bankTxn.accountN", { id: r.account_id })}
           </span>
         ),
-        csv: (r) => r.account_label || `Account ${r.account_id}`,
+        csv: (r) => r.account_label || t("bankTxn.accountN", { id: r.account_id }),
       },
       {
-        key: "category", header: "Category", sortKey: "category",
+        key: "category", header: t("bankTxn.category"), sortKey: "category",
         render: (r) => (
           <CategoryCell
             row={r}
@@ -390,7 +396,7 @@ function TxnTable({
       },
       ...booksColumn,
       {
-        key: "amount", header: "Amount", align: "right", sortKey: "amount", sortFirst: "desc",
+        key: "amount", header: t("bankTxn.amount"), align: "right", sortKey: "amount", sortFirst: "desc",
         render: (r) => (
           <span className={r.amount_cents > 0 ? styles.amountPos : styles.amountNeutral}>
             {r.amount_cents > 0 ? "+" : ""}{fmtMoney2(r.amount)}
@@ -401,7 +407,7 @@ function TxnTable({
     ];
   }, [
     qc, identity?.store_id, groups, labels, bookable, onMakeRule,
-    matching, ticked, onTick,
+    matching, ticked, onTick, t,
   ]);
   return (
     <DataTable
@@ -409,7 +415,7 @@ function TxnTable({
       columns={columns}
       rows={rows}
       rowKey={(r) => r.id}
-      emptyTitle="No transactions match these filters."
+      emptyTitle={t("bankTxn.empty")}
     />
   );
 }
@@ -425,6 +431,7 @@ function CategoryCell({
   onMakeRule: () => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   // A locked day: the slug the operator picked + the date the
@@ -451,10 +458,10 @@ function CategoryCell({
           post_to_daily: true,
           ...(day !== undefined ? { report_date: day } : {}),
         });
-        const t = resp.transaction;
-        if (t.booked_on) {
+        const txn = resp.transaction;
+        if (txn.booked_on) {
           toast({
-            message: `Booked on the daily book for ${formatDate(t.booked_on)}.`,
+            message: t("bankTxn.bookedToast", { date: formatDate(txn.booked_on) }),
             tone: "success",
           });
         }
@@ -473,7 +480,7 @@ function CategoryCell({
         setLocked({ slug, date: lockedDay.report_date });
         setChoosingDay(false);
       } else {
-        setErr(apiErrorMessage(e, "Could not update category."));
+        setErr(apiErrorMessage(e, t("bankTxn.updateFailed")));
       }
     } finally {
       setBusy(false);
@@ -490,7 +497,7 @@ function CategoryCell({
     return (
       <div className={styles.categoryCell}>
         <span className={row.category_slug ? styles.categorySelectMono : undefined}>
-          {row.category_slug ? label : "— uncategorized —"}
+          {row.category_slug ? label : t("bankTxn.uncategorized")}
         </span>
         <BookedLink row={row} />
       </div>
@@ -503,14 +510,14 @@ function CategoryCell({
         value={row.category_slug}
         onChange={(e) => pick(e.target.value)}
         disabled={busy}
-        aria-label="Category"
+        aria-label={t("bankTxn.category")}
         className={
           row.category_slug
             ? `${styles.categorySelect} ${styles.categorySelectMono}`
             : styles.categorySelect
         }
       >
-        <option value="">— uncategorized —</option>
+        <option value="">{t("bankTxn.uncategorized")}</option>
         <BankCategoryOptions groups={groups} />
         {row.category_slug && !labels.has(row.category_slug) && (
           <option value={row.category_slug}>{row.category_slug}</option>
@@ -522,11 +529,11 @@ function CategoryCell({
           className={styles.notBooked}
           title={
             row.report_date_override
-              ? `Tagged for ${formatDate(row.report_date_override)}, but no line on that day's book.`
-              : "Tagged, but no line on the daily book."
+              ? t("bankTxn.taggedFor", { date: formatDate(row.report_date_override) })
+              : t("bankTxn.taggedNoLine")
           }
         >
-          not booked
+          {t("bankTxn.notBooked")}
           {row.report_date_override && ` · ${formatDate(row.report_date_override)}`}
         </span>
       )}
@@ -535,17 +542,17 @@ function CategoryCell({
           tone="ghost" size="sm"
           disabled={busy}
           onClick={() => setChoosingDay(true)}
-          title="Book this on a different day — the bank's posting date is not always the day the money moved"
+          title={t("bankTxn.changeDayTip")}
         >
-          {row.booked_on ? "Change day" : "Pick a day"}
+          {row.booked_on ? t("bankTxn.changeDay") : t("bankTxn.pickDay")}
         </Button>
       )}
       <Button
         tone="ghost" size="sm" perm="bank_sync.create"
         onClick={onMakeRule}
-        title="Create a rule that categorizes transactions like this one automatically"
+        title={t("bankTxn.makeRuleTip")}
       >
-        Make a rule
+        {t("bankTxn.makeRule")}
       </Button>
       {err && (
         <span title={err} className={styles.errorMark} role="alert">
@@ -558,9 +565,9 @@ function CategoryCell({
           busy={busy}
           lead={
             <>
-              Book this on the daily book for{" "}
+              {t("bankTxn.bookOnLead")}{" "}
               {row.bank_date
-                ? `(the bank posted it ${formatDate(row.bank_date)})`
+                ? t("bankTxn.bankPosted", { date: formatDate(row.bank_date) })
                 : ""}
             </>
           }
@@ -576,13 +583,13 @@ function CategoryCell({
       {lockedLine && (
         <div className={styles.lockedRow} role="alert">
           <span>
-            The daily book for {formatDate(lockedLine)} is locked, so the
-            line this transaction booked there can&rsquo;t change.{" "}
-            <AppLink to={`/daily/edit?date=${lockedLine}`}>Open it</AppLink>{" "}
-            to unlock it first.
+            {tNodes("bankTxn.lockedLine", {
+              date: formatDate(lockedLine),
+              link: <AppLink to={`/daily/edit?date=${lockedLine}`}>{t("bankTxn.openIt")}</AppLink>,
+            })}
           </span>
           <Button size="sm" tone="secondary" onClick={() => setLockedLine(null)}>
-            OK
+            {t("bankTxn.ok")}
           </Button>
         </div>
       )}
@@ -593,9 +600,10 @@ function CategoryCell({
           busy={busy}
           lead={
             <>
-              The daily book for {formatDate(locked.date)} is locked.{" "}
-              <AppLink to={`/daily/edit?date=${locked.date}`}>Open it</AppLink> to
-              unlock, or book on another day:
+              {tNodes("bankTxn.lockedDay", {
+                date: formatDate(locked.date),
+                link: <AppLink to={`/daily/edit?date=${locked.date}`}>{t("bankTxn.openIt")}</AppLink>,
+              })}
             </>
           }
           onConfirm={(d) => { void pick(locked.slug, d); }}
@@ -626,27 +634,28 @@ function BookDayForm({
   onUseBankDate?: () => void;
 }) {
   const [day, setDay] = useState(initial);
+  const t = useT();
   return (
     <div className={styles.lockedRow} role={alert ? "alert" : "group"}>
       <span>{lead}</span>
       <DateInput
         value={day}
         onChange={(e) => setDay(e.target.value)}
-        aria-label="Book on date"
+        aria-label={t("bankTxn.bookOnDate")}
       />
       <Button
         size="sm" disabled={!day || busy} busy={busy}
         onClick={() => onConfirm(day)}
       >
-        Book
+        {t("bankTxn.book")}
       </Button>
       {onUseBankDate && (
         <Button size="sm" tone="ghost" disabled={busy} onClick={onUseBankDate}>
-          Use the bank&rsquo;s date
+          {t("bankTxn.useBankDate")}
         </Button>
       )}
       <Button size="sm" tone="secondary" disabled={busy} onClick={onCancel}>
-        Cancel
+        {t("bankTxn.cancel")}
       </Button>
     </div>
   );
@@ -654,14 +663,15 @@ function BookDayForm({
 
 
 function BookedLink({ row }: { row: BankTransactionRow }) {
+  const t = useT();
   if (!row.booked_on) return null;
   return (
     <AppLink
       to={`/daily/edit?date=${row.booked_on}`}
       className={styles.bookedLink}
-      title="Open that day's daily book"
+      title={t("bankTxn.openDayTip")}
     >
-      booked {formatDate(row.booked_on)}
+      {t("bankTxn.booked", { date: formatDate(row.booked_on) })}
     </AppLink>
   );
 }
@@ -679,8 +689,8 @@ function BalanceCards({ accounts }: { accounts: BankAccountRow[] }) {
           value={fmtMoney2(a.last_balance)}
           sub={
             a.last_balance_as_of
-              ? `As of ${formatDateTime(a.last_balance_as_of)}`
-              : "Balance not yet refreshed."
+              ? translate("bank.asOf", { date: formatDateTime(a.last_balance_as_of) })
+              : translate("bank.notRefreshed")
           }
         />
       ))}

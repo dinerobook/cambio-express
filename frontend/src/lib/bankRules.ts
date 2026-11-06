@@ -12,6 +12,7 @@ import {
   type BankRuleWriteBody,
 } from "../api/bankSync";
 import { fmtMoney2 } from "./formatters";
+import { t, tn } from "../i18n";
 
 export interface BankRuleFormValues {
   enabled: boolean;
@@ -36,21 +37,13 @@ export interface BankRuleFormValues {
 /** The day-shift choices a rule offers. A rule fires on rows nobody
  *  has looked at yet, so it can only shift from the bank's date —
  *  an absolute day belongs on the transaction itself. */
-export const POST_OFFSET_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
-  { value: -3, label: "3 days before the bank's date" },
-  { value: -2, label: "2 days before the bank's date" },
-  { value: -1, label: "1 day before the bank's date" },
-  { value: 0,  label: "The bank's own date" },
-  { value: 1,  label: "1 day after the bank's date" },
-  { value: 2,  label: "2 days after the bank's date" },
-];
+export const POST_OFFSET_OPTIONS: ReadonlyArray<number> = [-3, -2, -1, 0, 1, 2];
 
-/** "1 day before the bank's date" etc., for the rules list. */
+/** "1 day before the bank's date" etc., for the form and the rules
+ *  list, in the reader's language. */
 export function postOffsetLabel(days: number): string {
-  const known = POST_OFFSET_OPTIONS.find((o) => o.value === days);
-  if (known) return known.label;
-  const n = Math.abs(days);
-  return `${n} day${n === 1 ? "" : "s"} ${days < 0 ? "before" : "after"} the bank's date`;
+  if (days === 0) return t("rule.offsetBankDate");
+  return tn(days < 0 ? "rule.offsetBefore" : "rule.offsetAfter", Math.abs(days));
 }
 
 export const EMPTY_RULE_FORM: BankRuleFormValues = {
@@ -160,23 +153,26 @@ interface RuleConditionFields {
 export function conditionChips(r: RuleConditionFields): string[][] {
   const out: string[][] = [];
   if (r.desc_match_type && r.desc_match_value) {
-    const op = MATCH_TYPE_OPTIONS.find((o) => o.value === r.desc_match_type)?.label
-      ?? r.desc_match_type;
-    out.push(["description", op, `“${r.desc_match_value}”`]);
+    const opKey = MATCH_TYPE_OPTIONS.find((o) => o.value === r.desc_match_type)?.label;
+    const op = opKey ? t(opKey) : r.desc_match_type;
+    out.push([t("rule.chipDescription"), op, `“${r.desc_match_value}”`]);
   }
-  if (r.sign_filter === "credit") out.push(["money in"]);
-  if (r.sign_filter === "debit") out.push(["money out"]);
+  if (r.sign_filter === "credit") out.push([t("rule.chipMoneyIn")]);
+  if (r.sign_filter === "debit") out.push([t("rule.chipMoneyOut")]);
   if (r.amount_min_cents != null && r.amount_max_cents != null) {
-    out.push(["amount", "between", fmtMoney2(r.amount_min_cents / 100), "and", fmtMoney2(r.amount_max_cents / 100)]);
+    out.push([
+      t("rule.chipAmount"), t("rule.chipBetween"), fmtMoney2(r.amount_min_cents / 100),
+      t("rule.chipAnd"), fmtMoney2(r.amount_max_cents / 100),
+    ]);
   } else if (r.amount_min_cents != null) {
-    out.push(["amount", "at least", fmtMoney2(r.amount_min_cents / 100)]);
+    out.push([t("rule.chipAmount"), t("rule.chipAtLeast"), fmtMoney2(r.amount_min_cents / 100)]);
   } else if (r.amount_max_cents != null) {
-    out.push(["amount", "at most", fmtMoney2(r.amount_max_cents / 100)]);
+    out.push([t("rule.chipAmount"), t("rule.chipAtMost"), fmtMoney2(r.amount_max_cents / 100)]);
   }
   if (r.account_filter_id != null) {
-    out.push(["account", "is", r.account_filter_label || `#${r.account_filter_id}`]);
+    out.push([t("rule.chipAccount"), t("rule.chipIs"), r.account_filter_label || `#${r.account_filter_id}`]);
   }
-  if (out.length === 0) out.push(["any transaction"]);
+  if (out.length === 0) out.push([t("rule.chipAny")]);
   return out;
 }
 
@@ -185,9 +181,11 @@ export function ruleSentence(
   r: RuleConditionFields & { description?: string; target_kind: string },
   labels: Map<string, string>,
 ): string {
-  const conds = conditionChips(r).map((c) => c.join(" ")).join(" and ");
+  const conds = conditionChips(r).map((c) => c.join(" ")).join(` ${t("rule.chipAnd")} `);
   const target = labels.get(r.target_kind) ?? r.target_kind;
-  return `${r.description ? r.description + ": " : ""}if ${conds} → ${target}`;
+  return r.description
+    ? t("rule.sentenceNamed", { name: r.description, conditions: conds, target })
+    : t("rule.sentence", { conditions: conds, target });
 }
 
 
@@ -199,9 +197,9 @@ export function ruleSentence(
  *  left out; the tagged count always shows, even when it is 0. */
 export function describeAppliedRule(a: BankRuleApplyReport | null | undefined): string {
   if (!a) return "";
-  const parts = [`${a.tagged} tagged`];
-  if (a.booked) parts.push(`${a.booked} booked on the daily book`);
-  if (a.matched) parts.push(`${a.matched} already in the daily book (matched)`);
-  if (a.locked_skipped) parts.push(`${a.locked_skipped} skipped (day locked)`);
+  const parts = [t("rule.appliedTagged", { count: a.tagged })];
+  if (a.booked) parts.push(t("rule.appliedBooked", { count: a.booked }));
+  if (a.matched) parts.push(t("rule.appliedMatched", { count: a.matched }));
+  if (a.locked_skipped) parts.push(t("rule.appliedSkipped", { count: a.locked_skipped }));
   return ` ${parts.join(", ")}.`;
 }

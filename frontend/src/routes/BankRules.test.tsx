@@ -8,6 +8,8 @@ import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Bank rules (BankSync INVARIANTS: AND conditions, first match wins
 // in priority order, create may apply to existing rows, the apply
@@ -493,5 +495,48 @@ describe("Rule templates", () => {
     renderPage();
     expect(screen.getByText("Intermex commission deposit")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Use template/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("Bank rules in Spanish", () => {
+  beforeEach(() => {
+    setCurrentIdentity(TEST_ADMIN);
+    setRules([ruleOne, ruleTwo]);
+    setTemplates([commissionTemplate]);
+  });
+
+  it("the rules read as Spanish sentences", () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Reglas bancarias" })).toBeInTheDocument();
+    expect(screen.getByText("2 reglas")).toBeInTheDocument();
+    expect(screen.getByText("4 coincidencias")).toBeInTheDocument();
+    expect(screen.getAllByText("Si").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("entrada de dinero").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("al menos")).toBeInTheDocument();
+    expect(screen.getByText("se registra en el libro diario")).toBeInTheDocument();
+    expect(screen.getByText("apagada")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usar la plantilla Intermex commission deposit" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["rules.", "ruleSentence.", "rule."])).toEqual([]);
+  });
+
+  it("the delete popup quotes the rule in Spanish", async () => {
+    setLanguage("es");
+    renderPage();
+    const li = screen.getAllByRole("listitem").find((el) => el.textContent?.includes("Remote deposits"))!;
+    await userEvent.click(within(li).getByRole("button", { name: "Eliminar" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("¿Eliminar la regla «Remote deposits: si descripción contiene");
+    expect(englishLeftovers(dialog, ["rules.", "rule."])).toEqual([]);
+  });
+
+  it("the offset and applied wording read in Spanish", async () => {
+    setLanguage("es");
+    const { postOffsetLabel, describeAppliedRule } = await import("../lib/bankRules");
+    expect(postOffsetLabel(0)).toBe("La misma fecha del banco");
+    expect(postOffsetLabel(-1)).toBe("1 día antes de la fecha del banco");
+    expect(postOffsetLabel(2)).toBe("2 días después de la fecha del banco");
+    expect(describeAppliedRule({ tagged: 5, booked: 3, locked_skipped: 1, matched: 0 }))
+      .toBe(" 5 con categoría, 3 registrados en el libro diario, 1 omitidos (día cerrado).");
   });
 });

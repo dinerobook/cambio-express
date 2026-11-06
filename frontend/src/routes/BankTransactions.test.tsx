@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import BankTransactions from "./BankTransactions";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // "Sync transactions" result reporting. A failed sync used to land
 // in the same green success banner as a good one, so an operator
@@ -143,3 +145,55 @@ describe("BankTransactions list", () => {
   });
 });
 
+
+describe("BankTransactions in Spanish", () => {
+  const row = {
+    id: 5, posted_at: "2026-10-03T12:00:00", description: "REMOTE DEPOSIT FEE",
+    account_id: 1, account_label: "MSB ••0230", category_slug: "",
+    amount: -2.5, amount_cents: -250, booked_on: null,
+  };
+
+  beforeEach(() => {
+    syncBankTransactions.mockReset();
+    useBankTransactions.mockReset();
+    useBankTransactions.mockReturnValue({
+      ...EMPTY,
+      data: { ...EMPTY.data, rows: [row], total: 1, uncategorized_count: 1, page_total_cents: -250 },
+    });
+  });
+
+  it("the filters, columns and row controls read in Spanish", () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Movimientos bancarios" })).toBeInTheDocument();
+    expect(screen.getByText("1 movimientos · 1 sin categoría")).toBeInTheDocument();
+    for (const name of ["Fecha", "Descripción", "Cuenta", "Categoría", "Monto"]) {
+      expect(screen.getByRole("columnheader", { name: new RegExp(name) })).toBeInTheDocument();
+    }
+    expect(screen.getByRole("option", { name: "— sin categoría —" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Crear una regla" })).toBeInTheDocument();
+    expect(screen.getByText(/Total de la página/)).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["bankTxn."])).toEqual([]);
+  });
+
+  it("a sync reports in Spanish, one or many", async () => {
+    setLanguage("es");
+    syncBankTransactions.mockResolvedValue({ new_rows: 1 });
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Sincronizar movimientos" }));
+    expect(await screen.findByText("Se sincronizó 1 movimiento nuevo.")).toBeInTheDocument();
+  });
+
+  it("the make-a-rule popup and its form read in Spanish", async () => {
+    setLanguage("es");
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Crear una regla" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Crear una regla con este movimiento" })).toBeInTheDocument();
+    expect(within(dialog).getByText("Si")).toBeInTheDocument();
+    expect(within(dialog).getByText("Entonces")).toBeInTheDocument();
+    expect(within(dialog).getByRole("option", { name: "contiene" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Crear regla" })).toBeInTheDocument();
+    expect(englishLeftovers(dialog, ["bankTxn.", "ruleForm.", "rule."])).toEqual([]);
+  });
+});
