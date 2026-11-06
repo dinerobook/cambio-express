@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import ItemMovement from "./ItemMovement";
 import { mockFetch } from "../test/fetchMock";
 import { renderRoute } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Item movement: shared table, flags items missing from the price
 // book, live search and rows per page reach the API.
@@ -49,5 +51,16 @@ describe("Item movement", () => {
     mockFetch({ "GET /api/v2/posimport/item-movement": { body: body({ rows: [], total: 0, total_pages: 1 }) } });
     renderRoute(<ItemMovement />);
     expect(await screen.findByText("No movement in this range")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish", async () => {
+    setLanguage("es");
+    mockFetch({ "GET /api/v2/posimport/item-movement": { body: body() } });
+    renderRoute(<ItemMovement />);
+    expect(await screen.findByText("no está en la lista de precios")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Movimiento de artículos/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["Código de barras", "Dólares", "Precio promedio"]));
+    expect(englishLeftovers(document.body, ["move.", "posTx."])).toEqual([]);
   });
 });

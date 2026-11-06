@@ -15,6 +15,12 @@ import {
   ModalActions,
 } from "./ui";
 import styles from "./RegisterCloses.module.css";
+import { useT, type MessageKey } from "../i18n";
+
+const CLOSE_COLUMNS: MessageKey[] = [
+  "rc.colRegister", "rc.colGross", "rc.colTax", "rc.colCash", "rc.colCard",
+  "rc.colOther", "rc.colCounted", "rc.colOverShort",
+];
 
 // The per-register Z-report detail for ONE day.
 //
@@ -32,6 +38,7 @@ export default function RegisterCloses({
   day: string;
   canEdit?: boolean;
 }) {
+  const t = useT();
   const summary = useDayClose(day);
   const departments = useDepartments();
   const qc = useQueryClient();
@@ -56,9 +63,9 @@ export default function RegisterCloses({
       await deleteRegisterClose(removing.id);
       setRemoving(null);
       refresh();
-      toast({ message: "Register close removed.", tone: "success" });
+      toast({ message: t("rc.removed"), tone: "success" });
     } catch (err) {
-      setRemoveErr(apiErrorMessage(err, "Could not remove the close."));
+      setRemoveErr(apiErrorMessage(err, t("rc.removeFailed")));
     } finally {
       setRemoveBusy(false);
     }
@@ -69,8 +76,8 @@ export default function RegisterCloses({
     <Section
       title={
         <>
-          Registers
-          <InfoTip text="Each register or shift Z-report — sales, tax, and tender totals plus the department breakdown. Drawer over/short computes from the counted cash. Imported register data lands here too." />
+          {t("rc.title")}
+          <InfoTip text={t("rc.tip")} />
         </>
       }
       actions={canEdit ? (
@@ -78,10 +85,10 @@ export default function RegisterCloses({
           {/* The register-import entry point moved here with the
               section — it was the Day close page's header action. */}
           <ButtonLink to="/pos-import" size="sm" tone="secondary">
-            Import from register
+            {t("rc.import")}
           </ButtonLink>
           <Button size="sm" perm="day_close.create" onClick={() => setAdding(true)}>
-            + Add close
+            {t("rc.add")}
           </Button>
         </div>
       ) : undefined}
@@ -89,25 +96,23 @@ export default function RegisterCloses({
       {summary.isLoading && <Loading />}
       {summary.isError && (
         <ErrorState
-          message="Could not load the day's registers."
+          message={t("rc.loadFailed")}
           onRetry={() => { void summary.refetch(); }}
         />
       )}
       {data && data.closes.length === 0 && (
         <EmptyState
-          title="No register closes for this day"
-          body={canEdit
-            ? 'Click "+ Add close" to key the first Z-report, or import it from the register.'
-            : "Nothing was keyed or imported for this day."}
+          title={t("rc.empty")}
+          body={canEdit ? t("rc.emptyEdit") : t("rc.emptyView")}
         />
       )}
       {data && data.closes.length > 0 && (
         <>
           <KpiGrid>
-            <KpiCard label="Gross sales" value={fmtMoney2(data.gross_sales)} />
-            <KpiCard label="Sales tax" value={fmtMoney2(data.sales_tax)} />
+            <KpiCard label={t("rc.gross")} value={fmtMoney2(data.gross_sales)} />
+            <KpiCard label={t("rc.tax")} value={fmtMoney2(data.sales_tax)} />
             <KpiCard
-              label="Drawer over / short"
+              label={t("rc.drawerOverShort")}
               value={
                 data.over_short == null ? "—" : fmtMoney2(data.over_short)
               }
@@ -117,7 +122,7 @@ export default function RegisterCloses({
               }
             />
             <KpiCard
-              label="Uncounted drawers"
+              label={t("rc.uncounted")}
               value={String(data.uncounted_drawers)}
               tone={data.uncounted_drawers > 0 ? "negative" : "positive"}
             />
@@ -126,10 +131,9 @@ export default function RegisterCloses({
             <Table>
               <thead>
                 <tr>
-                  {["Register", "Gross", "Tax", "Cash", "Card", "Other",
-                    "Counted", "Over/short",
-                    ...(canEdit ? ["Actions"] : [])].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
+                  {[...CLOSE_COLUMNS,
+                    ...(canEdit ? ["common.actions" as const] : [])].map((h) => (
+                    <th key={h} style={thStyle}>{t(h)}</th>
                   ))}
                 </tr>
               </thead>
@@ -164,13 +168,13 @@ export default function RegisterCloses({
                           title={c.register_label}
                           actions={[
                             {
-                              label: "Edit",
+                              label: t("common.edit"),
                               perm: "day_close.update",
                               tone: "primary",
                               onClick: () => setEditing(c),
                             },
                             {
-                              label: "Delete",
+                              label: t("rc.delete"),
                               perm: "day_close.update",
                               tone: "warning",
                               onClick: () => {
@@ -192,15 +196,15 @@ export default function RegisterCloses({
               <Table>
                 <thead>
                   <tr>
-                    <th style={thStyle}>Department</th>
-                    <th style={thStyle}>Sales</th>
+                    <th style={thStyle}>{t("rc.department")}</th>
+                    <th style={thStyle}>{t("rc.sales")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.department_totals.map((t) => (
-                    <tr key={t.department_id}>
-                      <td style={tdStyle}>{t.department_name}</td>
-                      <td style={tdStyle}>{fmtMoney2(t.amount)}</td>
+                  {data.department_totals.map((d) => (
+                    <tr key={d.department_id}>
+                      <td style={tdStyle}>{d.department_name}</td>
+                      <td style={tdStyle}>{fmtMoney2(d.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -219,11 +223,13 @@ export default function RegisterCloses({
       />
       <ConfirmDialog
         open={removing != null}
-        title="Delete this register close?"
+        title={t("rc.deleteTitle")}
         message={removing
-          ? `${removing.register_label}${removing.shift_label ? ` / ${removing.shift_label}` : ""} comes off this day's registers.`
+          ? t("rc.deleteMessage", {
+            register: `${removing.register_label}${removing.shift_label ? ` / ${removing.shift_label}` : ""}`,
+          })
           : ""}
-        confirmLabel="Delete"
+        confirmLabel={t("rc.delete")}
         confirmTone="danger"
         busy={removeBusy}
         error={removeErr}
@@ -246,14 +252,15 @@ function CloseModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={
         <>
-          {existing ? "Edit register close" : "Add register close"}
-          <InfoTip text="Key the Z-report as printed. Re-saving the same register and shift replaces the earlier entry. Leave counted cash blank until the drawer is actually counted — blank is 'not counted yet', not $0." />
+          {existing ? t("rc.editTitle") : t("rc.addTitle")}
+          <InfoTip text={t("rc.formTip")} />
         </>
       }
     >
@@ -282,8 +289,9 @@ function CloseForm({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const [registerLabel, setRegisterLabel] = useState(
-    existing?.register_label ?? "Register 1",
+    () => existing?.register_label ?? t("rc.defaultRegister"),
   );
   const [shiftLabel, setShiftLabel] = useState(existing?.shift_label ?? "");
   const [gross, setGross] = useState(existing?.gross_sales ?? 0);
@@ -333,7 +341,7 @@ function CloseForm({
       });
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("rc.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -343,45 +351,45 @@ function CloseForm({
     <form onSubmit={onSubmit} className={styles.modalForm}>
       {error && <Alert tone="error">{error}</Alert>}
       <div className={styles.moneyGrid}>
-        <Field label="Register">
+        <Field label={t("rc.colRegister")}>
           <Input
             type="text" value={registerLabel} required maxLength={40}
             disabled={existing != null}
             onChange={(e) => setRegisterLabel(e.target.value)}
           />
         </Field>
-        <Field label="Shift (optional)">
+        <Field label={t("rc.shift")}>
           <Input
             type="text" value={shiftLabel} maxLength={40}
-            placeholder="e.g. Morning"
+            placeholder={t("rc.shiftPlaceholder")}
             disabled={existing != null}
             onChange={(e) => setShiftLabel(e.target.value)}
           />
         </Field>
-        <MoneyInput label="Gross sales" value={gross} onChange={setGross} fullWidth />
-        <MoneyInput label="Sales tax" value={tax} onChange={setTax} fullWidth />
-        <MoneyInput label="Cash tender" value={cash} onChange={setCash} fullWidth />
-        <MoneyInput label="Card tender" value={card} onChange={setCard} fullWidth />
-        <MoneyInput label="Other tender" value={other} onChange={setOther} fullWidth />
+        <MoneyInput label={t("rc.gross")} value={gross} onChange={setGross} fullWidth />
+        <MoneyInput label={t("rc.tax")} value={tax} onChange={setTax} fullWidth />
+        <MoneyInput label={t("rc.cashTender")} value={cash} onChange={setCash} fullWidth />
+        <MoneyInput label={t("rc.cardTender")} value={card} onChange={setCard} fullWidth />
+        <MoneyInput label={t("rc.otherTender")} value={other} onChange={setOther} fullWidth />
         {/* Not a MoneyInput on purpose: blank means "not counted"
             (null, no variance) and 0 means "counted, drawer empty".
             MoneyInput renders 0 as blank, so it would merge the two. */}
-        <Field label="Counted drawer cash">
+        <Field label={t("rc.counted")}>
           <Input
             type="number" min={0} step="0.01" value={counted}
-            placeholder="Blank = not counted"
+            placeholder={t("rc.countedPlaceholder")}
             onChange={(e) => setCounted(e.target.value)}
           />
         </Field>
       </div>
       {departments.length > 0 && (
-        <Field label="Department sales">
+        <Field label={t("rc.deptSales")}>
           <div className={styles.modalForm}>
             {departments.map((d) => (
               <div key={d.id} className={styles.deptRow}>
                 <span className={styles.deptName}>{d.name}</span>
                 <MoneyInput
-                  aria-label={`${d.name} sales`}
+                  aria-label={t("rc.deptSalesOf", { name: d.name })}
                   value={deptAmounts[d.id] ?? 0}
                   onChange={(next) =>
                     setDeptAmounts((prev) => ({ ...prev, [d.id]: next }))
@@ -392,7 +400,7 @@ function CloseForm({
           </div>
         </Field>
       )}
-      <Field label="Notes (optional)">
+      <Field label={t("rc.notes")}>
         <Textarea
           value={notes} maxLength={500} rows={2}
           onChange={(e) => setNotes(e.target.value)}
@@ -400,10 +408,10 @@ function CloseForm({
       </Field>
       <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" busy={busy} disabled={busy}>
-          {existing ? "Save changes" : "Add close"}
+          {existing ? t("common.saveChanges") : t("rc.addClose")}
         </Button>
       </ModalActions>
     </form>

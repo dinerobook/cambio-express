@@ -27,6 +27,15 @@ import {
 } from "../components/ui";
 import styles from "./PriceBook.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, tNodes, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+const SEED_COLUMNS: MessageKey[] = ["posTx.colScanCode", "posTx.colItem", "dept.colDepartment", "posTx.colPrice"];
+const VENDOR_COLUMNS: MessageKey[] = [
+  "inv.colVendor", "pb.colContact", "common.phone", "pb.colAccount", "pb.tabItems", "common.status",
+];
+// The code type's name: the same in every language.
+const PLU_PILL = "PLU";
 
 // /app/price-book — the item catalog + vendor directory (P2-2).
 // Three tabs on one page: Items (paginated live search over the
@@ -37,6 +46,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // (catalog.read), managing rows needs catalog.update.
 
 export default function PriceBook() {
+  useT(); // re-render on a language switch
   const [tab, setTab] = useState<"items" | "vendors" | "departments">(
     "items",
   );
@@ -46,27 +56,27 @@ export default function PriceBook() {
       <PageHeader
         title={
           <>
-            Price book
-            <InfoTip text="Every item the store sells — scan code, price, cost, department, and vendor. Cashiers can look items up; managing the catalog needs admin rights." />
+            {navWord("Price book")}
+            <InfoTip text={t("pb.tip")} />
           </>
         }
-        subtitle="Items, prices, and the vendors that supply them."
+        subtitle={t("pb.subtitle")}
       />
       <TabsBar>
         <TabsButton active={tab === "items"} onClick={() => setTab("items")}>
-          Items
+          {t("pb.tabItems")}
         </TabsButton>
         <TabsButton
           active={tab === "vendors"}
           onClick={() => setTab("vendors")}
         >
-          Vendors
+          {t("pb.tabVendors")}
         </TabsButton>
         <TabsButton
           active={tab === "departments"}
           onClick={() => setTab("departments")}
         >
-          Departments
+          {t("dept.title")}
         </TabsButton>
       </TabsBar>
       {tab === "items" && <ItemsTab />}
@@ -79,6 +89,7 @@ export default function PriceBook() {
 // ── Items tab ────────────────────────────────────────────────
 
 function ItemsTab() {
+  useT(); // re-render on a language switch
   const canManage = hasPermission("catalog", "update");
   // 300ms debounce + 2-char minimum via the shared URL-filter hook
   // (CLAUDE.md "Table search UX") — same wiring as Transfers.
@@ -116,51 +127,51 @@ function ItemsTab() {
       await updateItem(item.id, { is_active: !item.is_active });
       refresh();
     } catch (err) {
-      toastApiError(err, "Could not update the item.");
+      toastApiError(err, t("pb.itemFailed"));
     }
   }
 
   const data = items.data;
   const columns: DataColumn<PriceBookItem>[] = [
     {
-      key: "code", header: "Scan code", sortKey: "code",
+      key: "code", header: t("posTx.colScanCode"), sortKey: "code",
       render: (i) => (
         <>
           <span className={styles.posCode}>{i.pos_code}</span>
           {i.pos_code_format === "plu" && (
             <>
               {" "}
-              <Pill tone="neutral">PLU</Pill>
+              <Pill tone="neutral">{PLU_PILL}</Pill>
             </>
           )}
         </>
       ),
       csv: (i) => i.pos_code,
     },
-    { key: "name", header: "Item", sortKey: "name", render: (i) => i.name, csv: (i) => i.name },
-    { key: "department", header: "Department", render: (i) => i.department_name || "—",
+    { key: "name", header: t("posTx.colItem"), sortKey: "name", render: (i) => i.name, csv: (i) => i.name },
+    { key: "department", header: t("dept.colDepartment"), render: (i) => i.department_name || "—",
       csv: (i) => i.department_name },
-    { key: "vendor", header: "Vendor", render: (i) => i.vendor_name || "—", csv: (i) => i.vendor_name },
+    { key: "vendor", header: t("inv.colVendor"), render: (i) => i.vendor_name || "—", csv: (i) => i.vendor_name },
     {
-      key: "price", header: "Price", align: "right", sortKey: "price", sortFirst: "desc",
+      key: "price", header: t("posTx.colPrice"), align: "right", sortKey: "price", sortFirst: "desc",
       render: (i) => fmtMoney2(i.price),
       csv: (i) => csvMoney(i.price),
     },
     {
-      key: "cost", header: "Cost", align: "right", sortKey: "cost", sortFirst: "desc",
+      key: "cost", header: t("pb.colCost"), align: "right", sortKey: "cost", sortFirst: "desc",
       render: (i) => (i.cost > 0 ? fmtMoney2(i.cost) : "—"),
       csv: (i) => (i.cost > 0 ? csvMoney(i.cost) : ""),
     },
-    { key: "tax", header: "Tax", render: (i) => (i.is_taxable ? "Taxable" : "—"),
-      csv: (i) => (i.is_taxable ? "Taxable" : "") },
+    { key: "tax", header: t("posTx.colTax"), render: (i) => (i.is_taxable ? t("pb.taxable") : "—"),
+      csv: (i) => (i.is_taxable ? t("pb.taxable") : "") },
     {
-      key: "status", header: "Status",
+      key: "status", header: t("common.status"),
       render: (i) => (
         <Pill tone={i.is_active ? "accent" : "neutral"}>
-          {i.is_active ? "active" : "inactive"}
+          {i.is_active ? t("dept.active") : t("dept.inactive")}
         </Pill>
       ),
-      csv: (i) => (i.is_active ? "Active" : "Inactive"),
+      csv: (i) => (i.is_active ? t("pb.activeCsv") : t("pb.inactiveCsv")),
     },
     ...(canManage ? [{
       key: "actions", header: "", label: "", align: "right" as const,
@@ -168,9 +179,9 @@ function ItemsTab() {
         <RowActions
           title={i.name}
           actions={[
-            { label: "Edit", tone: "primary", onClick: () => setEditing(i) },
+            { label: t("common.edit"), tone: "primary", onClick: () => setEditing(i) },
             {
-              label: i.is_active ? "Deactivate" : "Reactivate",
+              label: i.is_active ? t("dept.deactivate") : t("dept.reactivate"),
               tone: i.is_active ? "warning" : "primary",
               onClick: () => toggleActive(i),
             },
@@ -181,7 +192,7 @@ function ItemsTab() {
   ];
   return (
     <Section
-      title="Items"
+      title={t("pb.tabItems")}
       actions={
         canManage ? (
           <div className={styles.toolbarActions}>
@@ -194,26 +205,26 @@ function ItemsTab() {
               }
             >
               {filters.params.inactive === "1"
-                ? "Hide inactive" : "Show inactive"}
+                ? t("dept.hideInactive") : t("dept.showInactive")}
             </Button>
             <Button
               size="sm" tone="secondary"
               onClick={() => setSeeding(true)}
             >
-              Seed from register
+              {t("pb.seed")}
             </Button>
             <a
               href="/api/v2/posimport/naxml/pricebook-export"
               download
               style={{ textDecoration: "none" }}
-              title="Download the price book as a NAXML ItemMaintenance file for Gilbarco Passport's back-office import (beta — the write-back half of the register loop)."
+              title={t("pb.exportTitle")}
             >
               <Button size="sm" tone="secondary" type="button">
-                Export for register
+                {t("pb.export")}
               </Button>
             </a>
             <Button size="sm" onClick={() => setAdding(true)}>
-              + Add item
+              {t("pb.addItem")}
             </Button>
           </div>
         ) : undefined
@@ -221,34 +232,34 @@ function ItemsTab() {
     >
       <div className={styles.filtersRow}>
         <div className={styles.searchField}>
-          <Field label="Search">
+          <Field label={t("posTx.search")}>
             <Input
               type="search"
-              placeholder="Name or scan code…"
+              placeholder={t("pb.searchPlaceholder")}
               value={filters.draft.q ?? filters.params.q}
               onChange={(e) => filters.debounced("q", e.target.value)}
             />
           </Field>
         </div>
-        <Field label="Department">
+        <Field label={t("dept.colDepartment")}>
           <Select
             value={filters.params.department_id}
             onChange={(e) =>
               filters.setParam("department_id", e.target.value)
             }
           >
-            <option value="">All</option>
+            <option value="">{t("pb.all")}</option>
             {(departments.data?.departments ?? []).map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Vendor">
+        <Field label={t("inv.colVendor")}>
           <Select
             value={filters.params.vendor_id}
             onChange={(e) => filters.setParam("vendor_id", e.target.value)}
           >
-            <option value="">All</option>
+            <option value="">{t("pb.all")}</option>
             {(vendors.data?.vendors ?? []).map((v) => (
               <option key={v.id} value={v.id}>{v.name}</option>
             ))}
@@ -261,22 +272,22 @@ function ItemsTab() {
           rows={data?.rows}
           rowKey={(i) => i.id}
           onRowClick={canManage ? setEditing : undefined}
-          rowLabel={(i) => `Edit ${i.name}`}
+          rowLabel={(i) => t("pb.editRow", { name: i.name })}
           isLoading={items.isLoading}
           isError={items.isError}
           error={items.error}
-          errorMessage="Could not load the price book."
+          errorMessage={t("pb.loadFailed")}
           onRetry={() => { void items.refetch(); }}
           emptyTitle={
             filters.params.q || filters.params.department_id
             || filters.params.vendor_id
-              ? "No items match"
-              : "No items yet"
+              ? t("pb.noMatch")
+              : t("pb.none")
           }
           emptyBody={
             canManage
-              ? 'Add items by hand with "+ Add item" — or click "Seed from register" to build the whole price book from the journal data your register agent uploads.'
-              : "The price book is empty."
+              ? t("pb.emptyManage")
+              : t("pb.emptyView")
           }
           sort={filters.sort}
           page={data && {
@@ -316,14 +327,15 @@ function SeedModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={
         <>
-          Seed from register data
-          <InfoTip text="Reads every journal file your register agent has uploaded and builds price-book entries from the items it sold — scan code, name, latest shelf price, and the department your merchandise-code mapping points at. Items you already added are never touched." />
+          {t("pb.seedTitle")}
+          <InfoTip text={t("pb.seedTip")} />
         </>
       }
     >
@@ -346,6 +358,7 @@ function SeedPreview({
     gcTime: 0,
     staleTime: 0,
   });
+  useT(); // re-render on a language switch
   const preview = previewQuery.data ?? null;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -357,16 +370,15 @@ function SeedPreview({
     try {
       const result = await commitPriceBookSeed();
       toast({
-        message: `${result.created} item(s) added from register data`
-          + (result.skipped_existing
-            ? ` (${result.skipped_existing} already in your price book)`
-            : "."),
+        message: result.skipped_existing
+          ? tn("pb.seededSkipped", result.created, String, { skipped: result.skipped_existing })
+          : tn("pb.seeded", result.created),
         tone: "success",
       });
       onDone();
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not seed."),
+        apiErrorMessage(err, t("pb.seedFailed")),
       );
     } finally {
       setBusy(false);
@@ -379,33 +391,33 @@ function SeedPreview({
       {previewQuery.isLoading && <Loading />}
       {previewQuery.isError && (
         <ErrorState
-          message="Could not read the register data."
+          message={t("pb.readFailed")}
           onRetry={() => { void previewQuery.refetch(); }}
         />
       )}
       {preview != null && preview.items.length === 0 && (
         <EmptyState
-          title="No register data yet"
-          body="Once your site agent has uploaded journal files (see Store daily book → Import from register), items it sold show up here."
+          title={t("pb.noData")}
+          body={t("pb.noDataBody")}
         />
       )}
       {preview != null && preview.items.length > 0 && (
         <>
           <p>
-            Found <strong>{preview.items.length}</strong> distinct
-            item(s) in the uploaded journals —{" "}
-            <strong>{preview.new_count}</strong> new,{" "}
-            {preview.existing_count} already in your price book.
-            New items land with their latest shelf price and stay
-            fully editable.
+            {tNodes("pb.found", {
+              found: <strong>{preview.items.length}</strong>,
+              new: <strong>{preview.new_count}</strong>,
+              existing: preview.existing_count,
+            })}
           </p>
           <div style={{ overflowX: "auto", maxHeight: "18rem" }}>
             <Table>
               <thead>
                 <tr>
-                  {["Scan code", "Item", "Department", "Price", ""].map(
-                    (h) => <th key={h} style={thStyle}>{h}</th>,
+                  {SEED_COLUMNS.map(
+                    (h) => <th key={h} style={thStyle}>{t(h)}</th>,
                   )}
+                  <th style={thStyle} />
                 </tr>
               </thead>
               <tbody>
@@ -419,7 +431,7 @@ function SeedPreview({
                     <td style={tdStyle}>{fmtMoney2(i.price)}</td>
                     <td style={tdStyle}>
                       {i.already_in_price_book && (
-                        <Pill tone="neutral">already added</Pill>
+                        <Pill tone="neutral">{t("pb.alreadyAdded")}</Pill>
                       )}
                     </td>
                   </tr>
@@ -428,13 +440,13 @@ function SeedPreview({
             </Table>
           </div>
           {preview.items.length > 50 && (
-            <p>…and {preview.items.length - 50} more.</p>
+            <p>{t("pb.more", { count: preview.items.length - 50 })}</p>
           )}
         </>
       )}
       <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button
           type="button" busy={busy}
@@ -442,8 +454,8 @@ function SeedPreview({
           onClick={() => { void onCommit(); }}
         >
           {preview != null && preview.new_count > 0
-            ? `Add ${preview.new_count} item(s)`
-            : "Nothing to add"}
+            ? tn("pb.addN", preview.new_count)
+            : t("pb.nothing")}
         </Button>
       </ModalActions>
     </div>
@@ -462,11 +474,12 @@ function ItemModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={existing ? `Edit ${existing.name}` : "Add an item"}
+      title={existing ? t("pb.editRow", { name: existing.name }) : t("pb.addItemTitle")}
     >
       {open && (
         // Keyed remount resets the form per open/target — prefill
@@ -493,6 +506,7 @@ function ItemForm({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   const [posCode, setPosCode] = useState(existing?.pos_code ?? "");
   const [posFormat, setPosFormat] = useState(
     existing?.pos_code_format ?? "upc",
@@ -589,7 +603,7 @@ function ItemForm({
       }
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("pb.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -602,8 +616,8 @@ function ItemForm({
         <Field
           label={
             <>
-              Scan code
-              <InfoTip text="The UPC as printed under the barcode, or the short PLU number keyed at the register. Leading zeros are kept." />
+              {t("posTx.colScanCode")}
+              <InfoTip text={t("pb.scanTip")} />
             </>
           }
         >
@@ -612,35 +626,35 @@ function ItemForm({
             onChange={(e) => setPosCode(e.target.value)}
           />
         </Field>
-        <Field label="Code type">
+        <Field label={t("pb.codeType")}>
           <Select
             value={posFormat}
             onChange={(e) => setPosFormat(e.target.value)}
           >
-            <option value="upc">UPC (scanned)</option>
-            <option value="plu">PLU (keyed)</option>
+            <option value="upc">{t("pb.upc")}</option>
+            <option value="plu">{t("pb.plu")}</option>
           </Select>
         </Field>
       </div>
-      <Field label="Item name">
+      <Field label={t("pb.itemName")}>
         <Input
           type="text" value={name} required maxLength={160}
           onChange={(e) => setName(e.target.value)}
         />
       </Field>
       <div className={styles.fieldGrid}>
-        <Field label="Department (optional)">
+        <Field label={t("pb.deptOptional")}>
           <Select
             value={parentSel}
             onChange={(e) => setDepartmentId(e.target.value)}
           >
-            <option value="">None</option>
+            <option value="">{t("pb.noneOption")}</option>
             {parents.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Sub-department">
+        <Field label={t("pb.subDept")}>
           <Select
             value={subSel}
             disabled={subs.length === 0}
@@ -649,67 +663,67 @@ function ItemForm({
             }
           >
             <option value="">
-              {subs.length === 0 ? "—" : "None"}
+              {subs.length === 0 ? "—" : t("pb.noneOption")}
             </option>
             {subs.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Vendor (optional)">
+        <Field label={t("pb.vendorOptional")}>
           <Select
             value={vendorId}
             onChange={(e) => setVendorId(e.target.value)}
           >
-            <option value="">None</option>
+            <option value="">{t("pb.noneOption")}</option>
             {vendors.map((v) => (
               <option key={v.id} value={v.id}>{v.name}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Sales tax">
+        <Field label={t("pb.salesTax")}>
           <Checkbox checked={taxable} onChange={setTaxable}>
-            Taxable
+            {t("pb.taxable")}
           </Checkbox>
         </Field>
-        <Field label="Item # (optional)">
+        <Field label={t("pb.itemNumber")}>
           <Input
             type="text" value={itemNumber} maxLength={40}
-            placeholder="Vendor order number"
+            placeholder={t("pb.itemNumberPlaceholder")}
             onChange={(e) => setItemNumber(e.target.value)}
           />
         </Field>
-        <Field label="Item size (optional)">
+        <Field label={t("pb.size")}>
           <Input
             type="text" value={size} maxLength={40}
-            placeholder="12oz / POUND / 6-pack"
+            placeholder={t("pb.sizePlaceholder")}
             onChange={(e) => setSize(e.target.value)}
           />
         </Field>
-        <Field label="Case size">
+        <Field label={t("pb.caseSize")}>
           <Input
             type="number" min={0} step="1" value={caseSize}
-            placeholder="Units per case"
+            placeholder={t("pb.caseSizePlaceholder")}
             onChange={(e) => setCaseSize(e.target.value)}
           />
         </Field>
         {/* Money fields carry their own label + hint: <MoneyInput> is
             a <label> itself, so it never sits inside a <Field>. */}
         <MoneyInput
-          label="Case cost"
+          label={t("pb.caseCost")}
           hint={
             unitFromCase != null
-              ? `Unit cost from case: $${unitFromCase.toFixed(4)}`
+              ? t("pb.unitFromCase", { amount: `$${unitFromCase.toFixed(4)}` })
               : undefined
           }
           value={caseCost} onChange={setCaseCost} fullWidth
         />
         <div className={styles.moneyWithAction}>
           <MoneyInput
-            label="Unit cost (optional)"
+            label={t("pb.unitCost")}
             hint={
               unitFromCase != null && cost === 0
-                ? "Empty — saves as $0; use the case-derived value?"
+                ? t("pb.unitEmpty")
                 : undefined
             }
             value={cost} onChange={setCost} fullWidth
@@ -720,28 +734,28 @@ function ItemForm({
               type="button" tone="secondary" size="sm"
               onClick={() => setCost(Number(unitFromCase.toFixed(2)))}
             >
-              Use case
+              {t("pb.useCase")}
             </Button>
           )}
         </div>
         <MoneyInput
-          label="Retail price"
+          label={t("pb.retail")}
           hint={
             margin != null
-              ? `Margin: ${margin.toFixed(2)}%`
+              ? t("pb.margin", { pct: margin.toFixed(2) })
               : undefined
           }
           value={price} onChange={setPrice} required fullWidth
         />
         <Field
-          label="Margin goal %"
-          hint="Sets the retail price from the unit cost."
+          label={t("pb.marginGoal")}
+          hint={t("pb.marginHint")}
         >
           <div style={{ display: "flex", gap: "0.4rem" }}>
             <Input
               type="number" min={0} max={99} step="0.01"
               value={marginGoal}
-              placeholder="e.g. 40"
+              placeholder={t("pb.marginPlaceholder")}
               onChange={(e) => setMarginGoal(e.target.value)}
             />
             <Button
@@ -756,7 +770,7 @@ function ItemForm({
                 setPrice(Number((cost / (1 - g / 100)).toFixed(2)));
               }}
             >
-              Apply
+              {t("pb.apply")}
             </Button>
           </div>
         </Field>
@@ -765,14 +779,14 @@ function ItemForm({
         checked={ebt} onChange={setEbt}
         style={{ marginTop: "0.75rem" }}
       >
-        EBT / SNAP eligible
+        {t("pb.ebt")}
       </Checkbox>
       <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" busy={busy} disabled={busy}>
-          {existing ? "Save changes" : "Add item"}
+          {existing ? t("common.saveChanges") : t("pb.addItemButton")}
         </Button>
       </ModalActions>
     </form>
@@ -782,6 +796,7 @@ function ItemForm({
 // ── Vendors tab ──────────────────────────────────────────────
 
 function VendorsTab() {
+  useT(); // re-render on a language switch
   const canManage = hasPermission("catalog", "update");
   const [showInactive, setShowInactive] = useState(false);
   const vendors = useVendors(showInactive);
@@ -799,13 +814,13 @@ function VendorsTab() {
       await updateVendor(v.id, { is_active: !v.is_active });
       refresh();
     } catch (err) {
-      toastApiError(err, "Could not update the vendor.");
+      toastApiError(err, t("pb.vendorFailed"));
     }
   }
 
   return (
     <Section
-      title="Vendors"
+      title={t("pb.tabVendors")}
       actions={
         canManage ? (
           <div className={styles.toolbarActions}>
@@ -813,10 +828,10 @@ function VendorsTab() {
               size="sm" tone="secondary"
               onClick={() => setShowInactive((v) => !v)}
             >
-              {showInactive ? "Hide inactive" : "Show inactive"}
+              {showInactive ? t("dept.hideInactive") : t("dept.showInactive")}
             </Button>
             <Button size="sm" onClick={() => setAdding(true)}>
-              + Add vendor
+              {t("pb.addVendor")}
             </Button>
           </div>
         ) : undefined
@@ -825,22 +840,22 @@ function VendorsTab() {
       {vendors.isLoading && <Loading />}
       {vendors.isError && (
         <ErrorState
-          message="Could not load vendors."
+          message={t("pb.vendorsFailed")}
           onRetry={() => { void vendors.refetch(); }}
         />
       )}
       {vendors.data && vendors.data.vendors.length === 0 && (
         <EmptyState
-          title="No vendors yet"
+          title={t("pb.noVendors")}
           body={
             canManage
-              ? "Add the suppliers you buy from — items link to them, and purchase invoices will too."
-              : "No vendors on file."
+              ? t("pb.noVendorsManage")
+              : t("pb.noVendorsView")
           }
           cta={
             canManage ? (
               <Button size="sm" onClick={() => setAdding(true)}>
-                + Add vendor
+                {t("pb.addVendor")}
               </Button>
             ) : undefined
           }
@@ -852,9 +867,9 @@ function VendorsTab() {
             <Table>
               <thead>
                 <tr>
-                  {["Vendor", "Contact", "Phone", "Account #", "Items",
-                    "Status", ...(canManage ? ["Actions"] : [])].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
+                  {[...VENDOR_COLUMNS,
+                    ...(canManage ? ["common.actions" as const] : [])].map((h) => (
+                    <th key={h} style={thStyle}>{t(h)}</th>
                   ))}
                 </tr>
               </thead>
@@ -876,7 +891,7 @@ function VendorsTab() {
                     <td style={tdStyle}>{v.item_count}</td>
                     <td style={tdStyle}>
                       <Pill tone={v.is_active ? "accent" : "neutral"}>
-                        {v.is_active ? "active" : "inactive"}
+                        {v.is_active ? t("dept.active") : t("dept.inactive")}
                       </Pill>
                     </td>
                     {canManage && (
@@ -885,13 +900,13 @@ function VendorsTab() {
                           title={v.name}
                           actions={[
                             {
-                              label: "Edit",
+                              label: t("common.edit"),
                               tone: "primary",
                               onClick: () => setEditing(v),
                             },
                             {
                               label: v.is_active
-                                ? "Deactivate" : "Reactivate",
+                                ? t("dept.deactivate") : t("dept.reactivate"),
                               tone: v.is_active ? "warning" : "primary",
                               onClick: () => toggleActive(v),
                             },
@@ -924,11 +939,12 @@ function VendorModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={existing ? `Edit ${existing.name}` : "Add a vendor"}
+      title={existing ? t("pb.editRow", { name: existing.name }) : t("pb.addVendorTitle")}
     >
       {open && (
         // Keyed remount resets the form per open/target — prefill
@@ -951,6 +967,7 @@ function VendorForm({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   const [name, setName] = useState(existing?.name ?? "");
   const [contact, setContact] = useState(existing?.contact_name ?? "");
   const [phone, setPhone] = useState(existing?.phone ?? "");
@@ -980,7 +997,7 @@ function VendorForm({
       }
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("pb.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -989,26 +1006,26 @@ function VendorForm({
   return (
     <form onSubmit={onSubmit} className={styles.modalForm}>
       {error && <Alert tone="error">{error}</Alert>}
-      <Field label="Vendor name">
+      <Field label={t("pb.vendorName")}>
         <Input
           type="text" value={name} required maxLength={120}
           onChange={(e) => setName(e.target.value)}
         />
       </Field>
       <div className={styles.fieldGrid}>
-        <Field label="Contact (optional)">
+        <Field label={t("pb.contact")}>
           <Input
             type="text" value={contact} maxLength={120}
             onChange={(e) => setContact(e.target.value)}
           />
         </Field>
-        <Field label="Phone (optional)">
+        <Field label={t("pb.phone")}>
           <Input
             type="tel" value={phone} maxLength={30}
             onChange={(e) => setPhone(e.target.value)}
           />
         </Field>
-        <Field label="Email (optional)">
+        <Field label={t("pb.email")}>
           <Input
             type="email" value={email} maxLength={200}
             onChange={(e) => setEmail(e.target.value)}
@@ -1017,8 +1034,8 @@ function VendorForm({
         <Field
           label={
             <>
-              Account # (optional)
-              <InfoTip text="Your store's account number with this vendor — as printed on their invoices." />
+              {t("pb.account")}
+              <InfoTip text={t("pb.accountTip")} />
             </>
           }
         >
@@ -1028,7 +1045,7 @@ function VendorForm({
           />
         </Field>
       </div>
-      <Field label="Notes (optional)">
+      <Field label={t("pb.notes")}>
         <Input
           type="text" value={notes} maxLength={500}
           onChange={(e) => setNotes(e.target.value)}
@@ -1036,10 +1053,10 @@ function VendorForm({
       </Field>
       <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" busy={busy} disabled={busy}>
-          {existing ? "Save changes" : "Add vendor"}
+          {existing ? t("common.saveChanges") : t("pb.addVendorButton")}
         </Button>
       </ModalActions>
     </form>

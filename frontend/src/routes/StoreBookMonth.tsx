@@ -7,14 +7,17 @@ import {
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  MONTH_NAMES, shiftMonth, storeNow, todayIso,
+  formatMonthYear, monthName, shiftMonth, storeNow, todayIso,
 } from "../lib/datetime";
+import { useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 import { PageCrumbs } from "../components/PageCrumbs";
 
 // /app/store-book — the month calendar. One cell per day with its
 // sales total and lock state; click through to the day sheet.
 
 export default function StoreBookMonth() {
+  const t = useT();
   const [sp, setSP] = useSearchParams();
   const now = storeNow();
   const year = Number(sp.get("year") ?? now.getFullYear());
@@ -43,8 +46,8 @@ export default function StoreBookMonth() {
     <PageShell>
       <PageCrumbs />
       <PageHeader
-        title="Store daily book"
-        subtitle={`${MONTH_NAMES[month - 1]} ${year}`}
+        title={navWord("Store daily book")}
+        subtitle={formatMonthYear(year, month)}
         actions={
           <PeriodStepper
             unit="month"
@@ -52,13 +55,13 @@ export default function StoreBookMonth() {
             onNext={() => shift(1)}
           >
             <Select
-              aria-label="Month"
+              aria-label={t("sbMonth.month")}
               value={month}
               onChange={(e) => goToMonth(year, Number(e.target.value))}
               style={{ width: "auto" }}
             >
-              {MONTH_NAMES.map((label, i) => (
-                <option key={i + 1} value={i + 1}>{label}</option>
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>{monthName(i + 1)}</option>
               ))}
             </Select>
           </PeriodStepper>
@@ -68,15 +71,15 @@ export default function StoreBookMonth() {
       {data && (
         <KpiGrid>
           <KpiCard
-            label="Total sales"
+            label={t("sbMonth.totalSales")}
             value={fmtMoney2(data.total_sales_cents / 100)}
           />
           <KpiCard
-            label="Total gallons"
+            label={t("sbMonth.totalGallons")}
             value={data.total_fuel_gallons.toLocaleString()}
           />
           <KpiCard
-            label="Total fuel"
+            label={t("sbMonth.totalFuel")}
             value={fmtMoney2(data.total_fuel_cents / 100)}
           />
         </KpiGrid>
@@ -85,7 +88,7 @@ export default function StoreBookMonth() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message="Couldn't load this month."
+          message={t("sbMonth.loadFailed")}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -97,7 +100,7 @@ export default function StoreBookMonth() {
             month={month}
             today={todayIso()}
             hrefFor={(iso) => `/store-book/day?date=${iso}`}
-            ariaLabelFor={(iso) => `Open the daily book for ${iso}`}
+            ariaLabelFor={(iso) => t("sbMonth.openDay", { date: iso })}
             dayFor={(iso) => {
               const row = byDate.get(iso);
               if (!row) return undefined;
@@ -106,7 +109,7 @@ export default function StoreBookMonth() {
                 locked: row.is_locked,
                 primary: fmtMoney2(row.sales_cents / 100),
                 variance: row.over_short_cents / 100,
-                varianceTitle: "Over/short for the day",
+                varianceTitle: t("sbMonth.overShortTitle"),
               };
             }}
           />

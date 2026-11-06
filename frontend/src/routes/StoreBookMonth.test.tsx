@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import StoreBookMonth from "./StoreBookMonth";
 import type { StoreBookMonth as StoreBookMonthData } from "../api/storebook";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The store daily-book month calendar. Pinned: cents render as
 // dollars (KPIs + day cells), month navigation wraps the year and
@@ -96,5 +98,16 @@ describe("StoreBookMonth", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load this month.");
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it("reads in Spanish", () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: /Libro diario de la tienda|diciembre/i })).toBeInTheDocument();
+    expect(screen.getByText("diciembre de 2026")).toBeInTheDocument();
+    expect(screen.getByText("Ventas totales")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mes")).toHaveDisplayValue("diciembre");
+    expect(screen.getByRole("link", { name: /Abrir el libro diario del 2026-12-03/ })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["sbMonth."])).toEqual([]);
   });
 });

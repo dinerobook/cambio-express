@@ -742,6 +742,9 @@ always the same Spanish word):
 | Add-on / Free trial | Complemento / Prueba gratis |
 | Ticket (support) / Reopen | Ticket / Reabrir |
 | Pair / Unpair (TV) | Vincular / Desvincular |
+| Register (POS) / Tenders / Void | Caja / Formas de pago / Anular |
+| Price book / Vendor / Scan code | Lista de precios / Proveedor / Código de barras |
+| Pack (lottery) / Settle | Paquete / Liquidar |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -777,7 +780,19 @@ stores, bulk permissions, cross-store defaults, team users, activity,
 owner settings) and the shared bulk results table; signup (store and
 owner), the payment-received page, billing and subscription with its
 cancel popup, support tickets and their conversation, and the TV
-display console and country editor. Next: the back-office pages,
+display console and country editor; the store daily book (month
+calendar and day sheet, with the register closes and their popup),
+register transactions, one ticket, and item movement. The day sheet's
+layout comes from the server in English: a column, section or field
+we ship words for (`sb.col.<column>`, `sb.<key>`) shows through
+`storeBookLabel()` (`api/storebook.ts`), and one the server adds or
+renames shows as sent. A ticket kind shows through `ticketKindLabel()`
+(`api/posimport.ts`); one it does not know shows as sent. The rest of
+the back office too: purchase invoices and their form, register
+import, the price book (items, vendors, departments and their popups)
+and lottery (day close, packs, games). The starter departments are
+created in the reader's language, since once saved they are the
+store's own names. Next:
 platform pages, then emails. The TV board's own words (its title,
 the sample subtitle) are board content and stay as the store types
 them; the country picker names each country in the reader's language

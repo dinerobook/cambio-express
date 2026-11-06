@@ -9,6 +9,8 @@ import styles from "./StoreBookDay.module.css";
 import { ToastProvider } from "../components/ui";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The store daily book's Lock day / Unlock button needs Edit on the
 // store daily book AND the "Lock / unlock days" switch — the same
@@ -137,5 +139,39 @@ describe("Store daily book day stepper position", () => {
     expect(stepper.parentElement).toHaveClass(styles.dayNav);
     expect(stepper.compareDocumentPosition(unlock) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
+  });
+
+  it("reads in Spanish: shipped sheet words translate, a renamed one shows as sent", () => {
+    setLanguage("es");
+    useStoreBookDay.mockReturnValue({
+      ...LOCKED,
+      data: {
+        ...sheet(true),
+        values: { money_order: 1000 }, originals: { money_order: 1500 },
+        layout: [{
+          column: "sales", label: "Sales",
+          sections: [
+            { key: "money_order", label: "Money order", fields: [
+              { key: "money_order", label: "Money order", count_field: "money_order_count" },
+            ] },
+            { key: "fuel_sales", label: "Fuel sales", fields: [
+              { key: "fuel_amount", label: "Fuel take", gallons_field: "fuel_gallons" },
+            ] },
+          ],
+        }],
+      },
+    });
+    setCurrentIdentity(TEST_ADMIN);
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Libro diario" })).toBeInTheDocument();
+    expect(screen.getByText(/Este día está cerrado/)).toBeInTheDocument();
+    expect(screen.getAllByText("Ventas").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByLabelText("Cantidad de Giro postal")).toBeInTheDocument();
+    expect(screen.getByText("Ventas de combustible")).toBeInTheDocument();
+    expect(screen.getByText("Fuel take")).toBeInTheDocument();
+    expect(screen.getByLabelText("Galones")).toBeInTheDocument();
+    expect(screen.getByText("Valor orig.: $15.00")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reabrir" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["sbDay.", "sb."])).toEqual([]);
   });
 });

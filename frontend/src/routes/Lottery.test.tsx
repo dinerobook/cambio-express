@@ -9,6 +9,8 @@ import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Lottery is cash: a closing count decides tickets sold and the
 // lottery money in the drawer. Pinned here:
@@ -268,5 +270,36 @@ describe("Lottery games — lottery.update gates the controls", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(screen.queryByRole("button", { name: "+ Add game" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
+  });
+
+  it("reads in Spanish on every tab", async () => {
+    setCurrentIdentity(TEST_ADMIN);
+    useLotteryPacks.mockReturnValue(ok({ packs: [PACK, { ...PACK, id: 10, pack_number: "0077", status: "lost" }] }));
+    useLotteryGames.mockReturnValue(ok({ games: [{
+      id: 1, game_number: "2417", name: "Lucky 7s", ticket_price: 5, tickets_per_pack: 60, is_active: true,
+    }] }));
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: /Lotería/ })).toBeInTheDocument();
+    expect(screen.getByText("Boletos vendidos")).toBeInTheDocument();
+    expect(screen.getByLabelText("Conteo al cierre del paquete 0099999")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["lot."])).toEqual([]);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Paquetes" }));
+    expect(screen.getByText("0012345").closest("tr")).toHaveTextContent("activo");
+    // A status the SPA does not list shows as sent.
+    expect(screen.getByText("0077").closest("tr")).toHaveTextContent("lost");
+    await userEvent.click(within(screen.getByText("0012345").closest("tr")!).getByRole("button", { name: "Liquidar" }));
+    expect(await screen.findByRole("dialog", { name: "¿Liquidar el paquete 0012345?" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["lot."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    await userEvent.click(screen.getByRole("tab", { name: "Juegos" }));
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["# de juego", "Precio del boleto", "Boletos / paquete"]));
+    await userEvent.click(screen.getByRole("button", { name: "+ Agregar juego" }));
+    const dialog = await screen.findByRole("dialog", { name: "Agregar un juego" });
+    expect(within(dialog).getByLabelText("Boletos por paquete")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["lot."])).toEqual([]);
   });
 });

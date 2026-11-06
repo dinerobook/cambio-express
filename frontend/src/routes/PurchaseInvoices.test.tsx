@@ -10,6 +10,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 import type { InvoiceList, InvoiceRow } from "../api/catalog";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Vendor invoice log. Pinned: rows render with money via fmtMoney2,
 // Mark paid / Reopen flip the status (paid carries a paid_on date),
@@ -178,5 +180,22 @@ describe("PurchaseInvoices", () => {
     setCurrentIdentity({ ...TEST_ADMIN, role: "employee", permissions: ["catalog.read"] });
     renderPage();
     expect(screen.queryByRole("button", { name: "Open invoice INV-100" })).not.toBeInTheDocument();
+  });
+
+  it("reads in Spanish", async () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: /Facturas de compra/ })).toBeInTheDocument();
+    expect(rowOf("INV-100")).toHaveTextContent("abierta");
+    expect(rowOf("INV-200")).toHaveTextContent(/pagada/);
+    expect(screen.getByRole("columnheader", { name: /^# de factura/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /^Proveedor/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /^Fecha/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /^Vence/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /^Líneas/ })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["inv."])).toEqual([]);
+    await userEvent.click(within(rowOf("INV-100")).getByRole("button", { name: "Borrar" }));
+    const dialog = await screen.findByRole("dialog", { name: "¿Borrar esta factura?" });
+    expect(dialog).toHaveTextContent("¿Borrar la factura INV-100 y sus líneas?");
   });
 });

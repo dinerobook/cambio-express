@@ -40,7 +40,8 @@ function placeholders(s: string): string[] {
 const SAME_IN_BOTH: MessageKey[] = [
   "login.copyright",
   // A brand name, and words Spanish spells the same.
-  "daily.boostMobile", "pl.line.boost_mobile", "rep.total", "rep.totalAch", "ownerBill.colPlan", "intermex.colTotal", "daily.total", "daily.totalCaps", "daily.totalLabel",
+  "daily.boostMobile", "pl.line.boost_mobile", "rep.total", "rep.totalAch", "ownerBill.colPlan", "intermex.colTotal",
+    "sbDay.gal", "posTx.colTicket", "posTx.colTotal", "posTx.tickets", "posTx.ticketTitle", "posTx.gal", "move.no", "inv.colTotal", "invForm.auto", "daily.total", "daily.totalCaps", "daily.totalLabel",
   "transfer.total", "returnCheck.methodZelle", "roles.tabRoles", "roles.no", "payroll.no",
   "settings.tabGeneral", "store.planPro", "notify.colControl",
   // One-letter chips: C, V and E start the same word in both.

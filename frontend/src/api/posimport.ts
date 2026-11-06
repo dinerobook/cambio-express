@@ -2,6 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import type { components } from "./openapi";
+import { t, type MessageKey } from "../i18n";
+
+// A ticket's kind pill. A kind the SPA does not list shows as sent.
+const KIND_PILLS: Record<string, MessageKey> = {
+  refund: "posTx.kind.refund",
+  void: "posTx.kind.void",
+  financial: "posTx.kind.financial",
+  other: "posTx.kind.other",
+};
+export function ticketKindLabel(kind: string): string {
+  return Object.hasOwn(KIND_PILLS, kind) ? t(KIND_PILLS[kind]) : kind;
+}
+
 
 // Typed straight off the FastAPI OpenAPI spec (CLAUDE.md standard).
 export type NaxmlPreview = components["schemas"]["NaxmlPreviewResponse"];

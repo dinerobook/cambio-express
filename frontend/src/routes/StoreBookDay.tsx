@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   restoreStoreBookField, setStoreBookLock, updateStoreBookDay,
   useStoreBookDay,
-  type StoreBookField,
+  storeBookLabel, type StoreBookField,
 } from "../api/storebook";
 import {
   Alert, Button, Card, ConfirmDialog, DateInput, ErrorState, Field,
@@ -20,6 +20,7 @@ import { fmtMoney2 } from "../lib/formatters";
 import { addDaysIso, formatDate, todayIso } from "../lib/datetime";
 import styles from "./StoreBookDay.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { useT } from "../i18n";
 
 // /app/store-book/day?date=YYYY-MM-DD — one store day.
 //
@@ -40,6 +41,7 @@ function dollarsToCents(dollars: number): number {
 }
 
 export default function StoreBookDay() {
+  const t = useT();
   const [sp, setSP] = useSearchParams();
   const day = sp.get("date") || todayIso();
   const navigate = useNavigate();
@@ -106,7 +108,7 @@ export default function StoreBookDay() {
       void qc.invalidateQueries({ queryKey: ["storebook", "month"] });
     } catch (err) {
       setServerError(
-        apiErrorMessage(err, "Could not save."),
+        apiErrorMessage(err, t("sbDay.saveFailed")),
       );
     } finally {
       setBusy(false);
@@ -120,11 +122,11 @@ export default function StoreBookDay() {
       qc.setQueryData(["storebook", "day", next.store_id, day], next);
       void qc.invalidateQueries({ queryKey: ["storebook", "month"] });
       toast({
-        message: next.is_locked ? "Day locked." : "Day unlocked.",
+        message: next.is_locked ? t("sbDay.locked") : t("sbDay.unlocked"),
         tone: "success",
       });
     } catch (err) {
-      toastApiError(err, "Could not change the lock.");
+      toastApiError(err, t("sbDay.lockFailed"));
     } finally {
       setBusy(false);
       setConfirmLock(false);
@@ -136,9 +138,9 @@ export default function StoreBookDay() {
     try {
       const next = await restoreStoreBookField(day, fieldKey);
       qc.setQueryData(["storebook", "day", next.store_id, day], next);
-      toast({ message: "Register value restored.", tone: "success" });
+      toast({ message: t("sbDay.restored"), tone: "success" });
     } catch (err) {
-      toastApiError(err, "Could not restore.");
+      toastApiError(err, t("sbDay.restoreFailed"));
     } finally {
       setBusy(false);
     }
@@ -153,7 +155,7 @@ export default function StoreBookDay() {
   if (isLoading) {
     return (
       <PageShell>
-        <PageHeader title="Daily book" />
+        <PageHeader title={t("sbDay.title")} />
         <Loading />
       </PageShell>
     );
@@ -161,9 +163,9 @@ export default function StoreBookDay() {
   if (isError || !data) {
     return (
       <PageShell>
-        <PageHeader title="Daily book" />
+        <PageHeader title={t("sbDay.title")} />
         <ErrorState
-          message="Couldn't load this day."
+          message={t("sbDay.loadFailed")}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
@@ -175,7 +177,7 @@ export default function StoreBookDay() {
       <PageCrumbs current={formatDate(day)} />
 
       <PageHeader
-        title="Daily book"
+        title={t("sbDay.title")}
         subtitle={formatDate(day)}
         actions={
           <div className={styles.dayNav}>
@@ -185,7 +187,7 @@ export default function StoreBookDay() {
               onNext={() => goToDay(addDaysIso(day, 1))}
             >
               <DateInput
-                aria-label="Day" value={day}
+                aria-label={t("sbDay.day")} value={day}
                 onChange={(e) => goToDay(e.target.value)}
               />
             </PeriodStepper>
@@ -202,7 +204,7 @@ export default function StoreBookDay() {
                   else setConfirmLock(true);
                 }}
               >
-                {locked ? "Unlock" : "Lock day"}
+                {locked ? t("sbDay.unlock") : t("sbDay.lockDay")}
               </Button>
             )}
           </div>
@@ -212,9 +214,8 @@ export default function StoreBookDay() {
       {locked && (
         <Alert tone="info">
           {canDo("day_close.update") && canDo("day_lock.update")
-            ? "This day is locked. Unlock it to make changes"
-            : "This day is locked. Ask an admin to unlock it to make changes"}
-          {" — imported register data still lands while it's locked."}
+            ? t("sbDay.lockedCanUnlock")
+            : t("sbDay.lockedAskAdmin")}
         </Alert>
       )}
       {serverError && <Alert tone="error">{serverError}</Alert>}
@@ -224,19 +225,19 @@ export default function StoreBookDay() {
           shortage at a glance. */}
       <div className={styles.totalsRow}>
         <div className={`${styles.totalCard} ${styles.sales}`}>
-          <span className={styles.totalLabel}>Sales</span>
+          <span className={styles.totalLabel}>{t("sb.col.sales")}</span>
           <span className={styles.totalValue}>
             {fmtMoney2(totals.sales / 100)}
           </span>
         </div>
         <div className={`${styles.totalCard} ${styles.tenders}`}>
-          <span className={styles.totalLabel}>Tenders</span>
+          <span className={styles.totalLabel}>{t("sb.col.tenders")}</span>
           <span className={styles.totalValue}>
             {fmtMoney2(totals.tenders / 100)}
           </span>
         </div>
         <div className={`${styles.totalCard} ${styles.deposit}`}>
-          <span className={styles.totalLabel}>Deposit &amp; balance</span>
+          <span className={styles.totalLabel}>{t("sb.col.deposit")}</span>
           <span className={styles.totalValue}>
             {fmtMoney2(totals.deposit / 100)}
           </span>
@@ -250,8 +251,8 @@ export default function StoreBookDay() {
         >
           <span className={styles.totalLabel}>
             {totals.overShort === 0
-              ? "Balanced"
-              : totals.overShort > 0 ? "Over" : "Short"}
+              ? t("sbDay.balanced")
+              : totals.overShort > 0 ? t("sbDay.over") : t("sbDay.short")}
           </span>
           <span className={styles.totalValue}>
             {fmtMoney2(Math.abs(totals.overShort) / 100)}
@@ -265,11 +266,11 @@ export default function StoreBookDay() {
             <div
               className={`${styles.columnHead} ${styles[column.column]}`}
             >
-              {column.label}
+              {storeBookLabel(column.column, column.label, "column")}
             </div>
             {column.sections.map((section) => (
               <Card key={section.key} className={styles.section}>
-                <div className={styles.sectionTitle}>{section.label}</div>
+                <div className={styles.sectionTitle}>{storeBookLabel(section.key, section.label)}</div>
                 {section.fields.map((f) => (
                   <MoneyRow
                     key={f.key}
@@ -329,7 +330,7 @@ export default function StoreBookDay() {
       <RegisterCloses day={day} canEdit={!locked} />
 
       <Card>
-        <Field label="Notes">
+        <Field label={t("sbDay.notes")}>
           <Textarea
             rows={3}
             value={notes}
@@ -342,9 +343,9 @@ export default function StoreBookDay() {
 
       <ConfirmDialog
         open={confirmLock}
-        title="Lock this day?"
-        message="Locking stops further edits until an admin unlocks it. Imported register data still lands while locked."
-        confirmLabel="Lock day"
+        title={t("sbDay.lockTitle")}
+        message={t("sbDay.lockMessage")}
+        confirmLabel={t("sbDay.lockDay")}
         busy={busy}
         onConfirm={() => { void onToggleLock(); }}
         onCancel={() => setConfirmLock(false)}
@@ -352,7 +353,7 @@ export default function StoreBookDay() {
 
       <div className={styles.footerRow}>
         <Button tone="secondary" onClick={() => navigate("/store-book")}>
-          Back to the month
+          {t("sbDay.backToMonth")}
         </Button>
       </div>
     </PageShell>
@@ -379,6 +380,8 @@ function MoneyRow({
   onCommit: () => void;
   onRestore: () => void;
 }) {
+  const t = useT();
+  const label = storeBookLabel(field.key, field.label);
   const cents = dollarsToCents(value);
   // Green when the operator's value still matches what the register
   // said; red once they've overridden it. Matches the convention
@@ -387,13 +390,13 @@ function MoneyRow({
 
   return (
     <div className={styles.row}>
-      <span className={styles.rowLabel}>{field.label}</span>
+      <span className={styles.rowLabel}>{label}</span>
       <div className={styles.rowInputs} onBlur={onCommit}>
         {field.count_field && (
           <Input
             type="number" inputMode="numeric"
             className={styles.countInput}
-            aria-label={`${field.label} count`}
+            aria-label={t("sbDay.countOf", { label })}
             placeholder="#"
             value={countValue}
             disabled={locked}
@@ -404,15 +407,15 @@ function MoneyRow({
           <Input
             type="number" step="0.001" inputMode="decimal"
             className={styles.countInput}
-            aria-label="Gallons"
-            placeholder="gal"
+            aria-label={t("sbDay.gallons")}
+            placeholder={t("sbDay.gal")}
             value={gallonsValue}
             disabled={locked}
             onChange={(e) => onGallons(e.target.value)}
           />
         )}
         <MoneyInput
-          aria-label={field.label}
+          aria-label={label}
           value={value}
           onChange={onMoney}
           disabled={locked}
@@ -420,8 +423,8 @@ function MoneyRow({
         />
         {overridden && !locked && (
           <IconButton
-            aria-label="Restore the register's value"
-            title="Restore the register's value"
+            aria-label={t("sbDay.restore")}
+            title={t("sbDay.restore")}
             onClick={onRestore}
           >
             ↻
@@ -434,7 +437,7 @@ function MoneyRow({
             overridden ? styles.origChanged : styles.origMatch
           }`}
         >
-          Orig. Val: {fmtMoney2(original / 100)}
+          {t("sbDay.orig", { amount: fmtMoney2(original / 100) })}
         </div>
       )}
     </div>

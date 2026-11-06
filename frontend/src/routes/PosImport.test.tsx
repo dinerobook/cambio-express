@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import PosImport from "./PosImport";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Revoking a site-agent key stops that back-office PC uploading
 // register journals at once, so it goes through a confirm dialog
@@ -98,5 +100,21 @@ describe("PosImport agent key revoke", () => {
     expect(await screen.findByRole("alert", { hidden: true }))
       .toHaveTextContent("Key already revoked");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish, the revoke popup included", async () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: /Importar de la caja/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Elegir archivo…" })).toBeInTheDocument();
+    expect(screen.getByText("Todavía no hay subidas del agente")).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["Nombre", "Creada", "Vista por última vez", "Estado"]));
+    expect(screen.getByText("Old PC").closest("tr")).toHaveTextContent("Anulada");
+    expect(englishLeftovers(document.body, ["posImp."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+    const dialog = await screen.findByRole("dialog", { name: "¿Anular esta clave del agente?" });
+    expect(dialog).toHaveTextContent('¿Anular "Back office PC"?');
+    expect(englishLeftovers(dialog, ["posImp."])).toEqual([]);
   });
 });

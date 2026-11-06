@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import Transactions from "./Transactions";
 import { mockFetch } from "../test/fetchMock";
 import { renderRoute } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Register tickets: KPIs + the shared table; a void is flagged, a
 // row opens its ticket (mouse or keyboard), the pager and rows per
@@ -68,5 +70,22 @@ describe("POS transactions", () => {
     mockFetch({ "GET /api/v2/posimport/transactions": { status: 500, body: { detail: "x" } } });
     renderRoute(<Transactions />);
     expect(await screen.findByText("Could not load transactions.")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish", async () => {
+    setLanguage("es");
+    mockFetch({ "GET /api/v2/posimport/transactions": { body: list({
+      rows: [{ ...ticket, kind: "void", training_mode: true }],
+    }) } });
+    renderRoute(<Transactions />);
+    const row = (await screen.findByText("T-1001")).closest("tr")!;
+    expect(row).toHaveTextContent("anulado");
+    expect(row).toHaveTextContent("artículo anulado");
+    expect(row).toHaveTextContent("práctica");
+    expect(screen.getByRole("heading", { name: /Transacciones/ })).toBeInTheDocument();
+    expect(screen.getByLabelText("Tipo")).toHaveDisplayValue("Todos los tipos");
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["Hora", "Caja", "Cajero", "Artículos"]));
+    expect(englishLeftovers(document.body, ["posTx."])).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 
-import { useTransaction } from "../api/posimport";
+import { ticketKindLabel, useTransaction } from "../api/posimport";
 import {
   Alert, Button, Card, ErrorState, KpiCard, KpiGrid,
   Loading, PageHeader, PageShell, Pill, Section, Table,
@@ -10,6 +10,12 @@ import { fmtMoney2 } from "../lib/formatters";
 import { formatTimestamp } from "../lib/datetime";
 import styles from "./TransactionDetail.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { useT, type MessageKey } from "../i18n";
+
+const LINE_COLUMNS: MessageKey[] = [
+  "posTx.colItem", "posTx.colScanCode", "posTx.colQty", "posTx.colPrice", "posTx.colAmount",
+];
+const TENDER_COLUMNS: MessageKey[] = ["posTx.colTender", "posTx.colType", "posTx.colAmount"];
 
 // /app/transactions/:id (G-6) — one ticket, as the register rang it.
 //
@@ -21,6 +27,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // page says so rather than leaving the reader to wonder.
 
 export default function TransactionDetail() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const numericId = Number(id);
@@ -29,7 +36,7 @@ export default function TransactionDetail() {
   if (query.isLoading) {
     return (
       <PageShell>
-        <PageHeader title="Transaction" />
+        <PageHeader title={t("posTx.title")} />
         <Loading />
       </PageShell>
     );
@@ -37,39 +44,39 @@ export default function TransactionDetail() {
   if (query.isError || !query.data) {
     return (
       <PageShell>
-        <PageHeader title="Transaction" />
+        <PageHeader title={t("posTx.title")} />
         <ErrorState
-          message="Couldn't load this transaction."
+          message={t("posTx.detailLoadFailed")}
           onRetry={() => { void query.refetch(); }}
         />
       </PageShell>
     );
   }
 
-  const t = query.data.transaction;
-  const voidedLines = t.lines.filter((l) => l.status === "cancel");
-  const soldTotal = t.lines
+  const tx = query.data.transaction;
+  const voidedLines = tx.lines.filter((l) => l.status === "cancel");
+  const soldTotal = tx.lines
     .filter((l) => l.status !== "cancel")
     .reduce((sum, l) => sum + l.amount, 0);
 
   return (
     <PageShell maxWidth="60rem">
-      <PageCrumbs current={t.transaction_no || `#${t.id}`} />
+      <PageCrumbs current={tx.transaction_no || `#${tx.id}`} />
       <PageHeader
-        title={`Ticket ${t.transaction_no || `#${t.id}`}`}
+        title={t("posTx.ticketTitle", { ticket: tx.transaction_no || `#${tx.id}` })}
         subtitle={
-          t.receipt_at ? formatTimestamp(t.receipt_at) : t.business_date
+          tx.receipt_at ? formatTimestamp(tx.receipt_at) : tx.business_date
         }
         actions={
           <div className={styles.flags}>
-            {t.kind && t.kind !== "sale" && (
-              <Pill tone="neutral">{t.kind}</Pill>
+            {tx.kind && tx.kind !== "sale" && (
+              <Pill tone="neutral">{ticketKindLabel(tx.kind)}</Pill>
             )}
-            {t.has_voided_line && <Pill tone="warning">voided item</Pill>}
-            {t.training_mode && <Pill tone="neutral">training</Pill>}
-            {t.offline && <Pill tone="warning">offline</Pill>}
-            {t.suspended && <Pill tone="warning">suspended</Pill>}
-            {t.outside && <Pill tone="neutral">pay at pump</Pill>}
+            {tx.has_voided_line && <Pill tone="warning">{t("posTx.voidedItem")}</Pill>}
+            {tx.training_mode && <Pill tone="neutral">{t("posTx.training")}</Pill>}
+            {tx.offline && <Pill tone="warning">{t("posTx.offline")}</Pill>}
+            {tx.suspended && <Pill tone="warning">{t("posTx.suspended")}</Pill>}
+            {tx.outside && <Pill tone="neutral">{t("posTx.payAtPump")}</Pill>}
           </div>
         }
       />
@@ -77,34 +84,33 @@ export default function TransactionDetail() {
       {voidedLines.length > 0 && (
         <Alert tone="warning">
           {voidedLines.length === 1
-            ? "One item was voided on this ticket."
-            : `${voidedLines.length} items were voided on this ticket.`}
-          {" "}They are listed below for reference and are not included
-          in any total.
+            ? t("posTx.voidedOne")
+            : t("posTx.voidedMany", { count: voidedLines.length })}
         </Alert>
       )}
 
       <KpiGrid>
-        <KpiCard label="Items" value={fmtMoney2(soldTotal)} />
-        <KpiCard label="Tax" value={fmtMoney2(t.tax)} />
+        <KpiCard label={t("posTx.items")} value={fmtMoney2(soldTotal)} />
+        <KpiCard label={t("posTx.colTax")} value={fmtMoney2(tx.tax)} />
         <KpiCard
-          label="Total"
-          value={fmtMoney2(t.grand_total)}
+          label={t("posTx.colTotal")}
+          value={fmtMoney2(tx.grand_total)}
           tone="positive"
         />
       </KpiGrid>
 
-      <Section title="Items">
+      <Section title={t("posTx.items")}>
         <Card>
           <Table>
             <thead>
               <tr>
-                {["#", "Item", "Scan code", "Qty", "Price", "Amount", ""]
-                  .map((h) => <th key={h} style={thStyle}>{h}</th>)}
+                <th style={thStyle}>#</th>
+                {LINE_COLUMNS.map((h) => <th key={h} style={thStyle}>{t(h)}</th>)}
+                <th style={thStyle} />
               </tr>
             </thead>
             <tbody>
-              {t.lines.map((line) => {
+              {tx.lines.map((line) => {
                 const cancelled = line.status === "cancel";
                 return (
                   <tr
@@ -118,7 +124,7 @@ export default function TransactionDetail() {
                       {line.description || "—"}
                       {line.is_fuel && line.fuel_position && (
                         <span className={styles.sub}>
-                          {" "}pump {line.fuel_position}
+                          {" "}{t("posTx.pump", { pump: line.fuel_position })}
                         </span>
                       )}
                     </td>
@@ -127,7 +133,7 @@ export default function TransactionDetail() {
                     </td>
                     <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
                       {line.is_fuel && line.gallons
-                        ? `${line.gallons.toFixed(3)} gal`
+                        ? t("posTx.gal", { gallons: line.gallons.toFixed(3) })
                         : line.quantity.toLocaleString()}
                     </td>
                     <td style={{ ...tdStyle, fontFamily: tokens.fontMono }}>
@@ -138,7 +144,7 @@ export default function TransactionDetail() {
                       {fmtMoney2(line.amount)}
                     </td>
                     <td style={tdStyle}>
-                      {cancelled && <Pill tone="warning">voided</Pill>}
+                      {cancelled && <Pill tone="warning">{t("posTx.voided")}</Pill>}
                     </td>
                   </tr>
                 );
@@ -148,24 +154,24 @@ export default function TransactionDetail() {
         </Card>
       </Section>
 
-      {t.tenders.length > 0 && (
-        <Section title="Payment">
+      {tx.tenders.length > 0 && (
+        <Section title={t("posTx.payment")}>
           <Card>
             <Table>
               <thead>
                 <tr>
-                  {["Tender", "Type", "Amount"].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
+                  {TENDER_COLUMNS.map((h) => (
+                    <th key={h} style={thStyle}>{t(h)}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {t.tenders.map((tender, i) => (
+                {tx.tenders.map((tender, i) => (
                   <tr key={`${tender.code}-${i}`}>
                     <td style={tdStyle}>
                       {tender.code || "—"}
                       {tender.is_change && (
-                        <span className={styles.sub}> (change)</span>
+                        <span className={styles.sub}> {t("posTx.change")}</span>
                       )}
                     </td>
                     <td style={tdStyle}>{tender.sub_code || "—"}</td>
@@ -182,29 +188,29 @@ export default function TransactionDetail() {
 
       {/* Register provenance. Useful when reconciling against a
           paper Z-report or chasing a specific till. */}
-      <Section title="Register">
+      <Section title={t("posTx.register")}>
         <Card>
           <dl className={styles.meta}>
-            <MetaRow label="Business date" value={t.business_date} />
-            <MetaRow label="Register" value={t.register_id || "—"} />
-            <MetaRow label="Cashier" value={t.cashier_id || "—"} />
-            <MetaRow label="Till" value={t.till_id || "—"} />
+            <MetaRow label={t("posTx.businessDate")} value={tx.business_date} />
+            <MetaRow label={t("posTx.register")} value={tx.register_id || "—"} />
+            <MetaRow label={t("posTx.colCashier")} value={tx.cashier_id || "—"} />
+            <MetaRow label={t("posTx.till")} value={tx.till_id || "—"} />
             <MetaRow
-              label="Started"
-              value={t.started_at ? formatTimestamp(t.started_at) : "—"}
+              label={t("posTx.started")}
+              value={tx.started_at ? formatTimestamp(tx.started_at) : "—"}
             />
             <MetaRow
-              label="Ended"
-              value={t.ended_at ? formatTimestamp(t.ended_at) : "—"}
+              label={t("posTx.ended")}
+              value={tx.ended_at ? formatTimestamp(tx.ended_at) : "—"}
             />
-            <MetaRow label="Journal file" value={t.source_file || "—"} mono />
+            <MetaRow label={t("posTx.journalFile")} value={tx.source_file || "—"} mono />
           </dl>
         </Card>
       </Section>
 
       <div className={styles.footerRow}>
         <Button tone="secondary" onClick={() => navigate("/transactions")}>
-          Back to transactions
+          {t("posTx.back")}
         </Button>
       </div>
     </PageShell>

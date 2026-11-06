@@ -14,6 +14,7 @@ import {
   ModalActions,
 } from "./ui";
 import styles from "./DepartmentsManager.module.css";
+import { t, useT, type MessageKey } from "../i18n";
 
 // The store's department catalog. Departments group sales lines on a
 // register close AND classify price-book items, so the catalog lives
@@ -25,12 +26,19 @@ import styles from "./DepartmentsManager.module.css";
 // auto-seeded. The operator owns the catalog (HANDOFF.md §2 product
 // principle): prefills are a starting point to edit, not a fixed
 // vocabulary.
-const STARTER_DEPARTMENTS = [
-  "Grocery", "Beverages", "Snacks & Candy", "Tobacco",
-  "Beer & Wine", "Deli", "Lottery", "Other",
+// Created in the reader's language: once saved they are the store's
+// own names, typed text like any other.
+const STARTER_DEPARTMENTS: MessageKey[] = [
+  "dept.starter.grocery", "dept.starter.beverages", "dept.starter.snacks",
+  "dept.starter.tobacco", "dept.starter.beer", "dept.starter.deli",
+  "dept.starter.lottery", "dept.starter.other",
+];
+const DEPT_COLUMNS: MessageKey[] = [
+  "dept.colDepartment", "dept.colParent", "dept.colSort", "common.status", "common.actions",
 ];
 
 export default function DepartmentsManager() {
+  useT(); // re-render on a language switch
   const [showInactive, setShowInactive] = useState(false);
   const departments = useDepartments(showInactive);
   const qc = useQueryClient();
@@ -47,18 +55,17 @@ export default function DepartmentsManager() {
   async function addStarterSet() {
     setSeeding(true);
     try {
-      for (const [i, name] of STARTER_DEPARTMENTS.entries()) {
-        await createDepartment({ name, sort_order: (i + 1) * 10 });
+      for (const [i, key] of STARTER_DEPARTMENTS.entries()) {
+        await createDepartment({ name: t(key), sort_order: (i + 1) * 10 });
       }
       refresh();
       toast({
-        message:
-          "Starter departments added — rename or remove any to fit your store.",
+        message: t("dept.starterAdded"),
         tone: "success",
       });
     } catch (err) {
       refresh();
-      toastApiError(err, "Could not add the starter departments.");
+      toastApiError(err, t("dept.starterFailed"));
     } finally {
       setSeeding(false);
     }
@@ -69,7 +76,7 @@ export default function DepartmentsManager() {
       await updateDepartment(d.id, { is_active: !d.is_active });
       refresh();
     } catch (err) {
-      toastApiError(err, "Could not update the department.");
+      toastApiError(err, t("dept.updateFailed"));
     }
   }
 
@@ -77,8 +84,8 @@ export default function DepartmentsManager() {
     <Section
       title={
         <>
-          Departments
-          <InfoTip text="How sales are grouped — on a register close and on every price-book item. Deactivate rather than delete: historical sales keep pointing at the department they were rung under." />
+          {t("dept.title")}
+          <InfoTip text={t("dept.tip")} />
         </>
       }
       actions={
@@ -87,10 +94,10 @@ export default function DepartmentsManager() {
             size="sm" tone="secondary"
             onClick={() => setShowInactive((v) => !v)}
           >
-            {showInactive ? "Hide inactive" : "Show inactive"}
+            {showInactive ? t("dept.hideInactive") : t("dept.showInactive")}
           </Button>
           <Button size="sm" perm="day_close.update" onClick={() => setAdding(true)}>
-            + Add department
+            {t("dept.add")}
           </Button>
         </div>
       }
@@ -98,19 +105,19 @@ export default function DepartmentsManager() {
       {departments.isLoading && <Loading />}
       {departments.isError && (
         <ErrorState
-          message="Could not load departments."
+          message={t("dept.loadFailed")}
           onRetry={() => { void departments.refetch(); }}
         />
       )}
       {departments.data && departments.data.departments.length === 0 && (
         <EmptyState
-          title="No departments yet"
-          body="Start from a typical store's set and make it your own — rename, remove, or add anything — or build from scratch with &quot;+ Add department&quot;."
+          title={t("dept.empty")}
+          body={t("dept.emptyBody")}
           cta={
             <Button size="sm" busy={seeding} disabled={seeding}
               onClick={() => { void addStarterSet(); }}
             >
-              Add starter departments
+              {t("dept.addStarter")}
             </Button>
           }
         />
@@ -120,8 +127,8 @@ export default function DepartmentsManager() {
           <Table>
             <thead>
               <tr>
-                {["Department", "Parent", "Sort", "Status", "Actions"].map(
-                  (h) => <th key={h} style={thStyle}>{h}</th>,
+                {DEPT_COLUMNS.map(
+                  (h) => <th key={h} style={thStyle}>{t(h)}</th>,
                 )}
               </tr>
             </thead>
@@ -133,7 +140,7 @@ export default function DepartmentsManager() {
                   <td style={tdStyle}>{d.sort_order}</td>
                   <td style={tdStyle}>
                     <Pill tone={d.is_active ? "accent" : "neutral"}>
-                      {d.is_active ? "active" : "inactive"}
+                      {d.is_active ? t("dept.active") : t("dept.inactive")}
                     </Pill>
                   </td>
                   <td style={tdStyle}>
@@ -141,13 +148,13 @@ export default function DepartmentsManager() {
                       title={d.name}
                       actions={[
                         {
-                          label: "Edit",
+                          label: t("common.edit"),
                           perm: "day_close.update",
                           tone: "primary",
                           onClick: () => setEditing(d),
                         },
                         {
-                          label: d.is_active ? "Deactivate" : "Reactivate",
+                          label: d.is_active ? t("dept.deactivate") : t("dept.reactivate"),
                           perm: "day_close.update",
                           tone: d.is_active ? "warning" : "primary",
                           onClick: () => toggleActive(d),
@@ -181,11 +188,12 @@ function DepartmentModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={existing ? `Edit ${existing.name}` : "Add a department"}
+      title={existing ? t("dept.editTitle", { name: existing.name }) : t("dept.addTitle")}
     >
       {open && (
         // Keyed remount resets the form per open/target — prefill
@@ -210,6 +218,7 @@ function DepartmentForm({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   const [name, setName] = useState(existing?.name ?? "");
   const [sortOrder, setSortOrder] = useState(
     String(existing?.sort_order ?? 0),
@@ -250,7 +259,7 @@ function DepartmentForm({
       }
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("dept.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -259,7 +268,7 @@ function DepartmentForm({
   return (
     <form onSubmit={onSubmit} className={styles.modalForm}>
       {error && <Alert tone="error">{error}</Alert>}
-      <Field label="Name">
+      <Field label={t("common.name")}>
         <Input
           type="text" value={name} required maxLength={80}
           onChange={(e) => setName(e.target.value)}
@@ -268,8 +277,8 @@ function DepartmentForm({
       <Field
         label={
           <>
-            Sort order
-            <InfoTip text="Lower numbers list first on the register-close entry form and reports." />
+            {t("dept.sortOrder")}
+            <InfoTip text={t("dept.sortTip")} />
           </>
         }
       >
@@ -281,8 +290,8 @@ function DepartmentForm({
       <Field
         label={
           <>
-            Parent department (optional)
-            <InfoTip text="Nest this under a top-level department to group related lines — e.g. Tobacco › Cigarettes. One level deep." />
+            {t("dept.parent")}
+            <InfoTip text={t("dept.parentTip")} />
           </>
         }
       >
@@ -290,7 +299,7 @@ function DepartmentForm({
           value={parentId}
           onChange={(e) => setParentId(e.target.value)}
         >
-          <option value="">None (top level)</option>
+          <option value="">{t("dept.none")}</option>
           {parentChoices.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
@@ -298,10 +307,10 @@ function DepartmentForm({
       </Field>
       <ModalActions>
         <Button tone="secondary" type="button" onClick={onClose}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" busy={busy} disabled={busy}>
-          {existing ? "Save changes" : "Add department"}
+          {existing ? t("common.saveChanges") : t("dept.addButton")}
         </Button>
       </ModalActions>
     </form>

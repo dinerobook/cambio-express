@@ -9,6 +9,8 @@ import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Price book items tab. Pinned here:
 //   - Money on the item form is typed into <MoneyInput>s and reaches
@@ -217,5 +219,30 @@ describe("PriceBook", () => {
     screen.getByRole("button", { name: "Edit Cola 12oz" }).focus();
     await userEvent.keyboard("{Enter}");
     expect(money("Retail price")).toHaveValue("1.99");
+  });
+
+  it("reads in Spanish: items, the item popup and vendors", async () => {
+    useItems.mockReturnValue(listOf([{ ...ITEM, pos_code_format: "plu" }]));
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: /Lista de precios/ })).toBeInTheDocument();
+    const row = screen.getByText("Cola 12oz").closest("tr")!;
+    expect(row).toHaveTextContent("Gravable");
+    expect(row).toHaveTextContent("activo");
+    expect(row).toHaveTextContent("PLU");
+    expect(screen.getByRole("columnheader", { name: /^Código de barras/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /^Artículo/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /^Departamento/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /^Costo/ })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["pb."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "+ Agregar artículo" }));
+    const dialog = await screen.findByRole("dialog", { name: "Agregar un artículo" });
+    expect(within(dialog).getByLabelText("Tipo de código")).toHaveDisplayValue("UPC (escaneado)");
+    expect(within(dialog).getByText("Acepta EBT / SNAP")).toBeInTheDocument();
+    expect(englishLeftovers(dialog, ["pb."])).toEqual([]);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Proveedores" }));
+    expect(await screen.findByText("Todavía no hay proveedores")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["pb."])).toEqual([]);
   });
 });
