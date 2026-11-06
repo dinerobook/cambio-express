@@ -3,6 +3,8 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import SubscribeSuccess from "./SubscribeSuccess";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Stripe's success_url. The webhook that moves the store onto its paid
 // plan can land after the redirect, so the page polls store info until
@@ -77,5 +79,18 @@ describe("SubscribeSuccess", () => {
     renderPage();
     expect(screen.getByText("Sign in to view your subscription status.")).toBeInTheDocument();
     expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  });
+
+  it("reads in Spanish, before and after the plan is active", () => {
+    setLanguage("es");
+    const { unmount } = renderPage();
+    expect(screen.getByRole("heading", { name: "Pago recibido" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["subOk."])).toEqual([]);
+    unmount();
+    storeInfo = { store: { plan: "pro" } };
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Ya tiene el plan Pro" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ir al panel →" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["subOk."])).toEqual([]);
   });
 });

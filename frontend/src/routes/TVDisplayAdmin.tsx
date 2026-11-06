@@ -22,6 +22,8 @@ import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./TVDisplayAdmin.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { intlLocale, t, tNodes, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/tv-display — TV Display add-on operator console.
 //
@@ -55,11 +57,29 @@ const COUNTRY_PICKER: ReadonlyArray<readonly [string, string]> = [
 ];
 
 const PAIR_CODE_ALPHABET = "ACDEFGHJKMNPQRTUVWXYZ234579";
-const ORIENTATION_OPTIONS = [
-  { value: "auto",      label: "Auto (follow device)" },
-  { value: "landscape", label: "Landscape (16:9)" },
-  { value: "portrait",  label: "Portrait (vertical TV)" },
+const ORIENTATION_OPTIONS: { value: string; label: MessageKey }[] = [
+  { value: "auto",      label: "tv.orientAuto" },
+  { value: "landscape", label: "tv.orientLandscape" },
+  { value: "portrait",  label: "tv.orientPortrait" },
 ];
+// What the board itself shows when no title is set. It is board
+// content (bilingual by design), not page text, so it is not
+// translated.
+const BOARD_DEFAULT_TITLE = "Cheapest Money Transfer";
+const BOARD_SAMPLE_SUBTITLE = "Mejor Tipo de Cambio";
+// Product name and a sample pairing code: the same in every language.
+const TV_APP_NAME = "DineroBook TV";
+const PAIR_CODE_SAMPLE = "ABC234";
+
+// The picker shows each country in the reader's language. The name
+// saved on the board stays the list's English name, as before.
+function countryName(iso: string, fallback: string): string {
+  try {
+    return new Intl.DisplayNames([intlLocale()], { type: "region" }).of(iso) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
 function flagEmoji(iso2: string): string {
   if (!iso2 || iso2.length !== 2) return "";
   const code = iso2.toUpperCase();
@@ -78,13 +98,14 @@ function flagEmoji(iso2: string): string {
 //
 // /app/tv-display (bare) redirects to /overview.
 export default function TVDisplayAdmin() {
+  useT(); // re-render on a language switch
   const { data, isLoading, isError, error, refetch } = useTVDisplayOverview();
 
   if (isLoading) {
     return (
       <PageShell gap="1.25rem">
         <PageCrumbs />
-        <PageHeader title="TV display" />
+        <PageHeader title={navWord("TV display")} />
         <Loading />
       </PageShell>
     );
@@ -99,11 +120,11 @@ export default function TVDisplayAdmin() {
       return (
         <PageShell gap="1.25rem">
           <PageCrumbs />
-          <PageHeader title="TV display" />
+          <PageHeader title={navWord("TV display")} />
           <p className={styles.muted}>
-            The TV Display add-on isn't active for this store.{" "}
+            {t("tv.notActive")}{" "}
             <AppLink to="/admin/subscription" className={styles.link}>
-              Turn it on from your subscription page.
+              {t("tv.turnOn")}
             </AppLink>
           </p>
         </PageShell>
@@ -112,9 +133,9 @@ export default function TVDisplayAdmin() {
     return (
       <PageShell gap="1.25rem">
         <PageCrumbs />
-        <PageHeader title="TV display" />
+        <PageHeader title={navWord("TV display")} />
         <ErrorState
-          message={`Couldn't load the TV display. ${apiErrorMessage(error, "")}`.trimEnd()}
+          message={`${t("tv.loadFailed")} ${apiErrorMessage(error, "")}`.trimEnd()}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
@@ -124,11 +145,11 @@ export default function TVDisplayAdmin() {
   return (
     <PageShell gap="1.25rem">
       <PageCrumbs />
-      <PageHeader title="TV display" />
+      <PageHeader title={navWord("TV display")} />
       <TabsBar>
-        <TabsLink to="/tv-display/overview">Overview</TabsLink>
-        <TabsLink to="/tv-display/content">Content</TabsLink>
-        <TabsLink to="/tv-display/device">Device & settings</TabsLink>
+        <TabsLink to="/tv-display/overview">{t("tv.tabOverview")}</TabsLink>
+        <TabsLink to="/tv-display/content">{t("tv.tabContent")}</TabsLink>
+        <TabsLink to="/tv-display/device">{t("tv.tabDevice")}</TabsLink>
       </TabsBar>
       <Outlet />
     </PageShell>
@@ -176,6 +197,7 @@ export function TVDisplayContent() {
 
 
 export function TVDisplayDevice() {
+  useT(); // re-render on a language switch
   const { data } = useTVDisplayOverview();
   const saveSettings = useSaveTVDisplaySettings();
   const claimPair = useClaimTVPairCode();
@@ -187,7 +209,7 @@ export function TVDisplayDevice() {
         activePairing={data.active_pairing}
         onClaim={(code) => claimPair.mutateAsync(code)}
         onRevoke={(id) => revokePair.mutateAsync(id)}
-        claimError={claimPair.error ? apiErrorMessage(claimPair.error, "Could not pair the TV.", { anyError: true }) : null}
+        claimError={claimPair.error ? apiErrorMessage(claimPair.error, t("tv.pairFailed"), { anyError: true }) : null}
         claimPending={claimPair.isPending}
         revokePending={revokePair.isPending}
       />
@@ -208,25 +230,25 @@ function Hero({
 }: {
   data: import("../api/tvDisplay").TVDisplayOverviewResponse;
 }) {
+  useT(); // re-render on a language switch
   const lastEdited = data.last_updated_at
     ? formatTimestamp(data.last_updated_at)
     : null;
   return (
     <section className={styles.hero}>
       <div>
-        <div className={styles.eyebrow}>TV Display · Live layout</div>
+        <div className={styles.eyebrow}>{t("tv.eyebrow")}</div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-          <h1 className={styles.heroTitle}>{data.title || "Cheapest Money Transfer"}</h1>
+          <h1 className={styles.heroTitle}>{data.title || BOARD_DEFAULT_TITLE}</h1>
           <span className={styles.statusPill}>
             <span className={styles.statusDot} />
-            Live
+            {t("tv.live")}
           </span>
         </div>
         <div className={styles.heroMeta}>
-          <b>One layout</b> per store · one paired Fire TV at a time, plus
-          tablets/Chromecasts on the shared URL.
+          {tNodes("tv.heroMeta", { one: <b>{t("tv.oneLayout")}</b> })}
           {lastEdited ? (
-            <> Last edited <b>{lastEdited}</b>.</>
+            <> {tNodes("tv.lastEdited", { when: <b>{lastEdited}</b> })}</>
           ) : null}
         </div>
       </div>
@@ -236,7 +258,7 @@ function Hero({
           target="_blank"
           rel="noopener"
         >
-          Open TV view ↗
+          {t("tv.openTv")}
         </ButtonLink>
       </div>
     </section>
@@ -253,6 +275,7 @@ function PublicUrlBar({
   onRegenerate: () => void;
   regenerating: boolean;
 }) {
+  useT(); // re-render on a language switch
   const [showRegenForm, setShowRegenForm] = useState(false);
   const [confirmingRegen, setConfirmingRegen] = useState(false);
 
@@ -264,7 +287,7 @@ function PublicUrlBar({
   return (
     <section style={{ marginTop: 18 }}>
       <CopyField
-        label="Public display URL"
+        label={t("tv.publicUrl")}
         value={publicUrl}
         actions={(
           <ButtonLink
@@ -273,7 +296,7 @@ function PublicUrlBar({
             target="_blank"
             rel="noopener"
           >
-            Open ↗
+            {t("tv.open")}
           </ButtonLink>
         )}
       />
@@ -283,12 +306,11 @@ function PublicUrlBar({
         onToggle={(e) => setShowRegenForm((e.currentTarget as HTMLDetailsElement).open)}
       >
         <summary className={styles.detailsSummary}>
-          URL leaked or lost? Regenerate the token.
+          {t("tv.regenSummary")}
         </summary>
         <div className={styles.regenPanel}>
           <p className={styles.regenCopy}>
-            Rotating the token immediately breaks the current URL.
-            You'll need to reload every TV in your store after rotating.
+            {t("tv.regenCopy")}
           </p>
           <Button
             tone="danger" size="sm"
@@ -297,16 +319,16 @@ function PublicUrlBar({
             busy={regenerating}
             disabled={regenerating}
           >
-            {regenerating ? "Regenerating…" : "Regenerate display URL"}
+            {regenerating ? t("tv.regenerating") : t("tv.regenerate")}
           </Button>
         </div>
       </details>
 
       <ConfirmDialog
         open={confirmingRegen}
-        title="Rotate display URL?"
-        message="This invalidates the current display URL.  Any TV pointing at the old link will stop showing the board until you reconfigure it with the new URL."
-        confirmLabel="Rotate URL"
+        title={t("tv.rotateTitle")}
+        message={t("tv.rotateMessage")}
+        confirmLabel={t("tv.rotate")}
         confirmTone="danger"
         busy={regenerating}
         onConfirm={doRegenerate}
@@ -330,6 +352,7 @@ function PairFireTV({
   claimPending: boolean;
   revokePending: boolean;
 }) {
+  useT(); // re-render on a language switch
   const [code, setCode] = useState("");
   const toast = useToast();
   const [flash, setFlash] = useState<string | null>(null);
@@ -347,13 +370,13 @@ function PairFireTV({
       await onClaim(code);
       setCode("");
       toast({
-        message: "Fire TV paired. The screen will switch to the rate board within a few seconds.",
+        message: t("tv.paired"),
         tone: "success",
       });
     } catch (err) {
       const msg = (err instanceof ApiError && typeof err.body === "object" && err.body !== null
         ? (err.body as { detail?: string }).detail
-        : null) ?? "Code not found or expired.";
+        : null) ?? t("tv.codeNotFound");
       setFlash(msg);
     }
   }
@@ -366,7 +389,7 @@ function PairFireTV({
       await onRevoke(pendingUnpair);
       setPendingUnpair(null);
       toast({
-        message: "Fire TV unpaired. The device will stop showing the board on its next refresh.",
+        message: t("tv.unpaired"),
         tone: "success",
       });
     } finally {
@@ -382,12 +405,9 @@ function PairFireTV({
     <section className={styles.pairWrapper}>
       <div className={styles.pairBox}>
         <div style={{ flex: "1 1 240px", minWidth: 0 }}>
-          <h3 className={styles.pairTitle}>Pair a Fire TV</h3>
+          <h3 className={styles.pairTitle}>{t("tv.pairTitle")}</h3>
           <p className={styles.pairCopy}>
-            Install the <b>DineroBook TV</b> app on your Fire TV from the
-            Amazon Appstore and open it. Type the 6-character code shown
-            on the TV here. Pairing a new Fire TV automatically unpairs
-            the old one — one Fire TV per subscription.
+            {tNodes("tv.pairCopy", { app: <b>{TV_APP_NAME}</b> })}
           </p>
         </div>
         <form onSubmit={submitClaim} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -400,8 +420,8 @@ function PairFireTV({
             autoCapitalize="characters"
             spellCheck={false}
             inputMode="text"
-            placeholder="ABC234"
-            aria-label="Code shown on your Fire TV"
+            placeholder={PAIR_CODE_SAMPLE}
+            aria-label={t("tv.codeLabel")}
             className={styles.pairInput}
           />
           <Button
@@ -410,7 +430,7 @@ function PairFireTV({
             busy={claimPending}
             disabled={!codeValid || claimPending}
           >
-            {claimPending ? "Pairing…" : "Pair"}
+            {claimPending ? t("tv.pairing") : t("tv.pair")}
           </Button>
         </form>
       </div>
@@ -421,12 +441,15 @@ function PairFireTV({
           <span className={styles.activeDot} aria-hidden="true" />
           <div style={{ flex: "1 1 auto", minWidth: 0 }}>
             <b>
-              Fire TV paired
-              {activePairing.device_label ? ` — ${activePairing.device_label}` : ""}
+              {activePairing.device_label
+                ? t("tv.pairedAs", { label: activePairing.device_label })
+                : t("tv.pairedPlain")}
             </b>
             <div className={styles.mutedSmall}>
-              Paired {formatTimestamp(activePairing.paired_at)} · last seen{" "}
-              {formatTimestamp(activePairing.last_seen_at)}
+              {t("tv.pairedSeen", {
+                paired: formatTimestamp(activePairing.paired_at),
+                seen: formatTimestamp(activePairing.last_seen_at),
+              })}
             </div>
           </div>
           <Button
@@ -436,16 +459,16 @@ function PairFireTV({
             busy={revokePending}
             disabled={revokePending}
           >
-            {revokePending ? "Unpairing…" : "Unpair this Fire TV"}
+            {revokePending ? t("tv.unpairing") : t("tv.unpairThis")}
           </Button>
         </div>
       )}
 
       <ConfirmDialog
         open={pendingUnpair != null}
-        title="Unpair Fire TV?"
-        message="The device will stop showing the rate board on its next refresh.  You can pair a new device with a fresh code afterwards."
-        confirmLabel="Unpair"
+        title={t("tv.unpairTitle")}
+        message={t("tv.unpairMessage")}
+        confirmLabel={t("tv.unpair")}
         confirmTone="danger"
         busy={unpairBusy}
         onConfirm={() => { void doUnpair(); }}
@@ -471,6 +494,7 @@ function SettingsAndStatsGrid({
     orientation: data.orientation || "auto",
     theme:       data.theme || "light",
   }), [data.title, data.subtitle, data.orientation, data.theme]);
+  useT(); // re-render on a language switch
   const [draft, setDraft] = useState(saved);
   const toast = useToast();
 
@@ -484,7 +508,7 @@ function SettingsAndStatsGrid({
   // refreshed config arrives.
   const guard = useUnsavedGuard(
     JSON.stringify(draft) !== JSON.stringify(saved) && !savePending,
-    { message: "You have unsaved display settings. Leave without saving?" },
+    { message: t("tv.unsaved") },
   );
 
   const stats = useMemo(() => {
@@ -505,49 +529,49 @@ function SettingsAndStatsGrid({
     } catch (err) {
       // A refused save used to reject unhandled: no message, and the
       // edits looked saved.
-      toastApiError(err, "Couldn't save the display settings.");
+      toastApiError(err, t("tv.saveFailed"));
       return;
     }
-    toast({ message: "Display settings saved.", tone: "success" });
+    toast({ message: t("tv.saved"), tone: "success" });
   }
 
   return (
     <div className={styles.gridTwoOne}>
       <Card>
-        <Section title="Display settings">
+        <Section title={t("tv.settings")}>
           <form onSubmit={submit}>
             <div className={styles.fieldGrid}>
-              <Field label="Title (top line)">
+              <Field label={t("tv.titleField")}>
                 <Input
                   type="text"
                   value={draft.title}
                   maxLength={120}
-                  placeholder="Cheapest Money Transfer"
+                  placeholder={BOARD_DEFAULT_TITLE}
                   onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
                 />
               </Field>
-              <Field label="Subtitle (second line, optional)">
+              <Field label={t("tv.subtitleField")}>
                 <Input
                   type="text"
                   value={draft.subtitle}
                   maxLength={120}
-                  placeholder="Mejor Tipo de Cambio"
+                  placeholder={BOARD_SAMPLE_SUBTITLE}
                   onChange={(e) => setDraft((d) => ({ ...d, subtitle: e.target.value }))}
                 />
               </Field>
-              <Field label="Orientation">
+              <Field label={t("tv.orientation")}>
                 <Select
                   value={draft.orientation}
                   onChange={(e) => setDraft((d) => ({ ...d, orientation: e.target.value }))}
                 >
                   {ORIENTATION_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                    <option key={o.value} value={o.value}>{t(o.label)}</option>
                   ))}
                 </Select>
               </Field>
               <Field
-                label="Board theme"
-                hint="Dark reads best in low-light rooms; light maximizes daytime readability."
+                label={t("tv.theme")}
+                hint={t("tv.themeHint")}
               >
                 <Switch
                   checked={draft.theme === "dark"}
@@ -555,7 +579,7 @@ function SettingsAndStatsGrid({
                     setDraft((d) => ({ ...d, theme: on ? "dark" : "light" }))
                   }
                 >
-                  {draft.theme === "dark" ? "Dark" : "Light"}
+                  {draft.theme === "dark" ? t("tv.dark") : t("tv.light")}
                 </Switch>
               </Field>
             </div>
@@ -565,19 +589,19 @@ function SettingsAndStatsGrid({
                 busy={savePending}
                 disabled={savePending}
               >
-                {savePending ? "Saving…" : "Save settings"}
+                {savePending ? t("common.saving") : t("tv.saveSettings")}
               </Button>
             </FormActions>
           </form>
         </Section>
       </Card>
       <Card>
-        <Section title="At a glance">
+        <Section title={t("tv.glance")}>
           <KpiGrid minWidth="9rem">
-            <KpiCard label="Country sections" value={data.countries.length} />
-            <KpiCard label="Payout banks" value={stats.totalBanks} />
-            <KpiCard label="Rate cells filled" value={stats.totalRates} />
-            <KpiCard label="Subscription" value="$5/mo" tone="neon" colorValue />
+            <KpiCard label={t("tv.countrySections")} value={data.countries.length} />
+            <KpiCard label={t("tv.payoutBanks")} value={stats.totalBanks} />
+            <KpiCard label={t("tv.rateCells")} value={stats.totalRates} />
+            <KpiCard label={t("tv.subscription")} value={t("tv.price")} tone="neon" colorValue />
           </KpiGrid>
         </Section>
       </Card>
@@ -597,6 +621,7 @@ function CountrySections({
   createPending: boolean;
   deletePending: boolean;
 }) {
+  useT(); // re-render on a language switch
   const [showAdd, setShowAdd] = useState(false);
   const [picker, setPicker] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
@@ -608,7 +633,7 @@ function CountrySections({
     setCreateError(null);
     const match = COUNTRY_PICKER.find(([iso]) => iso === picker);
     if (!match) {
-      setCreateError("Pick a country.");
+      setCreateError(t("tv.pickCountry"));
       return;
     }
     try {
@@ -620,7 +645,7 @@ function CountrySections({
       // banks + rates immediately.
       window.location.assign(`/tv-display/countries/${created.id}`);
     } catch (err) {
-      setCreateError(apiErrorMessage(err, "Failed to create country."));
+      setCreateError(apiErrorMessage(err, t("tv.createFailed")));
     }
   }
 
@@ -634,16 +659,16 @@ function CountrySections({
     <>
       <div className={styles.countriesHead}>
         <div>
-          <h2 className={styles.sectionTitle}>Country sections</h2>
+          <h2 className={styles.sectionTitle}>{t("tv.countrySections")}</h2>
           <div className={styles.mutedSmall}>
-            Each country becomes one block on the TV board. Tap to edit its rate grid.
+            {t("tv.sectionsHint")}
           </div>
         </div>
       </div>
       {countries.length === 0 && (
         <EmptyState
-          title="No country sections yet"
-          body="Add Mexico, Guatemala, Honduras — anywhere your store sends money — to start the rate board."
+          title={t("tv.noSections")}
+          body={t("tv.noSectionsBody")}
         />
       )}
       <div className={styles.countryGrid}>
@@ -663,8 +688,10 @@ function CountrySections({
                   {c.country_code && <span className={styles.countryIso}>{c.country_code}</span>}
                 </div>
                 <div className={styles.countryStats}>
-                  <span className={styles.countryStatNum}>{c.bank_count}</span> banks ·{" "}
-                  <span className={styles.countryStatNum}>{c.rate_count}</span> rates
+                  {tNodes("tv.countryStats", {
+                    banks: <span className={styles.countryStatNum}>{c.bank_count}</span>,
+                    rates: <span className={styles.countryStatNum}>{c.rate_count}</span>,
+                  })}
                 </div>
               </div>
               <div className={styles.countryArrow} aria-hidden="true">→</div>
@@ -676,7 +703,7 @@ function CountrySections({
               tone="neutral" size="sm"
               onClick={(e) => { e.preventDefault(); setPendingRemove({ id: c.id, name: c.country_name }); }}
               disabled={deletePending}
-              title={`Remove ${c.country_name}`}
+              title={t("tv.remove", { name: c.country_name })}
               style={{ position: "absolute", top: 6, right: 6 }}
             >
               ×
@@ -691,22 +718,22 @@ function CountrySections({
           <summary className={styles.addCountrySummary}>
             <div className={styles.plusIcon}>+</div>
             <div style={{ flex: 1 }}>
-              <div className={styles.countryName} style={{ color: "var(--db-text-muted)" }}>Add a country</div>
+              <div className={styles.countryName} style={{ color: "var(--db-text-muted)" }}>{t("tv.addCountry")}</div>
               <div className={styles.countryStats}>
-                Mexico, Guatemala, El Salvador, Honduras…
+                {t("tv.addCountryHint")}
               </div>
             </div>
           </summary>
           <form onSubmit={addCountry} style={{ padding: 18 }}>
-            <Field label="Country *" style={{ maxWidth: 460 }}>
+            <Field label={t("tv.countryField")} style={{ maxWidth: 460 }}>
               <Select
                 value={picker}
                 required
                 onChange={(e) => setPicker(e.target.value)}
               >
-                <option value="">— Pick a country —</option>
+                <option value="">{t("tv.pickPlaceholder")}</option>
                 {COUNTRY_PICKER.map(([iso, name]) => (
-                  <option key={iso} value={iso}>{name}</option>
+                  <option key={iso} value={iso}>{countryName(iso, name)}</option>
                 ))}
               </Select>
             </Field>
@@ -717,7 +744,7 @@ function CountrySections({
                 busy={createPending}
                 disabled={createPending}
               >
-                {createPending ? "Adding…" : "Add country"}
+                {createPending ? t("tv.adding") : t("tv.addCountryButton")}
               </Button>
             </div>
           </form>
@@ -726,12 +753,9 @@ function CountrySections({
 
       <ConfirmDialog
         open={pendingRemove != null}
-        title="Remove country?"
-        message={
-          `Remove ${pendingRemove?.name ?? "this country"}? `
-          + "This deletes its banks and rates from the board."
-        }
-        confirmLabel="Remove"
+        title={t("tv.removeTitle")}
+        message={t("tv.removeMessage", { name: pendingRemove?.name ?? t("tv.thisCountry") })}
+        confirmLabel={t("tv.removeButton")}
         confirmTone="danger"
         busy={deletePending}
         onConfirm={() => { void doRemove(); }}

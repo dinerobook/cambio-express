@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Signup from "./Signup";
 import { ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Owner-first signup (U-4b). Pinned: the body the API receives
 // (trimmed, upper-cased referral code, chosen business type), the
@@ -109,5 +111,17 @@ describe("Signup", () => {
     await waitFor(() => expect(signup).toHaveBeenCalledWith(
       expect.objectContaining({ ref_code: "ABCD1234" }),
     ));
+  });
+
+  it("reads in Spanish, referral banner included", async () => {
+    previewReferral.mockResolvedValue({ code: "ABCD1234", reward_referee_cents: 2500 });
+    setLanguage("es");
+    renderPage("/signup?ref=abcd1234");
+    expect(screen.getByText("Cree su tienda")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tipo de negocio")).toHaveDisplayValue("Tienda de conveniencia");
+    expect(screen.getByLabelText(/^Teléfono/)).toBeInTheDocument();
+    expect(await screen.findByText(/Lo recomendó un usuario de DineroBook/)).toHaveTextContent("$25");
+    expect(screen.getByRole("button", { name: "Empezar la prueba gratis →" })).toBeDisabled();
+    expect(englishLeftovers(document.body, ["signup."])).toEqual([]);
   });
 });

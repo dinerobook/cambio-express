@@ -15,24 +15,42 @@ import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./SupportTickets.module.css";
 import { formatDateTime } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtCount } from "../lib/formatters";
+import { t, tn, useT, type MessageKey } from "../i18n";
 
-const CATEGORIES = [
-  { value: "bug", label: "Bug report" },
-  { value: "feature", label: "Feature request" },
-  { value: "question", label: "Question" },
-  { value: "feedback", label: "General feedback" },
+const CATEGORIES: { value: string; label: MessageKey }[] = [
+  { value: "bug", label: "support.catBug" },
+  { value: "feature", label: "support.catFeature" },
+  { value: "question", label: "support.catQuestion" },
+  { value: "feedback", label: "support.catFeedback" },
 ];
 
-const COLUMNS: DataColumn<TicketRow>[] = [
+// A status the SPA does not list shows as the server sent it.
+const STATUS_LABELS: Record<string, MessageKey> = {
+  open: "support.statusOpen",
+  in_progress: "support.statusInProgress",
+  resolved: "support.statusResolved",
+  closed: "support.statusClosed",
+};
+
+function categoryLabel(value: string): string {
+  const c = CATEGORIES.find((x) => x.value === value);
+  return c ? t(c.label) : value;
+}
+
+function statusLabel(status: string): string {
+  return Object.hasOwn(STATUS_LABELS, status) ? t(STATUS_LABELS[status]) : status.replace("_", " ");
+}
+
+// Built during render so the headings follow a language switch.
+const columns = (): DataColumn<TicketRow>[] => [
   {
-    key: "subject", header: "Subject",
+    key: "subject", header: t("support.colSubject"),
     render: (t) => (t.unread_count > 0 ? (
       <span className={styles.unreadSubject}>
         {t.subject}
         <span
           className={styles.unreadBadge}
-          title={`${fmtCount(t.unread_count, "new reply", "new replies")}`}
+          title={tn("support.newReplies", t.unread_count)}
         >
           {t.unread_count}
         </span>
@@ -40,18 +58,18 @@ const COLUMNS: DataColumn<TicketRow>[] = [
     ) : t.subject),
   },
   {
-    key: "category", header: "Category",
-    render: (t) => CATEGORIES.find((c) => c.value === t.category)?.label ?? t.category,
+    key: "category", header: t("support.colCategory"),
+    render: (row) => categoryLabel(row.category),
   },
   {
-    key: "status", header: "Status",
-    render: (t) => (
-      <Pill tone={TICKET_STATUS_TONES[t.status] ?? "neutral"}>
-        {t.status.replace("_", " ")}
+    key: "status", header: t("common.status"),
+    render: (row) => (
+      <Pill tone={TICKET_STATUS_TONES[row.status] ?? "neutral"}>
+        {statusLabel(row.status)}
       </Pill>
     ),
   },
-  { key: "created", header: "Created", render: (t) => formatDateTime(t.created_at) },
+  { key: "created", header: t("support.colCreated"), render: (row) => formatDateTime(row.created_at) },
 ];
 
 export default function SupportTickets() {
@@ -63,6 +81,7 @@ export default function SupportTickets() {
 }
 
 function SupportTicketsInner() {
+  useT(); // re-render on a language switch
   const filters = useUrlFilterState({}, { pageSizeKey: "support-tickets" });
   const tickets = useMyTickets({ page: filters.page, perPage: filters.perPage });
   // The ticket whose conversation is open under its row.
@@ -79,7 +98,7 @@ function SupportTicketsInner() {
   // A typed ticket is the work to protect; the category alone is not.
   const guard = useUnsavedGuard(
     showForm && Boolean(subject.trim() || body.trim()) && !busy,
-    { message: "You have a ticket you haven't submitted. Leave without submitting?" },
+    { message: t("support.unsaved") },
   );
 
   async function onSubmit(e: FormEvent) {
@@ -93,12 +112,12 @@ function SupportTicketsInner() {
       setBody("");
       setShowForm(false);
       toast({
-        message: "Ticket submitted — we'll get back to you soon.",
+        message: t("support.submitted"),
         tone: "success",
       });
       void qc.invalidateQueries({ queryKey: ["tickets"] });
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not submit ticket."));
+      setError(apiErrorMessage(err, t("support.submitFailed")));
     } finally {
       setBusy(false);
     }
@@ -108,11 +127,11 @@ function SupportTicketsInner() {
     <PageShell maxWidth="56rem">
       <PageCrumbs />
       <PageHeader
-        title="Support"
-        subtitle="Report bugs, request features, or ask questions."
+        title={t("ticket.support")}
+        subtitle={t("support.subtitle")}
         actions={
           <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? "Cancel" : "+ New ticket"}
+            {showForm ? t("common.cancel") : t("support.newTicket")}
           </Button>
         }
       />
@@ -121,32 +140,32 @@ function SupportTicketsInner() {
 
       {showForm && (
         <Card>
-          <Section title="Submit a ticket">
+          <Section title={t("support.formTitle")}>
             <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <div className={styles.formGrid}>
-                <Field label="Category">
+                <Field label={t("support.colCategory")}>
                   <Select value={category} onChange={(e) => setCategory(e.target.value)}>
                     {CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
+                      <option key={c.value} value={c.value}>{t(c.label)}</option>
                     ))}
                   </Select>
                 </Field>
-                <Field label="Subject">
+                <Field label={t("support.colSubject")}>
                   <Input
                     type="text"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    placeholder="Brief summary"
+                    placeholder={t("support.subjectPlaceholder")}
                     maxLength={200}
                     required
                   />
                 </Field>
               </div>
-              <Field label="Description">
+              <Field label={t("support.description")}>
                 <Textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  placeholder="Describe the issue, idea, or question in detail…"
+                  placeholder={t("support.descriptionPlaceholder")}
                   rows={5}
                   maxLength={5000}
                   required
@@ -154,7 +173,7 @@ function SupportTicketsInner() {
               </Field>
               <FormActions guard={guard}>
                 <Button type="submit" busy={busy} disabled={busy || !subject.trim() || !body.trim()}>
-                  {busy ? "Submitting…" : "Submit ticket"}
+                  {busy ? t("support.submitting") : t("support.submit")}
                 </Button>
               </FormActions>
             </form>
@@ -166,21 +185,21 @@ function SupportTicketsInner() {
       {!(showForm && tickets.data?.tickets.length === 0) && (
         <Card>
           <DataTable
-            columns={COLUMNS}
+            columns={columns()}
             rows={tickets.data?.tickets}
-            rowKey={(t) => t.id}
-            onRowClick={(t) => setOpenId((cur) => (cur === t.id ? null : t.id))}
-            rowLabel={(t) => `Open ticket ${t.subject}`}
-            expandedRow={(t) => (t.id === openId
-              ? <TicketThread ticket={t} viewerKind="user" />
+            rowKey={(row) => row.id}
+            onRowClick={(row) => setOpenId((cur) => (cur === row.id ? null : row.id))}
+            rowLabel={(row) => t("support.openTicket", { subject: row.subject })}
+            expandedRow={(row) => (row.id === openId
+              ? <TicketThread ticket={row} viewerKind="user" />
               : null)}
             isLoading={tickets.isLoading}
             isError={tickets.isError}
             error={tickets.error}
-            errorMessage="Could not load tickets."
+            errorMessage={t("support.loadFailed")}
             onRetry={() => { void tickets.refetch(); }}
-            emptyTitle="No tickets yet"
-            emptyBody='Click "+ New ticket" to submit your first one.'
+            emptyTitle={t("support.emptyTitle")}
+            emptyBody={t("support.emptyBody")}
             page={tickets.data && {
               page: tickets.data.page,
               totalPages: tickets.data.total_pages,

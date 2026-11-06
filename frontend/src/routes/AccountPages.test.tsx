@@ -286,7 +286,7 @@ describe("SupportTickets", () => {
     mockFetch({ "GET /api/v2/tickets": { body: TICKETS } });
     renderRoute(<SupportTickets />);
     expect(await screen.findByText("Receipt prints twice")).toBeInTheDocument();
-    expect(screen.getByText("in progress")).toBeInTheDocument();
+    expect(screen.getByText("In progress")).toBeInTheDocument();
     expect(screen.getByText("Bug report")).toBeInTheDocument();
   });
 

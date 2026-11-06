@@ -9,6 +9,7 @@ import { apiErrorMessage } from "../lib/api";
 import { Alert, Button, Loading, Textarea } from "./ui";
 import styles from "./TicketThread.module.css";
 import { formatDateTime } from "../lib/datetime";
+import { useT } from "../i18n";
 
 /** Chat-style conversation thread for one support ticket, shared by
  *  the store-side Support page and the superadmin ticket queue.
@@ -26,6 +27,7 @@ export function TicketThread({
   ticket: TicketRow;
   viewerKind: "user" | "staff";
 }) {
+  const t = useT();
   const qc = useQueryClient();
   const thread = useTicketMessages(ticket.id, true);
 
@@ -63,7 +65,7 @@ export function TicketThread({
       await refresh();
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not send the reply."),
+        apiErrorMessage(err, t("ticket.sendFailed")),
       );
     } finally {
       setBusy(false);
@@ -79,7 +81,7 @@ export function TicketThread({
       await refresh();
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not reopen the ticket."),
+        apiErrorMessage(err, t("ticket.reopenFailed")),
       );
     } finally {
       setBusy(false);
@@ -100,7 +102,7 @@ export function TicketThread({
           key={m.id}
           mine={m.author_kind === viewerKind}
           staff={m.author_kind === "staff"}
-          author={m.author_name || (m.author_kind === "staff" ? "Support" : "")}
+          author={m.author_name || (m.author_kind === "staff" ? t("ticket.support") : "")}
           at={m.created_at}
           body={m.body}
         />
@@ -111,13 +113,13 @@ export function TicketThread({
       {closed ? (
         <div className={styles.reopenRow}>
           <span className={styles.closedNote}>
-            This ticket is closed. Still having the issue?
+            {t("ticket.closedNote")}
           </span>
           <Button
             type="button" tone="secondary" size="sm"
             busy={busy} disabled={busy} onClick={onReopen}
           >
-            Reopen ticket
+            {t("ticket.reopen")}
           </Button>
         </div>
       ) : (
@@ -125,7 +127,7 @@ export function TicketThread({
           <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Write a reply…"
+            placeholder={t("ticket.replyPlaceholder")}
             rows={2}
             maxLength={5000}
             disabled={busy}
@@ -135,7 +137,7 @@ export function TicketThread({
             busy={busy} disabled={busy || !draft.trim()}
             onClick={onSend}
           >
-            Send
+            {t("ticket.send")}
           </Button>
         </div>
       )}

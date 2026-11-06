@@ -117,6 +117,15 @@ export const COVERED_FILES = [
   "routes/OwnerActivity.tsx",
   "routes/OwnerSettings.tsx",
   "components/BulkResultsCard.tsx",
+  // Signup, subscription, support, TV display
+  "routes/Signup.tsx",
+  "routes/SignupOwner.tsx",
+  "routes/SubscribeSuccess.tsx",
+  "routes/AdminSubscription.tsx",
+  "routes/SupportTickets.tsx",
+  "components/TicketThread.tsx",
+  "routes/TVDisplayAdmin.tsx",
+  "routes/TVDisplayCountry.tsx",
   // Monthly P&L and reports
   "routes/Monthly.tsx",
   "routes/EditMonthly.tsx",

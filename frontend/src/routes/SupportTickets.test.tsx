@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import SupportTickets from "./SupportTickets";
 import { ApiError } from "../lib/api";
 import { renderRoute, renderRouteWithGuard, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The store's own support tickets: a paged list on the shared table,
 // a row opens its conversation underneath (mouse or keyboard), the
@@ -65,7 +67,7 @@ describe("SupportTickets", () => {
     renderPage();
     const jam = screen.getByText("Printer jams").closest("tr")!;
     expect(jam).toHaveTextContent("Bug report");
-    expect(jam).toHaveTextContent("open");
+    expect(jam).toHaveTextContent("Open");
     expect(screen.getByTitle("2 new replies")).toHaveTextContent("2");
     expect(screen.getByText("Add a report").closest("tr")).toHaveTextContent("Feature request");
     expect(screen.getByText("Showing 1–2 of 2")).toBeInTheDocument();
@@ -174,5 +176,27 @@ describe("SupportTickets", () => {
     expect(await screen.findByText(/Ticket submitted/)).toBeInTheDocument();
     act(() => { void router.navigate("/dashboard"); });
     expect(await screen.findByText("Navigated to /dashboard")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish, the new-ticket form included", async () => {
+    setLanguage("es");
+    renderPage();
+    const jam = screen.getByText("Printer jams").closest("tr")!;
+    expect(jam).toHaveTextContent("Reporte de falla");
+    expect(jam).toHaveTextContent("Abierto");
+    expect(screen.getByTitle("2 respuestas nuevas")).toBeInTheDocument();
+    expect(screen.getByText("Add a report").closest("tr")).toHaveTextContent("Resuelto");
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["Asunto", "Categoría", "Estado", "Creado"]));
+    await userEvent.click(screen.getByRole("button", { name: "+ Nuevo ticket" }));
+    expect(screen.getByLabelText("Categoría")).toHaveDisplayValue("Pregunta");
+    expect(screen.getByRole("button", { name: "Enviar ticket" })).toBeDisabled();
+    expect(englishLeftovers(document.body, ["support."])).toEqual([]);
+  });
+
+  it("shows a status it does not know as sent", () => {
+    useMyTickets.mockReturnValue(listed([ticket(3, "Odd one", { status: "on_hold" })]));
+    renderPage();
+    expect(screen.getByText("Odd one").closest("tr")).toHaveTextContent("on hold");
   });
 });

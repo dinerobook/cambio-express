@@ -7,11 +7,13 @@ import { signupOwner } from "../api/account";
 import { ApiError } from "../lib/api";
 import { setAccessToken } from "../lib/auth";
 import styles from "./auth.module.css";
+import { useT } from "../i18n";
 
 // Multi-store owner signup at /app/signup/owner. Creates the owner
 // user + JWT; the owner connects/redeems individual store codes
 // later through the dashboard.
 export default function SignupOwner() {
+  const t = useT();
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [email,    setEmail]    = useState("");
@@ -41,7 +43,7 @@ export default function SignupOwner() {
           setError(null);
         }
       } else {
-        setError("Could not create account. Please try again.");
+        setError(t("signup.failed"));
       }
     } finally {
       setBusy(false);
@@ -49,41 +51,41 @@ export default function SignupOwner() {
   }
 
   return (
-    <AuthChrome navLink={{ to: "/login", label: "Already have an account? Sign in" }}>
-      <div className={styles.badgePill}>★ MULTI-STORE OWNER</div>
-      <div className={styles.cardTitle}>Create owner account</div>
-      <div className={styles.cardSub}>Manage multiple store locations from one login.</div>
+    <AuthChrome navLink={{ to: "/login", label: t("signup.signInNav") }}>
+      <div className={styles.badgePill}>{t("signupOwner.pill")}</div>
+      <div className={styles.cardTitle}>{t("signupOwner.title")}</div>
+      <div className={styles.cardSub}>{t("signupOwner.subtitle")}</div>
 
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
         {error && <Alert tone="error">{error}</Alert>}
 
-        <Field label="Full name" error={errors.full_name}>
+        <Field label={t("signupOwner.fullName")} error={errors.full_name}>
           <Input
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Your full name"
+            placeholder={t("signupOwner.fullNamePlaceholder")}
             disabled={busy}
             required
           />
         </Field>
-        <Field label="Email" error={errors.email}>
+        <Field label={t("common.email")} error={errors.email}>
           <Input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder={t("signupOwner.emailPlaceholder")}
             autoComplete="email"
             disabled={busy}
             required
           />
         </Field>
-        <Field label="Password" error={errors.password}>
+        <Field label={t("login.password")} error={errors.password}>
           <Input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 8 characters"
+            placeholder={t("signup.passwordPlaceholder")}
             autoComplete="new-password"
             minLength={8}
             disabled={busy}
@@ -98,15 +100,15 @@ export default function SignupOwner() {
           disabled={busy || !fullName || !email || !password}
           style={{ width: "100%" }}
         >
-          {busy ? "Creating account…" : "Create owner account →"}
+          {busy ? t("signupOwner.creating") : t("signupOwner.submit")}
         </Button>
       </form>
 
       <div className={styles.loginPrompt}>
-        Already have an account? <Link to="/login">Sign in</Link>
+        {t("signup.haveAccount")} <Link to="/login">{t("signup.signIn")}</Link>
       </div>
       <div className={styles.loginPrompt} style={{ marginTop: 10 }}>
-        Managing a single store? <Link to="/signup">Sign up as a store</Link>
+        {t("signupOwner.singleStore")} <Link to="/signup">{t("signupOwner.signUpStore")}</Link>
       </div>
     </AuthChrome>
   );
