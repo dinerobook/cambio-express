@@ -7,7 +7,7 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Button, Card, Checkbox, Empty, ErrorState, Field, FormActions,
+  Alert, AppLink, Button, Card, Checkbox, Empty, ErrorState, Field, FormActions,
   Input, Loading, PageHeader, PageShell, Section, Select, Switch,
 } from "../components/ui";
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
@@ -15,6 +15,10 @@ import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import styles from "./OwnerCrossStoreDefaults.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+const TZ_EXAMPLE = "America/Chicago";
 
 // /app/owner/cross-store-defaults — owner pushes the same
 // field defaults (fed-tax-rate, timezone, business-hours
@@ -49,6 +53,7 @@ const TIMEZONE_CHOICES = [
 ];
 
 export default function OwnerCrossStoreDefaults() {
+  useT(); // re-render on a language switch
   const identity = getCurrentIdentity();
   const { data: locations, isLoading, isError, refetch } =
     useOwnerLocations("month", "");
@@ -85,15 +90,15 @@ export default function OwnerCrossStoreDefaults() {
     applyPasskey, passkeyOn, applyPhone, phone, applyAddress, address,
   });
   const guard = useUnsavedGuard(dirty && !busy, {
-    message: "You have defaults you haven't applied yet. Leave without applying?",
+    message: t("defaults.unsaved"),
   });
 
   if (!identity || (identity.role !== "owner"
                     && identity.role !== "superadmin")) {
     return (
       <PageShell>
-        <PageHeader title="Cross-store defaults" />
-        <Empty>This page is owner-only.</Empty>
+        <PageHeader title={navWord("Cross-store defaults")} />
+        <Empty>{t("bulkAdd.ownerOnly")}</Empty>
       </PageShell>
     );
   }
@@ -110,7 +115,7 @@ export default function OwnerCrossStoreDefaults() {
       if (applyFedTax) {
         const v = Number(fedTaxPct);
         if (!Number.isFinite(v) || v < 0 || v > 100) {
-          throw new Error("Federal tax rate must be 0-100 (percent).");
+          throw new Error(t("defaults.taxRange"));
         }
         body.federal_tax_rate = v / 100;
       }
@@ -123,7 +128,7 @@ export default function OwnerCrossStoreDefaults() {
       markSaved();
     } catch (e2) {
       setErr(apiErrorMessage(
-        e2, "Couldn't apply the cross-store defaults.", { anyError: true },
+        e2, t("defaults.applyFailed"), { anyError: true },
       ));
     } finally {
       setBusy(false);
@@ -136,39 +141,38 @@ export default function OwnerCrossStoreDefaults() {
       <PageCrumbs />
 
       <PageHeader
-        title="Cross-store defaults"
-        subtitle="Push the same field defaults to every store you select. Pick which fields to apply with the checkboxes — unchecked fields stay untouched on every store."
+        title={navWord("Cross-store defaults")}
+        subtitle={t("defaults.subtitle")}
       />
 
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message="Couldn't load your stores."
+          message={t("bulkAdd.storesLoadFailed")}
           onRetry={() => { void refetch(); }}
         />
       )}
 
       {locations && locations.rows.length === 0 && (
         <Empty>
-          You don't have any stores connected to your umbrella
-          yet. Mint a connect code from{" "}
-          <code>/app/owner/connect</code> and share it with a
-          store admin first.
+          {tNodes("bulkAdd.noStores", {
+            link: <AppLink to="/owner/connect">{navWord("Connect a store")}</AppLink>,
+          })}
         </Empty>
       )}
 
       {locations && locations.rows.length > 0 && (
         <form onSubmit={onSubmit}>
           <Card>
-            <Section title="Fields to push">
+            <Section title={t("defaults.fieldsToPush")}>
               <Checkbox checked={applyTz} onChange={setApplyTz}>
-                Timezone
+                {t("defaults.timezone")}
                 <span className={styles.fieldHint}>
-                  — IANA name, e.g. <code>America/Chicago</code>
+                  {" "}{tNodes("defaults.timezoneHint", { example: <code>{TZ_EXAMPLE}</code> })}
                 </span>
               </Checkbox>
               {applyTz && (
-                <Field label="Timezone">
+                <Field label={t("defaults.timezone")}>
                   <Select
                     value={tz}
                     onChange={(e) => setTz(e.target.value)}
@@ -181,14 +185,11 @@ export default function OwnerCrossStoreDefaults() {
               )}
 
               <Checkbox checked={applyFedTax} onChange={setApplyFedTax}>
-                Federal tax rate
-                <span className={styles.fieldHint}>
-                  — percent, 0-100. Server stores as a decimal
-                  (1.00% → 0.01).
-                </span>
+                {t("defaults.fedTax")}
+                <span className={styles.fieldHint}>{" "}{t("defaults.fedTaxHint")}</span>
               </Checkbox>
               {applyFedTax && (
-                <Field label="Federal tax rate (%)">
+                <Field label={t("defaults.fedTaxPct")}>
                   <Input
                     type="number" min="0" max="100" step="0.01"
                     value={fedTaxPct}
@@ -198,29 +199,23 @@ export default function OwnerCrossStoreDefaults() {
               )}
 
               <Checkbox checked={applyEnforceHours} onChange={setApplyEnforceHours}>
-                Block transfers outside business hours
+                {t("defaults.blockHours")}
               </Checkbox>
               {applyEnforceHours && (
-                <Field
-                  label="State"
-                  hint="When on, out-of-hours transfer saves are refused."
-                >
+                <Field label={t("defaults.state")} hint={t("defaults.blockHoursHint")}>
                   <Switch checked={enforceHours} onChange={setEnforceHours}>
-                    {enforceHours ? "On" : "Off (default)"}
+                    {enforceHours ? t("defaults.on") : t("defaults.offDefault")}
                   </Switch>
                 </Field>
               )}
 
               <Checkbox checked={applyPasskey} onChange={setApplyPasskey}>
-                Require passkey on time-clock punches
+                {t("defaults.requirePasskey")}
               </Checkbox>
               {applyPasskey && (
-                <Field
-                  label="State"
-                  hint="When on, punches without a passkey are refused."
-                >
+                <Field label={t("defaults.state")} hint={t("defaults.passkeyHint")}>
                   <Switch checked={passkeyOn} onChange={setPasskeyOn}>
-                    {passkeyOn ? "On" : "Off (default)"}
+                    {passkeyOn ? t("defaults.on") : t("defaults.offDefault")}
                   </Switch>
                 </Field>
               )}
@@ -228,10 +223,10 @@ export default function OwnerCrossStoreDefaults() {
               <div className={styles.fieldGrid}>
                 <div>
                   <Checkbox checked={applyPhone} onChange={setApplyPhone}>
-                    Phone
+                    {t("defaults.phone")}
                   </Checkbox>
                   {applyPhone && (
-                    <Field label="Phone">
+                    <Field label={t("defaults.phone")}>
                       <Input
                         type="tel" value={phone} maxLength={40}
                         onChange={(e) => setPhone(e.target.value)}
@@ -241,10 +236,10 @@ export default function OwnerCrossStoreDefaults() {
                 </div>
                 <div>
                   <Checkbox checked={applyAddress} onChange={setApplyAddress}>
-                    Address
+                    {t("defaults.address")}
                   </Checkbox>
                   {applyAddress && (
-                    <Field label="Address">
+                    <Field label={t("defaults.address")}>
                       <Input
                         type="text" value={address} maxLength={255}
                         onChange={(e) => setAddress(e.target.value)}
@@ -255,16 +250,16 @@ export default function OwnerCrossStoreDefaults() {
               </div>
             </Section>
 
-            <Section title="Apply to stores">
+            <Section title={t("bulkAdd.applyTo")}>
               <div className={styles.toolbar}>
                 <Button
                   type="button" tone="secondary" size="sm"
                   onClick={toggleAll}
                 >
-                  {allSelected ? "Clear all" : "Select all"}
+                  {allSelected ? t("bulkAdd.clearAll") : t("bulkAdd.selectAll")}
                 </Button>
                 <span className={styles.toolbarCount}>
-                  {storeIds.length} of {allStoreIds.length} selected
+                  {t("bulkAdd.selectedOf", { count: storeIds.length, total: allStoreIds.length })}
                 </span>
               </div>
               <ul className={styles.storeList}>
@@ -295,8 +290,8 @@ export default function OwnerCrossStoreDefaults() {
                 }
               >
                 {busy
-                  ? "Applying…"
-                  : `Apply to ${storeIds.length} store${storeIds.length === 1 ? "" : "s"}`}
+                  ? t("defaults.applying")
+                  : tn("defaults.applyTo", storeIds.length)}
               </Button>
             </FormActions>
           </Card>

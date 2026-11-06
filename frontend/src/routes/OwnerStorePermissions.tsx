@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { PageHeader, PageShell } from "../components/ui";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { RolePermissionsEditor } from "../components/RolePermissionsEditor";
+import { useT } from "../i18n";
 
 // An owner's view of one store's role grid. The server names the
 // roles the owner may change (`editable_roles`); the rest show
@@ -11,12 +12,17 @@ import { RolePermissionsEditor } from "../components/RolePermissionsEditor";
 export default function OwnerStorePermissions() {
   const { storeId } = useParams<{ storeId: string }>();
   const sid = Number(storeId);
+  const t = useT();
   return (
     <PageShell gap="1.25rem">
-      <PageCrumbs under="/owner/locations" via={[{ label: `Store ${sid}`, to: `/owner/store/${sid}` }]} current="Permissions" />
+      <PageCrumbs
+        under="/owner/locations"
+        via={[{ label: t("owner.storeN", { id: sid }), to: `/owner/store/${sid}` }]}
+        current={t("owner.permissionsCrumb")}
+      />
       <PageHeader
-        title="Store permissions"
-        subtitle="Customize what each role can do in this store"
+        title={t("owner.storePermsTitle")}
+        subtitle={t("owner.storePermsSubtitle")}
       />
       <RolePermissionsEditor
         endpoint={`/api/v2/owner/store/${sid}/permissions`}

@@ -19,6 +19,7 @@ import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
 import { Delta } from "../components/Delta";
 import styles from "./OwnerDashboard.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, useT, type MessageKey } from "../i18n";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip,
@@ -26,14 +27,15 @@ ChartJS.register(
 
 type Period = "today" | "month" | "year";
 
-const PERIODS: Array<{ value: Period; label: string }> = [
-  { value: "today", label: "Today" },
-  { value: "month", label: "This month" },
-  { value: "year",  label: "This year" },
+const PERIODS: Array<{ value: Period; label: MessageKey }> = [
+  { value: "today", label: "owner.periodToday" },
+  { value: "month", label: "owner.periodMonth" },
+  { value: "year",  label: "owner.periodYear" },
 ];
 
 
 export default function OwnerDashboard() {
+  useT(); // re-render on a language switch
   const [period, setPeriod] = useState<Period>("month");
   const { data, isLoading, isError, error, refetch } = useOwnerDashboard(period);
 
@@ -43,7 +45,7 @@ export default function OwnerDashboard() {
       <PageCrumbs />
 
       <PageHeader
-        title="Owner dashboard"
+        title={t("owner.dashTitle")}
         actions={(
           <TabsBar>
             {PERIODS.map((p) => (
@@ -52,7 +54,7 @@ export default function OwnerDashboard() {
                 active={p.value === period}
                 onClick={() => setPeriod(p.value)}
               >
-                {p.label}
+                {t(p.label)}
               </TabsButton>
             ))}
           </TabsBar>
@@ -62,7 +64,9 @@ export default function OwnerDashboard() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={`Couldn't load dashboard — ${apiErrorMessage(error, "unknown")}`}
+          message={t("owner.dashLoadFailed", {
+            error: apiErrorMessage(error, t("owner.unknownError")),
+          })}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -71,36 +75,36 @@ export default function OwnerDashboard() {
         <>
           <KpiGrid>
             <KpiCard
-              label="Total transfers"
+              label={t("owner.totalTransfers")}
               value={fmtNumber(data.agg_transfers)}
               sub={<Delta value={data.agg_transfers_delta} />}
             />
             <KpiCard
-              label="Total volume"
+              label={t("owner.totalVolume")}
               value={fmtMoney(data.agg_volume)}
               sub={<Delta value={data.agg_volume_delta} money />}
             />
             <KpiCard
-              label="Net over/Short"
+              label={t("owner.netOverShort")}
               value={`${data.agg_over_short >= 0 ? "+" : "-"}${fmtMoney(Math.abs(data.agg_over_short))}`}
               sub={<Delta value={data.agg_over_short_delta} money />}
               tone={data.agg_over_short < 0 ? "negative" : "neutral"}
             />
             <KpiCard
-              label="Stores"
+              label={t("owner.stores")}
               value={fmtNumber(data.store_count)}
             />
           </KpiGrid>
 
           {data.series_labels.length > 0 && (
-            <Section title="Volume trend">
+            <Section title={t("owner.volumeTrend")}>
               <Card>
                 <div className={styles.chartHost}>
                   <Line
                     data={{
                       labels: data.series_labels,
                       datasets: [{
-                        label: "Volume ($)",
+                        label: t("owner.volumeSeries"),
                         data: data.series_volume,
                         borderColor: chartSeries().accent,
                         backgroundColor: seriesFill("positive", 0.1),
@@ -109,41 +113,42 @@ export default function OwnerDashboard() {
                         pointRadius: 0,
                       }],
                     }}
-                    options={moneyChartOptions("Volume")}
+                    options={moneyChartOptions(t("owner.volumeAxis"))}
                   />
                 </div>
               </Card>
             </Section>
           )}
 
-          <Section title="Stores">
+          <Section title={t("owner.stores")}>
             <div className={styles.storeGrid}>
               {data.stores.map((s) => (
                 <AppLink key={s.id} to={`/owner/store/${s.id}`} className={styles.storeCard}>
                   <div className={styles.storeName}>{s.name}</div>
                   <div className={styles.storeMeta}>
-                    {fmtNumber(s.count)} transfers ·{" "}
-                    {fmtMoney(s.volume)}
+                    {tn("owner.storeTransfers", s.count, fmtNumber)} · {fmtMoney(s.volume)}
                   </div>
                   <div className={styles.storeOver}>
-                    {s.over_short >= 0 ? "+" : "-"}{fmtMoney2(Math.abs(s.over_short))} over/short
+                    {t("owner.storeOverShort", {
+                      amount: `${s.over_short >= 0 ? "+" : "-"}${fmtMoney2(Math.abs(s.over_short))}`,
+                    })}
                   </div>
                 </AppLink>
               ))}
               {data.stores.length === 0 && (
-                <Empty>No stores linked yet.</Empty>
+                <Empty>{t("owner.noStores")}</Empty>
               )}
             </div>
           </Section>
 
           {data.company_breakdown.length > 0 && (
-            <Section title={`Company breakdown (${data.prev_label})`}>
+            <Section title={t("owner.companyBreakdown", { period: data.prev_label })}>
               <Table>
                 <thead>
                   <tr>
-                    <th style={thStyle}>Company</th>
-                    <th style={thStyleRight}>Transfers</th>
-                    <th style={thStyleRight}>Volume</th>
+                    <th style={thStyle}>{t("owner.colCompany")}</th>
+                    <th style={thStyleRight}>{t("owner.colTransfers")}</th>
+                    <th style={thStyleRight}>{t("owner.colVolume")}</th>
                   </tr>
                 </thead>
                 <tbody>

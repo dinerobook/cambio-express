@@ -12,10 +12,13 @@ import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import { PageCrumbs } from "../components/PageCrumbs";
 import type { components } from "../api/openapi";
+import { t, tn, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 type PermissionMatrix = components["schemas"]["StorePermissionMatrix"];
 
 export default function OwnerBulkPermissions() {
+  useT(); // re-render on a language switch
   const {
     data: locations, isLoading: locsLoading, isError: locsError,
     refetch: refetchLocations,
@@ -62,9 +65,9 @@ export default function OwnerBulkPermissions() {
       });
       setResults(resp.results);
       const applied = resp.results?.filter((r) => r.status === "applied").length ?? 0;
-      toast({ message: `Pushed permissions to ${applied} store(s).`, tone: "success" });
+      toast({ message: tn("bulkPerm.pushed", applied), tone: "success" });
     } catch (err) {
-      setError(apiErrorMessage(err, "Failed to push permissions."));
+      setError(apiErrorMessage(err, t("bulkPerm.pushFailed")));
     } finally {
       setBusy(false);
     }
@@ -75,7 +78,7 @@ export default function OwnerBulkPermissions() {
     return (
       <PageShell gap="1.25rem">
         <ErrorState
-          message="Couldn't load your stores."
+          message={t("bulkAdd.storesLoadFailed")}
           onRetry={() => { void refetchLocations(); }}
         />
       </PageShell>
@@ -86,16 +89,16 @@ export default function OwnerBulkPermissions() {
     <PageShell gap="1.25rem">
       <PageCrumbs />
       <PageHeader
-        title="Bulk permissions"
-        subtitle="Copy one store's employee permissions to other stores"
+        title={navWord("Bulk permissions")}
+        subtitle={t("bulkPerm.subtitle")}
       />
 
       {error && <Alert tone="error">{error}</Alert>}
 
       <Card>
         <SectionTitle>
-          1. Choose a source store
-          <InfoTip text="Pick the store whose employee permissions you want to replicate." />
+          {t("bulkPerm.step1")}
+          <InfoTip text={t("bulkPerm.step1Tip")} />
         </SectionTitle>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
           {locations?.rows.map((s) => (
@@ -121,14 +124,14 @@ export default function OwnerBulkPermissions() {
 
       {template.isError && (
         <ErrorState
-          message="Couldn't load this store's permissions."
+          message={t("bulkPerm.loadFailed")}
           onRetry={() => { void template.refetch(); }}
         />
       )}
 
       {templatePerms && (
         <Card>
-          <SectionTitle>Employee permissions at source</SectionTitle>
+          <SectionTitle>{t("bulkPerm.atSource")}</SectionTitle>
           <PermissionMatrixTable
             resources={templatePerms.resources}
             actions={templatePerms.actions}
@@ -143,12 +146,12 @@ export default function OwnerBulkPermissions() {
 
       <Card>
         <SectionTitle>
-          2. Select target stores
-          <InfoTip text="These stores will receive the source store's employee permissions." />
+          {t("bulkPerm.step2")}
+          <InfoTip text={t("bulkPerm.step2Tip")} />
         </SectionTitle>
         <div style={{ marginBottom: "0.5rem" }}>
           <Button size="sm" tone="secondary" onClick={stores.toggleAll} type="button">
-            {stores.allSelected ? "Clear all" : "Select all"}
+            {stores.allSelected ? t("bulkAdd.clearAll") : t("bulkAdd.selectAll")}
           </Button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
@@ -170,13 +173,13 @@ export default function OwnerBulkPermissions() {
           busy={busy}
           disabled={!templatePerms || stores.selected.length === 0}
         >
-          Push to {stores.selected.length} store{stores.selected.length === 1 ? "" : "s"}
+          {tn("bulkPerm.pushTo", stores.selected.length)}
         </Button>
       </div>
 
       {results && (
         <BulkResultsCard
-          detailLabel="Changes"
+          detailLabel="bulk.changes"
           rows={results.map((r) => ({
             store_id: r.store_id,
             store_name: locations?.rows.find((s) => s.store_id === r.store_id)?.store_name,

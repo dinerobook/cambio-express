@@ -15,6 +15,8 @@ import {
 import { csvMoney } from "../lib/csv";
 import styles from "./OwnerLocations.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Owner umbrella: per-store stats grid at /app/owner/locations.
 // Period selector (today/month/year) drives the date window for
@@ -24,13 +26,14 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // Subsequent PRs add /app/owner (dashboard with KPI cards),
 // /app/owner/pl-rollup, and the connect/unlink flow.
 
-const PERIODS: Array<{ slug: OwnerPeriod; label: string }> = [
-  { slug: "today", label: "Today"      },
-  { slug: "month", label: "This month" },
-  { slug: "year",  label: "This year"  },
+const PERIODS: Array<{ slug: OwnerPeriod; label: MessageKey }> = [
+  { slug: "today", label: "owner.periodToday" },
+  { slug: "month", label: "owner.periodMonth" },
+  { slug: "year",  label: "owner.periodYear"  },
 ];
 
 export default function OwnerLocations() {
+  useT(); // re-render on a language switch
   const identity = getCurrentIdentity();
   const [sp, setSP] = useSearchParams();
   const period = (sp.get("period") as OwnerPeriod) ?? "month";
@@ -51,8 +54,8 @@ export default function OwnerLocations() {
   if (!isOwner) {
     return (
       <PageShell>
-        <PageHeader title="Locations" />
-        <Empty>Sign in as an owner to view the multi-store umbrella.</Empty>
+        <PageHeader title={navWord("Locations")} />
+        <Empty>{t("owner.signInLocations")}</Empty>
       </PageShell>
     );
   }
@@ -63,9 +66,11 @@ export default function OwnerLocations() {
       <PageCrumbs />
 
       <PageHeader
-        title="Locations"
+        title={navWord("Locations")}
         subtitle={data
-          ? `${fmtNumber(data.matched)} of ${fmtNumber(data.total)} stores`
+          ? t("owner.matchedOf", {
+            matched: fmtNumber(data.matched), total: fmtNumber(data.total),
+          })
           : "—"}
       />
 
@@ -77,14 +82,15 @@ export default function OwnerLocations() {
               active={period === p.slug}
               onClick={() => setParam("period", p.slug)}
             >
-              {p.label}
+              {t(p.label)}
             </TabsButton>
           ))}
         </TabsBar>
         <Input
           type="search"
           value={qDraft}
-          placeholder="Search stores…"
+          placeholder={t("owner.searchStores")}
+          aria-label={t("owner.searchStores")}
           onChange={(e) => setQDraft(e.target.value)}
           onBlur={() => setParam("q", qDraft.trim())}
           onKeyDown={(e) => {
@@ -99,19 +105,19 @@ export default function OwnerLocations() {
 
       <Card>
         <DataTable
-          columns={STORE_COLUMNS}
+          columns={storeColumns()}
           rows={data && data.matched > 0 ? data.rows : data ? [] : undefined}
           rowKey={(r) => r.store_id}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
           emptyTitle={
             data && data.total === 0
-              ? "No stores connected yet"
-              : `No stores match "${q}".`
+              ? t("owner.noStoresConnected")
+              : t("owner.noStoresMatch", { q })
           }
           emptyBody={
             data && data.total === 0
-              ? "Ask each store admin to redeem an owner-connect code."
+              ? t("owner.askRedeem")
               : undefined
           }
           exportCsv={data && {
@@ -124,10 +130,11 @@ export default function OwnerLocations() {
   );
 }
 
-/** Each store's figures for the period as the kit ``<DataTable>``. */
-const STORE_COLUMNS: DataColumn<OwnerStoreRow>[] = [
+/** Each store's figures for the period as the kit ``<DataTable>``.
+ *  Built during render so the headings follow a language switch. */
+const storeColumns = (): DataColumn<OwnerStoreRow>[] => [
   {
-    key: "store", header: "Store",
+    key: "store", header: t("owner.colStore"),
     render: (r) => (
       <>
         <div className={styles.storeName}>{r.store_name}</div>
@@ -137,17 +144,17 @@ const STORE_COLUMNS: DataColumn<OwnerStoreRow>[] = [
     csv: (r) => r.store_name,
   },
   {
-    key: "transfers", header: "Transfers", align: "right",
+    key: "transfers", header: t("owner.colTransfers"), align: "right",
     render: (r) => <span className={styles.mono}>{fmtNumber(r.transfer_count)}</span>,
     csv: (r) => r.transfer_count,
   },
   {
-    key: "volume", header: "Volume", align: "right",
+    key: "volume", header: t("owner.colVolume"), align: "right",
     render: (r) => <span className={styles.mono}>{fmtMoney2(r.volume)}</span>,
     csv: (r) => csvMoney(r.volume),
   },
   {
-    key: "overShort", header: "Over/Short", align: "right",
+    key: "overShort", header: t("owner.colOverShort"), align: "right",
     render: (r) => (
       <span
         className={
@@ -164,7 +171,7 @@ const STORE_COLUMNS: DataColumn<OwnerStoreRow>[] = [
     csv: (r) => csvMoney(r.over_short),
   },
   {
-    key: "companies", header: "Companies",
+    key: "companies", header: t("owner.colCompanies"),
     render: (r) => (
       <div className={styles.companyChips}>
         {r.companies.length === 0 ? (

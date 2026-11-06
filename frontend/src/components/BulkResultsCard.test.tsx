@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 
 import { BulkResultsCard } from "./BulkResultsCard";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The per-store outcome table of the owner bulk actions: one row per
 // store, the status label + tone from one map, a "Store #id"
@@ -60,7 +62,7 @@ describe("<BulkResultsCard>", () => {
   it("falls back to Store #id and renders numeric details", () => {
     render(
       <BulkResultsCard
-        detailLabel="Changes"
+        detailLabel="bulk.changes"
         rows={[
           { store_id: 7, store_name: undefined, status: "applied", detail: 0 },
           { store_id: 8, store_name: "", status: "rejected", detail: null },
@@ -70,5 +72,24 @@ describe("<BulkResultsCard>", () => {
     expect(screen.getByRole("columnheader", { name: "Changes" })).toBeInTheDocument();
     expect(within(rowFor("Store #7")).getByText("0")).toBeInTheDocument();
     expect(within(rowFor("Store #8")).getByText("—")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish; a status it does not know shows as sent", () => {
+    setLanguage("es");
+    render(
+      <BulkResultsCard
+        detailLabel="bulk.changes"
+        rows={[
+          { store_id: 1, store_name: "Downtown", status: "applied", detail: 3 },
+          { store_id: 2, status: "queued", detail: null },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Resultados" })).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(["Tienda", "Estado", "Cambios"]);
+    expect(within(rowFor("Downtown")).getByText("Aplicado")).toBeInTheDocument();
+    expect(within(rowFor("Tienda #2")).getByText("queued")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["bulk."])).toEqual([]);
   });
 });

@@ -10,6 +10,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 import type { OwnerBillingResponse, OwnerBillingRow } from "../api/owner";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Owner billing rollup (B-1). Pinned: totals add plans + add-ons,
 // attention slugs map to the right wording, Manage / Subscribe
@@ -147,5 +149,19 @@ describe("OwnerBilling", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Billing is down");
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it("reads in Spanish", () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Facturación" })).toBeInTheDocument();
+    expect(screen.getByText("Total mensual").parentElement)
+      .toHaveTextContent("$49.00 de planes + $10.00 de complementos");
+    expect(within(rowOf("North")).getByText("Activa")).toBeInTheDocument();
+    expect(within(rowOf("South")).getByText("La prueba termina pronto")).toBeInTheDocument();
+    expect(rowOf("South")).toHaveTextContent("Quedan 2 días");
+    expect(rowOf("East")).toHaveTextContent("Los datos se borran hoy");
+    expect(within(rowOf("North")).getByRole("button", { name: "Administrar" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["ownerBill."])).toEqual([]);
   });
 });

@@ -8,6 +8,8 @@ import OwnerBulkAddUser from "./OwnerBulkAddUser";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Owner bulk add user: pick stores, submit once, read the per-store
 // outcome. A whole-request failure is an error Alert and no results.
@@ -109,5 +111,16 @@ describe("OwnerBulkAddUser", () => {
     await user.click(screen.getByRole("button", { name: "Create user at 2 stores" }));
     await screen.findByRole("heading", { name: "Results" });
     expect(screen.queryByText("Unsaved changes")).toBeNull();
+  });
+
+  it("reads in Spanish", async () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Agregar usuario a tiendas" })).toBeInTheDocument();
+    expect(screen.getByText("Aplicar a las tiendas")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Contador (solo ver)" })).toBeInTheDocument();
+    expect(screen.getByText(/^\d de 2 elegidas$/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Crear usuario en \d tiendas?$/ })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["bulkAdd."])).toEqual([]);
   });
 });

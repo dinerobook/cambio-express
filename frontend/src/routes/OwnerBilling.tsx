@@ -13,6 +13,8 @@ import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import styles from "./OwnerBilling.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/owner/billing — every store's subscription state in one
 // place (B-1).
@@ -27,19 +29,20 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // Attention slugs from the API, mapped to wording + a pill tone.
 // Tones follow UI-STANDARDS section 3: negative = failed/urgent,
 // warning = pending action, neutral = nothing to do.
-const ATTENTION: Record<string, { label: string; tone: PillTone }> = {
-  retention:     { label: "Purging soon",  tone: "negative" },
-  trial_expired: { label: "Trial expired", tone: "negative" },
-  inactive:      { label: "Inactive",      tone: "negative" },
-  trial_ending:  { label: "Trial ending",  tone: "warning" },
+const ATTENTION: Record<string, { label: MessageKey; tone: PillTone }> = {
+  retention:     { label: "ownerBill.purgingSoon",  tone: "negative" },
+  trial_expired: { label: "ownerBill.trialExpired", tone: "negative" },
+  inactive:      { label: "ownerBill.inactive",     tone: "negative" },
+  trial_ending:  { label: "ownerBill.trialEnding",  tone: "warning" },
 };
 
-function statusFor(row: OwnerBillingRow): { label: string; tone: PillTone } {
-  const flagged = ATTENTION[row.attention];
+function statusFor(row: OwnerBillingRow): { label: MessageKey; tone: PillTone } {
+  const flagged = Object.hasOwn(ATTENTION, row.attention)
+    ? ATTENTION[row.attention] : null;
   if (flagged) return flagged;
-  if (row.has_paid_plan) return { label: "Active", tone: "accent" };
-  if (row.plan === "trial") return { label: "Trial", tone: "info" };
-  return { label: "Inactive", tone: "neutral" };
+  if (row.has_paid_plan) return { label: "ownerBill.active", tone: "accent" };
+  if (row.plan === "trial") return { label: "ownerBill.trial", tone: "info" };
+  return { label: "ownerBill.inactive", tone: "neutral" };
 }
 
 /** The detail line under a store's status — why it needs attention,
@@ -47,19 +50,20 @@ function statusFor(row: OwnerBillingRow): { label: string; tone: PillTone } {
 function detailFor(row: OwnerBillingRow): string {
   if (row.retention_days_left != null) {
     return row.retention_days_left === 0
-      ? "Data purges today"
-      : `Data purges in ${row.retention_days_left} days`;
+      ? t("ownerBill.purgesToday")
+      : tn("ownerBill.purgesIn", row.retention_days_left);
   }
   if (row.plan === "trial" && row.trial_days_left != null) {
     return row.trial_days_left === 0
-      ? "Trial ends today"
-      : `${row.trial_days_left} days left`;
+      ? t("ownerBill.trialEndsToday")
+      : tn("ownerBill.daysLeft", row.trial_days_left);
   }
-  if (row.plan === "inactive") return "No active subscription";
+  if (row.plan === "inactive") return t("ownerBill.noSubscription");
   return "";
 }
 
 export default function OwnerBilling() {
+  useT(); // re-render on a language switch
   const identity = getCurrentIdentity();
   const navigate = useNavigate();
   const toastApiError = useApiErrorToast();
@@ -83,7 +87,7 @@ export default function OwnerBilling() {
       // Stripe portal on its subscription page.
       navigate(row.has_paid_plan ? "/admin/subscription" : "/subscribe");
     } catch (err) {
-      toastApiError(err, "Could not open that store's billing.");
+      toastApiError(err, t("ownerBill.openFailed"));
       setBusyId(null);
     }
   }
@@ -91,8 +95,8 @@ export default function OwnerBilling() {
   if (!isOwner) {
     return (
       <PageShell>
-        <PageHeader title="Billing" />
-        <Empty>Sign in as an owner to view billing across stores.</Empty>
+        <PageHeader title={navWord("Billing")} />
+        <Empty>{t("ownerBill.signIn")}</Empty>
       </PageShell>
     );
   }
@@ -104,33 +108,35 @@ export default function OwnerBilling() {
     <PageShell>
       <PageCrumbs />
       <PageHeader
-        title="Billing"
-        subtitle="Subscription state for every store in your umbrella."
+        title={navWord("Billing")}
+        subtitle={t("ownerBill.subtitle")}
       />
 
       {totals && (
         <KpiGrid>
           <KpiCard
-            label="Monthly total"
+            label={t("ownerBill.monthlyTotal")}
             value={fmtMoney2(totals.monthly_cost + totals.addon_monthly_cost)}
             sub={
               totals.addon_monthly_cost > 0
-                ? `${fmtMoney2(totals.monthly_cost)} plans + ` +
-                  `${fmtMoney2(totals.addon_monthly_cost)} add-ons`
-                : "Yearly plans shown per month"
+                ? t("ownerBill.plansPlusAddons", {
+                  plans: fmtMoney2(totals.monthly_cost),
+                  addons: fmtMoney2(totals.addon_monthly_cost),
+                })
+                : t("ownerBill.yearlyPerMonth")
             }
           />
           <KpiCard
-            label="Paid stores"
+            label={t("ownerBill.paidStores")}
             value={String(totals.paid_stores)}
-            sub={`of ${totals.stores} total`}
+            sub={t("ownerBill.ofTotal", { count: totals.stores })}
           />
           <KpiCard
-            label="On trial"
+            label={t("ownerBill.onTrial")}
             value={String(totals.trial_stores)}
           />
           <KpiCard
-            label="Needs attention"
+            label={t("ownerBill.needsAttention")}
             value={String(totals.attention_count)}
             tone={totals.attention_count > 0 ? "negative" : "neutral"}
           />
@@ -138,26 +144,26 @@ export default function OwnerBilling() {
       )}
 
       <Card>
-        <Section title="Stores">
+        <Section title={t("ownerBill.stores")}>
           <TableStates
             isLoading={isLoading} isError={isError} error={error}
             isEmpty={rows.length === 0}
             onRetry={() => { void refetch(); }}
-            emptyTitle="No stores connected"
-            emptyBody="Connect a store to see its subscription here."
+            emptyTitle={t("ownerBill.noStores")}
+            emptyBody={t("ownerBill.noStoresBody")}
           />
           {rows.length > 0 && (
             <div className={styles.tableWrap}>
               <Table>
                 <thead>
                   <tr>
-                    <th style={thStyle}>Store</th>
-                    <th style={thStyle}>Status</th>
-                    <th style={thStyle}>Plan</th>
+                    <th style={thStyle}>{t("ownerBill.colStore")}</th>
+                    <th style={thStyle}>{t("ownerBill.colStatus")}</th>
+                    <th style={thStyle}>{t("ownerBill.colPlan")}</th>
                     <th style={{ ...thStyle, textAlign: "right" }}>
-                      Per month
+                      {t("ownerBill.colPerMonth")}
                     </th>
-                    <th style={thStyle}>Add-ons</th>
+                    <th style={thStyle}>{t("ownerBill.colAddons")}</th>
                     <th style={thStyle} />
                   </tr>
                 </thead>
@@ -169,7 +175,7 @@ export default function OwnerBilling() {
                       <tr key={r.store_id}>
                         <td style={tdStyle}>{r.store_name}</td>
                         <td style={tdStyle}>
-                          <Pill tone={status.tone}>{status.label}</Pill>
+                          <Pill tone={status.tone}>{t(status.label)}</Pill>
                           {detail && (
                             <div className={styles.detail}>{detail}</div>
                           )}
@@ -199,8 +205,10 @@ export default function OwnerBilling() {
                               onClick={() => { void manageStore(r); }}
                             >
                               {busyId === r.store_id
-                                ? "Opening…"
-                                : r.has_paid_plan ? "Manage" : "Subscribe"}
+                                ? t("ownerBill.opening")
+                                : r.has_paid_plan
+                                  ? t("ownerBill.manage")
+                                  : t("ownerBill.subscribe")}
                             </Button>
                           )}
                         </td>
@@ -212,11 +220,7 @@ export default function OwnerBilling() {
             </div>
           )}
         </Section>
-        <p className={styles.footnote}>
-          Each store is billed on its own subscription, so managing
-          one takes you into that store. Yearly plans are shown as
-          their monthly equivalent so the totals add up.
-        </p>
+        <p className={styles.footnote}>{t("ownerBill.footnote")}</p>
       </Card>
     </PageShell>
   );

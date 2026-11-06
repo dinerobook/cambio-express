@@ -7,7 +7,7 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, Button, Card, Checkbox, Empty, ErrorState, Field, FormActions,
+  Alert, AppLink, Button, Card, Checkbox, Empty, ErrorState, Field, FormActions,
   InfoTip, Input, Loading, PageHeader, PageShell, Section, Select,
 } from "../components/ui";
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
@@ -15,6 +15,8 @@ import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
 import styles from "./OwnerBulkAddUser.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/owner/bulk-add-user — owner-side helper to create one
 // login at many of their linked stores at once. Useful for a
@@ -24,6 +26,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // row multi-store user is a separate architectural item.
 
 export default function OwnerBulkAddUser() {
+  useT(); // re-render on a language switch
   const identity = getCurrentIdentity();
   const { data: locations, isLoading, isError, refetch } =
     useOwnerLocations("month", "");
@@ -48,15 +51,15 @@ export default function OwnerBulkAddUser() {
 
   const { dirty, markSaved } = useDirtyBaseline({ email, phone, password, fullName, role });
   const guard = useUnsavedGuard(dirty && !busy, {
-    message: "You have a user you haven't created yet. Leave without creating?",
+    message: t("bulkAdd.unsaved"),
   });
 
   if (!identity || (identity.role !== "owner"
                     && identity.role !== "superadmin")) {
     return (
       <PageShell>
-        <PageHeader title="Add user to stores" />
-        <Empty>This page is owner-only.</Empty>
+        <PageHeader title={navWord("Add user to stores")} />
+        <Empty>{t("bulkAdd.ownerOnly")}</Empty>
       </PageShell>
     );
   }
@@ -81,7 +84,7 @@ export default function OwnerBulkAddUser() {
       markSaved();
     } catch (e2) {
       setErr(
-        apiErrorMessage(e2, "Could not create users."),
+        apiErrorMessage(e2, t("bulkAdd.createFailed")),
       );
     } finally {
       setBusy(false);
@@ -94,27 +97,23 @@ export default function OwnerBulkAddUser() {
       <PageCrumbs />
 
       <PageHeader
-        title="Add user to stores"
-        subtitle={
-          "Create the same login at every store you select. They "
-          + "sign in with their email or phone, and pick which store "
-          + "to open. Skips stores that already have this person."
-        }
+        title={navWord("Add user to stores")}
+        subtitle={t("bulkAdd.subtitle")}
       />
 
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message="Couldn't load your stores."
+          message={t("bulkAdd.storesLoadFailed")}
           onRetry={() => { void refetch(); }}
         />
       )}
 
       {locations && locations.rows.length === 0 && (
         <Empty>
-          You don't have any stores connected to your umbrella yet —
-          mint a connect code from <code>/app/owner/connect</code> and
-          share it with a store admin first.
+          {tNodes("bulkAdd.noStores", {
+            link: <AppLink to="/owner/connect">{navWord("Connect a store")}</AppLink>,
+          })}
         </Empty>
       )}
 
@@ -124,8 +123,8 @@ export default function OwnerBulkAddUser() {
             <Section>
               <div className={styles.grid}>
                 <Field
-                  label="Email"
-                  hint="They sign in with this. Either email or phone is enough."
+                  label={t("bulkAdd.email")}
+                  hint={t("bulkAdd.emailHint")}
                 >
                   <Input
                     type="email" maxLength={255}
@@ -135,7 +134,7 @@ export default function OwnerBulkAddUser() {
                     placeholder="manager@example.com"
                   />
                 </Field>
-                <Field label="Mobile phone">
+                <Field label={t("bulkAdd.phone")}>
                   <Input
                     type="tel" maxLength={40}
                     value={phone}
@@ -145,8 +144,8 @@ export default function OwnerBulkAddUser() {
                   />
                 </Field>
                 <Field
-                  label={<>Password<InfoTip text="An admin can rotate it per-store later from each store's user list." /></>}
-                  hint="Minimum 8 characters"
+                  label={<>{t("bulkAdd.password")}<InfoTip text={t("bulkAdd.passwordTip")} /></>}
+                  hint={t("bulkAdd.passwordHint")}
                 >
                   <Input
                     type="password" required minLength={8} maxLength={200}
@@ -155,7 +154,7 @@ export default function OwnerBulkAddUser() {
                     autoComplete="new-password"
                   />
                 </Field>
-                <Field label="Full name (optional)">
+                <Field label={t("bulkAdd.fullName")}>
                   <Input
                     type="text" maxLength={120}
                     value={fullName}
@@ -163,35 +162,31 @@ export default function OwnerBulkAddUser() {
                   />
                 </Field>
                 <Field
-                  label="Role"
-                  hint={
-                    role === "accountant"
-                      ? "View only: reports, the monthly P&L and the tax pack. They pick the store when they sign in."
-                      : undefined
-                  }
+                  label={t("bulkAdd.role")}
+                  hint={role === "accountant" ? t("bulkAdd.accountantHint") : undefined}
                 >
                   <Select
                     value={role}
                     onChange={(e) => setRole(e.target.value as OwnerBulkAddUserBody["role"])}
                   >
-                    <option value="employee">Employee (cashier)</option>
-                    <option value="accountant">Accountant (view only)</option>
+                    <option value="employee">{t("bulkAdd.employee")}</option>
+                    <option value="accountant">{t("bulkAdd.accountant")}</option>
                   </Select>
                 </Field>
               </div>
             </Section>
 
-            <Section title="Apply to stores">
+            <Section title={t("bulkAdd.applyTo")}>
               <div className={styles.toolbar}>
                 <Button
                   type="button"
                   tone="secondary" size="sm"
                   onClick={toggleAll}
                 >
-                  {allSelected ? "Clear all" : "Select all"}
+                  {allSelected ? t("bulkAdd.clearAll") : t("bulkAdd.selectAll")}
                 </Button>
                 <span className={styles.toolbarCount}>
-                  {storeIds.length} of {allStoreIds.length} selected
+                  {t("bulkAdd.selectedOf", { count: storeIds.length, total: allStoreIds.length })}
                 </span>
               </div>
               <ul className={styles.storeList}>
@@ -227,8 +222,8 @@ export default function OwnerBulkAddUser() {
                 }
               >
                 {busy
-                  ? "Creating…"
-                  : `Create user at ${storeIds.length} store${storeIds.length === 1 ? "" : "s"}`}
+                  ? t("bulkAdd.creating")
+                  : tn("bulkAdd.createAt", storeIds.length)}
               </Button>
             </FormActions>
           </Card>

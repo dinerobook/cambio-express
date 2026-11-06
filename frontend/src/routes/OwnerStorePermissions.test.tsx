@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import OwnerStorePermissions from "./OwnerStorePermissions";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // An owner edits one store's role matrix — a privilege-escalation
 // surface (Auth INVARIANTS). Pinned: non-editable roles render
@@ -166,5 +168,14 @@ describe("OwnerStorePermissions", () => {
     expect(await screen.findByText("Customized")).toBeInTheDocument();
     expect(screen.getByText("View only")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reset to defaults" })).not.toBeInTheDocument();
+  });
+
+  it("titles the page in Spanish", async () => {
+    api.mockResolvedValue(matrix());
+    setLanguage("es");
+    renderPage();
+    expect(await screen.findByRole("heading", { name: "Permisos de la tienda" })).toBeInTheDocument();
+    expect(screen.getByText("Elija lo que cada rol puede hacer en esta tienda")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["owner."])).toEqual([]);
   });
 });
