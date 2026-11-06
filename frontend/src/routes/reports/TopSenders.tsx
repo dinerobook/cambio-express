@@ -12,24 +12,24 @@ export default function TopSenders() {
   return (
     <ReportDrilldown
       apiSlug="top-customers"
-      title="Top senders"
-      resultUnit={["sender", "senders"]}
+      title="reportName.top_senders"
+      resultUnit="rep.unit.sender"
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/top-senders.csv`}
       extraParams={{ sort_by: "count" }}
       kpis={[
-        { label: "Total sent",     tone: "primary", value: t => fmtMoney2(Number(t.sent ?? 0)) },
-        { label: "Transfer count", tone: "neon",    value: t => fmtNumber(Number(t.count ?? 0)) },
-        { label: "Total fees",     tone: "muted",   value: t => fmtMoney2(Number(t.fees ?? 0)) },
+        { label: "rep.totalSent",     tone: "primary", value: t => fmtMoney2(Number(t.sent ?? 0)) },
+        { label: "rep.transferCount", tone: "neon",    value: t => fmtNumber(Number(t.count ?? 0)) },
+        { label: "rep.totalFees",     tone: "muted",   value: t => fmtMoney2(Number(t.fees ?? 0)) },
       ]}
       columns={[
-        { label: "Customer",    field: "customer" },
-        { label: "Phone",       field: r => maskPhone(String(r.phone ?? "")), mono: true },
-        { label: "Count",       field: r => fmtNumber(r.count), align: "right", mono: true },
-        { label: "Total sent",  field: r => fmtMoney2(Number(r.sent)), align: "right", mono: true },
-        { label: "Fees",        field: r => fmtMoney2(Number(r.fees)), align: "right", mono: true },
-        { label: "Federal tax", field: r => fmtMoney2(Number(r.tax)),  align: "right", mono: true },
-        { label: "Average",         field: r => fmtMoney2(Number(r.avg)),  align: "right", mono: true },
+        { label: "rep.customer",    field: "customer" },
+        { label: "rep.phone",       field: r => maskPhone(String(r.phone ?? "")), mono: true },
+        { label: "rep.count",       field: r => fmtNumber(r.count), align: "right", mono: true },
+        { label: "rep.totalSent",  field: r => fmtMoney2(Number(r.sent)), align: "right", mono: true },
+        { label: "rep.fees",        field: r => fmtMoney2(Number(r.fees)), align: "right", mono: true },
+        { label: "rep.federalTax", field: r => fmtMoney2(Number(r.tax)),  align: "right", mono: true },
+        { label: "rep.average",         field: r => fmtMoney2(Number(r.avg)),  align: "right", mono: true },
       ]}
     />
   );

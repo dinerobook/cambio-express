@@ -734,6 +734,9 @@ always the same Spanish word):
 | Bank transaction | Movimiento bancario |
 | Matched (bank row to daily book) / Dismiss | Conciliado / Descartar |
 | Bank rule / Template | Regla bancaria / Plantilla |
+| Monthly P&L / P&L categories | P&L mensual / Categorías del P&L |
+| Report / Report center | Reporte / Reportes |
+| Commit (an import) | Confirmar |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -761,13 +764,20 @@ referrals tabs), the account pages (notifications, devices, my
 activity), the audit log and its shared table and filters, data
 export and the switch store popup; the bank pages (accounts,
 transactions, matching to the daily book, rules, the rule form and
-its sentence). Next: monthly and reports,
-owner and billing pages, platform pages, then emails. An audit row's
+its sentence); the monthly P&L, its edit form and P&L categories, the
+report center, every report page and the Intermex report import.
+Next: owner and billing pages, platform pages, then emails. An audit row's
 action and target show through `auditActionLabel()` /
 `auditTargetLabel()` (`components/auditFilters.ts`); a slug they
 don't know, and the server-written summary, show as sent. Bank
 category names come from the server (the store can rename its P&L
-lines), so they show as stored. The help articles
+lines), so they show as stored. A P&L line shows through
+`monthlyLineName()` (`api/monthly.ts`): the store's own name as typed,
+the name we ship in the person's language. The report registry is
+server text too: a report we ship words for (`reportName.<key>`,
+`reportDesc.<key>`, `reportCat.<key>`) shows translated, one added on
+the server first shows as sent, and so do the values inside report
+rows (period P&L lines, customer buckets, statuses). The help articles
 (`lib/help/registry.ts`) are still English.
 
 ## 11. The bell — one place for "something to do"

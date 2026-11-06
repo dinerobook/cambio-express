@@ -9,6 +9,8 @@ import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Monthly P&L editor. Pinned here (api/Modules/Monthly/INVARIANTS.md):
 //   - Only operator-editable columns go to the server. Derived ones
@@ -263,5 +265,39 @@ describe("EditMonthly", () => {
     renderPage();
     expect(screen.getByText(/Sign in as a store admin/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+});
+
+describe("EditMonthly in Spanish", () => {
+  beforeEach(() => {
+    qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    updateMonthly.mockReset();
+    updateMonthly.mockResolvedValue(detail);
+    useMonthly.mockReset();
+    useMonthly.mockReturnValue({
+      data: detail, isLoading: false, isFetching: false, isError: false,
+    });
+  });
+
+  it("labels the form in Spanish and keeps the store's own names", async () => {
+    // A Spanish store's own name ("Bank Fee" would read as English).
+    useMonthly.mockReturnValue({
+      data: { ...detail, labels: { other_expense_1: "Cargo del banco" } },
+      isLoading: false, isFetching: false, isError: false,
+    });
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Editar P&L mensual" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^\$?\s*Ventas gravables/)).toHaveValue("1000");
+    expect(screen.getByLabelText(/^\$?\s*Cargo del banco/)).toHaveValue("7");
+    expect(screen.getByText(/Del banco: suma/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Flujo de efectivo" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Cámbieles el nombre" }))
+      .toHaveAttribute("href", "/monthly/categories");
+    expect(englishLeftovers(document.body, ["pl."])).toEqual([]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(updateMonthly).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("P&L mensual guardado.")).toBeInTheDocument();
   });
 });

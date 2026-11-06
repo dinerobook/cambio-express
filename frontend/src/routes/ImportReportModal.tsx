@@ -10,6 +10,7 @@ import {
   type IntermexReport,
 } from "../api/reportImport";
 import styles from "./ImportReportModal.module.css";
+import { t, tn, tNodes, useT } from "../i18n";
 
 // Daily-book "Import Intermex report" flow.  Upload the company's
 // "Reporte de cierre del día" PDF → the backend parses it IN MEMORY
@@ -18,6 +19,10 @@ import styles from "./ImportReportModal.module.css";
 // (the Intermex company row) and reports how it reconciles against the
 // transfers already logged.  The PDF is re-parsed server-side on
 // commit — the client never sends money numbers.
+
+/** The Intermex PDF's own title. Intermex prints it in Spanish, so
+ *  it is quoted as printed in both languages. */
+const REPORT_NAME = "“Reporte de cierre del día”";
 
 export function ImportReportModal({
   open, onClose, storeId, reportDate, onCommitted,
@@ -33,6 +38,7 @@ export function ImportReportModal({
    *  daily report (its money-transfer total changed). */
   onCommitted?: () => void;
 }) {
+  useT(); // re-render on a language switch
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<IntermexReport | null>(null);
@@ -52,7 +58,7 @@ export function ImportReportModal({
     try {
       setResult(await parseIntermexReport(f));
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not read the report.", { anyError: true }));
+      setErr(apiErrorMessage(e, t("intermex.readFailed"), { anyError: true }));
     } finally {
       setBusy(false);
     }
@@ -66,7 +72,7 @@ export function ImportReportModal({
       setCommitted(res);
       onCommitted?.();
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not read the report.", { anyError: true }));
+      setErr(apiErrorMessage(e, t("intermex.readFailed"), { anyError: true }));
     } finally {
       setCommitting(false);
     }
@@ -78,7 +84,7 @@ export function ImportReportModal({
   return (
     <Modal
       open={open}
-      title="Import Intermex report"
+      title={t("intermex.title")}
       size="lg"
       disabled={busy}
       onClose={() => { reset(); onClose(); }}
@@ -86,14 +92,16 @@ export function ImportReportModal({
       {!result && (
         <div className={styles.uploadPane}>
           <p className={styles.lead}>
-            Upload the Intermex <em>“Reporte de cierre del día”</em> PDF.
-            We read it on the spot and show you the transactions to
-            review — the file isn’t stored.
+            {tNodes("intermex.lead", {
+              // The PDF's own title, in Spanish in both languages.
+              name: <em>{REPORT_NAME}</em>,
+            })}
           </p>
           <label className={styles.fileLabel}>
             <input
               type="file"
               accept="application/pdf,.pdf"
+              aria-label={t("intermex.fileAria")}
               disabled={busy}
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -112,39 +120,42 @@ export function ImportReportModal({
             <div>
               <div className={styles.agency}>{result.agency}</div>
               <div className={styles.sub}>
-                {fileName} · report date{" "}
-                <strong>{result.report_date ?? "—"}</strong>
+                {tNodes("intermex.reportDate", {
+                  file: fileName,
+                  date: <strong>{result.report_date ?? "—"}</strong>,
+                })}
               </div>
             </div>
             <Pill tone={result.all_reconcile ? "success" : "warning"} dot>
               {result.all_reconcile
-                ? "All transfers reconcile"
-                : "Review — totals don’t match"}
+                ? t("intermex.allReconcile")
+                : t("intermex.review")}
             </Pill>
           </div>
 
           {dateMismatch && (
             <Alert tone="warning">
-              This report is dated <strong>{result.report_date}</strong>,
-              but you’re editing <strong>{reportDate}</strong>. Make sure
-              you’re on the right day before committing.
+              {tNodes("intermex.dateMismatch", {
+                reportDate: <strong>{result.report_date}</strong>,
+                editing: <strong>{reportDate}</strong>,
+              })}
             </Alert>
           )}
 
           <div className={styles.sectionTitle}>
-            Money transfers · {result.giros.length}
+            {t("intermex.moneyTransfers", { count: result.giros.length })}
           </div>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Transfer #</th>
-                  <th className={styles.num}>Send</th>
-                  <th className={styles.num}>Fee</th>
-                  <th className={styles.num}>Federal tax</th>
-                  <th className={styles.num}>Total</th>
-                  <th>Cashier</th>
-                  <th>Status</th>
+                  <th>{t("intermex.colTransfer")}</th>
+                  <th className={styles.num}>{t("intermex.colSend")}</th>
+                  <th className={styles.num}>{t("intermex.colFee")}</th>
+                  <th className={styles.num}>{t("intermex.colTax")}</th>
+                  <th className={styles.num}>{t("intermex.colTotal")}</th>
+                  <th>{t("intermex.colCashier")}</th>
+                  <th>{t("intermex.colStatus")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,10 +169,7 @@ export function ImportReportModal({
                     <td className={`${styles.num} ${styles.mono}`}>{fmtMoney2(g.total_collected)}</td>
                     <td>{g.cashier || "—"}</td>
                     <td>
-                      {g.cancelled ? <Pill tone="negative">Cancelled</Pill>
-                        : g.replacement ? <Pill tone="info">Replacement</Pill>
-                        : g.reconciles ? <Pill tone="success">OK</Pill>
-                        : <Pill tone="warning">Check</Pill>}
+                      <GiroStatus giro={g} />
                     </td>
                   </tr>
                 ))}
@@ -170,26 +178,32 @@ export function ImportReportModal({
           </div>
 
           <div className={styles.otherCounts}>
-            Also in this report: {result.money_orders.length} money order
-            {result.money_orders.length === 1 ? "" : "s"} ·{" "}
-            {result.bill_payments.length} bill payment
-            {result.bill_payments.length === 1 ? "" : "s"}
-            <span className={styles.soon}> (wired next)</span>
+            {t("intermex.alsoInReport", {
+              moneyOrders: tn("intermex.moneyOrders", result.money_orders.length),
+              billPayments: tn("intermex.billPayments", result.bill_payments.length),
+            })}
+            <span className={styles.soon}>{t("intermex.wiredNext")}</span>
           </div>
 
           {committed && (
             <Alert tone={committed.matches_logged ? "success" : "warning"}>
-              Committed {committed.giros_committed} giro
-              {committed.giros_committed === 1 ? "" : "s"} to{" "}
-              <strong>{committed.company}</strong> for {reportDate}:{" "}
-              <strong>{fmtMoney2(committed.amount)}</strong> sent ·{" "}
-              {fmtMoney2(committed.fees)} fees · {fmtMoney2(committed.federal_tax)}{" "}
-              fed. tax.
+              {tNodes(
+                committed.giros_committed === 1
+                  ? "intermex.committed.one" : "intermex.committed.other",
+                {
+                  count: committed.giros_committed,
+                  date: reportDate,
+                  fees: fmtMoney2(committed.fees),
+                  tax: fmtMoney2(committed.federal_tax),
+                  company: <strong>{committed.company}</strong>,
+                  amount: <strong>{fmtMoney2(committed.amount)}</strong>,
+                },
+              )}
               {committed.matches_logged
-                ? " Matches the transfers already logged for this day."
-                : ` Heads up — you have ${fmtMoney2(committed.logged_amount)} ` +
-                  "logged as Intermex transfers for this day; the report " +
-                  "total is now the money-transfer figure."}
+                ? t("intermex.matchesLogged")
+                : t("intermex.headsUp", {
+                  amount: fmtMoney2(committed.logged_amount),
+                })}
             </Alert>
           )}
 
@@ -197,14 +211,14 @@ export function ImportReportModal({
 
           <div className={styles.actions}>
             <Button tone="secondary" onClick={reset} disabled={committing}>
-              Import another
+              {t("intermex.importAnother")}
             </Button>
             {committed ? (
               <Button
                 tone="primary"
                 onClick={() => { reset(); onClose(); }}
               >
-                Done
+                {t("intermex.done")}
               </Button>
             ) : (
               <Button
@@ -213,10 +227,10 @@ export function ImportReportModal({
                 disabled={committing || !result.all_reconcile}
                 title={result.all_reconcile
                   ? undefined
-                  : "The giros must reconcile before committing"}
+                  : t("intermex.mustReconcile")}
                 onClick={() => void handleCommit()}
               >
-                {committing ? "Committing…" : "Commit to money transfers"}
+                {committing ? t("intermex.committing") : t("intermex.commit")}
               </Button>
             )}
           </div>
@@ -224,4 +238,13 @@ export function ImportReportModal({
       )}
     </Modal>
   );
+}
+
+/** One giro's state: cancelled, a replacement, reconciled, or to check. */
+function GiroStatus({ giro }: { giro: IntermexReport["giros"][number] }) {
+  const t = useT();
+  if (giro.cancelled) return <Pill tone="negative">{t("intermex.cancelled")}</Pill>;
+  if (giro.replacement) return <Pill tone="info">{t("intermex.replacement")}</Pill>;
+  if (giro.reconciles) return <Pill tone="success">{t("intermex.ok")}</Pill>;
+  return <Pill tone="warning">{t("intermex.check")}</Pill>;
 }

@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import { t, type MessageKey } from "../i18n";
+import { en } from "../i18n/en";
 import type { components } from "./openapi";
 
 export type MonthlyRow = components["schemas"]["MonthlyRow"];
@@ -22,59 +24,60 @@ export type MonthlySection = "Income" | "Expenses" | "Cash flow";
 
 export interface MonthlyLine {
   key: keyof MonthlyRow & string;
-  label: string;
+  /** The shipped name, as a key (`pl.line.<field>`). */
+  label: MessageKey;
   section: MonthlySection;
   editable: boolean;
 }
 
 function line(
-  key: MonthlyLine["key"], label: string, section: MonthlySection,
+  key: MonthlyLine["key"], label: MessageKey, section: MonthlySection,
   editable = true,
 ): MonthlyLine {
   return { key, label, section, editable };
 }
 
 export const MONTHLY_LINES: MonthlyLine[] = [
-  line("taxable_sales",          "Taxable sales",          "Income"),
-  line("non_taxable",            "Non-taxable",            "Income"),
-  line("money_order_fees",       "Money order fees",       "Income", false),
-  line("bill_payment_charge",    "Bill payment charge",    "Income"),
-  line("phone_recargas",         "Phone recargas",         "Income"),
-  line("boost_mobile",           "Boost Mobile",           "Income"),
-  line("check_cashing_fees",     "Check cashing fees",     "Income", false),
-  line("return_check_hold_fees", "Return check hold fees", "Income"),
-  line("rebates_commissions",    "Rebates / commissions",  "Income"),
-  line("mt_commission_in_bank",  "Money transfer commission in bank", "Income"),
-  line("other_income_1",         "Other income 1",         "Income"),
-  line("other_income_2",         "Other income 2",         "Income"),
-  line("other_income_3",         "Other income 3",         "Income"),
+  line("taxable_sales",          "pl.line.taxable_sales",          "Income"),
+  line("non_taxable",            "pl.line.non_taxable",            "Income"),
+  line("money_order_fees",       "pl.line.money_order_fees",       "Income", false),
+  line("bill_payment_charge",    "pl.line.bill_payment_charge",    "Income"),
+  line("phone_recargas",         "pl.line.phone_recargas",         "Income"),
+  line("boost_mobile",           "pl.line.boost_mobile",           "Income"),
+  line("check_cashing_fees",     "pl.line.check_cashing_fees",     "Income", false),
+  line("return_check_hold_fees", "pl.line.return_check_hold_fees", "Income"),
+  line("rebates_commissions",    "pl.line.rebates_commissions",  "Income"),
+  line("mt_commission_in_bank",  "pl.line.mt_commission_in_bank", "Income"),
+  line("other_income_1",         "pl.line.other_income_1",         "Income"),
+  line("other_income_2",         "pl.line.other_income_2",         "Income"),
+  line("other_income_3",         "pl.line.other_income_3",         "Income"),
   // An over is the store's money; a short (negative) takes it back.
-  line("over_short",             "Over / short",           "Income"),
+  line("over_short",             "pl.line.over_short",           "Income"),
 
-  line("cash_purchases",      "Cash purchases",   "Expenses", false),
-  line("check_purchases",     "Check purchases",  "Expenses", false),
-  line("cash_expenses",       "Cash expenses",    "Expenses", false),
-  line("check_expenses",      "Check expenses",   "Expenses", false),
-  line("cash_payroll",        "Cash payroll",     "Expenses", false),
-  line("check_payroll",       "Check payroll",    "Expenses", false),
-  line("bank_charges_total",  "Bank charges",     "Expenses"),
-  line("credit_card_fees",    "Credit card fees", "Expenses"),
-  line("money_order_rent",    "Money order rent", "Expenses"),
-  line("emaginenet_tech",     "EmagineNet / tech", "Expenses"),
-  line("irs_payroll_tax",     "IRS payroll tax",  "Expenses"),
-  line("texas_workforce",     "Texas workforce",  "Expenses"),
-  line("other_taxes",         "Other taxes",      "Expenses"),
-  line("accounting_charges",  "Accounting charges", "Expenses"),
-  line("return_check_gl",     "Returned check gain/loss", "Expenses", false),
-  line("other_expense_1",     "Other expense 1",  "Expenses"),
-  line("other_expense_2",     "Other expense 2",  "Expenses"),
-  line("other_expense_3",     "Other expense 3",  "Expenses"),
-  line("other_expense_4",     "Other expense 4",  "Expenses"),
-  line("other_expense_5",     "Other expense 5",  "Expenses"),
+  line("cash_purchases",      "pl.line.cash_purchases",   "Expenses", false),
+  line("check_purchases",     "pl.line.check_purchases",  "Expenses", false),
+  line("cash_expenses",       "pl.line.cash_expenses",    "Expenses", false),
+  line("check_expenses",      "pl.line.check_expenses",   "Expenses", false),
+  line("cash_payroll",        "pl.line.cash_payroll",     "Expenses", false),
+  line("check_payroll",       "pl.line.check_payroll",    "Expenses", false),
+  line("bank_charges_total",  "pl.line.bank_charges_total",     "Expenses"),
+  line("credit_card_fees",    "pl.line.credit_card_fees", "Expenses"),
+  line("money_order_rent",    "pl.line.money_order_rent", "Expenses"),
+  line("emaginenet_tech",     "pl.line.emaginenet_tech", "Expenses"),
+  line("irs_payroll_tax",     "pl.line.irs_payroll_tax",  "Expenses"),
+  line("texas_workforce",     "pl.line.texas_workforce",  "Expenses"),
+  line("other_taxes",         "pl.line.other_taxes",      "Expenses"),
+  line("accounting_charges",  "pl.line.accounting_charges", "Expenses"),
+  line("return_check_gl",     "pl.line.return_check_gl", "Expenses", false),
+  line("other_expense_1",     "pl.line.other_expense_1",  "Expenses"),
+  line("other_expense_2",     "pl.line.other_expense_2",  "Expenses"),
+  line("other_expense_3",     "pl.line.other_expense_3",  "Expenses"),
+  line("other_expense_4",     "pl.line.other_expense_4",  "Expenses"),
+  line("other_expense_5",     "pl.line.other_expense_5",  "Expenses"),
 
-  line("borrowed_money_return", "Borrowed money return", "Cash flow"),
-  line("profit_distributed",    "Profit distributed",    "Cash flow"),
-  line("cash_carry_forward",    "Cash carry forward",    "Cash flow"),
+  line("borrowed_money_return", "pl.line.borrowed_money_return", "Cash flow"),
+  line("profit_distributed",    "pl.line.profit_distributed",    "Cash flow"),
+  line("cash_carry_forward",    "pl.line.cash_carry_forward",    "Cash flow"),
 ];
 
 /** Where one line's figure comes from this month. */
@@ -91,12 +94,35 @@ export function monthlyLineSource(
   return "typed";
 }
 
-export const MONTHLY_SOURCE_LABELS: Record<MonthlyLineSource, string> = {
-  daily: "Daily book",
-  bank: "Bank",
-  returns: "Return checks",
-  typed: "Typed",
+export const MONTHLY_SOURCE_LABELS: Record<MonthlyLineSource, MessageKey> = {
+  daily: "pl.source.daily",
+  bank: "pl.source.bank",
+  returns: "pl.source.returns",
+  typed: "pl.source.typed",
 };
+
+/** Each half's heading, in the person's language. The section
+ *  values themselves stay English: they are how lines are grouped. */
+export const MONTHLY_SECTION_LABELS: Record<MonthlySection, MessageKey> = {
+  Income: "pl.section.income",
+  Expenses: "pl.section.expenses",
+  "Cash flow": "pl.section.cashFlow",
+};
+
+const SHIPPED_NAMES: Partial<Record<string, MessageKey>> = Object.fromEntries(
+  MONTHLY_LINES.map((l) => [l.key, l.label]),
+);
+
+/** A P&L line's name for the screen. The server sends the store's
+ *  name for each line: a name the store typed is shown as typed; the
+ *  name we ship (or none) is shown in the person's language. A field
+ *  this list does not know keeps the server's text. */
+export function monthlyLineName(field: string, serverLabel?: string): string {
+  const key = SHIPPED_NAMES[field];
+  if (!key) return serverLabel || field;
+  if (serverLabel && serverLabel !== en[key]) return serverLabel;
+  return t(key);
+}
 
 /** A month, plus the store's own name for each P&L line. The
  *  labels ride along with the month so the form never renders
@@ -189,7 +215,7 @@ export interface MonthlyLineLabel {
   /** The name we ship — what "Reset" gives back. */
   default_label: string;
   is_custom: boolean;
-  section: "Income" | "Expenses";
+  section: Exclude<MonthlySection, "Cash flow">;
   /** A blank-by-design slot. Stays out of the bank-category
    *  picker until the store names it. */
   is_slot: boolean;

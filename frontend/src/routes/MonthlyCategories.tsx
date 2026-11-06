@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  MONTHLY_SECTION_LABELS, monthlyLineName,
   updateMonthlyLabels, useMonthlyLabels,
   type MonthlyLineLabel,
 } from "../api/monthly";
@@ -15,6 +16,8 @@ import {
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./MonthlyCategories.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // P&L categories at /app/monthly/categories.
 //
@@ -37,6 +40,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 const SECTIONS: Array<MonthlyLineLabel["section"]> = ["Income", "Expenses"];
 
 export default function MonthlyCategories() {
+  useT(); // re-render on a language switch
   const identity = getCurrentIdentity();
   const toast = useToast();
   const qc = useQueryClient();
@@ -64,7 +68,7 @@ export default function MonthlyCategories() {
     draft != null && baseline != null &&
     JSON.stringify(draft) !== JSON.stringify(baseline);
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved P&L line names. Leave without saving?",
+    message: t("cat.unsaved"),
   });
 
   async function onSubmit(e: FormEvent) {
@@ -80,18 +84,18 @@ export default function MonthlyCategories() {
         if (value !== baseline[field]) changed[field] = value;
       }
       if (Object.keys(changed).length === 0) {
-        toast({ message: "Nothing to save.", tone: "info" });
+        toast({ message: t("cat.nothingToSave"), tone: "info" });
         return;
       }
       await updateMonthlyLabels(changed);
       setBaseline(draft);
-      toast({ message: "Category names saved.", tone: "success" });
+      toast({ message: t("cat.saved"), tone: "success" });
       // The bank-category picker and every month on screen read
       // these names, so drop both caches rather than just this one.
       void qc.invalidateQueries({ queryKey: ["monthly"] });
       void qc.invalidateQueries({ queryKey: ["bank"] });
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not save names."));
+      setErr(apiErrorMessage(e, t("cat.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -100,39 +104,34 @@ export default function MonthlyCategories() {
   if (identity?.store_id == null) {
     return (
       <PageShell>
-        <PageHeader title="P&L categories" />
-        <p>Sign in as a store admin to manage P&amp;L categories.</p>
+        <PageHeader title={t("cat.title")} />
+        <p>{t("cat.signIn")}</p>
       </PageShell>
     );
   }
 
   return (
     <PageShell>
-      <PageCrumbs under="/reports" via={[{ label: "Monthly P&L", to: "/monthly" }]} current="Categories" />
-
-      <PageHeader
-        title="P&L categories"
-        subtitle="Name the lines on your P&L the way your business does."
+      <PageCrumbs
+        under="/reports"
+        via={[{ label: navWord("Monthly P&L"), to: "/monthly" }]}
+        current={t("pl.categoriesButton")}
       />
 
+      <PageHeader title={t("cat.title")} subtitle={t("cat.subtitle")} />
+
+      <p className={styles.intro}>{t("cat.intro1")}</p>
       <p className={styles.intro}>
-        Renaming a line changes what you read and nothing else —
-        the money stays where it is, closed months keep their
-        numbers, and bank rules keep working. Leave a box empty to
-        go back to the name we ship.
-      </p>
-      <p className={styles.intro}>
-        The blank slots are how you add a category we did not think
-        of. Name one and it turns up in the{" "}
-        <AppLink to="/bank/rules">bank rule</AppLink> picker, ready
-        to tag transactions into.
+        {tNodes("cat.intro2", {
+          link: <AppLink to="/bank/rules">{t("cat.bankRuleLink")}</AppLink>,
+        })}
       </p>
 
       {lines.isLoading && <Loading />}
       {lines.isError && (
         <ErrorState
           message={
-            apiErrorMessage(lines.error, "Could not load P&L categories")
+            apiErrorMessage(lines.error, t("cat.loadFailed"))
           }
           onRetry={() => { void lines.refetch(); }}
         />
@@ -144,39 +143,45 @@ export default function MonthlyCategories() {
 
           {SECTIONS.map((section) => (
             <Card key={section}>
-              <h2 className={styles.sectionTitle}>{section}</h2>
+              <h2 className={styles.sectionTitle}>
+                {t(MONTHLY_SECTION_LABELS[section])}
+              </h2>
               <div className={styles.lineGrid}>
-                {rows.filter((r) => r.section === section).map((r) => (
+                {rows.filter((r) => r.section === section).map((r) => {
+                  // The shipped name, in the person's language.
+                  const shipped = monthlyLineName(r.field, r.default_label);
+                  return (
                   <Field
                     key={r.field}
-                    label={r.default_label}
+                    label={shipped}
                     hint={hintFor(r)}
                   >
                     <div className={styles.lineRow}>
                       <Input
                         value={draft[r.field] ?? ""}
-                        placeholder={r.default_label}
+                        placeholder={shipped}
                         maxLength={60}
-                        aria-label={`Name for ${r.default_label}`}
+                        aria-label={t("cat.nameFor", { name: shipped })}
                         onChange={(e) => setDraft((d) => (
                           d ? { ...d, [r.field]: e.target.value } : d
                         ))}
                       />
                       {r.is_slot && (
                         <Pill tone={draft[r.field] ? "accent" : "neutral"}>
-                          {draft[r.field] ? "In use" : "Free slot"}
+                          {draft[r.field] ? t("cat.inUse") : t("cat.freeSlot")}
                         </Pill>
                       )}
                     </div>
                   </Field>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           ))}
 
           <FormActions guard={guard}>
             <Button type="submit" tone="primary" disabled={busy || !isDirty}>
-              {busy ? "Saving…" : "Save names"}
+              {busy ? t("common.saving") : t("cat.saveNames")}
             </Button>
           </FormActions>
         </form>
@@ -187,11 +192,10 @@ export default function MonthlyCategories() {
 
 function hintFor(r: MonthlyLineLabel): string | undefined {
   if (r.is_slot) {
-    return "Blank slot — name it to use it as a category.";
+    return t("cat.hintSlot");
   }
   if (!r.bank_taggable) {
-    return "Typed on the P&L. The register feeds this line, so bank "
-      + "transactions can't be tagged into it.";
+    return t("cat.hintNotTaggable");
   }
   return undefined;
 }

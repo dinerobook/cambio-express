@@ -9,24 +9,24 @@ export default function EmployeeActivity() {
   return (
     <ReportDrilldown
       apiSlug="employee-activity"
-      title="Employee activity"
-      resultUnit={["employee", "employees"]}
+      title="reportName.employee_activity"
+      resultUnit="rep.unit.employee"
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/employee-activity.csv`}
       kpis={[
-        { label: "Transfers logged", tone: "primary",
+        { label: "rep.transfersLogged", tone: "primary",
           value: t => fmtNumber(Number(t.count ?? 0)) },
-        { label: "Total sent",       tone: "neon",
+        { label: "rep.totalSent",       tone: "neon",
           value: t => fmtMoney2(Number(t.sent ?? 0)) },
-        { label: "Employees active", tone: "muted",
+        { label: "rep.employeesActive", tone: "muted",
           value: t => fmtNumber(Number(t.employees ?? 0)) },
       ]}
       columns={[
-        { label: "Employee",   field: "employee" },
-        { label: "Transfers",  field: r => fmtNumber(Number(r.count ?? 0)), align: "right", mono: true },
-        { label: "Total sent", field: r => fmtMoney2(Number(r.sent ?? 0)),         align: "right", mono: true },
-        { label: "First logged", field: r => (r.first_logged as string) || "—" },
-        { label: "Last logged",  field: r => (r.last_logged as string) || "—"  },
+        { label: "rep.employee",   field: "employee" },
+        { label: "rep.transfers",  field: r => fmtNumber(Number(r.count ?? 0)), align: "right", mono: true },
+        { label: "rep.totalSent", field: r => fmtMoney2(Number(r.sent ?? 0)),         align: "right", mono: true },
+        { label: "rep.firstLogged", field: r => (r.first_logged as string) || "—" },
+        { label: "rep.lastLogged",  field: r => (r.last_logged as string) || "—"  },
       ]}
     />
   );

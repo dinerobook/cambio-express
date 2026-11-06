@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import {
   ButtonLink, Card, Input, PageHeader, Pill, EmptyState,
 } from "./ui";
 import styles from "./ReportCenter.module.css";
+import { t, useLanguage, type MessageKey } from "../i18n";
+import { en } from "../i18n/en";
 
 // Shared report-center used by /app/reports, /app/owner/reports,
 // and /app/superadmin/reports. Renders a search box in the
@@ -25,6 +27,21 @@ export interface ReportCategoryRow {
   reports: ReportRow[];
 }
 
+/** A registry word in the person's language. The registry is server
+ *  text; a key we ship words for (`reportCat.<key>`,
+ *  `reportName.<key>`, `reportDesc.<key>`) is translated, a key we
+ *  don't (a report added server-side first) shows as sent. */
+function registryWord(key: string, sent: string): string {
+  return Object.hasOwn(en, key) ? t(key as MessageKey) : sent;
+}
+
+const catLabel = (c: ReportCategoryRow) =>
+  registryWord(`reportCat.${c.key}`, c.label);
+const reportLabel = (r: ReportRow) =>
+  registryWord(`reportName.${r.key}`, r.label);
+const reportDescription = (r: ReportRow) =>
+  registryWord(`reportDesc.${r.key}`, r.description);
+
 export default function ReportCenter({
   title, categories,
 }: {
@@ -33,20 +50,23 @@ export default function ReportCenter({
   categories: ReportCategoryRow[];
 }) {
   const [query, setQuery] = useState("");
+  useLanguage(); // re-render on a language switch
 
-  const filtered = useMemo(() => {
+  // Worked out on every render (a few dozen rows): the search reads
+  // the words on screen, which change with the language.
+  const filtered = (() => {
     const q = query.trim().toLowerCase();
     if (!q) {
       return categories.map((c) => ({ ...c, hits: c.reports.length }));
     }
     return categories.map((c) => {
       const hits = c.reports.filter((r) =>
-        r.label.toLowerCase().includes(q)
-        || r.description.toLowerCase().includes(q),
+        reportLabel(r).toLowerCase().includes(q)
+        || reportDescription(r).toLowerCase().includes(q),
       );
       return { ...c, reports: hits, hits: hits.length };
     }).filter((c) => c.hits > 0);
-  }, [categories, query]);
+  })();
 
   const anyVisible = filtered.length > 0;
 
@@ -58,9 +78,9 @@ export default function ReportCenter({
           <div className={styles.searchBox}>
             <Input
               type="search"
-              placeholder="Search reports…"
+              placeholder={t("reports.search")}
               autoComplete="off"
-              aria-label="Search reports"
+              aria-label={t("reports.searchAria")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -69,7 +89,7 @@ export default function ReportCenter({
       />
 
       {!anyVisible && (
-        <EmptyState title="No reports match that search." />
+        <EmptyState title={t("reports.noMatch")} />
       )}
 
       <div className={styles.catGrid}>
@@ -97,7 +117,7 @@ function CategoryCard({
         <summary className={styles.summary}>
           <span className={styles.icon}
                 dangerouslySetInnerHTML={{ __html: cat.icon }} />
-          <span className={styles.catLabel}>{cat.label}</span>
+          <span className={styles.catLabel}>{catLabel(cat)}</span>
           <Pill tone="neutral">{cat.reports.length}</Pill>
           <span className={styles.caret} aria-hidden="true">
             <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"
@@ -121,13 +141,13 @@ function ReportRowView({ report }: { report: ReportRow }) {
   return (
     <div className={styles.row}>
       <div className={styles.rowBody}>
-        <div className={styles.rowName}>{report.label}</div>
-        <div className={styles.rowDesc}>{report.description}</div>
+        <div className={styles.rowName}>{reportLabel(report)}</div>
+        <div className={styles.rowDesc}>{reportDescription(report)}</div>
       </div>
       <div>
         {ready
-          ? <ButtonLink to={report.url ?? "#"} size="sm">View</ButtonLink>
-          : <Pill tone="info">Coming soon</Pill>}
+          ? <ButtonLink to={report.url ?? "#"} size="sm">{t("reports.view")}</ButtonLink>
+          : <Pill tone="info">{t("reports.comingSoon")}</Pill>}
       </div>
     </div>
   );

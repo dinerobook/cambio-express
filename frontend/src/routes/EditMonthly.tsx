@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   MONTHLY_LINES,
+  MONTHLY_SECTION_LABELS,
+  monthlyLineName,
   monthlyLineSource,
   updateMonthly,
   useMonthly,
@@ -21,8 +23,10 @@ import {
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./EditMonthly.module.css";
-import { MONTH_NAMES_SHORT } from "../lib/datetime";
+import { monthName } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tNodes, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Edit page for the monthly P&L at /app/monthly/edit?year=Y&month=M.
 //
@@ -39,12 +43,13 @@ const FIELDS = MONTHLY_LINES.filter((l) => l.editable) as Array<
 
 const SECTIONS: MonthlySection[] = ["Income", "Expenses", "Cash flow"];
 
-const LOCKED_HINTS: Partial<Record<MonthlyLineSource, string>> = {
-  bank: "From bank: summed from categorized transactions.",
-  daily: "From daily book: change it on the day it was entered.",
+const LOCKED_HINTS: Partial<Record<MonthlyLineSource, MessageKey>> = {
+  bank: "pl.lockedBank",
+  daily: "pl.lockedDaily",
 };
 
 export default function EditMonthly() {
+  useT(); // re-render on a language switch
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -98,7 +103,7 @@ export default function EditMonthly() {
     form != null && baseline != null &&
     JSON.stringify(form) !== JSON.stringify(baseline);
   const guard = useUnsavedGuard(isDirty && !busy, {
-    message: "You have unsaved edits on this month's P&L. Leave without saving?",
+    message: t("pl.unsaved"),
   });
 
   function set<K extends keyof MonthlyUpdateBody>(
@@ -131,10 +136,10 @@ export default function EditMonthly() {
       // copies of this month; without this they show the old numbers
       // until the cache goes stale.
       void queryClient.invalidateQueries({ queryKey: ["monthly"] });
-      toast({ message: "Monthly P&L saved.", tone: "success" });
+      toast({ message: t("pl.saved"), tone: "success" });
       guard.proceed(() => navigate(`/monthly?year=${year}&month=${month}`, { replace: true }));
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not save P&L."));
+      setErr(apiErrorMessage(e, t("pl.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -143,8 +148,8 @@ export default function EditMonthly() {
   if (identity?.store_id == null) {
     return (
       <PageShell>
-        <PageHeader title="Edit monthly P&L" />
-        <p>Sign in as a store admin to edit monthly P&L.</p>
+        <PageHeader title={t("pl.editTitle")} />
+        <p>{t("pl.signInEdit")}</p>
       </PageShell>
     );
   }
@@ -152,8 +157,8 @@ export default function EditMonthly() {
   if (!Number.isFinite(year) || !Number.isFinite(month)) {
     return (
       <PageShell>
-        <PageHeader title="Edit monthly P&L" />
-        <p>Missing year or month. Open a P&L first, then click Edit.</p>
+        <PageHeader title={t("pl.editTitle")} />
+        <p>{t("pl.missingMonth")}</p>
       </PageShell>
     );
   }
@@ -161,9 +166,9 @@ export default function EditMonthly() {
   if (detail.isError && detail.data === undefined) {
     return (
       <PageShell>
-        <PageHeader title="Edit monthly P&L" />
+        <PageHeader title={t("pl.editTitle")} />
         <ErrorState
-          message="Could not load this month's P&L."
+          message={t("pl.loadMonthFailed")}
           onRetry={() => void detail.refetch()}
           busy={detail.isFetching}
         />
@@ -183,23 +188,23 @@ export default function EditMonthly() {
     <PageShell>
       <header>
 
-        <PageCrumbs under="/reports" via={[{ label: "Monthly P&L", to: "/monthly" }]} current="Edit" />
+        <PageCrumbs
+          under="/reports"
+          via={[{ label: navWord("Monthly P&L"), to: "/monthly" }]}
+          current={t("common.edit")}
+        />
 
-        <PageHeader title="Edit monthly P&L" />
+        <PageHeader title={t("pl.editTitle")} />
         <p className={styles.headerMono}>
-          {MONTH_NAMES_SHORT[month - 1]} {year}
+          {monthName(month, "short")} {year}
         </p>
+        <p className={styles.headerNote}>{t("pl.editNote")}</p>
         <p className={styles.headerNote}>
-          Purchases, expenses, payroll, sales and fees come from the
-          daily books and fill in by themselves. Type the lines the
-          daily book can't know, like rent, payroll tax or utilities.
-          Lines marked "From bank" or "From daily book" are already
-          filled for this month.
-        </p>
-        <p className={styles.headerNote}>
-          Lines not named after your business? <AppLink to="/monthly/categories">
-            Rename them
-          </AppLink> — the numbers stay where they are.
+          {tNodes("pl.renameNote", {
+            link: (
+              <AppLink to="/monthly/categories">{t("pl.renameLink")}</AppLink>
+            ),
+          })}
         </p>
       </header>
 
@@ -209,14 +214,14 @@ export default function EditMonthly() {
       >
         {SECTIONS.map((sec) => (
           <Card key={sec}>
-            <h2 className={styles.sectionTitle}>{sec}</h2>
+            <h2 className={styles.sectionTitle}>{t(MONTHLY_SECTION_LABELS[sec])}</h2>
             <div className={styles.fieldGrid}>
               {FIELDS.filter((f) => f.section === sec).map((f) => {
                 const locked = lockedSource(f.key);
                 return (
                   <MoneyInput
                     key={f.key}
-                    label={labels[f.key] || f.label}
+                    label={monthlyLineName(f.key, labels[f.key])}
                     value={
                       typeof form[f.key] === "number"
                         ? (form[f.key] as number)
@@ -225,7 +230,7 @@ export default function EditMonthly() {
                     onChange={(v) => set(f.key, v as never)}
                     readOnly={locked != null}
                     disabled={locked != null}
-                    hint={locked ? LOCKED_HINTS[locked] : undefined}
+                    hint={locked && LOCKED_HINTS[locked] ? t(LOCKED_HINTS[locked]) : undefined}
                   />
                 );
               })}
@@ -234,7 +239,7 @@ export default function EditMonthly() {
         ))}
 
         <Card>
-          <h2 className={styles.sectionTitle}>Notes</h2>
+          <h2 className={styles.sectionTitle}>{t("pl.notes")}</h2>
           <Textarea
             value={form.notes ?? ""}
             onChange={(e) => set("notes", e.target.value)}
@@ -253,10 +258,10 @@ export default function EditMonthly() {
             )}
             disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? t("common.saving") : t("common.save")}
           </Button>
         </FormActions>
       </form>

@@ -101,6 +101,37 @@ export const COVERED_FILES = [
   "components/BankCategoryOptions.tsx",
   "lib/bankRules.ts",
   "lib/bankMatching.ts",
+  // Monthly P&L and reports
+  "routes/Monthly.tsx",
+  "routes/EditMonthly.tsx",
+  "routes/MonthlyCategories.tsx",
+  "api/monthly.ts",
+  "routes/ImportReportModal.tsx",
+  "routes/Reports.tsx",
+  "components/ReportCenter.tsx",
+  "components/ReportDrilldown.tsx",
+  "routes/reports/AchVolume.tsx",
+  "routes/reports/BankChargesByAccount.tsx",
+  "routes/reports/BankRuleAudit.tsx",
+  "routes/reports/BankTxnBreakdown.tsx",
+  "routes/reports/ByDestinationCountry.tsx",
+  "routes/reports/CancelledTransfers.tsx",
+  "routes/reports/CashierProductivity.tsx",
+  "routes/reports/CheckDeposits.tsx",
+  "routes/reports/DailyDrops.tsx",
+  "routes/reports/EmployeeActivity.tsx",
+  "routes/reports/FeesVsTax.tsx",
+  "routes/reports/HighValueTransfers.tsx",
+  "routes/reports/NewVsReturning.tsx",
+  "routes/reports/PeriodComparison.tsx",
+  "routes/reports/PeriodPL.tsx",
+  "routes/reports/ReturnedCheckStatus.tsx",
+  "routes/reports/SalesByCompany.tsx",
+  "routes/reports/SalesByEmployee.tsx",
+  "routes/reports/SalesByService.tsx",
+  "routes/reports/TopCustomers.tsx",
+  "routes/reports/TopRecipients.tsx",
+  "routes/reports/TopSenders.tsx",
   "components/RolePermissionsEditor.tsx",
   "components/PermissionMatrixTable.tsx",
   "components/RolePill.tsx",
@@ -190,7 +221,10 @@ function rawStrings(src: string): string[] {
   for (const m of body.matchAll(
     /\b(label|placeholder|title|aria-label|alt|confirmLabel|cancelLabel|message)="([^"]*[A-Za-z]{2}[^"]*)"/g,
   )) {
-    if (!EXAMPLE.test(m[2]) && !ACRONYM.test(m[2])) found.push(`${m[1]}="${m[2]}"`);
+    // A prop that takes a translator key (`title="reportName.x"`) is fine.
+    if (!EXAMPLE.test(m[2]) && !ACRONYM.test(m[2]) && !(m[2] in en)) {
+      found.push(`${m[1]}="${m[2]}"`);
+    }
   }
   // The same attributes as a template: title={`Transfer #${id}`}.
   for (const m of body.matchAll(

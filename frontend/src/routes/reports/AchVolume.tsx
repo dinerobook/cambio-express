@@ -9,21 +9,21 @@ export default function AchVolume() {
   return (
     <ReportDrilldown
       apiSlug="ach-volume"
-      title="ACH volume"
-      resultUnit={["company", "companies"]}
+      title="reportName.ach_volume"
+      resultUnit="rep.unit.company"
       backTo={baseRoute}
       csvUrl={`/api/v2/reports/ach-volume.csv`}
       kpis={[
-        { label: "Total ACH",   tone: "primary",
+        { label: "rep.totalAch",   tone: "primary",
           value: t => fmtMoney2(Number(t.amount ?? 0)) },
-        { label: "Batch count", tone: "neon",
+        { label: "rep.batchCount", tone: "neon",
           value: t => fmtNumber(Number(t.count ?? 0)) },
       ]}
       columns={[
-        { label: "Company",     field: "company" },
-        { label: "Batch count", field: r => fmtNumber(Number(r.count)),  align: "right", mono: true },
-        { label: "Total ACH",   field: r => fmtMoney2(Number(r.amount)),        align: "right", mono: true },
-        { label: "Average per batch", field: r => fmtMoney2(Number(r.avg)),           align: "right", mono: true },
+        { label: "rep.company",     field: "company" },
+        { label: "rep.batchCount", field: r => fmtNumber(Number(r.count)),  align: "right", mono: true },
+        { label: "rep.totalAch",   field: r => fmtMoney2(Number(r.amount)),        align: "right", mono: true },
+        { label: "rep.avgPerBatch", field: r => fmtMoney2(Number(r.avg)),           align: "right", mono: true },
       ]}
     />
   );
