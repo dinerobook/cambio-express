@@ -23,6 +23,8 @@ import { Delta } from "../components/Delta";
 import styles from "./OwnerStoreDetail.module.css";
 import { formatShortDate } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { statusLabel } from "../lib/transferKinds";
+import { t as translate, useT, type MessageKey } from "../i18n";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip,
@@ -31,10 +33,10 @@ ChartJS.register(
 
 type Period = "today" | "month" | "year";
 
-const PERIODS: Array<{ value: Period; label: string }> = [
-  { value: "today", label: "Today" },
-  { value: "month", label: "This month" },
-  { value: "year",  label: "This year" },
+const PERIODS: Array<{ value: Period; label: MessageKey }> = [
+  { value: "today", label: "owner.periodToday" },
+  { value: "month", label: "owner.periodMonth" },
+  { value: "year",  label: "owner.periodYear" },
 ];
 
 
@@ -48,18 +50,21 @@ export default function OwnerStoreDetail() {
   const toastApiError = useApiErrorToast();
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
+  // `translate`: the chart options below name their tokens `t`.
+  const tr = useT();
+  const storeName = data?.store.name || tr("storeDetail.store");
 
   async function handleUnlink() {
     setUnlinking(true);
     try {
       await unlinkStore(sid);
       toast({
-        message: "Store disconnected from your umbrella.",
+        message: translate("storeDetail.disconnected"),
         tone: "success",
       });
       navigate("/owner/locations");
     } catch (err) {
-      toastApiError(err, "Could not unlink store.");
+      toastApiError(err, translate("storeDetail.unlinkFailed"));
     } finally {
       setUnlinking(false);
       setConfirmUnlink(false);
@@ -69,12 +74,12 @@ export default function OwnerStoreDetail() {
   return (
     <PageShell gap="1.25rem">
       <div>
-        <AppLink to="/owner/locations" className={styles.backLink}>← All locations</AppLink>
+        <AppLink to="/owner/locations" className={styles.backLink}>{tr("storeDetail.allLocations")}</AppLink>
 
-        <PageCrumbs under="/owner/locations" current={data?.store.name || "Store"} />
+        <PageCrumbs under="/owner/locations" current={storeName} />
 
         <PageHeader
-          title={data?.store.name || "Store"}
+          title={storeName}
           actions={(
             <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
               <TabsBar>
@@ -84,20 +89,20 @@ export default function OwnerStoreDetail() {
                     active={p.value === period}
                     onClick={() => setPeriod(p.value)}
                   >
-                    {p.label}
+                    {tr(p.label)}
                   </TabsButton>
                 ))}
               </TabsBar>
               <AppLink to={`/owner/store/${sid}/permissions`}>
                 <Button size="sm" tone="secondary" type="button">
-                  Permissions
+                  {tr("owner.permissionsCrumb")}
                 </Button>
               </AppLink>
               <Button
                 size="sm" tone="secondary"
                 onClick={() => setConfirmUnlink(true)}
               >
-                Disconnect store
+                {tr("storeDetail.disconnect")}
               </Button>
             </div>
           )}
@@ -106,9 +111,11 @@ export default function OwnerStoreDetail() {
 
       <ConfirmDialog
         open={confirmUnlink}
-        title="Disconnect this store?"
-        message={`Disconnect "${data?.store?.name ?? `store ${sid}`}" from your umbrella? The store keeps all its data but you will no longer see it.`}
-        confirmLabel="Disconnect"
+        title={tr("storeDetail.disconnectTitle")}
+        message={tr("storeDetail.disconnectBody", {
+          name: data?.store?.name ?? tr("owner.storeN", { id: sid }),
+        })}
+        confirmLabel={tr("storeDetail.disconnectShort")}
         confirmTone="danger"
         busy={unlinking}
         onConfirm={() => { void handleUnlink(); }}
@@ -118,7 +125,9 @@ export default function OwnerStoreDetail() {
       {isLoading && <Loading />}
       {isError && (
         <ErrorState
-          message={`Couldn't load store — ${apiErrorMessage(error, "unknown")}`}
+          message={tr("storeDetail.loadFailed", {
+            error: apiErrorMessage(error, tr("owner.unknownError")),
+          })}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -127,25 +136,25 @@ export default function OwnerStoreDetail() {
         <>
           <KpiGrid minWidth="180px">
             <KpiCard
-              label="Transfers"
+              label={tr("owner.colTransfers")}
               value={fmtNumber(data.period_count)}
-              sub={<Delta value={data.period_count - data.prev_count} suffix=" vs prior" />}
+              sub={<Delta value={data.period_count - data.prev_count} suffix={tr("storeDetail.vsPrior")} />}
             />
             <KpiCard
-              label="Volume"
+              label={tr("owner.colVolume")}
               value={fmtMoney(data.period_volume)}
-              sub={<Delta value={data.period_volume - data.prev_volume} money suffix=" vs prior" />}
+              sub={<Delta value={data.period_volume - data.prev_volume} money suffix={tr("storeDetail.vsPrior")} />}
             />
-            <KpiCard label="Fees" value={fmtMoney2(data.period_fees)} />
-            <KpiCard label="Federal tax" value={fmtMoney2(data.period_tax)} />
+            <KpiCard label={tr("storeDetail.fees")} value={fmtMoney2(data.period_fees)} />
+            <KpiCard label={tr("storeDetail.federalTax")} value={fmtMoney2(data.period_tax)} />
             <KpiCard
-              label="Over/Short"
+              label={tr("owner.colOverShort")}
               value={`${data.period_over_short >= 0 ? "+" : "-"}${fmtMoney2(Math.abs(data.period_over_short))}`}
               tone={data.period_over_short < 0 ? "negative" : "neutral"}
             />
           </KpiGrid>
 
-          <Section title="30-day daily receipts vs over/short">
+          <Section title={tr("storeDetail.receiptsChart")}>
             <Card>
               <div className={styles.chartHost}>
                 <Line
@@ -155,7 +164,7 @@ export default function OwnerStoreDetail() {
                     ),
                     datasets: [
                       {
-                        label: "Receipts ($)",
+                        label: tr("storeDetail.receiptsSeries"),
                         data: data.receipts_data,
                         borderColor: chartSeries().accent,
                         backgroundColor: seriesFill("positive", 0.1),
@@ -165,7 +174,7 @@ export default function OwnerStoreDetail() {
                         yAxisID: "y",
                       },
                       {
-                        label: "Over/Short ($)",
+                        label: tr("storeDetail.overShortSeries"),
                         data: data.over_short_data,
                         borderColor: chartSeries().warning,
                         backgroundColor: seriesFill("warning", 0.1),
@@ -236,29 +245,29 @@ export default function OwnerStoreDetail() {
           </Section>
 
           {data.company_rows.length > 0 && (
-            <Section title="Company breakdown">
+            <Section title={tr("storeDetail.companyBreakdown")}>
               <Card>
                 <div className={styles.chartHostShort}>
                   <Bar
                     data={{
                       labels: data.company_rows.map((c) => c.company),
                       datasets: [{
-                        label: "Volume ($)",
+                        label: tr("owner.volumeSeries"),
                         data: data.company_rows.map((c) => c.volume),
                         backgroundColor: seriesFill("positive", 0.5),
                       }],
                     }}
-                    options={moneyChartOptions("Volume")}
+                    options={moneyChartOptions(tr("owner.volumeAxis"))}
                   />
                 </div>
                 <Table>
                   <thead>
                     <tr>
-                      <th style={thStyle}>Company</th>
-                      <th style={thStyleRight}>Transfers</th>
-                      <th style={thStyleRight}>Volume</th>
-                      <th style={thStyleRight}>Fees</th>
-                      <th style={thStyleRight}>Tax</th>
+                      <th style={thStyle}>{tr("owner.colCompany")}</th>
+                      <th style={thStyleRight}>{tr("owner.colTransfers")}</th>
+                      <th style={thStyleRight}>{tr("owner.colVolume")}</th>
+                      <th style={thStyleRight}>{tr("storeDetail.fees")}</th>
+                      <th style={thStyleRight}>{tr("storeDetail.colTax")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -277,20 +286,20 @@ export default function OwnerStoreDetail() {
             </Section>
           )}
 
-          <Section title="Recent transfers">
+          <Section title={tr("storeDetail.recentTransfers")}>
             <Card>
               {data.recent_transfers.length === 0 ? (
-                <EmptyState title="No transfers yet for this store." />
+                <EmptyState title={tr("storeDetail.noTransfers")} />
               ) : (
                 <Table>
                   <thead>
                     <tr>
-                      <th style={thStyle}>Date</th>
-                      <th style={thStyle}>Sender</th>
-                      <th style={thStyle}>Recipient</th>
-                      <th style={thStyle}>Co.</th>
-                      <th style={thStyleRight}>Amount</th>
-                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>{tr("storeDetail.colDate")}</th>
+                      <th style={thStyle}>{tr("storeDetail.colSender")}</th>
+                      <th style={thStyle}>{tr("storeDetail.colRecipient")}</th>
+                      <th style={thStyle}>{tr("storeDetail.colCo")}</th>
+                      <th style={thStyleRight}>{tr("storeDetail.colAmount")}</th>
+                      <th style={thStyle}>{tr("owner.colStatus")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -303,7 +312,7 @@ export default function OwnerStoreDetail() {
                         <td style={tdStyle}>{t.recipient_name || "—"}</td>
                         <td style={tdStyle}>{t.company || "—"}</td>
                         <td style={tdStyleRight}>{fmtMoney2(t.send_amount)}</td>
-                        <td style={tdStyle}>{t.status}</td>
+                        <td style={tdStyle}>{statusLabel(t.status)}</td>
                       </tr>
                     ))}
                   </tbody>

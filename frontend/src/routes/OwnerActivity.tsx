@@ -7,6 +7,8 @@ import { Card, Input, PageHeader, PageShell } from "../components/ui";
 import { AuditTable, type AuditTableRow } from "../components/AuditTable";
 import { PageCrumbs } from "../components/PageCrumbs";
 import type { components } from "../api/openapi";
+import { t, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 type ActivityRow = components["schemas"]["OwnerActivityRow"];
 type ActivityResponse = components["schemas"]["OwnerActivityListResponse"];
@@ -33,6 +35,7 @@ function useOwnerActivity(q: string, page: number, perPage: number) {
 }
 
 export default function OwnerActivity() {
+  useT(); // re-render on a language switch
   const filters = useUrlFilterState({ q: "" }, { pageSizeKey: "owner-activity" });
   const { data, isLoading, isError, error, refetch } = useOwnerActivity(
     filters.params.q, filters.page, filters.perPage,
@@ -42,16 +45,16 @@ export default function OwnerActivity() {
     <PageShell gap="1.25rem">
       <PageCrumbs />
       <PageHeader
-        title="Activity stream"
-        subtitle="Recent actions across all your stores"
+        title={navWord("Activity stream")}
+        subtitle={t("owner.activitySubtitle")}
       />
 
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Input
           type="search"
-          aria-label="Search"
+          aria-label={t("owner.search")}
           style={{ width: "20rem", maxWidth: "100%" }}
-          placeholder="Search by user, action, or summary…"
+          placeholder={t("owner.activitySearch")}
           value={filters.draft.q ?? filters.params.q}
           onChange={(e) => filters.debounced("q", e.target.value)}
         />
@@ -63,9 +66,9 @@ export default function OwnerActivity() {
           rows={data?.rows.map(toAuditTableRow)}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          errorMessage="Could not load activity."
-          emptyTitle="No activity"
-          emptyBody="No matching events found."
+          errorMessage={t("owner.activityLoadFailed")}
+          emptyTitle={t("owner.noActivity")}
+          emptyBody={t("owner.noActivityBody")}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
@@ -94,7 +97,7 @@ function toAuditTableRow(r: ActivityRow): AuditTableRow {
     target_type: r.target_type,
     target_id: r.target_label,
     target_label: r.target_type === "transfer" && r.target_label
-      ? `Transfer #${r.target_label}` : r.target_label,
+      ? t("transfer.number", { id: r.target_label }) : r.target_label,
     summary: r.summary,
     source: r.type,
   };

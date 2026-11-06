@@ -1,4 +1,5 @@
 import { Card, Pill, Section, Table, tdStyle, thStyle, type PillTone } from "./ui";
+import { useT, type MessageKey } from "../i18n";
 
 // The per-store outcome table every owner bulk action ends with
 // (bulk add user, cross-store defaults, bulk permissions). One
@@ -22,44 +23,49 @@ export interface BulkResultRow {
 // needs a look is `warning`, a refusal is `negative`. An unknown
 // status falls back to its own slug on a neutral pill rather than
 // pretending to be one of these.
-const BULK_STATUS: Record<string, { label: string; tone: PillTone }> = {
-  created:  { label: "Created",  tone: "success" },
-  updated:  { label: "Updated",  tone: "success" },
-  applied:  { label: "Applied",  tone: "success" },
-  skipped:  { label: "Skipped",  tone: "warning" },
-  rejected: { label: "Rejected", tone: "negative" },
+const BULK_STATUS: Record<string, { label: MessageKey; tone: PillTone }> = {
+  created:  { label: "bulk.created",  tone: "success" },
+  updated:  { label: "bulk.updated",  tone: "success" },
+  applied:  { label: "bulk.applied",  tone: "success" },
+  skipped:  { label: "bulk.skipped",  tone: "warning" },
+  rejected: { label: "bulk.rejected", tone: "negative" },
 };
 
 export function BulkResultsCard({
-  rows, detailLabel = "Notes", title = "Results",
+  rows, detailLabel = "bulk.notes", title = "bulk.results",
 }: {
   rows: readonly BulkResultRow[];
-  /** Header of the third column. */
-  detailLabel?: string;
-  title?: string;
+  /** Header of the third column, as a key. */
+  detailLabel?: MessageKey;
+  title?: MessageKey;
 }) {
+  const t = useT();
+  const headers = [t("bulk.colStore"), t("bulk.colStatus"), t(detailLabel)];
   return (
     <Card>
-      <Section title={title}>
+      <Section title={t(title)}>
         <Table>
           <thead>
             <tr>
-              {["Store", "Status", detailLabel].map((h) => (
+              {headers.map((h) => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => {
-              const status = BULK_STATUS[r.status]
-                ?? { label: r.status, tone: "neutral" as const };
+              // A status we don't list shows as the server sent it.
+              const known = Object.hasOwn(BULK_STATUS, r.status)
+                ? BULK_STATUS[r.status] : null;
+              const label = known ? t(known.label) : r.status;
+              const tone: PillTone = known ? known.tone : "neutral";
               const detail = r.detail == null || r.detail === ""
                 ? "—" : String(r.detail);
               return (
                 <tr key={`${r.store_id}-${i}`}>
-                  <td style={tdStyle}>{r.store_name || `Store #${r.store_id}`}</td>
+                  <td style={tdStyle}>{r.store_name || t("owner.storeHash", { id: r.store_id })}</td>
                   <td style={tdStyle}>
-                    <Pill tone={status.tone}>{status.label}</Pill>
+                    <Pill tone={tone}>{label}</Pill>
                   </td>
                   <td style={tdStyle}>{detail}</td>
                 </tr>

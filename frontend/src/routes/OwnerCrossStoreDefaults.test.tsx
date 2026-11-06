@@ -7,6 +7,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { renderRouteWithGuard } from "../test/renderRoute";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Owner → Cross-store defaults: tick the fields to push, pick stores,
 // apply once. It had no tests. Pinned: owner-only, only ticked fields
@@ -91,5 +93,17 @@ describe("OwnerCrossStoreDefaults", () => {
     await waitFor(() => expect(screen.queryByText("Unsaved changes")).toBeNull());
     act(() => { void router.navigate("/owner"); });
     expect(await screen.findByText("Navigated to /owner")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish", async () => {
+    const user = userEvent.setup();
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Valores para todas las tiendas" })).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /^Bloquear envíos fuera del horario/ }));
+    expect(screen.getByText("Apagado (predeterminado)")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /^Tasa del impuesto federal/ }));
+    expect(screen.getByLabelText("Tasa del impuesto federal (%)")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["defaults.", "bulkAdd."])).toEqual([]);
   });
 });

@@ -6,6 +6,8 @@ import OwnerBulkPermissions from "./OwnerBulkPermissions";
 import OwnerCrossStoreDefaults from "./OwnerCrossStoreDefaults";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The owner's two "push to many stores" pages. Both write to every
 // store ticked, so pin that only the ticked stores (and, for the
@@ -69,7 +71,7 @@ describe("Owner bulk permissions", () => {
     renderRoute(<OwnerBulkPermissions />);
     await pickSourceAndTarget();
     await userEvent.click(screen.getByRole("button", { name: "Push to 1 store" }));
-    expect(await screen.findByText("Pushed permissions to 1 store(s).")).toBeInTheDocument();
+    expect(await screen.findByText("Pushed permissions to 1 store.")).toBeInTheDocument();
     expect(screen.getByText("Applied")).toBeInTheDocument();
     expect(callsTo(calls, "POST /api/v2/owner/bulk-permissions")[0].body).toEqual({
       store_ids: [2], matrix: { employee: { transfers: row({ read: true }) } },
@@ -87,7 +89,7 @@ describe("Owner bulk permissions", () => {
     await userEvent.click(screen.getByRole("button", { name: "Push to 1 store" }));
     expect(await screen.findByText("Rejected")).toBeInTheDocument();
     expect(screen.getByText("Not your store")).toBeInTheDocument();
-    expect(await screen.findByText("Pushed permissions to 0 store(s).")).toBeInTheDocument();
+    expect(await screen.findByText("Pushed permissions to 0 stores.")).toBeInTheDocument();
   });
 
   it("shows the refusal when the whole push is forbidden", async () => {
@@ -214,5 +216,16 @@ describe("Owner cross-store defaults", () => {
     mockFetch(routes({ "GET /api/v2/owner/locations": { body: { rows: [], total: 0, matched: 0 } } }));
     renderRoute(<OwnerCrossStoreDefaults />);
     expect(await screen.findByText(/don't have any stores connected/)).toBeInTheDocument();
+  });
+
+  it("reads in Spanish", async () => {
+    mockFetch(routes());
+    setLanguage("es");
+    renderRoute(<OwnerBulkPermissions />);
+    expect(await screen.findByRole("button", { name: "Enviar a 0 tiendas" })).toBeDisabled();
+    expect(screen.getByText("1. Elija la tienda de origen")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Dos" }));
+    expect(screen.getByRole("button", { name: "Enviar a 1 tienda" })).toBeDisabled();
+    expect(englishLeftovers(document.body, ["bulkPerm.", "bulkAdd."])).toEqual([]);
   });
 });

@@ -10,6 +10,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 import type { OwnerConnectCodeRow } from "../api/owner";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Owner connect codes link a store to an owner's umbrella — the
 // gate to every cross-store view. Pinned: owners only; one active
@@ -94,7 +96,7 @@ describe("OwnerConnect", () => {
   it("generates a first code after the confirm when none is active", async () => {
     state = { data: { rows: [], total: 0 }, isLoading: false, isError: false };
     renderPage();
-    await userEvent.click(screen.getByRole("button", { name: "Generate Invite Code" }));
+    await userEvent.click(screen.getByRole("button", { name: "Generate invite code" }));
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Generate" }));
     await waitFor(() => expect(generateOwnerConnectCode).toHaveBeenCalledTimes(1));
@@ -106,7 +108,7 @@ describe("OwnerConnect", () => {
     revokeOwnerConnectCode.mockImplementation(async (id: number) => { order.push(`revoke ${id}`); });
     generateOwnerConnectCode.mockImplementation(async () => { order.push("generate"); });
     renderPage();
-    await userEvent.click(screen.getByRole("button", { name: "Generate New Code" }));
+    await userEvent.click(screen.getByRole("button", { name: "Generate new code" }));
     const dialog = await screen.findByRole("dialog", { name: "Replace the current code?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Replace" }));
     await waitFor(() => expect(order).toEqual(["revoke 3", "generate"]));
@@ -124,7 +126,7 @@ describe("OwnerConnect", () => {
   it("does not mint a new code when revoking the old one is refused", async () => {
     revokeOwnerConnectCode.mockRejectedValue(new ApiError(409, "Code already redeemed.", null));
     renderPage();
-    await userEvent.click(screen.getByRole("button", { name: "Generate New Code" }));
+    await userEvent.click(screen.getByRole("button", { name: "Generate new code" }));
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Replace" }));
     expect(await screen.findByText("Code already redeemed.")).toBeInTheDocument();
@@ -143,6 +145,20 @@ describe("OwnerConnect", () => {
   it("does not offer Generate while the codes failed to load", () => {
     state = { isLoading: false, isError: true, error: new ApiError(500, "DB down", null) };
     renderPage();
-    expect(screen.queryByRole("button", { name: "Generate Invite Code" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate invite code" })).not.toBeInTheDocument();
+  });
+
+  it("reads in Spanish, popups included", async () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByText("Código de invitación activo")).toBeInTheDocument();
+    expect(screen.getByText(/Comparta este código/)).toBeInTheDocument();
+    expect(screen.getByText("Usados hace poco")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Usado" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["connect."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Crear un código nuevo" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("¿Reemplazar el código actual?")).toBeInTheDocument();
+    expect(englishLeftovers(dialog, ["connect."])).toEqual([]);
   });
 });

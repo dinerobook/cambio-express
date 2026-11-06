@@ -11,6 +11,8 @@ import {
 } from "../components/ui";
 import { PageCrumbs } from "../components/PageCrumbs";
 import type { components } from "../api/openapi";
+import { t, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 type UserRow = components["schemas"]["OwnerUserRow"];
 type UsersResponse = components["schemas"]["OwnerUserListResponse"];
@@ -37,28 +39,30 @@ function useOwnerUsers(storeId: number | null, q: string, page: number, perPage:
   });
 }
 
-const COLUMNS: DataColumn<UserRow>[] = [
-  { key: "name", header: "Name", render: (u) => <strong>{u.full_name || "—"}</strong>,
+// Built during render so the headings follow a language switch.
+const columns = (): DataColumn<UserRow>[] => [
+  { key: "name", header: t("owner.colName"), render: (u) => <strong>{u.full_name || "—"}</strong>,
     csv: (u) => u.full_name },
   {
-    key: "username", header: "Username",
+    key: "username", header: t("owner.colUsername"),
     render: (u) => <span style={{ fontFamily: "var(--db-font-mono)", fontSize: "0.85rem" }}>{u.username}</span>,
     csv: (u) => u.username,
   },
-  { key: "role", header: "Role", render: (u) => <RolePill role={u.role} />, csv: (u) => roleLabel(u.role) },
-  { key: "store", header: "Store", render: (u) => u.store_name, csv: (u) => u.store_name },
+  { key: "role", header: t("owner.colRole"), render: (u) => <RolePill role={u.role} />, csv: (u) => roleLabel(u.role) },
+  { key: "store", header: t("owner.colStore"), render: (u) => u.store_name, csv: (u) => u.store_name },
   {
-    key: "status", header: "Status",
+    key: "status", header: t("owner.colStatus"),
     render: (u) => (
       <Pill tone={u.is_active ? "accent" : "neutral"}>
-        {u.is_active ? "Active" : "Inactive"}
+        {u.is_active ? t("owner.active") : t("owner.inactive")}
       </Pill>
     ),
-    csv: (u) => (u.is_active ? "Active" : "Inactive"),
+    csv: (u) => (u.is_active ? t("owner.active") : t("owner.inactive")),
   },
 ];
 
 export default function OwnerUsers() {
+  useT(); // re-render on a language switch
   const filters = useUrlFilterState({ q: "" }, { pageSizeKey: "owner-users" });
   const { data, isLoading, isError, error, refetch } = useOwnerUsers(
     null, filters.params.q, filters.page, filters.perPage,
@@ -68,16 +72,16 @@ export default function OwnerUsers() {
     <PageShell gap="1.25rem">
       <PageCrumbs />
       <PageHeader
-        title="Team users"
-        subtitle="Users across all your linked stores"
+        title={navWord("Team users")}
+        subtitle={t("owner.usersSubtitle")}
       />
 
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Input
           type="search"
-          aria-label="Search"
+          aria-label={t("owner.search")}
           style={{ width: "16rem", maxWidth: "100%" }}
-          placeholder="Search by name or username…"
+          placeholder={t("owner.usersSearch")}
           value={filters.draft.q ?? filters.params.q}
           onChange={(e) => filters.debounced("q", e.target.value)}
         />
@@ -85,14 +89,14 @@ export default function OwnerUsers() {
 
       <Card>
         <DataTable
-          columns={COLUMNS}
+          columns={columns()}
           rows={data?.rows}
           rowKey={(u) => u.id}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          errorMessage="Could not load users."
-          emptyTitle="No users found"
-          emptyBody="No matching users across your stores."
+          errorMessage={t("owner.usersLoadFailed")}
+          emptyTitle={t("owner.noUsers")}
+          emptyBody={t("owner.noUsersBody")}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,

@@ -11,6 +11,8 @@ import OwnerStoreDetail from "./OwnerStoreDetail";
 import OwnerUsers from "./OwnerUsers";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The owner umbrella's read pages. Each one rolls several stores'
 // numbers up, so pin that the server's figures land on the page, that
@@ -344,5 +346,110 @@ describe("OwnerReports", () => {
     state.fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Fees vs Tax")).toBeInTheDocument();
+  });
+});
+
+describe("Owner pages in Spanish", () => {
+  const OWNER = ["owner.", "storeDetail."];
+  const DASH = {
+    period: "month", prev_label: "sep 2026", period_start: "", period_end: "",
+    store_count: 2, agg_transfers: 1234, agg_volume: 56000, agg_over_short: -12.5,
+    agg_transfers_delta: 10, agg_volume_delta: 100, agg_over_short_delta: -1,
+    stores: [{ id: 1, name: "Uno", slug: "uno", count: 1, volume: 900, over_short: 2 }],
+    series_labels: ["1 oct"], series_volume: [900], series_count: [3],
+    company_breakdown: [{ company: "Intermex", count: 3, volume: 900 }],
+  };
+
+  it("the dashboard reads in Spanish", async () => {
+    mockFetch({ "GET /api/v2/owner/dashboard": { body: DASH } });
+    setLanguage("es");
+    renderRoute(<OwnerDashboard />);
+    expect(await screen.findByText("Total de envíos")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Panel del dueño" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Este año" })).toBeInTheDocument();
+    expect(screen.getByText(/1 envío ·/)).toBeInTheDocument();
+    expect(screen.getByText("Desglose por compañía (sep 2026)")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, OWNER)).toEqual([]);
+  });
+
+  it("the P&L rollup reads in Spanish, month name included", async () => {
+    mockFetch({ "GET /api/v2/owner/pl-rollup": { body: {
+      year: 2026, month: 9, year_choices: [2026],
+      rows: [{ store_id: 2, store_name: "Dos", store_slug: "dos", has_pl: false,
+        revenue: 0, purchases: 0, expenses: 0, over_short: 0, net: 0 }],
+      totals: { revenue: 0, purchases: 0, expenses: 0, over_short: 0, net: 0 },
+    } } });
+    setLanguage("es");
+    renderRoute(<OwnerPLRollup />, { path: "/owner/pl-rollup", at: "/owner/pl-rollup?year=2026&month=9" });
+    expect(await screen.findByText("septiembre de 2026 · 1 tienda")).toBeInTheDocument();
+    expect(screen.getByText("sin P&L registrado")).toBeInTheDocument();
+    expect(screen.getByText("Totales")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "septiembre" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, OWNER)).toEqual([]);
+  });
+
+  it("a store's page and its disconnect popup read in Spanish", async () => {
+    mockFetch({ "GET /api/v2/owner/store/1": { body: {
+      store: { id: 1, name: "Uno", slug: "uno", plan: "pro" },
+      period: "month", prev_label: "", period_start: "", period_end: "",
+      company_rows: [{ company: "Maxi", count: 2, volume: 400, fees: 10, tax: 2 }],
+      period_count: 2, period_volume: 400, period_fees: 10, period_tax: 2,
+      period_over_short: 5, prev_count: 1, prev_volume: 100,
+      daily_labels: ["2026-10-01"], over_short_data: [5], receipts_data: [400],
+      recent_transfers: [{ id: 9, send_date: "2026-10-02", sender_name: "Ana",
+        recipient_name: "Luis", company: "Maxi", send_amount: 400, country: "MX", status: "Sent" }],
+    } } });
+    setLanguage("es");
+    renderRoute(<OwnerStoreDetail />, { path: "/owner/store/:storeId", at: "/owner/store/1" });
+    expect(await screen.findByText("Envíos recientes")).toBeInTheDocument();
+    expect(screen.getByText("Enviado")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, OWNER)).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Desconectar tienda" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/¿Desconectar "Uno"\?/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Desconectar" })).toBeInTheDocument();
+  });
+
+  it("team users and activity read in Spanish", async () => {
+    mockFetch({
+      "GET /api/v2/owner/users": { body: {
+        rows: [{ id: 5, username: "ana", full_name: "Ana", role: "employee",
+          is_active: false, store_id: 1, store_name: "Uno" }],
+        total: 1, page: 1, total_pages: 1,
+      } },
+    });
+    setLanguage("es");
+    const { unmount } = renderRoute(<OwnerUsers />);
+    expect(await screen.findByText("Inactivo")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Usuarios del equipo" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Buscar por nombre o usuario…")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, OWNER)).toEqual([]);
+    unmount();
+
+    mockFetch({ "GET /api/v2/owner/activity": { body: { rows: [], total: 0, page: 1, total_pages: 1 } } });
+    renderRoute(<OwnerActivity />);
+    expect(await screen.findByText("Sin actividad")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, OWNER)).toEqual([]);
+  });
+
+  it("owner settings read in Spanish", async () => {
+    mockFetch({
+      "GET /api/v2/auth/profile": { body: { username: "olga", full_name: "Olga", email: "o@x.test", phone: "" } },
+      "GET /api/v2/owner/locations": { body: { rows: [], total: 0, matched: 0 } },
+    });
+    setLanguage("es");
+    renderRoute(<OwnerSettings />);
+    expect(await screen.findByRole("link", { name: "Cree un código de conexión" })).toBeInTheDocument();
+    expect(screen.getByText("Acciones rápidas")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Permisos en lote/ })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, OWNER)).toEqual([]);
+  });
+
+  it("cross-store reports say a refusal in Spanish", async () => {
+    mockFetch({ "GET /api/v2/owner/reports": { status: 403, body: { detail: "Owner only" } } });
+    setLanguage("es");
+    renderRoute(<OwnerReports />);
+    expect(await screen.findByText("Se necesita acceso de dueño.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reportes de todas las tiendas" })).toBeInTheDocument();
   });
 });

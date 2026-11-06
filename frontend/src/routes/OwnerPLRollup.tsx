@@ -11,15 +11,18 @@ import {
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import styles from "./OwnerPLRollup.module.css";
-import {
-  MONTH_NAMES, shiftMonth, storeNow,
-} from "../lib/datetime";
+import { formatMonthYear, monthName, shiftMonth, storeNow } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 // /app/owner/pl-rollup — side-by-side monthly P&L for every store
 // in the owner umbrella. Mirrors the legacy /owner/pl-rollup view.
 
 export default function OwnerPLRollup() {
+  useT(); // re-render on a language switch
   const identity = getCurrentIdentity();
   const [sp, setSP] = useSearchParams();
 
@@ -49,8 +52,8 @@ export default function OwnerPLRollup() {
   if (!isOwner) {
     return (
       <PageShell>
-        <PageHeader title="P&L rollup" />
-        <Empty>Sign in as an owner to view per-store P&L.</Empty>
+        <PageHeader title={navWord("P&L rollup")} />
+        <Empty>{t("owner.signInRollup")}</Empty>
       </PageShell>
     );
   }
@@ -61,11 +64,12 @@ export default function OwnerPLRollup() {
       <PageCrumbs />
 
       <PageHeader
-        title="P&L rollup"
+        title={navWord("P&L rollup")}
         subtitle={
           data
-            ? `${MONTH_NAMES[data.month - 1]} ${data.year} · ` +
-              `${fmtNumber(data.rows.length)} stores`
+            ? tn("owner.rollupSubtitle", data.rows.length, fmtNumber, {
+              month: formatMonthYear(data.year, data.month),
+            })
             : "—"
         }
         actions={
@@ -75,17 +79,17 @@ export default function OwnerPLRollup() {
             onNext={() => shift(1)}
           >
             <Select
-              aria-label="Month"
+              aria-label={t("owner.month")}
               value={month}
               onChange={(e) => setParam("month", e.target.value)}
               style={{ width: "auto" }}
             >
-              {MONTH_NAMES.map((label, i) => (
-                <option key={i + 1} value={i + 1}>{label}</option>
+              {MONTHS.map((m) => (
+                <option key={m} value={m}>{monthName(m)}</option>
               ))}
             </Select>
             <Select
-              aria-label="Year"
+              aria-label={t("owner.year")}
               value={year}
               onChange={(e) => setParam("year", e.target.value)}
               style={{ width: "auto" }}
@@ -103,8 +107,8 @@ export default function OwnerPLRollup() {
           isLoading={isLoading} isError={isError} error={error}
           isEmpty={!data || data.rows.length === 0}
           onRetry={() => { void refetch(); }}
-          emptyTitle="No stores connected"
-          emptyBody="Ask each store admin to redeem an owner-connect code."
+          emptyTitle={t("owner.noStoresConnectedShort")}
+          emptyBody={t("owner.askRedeem")}
         />
         {data && data.rows.length > 0 && (
           <RollupTable rows={data.rows} totals={data.totals} />
@@ -113,6 +117,15 @@ export default function OwnerPLRollup() {
     </PageShell>
   );
 }
+
+const ROLLUP_HEADERS: Array<[MessageKey, "left" | "right"]> = [
+  ["owner.colStore", "left"],
+  ["owner.colRevenue", "right"],
+  ["owner.colPurchases", "right"],
+  ["owner.colExpenses", "right"],
+  ["owner.colOverShort", "right"],
+  ["owner.colNet", "right"],
+];
 
 function RollupTable({
   rows, totals,
@@ -125,19 +138,9 @@ function RollupTable({
     <Table>
       <thead>
         <tr>
-          {[
-            ["Store",      "left"],
-            ["Revenue",    "right"],
-            ["Purchases",  "right"],
-            ["Expenses",   "right"],
-            ["Over/Short", "right"],
-            ["Net",        "right"],
-          ].map(([label, align], i) => (
-            <th
-              key={i}
-              style={{ ...thStyle, textAlign: align as "left" | "right" }}
-            >
-              {label}
+          {ROLLUP_HEADERS.map(([label, align]) => (
+            <th key={label} style={{ ...thStyle, textAlign: align }}>
+              {t(label)}
             </th>
           ))}
         </tr>
@@ -152,7 +155,7 @@ function RollupTable({
                 {!r.has_pl && (
                   <>
                     {" · "}
-                    <span className={styles.noPL}>no P&L on file</span>
+                    <span className={styles.noPL}>{t("owner.noPL")}</span>
                   </>
                 )}
               </div>
@@ -167,7 +170,7 @@ function RollupTable({
       </tbody>
       <tfoot>
         <tr>
-          <td style={tdStyle} className={styles.totalsLabel}>Totals</td>
+          <td style={tdStyle} className={styles.totalsLabel}>{t("owner.totals")}</td>
           <Money value={totals.revenue}   bold />
           <Money value={totals.purchases} bold />
           <Money value={totals.expenses}  bold />

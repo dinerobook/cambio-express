@@ -9,6 +9,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 import type { OwnerLocationsResponse } from "../api/owner";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The owner umbrella's per-store grid. Pinned: owner / superadmin
 // only; the period tab and search live in the URL (shareable) and
@@ -120,5 +122,16 @@ describe("OwnerLocations", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Rollup failed");
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it("reads in Spanish", () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Ubicaciones" })).toBeInTheDocument();
+    expect(screen.getByText("2 de 2 tiendas")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Este mes" })).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["Tienda", "Envíos", "Sobrante/faltante", "Compañías"]));
+    expect(englishLeftovers(document.body, ["owner."])).toEqual([]);
   });
 });

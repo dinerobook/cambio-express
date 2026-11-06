@@ -4,6 +4,8 @@ import {
   ErrorState, Loading, PageHeader, PageShell } from "../components/ui";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/owner/reports — owner-scoped report center index.
 //
@@ -14,13 +16,15 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // every store under the owner umbrella.
 
 export default function OwnerReports() {
+  useT(); // re-render on a language switch
   const { data, isLoading, isError, error, refetch } = useOwnerReportList();
+  const title = navWord("Cross-store reports");
 
   if (isLoading) {
     return (
       <PageShell>
         <PageCrumbs />
-        <PageHeader title="Cross-store reports" />
+        <PageHeader title={title} />
         <Loading />
       </PageShell>
     );
@@ -30,12 +34,12 @@ export default function OwnerReports() {
     return (
       <PageShell>
         <PageCrumbs />
-        <PageHeader title="Cross-store reports" />
+        <PageHeader title={title} />
         <ErrorState
           message={
             status === 403
-              ? "Owner scope required."
-              : `Couldn't load the report list. ${apiErrorMessage(error, "")}`
+              ? t("owner.scopeRequired")
+              : t("reports.listFailed", { error: apiErrorMessage(error, "") }).trim()
           }
           onRetry={status === 403 ? undefined : () => { void refetch(); }}
         />
@@ -46,7 +50,7 @@ export default function OwnerReports() {
   return (
     <PageShell>
       <PageCrumbs />
-      <ReportCenter title={"Cross-store reports"} categories={data.categories} />
+      <ReportCenter title={title} categories={data.categories} />
     </PageShell>
   );
 }

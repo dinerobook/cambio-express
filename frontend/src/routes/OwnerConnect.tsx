@@ -15,6 +15,8 @@ import { AppLink,
 } from "../components/ui";
 import styles from "./OwnerConnect.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/owner/connect — owner mints 8-character invite codes that
 // store admins redeem on their settings page to link a store to
@@ -29,6 +31,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // `expires_at`. Backed by /api/v2/owner/connect-codes.
 
 export default function OwnerConnect() {
+  useT(); // re-render on a language switch
   const identity = getCurrentIdentity();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error, refetch } = useOwnerConnectCodes();
@@ -59,10 +62,8 @@ export default function OwnerConnect() {
   if (identity?.role !== "owner") {
     return (
       <PageShell maxWidth="40rem">
-        <PageHeader title="Connect a store" />
-        <p className={styles.deny}>
-          Only owners can mint store-connect codes.
-        </p>
+        <PageHeader title={navWord("Connect a store")} />
+        <p className={styles.deny}>{t("connect.ownersOnly")}</p>
       </PageShell>
     );
   }
@@ -81,7 +82,7 @@ export default function OwnerConnect() {
       queryClient.invalidateQueries({ queryKey: ["owner", "connect-codes"] });
     } catch (err) {
       setServerError(
-        apiErrorMessage(err, "Could not generate code."),
+        apiErrorMessage(err, t("connect.generateFailed")),
       );
     } finally { setBusy(false); }
   }
@@ -95,7 +96,7 @@ export default function OwnerConnect() {
       queryClient.invalidateQueries({ queryKey: ["owner", "connect-codes"] });
     } catch (err) {
       setServerError(
-        apiErrorMessage(err, "Could not revoke code."),
+        apiErrorMessage(err, t("connect.revokeFailed")),
       );
     } finally { setBusy(false); }
   }
@@ -105,52 +106,46 @@ export default function OwnerConnect() {
 
       <PageCrumbs />
 
-      <PageHeader title="Connect a store" />
+      <PageHeader title={navWord("Connect a store")} />
 
       {serverError && <Alert tone="error">{serverError}</Alert>}
 
-      <Section title="Active invite code">
+      <Section title={t("connect.activeCode")}>
         <Card>
           {isLoading && <Loading />}
           {isError && (
             <ErrorState
-              message={`Couldn't load codes. ${apiErrorMessage(error, "")}`.trimEnd()}
+              message={t("connect.loadFailed", { error: apiErrorMessage(error, "") }).trimEnd()}
               onRetry={() => { void refetch(); }}
             />
           )}
           {!isLoading && !isError && !active && (
             <>
-              <p className={styles.lead}>
-                No active code. Generate one to give to a store admin —
-                they'll enter it on their store's Settings → Owner Access
-                page to link their store to your umbrella. Codes are
-                valid for 7 days.
-              </p>
+              <p className={styles.lead}>{t("connect.noActive")}</p>
               <Button onClick={() => setConfirmingGenerate(true)} busy={busy} disabled={busy}>
-                {busy ? "Generating…" : "Generate Invite Code"}
+                {busy ? t("connect.generating") : t("connect.generate")}
               </Button>
             </>
           )}
           {active && (
             <>
               <p className={styles.lead}>
-                Share this code with the store admin you want to connect.
-                They enter it on their store's Settings → Owner Access
-                page. Code expires on{" "}
-                <strong>{formatDate(active.expires_at)}</strong>.
+                {tNodes("connect.share", {
+                  date: <strong>{formatDate(active.expires_at)}</strong>,
+                })}
               </p>
               <CopyField
                 className={styles.codeRow}
                 variant="code"
-                aria-label="Invite code"
+                aria-label={t("connect.codeAria")}
                 value={active.code}
               />
               <div className={styles.actionsRow}>
                 <Button tone="secondary" onClick={() => setConfirmingRevoke(true)} disabled={busy}>
-                  Revoke
+                  {t("connect.revoke")}
                 </Button>
                 <Button tone="secondary" onClick={() => setConfirmingGenerate(true)} disabled={busy}>
-                  {busy ? "Generating…" : "Generate New Code"}
+                  {busy ? t("connect.generating") : t("connect.generateNew")}
                 </Button>
               </div>
             </>
@@ -159,43 +154,43 @@ export default function OwnerConnect() {
       </Section>
 
       <Section
-        title="Recently redeemed"
-        actions={<span className={styles.mutedSm}>Last 10</span>}
+        title={t("connect.recentlyRedeemed")}
+        actions={<span className={styles.mutedSm}>{t("connect.last10")}</span>}
       >
         <Card>
           {redeemed.length > 0 ? (
             <DataTable
-              columns={REDEEMED_COLUMNS}
+              columns={redeemedColumns()}
               rows={redeemed}
               rowKey={(r) => r.id}
-              emptyTitle="No codes redeemed yet."
+              emptyTitle={t("connect.noneRedeemedShort")}
             />
           ) : (
-            <Empty>
-              No codes redeemed yet. Stores you've connected will show
-              up here.
-            </Empty>
+            <Empty>{t("connect.noneRedeemed")}</Empty>
           )}
         </Card>
       </Section>
 
       <p className={styles.fine}>
-        To disconnect a store, head to your{" "}
-        <AppLink fallback="text" to="/dashboard" className={styles.inlineLink}>Dashboard</AppLink>{" "}
-        or{" "}
-        <AppLink fallback="text" to="/owner/locations" className={styles.inlineLink}>Locations</AppLink>{" "}
-        page — only the owner can break the link, store admins can't.
+        {tNodes("connect.disconnect", {
+          dashboard: (
+            <AppLink fallback="text" to="/dashboard" className={styles.inlineLink}>
+              {navWord("Dashboard")}
+            </AppLink>
+          ),
+          locations: (
+            <AppLink fallback="text" to="/owner/locations" className={styles.inlineLink}>
+              {navWord("Locations")}
+            </AppLink>
+          ),
+        })}
       </p>
 
       <ConfirmDialog
         open={confirmingGenerate}
-        title={active ? "Replace the current code?" : "Generate a new code?"}
-        message={
-          active
-            ? "Generating a new code revokes the current one — the store admin who's holding it won't be able to redeem anymore."
-            : "A fresh 8-character invite code valid for 7 days.  Share it with the store admin you want to connect."
-        }
-        confirmLabel={active ? "Replace" : "Generate"}
+        title={active ? t("connect.replaceTitle") : t("connect.generateTitle")}
+        message={active ? t("connect.replaceBody") : t("connect.generateBody")}
+        confirmLabel={active ? t("connect.replace") : t("connect.generateShort")}
         confirmTone={active ? "danger" : "primary"}
         busy={busy}
         onConfirm={() => { void doGenerate(); }}
@@ -203,9 +198,9 @@ export default function OwnerConnect() {
       />
       <ConfirmDialog
         open={confirmingRevoke}
-        title="Revoke this code?"
-        message="The store admin won't be able to redeem it.  You can generate a new one right after."
-        confirmLabel="Revoke"
+        title={t("connect.revokeTitle")}
+        message={t("connect.revokeBody")}
+        confirmLabel={t("connect.revoke")}
         confirmTone="danger"
         busy={busy}
         onConfirm={() => { void doRevoke(); }}
@@ -216,11 +211,12 @@ export default function OwnerConnect() {
 }
 
 
-const REDEEMED_COLUMNS: DataColumn<OwnerConnectCodeRow>[] = [
-  { key: "code", header: "Code", render: (r) => <span className={styles.mono}>{r.code}</span> },
-  { key: "store", header: "Store", render: (r) => r.used_by_store_name || "—" },
+// Built during render so the headings follow a language switch.
+const redeemedColumns = (): DataColumn<OwnerConnectCodeRow>[] => [
+  { key: "code", header: t("connect.colCode"), render: (r) => <span className={styles.mono}>{r.code}</span> },
+  { key: "store", header: t("connect.colStore"), render: (r) => r.used_by_store_name || "—" },
   {
-    key: "redeemed", header: "Redeemed",
+    key: "redeemed", header: t("connect.colRedeemed"),
     render: (r) => <span className={styles.cellMuted}>{formatDate(r.used_at)}</span>,
   },
 ];

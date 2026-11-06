@@ -737,6 +737,8 @@ always the same Spanish word):
 | Monthly P&L / P&L categories | P&L mensual / Categorías del P&L |
 | Report / Report center | Reporte / Reportes |
 | Commit (an import) | Confirmar |
+| Owner / Linked stores | Dueño / Tiendas vinculadas |
+| Connect code (owner invite) / Revoke | Código de conexión / Anular |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -765,8 +767,12 @@ activity), the audit log and its shared table and filters, data
 export and the switch store popup; the bank pages (accounts,
 transactions, matching to the daily book, rules, the rule form and
 its sentence); the monthly P&L, its edit form and P&L categories, the
-report center, every report page and the Intermex report import.
-Next: owner and billing pages, platform pages, then emails. An audit row's
+report center, every report page and the Intermex report import; the
+owner pages (dashboard, locations, a store's page and its permissions,
+P&L rollup, cross-store reports, billing, connect a store, add user to
+stores, bulk permissions, cross-store defaults, team users, activity,
+owner settings) and the shared bulk results table. Next: signup and
+subscription, the back-office pages, platform pages, then emails. An audit row's
 action and target show through `auditActionLabel()` /
 `auditTargetLabel()` (`components/auditFilters.ts`); a slug they
 don't know, and the server-written summary, show as sent. Bank
