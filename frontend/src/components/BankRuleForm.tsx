@@ -12,7 +12,7 @@ import {
 } from "../api/bankSync";
 import { ApiError } from "../lib/api";
 import {
-  bodyFromFormValues, EMPTY_RULE_FORM, POST_OFFSET_OPTIONS,
+  bodyFromFormValues, EMPTY_RULE_FORM, POST_OFFSET_OPTIONS, postOffsetLabel,
   type BankRuleFormValues,
 } from "../lib/bankRules";
 import { BankCategoryOptions } from "./BankCategoryOptions";
@@ -20,6 +20,7 @@ import {
   Alert, Button, Checkbox, Field, FormActions, Input, MoneyInput, Select,
 } from "./ui";
 import styles from "./BankRuleForm.module.css";
+import { useT } from "../i18n";
 
 // One rule form, three entry points: the rules page (create / edit,
 // or "Use" on a template), the "Make a rule" modal on the bank
@@ -54,6 +55,7 @@ export function BankRuleForm({
   const storeCategories = useBankCategories(!template);
   const accounts = useBankAccounts(!template);
   const groups = template ? template.groups : storeCategories.data?.groups;
+  const t = useT();
   const [form, setForm] = useState<BankRuleFormValues>({ ...EMPTY_RULE_FORM, ...initial });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +93,7 @@ export function BankRuleForm({
           setError(err.message);
         }
       } else {
-        setError("Save failed.");
+        setError(t("ruleForm.saveFailed"));
       }
     } finally {
       setBusy(false);
@@ -105,58 +107,58 @@ export function BankRuleForm({
       {error && <Alert tone="error">{error}</Alert>}
 
       <fieldset className={styles.clause}>
-        <legend className={styles.legend}>If</legend>
+        <legend className={styles.legend}>{t("ruleForm.if")}</legend>
         <div className={styles.grid}>
-          <Field label="Description" error={errFor("desc_match_value")}>
+          <Field label={t("ruleForm.description")} error={errFor("desc_match_value")}>
             <div className={styles.descRow}>
               <Select
-                aria-label="Description match type"
+                aria-label={t("ruleForm.matchTypeAria")}
                 value={form.desc_match_type}
                 onChange={(e) => patch({ desc_match_type: e.target.value })}
                 className={styles.matchType}
               >
                 {MATCH_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value}>{t(o.label)}</option>
                 ))}
               </Select>
               <Input
                 value={form.desc_match_value}
                 onChange={(e) => patch({ desc_match_value: e.target.value })}
-                placeholder="e.g. REMOTE DEPOSIT"
-                aria-label="Description match text"
+                placeholder={t("ruleForm.matchPh")}
+                aria-label={t("ruleForm.matchTextAria")}
               />
             </div>
           </Field>
-          <Field label="Direction">
+          <Field label={t("ruleForm.direction")}>
             <Select
               value={form.sign_filter}
               onChange={(e) => patch({ sign_filter: e.target.value })}
             >
-              <option value="">Any</option>
-              <option value="credit">Money in (credit)</option>
-              <option value="debit">Money out (debit)</option>
+              <option value="">{t("ruleForm.any")}</option>
+              <option value="credit">{t("ruleForm.moneyIn")}</option>
+              <option value="debit">{t("ruleForm.moneyOut")}</option>
             </Select>
           </Field>
           <MoneyInput
-            label="Amount at least"
+            label={t("ruleForm.amountMin")}
             value={form.amount_min}
             onChange={(v) => patch({ amount_min: v })}
             fullWidth
           />
           <MoneyInput
-            label="Amount at most"
+            label={t("ruleForm.amountMax")}
             value={form.amount_max}
             onChange={(v) => patch({ amount_max: v })}
             error={errFor("amount_max_cents")}
             fullWidth
           />
           {!template && (
-            <Field label="Account" error={errFor("account_filter_id")}>
+            <Field label={t("ruleForm.account")} error={errFor("account_filter_id")}>
               <Select
                 value={form.account_filter_id}
                 onChange={(e) => patch({ account_filter_id: e.target.value })}
               >
-                <option value="">Any account</option>
+                <option value="">{t("ruleForm.anyAccount")}</option>
                 {(accounts.data?.rows ?? []).map((a) => (
                   <option key={a.id} value={a.id}>{a.label}</option>
                 ))}
@@ -167,33 +169,33 @@ export function BankRuleForm({
       </fieldset>
 
       <fieldset className={styles.clause}>
-        <legend className={styles.legend}>Then</legend>
+        <legend className={styles.legend}>{t("ruleForm.then")}</legend>
         <div className={styles.grid}>
-          <Field label="Categorize as" error={errFor("target_kind")}>
+          <Field label={t("ruleForm.categorizeAs")} error={errFor("target_kind")}>
             <Select
               required
               value={form.target_kind}
               onChange={(e) => patch({ target_kind: e.target.value })}
             >
-              <option value="">Pick a category…</option>
+              <option value="">{t("ruleForm.pickCategory")}</option>
               <BankCategoryOptions groups={groups} />
             </Select>
           </Field>
           {template ? (
-            <Field label="Template name" error={errFor("name")}>
+            <Field label={t("ruleForm.templateName")} error={errFor("name")}>
               <Input
                 required
                 value={form.description}
                 onChange={(e) => patch({ description: e.target.value })}
-                placeholder="e.g. Intermex commission deposit"
+                placeholder={t("ruleForm.templateNamePh")}
               />
             </Field>
           ) : (
-            <Field label="Rule name (optional)">
+            <Field label={t("ruleForm.ruleName")}>
               <Input
                 value={form.description}
                 onChange={(e) => patch({ description: e.target.value })}
-                placeholder="What this rule is for"
+                placeholder={t("ruleForm.ruleNamePh")}
               />
             </Field>
           )}
@@ -204,12 +206,12 @@ export function BankRuleForm({
               checked={form.auto_post}
               onChange={(v) => patch({ auto_post: v })}
             >
-              Also book it on the daily book
+              {t("ruleForm.alsoBook")}
             </Checkbox>
             {form.auto_post && (
               <Field
-                label="Book it on"
-                hint="Banks post late — a check deposited Friday afternoon can land on Monday. Pick the day the money actually moved, counting from the bank's date."
+                label={t("ruleForm.bookOn")}
+                hint={t("ruleForm.bookOnHint")}
               >
                 <Select
                   value={String(form.post_date_offset_days)}
@@ -217,8 +219,8 @@ export function BankRuleForm({
                     patch({ post_date_offset_days: Number(e.target.value) })
                   }
                 >
-                  {POST_OFFSET_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {POST_OFFSET_OPTIONS.map((days) => (
+                    <option key={days} value={days}>{postOffsetLabel(days)}</option>
                   ))}
                 </Select>
               </Field>
@@ -229,14 +231,14 @@ export function BankRuleForm({
 
       <div className={styles.options}>
         <Checkbox checked={form.enabled} onChange={(v) => patch({ enabled: v })}>
-          {template ? "Show to stores" : "Enabled"}
+          {template ? t("ruleForm.showToStores") : t("ruleForm.enabled")}
         </Checkbox>
         {!isEdit && !template && (
           <Checkbox
             checked={form.apply_to_existing}
             onChange={(v) => patch({ apply_to_existing: v })}
           >
-            Apply to existing uncategorized transactions now
+            {t("ruleForm.applyExisting")}
           </Checkbox>
         )}
       </div>
@@ -244,19 +246,21 @@ export function BankRuleForm({
       <FormActions>
         {onCancel && (
           <Button type="button" tone="secondary" onClick={onCancel} disabled={busy}>
-            Cancel
+            {t("ruleForm.cancel")}
           </Button>
         )}
         {template ? (
           <Button type="submit" busy={busy} disabled={busy}>
-            {isEdit ? "Save template" : "Create template"}
+            {isEdit ? t("ruleForm.saveTemplate") : t("ruleForm.createTemplate")}
           </Button>
         ) : (
           <Button
             type="submit" busy={busy} disabled={busy}
             perm={isEdit ? "bank_sync.update" : "bank_sync.create"}
           >
-            {isEdit ? (busy ? "Saving…" : "Save rule") : (busy ? "Creating…" : "Create rule")}
+            {isEdit
+              ? (busy ? t("ruleForm.saving") : t("ruleForm.saveRule"))
+              : (busy ? t("ruleForm.creating") : t("ruleForm.createRule"))}
           </Button>
         )}
       </FormActions>

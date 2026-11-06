@@ -10,6 +10,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { canDismissRow, dayGap } from "../lib/bankMatching";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 import type { BankTransactionRow, MatchCandidate, PossibleDouble } from "../api/bankSync";
 
 // Bank transactions matched to daily book entries (BankSync
@@ -397,5 +399,46 @@ describe("bankMatching helpers", () => {
     expect(dayGap(1)).toBe("1 day before the bank");
     expect(dayGap(3)).toBe("3 days before the bank");
     expect(dayGap(-2)).toBe("2 days after the bank");
+  });
+});
+
+describe("Bank matching in Spanish", () => {
+  it("pills, counts and row buttons read in Spanish", () => {
+    setLanguage("es");
+    renderPage();
+    expect(within(rowOf("ATM DEPOSIT 11")).getByText("Conciliado")).toBeInTheDocument();
+    expect(within(rowOf("ATM DEPOSIT 12")).getByText("Agregado del banco")).toBeInTheDocument();
+    expect(within(rowOf("ATM DEPOSIT 13")).getByText("Revisar coincidencia")).toBeInTheDocument();
+    expect(within(rowOf("CHECK 14")).getByText("No está en el libro")).toBeInTheDocument();
+    expect(within(rowOf("OLD 15")).getByRole("button", { name: "Restaurar" })).toBeInTheDocument();
+    expect(screen.getByText(/1 conciliados · 1 agregados del banco/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Conciliar ahora" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["match.", "books.", "bankTxn."])).toEqual([]);
+  });
+
+  it("the review popup reads in Spanish", async () => {
+    setLanguage("es");
+    useMatchCandidates.mockReturnValue({
+      data: { candidates: [{
+        line_ids: [70], report_date: "2026-10-01", kind: "drop", kind_label: "Cash drop",
+        entries: [ENTRY], by_check_number: true, days_from_bank: 2,
+      }] },
+      isLoading: false, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    await userEvent.click(within(rowOf("ATM DEPOSIT 13")).getByRole("button", { name: "Revisar" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "¿Esto ya está en el libro diario?" })).toBeInTheDocument();
+    expect(within(dialog).getByText("Mismo número de cheque")).toBeInTheDocument();
+    expect(dialog.textContent).toContain("2 días antes que el banco");
+    expect(within(dialog).getByRole("button", { name: "Sí, es el mismo dinero" })).toBeInTheDocument();
+    expect(englishLeftovers(dialog, ["match.", "books."])).toEqual([]);
+  });
+
+  it("the day gap reads in Spanish, one or many", () => {
+    setLanguage("es");
+    expect(dayGap(0)).toBe("mismo día que el banco");
+    expect(dayGap(1)).toBe("1 día antes que el banco");
+    expect(dayGap(-3)).toBe("3 días después que el banco");
   });
 });

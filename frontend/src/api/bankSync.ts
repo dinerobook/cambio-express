@@ -6,6 +6,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import type { MessageKey } from "../i18n";
 import { api, ApiError } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { components } from "./openapi";
@@ -310,12 +311,12 @@ export function runMatching(): Promise<{ matched: number }> {
 
 /** Description match operators — must agree with `DESC_MATCH_TYPES`
  *  in `api/Modules/BankSync/Services/matcher.py`. */
-export const MATCH_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "contains",    label: "contains" },
-  { value: "starts_with", label: "starts with" },
-  { value: "ends_with",   label: "ends with" },
-  { value: "equals",      label: "equals" },
-  { value: "regex",       label: "matches regex" },
+export const MATCH_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: MessageKey }> = [
+  { value: "contains",    label: "rule.matchContains" },
+  { value: "starts_with", label: "rule.matchStartsWith" },
+  { value: "ends_with",   label: "rule.matchEndsWith" },
+  { value: "equals",      label: "rule.matchEquals" },
+  { value: "regex",       label: "rule.matchRegex" },
 ];
 
 export interface BankRuleWriteBody {

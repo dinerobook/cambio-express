@@ -20,6 +20,11 @@ import {
 import styles from "./Bank.module.css";
 import { formatDateTime } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+// mirror MAX_BANK_ACCOUNTS_PER_STORE
+const MAX_ACCOUNTS = 6;
 
 declare global {
   interface Window {
@@ -54,6 +59,7 @@ export default function Bank() {
   const [connectError, setConnectError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const toast = useToast();
+  useT(); // re-render on a language switch
 
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ["bank", "accounts"] });
@@ -67,12 +73,12 @@ export default function Bank() {
       await ensureStripeJs();
       const session = await startStripeConnect();
       const stripe = window.Stripe?.(session.publishableKey);
-      if (!stripe) throw new Error("Stripe.js failed to load.");
+      if (!stripe) throw new Error(t("bank.stripeLoad"));
       const result = await stripe.collectFinancialConnectionsAccounts({
         clientSecret: session.clientSecret,
       });
       if (result.error) {
-        throw new Error(result.error.message || "Bank connection canceled.");
+        throw new Error(result.error.message || t("bank.connectCanceled"));
       }
       // Persist server-side, then refresh the accounts grid in
       // place (no full page reload).
@@ -80,12 +86,12 @@ export default function Bank() {
       invalidate();
       toast({
         message: persisted.accounts_added > 0
-          ? `Linked ${persisted.accounts_added} account(s).`
-          : "Account already linked — nothing new to add.",
+          ? tn("bank.linked", persisted.accounts_added)
+          : t("bank.alreadyLinked"),
         tone: "success",
       });
     } catch (e) {
-      const msg = apiErrorMessage(e, "Connect failed.", { anyError: true });
+      const msg = apiErrorMessage(e, t("bank.connectFailed"), { anyError: true });
       setConnectError(msg);
     } finally {
       setBusy(null);
@@ -100,13 +106,13 @@ export default function Bank() {
       invalidate();
       toast({
         message: r.error
-          ? `Refreshed (${r.accounts_refreshed}). Warning: ${r.error}`
-          : `Refreshed ${r.accounts_refreshed} account(s).`,
+          ? t("bank.refreshedWarn", { count: r.accounts_refreshed, error: r.error })
+          : tn("bank.refreshed", r.accounts_refreshed),
         tone: r.error ? "warning" : "success",
       });
     } catch (e) {
       setConnectError(
-        apiErrorMessage(e, "Refresh failed."),
+        apiErrorMessage(e, t("bank.refreshFailed")),
       );
     } finally {
       setBusy(null);
@@ -123,13 +129,13 @@ export default function Bank() {
       invalidate();
       toast({
         message: nickname.trim()
-          ? `Renamed to "${nickname.trim()}".`
-          : "Nickname cleared.",
+          ? t("bank.renamed", { name: nickname.trim() })
+          : t("bank.nicknameCleared"),
         tone: "success",
       });
     } catch (e) {
       setConnectError(
-        apiErrorMessage(e, "Couldn't save nickname."),
+        apiErrorMessage(e, t("bank.nicknameFailed")),
       );
     } finally {
       setBusy(null);
@@ -151,10 +157,10 @@ export default function Bank() {
     try {
       await disconnectBankAccount(acctId);
       invalidate();
-      toast({ message: `Disconnected ${label}.`, tone: "success" });
+      toast({ message: t("bank.disconnected", { name: label }), tone: "success" });
     } catch (e) {
       setConnectError(
-        apiErrorMessage(e, "Disconnect failed."),
+        apiErrorMessage(e, t("bank.disconnectFailed")),
       );
     } finally {
       setBusy(null);
@@ -163,23 +169,25 @@ export default function Bank() {
   }
 
   const accountList = accounts.data?.rows ?? [];
-  const atCap = accountList.length >= 6; // mirror MAX_BANK_ACCOUNTS_PER_STORE
+  const atCap = accountList.length >= MAX_ACCOUNTS;
 
   return (
     <PageShell gap="1.25rem">
 
       <PageCrumbs />
 
-      <PageHeader title="Bank accounts" />
+      <PageHeader title={navWord("Bank accounts")} />
 
       {connectError && <ErrorState message={connectError} />}
 
       <Card>
         <header className={styles.sectionHeader}>
           <span className={styles.cardTitle}>
-            Connected Bank Accounts
+            {t("bank.connected")}
             {accountList.length > 0 && (
-              <span className={styles.mutedInline}> {accountList.length} of 6</span>
+              <span className={styles.mutedInline}>
+                {" "}{t("bank.ofMax", { count: accountList.length, max: MAX_ACCOUNTS })}
+              </span>
             )}
           </span>
           {accountList.length > 0 && (
@@ -190,7 +198,7 @@ export default function Bank() {
                 disabled={busy !== null}
                 onClick={() => { void handleRefresh(); }}
               >
-                {busy === "refresh" ? "Refreshing…" : "Refresh"}
+                {busy === "refresh" ? t("bank.refreshing") : t("bank.refresh")}
               </Button>
               {!atCap && (
                 <Button
@@ -199,7 +207,7 @@ export default function Bank() {
                   disabled={busy !== null}
                   onClick={() => { void handleConnect(); }}
                 >
-                  {busy === "connect" ? "Opening Stripe…" : "+ Connect another"}
+                  {busy === "connect" ? t("bank.openingStripe") : t("bank.connectAnother")}
                 </Button>
               )}
             </div>
@@ -209,18 +217,15 @@ export default function Bank() {
         {accounts.isLoading && <Loading />}
         {accounts.isError && (
           <ErrorState
-            message="Couldn't load accounts."
+            message={t("bank.loadFailed")}
             onRetry={() => { void accounts.refetch(); }}
           />
         )}
 
         {!accounts.isLoading && !accounts.isError && accountList.length === 0 && (
           <div className={styles.emptyConnect}>
-            <SectionTitle>Connect your bank</SectionTitle>
-            <p className={styles.muted}>
-              Link your accounts securely through Stripe Financial Connections.
-              We only see balances — never your bank login.
-            </p>
+            <SectionTitle>{t("bank.connectTitle")}</SectionTitle>
+            <p className={styles.muted}>{t("bank.connectBody")}</p>
             <Button
               perm="bank_sync.update"
               busy={busy === "connect"}
@@ -228,7 +233,7 @@ export default function Bank() {
               onClick={() => { void handleConnect(); }}
               style={{ marginTop: space.lg }}
             >
-              {busy === "connect" ? "Opening Stripe…" : "Connect bank via Stripe →"}
+              {busy === "connect" ? t("bank.openingStripe") : t("bank.connectButton")}
             </Button>
           </div>
         )}
@@ -252,13 +257,11 @@ export default function Bank() {
 
       <ConfirmDialog
         open={pendingDisconnect != null}
-        title="Disconnect this bank?"
-        message={
-          `Disconnect ${pendingDisconnect?.label ?? "this bank"}? `
-          + "Future transactions won't sync to DineroBook until "
-          + "you reconnect."
-        }
-        confirmLabel="Disconnect"
+        title={t("bank.disconnectTitle")}
+        message={t("bank.disconnectBody", {
+          name: pendingDisconnect?.label ?? t("bank.thisBank"),
+        })}
+        confirmLabel={t("bank.disconnect")}
         confirmTone="danger"
         busy={busy === `disconnect:${pendingDisconnect?.id}`}
         onConfirm={() => { void doDisconnect(); }}
@@ -280,10 +283,11 @@ function AccountCard({
   anyBusy: boolean;
 }) {
   const [nickname, setNickname] = useState(acct.nickname || "");
+  const t = useT();
   return (
     <div className={styles.accountCard}>
       <div className={styles.mutedSmall}>
-        {acct.institution_name || "Bank"}
+        {acct.institution_name || t("bank.bank")}
         {acct.category && ` · ${acct.category}`}
       </div>
       <div className={styles.accountLabel}>
@@ -294,8 +298,8 @@ function AccountCard({
       </div>
       <div className={styles.mutedSmall}>
         {acct.last_balance_as_of
-          ? `As of ${formatDateTime(acct.last_balance_as_of)}`
-          : "Balance not yet refreshed."}
+          ? t("bank.asOf", { date: formatDateTime(acct.last_balance_as_of) })
+          : t("bank.notRefreshed")}
       </div>
       {canDo("bank_sync.update") && (
         <form
@@ -310,7 +314,8 @@ function AccountCard({
             name="nickname"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="Set nickname (e.g. MSB Checking)"
+            placeholder={t("bank.nicknamePh")}
+            aria-label={t("bank.nicknameAria", { name: acct.label })}
             maxLength={60}
             className={styles.nicknameInput}
             disabled={anyBusy}
@@ -320,7 +325,7 @@ function AccountCard({
             busy={nicknameBusy}
             disabled={anyBusy || nickname === (acct.nickname || "")}
           >
-            {nicknameBusy ? "Saving…" : "Save"}
+            {nicknameBusy ? t("common.saving") : t("bank.save")}
           </Button>
         </form>
       )}
@@ -331,7 +336,7 @@ function AccountCard({
           disabled={anyBusy}
           onClick={onDisconnect}
         >
-          {disconnectBusy ? "Disconnecting…" : "Disconnect"}
+          {disconnectBusy ? t("bank.disconnecting") : t("bank.disconnect")}
         </Button>
       </div>
     </div>
@@ -347,7 +352,7 @@ function ensureStripeJs(): Promise<void> {
     s.src = "https://js.stripe.com/v3/";
     s.async = true;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Failed to load Stripe.js"));
+    s.onerror = () => reject(new Error(t("bank.stripeLoad")));
     document.head.appendChild(s);
   });
   return _stripeLoadPromise;

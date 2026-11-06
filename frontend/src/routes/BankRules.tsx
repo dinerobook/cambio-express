@@ -28,6 +28,9 @@ import {
 } from "../components/ui";
 import styles from "./BankRules.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tn, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
+import { fmtNumber } from "../lib/formatters";
 
 // /app/bank/rules — the store's bank rules, Monarch-style: every
 // rule reads as a sentence ("If description contains X and money
@@ -46,6 +49,7 @@ export default function BankRules() {
   const categories = useBankCategories();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
+  const t = useT();
   const labels = useMemo(() => categoryLabels(categories.data?.groups), [categories.data]);
 
   const [q, setQ] = useState("");
@@ -68,9 +72,9 @@ export default function BankRules() {
     try {
       await toggleRule(r.id, !r.enabled);
       await rules.refetch();
-      toast({ message: r.enabled ? "Rule disabled." : "Rule enabled.", tone: "success" });
+      toast({ message: r.enabled ? t("rules.disabled") : t("rules.enabledToast"), tone: "success" });
     } catch (e) {
-      toastApiError(e, "Could not update rule.");
+      toastApiError(e, t("rules.updateFailed"));
     } finally {
       setBusyId(null);
     }
@@ -81,9 +85,9 @@ export default function BankRules() {
     try {
       const resp = await applyRule(r.id);
       await rules.refetch();
-      toast({ message: `Rule applied.${describeAppliedRule(resp.applied)}`, tone: "success" });
+      toast({ message: `${t("rules.applied")}${describeAppliedRule(resp.applied)}`, tone: "success" });
     } catch (e) {
-      toastApiError(e, "Could not apply rule.");
+      toastApiError(e, t("rules.applyFailed"));
     } finally {
       setBusyId(null);
     }
@@ -100,7 +104,7 @@ export default function BankRules() {
       await reorderRules(ids);
       await rules.refetch();
     } catch (e) {
-      toastApiError(e, "Could not reorder.");
+      toastApiError(e, t("rules.reorderFailed"));
     } finally {
       setBusyId(null);
     }
@@ -113,11 +117,11 @@ export default function BankRules() {
       await deleteRule(pendingDelete.id);
       await rules.refetch();
       setPendingDelete(null);
-      toast({ message: "Rule deleted.", tone: "success" });
+      toast({ message: t("rules.deleted"), tone: "success" });
     } catch (e) {
       // Keep the prompt open so the operator can retry or cancel; a
       // bare rejection here used to vanish as an unhandled promise.
-      toastApiError(e, "Could not delete rule.");
+      toastApiError(e, t("rules.deleteFailed"));
     } finally {
       setDeleteBusy(false);
     }
@@ -128,18 +132,18 @@ export default function BankRules() {
       <PageCrumbs />
 
       <PageHeader
-        title="Bank rules"
-        subtitle="Rules categorize new bank transactions as they sync — and can book them straight onto the daily book. They apply top to bottom; the first match wins."
+        title={navWord("Bank rules")}
+        subtitle={t("rules.subtitle")}
         actions={
           <div className={styles.headerActions}>
             <ButtonLink to="/bank-transactions" tone="secondary">
-              Bank transactions
+              {navWord("Bank transactions")}
             </ButtonLink>
             <ButtonLink to="/monthly/categories" tone="secondary">
-              P&amp;L categories
+              {t("rules.plCategories")}
             </ButtonLink>
             <Button perm="bank_sync.create" onClick={() => setEditing("new")}>
-              + New rule
+              {t("rules.newRule")}
             </Button>
           </div>
         }
@@ -148,14 +152,14 @@ export default function BankRules() {
       <Card>
         <div className={styles.toolbar}>
           <span className={styles.count}>
-            {rows.length} rule{rows.length === 1 ? "" : "s"}
+            {tn("rules.count", rows.length, fmtNumber)}
           </span>
           <Input
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search rules…"
-            aria-label="Search rules"
+            placeholder={t("rules.searchPh")}
+            aria-label={t("rules.searchAria")}
             className={styles.search}
           />
         </div>
@@ -163,18 +167,18 @@ export default function BankRules() {
         {rules.isLoading && <Loading />}
         {rules.isError && (
           <ErrorState
-            message="Could not load bank rules."
+            message={t("rules.loadFailed")}
             onRetry={() => { void rules.refetch(); }}
           />
         )}
         {!rules.isLoading && !rules.isError && rows.length === 0 && (
           <EmptyState
-            title="No rules yet"
-            body="Create one here, or open a transaction on the bank transactions page and choose “Make a rule” — the form fills itself in from that row."
+            title={t("rules.emptyTitle")}
+            body={t("rules.emptyBody")}
           />
         )}
         {!rules.isLoading && rows.length > 0 && shown.length === 0 && (
-          <EmptyState title="No rules match that search." />
+          <EmptyState title={t("rules.noMatch")} />
         )}
 
         {shown.length > 0 && (
@@ -188,7 +192,7 @@ export default function BankRules() {
                   {canReorder ? (
                     <>
                       <IconButton
-                        size="sm" tone="ghost" title="Move up"
+                        size="sm" tone="ghost" title={t("rules.moveUp")}
                         disabled={i === 0 || busyId != null}
                         onClick={() => { void move(r, -1); }}
                       >
@@ -196,7 +200,7 @@ export default function BankRules() {
                       </IconButton>
                       <span className={styles.orderNum}>{i + 1}</span>
                       <IconButton
-                        size="sm" tone="ghost" title="Move down"
+                        size="sm" tone="ghost" title={t("rules.moveDown")}
                         disabled={i === shown.length - 1 || busyId != null}
                         onClick={() => { void move(r, 1); }}
                       >
@@ -217,7 +221,7 @@ export default function BankRules() {
                   <div className={styles.meta}>
                     {r.description && <span className={styles.name}>{r.description}</span>}
                     <span>
-                      {r.match_count} match{r.match_count === 1 ? "" : "es"}
+                      {tn("rules.matches", r.match_count, fmtNumber)}
                       {r.account_filter_label ? ` · ${r.account_filter_label}` : ""}
                     </span>
                   </div>
@@ -225,21 +229,21 @@ export default function BankRules() {
 
                 <div className={styles.actions}>
                   <RowActions
-                    title={r.description || r.desc_match_value || "Rule"}
+                    title={r.description || r.desc_match_value || t("rules.rule")}
                     actions={[
-                      { label: "Edit", perm: "bank_sync.update", onClick: () => setEditing(r) },
+                      { label: t("rules.edit"), perm: "bank_sync.update", onClick: () => setEditing(r) },
                       {
-                        label: "Apply now", perm: "bank_sync.update",
+                        label: t("rules.applyNow"), perm: "bank_sync.update",
                         busy: busyId === r.id, disabled: !r.enabled,
                         onClick: () => handleApply(r),
                       },
                       {
-                        label: r.enabled ? "Disable" : "Enable", perm: "bank_sync.update",
+                        label: r.enabled ? t("rules.disable") : t("rules.enable"), perm: "bank_sync.update",
                         busy: busyId === r.id,
                         onClick: () => handleToggle(r),
                       },
                       {
-                        label: "Delete", tone: "danger", perm: "bank_sync.delete",
+                        label: t("rules.delete"), tone: "danger", perm: "bank_sync.delete",
                         onClick: () => setPendingDelete(r),
                       },
                     ]}
@@ -254,21 +258,18 @@ export default function BankRules() {
       {templateRows.length > 0 && (
         <Card>
           <div className={styles.toolbar}>
-            <h2 className={styles.templatesTitle}>Templates</h2>
-            <span className={styles.hint}>
-              Ready-made rules. Use one to add it to your rules; you can
-              change it before saving.
-            </span>
+            <h2 className={styles.templatesTitle}>{t("rules.templates")}</h2>
+            <span className={styles.hint}>{t("rules.templatesHint")}</span>
           </div>
           <BankRuleTemplateList
             rows={templateRows}
-            action={(t) => (
+            action={(tpl) => (
               <Button
                 size="sm" tone="secondary" perm="bank_sync.create"
-                onClick={() => setEditing({ template: t })}
-                aria-label={`Use template ${t.name}`}
+                onClick={() => setEditing({ template: tpl })}
+                aria-label={t("rules.useAria", { name: tpl.name })}
               >
-                Use
+                {t("rules.use")}
               </Button>
             )}
           />
@@ -279,9 +280,9 @@ export default function BankRules() {
         open={editing != null}
         onClose={() => setEditing(null)}
         title={
-          editing === "new" ? "New rule"
-            : editing != null && "template" in editing ? "New rule from template"
-              : "Edit rule"
+          editing === "new" ? t("rules.newTitle")
+            : editing != null && "template" in editing ? t("rules.fromTemplate")
+              : t("rules.editTitle")
         }
         size="lg"
       >
@@ -303,8 +304,8 @@ export default function BankRules() {
               await rules.refetch();
               toast({
                 message: mode === "edit"
-                  ? "Rule updated."
-                  : `Rule created.${describeAppliedRule(resp.applied)}`,
+                  ? t("rules.updated")
+                  : `${t("rules.created")}${describeAppliedRule(resp.applied)}`,
                 tone: "success",
               });
             }}
@@ -314,13 +315,11 @@ export default function BankRules() {
 
       <ConfirmDialog
         open={pendingDelete != null}
-        title="Delete this rule?"
-        message={
-          `Delete rule "${pendingDelete ? ruleSentence(pendingDelete, labels) : ""}"? `
-          + "Transactions it already tagged keep their category; only "
-          + "future syncs stop applying it."
-        }
-        confirmLabel="Delete"
+        title={t("rules.deleteTitle")}
+        message={t("rules.deleteBody", {
+          rule: pendingDelete ? ruleSentence(pendingDelete, labels) : "",
+        })}
+        confirmLabel={t("rules.delete")}
         confirmTone="danger"
         busy={deleteBusy}
         onConfirm={() => { void doDelete(); }}

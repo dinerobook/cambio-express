@@ -3,21 +3,24 @@
 // and their tests. BankSync INVARIANTS.md "Matching".
 
 import type { BankTransactionRow } from "../api/bankSync";
-import { fmtCount } from "./formatters";
+import { t, tn, type MessageKey } from "../i18n";
 
 /** The Daily book column's word for each books status — the pill on
  *  the Bank page and the cell in its CSV export. */
 export const BOOKS_STATUS_LABELS = {
-  matched: "Matched",
-  added: "Added from bank",
-  suggested: "Check match",
-  not_on_books: "Not on books",
-  dismissed: "Dismissed",
-} as const;
+  matched: "books.matched",
+  added: "books.added",
+  suggested: "books.suggested",
+  not_on_books: "books.notOnBooks",
+  dismissed: "books.dismissed",
+} as const satisfies Record<string, MessageKey>;
 
 /** ``BOOKS_STATUS_LABELS`` for any status; blank when there is none. */
 export function booksStatusLabel(status: string | null | undefined): string {
-  return (BOOKS_STATUS_LABELS as Record<string, string>)[status ?? ""] ?? "";
+  const key = Object.hasOwn(BOOKS_STATUS_LABELS, status ?? "")
+    ? (BOOKS_STATUS_LABELS as Record<string, MessageKey>)[status ?? ""]
+    : undefined;
+  return key ? t(key) : "";
 }
 
 /** A row an admin can still dismiss: nothing on the books for it
@@ -33,7 +36,6 @@ export function canDismissRow(r: BankTransactionRow): boolean {
 /** "2 days before the bank" — how far the entry's day sits from the
  *  bank's date (`days_from_bank` = bank date minus entry day). */
 export function dayGap(days: number): string {
-  if (days === 0) return "same day as the bank";
-  const gap = fmtCount(Math.abs(days), "day");
-  return days > 0 ? `${gap} before the bank` : `${gap} after the bank`;
+  if (days === 0) return t("books.sameDay");
+  return tn(days > 0 ? "books.daysBefore" : "books.daysAfter", Math.abs(days));
 }

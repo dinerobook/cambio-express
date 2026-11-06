@@ -7,6 +7,8 @@ import ItemMovement from "./ItemMovement";
 import Transactions from "./Transactions";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Finance → Bank accounts (connect / refresh / rename / disconnect)
 // and the two register-journal read pages (Transactions, Item
@@ -64,7 +66,7 @@ describe("Bank accounts", () => {
     }));
     renderRoute(<Bank />);
     await userEvent.click(await screen.findByRole("button", { name: "Connect bank via Stripe →" }));
-    expect(await screen.findByText("Linked 2 account(s).")).toBeInTheDocument();
+    expect(await screen.findByText("Linked 2 accounts.")).toBeInTheDocument();
     expect(collect).toHaveBeenCalledWith({ clientSecret: "fcsess_secret" });
     expect(callsTo(calls, "POST /api/v2/bank/connect/complete")[0].body).toEqual({ sessionId: "fcsess_1" });
   });
@@ -254,5 +256,32 @@ describe("Item movement", () => {
     state.fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Coca-Cola 20oz")).toBeInTheDocument();
+  });
+});
+
+describe("Bank accounts in Spanish", () => {
+  it("the account card, buttons and disconnect popup read in Spanish", async () => {
+    setLanguage("es");
+    mockFetch({ "GET /api/v2/bank/accounts": { body: { rows: [ACCOUNT], total: 1 } } });
+    renderRoute(<Bank />);
+    expect(await screen.findByText("Nizari ••0230")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cuentas bancarias" })).toBeInTheDocument();
+    expect(screen.getByText("1 de 6")).toBeInTheDocument();
+    expect(screen.getByText(/^Al /)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Conectar otra" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["bank."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Desconectar" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("¿Desconectar Nizari ••0230?");
+    expect(englishLeftovers(dialog, ["bank."])).toEqual([]);
+  });
+
+  it("the first-connection invite reads in Spanish", async () => {
+    setLanguage("es");
+    mockFetch({ "GET /api/v2/bank/accounts": { body: { rows: [], total: 0 } } });
+    renderRoute(<Bank />);
+    expect(await screen.findByRole("button", { name: "Conectar el banco con Stripe →" })).toBeInTheDocument();
+    expect(screen.getByText("Conecte su banco")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["bank."])).toEqual([]);
   });
 });

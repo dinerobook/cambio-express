@@ -24,7 +24,8 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
-import { fmtCount, fmtMoney2 } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
+import { t, tn, tNodes, useT, type MessageKey } from "../i18n";
 import { BOOKS_STATUS_LABELS, canDismissRow, dayGap } from "../lib/bankMatching";
 import { hasPermission } from "../lib/permissions";
 import styles from "./BankTransactions.module.css";
@@ -39,7 +40,7 @@ import styles from "./BankTransactions.module.css";
 // a person decides (check match), grey = nothing yet (not on books,
 // dismissed).
 
-const PILL: Record<string, { label: string; tone: PillTone }> = {
+const PILL: Record<string, { label: MessageKey; tone: PillTone }> = {
   matched:      { label: BOOKS_STATUS_LABELS.matched,      tone: "accent" },
   added:        { label: BOOKS_STATUS_LABELS.added,        tone: "accent" },
   suggested:    { label: BOOKS_STATUS_LABELS.suggested,    tone: "warning" },
@@ -76,6 +77,7 @@ export function BooksSummary({
   const [before, setBefore] = useState("");
   const [beforeConfirm, setBeforeConfirm] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  useT();
 
   async function dismiss(body: { ids: number[] } | { before: string }) {
     setBusy(true); setErr(null);
@@ -83,8 +85,8 @@ export function BooksSummary({
       const r = await dismissTransactions(body);
       toast({
         message:
-          `${fmtCount(r.dismissed, "transaction")} dismissed.`
-          + (r.skipped ? ` ${fmtCount(r.skipped, "transaction")} already on the books left alone.` : ""),
+          tn("match.dismissedToast", r.dismissed, fmtNumber)
+          + (r.skipped ? ` ${tn("match.skipped", r.skipped, fmtNumber)}` : ""),
         tone: "success",
       });
       setConfirmTicked(false); setBeforeConfirm(false); setBeforeOpen(false);
@@ -92,19 +94,20 @@ export function BooksSummary({
       onClearTicked();
       refresh();
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not dismiss."));
+      setErr(apiErrorMessage(e, t("match.dismissFailed")));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className={styles.booksSummary} aria-label="Daily book matching">
+    <div className={styles.booksSummary} aria-label={t("match.summaryAria")}>
       <span className={styles.booksCounts}>
-        {fmtCount(counts?.matched ?? 0, "matched", "matched")}
-        {" · "}{fmtCount(counts?.added ?? 0, "added from bank", "added from bank")}
-        {" · "}<strong>{fmtCount(counts?.to_review ?? 0, "to review", "to review")}</strong>
-        {(counts?.dismissed ?? 0) > 0 && ` · ${fmtCount(counts?.dismissed ?? 0, "dismissed", "dismissed")}`}
+        {t("match.countMatched", { count: fmtNumber(counts?.matched ?? 0) })}
+        {" · "}{t("match.countAdded", { count: fmtNumber(counts?.added ?? 0) })}
+        {" · "}<strong>{t("match.countToReview", { count: fmtNumber(counts?.to_review ?? 0) })}</strong>
+        {(counts?.dismissed ?? 0) > 0
+          && ` · ${t("match.countDismissed", { count: fmtNumber(counts?.dismissed ?? 0) })}`}
       </span>
       <div className={styles.headerActions}>
         <Button
@@ -112,7 +115,7 @@ export function BooksSummary({
           aria-pressed={reviewOnly}
           onClick={() => onReviewOnly(!reviewOnly)}
         >
-          {reviewOnly ? "Showing to review" : "To review"}
+          {reviewOnly ? t("match.showingToReview") : t("match.toReview")}
         </Button>
         <Button
           size="sm" tone="secondary" perm="bank_sync.update" busy={busy}
@@ -122,37 +125,37 @@ export function BooksSummary({
               const r = await runMatching();
               toast({
                 message: r.matched
-                  ? `${fmtCount(r.matched, "transaction")} matched to the daily book.`
-                  : "Nothing new to match.",
+                  ? tn("match.matchedToast", r.matched, fmtNumber)
+                  : t("match.nothingNew"),
                 tone: "success",
               });
               refresh();
             } catch (e) {
-              toastApiError(e, "Could not match.");
+              toastApiError(e, t("match.matchFailed"));
             } finally {
               setBusy(false);
             }
           }}
         >
-          Match now
+          {t("match.matchNow")}
         </Button>
         {ticked.length > 0 && (
           <Button size="sm" tone="secondary" perm="bank_dismiss.update"
             onClick={() => { setErr(null); setConfirmTicked(true); }}>
-            Dismiss ticked ({ticked.length})
+            {t("match.dismissTicked", { count: fmtNumber(ticked.length) })}
           </Button>
         )}
         <Button size="sm" tone="ghost" perm="bank_dismiss.update"
           onClick={() => { setErr(null); setBeforeOpen(true); }}>
-          Dismiss before a date
+          {t("match.dismissBefore")}
         </Button>
       </div>
 
       <ConfirmDialog
         open={confirmTicked}
-        title={`Dismiss ${fmtCount(ticked.length, "transaction")}?`}
-        message="They won't be added to or matched with the daily book. You can restore any of them later."
-        confirmLabel="Dismiss" confirmTone="danger" busy={busy} error={err}
+        title={tn("match.dismissTitle", ticked.length, fmtNumber)}
+        message={t("match.dismissBody")}
+        confirmLabel={t("match.dismiss")} confirmTone="danger" busy={busy} error={err}
         onConfirm={() => { void dismiss({ ids: ticked }); }}
         onCancel={() => setConfirmTicked(false)}
       />
@@ -160,30 +163,26 @@ export function BooksSummary({
       <Modal
         open={beforeOpen && !beforeConfirm}
         onClose={() => setBeforeOpen(false)}
-        title="Dismiss transactions before a date"
+        title={t("match.beforeTitle")}
         size="sm"
         actions={
           <>
-            <Button tone="secondary" onClick={() => setBeforeOpen(false)}>Cancel</Button>
-            <Button disabled={!before} onClick={() => setBeforeConfirm(true)}>Continue</Button>
+            <Button tone="secondary" onClick={() => setBeforeOpen(false)}>{t("match.cancel")}</Button>
+            <Button disabled={!before} onClick={() => setBeforeConfirm(true)}>{t("match.continue")}</Button>
           </>
         }
       >
-        <p className={styles.modalLead}>
-          Every transaction still to review, posted on or before this day, is
-          marked as already handled. Transactions already on the books stay as
-          they are.
-        </p>
-        <Field label="On or before">
+        <p className={styles.modalLead}>{t("match.beforeLead")}</p>
+        <Field label={t("match.onOrBefore")}>
           <DateInput value={before} onChange={(e) => setBefore(e.target.value)} />
         </Field>
       </Modal>
 
       <ConfirmDialog
         open={beforeConfirm}
-        title={before ? `Dismiss everything to review up to ${formatDate(before)}?` : "Dismiss?"}
-        message="They won't be added to or matched with the daily book. You can restore any of them later."
-        confirmLabel="Dismiss" confirmTone="danger" busy={busy} error={err}
+        title={before ? t("match.beforeConfirm", { date: formatDate(before) }) : t("match.dismissShort")}
+        message={t("match.dismissBody")}
+        confirmLabel={t("match.dismiss")} confirmTone="danger" busy={busy} error={err}
         onConfirm={() => { void dismiss({ before }); }}
         onCancel={() => setBeforeConfirm(false)}
       />
@@ -202,6 +201,7 @@ export function BooksCell({ row }: { row: BankTransactionRow }) {
   const status = row.books_status ?? "";
   const pill = PILL[status];
   const canEdit = hasPermission("bank_sync", "update");
+  useT();
 
   async function run(fn: () => Promise<unknown>, done: string) {
     setBusy(true); setErr(null);
@@ -211,7 +211,7 @@ export function BooksCell({ row }: { row: BankTransactionRow }) {
       setConfirm(null);
       refresh();
     } catch (e) {
-      setErr(apiErrorMessage(e, "That didn't work."));
+      setErr(apiErrorMessage(e, t("match.failed")));
     } finally {
       setBusy(false);
     }
@@ -222,65 +222,67 @@ export function BooksCell({ row }: { row: BankTransactionRow }) {
 
   return (
     <div className={styles.booksCell}>
-      {pill && <Pill tone={pill.tone}>{pill.label}</Pill>}
+      {pill && <Pill tone={pill.tone}>{t(pill.label)}</Pill>}
       {status === "matched" && entries.length > 0 && (
         <AppLink
           to={`/daily/edit?date=${entries[0].report_date}`}
           className={styles.bookedLink}
-          title="Open that day's daily book"
+          title={t("match.openDayTip")}
         >
           {entries.length === 1
             ? entryText(entries[0])
-            : `${entries.length} entries, ${formatDate(entries[0].report_date)}`}
+            : t("match.entries", {
+              count: fmtNumber(entries.length), date: formatDate(entries[0].report_date),
+            })}
         </AppLink>
       )}
       {status === "suggested" && canEdit && (
         <Button size="sm" tone="ghost" onClick={() => setReviewing(true)}>
-          Review
+          {t("match.review")}
         </Button>
       )}
       {(status === "not_on_books" || (status === "" && !row.category_slug)) && canEdit && (
         <Button size="sm" tone="ghost" onClick={() => setReviewing(true)}>
-          Find in daily book
+          {t("match.find")}
         </Button>
       )}
       {status === "matched" && canEdit && (
         <Button size="sm" tone="ghost" onClick={() => { setErr(null); setConfirm("unmatch"); }}>
-          Unmatch
+          {t("match.unmatch")}
         </Button>
       )}
       {canDismissRow(row) && (
         <Button size="sm" tone="ghost" perm="bank_dismiss.update"
           onClick={() => { setErr(null); setConfirm("dismiss"); }}>
-          Dismiss
+          {t("match.dismiss")}
         </Button>
       )}
       {status === "dismissed" && (
         <Button size="sm" tone="ghost" perm="bank_dismiss.update" busy={busy}
-          onClick={() => { void run(() => restoreTransaction(row.id), "Restored. It needs review again."); }}>
-          Restore
+          onClick={() => { void run(() => restoreTransaction(row.id), t("match.restored")); }}>
+          {t("match.restore")}
         </Button>
       )}
       {err && !confirm && <span className={styles.errorMark} role="alert">⚠ {err}</span>}
 
       <ConfirmDialog
         open={confirm === "unmatch"}
-        title="Unmatch this transaction?"
+        title={t("match.unmatchTitle")}
         message={
           entries.length > 0
-            ? `It stays in the bank list and the ${entryText(entries[0])} entry stays in the daily book. Nothing is deleted, and this pair won't be matched again.`
-            : "Nothing is deleted."
+            ? t("match.unmatchBody", { entry: entryText(entries[0]) })
+            : t("match.nothingDeleted")
         }
-        confirmLabel="Unmatch" confirmTone="danger" busy={busy} error={err}
-        onConfirm={() => { void run(() => unmatchTransaction(row.id), "Unmatched."); }}
+        confirmLabel={t("match.unmatch")} confirmTone="danger" busy={busy} error={err}
+        onConfirm={() => { void run(() => unmatchTransaction(row.id), t("match.unmatched")); }}
         onCancel={() => setConfirm(null)}
       />
       <ConfirmDialog
         open={confirm === "dismiss"}
-        title="Dismiss this transaction?"
-        message="It won't be added to or matched with the daily book. You can restore it later."
-        confirmLabel="Dismiss" confirmTone="danger" busy={busy} error={err}
-        onConfirm={() => { void run(() => dismissTransactions({ ids: [row.id] }), "Dismissed."); }}
+        title={t("match.dismissOneTitle")}
+        message={t("match.dismissOneBody")}
+        confirmLabel={t("match.dismiss")} confirmTone="danger" busy={busy} error={err}
+        onConfirm={() => { void run(() => dismissTransactions({ ids: [row.id] }), t("match.dismissedOne")); }}
         onCancel={() => setConfirm(null)}
       />
       {reviewing && (
@@ -298,6 +300,7 @@ export function MatchReviewModal({
   const toast = useToast();
   const refresh = useRefreshBank();
   const cands = useMatchCandidates(row.id);
+  useT();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -307,7 +310,7 @@ export function MatchReviewModal({
     try {
       if (yes) {
         await matchTransaction(row.id, c.line_ids);
-        toast({ message: `Matched to the ${c.kind_label.toLowerCase()} on ${formatDate(c.report_date)}.`, tone: "success" });
+        toast({ message: t("match.matchedTo", { kind: c.kind_label.toLowerCase(), date: formatDate(c.report_date) }), tone: "success" });
         refresh();
         onClose();
       } else {
@@ -316,7 +319,7 @@ export function MatchReviewModal({
         refresh();
       }
     } catch (e) {
-      setErr(apiErrorMessage(e, "That didn't work."));
+      setErr(apiErrorMessage(e, t("match.failed")));
     } finally {
       setBusy(null);
     }
@@ -327,12 +330,12 @@ export function MatchReviewModal({
     <Modal
       open
       onClose={onClose}
-      title="Is this already in the daily book?"
+      title={t("match.reviewTitle")}
       size="lg"
-      actions={<Button tone="secondary" onClick={onClose}>Close</Button>}
+      actions={<Button tone="secondary" onClick={onClose}>{t("match.close")}</Button>}
     >
       <p className={styles.modalLead}>
-        Bank, {formatDate(row.bank_date || row.posted_at)}:{" "}
+        {t("match.bankLine", { date: formatDate(row.bank_date || row.posted_at) })}{" "}
         <strong>{row.description || "—"}</strong>{" "}
         <span className={styles.amountNeutral}>{fmtMoney2(Math.abs(row.amount))}</span>
       </p>
@@ -341,15 +344,11 @@ export function MatchReviewModal({
         <Loading />
       ) : cands.isError ? (
         <ErrorState
-          message={apiErrorMessage(cands.error, "Could not load the daily book entries.")}
+          message={apiErrorMessage(cands.error, t("match.loadFailed"))}
           onRetry={() => { void cands.refetch(); }}
         />
       ) : list.length === 0 ? (
-        <Empty>
-          Nothing in the daily book has this amount near this date. Pick a
-          category and a day to add it, or dismiss it if it was handled
-          another way.
-        </Empty>
+        <Empty>{t("match.noCandidates")}</Empty>
       ) : (
         <ul className={styles.candidateList}>
           {list.map((c) => {
@@ -362,10 +361,13 @@ export function MatchReviewModal({
                   <AppLink to={`/daily/edit?date=${c.report_date}`}>
                     {formatDate(c.report_date)}
                   </AppLink>
-                  {c.by_check_number && <> <Pill tone="accent">Same check number</Pill></>}
+                  {c.by_check_number && <> <Pill tone="accent">{t("match.sameCheck")}</Pill></>}
                   <div className={styles.candidateMeta}>
                     {entries.length > 1
-                      ? `${entries.length} entries that add up: ` + entries.map((e) => fmtMoney2(e.amount)).join(" + ")
+                      ? t("match.addUp", {
+                        count: fmtNumber(entries.length),
+                        sum: entries.map((e) => fmtMoney2(e.amount)).join(" + "),
+                      })
                       : fmtMoney2(entries[0]?.amount ?? 0)}
                     {entries.some((e) => e.note) && ` · ${entries.map((e) => e.note).filter(Boolean).join(", ")}`}
                     {` · ${dayGap(c.days_from_bank ?? 0)}`}
@@ -374,11 +376,11 @@ export function MatchReviewModal({
                 <div className={styles.headerActions}>
                   <Button size="sm" busy={busy === `y${key}`} disabled={busy != null}
                     onClick={() => { void act(c, true); }}>
-                    Yes, same money
+                    {t("match.yes")}
                   </Button>
                   <Button size="sm" tone="secondary" busy={busy === `n${key}`} disabled={busy != null}
                     onClick={() => { void act(c, false); }}>
-                    No, different
+                    {t("match.no")}
                   </Button>
                 </div>
               </li>
@@ -397,6 +399,7 @@ export function PossibleDoublesCard() {
   const toastApiError = useApiErrorToast();
   const refresh = useRefreshBank();
   const doubles = usePossibleDoubles(true);
+  useT();
   const [keep, setKeep] = useState<{ txn: number; line: number; day: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -407,20 +410,18 @@ export function PossibleDoublesCard() {
 
   return (
     <Card>
-      <SectionTitle>Possibly in the daily book twice</SectionTitle>
-      <p className={styles.modalLead}>
-        The bank feed added these, and someone also typed the same amount by
-        hand. Keep the typed entry to remove the bank&rsquo;s copy, or say they
-        are different.
-      </p>
+      <SectionTitle>{t("match.doublesTitle")}</SectionTitle>
+      <p className={styles.modalLead}>{t("match.doublesLead")}</p>
       <ul className={styles.candidateList}>
         {rows.map((d) => (
           <li key={d.transaction.id} className={styles.candidate}>
             <div>
               <strong>{d.typed_entry.kind_label} {fmtMoney2(d.typed_entry.amount)}</strong>
               <div className={styles.candidateMeta}>
-                Typed on <AppLink to={`/daily/edit?date=${d.typed_entry.report_date}`}>{formatDate(d.typed_entry.report_date)}</AppLink>
-                {" · "}added by the bank on <AppLink to={`/daily/edit?date=${d.bank_entry.report_date}`}>{formatDate(d.bank_entry.report_date)}</AppLink>
+                {tNodes("match.typedOn", {
+                  typed: <AppLink to={`/daily/edit?date=${d.typed_entry.report_date}`}>{formatDate(d.typed_entry.report_date)}</AppLink>,
+                  bank: <AppLink to={`/daily/edit?date=${d.bank_entry.report_date}`}>{formatDate(d.bank_entry.report_date)}</AppLink>,
+                })}
                 {d.transaction.description && ` · ${d.transaction.description}`}
               </div>
             </div>
@@ -431,19 +432,19 @@ export function PossibleDoublesCard() {
                     setErr(null);
                     setKeep({ txn: d.transaction.id, line: d.typed_entry.id, day: d.bank_entry.report_date });
                   }}>
-                    Keep typed entry
+                    {t("match.keepTyped")}
                   </Button>
                 )}
                 <Button size="sm" tone="secondary" onClick={async () => {
                   try {
                     await rejectMatch(d.transaction.id, [d.typed_entry.id]);
-                    toast({ message: "Kept both.", tone: "success" });
+                    toast({ message: t("match.keptBoth"), tone: "success" });
                     refresh();
                   } catch (e) {
-                    toastApiError(e, "That didn't work.");
+                    toastApiError(e, t("match.failed"));
                   }
                 }}>
-                  Not the same
+                  {t("match.notSame")}
                 </Button>
               </div>
             )}
@@ -452,19 +453,19 @@ export function PossibleDoublesCard() {
       </ul>
       <ConfirmDialog
         open={keep != null}
-        title="Remove the bank's copy?"
-        message={keep ? `The entry the bank added on ${formatDate(keep.day)} is removed from the daily book and the bank transaction is matched to the typed one.` : ""}
-        confirmLabel="Remove copy" confirmTone="danger" busy={busy} error={err}
+        title={t("match.removeTitle")}
+        message={keep ? t("match.removeBody", { date: formatDate(keep.day) }) : ""}
+        confirmLabel={t("match.removeCopy")} confirmTone="danger" busy={busy} error={err}
         onConfirm={async () => {
           if (!keep) return;
           setBusy(true); setErr(null);
           try {
             await keepTypedEntry(keep.txn, keep.line);
-            toast({ message: "Removed the bank's copy.", tone: "success" });
+            toast({ message: t("match.removed"), tone: "success" });
             setKeep(null);
             refresh();
           } catch (e) {
-            setErr(apiErrorMessage(e, "Could not remove it."));
+            setErr(apiErrorMessage(e, t("match.removeFailed")));
           } finally {
             setBusy(false);
           }
