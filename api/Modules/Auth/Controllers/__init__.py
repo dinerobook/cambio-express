@@ -1750,6 +1750,9 @@ def send_password_reset_email(
     import logging
     from api.Core.Database import SessionLocal
     from api.Modules.Notifications.Services.smtp import send_email
+    from api.Modules.Notifications.Services.email_text import (
+        email_language, email_t,
+    )
     from api.Modules.Notifications.Services.templates import (
         render_email_template,
     )
@@ -1757,15 +1760,6 @@ def send_password_reset_email(
     from api.Core.Urls import get_base_url
     base_url = get_base_url()
     reset_url = f"{base_url}/app/reset-password?token={raw_token}"
-    body = (
-        "Hi,\n\n"
-        "Someone (hopefully you) requested a password reset for your "
-        "DineroBook account. Follow this link within the next hour to "
-        "set a new password:\n\n"
-        f"  {reset_url}\n\n"
-        "If you didn't request this you can safely ignore this email "
-        "— your current password will keep working.\n"
-    )
     with SessionLocal() as session:
         u = session.get(User, user_id)
         if u is None:
@@ -1774,13 +1768,16 @@ def send_password_reset_email(
                 f"between enqueue and worker; skipping send."
             )
             return
+        # The person's own language (English unless they picked
+        # Spanish). The account is already known here, so this tells
+        # the /forgot-password caller nothing (invariant 10).
+        lang = email_language(u)
+        body = email_t(lang, "reset.body", reset_url=reset_url)
         try:
             html = render_email_template(
                 "emails/password_reset.html",
-                preheader=(
-                    "Reset your DineroBook password "
-                    "— link expires in 1 hour."
-                ),
+                lang=lang,
+                preheader=email_t(lang, "reset.preheader"),
                 name=u.full_name or "",
                 reset_url=reset_url,
                 year=utc_now().year,
@@ -1790,7 +1787,7 @@ def send_password_reset_email(
             html = None
         to_addr = (u.email or u.username).strip()
         delivered = send_email(
-            session, to_addr, "Reset your DineroBook password",
+            session, to_addr, email_t(lang, "reset.subject"),
             body, html=html,
         )
         if not delivered:

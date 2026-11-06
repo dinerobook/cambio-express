@@ -66,3 +66,26 @@ superadmin "Sign in as" may read the bell but not dismiss (403,
 
 Email and push stay where they are (the Notifications settings page and
 the digests above). The bell never sends anything.
+
+## Emails in the reader's language (2026-11-06)
+
+Every email goes out in its recipient's language: Spanish only when
+`User.language == "es"` (`email_language(user)`), English otherwise,
+so a person who never chose gets exactly what they got before.
+
+* The words are in `Services/email_text.py`: `EN` and `ES`, one key
+  per text (subject, plain body, preheader, push, HTML pieces). A new
+  English text needs its Spanish twin with the same `{placeholders}`;
+  Spanish is the formal "usted".
+* Senders work out `lang` once per recipient and use
+  `email_t(lang, key, ...)` for the subject, plain body and push, and
+  `render_email_template(name, lang=lang, ...)` for the HTML. Dates go
+  through `email_date` / `email_datetime`.
+* A translated template types no English: text comes through
+  `{{ t("key") }}`, or `{{ th("key", x=bold(value)) }}` for a sentence
+  with markup (catalog trusted, values escaped). Macros that print
+  words are imported `with context`.
+* `tests/Modules/Notifications/test_email_text.py` lists the
+  translated templates (`TRANSLATED`); a template joins that list when
+  it is translated and never leaves it.
+

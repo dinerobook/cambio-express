@@ -38,37 +38,19 @@ from api.Modules.Notifications.Services.format import fmt_money_2 as _fmt_money_
 from api.Modules.Notifications.Services.smtp import send_email
 from api.Modules.Notifications.Services.templates import render_email_template
 from api.Core.Clock import local_today, utc_now
+from api.Modules.Notifications.Services.email_text import (
+    EN, email_date, email_language, email_t,
+)
 
 
 _log = logging.getLogger(__name__)
 
 
-DAILY_SUMMARY_SUBJECT = (
-    "Daily summary — {store_name}, {date_human}"
-)
-
-
-DAILY_SUMMARY_BODY = """\
-Hi {name},
-
-Here's yesterday's close-out for "{store_name}" ({date_human}):
-
-  Transfers logged   {transfer_count}
-  Send volume        {send_volume}
-  Receipts           {receipts}
-  Disbursements      {disbursements}
-  Over / short       {over_short}
-  Net position       {net}
-
-Open the day in DineroBook:
-    {view_url}
-
-You're getting this digest because you're listed as an owner or
-admin of {store_name}. Turn it off on your notifications page:
-    {notifications_url}
-
-— DineroBook
-"""
+# Subject, body, preheader and push words live in email_text.py
+# ("daily.*"), in English and Spanish; each recipient gets their own
+# language. The English texts keep their old names for importers.
+DAILY_SUMMARY_SUBJECT = EN["daily.subject"]
+DAILY_SUMMARY_BODY = EN["daily.body"]
 
 
 @dataclass
@@ -298,7 +280,6 @@ def _send_store_summary(
         return 0
 
     date_iso = on_date.isoformat()
-    date_human = on_date.strftime("%B %d, %Y")
     view_url = f"{base_url}/app/daily/edit?date={date_iso}"
     notifications_url = f"{base_url}/app/account/notifications"
     # Net = the day's cash position (receipts − disbursements),
@@ -307,12 +288,19 @@ def _send_store_summary(
     # count it (it already reflects safe balance + payouts vs
     # receipts). See DailyBook/INVARIANTS.md.
     net = totals.receipts - totals.disbursements
-    subject = DAILY_SUMMARY_SUBJECT.format(
-        store_name=store.name, date_human=date_human,
-    )
-
     for user in recipients:
-        body = DAILY_SUMMARY_BODY.format(
+        lang = email_language(user)
+        date_human = email_date(on_date, lang)
+        subject = email_t(
+            lang, "daily.subject", store_name=store.name, date_human=date_human,
+        )
+        figures = email_t(
+            lang, "daily.figures",
+            transfer_count=totals.transfer_count,
+            send_volume=_fmt_money_2(totals.send_volume),
+        )
+        body = email_t(
+            lang, "daily.body",
             name=user.full_name or user.username,
             store_name=store.name,
             date_human=date_human,
@@ -328,10 +316,8 @@ def _send_store_summary(
         try:
             html = render_email_template(
                 "emails/daily_summary.html",
-                preheader=(
-                    f"{totals.transfer_count} transfers · "
-                    f"{_fmt_money_2(totals.send_volume)} sent"
-                ),
+                lang=lang,
+                preheader=figures,
                 name=user.full_name or user.username,
                 store_name=store.name,
                 date_human=date_human,
@@ -376,10 +362,9 @@ def _send_store_summary(
                     session,
                     user_id=int(user.id),
                     title=subject,
-                    body=(
-                        f"{totals.transfer_count} transfers · "
-                        f"{_fmt_money_2(totals.send_volume)} sent · "
-                        f"net {_fmt_money_2(net)}"
+                    body=email_t(
+                        lang, "daily.pushBody",
+                        figures=figures, net=_fmt_money_2(net),
                     ),
                     url=f"/app/daily/edit?date={date_iso}",
                     tag=f"daily_summary:{store.id}:{date_iso}",

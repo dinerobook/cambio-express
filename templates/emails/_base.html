@@ -24,8 +24,23 @@
 </table>
 {% endmacro %}
 
+{# The "notifications page" link the footers point at, in the
+   reader's words. Pass it to th(...) as {link}. #}
+{% macro notif_link(href, color="#6b7280") %}<a href="{{ href }}" style="color:{{ color }};">{{ t("base.notificationsPage") }}</a>{% endmacro %}
+
+{# "Or paste this into your browser:" + the bare link, under a CTA. #}
+{% macro paste_link(href) %}
+<p style="margin:22px 0 6px;color:#6b7280;font-size:13.5px;">
+  {{ t("base.pasteLink") }}<br/>
+  <a href="{{ href }}" style="color:#0a0a0a;word-break:break-all;">{{ href }}</a>
+</p>
+{% endmacro %}
+
+{# "Hi Ana," / "Hola, Ana:" #}
+{% macro greeting(name) %}{% if name %}{{ t("base.hiName", name=name) }}{% else %}{{ t("base.hi") }}{% endif %}{% endmacro %}
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="{{ lang or 'en' }}">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -82,10 +97,8 @@
                 <a href="https://dinerobook.com" style="color:#6b7280;text-decoration:underline;">dinerobook.com</a>
               </p>
               <p style="margin:6px 0 0;color:#9ca3af;font-size:11px;">
-                You're receiving this because your {{ brand_name or 'DineroBook' }} account is
-                set to receive transactional notifications. Manage
-                preferences on your
-                <a href="{{ base_url or 'https://dinerobook.com' }}/account/notifications" style="color:#9ca3af;">notifications page</a>.
+                {{ th("base.footer", brand=brand_name or 'DineroBook',
+                      link=notif_link((base_url or 'https://dinerobook.com') ~ '/account/notifications', '#9ca3af')) }}
               </p>
             </td>
           </tr>

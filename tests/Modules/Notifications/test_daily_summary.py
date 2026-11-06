@@ -327,3 +327,48 @@ def test_run_skips_stores_with_no_activity():
         # No stamp because the store wasn't processed.
         assert s.daily_summary_sent_for is None
     assert n_before >= 0  # other stores may have been mailed
+
+
+# ── In the reader's language (email_text.py) ────────────────
+
+
+def test_each_recipient_reads_the_summary_in_their_own_language(monkeypatch):
+    """A Spanish reader gets the Spanish subject, body, HTML and push;
+    an English (never chose) reader on the same store keeps English."""
+    sent: list[tuple[str, str, str, str]] = []
+    pushes: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        ds, "send_email",
+        lambda session, to, subject, body, html: sent.append(
+            (to, subject, body, html),
+        ) or True,
+    )
+    from api.Modules.Notifications.Services import push as push_mod
+    monkeypatch.setattr(push_mod, "user_wants_push", lambda u, kind: True)
+    monkeypatch.setattr(
+        push_mod, "send_push",
+        lambda session, user_id, title, body="", url="/", tag=None: pushes.append(
+            (title, body),
+        ) or 1,
+    )
+    on_date = date(2026, 11, 5)
+    with db_session():
+        sid = _seed_store("ds-lang", name="Tienda Uno")
+        _seed_user(sid, "admin", "ds_lang_en")
+        es_id = _seed_user(sid, "admin", "ds_lang_es")
+        db.session.get(User, es_id).language = "es"
+        db.session.commit()
+        _seed_transfer(sid, on_date=on_date)
+    with db_session():
+        store = db.session.get(Store, sid)
+        ds._send_store_summary(db.session, store, on_date, "https://x.test")
+    by_to = {to: (subject, body, html) for to, subject, body, html in sent}
+    en_subject, en_body, _ = by_to["ds_lang_en@x.com"]
+    assert en_subject == "Daily summary — Tienda Uno, November 05, 2026"
+    assert "Transfers logged" in en_body
+    subject, body, html = by_to["ds_lang_es@x.com"]
+    assert subject == "Resumen del día — Tienda Uno, 5 de noviembre de 2026"
+    assert "Envíos registrados" in body and "Posición neta" in body
+    assert "Abrir en DineroBook" in html and 'lang="es"' in html
+    es_push = [b for t, b in pushes if t.startswith("Resumen del día")]
+    assert len(es_push) == 1 and es_push[0].startswith("1 envíos · $100.00 enviados · neto ")

@@ -36,29 +36,8 @@ _log = logging.getLogger(__name__)
 
 DEVICES_PATH = "/app/account/sessions"
 
-SUBJECT = "New sign-in to your DineroBook account"
-
-BODY = """\
-Hi {name},
-
-Your DineroBook account ({username}) was just signed in to from a
-device it hasn't used before.
-
-    Device:  {device}
-    Address: {ip}
-    When:    {when}
-
-If this was you, there is nothing to do.
-
-If it wasn't, sign that device out and change your password:
-    {devices_url}
-
-You're getting this because new sign-in alerts are on. Turn them off
-on your notifications page:
-    {notifications_url}
-
-— DineroBook
-"""
+# Subject, body and push words live in email_text.py ("signIn.*"),
+# in English and Spanish; each person gets their own language.
 
 
 # Same heuristic as the SPA's Devices page (AccountSessions.tsx
@@ -83,17 +62,24 @@ _PLATFORMS: tuple[tuple[str, str], ...] = (
 )
 
 
-def describe_user_agent(ua: str | None) -> str:
-    """"Chrome on Windows" from a User-Agent string."""
+def describe_user_agent(ua: str | None, lang: str = "en") -> str:
+    """"Chrome on Windows" from a User-Agent string. The English label
+    is also what ``is_new_device`` compares, so only the email passes
+    ``lang``; product names stay as they are in every language."""
+    from api.Modules.Notifications.Services.email_text import email_t
     if not ua:
-        return "Unknown device"
+        return email_t(lang, "signIn.unknownDevice")
     browser = next(
-        (name for pat, name in _BROWSERS if re.search(pat, ua)), "Browser",
+        (name for pat, name in _BROWSERS if re.search(pat, ua)),
+        email_t(lang, "signIn.browser"),
     )
     platform = next(
         (name for pat, name in _PLATFORMS if re.search(pat, ua)), "",
     )
-    return f"{browser} on {platform}" if platform else browser
+    return (
+        email_t(lang, "signIn.deviceOn", browser=browser, platform=platform)
+        if platform else browser
+    )
 
 
 def wants_new_sign_in(user: object, channel: str = "email") -> bool:
@@ -125,13 +111,13 @@ def is_new_device(db: Session, *, user_id: int, session_id: str) -> bool:
     return all(describe_user_agent(ua) != device for ua in earlier)
 
 
-def _when(created_at: datetime, timezone: str) -> str:
+def _when(created_at: datetime, timezone: str, lang: str = "en") -> str:
     """"Oct 22, 2026 at 1:05 AM (America/Chicago)" in the zone the
-    app shows this person (UTC when none is set)."""
+    app shows this person (UTC when none is set), in their language."""
+    from api.Modules.Notifications.Services.email_text import email_datetime
     zone = ZoneInfo(timezone or "UTC")
     local = created_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(zone)
-    clock = local.strftime("%I:%M %p").lstrip("0")
-    return f"{local.strftime('%b')} {local.day}, {local.year} at {clock} ({timezone or 'UTC'})"
+    return email_datetime(local, lang, timezone or "UTC")
 
 
 def send_new_sign_in_alert(user_id: int, session_id: str) -> int:
@@ -142,6 +128,9 @@ def send_new_sign_in_alert(user_id: int, session_id: str) -> int:
     from api.Core.Database import SessionLocal
     from api.Core.Urls import get_base_url
     from api.Modules.Auth.Models import RefreshToken
+    from api.Modules.Notifications.Services.email_text import (
+        email_language, email_t,
+    )
     from api.Modules.Tenancy.Models import Store, User
 
     sent = 0
@@ -166,28 +155,33 @@ def send_new_sign_in_alert(user_id: int, session_id: str) -> int:
             return 0
 
         store = db.get(Store, user.store_id) if user.store_id else None
-        device = describe_user_agent(head.user_agent)
-        ip = head.ip_address or "unknown"
-        when = _when(head.created_at, display_timezone(store, user))
+        lang = email_language(user)
+        device = describe_user_agent(head.user_agent, lang)
+        ip = head.ip_address or email_t(lang, "signIn.unknownIp")
+        when = _when(head.created_at, display_timezone(store, user), lang)
         base = get_base_url()
         devices_url = f"{base}{DEVICES_PATH}"
         notifications_url = f"{base}/app/account/notifications"
         name = user.full_name or user.username or ""
 
         if wants_email and user.email and user.email_bounced_at is None:
-            body = BODY.format(
+            body = email_t(
+                lang, "signIn.body",
                 name=name, username=user.username or "", device=device,
                 ip=ip, when=when, devices_url=devices_url,
                 notifications_url=notifications_url,
             )
             html = _render_html(
+                lang,
                 name=name, username=user.username or "", device=device,
                 ip=ip, when=when, devices_url=devices_url,
                 notifications_url=notifications_url,
             )
             try:
                 from api.Modules.Notifications.Services.smtp import send_email
-                send_email(db, user.email, SUBJECT, body, html)
+                send_email(
+                    db, user.email, email_t(lang, "signIn.subject"), body, html,
+                )
                 sent = 1
             except Exception:  # pragma: no cover — best-effort SMTP
                 _log.exception(
@@ -199,8 +193,8 @@ def send_new_sign_in_alert(user_id: int, session_id: str) -> int:
                 from api.Modules.Notifications.Services.push import send_push
                 send_push(
                     db, user_id=user_id,
-                    title="New sign-in to your account",
-                    body=f"{device} · {ip}. Not you? Sign it out.",
+                    title=email_t(lang, "signIn.title"),
+                    body=email_t(lang, "signIn.pushBody", device=device, ip=ip),
                     url=DEVICES_PATH,
                     tag=f"new_sign_in:{session_id}",
                 )
@@ -211,17 +205,19 @@ def send_new_sign_in_alert(user_id: int, session_id: str) -> int:
     return sent
 
 
-def _render_html(**fields: str) -> str | None:
+def _render_html(lang: str, **fields: str) -> str | None:
     """HTML body, or None on a template failure (plaintext still goes)."""
     from api.Core.Clock import utc_now
     from api.Core.Urls import get_base_url
+    from api.Modules.Notifications.Services.email_text import email_t
     from api.Modules.Notifications.Services.templates import (
         render_email_template,
     )
     try:
         return render_email_template(
             "emails/new_sign_in.html",
-            preheader=f"{fields['device']} signed in to your account",
+            lang=lang,
+            preheader=email_t(lang, "signIn.preheader", device=fields["device"]),
             year=utc_now().year,
             base_url=get_base_url(),
             **fields,

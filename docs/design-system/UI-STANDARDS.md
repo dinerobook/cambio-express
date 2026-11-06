@@ -818,7 +818,19 @@ Then platform users and the store page. A trial status
 transfer's status show in the reader's language; one the SPA does not
 list shows as sent. A module or flag name on the store page is the
 server's label and stays as sent.
-Next: emails. The TV board's own words (its title,
+Emails follow the same rule: a person who picked Español gets their
+emails in Spanish, everyone else (never chose, English) gets English
+exactly as before. The words live in
+`api/Modules/Notifications/Services/email_text.py` (`EN` / `ES`); a
+template reads them through `t()` / `th()` and types no English, and
+`tests/Modules/Notifications/test_email_text.py` fails otherwise.
+Translated: the shared footer, password reset, the new sign-in alert,
+the trial reminder, the daily summary, the locked-day digest, ticket
+updates (to the store and to the platform), announcements and the
+missed-shift digest, with their pushes. An announcement's message is
+the superadmin's own words and goes out as typed; only its frame is
+translated. A ticket reply is the person's own words too. `test.html`
+is not sent by any code and stays as it is. The TV board's own words (its title,
 the sample subtitle) are board content and stay as the store types
 them; the country picker names each country in the reader's language
 (`Intl.DisplayNames`) but saves the English name, as before. Add-on

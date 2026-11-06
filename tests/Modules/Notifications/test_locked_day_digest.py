@@ -384,3 +384,37 @@ def test_recipients_skip_hard_bounced_addresses():
         db.session.commit()
         recipients = locked_day_digest_recipients(db.session, s)
     assert {u.username for u in recipients} == {"deliverable"}
+
+
+def test_digest_in_each_readers_language(monkeypatch):
+    """Spanish readers get the Spanish digest; "an admin" (no locker
+    on record) is in their language too. English is unchanged."""
+    from datetime import date
+    from api.Modules.Notifications.Services.locked_day_digest import run
+
+    sent = []
+    monkeypatch.setattr(
+        "api.Modules.Notifications.Services.locked_day_digest.send_email",
+        lambda session, to_addr, subject, body, html: sent.append(
+            (to_addr, subject, body, html),
+        ) or True,
+    )
+    with db_session():
+        s = _add_store(db.session, slug="lang-locked-co")
+        _add_user(db.session, store_id=s.id, role="admin",
+                  username="lang-en", email="lang-en@x.com")
+        es = _add_user(db.session, store_id=s.id, role="admin",
+                       username="lang-es", email="lang-es@x.com")
+        es.language = "es"
+        db.session.commit()
+        r = _add_report(db.session, store_id=s.id, report_date=date(2026, 3, 1))
+        db.session.commit()
+        assert run(db.session, r, base_url="https://x.test") == 2
+    by_to = {to: (subject, body, html) for to, subject, body, html in sent}
+    subject, body, _ = by_to["lang-en@x.com"]
+    assert subject == "Daily book locked — lang-locked-co, March 01, 2026"
+    assert "locked\nby an admin." in body
+    subject, body, html = by_to["lang-es@x.com"]
+    assert subject == "Libro diario cerrado — lang-locked-co, 1 de marzo de 2026"
+    assert "cerrado por un administrador." in body
+    assert "Sobrante / faltante" in html and 'lang="es"' in html

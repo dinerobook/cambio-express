@@ -32,50 +32,59 @@ from sqlalchemy.orm import Session
 _log = logging.getLogger(__name__)
 
 
-# Event codes → human phrasing. ``detail`` carries the variable
-# part (new status, reply snippet) so workers stay primitive-args.
-_USER_EVENT_LABEL = {
-    "staff_reply":   "Support replied to your ticket",
-    "status_change": "Your ticket's status changed",
+# Event codes → the key of their words in email_text.py ("ticket.*").
+# ``detail`` carries the variable part (new status, reply snippet) so
+# workers stay primitive-args. Each recipient reads their own language.
+_USER_EVENT_KEY = {
+    "staff_reply":   "ticket.staffReply",
+    "status_change": "ticket.statusChange",
 }
 
-_PLATFORM_EVENT_LABEL = {
-    "created":    "New ticket",
-    "user_reply": "New reply",
-    "reopened":   "Ticket reopened",
+_PLATFORM_EVENT_KEY = {
+    "created":    "ticket.created",
+    "user_reply": "ticket.userReply",
+    "reopened":   "ticket.reopenedEvent",
+}
+
+# A status-change ``detail`` is the English status word the caller
+# passed ("In progress", "Reopened"); it is shown in the reader's
+# language. Anything else (a reply snippet) is the person's own words.
+_STATUS_DETAIL_KEY = {
+    "Open": "ticket.st.open",
+    "In progress": "ticket.st.in_progress",
+    "Resolved": "ticket.st.resolved",
+    "Closed": "ticket.st.closed",
+    "Reopened": "ticket.reopened",
+}
+
+_STATUS_KEY = {
+    "open": "ticket.st.open",
+    "in_progress": "ticket.st.in_progress",
+    "resolved": "ticket.st.resolved",
+    "closed": "ticket.st.closed",
 }
 
 
-USER_SUBJECT = "Update on your support ticket: {subject}"
-PLATFORM_SUBJECT = "Ticket #{ticket_id} {store_name}: {event_label}"
+def _status_label(lang: str, status: str | None) -> str:
+    """A ticket status in ``lang``; one the list doesn't know shows as
+    stored."""
+    from api.Modules.Notifications.Services.email_text import email_t
+    raw = status or "open"
+    key = _STATUS_KEY.get(raw)
+    return email_t(lang, key) if key else raw.replace("_", " ")
 
 
-USER_BODY = """\
-Hi {name},
+def _detail_for(lang: str, event: str, detail: str) -> str:
+    from api.Modules.Notifications.Services.email_text import email_t
+    key = _STATUS_DETAIL_KEY.get(detail) if event == "status_change" else None
+    return email_t(lang, key) if key else detail
 
-{event_line} — "{subject}" (ticket #{ticket_id}).
 
-{detail_block}Open the conversation in DineroBook:
-    {view_url}
+# English texts under their old names, for importers.
+from api.Modules.Notifications.Services.email_text import EN  # noqa: E402
 
-You're getting this because you filed the ticket. Turn ticket
-updates off on your notifications page:
-    {notifications_url}
-
-— DineroBook
-"""
-
-PLATFORM_BODY = """\
-{event_label} on ticket #{ticket_id} — "{subject}"
-Store: {store_name}
-From: {actor_name}
-Status: {status} · Priority: {priority}
-
-{detail_block}Open the ticket queue:
-    {view_url}
-
-— DineroBook
-"""
+USER_SUBJECT = EN["ticket.userSubject"]
+PLATFORM_SUBJECT = EN["ticket.platformSubject"]
 
 
 def _base_url() -> str:
@@ -84,8 +93,8 @@ def _base_url() -> str:
 
 
 def _render_html(
-    *, heading: str, event_line: str, ticket: object, store_name: str,
-    detail: str, view_url: str, cta_label: str,
+    *, lang: str, heading: str, event_line: str, ticket: object,
+    store_name: str, detail: str, view_url: str, cta_label: str,
     notifications_url: str | None, name: str,
 ) -> str | None:
     """Render the shared ticket-update email chrome. Returns None on
@@ -97,6 +106,7 @@ def _render_html(
     try:
         return render_email_template(
             "emails/ticket_update.html",
+            lang=lang,
             preheader=event_line,
             heading=heading,
             event_line=event_line,
@@ -104,7 +114,7 @@ def _render_html(
             ticket_id=getattr(ticket, "id", ""),
             subject=getattr(ticket, "subject", "") or "",
             store_name=store_name,
-            status=(getattr(ticket, "status", "") or "open").replace("_", " "),
+            status=_status_label(lang, getattr(ticket, "status", "") or "open"),
             priority=getattr(ticket, "priority", "") or "normal",
             detail=detail,
             view_url=view_url,
@@ -139,16 +149,18 @@ def send_ticket_update_to_user(
 ) -> int:
     """Notify the ticket's creator that staff acted on it.
 
-    ``event`` ∈ ``_USER_EVENT_LABEL``; ``detail`` carries the new
+    ``event`` ∈ ``_USER_EVENT_KEY``; ``detail`` carries the new
     status or a snippet of the staff reply. Returns emails attempted
     (0 or 1). Push fans out independently of the email gate — the
     two channels have separate toggles.
     """
     from api.Core.Database import SessionLocal
+    from api.Modules.Notifications.Services.email_text import (
+        email_language, email_t,
+    )
     from api.Modules.Tenancy.Models import User
     from api.Modules.Support.Models import SupportTicket
 
-    event_line = _USER_EVENT_LABEL.get(event, "Your ticket was updated")
     sent = 0
     with SessionLocal() as db:
         ticket = db.get(SupportTicket, ticket_id)
@@ -161,8 +173,11 @@ def send_ticket_update_to_user(
         view_url = f"{_base_url()}/app/account/tickets"
         notifications_url = f"{_base_url()}/app/account/notifications"
         name = user.full_name or user.username or ""
-        subject = USER_SUBJECT.format(subject=ticket.subject or "")
-        detail_block = f"{detail}\n\n" if detail else ""
+        lang = email_language(user)
+        event_line = email_t(lang, _USER_EVENT_KEY.get(event, "ticket.updated"))
+        shown_detail = _detail_for(lang, event, detail)
+        subject = email_t(lang, "ticket.userSubject", subject=ticket.subject or "")
+        detail_block = f"{shown_detail}\n\n" if shown_detail else ""
 
         wants_email = (
             bool(user.email)
@@ -170,7 +185,8 @@ def send_ticket_update_to_user(
             and user.email_bounced_at is None
         )
         if wants_email:
-            body = USER_BODY.format(
+            body = email_t(
+                lang, "ticket.userBody",
                 name=name,
                 event_line=event_line,
                 subject=ticket.subject or "",
@@ -180,13 +196,14 @@ def send_ticket_update_to_user(
                 notifications_url=notifications_url,
             )
             html = _render_html(
-                heading="Ticket update",
+                lang=lang,
+                heading=email_t(lang, "ticket.heading"),
                 event_line=event_line,
                 ticket=ticket,
                 store_name="",
-                detail=detail,
+                detail=shown_detail,
                 view_url=view_url,
-                cta_label="Open the conversation",
+                cta_label=email_t(lang, "ticket.openConversation"),
                 notifications_url=notifications_url,
                 name=name,
             )
@@ -201,7 +218,7 @@ def send_ticket_update_to_user(
                     db,
                     user_id=int(user.id),
                     title=subject,
-                    body=event_line + (f" — {detail}" if detail else ""),
+                    body=event_line + (f" — {shown_detail}" if shown_detail else ""),
                     url="/app/account/tickets",
                     tag=f"ticket_update:{ticket.id}",
                 )
@@ -242,47 +259,56 @@ def send_ticket_event_to_platform(
     queue from the superadmin tickets page.
     """
     from api.Core.Database import SessionLocal
+    from api.Modules.Notifications.Services.email_text import (
+        email_language, email_t,
+    )
     from api.Modules.Support.Models import SupportTicket
     from api.Modules.Tenancy.Models import Store
 
-    event_label = _PLATFORM_EVENT_LABEL.get(event, "Ticket updated")
+    event_key = _PLATFORM_EVENT_KEY.get(event, "ticket.ticketUpdated")
     sent = 0
     with SessionLocal() as db:
         ticket = db.get(SupportTicket, ticket_id)
         if ticket is None:
             return 0
         store = db.get(Store, ticket.store_id)
-        store_name = (store.name if store else "") or f"store #{ticket.store_id}"
-
         view_url = f"{_base_url()}/app/superadmin/tickets"
-        subject = PLATFORM_SUBJECT.format(
-            ticket_id=ticket.id, store_name=store_name,
-            event_label=event_label,
-        )
         detail_block = f"{detail}\n\n" if detail else ""
-        body = PLATFORM_BODY.format(
-            event_label=event_label,
-            ticket_id=ticket.id,
-            subject=ticket.subject or "",
-            store_name=store_name,
-            actor_name=actor_name or (ticket.submitted_by or ""),
-            status=ticket.status or "open",
-            priority=ticket.priority or "normal",
-            detail_block=detail_block,
-            view_url=view_url,
-        )
         for user in platform_recipients(db):
+            lang = email_language(user)
+            event_label = email_t(lang, event_key)
+            store_name = (store.name if store else "") or email_t(
+                lang, "ticket.storeN", id=ticket.store_id,
+            )
+            subject = email_t(
+                lang, "ticket.platformSubject", ticket_id=ticket.id,
+                store_name=store_name, event_label=event_label,
+            )
+            body = email_t(
+                lang, "ticket.platformBody",
+                event_label=event_label,
+                ticket_id=ticket.id,
+                subject=ticket.subject or "",
+                store_name=store_name,
+                actor_name=actor_name or (ticket.submitted_by or ""),
+                status=_status_label(lang, ticket.status),
+                priority=ticket.priority or "normal",
+                detail_block=detail_block,
+                view_url=view_url,
+            )
             html = _render_html(
+                lang=lang,
                 heading=event_label,
                 event_line=(
-                    f"{event_label} from {store_name}"
+                    email_t(lang, "ticket.fromStore",
+                            event_label=event_label, store_name=store_name)
                     + (f" · {actor_name}" if actor_name else "")
                 ),
                 ticket=ticket,
                 store_name=store_name,
                 detail=detail,
                 view_url=view_url,
-                cta_label="Open the ticket queue",
+                cta_label=email_t(lang, "ticket.openQueue"),
                 notifications_url=None,
                 name=user.full_name or user.username or "",
             )

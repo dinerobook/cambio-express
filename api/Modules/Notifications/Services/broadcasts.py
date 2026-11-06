@@ -23,35 +23,34 @@ from api.Modules.Notifications.Services.templates import render_email_template
 from api.Core.Clock import utc_now
 
 
+from api.Modules.Notifications.Services.email_text import (
+    EN, email_language, email_t,
+)
+
+
 # Subject fallback when the announcement message is empty / blank.
-_GENERIC_BROADCAST_SUBJECT = "A message from DineroBook"
+# The chrome words live in email_text.py ("ann.*"); the message is
+# the superadmin's own words and goes out as typed to everyone.
+_GENERIC_BROADCAST_SUBJECT = EN["ann.genericSubject"]
 _BROADCAST_SUBJECT_MAX = 100
 
 
-BROADCAST_PLAIN_BODY = """\
-Announcement from DineroBook
-
-{message}
-
-— DineroBook ({base_url})
-
-Don't want announcement emails? Turn them off:
-  {notifications_url}
-"""
+BROADCAST_PLAIN_BODY = EN["ann.body"]
 
 
-def derive_broadcast_subject(message: str | None) -> str:
+def derive_broadcast_subject(message: str | None, lang: str = "en") -> str:
     """Pull a subject line from `message`.
 
     Uses the first non-empty line, trimmed and capped at 100
     chars. Falls back to a generic subject when the message is
     empty / whitespace-only — keeps the emailbox-preview clean.
     """
+    generic = email_t(lang, "ann.genericSubject")
     text = (message or "").strip()
     if not text:
-        return _GENERIC_BROADCAST_SUBJECT
+        return generic
     first_line = text.split("\n", 1)[0]
-    return first_line[:_BROADCAST_SUBJECT_MAX] or _GENERIC_BROADCAST_SUBJECT
+    return first_line[:_BROADCAST_SUBJECT_MAX] or generic
 
 
 def eligible_recipients(
@@ -117,7 +116,6 @@ def run(
     if ann.broadcast_sent_at is not None:
         return 0  # already sent — idempotent
 
-    subject = derive_broadcast_subject(ann.message)
     # Targeted announcements only email users in the target stores;
     # a global announcement (no targeting rows) reaches everyone.
     from api.Modules.Announcements.Models import AnnouncementStore
@@ -132,16 +130,20 @@ def run(
     )
     now = utc_now()
     notifications_url = f"{base_url}/account/notifications"
-    plain_body = BROADCAST_PLAIN_BODY.format(
-        message=ann.message,
-        base_url=base_url,
-        notifications_url=notifications_url,
-    )
 
     sent = 0
     for u in recipients:
+        lang = email_language(u)
+        subject = derive_broadcast_subject(ann.message, lang)
+        plain_body = email_t(
+            lang, "ann.body",
+            message=ann.message,
+            base_url=base_url,
+            notifications_url=notifications_url,
+        )
         html = render_email_template(
             "emails/announcement.html",
+            lang=lang,
             preheader=ann.message[:120],
             subject=subject,
             message=ann.message,
