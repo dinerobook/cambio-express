@@ -8,6 +8,8 @@ import { filterNavForRole } from "../components/navConfig";
 import { callsTo, mockFetch } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
 import type { SuperadminSetupProgressRow } from "../api/superadmin";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Platform → Setup progress. Pinned: each step's cell (done, not done,
 // does not apply), the open filter as the default, filters and paging
@@ -169,5 +171,23 @@ describe("SuperadminSetupProgress", () => {
     expect(links("superadmin")).toContain(to);
     expect(links("support")).not.toContain(to);
     expect(links("admin")).not.toContain(to);
+  });
+
+  it("reads in Spanish, cells and filters included", async () => {
+    mockFetch({ [URL]: { body: page([row(), row({ store_id: 2, name: "Cambio Dos", days_since_signup: 1,
+      companies_added: true, company_count: 1, is_active: false })]) } });
+    setLanguage("es");
+    renderPage();
+    const uno = await rowOf("Cambio Uno");
+    for (const text of ["Sin agregar", "0 de 3 configurados", "Sin conectar", "Todavía no", "0 de 4", "hace 5 días"]) {
+      expect(uno).toHaveTextContent(text);
+    }
+    const dos = await rowOf("Cambio Dos");
+    expect(dos).toHaveTextContent("1 compañía");
+    expect(dos).toHaveTextContent("hace 1 día");
+    expect(dos).toHaveTextContent("· inactiva");
+    expect(screen.getByText("2 tiendas")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Sin terminar" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saSetup."])).toEqual([]);
   });
 });

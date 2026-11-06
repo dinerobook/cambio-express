@@ -38,7 +38,7 @@ describe("SuperadminEmailLog", () => {
     mockFetch({ "GET /api/v2/superadmin/email-log": { body: log() } });
     renderPage();
     const luis = (await screen.findByText("luis@x.com")).closest("tr")!;
-    expect(luis).toHaveTextContent("bounced");
+    expect(luis).toHaveTextContent("Bounced");
     expect(luis).toHaveTextContent("hard");
     expect(screen.getByText("Showing 1–2 of 2")).toBeInTheDocument();
     expect(screen.getByText("2 events")).toBeInTheDocument();

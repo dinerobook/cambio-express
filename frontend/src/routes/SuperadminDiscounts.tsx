@@ -19,8 +19,18 @@ import {
 } from "../components/ui";
 import { PageCrumbs } from "../components/PageCrumbs";
 import styles from "./SuperadminDiscounts.module.css";
+import { t as translate, tn, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+/** Stripe's duration words; one Stripe adds later shows as sent. */
+const DURATION: Record<string, MessageKey> = {
+  once: "saDisc.duration.once",
+  forever: "saDisc.duration.forever",
+  repeating: "saDisc.duration.repeating",
+};
 
 export default function SuperadminDiscounts() {
+  const t = useT();
   const { data, isLoading, isError, error, refetch } = useDiscounts();
   const qc = useQueryClient();
   const toast = useToast();
@@ -31,11 +41,11 @@ export default function SuperadminDiscounts() {
       await toggleDiscount(row.id, !row.is_active);
       void qc.invalidateQueries({ queryKey: ["superadmin-discounts"] });
       toast({
-        message: `${row.code} → ${!row.is_active ? "active" : "disabled"}`,
+        message: t(row.is_active ? "saDisc.toggledOff" : "saDisc.toggledOn", { code: row.code }),
         tone: "success",
       });
     } catch (err) {
-      toastApiError(err, "Toggle failed");
+      toastApiError(err, t("saDisc.toggleFailed"));
     }
   }
 
@@ -43,8 +53,8 @@ export default function SuperadminDiscounts() {
     <PageShell gap="1.25rem">
       <PageCrumbs />
       <PageHeader
-        title="Discounts"
-        subtitle="Stripe coupon codes — toggle visibility, view redemptions"
+        title={navWord("Discounts")}
+        subtitle={t("saDisc.subtitle")}
       />
 
       <Card>
@@ -54,14 +64,14 @@ export default function SuperadminDiscounts() {
           rowKey={(row) => row.id}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          errorMessage="Could not load discount codes."
-          emptyTitle="No discount codes"
-          emptyBody="Coupon codes created in Stripe will appear here."
+          errorMessage={t("saDisc.loadFailed")}
+          emptyTitle={t("saDisc.emptyTitle")}
+          emptyBody={t("saDisc.emptyBody")}
           page={data && {
             page: 1, totalPages: 1, total: data.total, onPage: () => {},
             leading: (
               <span className={styles.note}>
-                Coupon creation is managed in the Stripe Dashboard.
+                {t("saDisc.stripeNote")}
               </span>
             ),
           }}
@@ -75,21 +85,22 @@ export default function SuperadminDiscounts() {
 function discountColumns(
   onToggle: (row: DiscountCodeRow) => Promise<void>,
 ): DataColumn<DiscountCodeRow>[] {
+  const t = translate;
   return [
-    { key: "code", header: "Code", render: (r) => <span className={styles.code}>{r.code}</span> },
-    { key: "value", header: "Value", render: (r) => r.value_label },
+    { key: "code", header: t("saDisc.colCode"), render: (r) => <span className={styles.code}>{r.code}</span> },
+    { key: "value", header: t("saDisc.colValue"), render: (r) => r.value_label },
     {
-      key: "duration", header: "Duration",
+      key: "duration", header: t("saDisc.colDuration"),
       render: (r) => (
         <span className={styles.small}>
           {r.duration === "repeating" && r.duration_in_months
-            ? `${r.duration_in_months} mo`
-            : r.duration}
+            ? tn("saDisc.months", r.duration_in_months)
+            : Object.hasOwn(DURATION, r.duration) ? t(DURATION[r.duration]) : r.duration}
         </span>
       ),
     },
     {
-      key: "redeemed", header: "Redeemed",
+      key: "redeemed", header: t("saDisc.colRedeemed"),
       render: (r) => (
         <span className={styles.mono}>
           {r.redeemed_count}
@@ -100,24 +111,24 @@ function discountColumns(
       ),
     },
     {
-      key: "expires", header: "Expires",
+      key: "expires", header: t("saDisc.colExpires"),
       render: (r) => <span className={styles.expires}>{formatDate(r.expires_at)}</span>,
     },
     {
-      key: "status", header: "Status",
+      key: "status", header: t("common.status"),
       render: (r) => (r.is_redeemable ? (
-        <Pill tone="accent">Redeemable</Pill>
+        <Pill tone="accent">{t("saDisc.redeemable")}</Pill>
       ) : r.is_active ? (
-        <Pill tone="warning">Capped / expired</Pill>
+        <Pill tone="warning">{t("saDisc.capped")}</Pill>
       ) : (
-        <Pill tone="neutral">Disabled</Pill>
+        <Pill tone="neutral">{t("saDisc.disabled")}</Pill>
       )),
     },
     {
-      key: "actions", header: "Actions", label: "", align: "right",
+      key: "actions", header: t("common.actions"), label: "", align: "right",
       render: (r) => (
         <Button size="sm" tone="secondary" onClick={() => { void onToggle(r); }}>
-          {r.is_active ? "Disable" : "Enable"}
+          {r.is_active ? t("saDisc.disable") : t("saDisc.enable")}
         </Button>
       ),
     },

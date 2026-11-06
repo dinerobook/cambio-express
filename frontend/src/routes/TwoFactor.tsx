@@ -13,6 +13,12 @@ import {
 } from "../api/account";
 import styles from "./TwoFactor.module.css";
 import chrome from "./auth.module.css";
+import { t as translate, tNodes, useT } from "../i18n";
+
+// Samples of what to type: the same in every language.
+const TOTP_SAMPLE = "123 456";
+const RECOVERY_SAMPLE = "ABCD-EFGH";
+const TITLE_SUFFIX = " — DineroBook";
 
 interface PendingState {
   pending_token: string;
@@ -29,6 +35,7 @@ function readPending(loc: ReturnType<typeof useLocation>): PendingState | null {
 
 
 export function TwoFactorVerify() {
+  const t = useT();
   const navigate = useNavigate();
   const loc = useLocation();
   const pending = readPending(loc);
@@ -37,29 +44,29 @@ export function TwoFactorVerify() {
   }, [pending, navigate]);
   if (!pending) return null;
   return (
-    <Chrome title="Enter 6-digit code">
+    <Chrome title={t("tfa.verifyDocTitle")}>
       <VerifyForm
         endpoint="/api/v2/auth/login/totp"
-        heading="Enter your code"
-        sub="Open your authenticator app and type the 6-digit code it shows for DineroBook."
-        codeLabel="Authentication code"
+        heading={t("tfa.verifyHeading")}
+        sub={t("tfa.verifySub")}
+        codeLabel={t("tfa.codeLabel")}
         codeMode="numeric"
-        codePlaceholder="123 456"
+        codePlaceholder={TOTP_SAMPLE}
         codeMaxLen={7}
         codePattern="[0-9 ]*"
-        submitLabel="Verify →"
+        submitLabel={t("tfa.verify")}
         pending={pending}
       >
         {pending.has_recovery_codes && (
           <div className={chrome.centerRow}>
-            Lost your device?{" "}
+            {t("tfa.lostDevice")}{" "}
             <Link to="/login/2fa/recover" state={pending}>
-              Use a recovery code
+              {t("tfa.useRecovery")}
             </Link>
           </div>
         )}
         <div className={chrome.centerRow}>
-          <Link to="/login">Cancel and sign back in</Link>
+          <Link to="/login">{t("tfa.cancel")}</Link>
         </div>
       </VerifyForm>
     </Chrome>
@@ -68,6 +75,7 @@ export function TwoFactorVerify() {
 
 
 export function TwoFactorRecover() {
+  const t = useT();
   const navigate = useNavigate();
   const loc = useLocation();
   const pending = readPending(loc);
@@ -76,27 +84,27 @@ export function TwoFactorRecover() {
   }, [pending, navigate]);
   if (!pending) return null;
   return (
-    <Chrome title="Use a recovery code">
+    <Chrome title={t("tfa.useRecovery")}>
       <VerifyForm
         endpoint="/api/v2/auth/login/recovery"
-        heading="Use a recovery code"
-        sub="Enter one of the 8-character recovery codes you saved when setting up 2FA. Each code works only once."
-        codeLabel="Recovery code"
+        heading={t("tfa.useRecovery")}
+        sub={t("tfa.recoverSub")}
+        codeLabel={t("tfa.recoveryLabel")}
         codeMode="text"
-        codePlaceholder="ABCD-EFGH"
+        codePlaceholder={RECOVERY_SAMPLE}
         codeMaxLen={16}
-        submitLabel="Use code →"
+        submitLabel={t("tfa.useCode")}
         pending={pending}
         uppercase
       >
         <div className={chrome.centerRow}>
-          Got your authenticator back?{" "}
+          {t("tfa.gotBack")}{" "}
           <Link to="/login/2fa" state={pending}>
-            Enter a 6-digit code instead
+            {t("tfa.useSixDigit")}
           </Link>
         </div>
         <div className={chrome.centerRow}>
-          <Link to="/login">Cancel and sign back in</Link>
+          <Link to="/login">{t("tfa.cancel")}</Link>
         </div>
       </VerifyForm>
     </Chrome>
@@ -108,6 +116,7 @@ type EnrollStep = "scan" | "saved";
 
 
 export function TwoFactorEnroll() {
+  const t = useT();
   const navigate = useNavigate();
   const loc = useLocation();
   const pending = readPending(loc);
@@ -132,7 +141,7 @@ export function TwoFactorEnroll() {
       .catch((err) => {
         if (cancelled) return;
         setError(
-          apiErrorMessage(err, "Couldn't start enrollment. Sign in again."),
+          apiErrorMessage(err, translate("tfa.startFailed")),
         );
       })
       .finally(() => { if (!cancelled) setBusy(false); });
@@ -151,7 +160,7 @@ export function TwoFactorEnroll() {
       setStep("saved");
     } catch (err) {
       setError(
-        apiErrorMessage(err, "That code didn't match. Try the next one your app shows."),
+        apiErrorMessage(err, t("tfa.noMatch")),
       );
     } finally { setBusy(false); }
   }
@@ -166,29 +175,24 @@ export function TwoFactorEnroll() {
         setAccessToken(r.access_token);
         navigate("/dashboard", { replace: true });
       } else {
-        setError("Server returned an unexpected response.");
+        setError(t("common.unexpectedResponse"));
       }
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Couldn't finalize sign-in. Try again."),
+        apiErrorMessage(err, t("tfa.finalizeFailed")),
       );
     } finally { setBusy(false); }
   }
 
   if (step === "saved" && recoveryCodes) {
     return (
-      <Chrome title="Save your recovery codes">
-        <h2 className={chrome.cardTitle} style={{ margin: 0 }}>Save these recovery codes</h2>
+      <Chrome title={t("tfa.saveDocTitle")}>
+        <h2 className={chrome.cardTitle} style={{ margin: 0 }}>{t("tfa.saveHeading")}</h2>
         <p className={chrome.cardSub} style={{ margin: 0 }}>
-          If you lose access to your authenticator app, each of these codes
-          can be used once to sign in instead of a 6-digit code. This is
-          the only time they'll be shown.
+          {t("tfa.saveSub")}
         </p>
         <Alert tone="info">
-          <strong>Where to store them:</strong> password manager (1Password,
-          Bitwarden), a printed copy in a safe, or both. Don't save them in
-          a plain note on your phone — if your phone is the device you've
-          just enrolled, losing it loses everything.
+          <strong>{t("tfa.whereStore")}</strong> {t("tfa.whereStoreBody")}
         </Alert>
         <div className={styles.recoveryGrid}>
           {recoveryCodes.map((c) => (<div key={c}>{c}</div>))}
@@ -197,7 +201,7 @@ export function TwoFactorEnroll() {
         <form onSubmit={onConfirmSaved} autoComplete="off"
               style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
           <Checkbox checked={savedConfirmed} onChange={setSavedConfirmed}>
-            I've saved these recovery codes somewhere safe.
+            {t("tfa.savedConfirm")}
           </Checkbox>
           <Button
             type="submit" tone="primary" size="lg"
@@ -205,7 +209,7 @@ export function TwoFactorEnroll() {
             disabled={!savedConfirmed || busy}
             style={{ width: "100%" }}
           >
-            {busy ? "Finishing…" : "Finish and sign in →"}
+            {busy ? t("tfa.finishing") : t("tfa.finish")}
           </Button>
         </form>
       </Chrome>
@@ -213,11 +217,10 @@ export function TwoFactorEnroll() {
   }
 
   return (
-    <Chrome title="Set up 2FA">
-      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>Set up two-factor authentication</h2>
+    <Chrome title={t("tfa.setupDocTitle")}>
+      <h2 className={chrome.cardTitle} style={{ margin: 0 }}>{t("tfa.setupHeading")}</h2>
       <p className={chrome.cardSub} style={{ margin: 0 }}>
-        Scan this QR code with Google Authenticator, 1Password, Authy, or
-        any TOTP app — then enter the 6-digit code it generates to confirm.
+        {t("tfa.setupSub")}
       </p>
       {error && <Alert tone="error">{error}</Alert>}
       {!enrollment ? (
@@ -229,19 +232,21 @@ export function TwoFactorEnroll() {
             dangerouslySetInnerHTML={{ __html: enrollment.qr_svg }}
           />
           <Alert tone="info">
-            <strong>Can't scan?</strong> Enter this secret manually in your
-            authenticator app (issuer: <code>{enrollment.issuer}</code>,
-            account: <code>{enrollment.username}</code>):
+            <strong>{t("tfa.cantScan")}</strong>{" "}
+            {tNodes("tfa.manual", {
+              issuer: <code>{enrollment.issuer}</code>,
+              account: <code>{enrollment.username}</code>,
+            })}
           </Alert>
           <div className={styles.secretBlock}>{enrollment.secret_chunks}</div>
           <form onSubmit={onVerifyCode} autoComplete="off"
                 style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            <Field label="Enter the 6-digit code from your app">
+            <Field label={t("tfa.enterCode")}>
               <Input
                 type="text" inputMode="numeric"
                 autoComplete="one-time-code"
                 pattern="[0-9 ]*" maxLength={7}
-                placeholder="123 456" autoFocus required
+                placeholder={TOTP_SAMPLE} autoFocus required
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 disabled={busy}
@@ -259,13 +264,13 @@ export function TwoFactorEnroll() {
               disabled={busy || !code}
               style={{ width: "100%" }}
             >
-              {busy ? "Verifying…" : "Confirm and continue →"}
+              {busy ? t("tfa.verifying") : t("tfa.confirm")}
             </Button>
           </form>
         </>
       )}
       <div className={chrome.centerRow}>
-        <Link to="/login">Cancel and sign back in</Link>
+        <Link to="/login">{t("tfa.cancel")}</Link>
       </div>
     </Chrome>
   );
@@ -289,6 +294,7 @@ function VerifyForm({
   uppercase?: boolean;
   children?: ReactNode;
 }) {
+  const t = useT();
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -306,10 +312,10 @@ function VerifyForm({
         setAccessToken(r.access_token);
         navigate("/dashboard", { replace: true });
       } else {
-        setError("Server returned an unexpected response.");
+        setError(t("common.unexpectedResponse"));
       }
     } catch (err) {
-      setError(apiErrorMessage(err, "Network error. Try again."));
+      setError(apiErrorMessage(err, t("common.networkError")));
     } finally { setBusy(false); }
   }
 
@@ -345,7 +351,7 @@ function VerifyForm({
           disabled={busy || !code}
           style={{ width: "100%" }}
         >
-          {busy ? "Verifying…" : submitLabel}
+          {busy ? t("tfa.verifying") : submitLabel}
         </Button>
       </form>
       {children}
@@ -363,7 +369,7 @@ function Chrome({ title, children }: { title: string; children: ReactNode }) {
       <AuthChrome navLink={null}>
         <div className={chrome.stack}>{children}</div>
       </AuthChrome>
-      <DocTitle title={`${title} — DineroBook`} />
+      <DocTitle title={title + TITLE_SUFFIX} />
     </>
   );
 }

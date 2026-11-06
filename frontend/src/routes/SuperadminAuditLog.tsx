@@ -11,6 +11,8 @@ import {
 import { AuditTable, type AuditTableRow } from "../components/AuditTable";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
+import { tn, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Platform-wide superadmin audit log at /app/superadmin/audit-log.
 // Mirrors the legacy /superadmin/reports/audit-log report —
@@ -22,6 +24,7 @@ import { fmtNumber } from "../lib/formatters";
 // 2-char minimum) and lives in the URL, like every list page.
 
 export default function SuperadminAuditLog() {
+  const t = useT();
   const identity = getCurrentIdentity();
   const filters = useUrlFilterState(
     { action: "" }, { pageSizeKey: "superadmin-audit-log" },
@@ -35,8 +38,8 @@ export default function SuperadminAuditLog() {
   if (identity?.role !== "superadmin") {
     return (
       <PageShell>
-        <PageHeader title="Audit log" />
-        <Empty>Superadmin scope required.</Empty>
+        <PageHeader title={navWord("Audit log")} />
+        <Empty>{t("sa.scopeRequired")}</Empty>
       </PageShell>
     );
   }
@@ -47,17 +50,17 @@ export default function SuperadminAuditLog() {
       <PageCrumbs />
 
       <PageHeader
-        title="Audit log"
+        title={navWord("Audit log")}
         subtitle={data
-          ? `${fmtNumber(data.total)} entries${
-              action ? ` matching "${action}"` : ""
-            }`
+          ? (action
+            ? tn("saAudit.entriesMatching", data.total, fmtNumber, { action })
+            : tn("saAudit.entries", data.total, fmtNumber))
           : "—"}
         actions={(
           <Input
             type="search"
             value={filters.draft.action ?? filters.params.action}
-            placeholder="Filter by action…"
+            placeholder={t("saAudit.filter")}
             onChange={(e) => filters.debounced("action", e.target.value)}
             style={{ maxWidth: "20rem" }}
           />
@@ -69,7 +72,7 @@ export default function SuperadminAuditLog() {
           rows={data?.rows.map(toAuditTableRow)}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle="No audit entries match."
+          emptyTitle={t("saAudit.empty")}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,

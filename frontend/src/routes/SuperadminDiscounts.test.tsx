@@ -8,6 +8,8 @@ import SuperadminDiscounts from "./SuperadminDiscounts";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import type { DiscountCodeRow } from "../api/featureFlags";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Superadmin discount codes: list + enable / disable toggle. The
 // toggle sends the OPPOSITE of the row's current state.
@@ -120,5 +122,30 @@ describe("SuperadminDiscounts", () => {
     renderPage();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it("reads in Spanish: columns, durations, statuses and the toggle toast", async () => {
+    state.data = {
+      rows: [
+        row(1, "SPRING20"),
+        row(2, "OLDCODE", { is_active: false, is_redeemable: false, duration: "forever", duration_in_months: null }),
+        row(3, "ONEMONTH", { duration_in_months: 1 }),
+        row(4, "NEWKIND", { duration: "lifetime", duration_in_months: null }),
+      ],
+      total: 4,
+    };
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Descuentos" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Duración" })).toBeInTheDocument();
+    expect(screen.getByText("SPRING20").closest("tr")!).toHaveTextContent("3 meses");
+    expect(screen.getByText("ONEMONTH").closest("tr")!).toHaveTextContent("1 mes");
+    expect(screen.getByText("OLDCODE").closest("tr")!).toHaveTextContent("para siempre");
+    // A duration Stripe adds later shows as sent.
+    expect(screen.getByText("NEWKIND").closest("tr")!).toHaveTextContent("lifetime");
+    expect(englishLeftovers(document.body, ["saDisc."])).toEqual([]);
+    const spring = screen.getByText("SPRING20").closest("tr")!;
+    await userEvent.click(within(spring).getByRole("button", { name: "Desactivar" }));
+    expect(await screen.findByText("SPRING20 → desactivado")).toBeInTheDocument();
   });
 });

@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TwoFactorEnroll, TwoFactorRecover, TwoFactorVerify } from "./TwoFactor";
 import { ApiError } from "../lib/api";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The /login/2fa/* screens (CLAUDE.md invariant #13). Pinned:
 //   - without a pending token in router state each screen bounces
@@ -167,5 +169,41 @@ describe("TwoFactorEnroll", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Code did not match.");
     await waitFor(() => expect(totpEnrollConfirm).not.toHaveBeenCalled());
     expect(screen.getByText("ABCD EFGH IJKL")).toBeInTheDocument();
+  });
+});
+
+describe("2FA screens in Spanish", () => {
+  const enrollment = {
+    qr_svg: "<svg></svg>", issuer: "DineroBook", username: "root",
+    secret_chunks: "ABCD EFGH IJKL", secret: "ABCDEFGHIJKL",
+  };
+
+  it("reads the code step and the recovery step in Spanish", async () => {
+    setLanguage("es");
+    renderAt("/login/2fa");
+    expect(screen.getByRole("heading", { name: "Ingrese su código" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verificar →" })).toBeInTheDocument();
+    expect(document.title).toBe("Ingrese el código de 6 dígitos — DineroBook");
+    expect(englishLeftovers(document.body, ["tfa."])).toEqual([]);
+    await userEvent.click(screen.getByRole("link", { name: "Usar un código de recuperación" }));
+    expect(await screen.findByRole("heading", { name: "Usar un código de recuperación" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Código de recuperación")).toHaveAttribute("placeholder", "ABCD-EFGH");
+    expect(englishLeftovers(document.body, ["tfa."])).toEqual([]);
+  });
+
+  it("walks enrollment in Spanish, the issuer and account kept as sent", async () => {
+    totpEnrollStart.mockResolvedValue(enrollment);
+    totpEnrollFinish.mockResolvedValue({ recovery_codes: ["AAAA-1111"] });
+    setLanguage("es");
+    renderAt("/login/2fa/enroll");
+    expect(await screen.findByText("ABCD EFGH IJKL")).toBeInTheDocument();
+    expect(screen.getByText("DineroBook", { selector: "code" })).toBeInTheDocument();
+    expect(screen.getByText("root", { selector: "code" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["tfa."])).toEqual([]);
+    await userEvent.type(screen.getByLabelText("Ingrese el código de 6 dígitos de su app"), "123456");
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar y continuar →" }));
+    expect(await screen.findByText("AAAA-1111")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Terminar e iniciar sesión →" })).toBeDisabled();
+    expect(englishLeftovers(document.body, ["tfa."])).toEqual([]);
   });
 });

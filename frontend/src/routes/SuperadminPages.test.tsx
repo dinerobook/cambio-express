@@ -13,6 +13,8 @@ import SuperadminReports from "./SuperadminReports";
 import SuperadminStoreForm from "./SuperadminStoreForm";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The platform pages. Each reads platform-wide data, so pin that the
 // server's figures render, that a failed load offers a retry, that a
@@ -293,7 +295,7 @@ describe("SuperadminEmailLog", () => {
   it("lists events and suppressed addresses, and filters by event type", async () => {
     const calls = mockFetch({ "GET /api/v2/superadmin/email-log": { body: LOG } });
     renderRoute(<SuperadminEmailLog />);
-    expect(await screen.findByText("bounced")).toBeInTheDocument();
+    expect(await screen.findByRole("cell", { name: "Bounced" })).toBeInTheDocument();
     expect(screen.getByText("Suppressed addresses (1)")).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByRole("combobox"), "email.bounced");
     await vi.waitFor(() => expect(
@@ -304,7 +306,7 @@ describe("SuperadminEmailLog", () => {
   it("searches as you type, debounced, with a 2-char minimum", async () => {
     const calls = mockFetch({ "GET /api/v2/superadmin/email-log": { body: LOG } });
     renderRoute(<SuperadminEmailLog />);
-    await screen.findByText("bounced");
+    await screen.findByRole("cell", { name: "Bounced" });
     const box = screen.getByPlaceholderText("Search email address…");
     await userEvent.type(box, "a");
     await new Promise((r) => setTimeout(r, 450));
@@ -320,7 +322,7 @@ describe("SuperadminEmailLog", () => {
   it("restores the search and event filter from the URL", async () => {
     const calls = mockFetch({ "GET /api/v2/superadmin/email-log": { body: LOG } });
     renderRoute(<SuperadminEmailLog />, { at: "/?q=ana&event_type=email.bounced" });
-    await screen.findByText("bounced");
+    await screen.findByRole("cell", { name: "Bounced" });
     expect(calls[0].url.searchParams.get("q")).toBe("ana");
     expect(calls[0].url.searchParams.get("event_type")).toBe("email.bounced");
     expect(screen.getByPlaceholderText("Search email address…")).toHaveValue("ana");
@@ -340,7 +342,7 @@ describe("SuperadminEmailLog", () => {
     expect(await screen.findByText("Database unavailable.")).toBeInTheDocument();
     state.fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
-    expect(await screen.findByText("bounced")).toBeInTheDocument();
+    expect(await screen.findByRole("cell", { name: "Bounced" })).toBeInTheDocument();
   });
 });
 
@@ -516,5 +518,83 @@ describe("SuperadminStoreForm", () => {
     state.fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByDisplayValue("Uno")).toBeInTheDocument();
+  });
+});
+
+describe("platform pages in Spanish", () => {
+  beforeEach(() => { setLanguage("es"); });
+
+  it("reads the audit log in Spanish", async () => {
+    mockFetch({ "GET /api/v2/superadmin/audit-log": { body: {
+      rows: [{ id: 1, admin_id: 1, admin_name: "root", action: "store.extend_trial",
+        target_type: "store", target_id: "7", details: "+14 days", created_at: "2026-10-09T15:00:00" }],
+      total: 1, page: 1, total_pages: 1,
+    } } });
+    renderRoute(<SuperadminAuditLog />);
+    expect(await screen.findByText("1 registro")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Registro de auditoría" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Filtrar por acción…")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saAudit.", "sa."])).toEqual([]);
+  });
+
+  it("reads the controls hub in Spanish", async () => {
+    mockFetch({ "GET /api/v2/dashboard/summary": { body: {
+      role: "superadmin", total_stores: 42, active_stores: 37, trial_stores: 5,
+      paid_stores: 30, inactive_stores: 2, mrr_total: 1234, arr_total: 14808,
+      new_stores_30d: 6, cancellations_30d: 1, retention_queue: 3,
+    } } });
+    renderRoute(<SuperadminControls />);
+    expect(await screen.findByText("42")).toBeInTheDocument();
+    expect(screen.getByText("Tiendas en total")).toBeInTheDocument();
+    expect(screen.getByText("Cola de retención")).toBeInTheDocument();
+    expect(screen.getByText("Próximamente")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saCtl."])).toEqual([]);
+  });
+
+  it("reads the email log in Spanish; an unknown event shows as sent", async () => {
+    mockFetch({ "GET /api/v2/superadmin/email-log": { body: {
+      rows: [
+        { id: 1, to_addr: "ana@x.test", event_type: "email.bounced", bounce_type: "hard",
+          message_id: "msg_0123456789abcdefXYZ", created_at: "2026-10-09T15:00:00" },
+        { id: 2, to_addr: "bo@x.test", event_type: "email.deferred", bounce_type: "",
+          message_id: "", created_at: "2026-10-09T15:00:00" },
+      ],
+      total: 2, page: 1, total_pages: 1,
+      suppressed: [{ user_id: 5, username: "ana", email: "ana@x.test", bounced_at: "2026-10-09" }],
+    } } });
+    renderRoute(<SuperadminEmailLog />);
+    expect(await screen.findByRole("cell", { name: "Rebotado" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "deferred" })).toBeInTheDocument();
+    expect(screen.getByText("2 eventos")).toBeInTheDocument();
+    expect(screen.getByText("Direcciones bloqueadas (1)")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Destinatario" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saEmail."])).toEqual([]);
+  });
+
+  it("reads system health in Spanish, setting names kept", async () => {
+    mockFetch({ "GET /api/v2/superadmin/system-health": { body: {
+      db: { ok: true, error: "", total_users: 10, total_stores: 4, total_transfers: 99 },
+      stripe: { ok: true, error: "", account_id: "acct_1", mode: "live", key_pair_match: false,
+        fc_ok: true, env: { STRIPE_SECRET_KEY: true }, price_ok: { basic: true } },
+      email: { configured: false, status: "" },
+      queue: { enabled: true, redis_configured: true },
+      rate_limiting: { enabled: false },
+      env: { python_version: "3.12", platform: "linux", server_time: "2026-10-13T12:00:00.000",
+        database_url_set: true, secret_key_set: false, sentry_dsn_set: false, webauthn_rp_id: "dinerobook.com" },
+    } } });
+    renderRoute(<SuperadminHealth />);
+    expect(await screen.findByText("Base de datos")).toBeInTheDocument();
+    expect(screen.getByText("NO COINCIDEN")).toBeInTheDocument();
+    expect(screen.getByText("Precio: basic")).toBeInTheDocument();
+    expect(screen.getByText("Activada (Redis)")).toBeInTheDocument();
+    expect(screen.getByText("SECRET_KEY")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saHealth."])).toEqual([]);
+  });
+
+  it("reads the platform reports errors in Spanish", async () => {
+    mockFetch({ "GET /api/v2/superadmin/reports": { status: 403, body: { detail: "no" } } });
+    renderRoute(<SuperadminReports />);
+    expect(await screen.findByText("Se requiere acceso de superusuario.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reportes de la plataforma" })).toBeInTheDocument();
   });
 });

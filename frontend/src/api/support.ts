@@ -5,6 +5,7 @@ import { canAccess } from "../lib/access";
 import { getCurrentIdentity } from "../lib/auth";
 import type { PillTone } from "../components/ui";
 import type { components } from "./openapi";
+import { t, type MessageKey } from "../i18n";
 
 export const TICKET_STATUS_TONES: Record<string, PillTone> = {
   open: "accent",
@@ -12,6 +13,36 @@ export const TICKET_STATUS_TONES: Record<string, PillTone> = {
   resolved: "success",
   closed: "neutral",
 };
+
+/** Ticket categories in the order the pickers list them. */
+export const TICKET_CATEGORIES: { value: string; label: MessageKey }[] = [
+  { value: "bug", label: "support.catBug" },
+  { value: "feature", label: "support.catFeature" },
+  { value: "question", label: "support.catQuestion" },
+  { value: "feedback", label: "support.catFeedback" },
+];
+
+/** Ticket statuses in the order the pickers list them. */
+export const TICKET_STATUSES: { value: string; label: MessageKey }[] = [
+  { value: "open", label: "support.statusOpen" },
+  { value: "in_progress", label: "support.statusInProgress" },
+  { value: "resolved", label: "support.statusResolved" },
+  { value: "closed", label: "support.statusClosed" },
+];
+
+/** A category in the reader's language; one the SPA doesn't list
+ *  shows as the server sent it. */
+export function ticketCategoryLabel(value: string): string {
+  const c = TICKET_CATEGORIES.find((x) => x.value === value);
+  return c ? t(c.label) : value;
+}
+
+/** A status in the reader's language; one the SPA doesn't list shows
+ *  as sent, with its underscore as a space. */
+export function ticketStatusLabel(status: string): string {
+  const s = TICKET_STATUSES.find((x) => x.value === status);
+  return s ? t(s.label) : status.replace("_", " ");
+}
 
 export type TicketRow = components["schemas"]["TicketRow"];
 

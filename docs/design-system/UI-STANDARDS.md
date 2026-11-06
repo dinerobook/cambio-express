@@ -745,6 +745,10 @@ always the same Spanish word):
 | Register (POS) / Tenders / Void | Caja / Formas de pago / Anular |
 | Price book / Vendor / Scan code | Lista de precios / Proveedor / Código de barras |
 | Pack (lottery) / Settle | Paquete / Liquidar |
+| Superadmin | Superusuario |
+| Claim / Release (ticket) | Tomar / Soltar |
+| Two-factor (2FA) / Recovery code | Verificación en dos pasos / Código de recuperación |
+| Maintenance mode | Modo de mantenimiento |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -792,8 +796,18 @@ the back office too: purchase invoices and their form, register
 import, the price book (items, vendors, departments and their popups)
 and lottery (day close, packs, games). The starter departments are
 created in the reader's language, since once saved they are the
-store's own names. Next:
-platform pages, then emails. The TV board's own words (its title,
+store's own names. The first platform pages: permissions, platform
+reports, the platform audit log, discounts, maintenance, rule
+templates, controls, the email log, setup progress, health, stores and
+tickets, and the 2FA screens (code step, recovery code, enrolment). A
+store plan or billing cycle shows through `planLabel()` /
+`billingCycleLabel()` (`api/billing.ts`) and a ticket's status or
+category through `ticketStatusLabel()` / `ticketCategoryLabel()`
+(`api/support.ts`); a value they do not know shows as sent. Server
+figures and setting names on the health page (`DATABASE_URL`, Stripe's
+mode, a price key) stay as sent. Next: the rest of the platform pages
+(billing, feature flags, dashboard, announcements, store form, users,
+the store page, the BI drilldown), then emails. The TV board's own words (its title,
 the sample subtitle) are board content and stay as the store types
 them; the country picker names each country in the reader's language
 (`Intl.DisplayNames`) but saves the English name, as before. Add-on

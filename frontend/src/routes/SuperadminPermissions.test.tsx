@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SuperadminPermissions from "./SuperadminPermissions";
 import { callsTo, mockFetch, type MockHandler } from "../test/fetchMock";
 import { renderRoute, signInAs } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Platform → Permissions: the default grid for every store's roles.
 // The server replaces a role's whole grid, so the save must send
@@ -95,5 +97,14 @@ describe("Superadmin permissions", () => {
     fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByLabelText("Delete — Money transfers (admin)")).toBeInTheDocument();
+  });
+
+  it("reads its heading in Spanish", async () => {
+    mockFetch(routes());
+    setLanguage("es");
+    renderRoute(<SuperadminPermissions />);
+    expect(await screen.findByRole("heading", { name: "Permisos" })).toBeInTheDocument();
+    expect(screen.getByText("Configure lo que cada rol puede hacer en toda la plataforma")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["saPerm."])).toEqual([]);
   });
 });
