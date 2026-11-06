@@ -8,6 +8,8 @@ import PurchaseInvoiceForm from "./PurchaseInvoiceForm";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { renderRouteWithGuard } from "../test/renderRoute";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Purchase invoice form. Pinned here:
 //   - Line unit cost / line total are <MoneyInput>s; the API gets the
@@ -200,5 +202,17 @@ describe("PurchaseInvoiceForm", () => {
     await user.click(screen.getByRole("button", { name: "Add invoice" }));
     expect(await screen.findByText("Navigated to /purchase-invoices")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Keep editing" })).toBeNull();
+  });
+
+  it("reads in Spanish", async () => {
+    useInvoice.mockReturnValue({ data: { invoice: EXISTING }, isLoading: false, isError: false });
+    setLanguage("es");
+    renderAt("/purchase-invoices/5");
+    expect(screen.getByRole("heading", { name: "Editar factura" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Proveedor")).toBeInTheDocument();
+    expect(screen.getByText("Líneas (opcional)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Costo unitario de la línea 1")).toBeInTheDocument();
+    expect(screen.getByText("Total de la factura:")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["invForm.", "inv."])).toEqual([]);
   });
 });

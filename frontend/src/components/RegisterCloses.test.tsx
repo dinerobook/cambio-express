@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import RegisterCloses from "./RegisterCloses";
 import { ToastProvider } from "./ui";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // The section reads through the dayclose hooks; stub them so the
 // test is about what the section renders, not about fetching.
@@ -193,5 +195,19 @@ describe("RegisterCloses delete", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(await within(dialog).findByText("Could not remove the close."))
       .toBeInTheDocument();
+  });
+
+  it("reads in Spanish, the add popup included", async () => {
+    setLanguage("es");
+    renderSection(true);
+    expect(screen.getByText("Cajas")).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["Caja", "Bruto", "Contado", "Sobrante/faltante", "Departamento"]));
+    expect(englishLeftovers(document.body, ["rc."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "+ Agregar cierre" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("Caja")).toHaveValue("Caja 1");
+    expect(within(dialog).getByPlaceholderText("Vacío = sin contar")).toBeInTheDocument();
+    expect(englishLeftovers(dialog, ["rc."])).toEqual([]);
   });
 });

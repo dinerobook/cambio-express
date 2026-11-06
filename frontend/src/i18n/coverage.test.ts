@@ -126,6 +126,21 @@ export const COVERED_FILES = [
   "components/TicketThread.tsx",
   "routes/TVDisplayAdmin.tsx",
   "routes/TVDisplayCountry.tsx",
+  // Store daily book and register transactions
+  "routes/StoreBookMonth.tsx",
+  "routes/StoreBookDay.tsx",
+  "api/storebook.ts",
+  "components/RegisterCloses.tsx",
+  "routes/Transactions.tsx",
+  "routes/TransactionDetail.tsx",
+  "routes/ItemMovement.tsx",
+  // Back office
+  "routes/PurchaseInvoices.tsx",
+  "routes/PurchaseInvoiceForm.tsx",
+  "routes/PosImport.tsx",
+  "components/DepartmentsManager.tsx",
+  "routes/Lottery.tsx",
+  "routes/PriceBook.tsx",
   // Monthly P&L and reports
   "routes/Monthly.tsx",
   "routes/EditMonthly.tsx",

@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import type { components } from "./openapi";
+import { t, type MessageKey } from "../i18n";
+import { en } from "../i18n/en";
 
 export type StoreBookDay = components["schemas"]["StoreBookDayResponse"];
 export type StoreBookMonth =
@@ -22,6 +24,18 @@ export type StoreBookUpdateBody =
 
 /** One day's sheet. The layout ships with it, so the page never
  *  holds its own copy of the field list. */
+/** The day sheet's layout comes from the server in English. A
+ *  column (`sb.col.<column>`), section or field (`sb.<key>`) we ship
+ *  words for shows in the reader's language; one the server added or
+ *  renamed shows as sent, so a server change is never hidden. */
+export function storeBookLabel(
+  key: string, serverLabel: string, kind: "column" | "item" = "item",
+): string {
+  const k = (kind === "column" ? `sb.col.${key}` : `sb.${key}`) as MessageKey;
+  if (!Object.hasOwn(en, k) || serverLabel !== en[k]) return serverLabel;
+  return t(k);
+}
+
 export function useStoreBookDay(day: string) {
   const identity = getCurrentIdentity();
   return useQuery<StoreBookDay>({

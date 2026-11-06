@@ -21,6 +21,14 @@ import { AppLink,
 } from "../components/ui";
 import styles from "./PosImport.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tn, tNodes, useT, type MessageKey } from "../i18n";
+
+const REGISTER_COLUMNS: MessageKey[] = [
+  "rc.colRegister", "posImp.netSales", "rc.colTax", "rc.colCash", "rc.colCard",
+  "rc.colOther", "posImp.colSales", "posImp.colRefunds",
+];
+const STAGED_COLUMNS: MessageKey[] = ["posImp.businessDay", "posImp.colFiles", "posImp.colErrors", "common.status"];
+const KEY_COLUMNS: MessageKey[] = ["posImp.colLabel", "posImp.colCreated", "posImp.colLastSeen", "common.status"];
 
 /**
  * Gilbarco register import (P1-9): upload a day's (or a whole
@@ -31,6 +39,7 @@ import { PageCrumbs } from "../components/PageCrumbs";
  * grabs the files from the register's back-office share.
  */
 export default function PosImport() {
+  const t = useT();
   const qc = useQueryClient();
   const toast = useToast();
   const departments = useDepartments();
@@ -59,7 +68,7 @@ export default function PosImport() {
       setDraftMap({});
     } catch (err) {
       setPreview(null);
-      setError(apiErrorMessage(err, "Could not parse the upload."));
+      setError(apiErrorMessage(err, t("posImp.parseFailed")));
     } finally {
       setBusy("");
     }
@@ -85,10 +94,10 @@ export default function PosImport() {
     setError(null);
     try {
       await saveMappings(rows);
-      toast({ message: "Mappings saved.", tone: "success" });
+      toast({ message: t("posImp.mappingsSaved"), tone: "success" });
       await runPreview(payload);   // refresh mapped/unmapped state
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save mappings."));
+      setError(apiErrorMessage(err, t("posImp.mappingsFailed")));
     } finally {
       setBusy("");
     }
@@ -101,16 +110,17 @@ export default function PosImport() {
     try {
       const result = await commitNaxml(payload, selectedDay);
       setCommitted(
-        `${result.day}: ${result.closes_written} register close(s) booked `
-        + `(${result.registers.join(", ")}).`,
+        tn("posImp.committed", result.closes_written, String, {
+          day: result.day, registers: result.registers.join(", "),
+        }),
       );
       void qc.invalidateQueries({ queryKey: ["dayclose"] });
       toast({
-        message: "Day imported into the store daily book.",
+        message: t("posImp.imported"),
         tone: "success",
       });
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not import the day."));
+      setError(apiErrorMessage(err, t("posImp.importFailed")));
     } finally {
       setBusy("");
     }
@@ -136,18 +146,18 @@ export default function PosImport() {
 
   return (
     <PageShell maxWidth="64rem">
-      <PageCrumbs under="/store-book" current="Register import" />
+      <PageCrumbs under="/store-book" current={t("posImp.title")} />
       <PageHeader
         title={
           <>
-            Register import
-            <InfoTip text="Upload the XML journal files your Gilbarco register writes to its back-office folder — one file or a ZIP of many. Review the totals, map the register's department codes to your departments once, then book the day into the store daily book." />
+            {t("posImp.title")}
+            <InfoTip text={t("posImp.tip")} />
           </>
         }
-        subtitle="Import a Gilbarco day close from the register's journal files."
+        subtitle={t("posImp.subtitle")}
       />
 
-      <Section title="1 · Upload">
+      <Section title={t("posImp.step1")}>
         <div className={styles.uploadRow}>
           <input
             ref={fileRef}
@@ -160,21 +170,21 @@ export default function PosImport() {
             busy={busy === "preview"} disabled={busy !== ""}
             onClick={() => fileRef.current?.click()}
           >
-            Choose file…
+            {t("posImp.choose")}
           </Button>
           {fileName && <span className={styles.fileName}>{fileName}</span>}
           {preview && (
             <Pill tone="neutral">
-              {preview.event_count} transactions
-              in {preview.file_count} file(s)
+              {tn("posImp.events", preview.event_count, String, {
+                files: tn("posImp.files", preview.file_count),
+              })}
             </Pill>
           )}
         </div>
         {error && <Alert tone="error">{error}</Alert>}
         {preview && preview.parse_errors.length > 0 && (
           <Alert tone="warning">
-            {preview.parse_errors.length} file(s) could not be parsed and
-            were skipped.
+            {tn("posImp.parseErrors", preview.parse_errors.length)}
             <div className={styles.parseErrors}>
               {preview.parse_errors.map((e) => <div key={e}>{e}</div>)}
             </div>
@@ -184,7 +194,7 @@ export default function PosImport() {
 
       {preview && (
         <Section
-          title="2 · Map departments"
+          title={t("posImp.step2")}
           actions={
             unmapped.length > 0 ? (
               <Button
@@ -193,14 +203,14 @@ export default function PosImport() {
                   .filter(Boolean).length === 0}
                 onClick={() => { void onSaveMappings(); }}
               >
-                Save mappings
+                {t("posImp.saveMappings")}
               </Button>
             ) : undefined
           }
         >
           {unmapped.length === 0 ? (
             <Alert tone="success">
-              Every department code in this upload is mapped.
+              {t("posImp.allMapped")}
             </Alert>
           ) : (
             <Card>
@@ -208,12 +218,12 @@ export default function PosImport() {
                 {unmapped.map((code) => (
                   <div key={code} className={styles.mapRow}>
                     <span className={styles.mapCode}>
-                      Code {code}
-                      {code === "1024" ? " (fuel)" : ""}
+                      {t("posImp.code", { code })}
+                      {code === "1024" ? t("posImp.fuel") : ""}
                     </span>
                     <Select
                       className={styles.mapSelect}
-                      aria-label={`Department for code ${code}`}
+                      aria-label={t("posImp.deptFor", { code })}
                       value={draftMap[code] ?? ""}
                       onChange={(e) =>
                         setDraftMap((prev) => ({
@@ -221,7 +231,7 @@ export default function PosImport() {
                         }))
                       }
                     >
-                      <option value="">Pick a department…</option>
+                      <option value="">{t("posImp.pickDept")}</option>
                       {(departments.data?.departments ?? []).map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
@@ -234,12 +244,12 @@ export default function PosImport() {
           {unmapped.length > 0
             && (departments.data?.departments ?? []).length === 0 && (
             <EmptyState
-              title="No departments yet"
+              title={t("posImp.noDepts")}
               body={
                 <>
-                  Set up your departments first on the{" "}
-                  <AppLink fallback="text" to="/price-book">Price book’s Departments tab</AppLink> — the
-                  starter set takes one click.
+                  {tNodes("posImp.noDeptsBody", {
+                    link: <AppLink fallback="text" to="/price-book">{t("posImp.deptsTab")}</AppLink>,
+                  })}
                 </>
               }
             />
@@ -249,10 +259,10 @@ export default function PosImport() {
 
       {preview && (
         <Section
-          title="3 · Review & import"
+          title={t("posImp.step3")}
           actions={
             <div className={styles.commitRow}>
-              <Field label="Business day">
+              <Field label={t("posImp.businessDay")}>
                 <Select
                   value={selectedDay}
                   onChange={(e) => setSelectedDay(e.target.value)}
@@ -267,34 +277,34 @@ export default function PosImport() {
                 disabled={busy !== "" || !selectedDay || unmapped.length > 0}
                 onClick={() => { void onCommit(); }}
               >
-                Import this day
+                {t("posImp.importDay")}
               </Button>
             </div>
           }
         >
           {committed && (
             <Alert tone="success">
-              {committed} <AppLink fallback="text" to="/store-book">Open the store daily book</AppLink>
+              {committed} <AppLink fallback="text" to="/store-book">{t("posImp.openBook")}</AppLink>
             </Alert>
           )}
           {unmapped.length > 0 && (
             <Alert tone="warning">
-              Map every department code above before importing.
+              {t("posImp.mapFirst")}
             </Alert>
           )}
           {dayRegisters.length > 0 && (
             <>
               <KpiGrid>
-                <KpiCard label="Net sales" value={fmtMoney2(dayTotals.net)} />
-                <KpiCard label="Sales tax" value={fmtMoney2(dayTotals.tax)} />
+                <KpiCard label={t("posImp.netSales")} value={fmtMoney2(dayTotals.net)} />
+                <KpiCard label={t("posImp.salesTax")} value={fmtMoney2(dayTotals.tax)} />
                 <KpiCard
-                  label="Fuel gallons"
+                  label={t("posImp.fuelGallons")}
                   value={dayTotals.fuelGallons.toLocaleString(undefined, {
                     maximumFractionDigits: 1,
                   })}
                 />
                 <KpiCard
-                  label="Registers"
+                  label={t("posImp.registers")}
                   value={String(dayRegisters.length)}
                 />
               </KpiGrid>
@@ -303,9 +313,8 @@ export default function PosImport() {
                   <Table>
                     <thead>
                       <tr>
-                        {["Register", "Net sales", "Tax", "Cash", "Card",
-                          "Other", "Sales", "Refunds"].map((h) => (
-                          <th key={h} style={thStyle}>{h}</th>
+                        {REGISTER_COLUMNS.map((h) => (
+                          <th key={h} style={thStyle}>{t(h)}</th>
                         ))}
                       </tr>
                     </thead>
@@ -339,6 +348,7 @@ export default function PosImport() {
 // ── Site agent (automatic uploads) ───────────────────────────
 
 function AgentSection() {
+  const t = useT();
   const qc = useQueryClient();
   const toast = useToast();
   const toastApiError = useApiErrorToast();
@@ -358,13 +368,13 @@ function AgentSection() {
     try {
       const result = await commitStagedDay(day);
       toast({
-        message: `${result.day} booked — ${result.closes_written} register close(s).`,
+        message: tn("posImp.booked", result.closes_written, String, { day: result.day }),
         tone: "success",
       });
       void qc.invalidateQueries({ queryKey: ["dayclose"] });
       void qc.invalidateQueries({ queryKey: ["posimport", "staged"] });
     } catch (err) {
-      toastApiError(err, "Could not book the day.");
+      toastApiError(err, t("posImp.bookFailed"));
     } finally {
       setBusyDay("");
     }
@@ -378,7 +388,7 @@ function AgentSection() {
       setNewLabel("");
       void qc.invalidateQueries({ queryKey: ["posimport", "agent-keys"] });
     } catch (err) {
-      toastApiError(err, "Could not create the key.");
+      toastApiError(err, t("posImp.keyFailed"));
     } finally {
       setKeyBusy(false);
     }
@@ -389,11 +399,11 @@ function AgentSection() {
     setRevokeBusy(true);
     try {
       await revokeAgentKey(revoking.id);
-      toast({ message: "Agent key revoked.", tone: "success" });
+      toast({ message: t("posImp.keyRevoked"), tone: "success" });
       void qc.invalidateQueries({ queryKey: ["posimport", "agent-keys"] });
       setRevoking(null);
     } catch (err) {
-      toastApiError(err, "Could not revoke the key.");
+      toastApiError(err, t("posImp.revokeFailed"));
     } finally {
       setRevokeBusy(false);
     }
@@ -406,8 +416,8 @@ function AgentSection() {
     <Section
       title={
         <>
-          Automatic uploads
-          <InfoTip text="Install the DineroBook site agent on the store's back-office PC and it pushes every journal file here the moment the register writes it. Issue an agent key below — it's shown exactly once. Once your merchandise codes are mapped, each business day books itself automatically as soon as the register's day rolls; days with unmapped codes (or older backlog) wait here for you to book manually." />
+          {t("posImp.auto")}
+          <InfoTip text={t("posImp.autoTip")} />
         </>
       }
     >
@@ -417,9 +427,10 @@ function AgentSection() {
             <Table>
               <thead>
                 <tr>
-                  {["Business day", "Files", "Errors", "Status", ""].map(
-                    (h) => <th key={h} style={thStyle}>{h}</th>,
+                  {STAGED_COLUMNS.map(
+                    (h) => <th key={h} style={thStyle}>{t(h)}</th>,
                   )}
+                  <th style={thStyle} />
                 </tr>
               </thead>
               <tbody>
@@ -430,7 +441,7 @@ function AgentSection() {
                     <td style={tdStyle}>{d.error_count || "—"}</td>
                     <td style={tdStyle}>
                       <Pill tone={d.committed ? "success" : "neutral"}>
-                        {d.committed ? "booked" : "ready"}
+                        {d.committed ? t("posImp.bookedPill") : t("posImp.ready")}
                       </Pill>
                     </td>
                     <td style={tdStyle}>
@@ -441,7 +452,7 @@ function AgentSection() {
                         tone={d.committed ? "secondary" : "primary"}
                         onClick={() => { void bookDay(d.business_date); }}
                       >
-                        {d.committed ? "Re-book" : "Book day"}
+                        {d.committed ? t("posImp.rebook") : t("posImp.bookDay")}
                       </Button>
                     </td>
                   </tr>
@@ -453,14 +464,14 @@ function AgentSection() {
       )}
       {staged.data && stagedRows.length === 0 && (
         <EmptyState
-          title="No agent uploads yet"
-          body="Once the site agent is running, days appear here as the register writes its journal."
+          title={t("posImp.noUploads")}
+          body={t("posImp.noUploadsBody")}
         />
       )}
 
       {freshKey && (
         <Alert tone="success">
-          Agent key created — copy it now, it will not be shown again:
+          {t("posImp.keyCreated")}
           {" "}<code className={styles.mapCode}>{freshKey}</code>
         </Alert>
       )}
@@ -468,14 +479,14 @@ function AgentSection() {
         <div className={styles.uploadRow}>
           <Input
             type="text" value={newLabel} maxLength={80}
-            placeholder="Key label (e.g. Back office PC)"
+            placeholder={t("posImp.keyLabel")}
             onChange={(e) => setNewLabel(e.target.value)}
           />
           <Button
             size="sm" busy={keyBusy} disabled={keyBusy}
             onClick={() => { void onIssueKey(); }}
           >
-            New agent key
+            {t("posImp.newKey")}
           </Button>
         </div>
         {keyRows.length > 0 && (
@@ -483,9 +494,10 @@ function AgentSection() {
             <Table>
               <thead>
                 <tr>
-                  {["Label", "Created", "Last seen", "Status", ""].map(
-                    (h) => <th key={h} style={thStyle}>{h}</th>,
+                  {KEY_COLUMNS.map(
+                    (h) => <th key={h} style={thStyle}>{t(h)}</th>,
                   )}
+                  <th style={thStyle} />
                 </tr>
               </thead>
               <tbody>
@@ -496,11 +508,11 @@ function AgentSection() {
                     <td style={tdStyle}>
                       {k.last_used_at
                         ? formatDateTime(k.last_used_at)
-                        : "never"}
+                        : t("posImp.never")}
                     </td>
                     <td style={tdStyle}>
                       <Pill tone={k.revoked ? "neutral" : "accent"}>
-                        {k.revoked ? "Revoked" : "Active"}
+                        {k.revoked ? t("posImp.revoked") : t("posImp.active")}
                       </Pill>
                     </td>
                     <td style={tdStyle}>
@@ -509,7 +521,7 @@ function AgentSection() {
                           size="sm" tone="secondary"
                           onClick={() => setRevoking({ id: k.id, label: k.label })}
                         >
-                          Revoke
+                          {t("posImp.revoke")}
                         </Button>
                       )}
                     </td>
@@ -522,13 +534,11 @@ function AgentSection() {
       </Card>
       <ConfirmDialog
         open={revoking !== null}
-        title="Revoke this agent key?"
-        message={
-          `Revoke ${revoking?.label ? `"${revoking.label}"` : "this key"}? `
-          + "The site agent using it stops uploading journal files until "
-          + "it is given a new key."
-        }
-        confirmLabel="Revoke"
+        title={t("posImp.revokeTitle")}
+        message={t("posImp.revokeMessage", {
+          key: revoking?.label ? `"${revoking.label}"` : t("posImp.thisKey"),
+        })}
+        confirmLabel={t("posImp.revoke")}
         confirmTone="danger"
         busy={revokeBusy}
         onConfirm={() => { void onRevoke(); }}

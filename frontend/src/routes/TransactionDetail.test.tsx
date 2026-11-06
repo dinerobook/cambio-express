@@ -4,10 +4,14 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import TransactionDetail from "./TransactionDetail";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // A ticket where the cashier voided a $500 item and then rang a
 // $12 one. The void must be VISIBLE (that is the point of the
 // page) and must not appear in any total (that is the trap).
+let detailOverride: Record<string, unknown> = {};
+const detailData = () => ({ transaction: { ...detail.transaction, ...detailOverride } });
 const detail = {
   transaction: {
     id: 42,
@@ -74,9 +78,10 @@ const detail = {
   },
 };
 
-vi.mock("../api/posimport", () => ({
+vi.mock("../api/posimport", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/posimport")>()),
   useTransaction: () => ({
-    data: detail, isLoading: false, isError: false,
+    data: detailData(), isLoading: false, isError: false,
   }),
 }));
 
@@ -127,5 +132,27 @@ describe("TransactionDetail", () => {
     expect(
       screen.getByText("PJR340251209133139277539.xml"),
     ).toBeInTheDocument();
+  });
+
+  it("reads in Spanish, kind and flags included", () => {
+    detailOverride = { kind: "refund", outside: true };
+    setLanguage("es");
+    renderDetail();
+    expect(screen.getByRole("heading", { name: "Ticket 8946" })).toBeInTheDocument();
+    expect(screen.getByText("devolución")).toBeInTheDocument();
+    expect(screen.getByText("pago en la bomba")).toBeInTheDocument();
+    expect(screen.getByText(/Se anuló un artículo en este ticket/)).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["Artículo", "Código de barras", "Forma de pago"]));
+    expect(screen.getByText("Cajón")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["posTx."])).toEqual([]);
+    detailOverride = {};
+  });
+
+  it("shows a ticket kind it does not know as sent", () => {
+    detailOverride = { kind: "layaway" };
+    renderDetail();
+    expect(screen.getByText("layaway")).toBeInTheDocument();
+    detailOverride = {};
   });
 });

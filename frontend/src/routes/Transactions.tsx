@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
-  fetchPosTransactionsPage, useTransactions, type PosTransactionRow,
+  fetchPosTransactionsPage, ticketKindLabel, useTransactions, type PosTransactionRow,
 } from "../api/posimport";
 import { csvMoney } from "../lib/csv";
 import { AppLink,
@@ -15,6 +15,8 @@ import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { csvTimestamp, daysAgoIso, formatTimestamp } from "../lib/datetime";
 import styles from "./Transactions.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/transactions (G-6) — every register ticket, searchable.
 //
@@ -27,62 +29,64 @@ import { PageCrumbs } from "../components/PageCrumbs";
 // this screen is to see the void. Its money is already excluded
 // server-side, so the totals below never include one.
 
-const KINDS = [
-  { value: "", label: "All kinds" },
-  { value: "sale", label: "Sales" },
-  { value: "refund", label: "Refunds" },
-  { value: "void", label: "Voided tickets" },
-  { value: "financial", label: "Financial" },
-  { value: "other", label: "Other" },
+const KINDS: { value: string; label: MessageKey }[] = [
+  { value: "", label: "posTx.allKinds" },
+  { value: "sale", label: "posTx.kindSales" },
+  { value: "refund", label: "posTx.kindRefunds" },
+  { value: "void", label: "posTx.kindVoided" },
+  { value: "financial", label: "posTx.kindFinancial" },
+  { value: "other", label: "posTx.kindOther" },
 ];
 
 const MONO = { fontFamily: tokens.fontMono };
 
-const COLUMNS: DataColumn<PosTransactionRow>[] = [
+// Built during render so the headings follow a language switch.
+const columns = (): DataColumn<PosTransactionRow>[] => [
   {
-    key: "time", header: "Time",
-    render: (t) => (t.receipt_at ? formatTimestamp(t.receipt_at) : t.business_date),
-    csv: (t) => (t.receipt_at ? csvTimestamp(t.receipt_at) : t.business_date),
+    key: "time", header: t("posTx.colTime"),
+    render: (r) => (r.receipt_at ? formatTimestamp(r.receipt_at) : r.business_date),
+    csv: (r) => (r.receipt_at ? csvTimestamp(r.receipt_at) : r.business_date),
   },
   {
-    key: "ticket", header: "Ticket",
-    render: (t) => (
-      <AppLink to={`/transactions/${t.id}`} className="ds-link" style={MONO}>
-        {t.transaction_no || `#${t.id}`}
+    key: "ticket", header: t("posTx.colTicket"),
+    render: (r) => (
+      <AppLink to={`/transactions/${r.id}`} className="ds-link" style={MONO}>
+        {r.transaction_no || `#${r.id}`}
       </AppLink>
     ),
-    csv: (t) => t.transaction_no || `#${t.id}`,
+    csv: (r) => r.transaction_no || `#${r.id}`,
   },
-  { key: "register", header: "Register", render: (t) => t.register_id || "—", csv: (t) => t.register_id },
-  { key: "cashier", header: "Cashier", render: (t) => t.cashier_id || "—", csv: (t) => t.cashier_id },
-  { key: "items", header: "Items", align: "right", render: (t) => <span style={MONO}>{t.item_count}</span>,
-    csv: (t) => t.item_count },
-  { key: "tax", header: "Tax", align: "right", render: (t) => <span style={MONO}>{fmtMoney2(t.tax)}</span>,
-    csv: (t) => csvMoney(t.tax) },
-  { key: "total", header: "Total", align: "right", render: (t) => <span style={MONO}>{fmtMoney2(t.grand_total)}</span>,
-    csv: (t) => csvMoney(t.grand_total) },
+  { key: "register", header: t("posTx.colRegister"), render: (r) => r.register_id || "—", csv: (r) => r.register_id },
+  { key: "cashier", header: t("posTx.colCashier"), render: (r) => r.cashier_id || "—", csv: (r) => r.cashier_id },
+  { key: "items", header: t("posTx.colItems"), align: "right", render: (r) => <span style={MONO}>{r.item_count}</span>,
+    csv: (r) => r.item_count },
+  { key: "tax", header: t("posTx.colTax"), align: "right", render: (r) => <span style={MONO}>{fmtMoney2(r.tax)}</span>,
+    csv: (r) => csvMoney(r.tax) },
+  { key: "total", header: t("posTx.colTotal"), align: "right", render: (r) => <span style={MONO}>{fmtMoney2(r.grand_total)}</span>,
+    csv: (r) => csvMoney(r.grand_total) },
   {
-    key: "flags", header: "", label: "", csvHeader: "Flags",
-    csv: (t) => [
-      t.kind && t.kind !== "sale" ? t.kind : "",
-      t.has_voided_line ? "voided item" : "",
-      t.training_mode ? "training" : "",
-      t.offline ? "offline" : "",
-      t.suspended ? "suspended" : "",
+    key: "flags", header: "", label: "", csvHeader: t("posTx.colFlags"),
+    csv: (r) => [
+      r.kind && r.kind !== "sale" ? ticketKindLabel(r.kind) : "",
+      r.has_voided_line ? t("posTx.voidedItem") : "",
+      r.training_mode ? t("posTx.training") : "",
+      r.offline ? t("posTx.offline") : "",
+      r.suspended ? t("posTx.suspended") : "",
     ].filter(Boolean).join("; "),
-    render: (t) => (
+    render: (r) => (
       <div className={styles.flags}>
-        {t.kind && t.kind !== "sale" && <Pill tone="neutral">{t.kind}</Pill>}
-        {t.has_voided_line && <Pill tone="warning">voided item</Pill>}
-        {t.training_mode && <Pill tone="neutral">training</Pill>}
-        {t.offline && <Pill tone="warning">offline</Pill>}
-        {t.suspended && <Pill tone="warning">suspended</Pill>}
+        {r.kind && r.kind !== "sale" && <Pill tone="neutral">{ticketKindLabel(r.kind)}</Pill>}
+        {r.has_voided_line && <Pill tone="warning">{t("posTx.voidedItem")}</Pill>}
+        {r.training_mode && <Pill tone="neutral">{t("posTx.training")}</Pill>}
+        {r.offline && <Pill tone="warning">{t("posTx.offline")}</Pill>}
+        {r.suspended && <Pill tone="warning">{t("posTx.suspended")}</Pill>}
       </div>
     ),
   },
 ];
 
 export default function Transactions() {
+  useT(); // re-render on a language switch
   const navigate = useNavigate();
   const [defaults] = useState(() => ({ start: daysAgoIso(6), end: daysAgoIso(0) }));
   const filters = useUrlFilterState({
@@ -107,41 +111,41 @@ export default function Transactions() {
       <PageHeader
         title={
           <>
-            Transactions
-            <InfoTip text="Every ticket your register rang, with what was on it. Tickets appear as business days are booked from the register's journal files. A ticket with a voided item is flagged — the void is shown on the ticket, and never counted in any total." />
+            {navWord("Transactions")}
+            <InfoTip text={t("posTx.tip")} />
           </>
         }
-        subtitle="Search a ticket, or find the ones with a void."
+        subtitle={t("posTx.subtitle")}
       />
 
       <div className={styles.filters}>
-        <Field label="From">
+        <Field label={t("posTx.from")}>
           <DateInput
             value={filters.params.start}
             onChange={(e) => filters.setParam("start", e.target.value)}
           />
         </Field>
-        <Field label="To">
+        <Field label={t("posTx.to")}>
           <DateInput
             value={filters.params.end}
             onChange={(e) => filters.setParam("end", e.target.value)}
           />
         </Field>
-        <Field label="Kind">
+        <Field label={t("posTx.kind")}>
           <Select
             value={filters.params.kind}
             onChange={(e) => filters.setParam("kind", e.target.value)}
           >
             {KINDS.map((k) => (
-              <option key={k.value} value={k.value}>{k.label}</option>
+              <option key={k.value} value={k.value}>{t(k.label)}</option>
             ))}
           </Select>
         </Field>
         <div className={styles.searchField}>
-          <Field label="Search">
+          <Field label={t("posTx.search")}>
             <Input
               type="search"
-              placeholder="Ticket number, cashier, or item…"
+              placeholder={t("posTx.searchPlaceholder")}
               value={filters.draft.q ?? filters.params.q}
               onChange={(e) => filters.debounced("q", e.target.value)}
             />
@@ -153,7 +157,7 @@ export default function Transactions() {
             onChange={(checked) =>
               filters.setParam("voided", checked ? "1" : "")}
           >
-            Voided items only
+            {t("posTx.voidedOnly")}
           </Checkbox>
         </div>
       </div>
@@ -161,36 +165,36 @@ export default function Transactions() {
       {data && (
         <KpiGrid>
           <KpiCard
-            label="Tickets"
+            label={t("posTx.tickets")}
             value={fmtNumber(data.total)}
             sub={`${filters.params.start} → ${filters.params.end}`}
           />
           <KpiCard
-            label="Total rung"
+            label={t("posTx.totalRung")}
             value={fmtMoney2(data.total_grand)}
             tone="positive"
           />
           <KpiCard
-            label="With a voided item"
+            label={t("posTx.withVoided")}
             value={fmtNumber(data.voided_count)}
             tone={data.voided_count > 0 ? "warning" : "positive"}
           />
         </KpiGrid>
       )}
 
-      <Section title="Tickets">
+      <Section title={t("posTx.tickets")}>
         <Card>
           <DataTable
-            columns={COLUMNS}
+            columns={columns()}
             rows={data?.rows}
-            rowKey={(t) => t.id}
-            onRowClick={(t) => navigate(`/transactions/${t.id}`)}
-            rowLabel={(t) => `Open ticket ${t.transaction_no || t.id}`}
+            rowKey={(r) => r.id}
+            onRowClick={(r) => navigate(`/transactions/${r.id}`)}
+            rowLabel={(r) => t("posTx.openTicket", { ticket: r.transaction_no || r.id })}
             isLoading={list.isLoading} isError={list.isError} error={list.error}
             onRetry={() => { void list.refetch(); }}
-            errorMessage="Could not load transactions."
-            emptyTitle="No transactions in this range"
-            emptyBody="Tickets appear as business days are booked from your register journals. Check the range, or set up the site agent under Register import."
+            errorMessage={t("posTx.loadFailed")}
+            emptyTitle={t("posTx.empty")}
+            emptyBody={t("posTx.emptyBody")}
             page={data && {
               page: data.page, totalPages: data.total_pages, total: data.total,
               onPage: filters.setPage,

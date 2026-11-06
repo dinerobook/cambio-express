@@ -21,8 +21,32 @@ import {
 import styles from "./Lottery.module.css";
 import { todayIso } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+const COUNT_COLUMNS: MessageKey[] = [
+  "lot.colBin", "lot.colGame", "lot.colPack", "lot.colPrice", "lot.colPrevious",
+  "lot.colClosing", "lot.colSold", "lot.colValue",
+];
+const PACK_COLUMNS: MessageKey[] = [
+  "lot.colGame", "lot.colPack", "common.status", "lot.colBin", "lot.colOpening", "common.actions",
+];
+const GAME_COLUMNS: MessageKey[] = [
+  "lot.colGameNo", "common.name", "lot.colTicketPrice", "lot.colPerPack", "common.status", "common.actions",
+];
+// A pack status the SPA does not list shows as sent.
+const PACK_STATUS_LABELS: Record<string, MessageKey> = {
+  received: "lot.status.received",
+  active: "lot.status.active",
+  settled: "lot.status.settled",
+  returned: "lot.status.returned",
+};
+function packStatusLabel(status: string): string {
+  return Object.hasOwn(PACK_STATUS_LABELS, status) ? t(PACK_STATUS_LABELS[status]) : status;
+}
 
 export default function Lottery() {
+  useT(); // re-render on a language switch
   const [tab, setTab] = useState<"day" | "packs" | "games">("day");
   return (
     <PageShell maxWidth="64rem">
@@ -30,21 +54,21 @@ export default function Lottery() {
       <PageHeader
         title={
           <>
-            Lottery
-            <InfoTip text="Track scratch-off games, pack activations, and day-close ticket counts. Sold tickets and dollar totals compute automatically from the count deltas." />
+            {navWord("Lottery")}
+            <InfoTip text={t("lot.tip")} />
           </>
         }
-        subtitle="Games, packs, and day-close counts."
+        subtitle={t("lot.subtitle")}
       />
       <TabsBar>
         <TabsButton active={tab === "day"} onClick={() => setTab("day")}>
-          Day close
+          {t("lot.tabDay")}
         </TabsButton>
         <TabsButton active={tab === "packs"} onClick={() => setTab("packs")}>
-          Packs
+          {t("lot.tabPacks")}
         </TabsButton>
         <TabsButton active={tab === "games"} onClick={() => setTab("games")}>
-          Games
+          {t("lot.tabGames")}
         </TabsButton>
       </TabsBar>
       {tab === "day" && <DayCloseTab />}
@@ -57,6 +81,7 @@ export default function Lottery() {
 // ── Day close ────────────────────────────────────────────────
 
 function DayCloseTab() {
+  useT(); // re-render on a language switch
   const [day, setDay] = useState(todayIso());
   const summary = useLotteryDay(day);
   const qc = useQueryClient();
@@ -69,19 +94,19 @@ function DayCloseTab() {
         pack_id: packId, closing_ticket: closing,
       });
       void qc.invalidateQueries({ queryKey: ["lottery", "day"] });
-      toast({ message: "Count saved.", tone: "success" });
+      toast({ message: t("lot.countSaved"), tone: "success" });
     } catch (err) {
-      toastApiError(err, "Could not save the count.");
+      toastApiError(err, t("lot.countFailed"));
     }
   }
 
   const data = summary.data;
   return (
     <Section
-      title="Day close"
+      title={t("lot.tabDay")}
       actions={
         <DateInput
-          aria-label="Count date"
+          aria-label={t("lot.countDate")}
           value={day}
           onChange={(e) => setDay(e.target.value)}
         />
@@ -90,23 +115,23 @@ function DayCloseTab() {
       {summary.isLoading && <Loading />}
       {summary.isError && (
         <ErrorState
-          message="Could not load the day summary."
+          message={t("lot.dayFailed")}
           onRetry={() => { void summary.refetch(); }}
         />
       )}
       {data && data.rows.length === 0 && (
         <EmptyState
-          title="No active packs"
-          body="Activate a pack on the Packs tab to start counting."
+          title={t("lot.noActive")}
+          body={t("lot.noActiveBody")}
         />
       )}
       {data && data.rows.length > 0 && (
         <>
           <KpiGrid>
-            <KpiCard label="Tickets sold" value={String(data.total_sold)} />
-            <KpiCard label="Lottery total" value={fmtMoney2(data.total_value)} />
+            <KpiCard label={t("lot.ticketsSold")} value={String(data.total_sold)} />
+            <KpiCard label={t("lot.total")} value={fmtMoney2(data.total_value)} />
             <KpiCard
-              label="Uncounted packs"
+              label={t("lot.uncounted")}
               value={String(data.uncounted_active_packs)}
               tone={data.uncounted_active_packs > 0 ? "negative" : "positive"}
             />
@@ -116,10 +141,10 @@ function DayCloseTab() {
               <Table>
                 <thead>
                   <tr>
-                    {["Bin", "Game", "Pack", "Price", "Previous",
-                      "Closing count", "Sold", "Value", ""].map((h) => (
-                      <th key={h} style={thStyle}>{h}</th>
+                    {COUNT_COLUMNS.map((h) => (
+                      <th key={h} style={thStyle}>{t(h)}</th>
                     ))}
+                    <th style={thStyle} />
                   </tr>
                 </thead>
                 <tbody>
@@ -149,6 +174,7 @@ function CountRow({
   row: LotteryDayRow;
   onSave: (packId: number, closing: number) => Promise<void>;
 }) {
+  useT(); // re-render on a language switch
   const [draft, setDraft] = useState(
     row.closing_ticket != null ? String(row.closing_ticket) : "",
   );
@@ -166,7 +192,7 @@ function CountRow({
       <td style={tdStyle}>
         <Input
           type="number" min={0} value={draft}
-          aria-label={`Closing count for pack ${row.pack_number}`}
+          aria-label={t("lot.closingFor", { pack: row.pack_number })}
           onChange={(e) => setDraft(e.target.value)}
           className={styles.countInput}
         />
@@ -182,7 +208,7 @@ function CountRow({
             void onSave(row.pack_id, parsed).finally(() => setBusy(false));
           }}
         >
-          Save
+          {t("lot.save")}
         </Button>
       </td>
     </tr>
@@ -192,6 +218,7 @@ function CountRow({
 // ── Packs ────────────────────────────────────────────────────
 
 function PacksTab() {
+  useT(); // re-render on a language switch
   const packs = useLotteryPacks();
   const games = useLotteryGames();
   const qc = useQueryClient();
@@ -223,7 +250,7 @@ function PacksTab() {
       setPending(null);
       refresh();
     } catch (err) {
-      setPendingErr(apiErrorMessage(err, "Could not update the pack."));
+      setPendingErr(apiErrorMessage(err, t("lot.packFailed")));
     } finally {
       setPendingBusy(false);
     }
@@ -231,24 +258,24 @@ function PacksTab() {
 
   return (
     <Section
-      title="Packs"
+      title={t("lot.tabPacks")}
       actions={
         <Button size="sm" perm="lottery.update" onClick={() => setReceiving(true)}>
-          + Receive pack
+          {t("lot.receive")}
         </Button>
       }
     >
       {packs.isLoading && <Loading />}
       {packs.isError && (
         <ErrorState
-          message="Could not load packs."
+          message={t("lot.packsFailed")}
           onRetry={() => { void packs.refetch(); }}
         />
       )}
       {packs.data && packs.data.packs.length === 0 && (
         <EmptyState
-          title="No packs yet"
-          body='Click "+ Receive pack" when a delivery arrives.'
+          title={t("lot.noPacks")}
+          body={t("lot.noPacksBody")}
         />
       )}
       {packs.data && packs.data.packs.length > 0 && (
@@ -257,8 +284,8 @@ function PacksTab() {
             <Table>
               <thead>
                 <tr>
-                  {["Game", "Pack", "Status", "Bin", "Opening", "Actions"]
-                    .map((h) => <th key={h} style={thStyle}>{h}</th>)}
+                  {PACK_COLUMNS
+                    .map((h) => <th key={h} style={thStyle}>{t(h)}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -268,30 +295,30 @@ function PacksTab() {
                     <td style={tdStyle}>{p.pack_number}</td>
                     <td style={tdStyle}>
                       <Pill tone={PACK_STATUS_TONES[p.status] ?? "neutral"}>
-                        {p.status}
+                        {packStatusLabel(p.status)}
                       </Pill>
                     </td>
                     <td style={tdStyle}>{p.bin_number || "—"}</td>
                     <td style={tdStyle}>{p.opening_ticket}</td>
                     <td style={tdStyle}>
                       <RowActions
-                        title={`Pack ${p.pack_number}`}
+                        title={t("lot.packTitle", { pack: p.pack_number })}
                         actions={[
                           {
-                            label: "Activate",
+                            label: t("lot.activate"),
                             perm: "lottery.update",
                             tone: "primary",
                             hidden: p.status !== "received",
                             onClick: () => setActivating(p),
                           },
                           {
-                            label: "Settle",
+                            label: t("lot.settle"),
                             perm: "lottery.update",
                             hidden: p.status !== "active",
                             onClick: () => ask("settle", p),
                           },
                           {
-                            label: "Return to state",
+                            label: t("lot.returnToState"),
                             perm: "lottery.update",
                             tone: "warning",
                             hidden: !["received", "active"].includes(p.status),
@@ -321,12 +348,12 @@ function PacksTab() {
       <ConfirmDialog
         open={pending != null}
         title={pending?.kind === "return"
-          ? `Return pack ${pending.pack.pack_number} to the state?`
-          : `Settle pack ${pending?.pack.pack_number ?? ""}?`}
+          ? t("lot.returnTitle", { pack: pending.pack.pack_number })
+          : t("lot.settleTitle", { pack: pending?.pack.pack_number ?? "" })}
         message={pending?.kind === "return"
-          ? "The pack comes off sale and out of the day-close counts."
-          : "The pack is closed out as sold and leaves the day-close counts."}
-        confirmLabel={pending?.kind === "return" ? "Return to state" : "Settle"}
+          ? t("lot.returnMessage")
+          : t("lot.settleMessage")}
+        confirmLabel={pending?.kind === "return" ? t("lot.returnToState") : t("lot.settle")}
         confirmTone="danger"
         busy={pendingBusy}
         error={pendingErr}
@@ -345,6 +372,7 @@ function ReceivePackModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   const [gameId, setGameId] = useState("");
   const [packNumber, setPackNumber] = useState("");
   const [on, setOn] = useState(todayIso());
@@ -363,22 +391,22 @@ function ReceivePackModal({
       setPackNumber("");
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("lot.saveFailed")));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Receive a pack">
+    <Modal open={open} onClose={onClose} title={t("lot.receiveTitle")}>
       <form onSubmit={onSubmit} className={styles.modalForm}>
         {error && <Alert tone="error">{error}</Alert>}
-        <Field label="Game">
+        <Field label={t("lot.colGame")}>
           <Select
             value={gameId} required
             onChange={(e) => setGameId(e.target.value)}
           >
-            <option value="" disabled>Pick a game…</option>
+            <option value="" disabled>{t("lot.pickGame")}</option>
             {games.map((g) => (
               <option key={g.id} value={g.id}>
                 #{g.game_number} {g.name} ({fmtMoney2(g.ticket_price)})
@@ -386,21 +414,21 @@ function ReceivePackModal({
             ))}
           </Select>
         </Field>
-        <Field label="Pack number">
+        <Field label={t("lot.packNumber")}>
           <Input
             type="text" value={packNumber} required maxLength={40}
             onChange={(e) => setPackNumber(e.target.value)}
           />
         </Field>
-        <Field label="Received on">
+        <Field label={t("lot.receivedOn")}>
           <DateInput value={on} onChange={(e) => setOn(e.target.value)} />
         </Field>
         <ModalActions>
           <Button tone="secondary" type="button" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={busy} disabled={busy || !gameId}>
-            Receive
+            {t("lot.receiveButton")}
           </Button>
         </ModalActions>
       </form>
@@ -415,6 +443,7 @@ function ActivatePackModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   const [bin, setBin] = useState("");
   const [opening, setOpening] = useState("0");
   const [busy, setBusy] = useState(false);
@@ -435,7 +464,7 @@ function ActivatePackModal({
       setOpening("0");
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("lot.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -447,20 +476,20 @@ function ActivatePackModal({
       onClose={onClose}
       title={
         <>
-          Activate pack {pack?.pack_number ?? ""}
-          <InfoTip text="Puts the pack on sale. The opening ticket is the first sellable number — 0 for a fresh pack; today's counts measure against it." />
+          {t("lot.activateTitle", { pack: pack?.pack_number ?? "" })}
+          <InfoTip text={t("lot.activateTip")} />
         </>
       }
     >
       <form onSubmit={onSubmit} className={styles.modalForm}>
         {error && <Alert tone="error">{error}</Alert>}
-        <Field label="Display bin">
+        <Field label={t("lot.bin")}>
           <Input
-            type="text" value={bin} maxLength={10} placeholder="e.g. 3"
+            type="text" value={bin} maxLength={10} placeholder={t("lot.binPlaceholder")}
             onChange={(e) => setBin(e.target.value)}
           />
         </Field>
-        <Field label="Opening ticket #">
+        <Field label={t("lot.openingTicket")}>
           <Input
             type="number" min={0} value={opening}
             onChange={(e) => setOpening(e.target.value)}
@@ -468,10 +497,10 @@ function ActivatePackModal({
         </Field>
         <ModalActions>
           <Button tone="secondary" type="button" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
-            Activate
+            {t("lot.activate")}
           </Button>
         </ModalActions>
       </form>
@@ -482,6 +511,7 @@ function ActivatePackModal({
 // ── Games ────────────────────────────────────────────────────
 
 function GamesTab() {
+  useT(); // re-render on a language switch
   const [showInactive, setShowInactive] = useState(false);
   const games = useLotteryGames(showInactive);
   const qc = useQueryClient();
@@ -497,23 +527,23 @@ function GamesTab() {
       await updateLotteryGame(g.id, { is_active: !g.is_active });
       refresh();
     } catch (err) {
-      toastApiError(err, "Could not update the game.");
+      toastApiError(err, t("lot.gameFailed"));
     }
   }
 
   return (
     <Section
-      title="Games"
+      title={t("lot.tabGames")}
       actions={
         <div className={styles.gamesActions}>
           <Button
             size="sm" tone="secondary"
             onClick={() => setShowInactive((v) => !v)}
           >
-            {showInactive ? "Hide inactive" : "Show inactive"}
+            {showInactive ? t("dept.hideInactive") : t("dept.showInactive")}
           </Button>
           <Button size="sm" perm="lottery.update" onClick={() => setAdding(true)}>
-            + Add game
+            {t("lot.addGame")}
           </Button>
         </div>
       }
@@ -521,14 +551,14 @@ function GamesTab() {
       {games.isLoading && <Loading />}
       {games.isError && (
         <ErrorState
-          message="Could not load games."
+          message={t("lot.gamesFailed")}
           onRetry={() => { void games.refetch(); }}
         />
       )}
       {games.data && games.data.games.length === 0 && (
         <EmptyState
-          title="No games yet"
-          body='Click "+ Add game" to set up your first scratch-off game.'
+          title={t("lot.noGames")}
+          body={t("lot.noGamesBody")}
         />
       )}
       {games.data && games.data.games.length > 0 && (
@@ -537,9 +567,8 @@ function GamesTab() {
             <Table>
               <thead>
                 <tr>
-                  {["Game #", "Name", "Ticket price", "Tickets / pack",
-                    "Status", "Actions"].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
+                  {GAME_COLUMNS.map((h) => (
+                    <th key={h} style={thStyle}>{t(h)}</th>
                   ))}
                 </tr>
               </thead>
@@ -552,14 +581,14 @@ function GamesTab() {
                     <td style={tdStyle}>{g.tickets_per_pack}</td>
                     <td style={tdStyle}>
                       <Pill tone={g.is_active ? "accent" : "neutral"}>
-                        {g.is_active ? "active" : "inactive"}
+                        {g.is_active ? t("dept.active") : t("dept.inactive")}
                       </Pill>
                     </td>
                     <td style={tdStyle}>
                       <RowActions
-                        title={`Game #${g.game_number}`}
+                        title={t("lot.gameTitle", { number: g.game_number })}
                         actions={[{
-                          label: g.is_active ? "Deactivate" : "Reactivate",
+                          label: g.is_active ? t("dept.deactivate") : t("dept.reactivate"),
                           perm: "lottery.update",
                           tone: g.is_active ? "warning" : "primary",
                           onClick: () => toggleActive(g),
@@ -589,6 +618,7 @@ function AddGameModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useT(); // re-render on a language switch
   const [gameNumber, setGameNumber] = useState("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState(0);
@@ -609,21 +639,21 @@ function AddGameModal({
       setGameNumber(""); setName(""); setPrice(0); setPerPack("");
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("lot.saveFailed")));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Add a game">
+    <Modal open={open} onClose={onClose} title={t("lot.addGameTitle")}>
       <form onSubmit={onSubmit} className={styles.modalForm}>
         {error && <Alert tone="error">{error}</Alert>}
         <Field
           label={
             <>
-              State game #
-              <InfoTip text="The game number printed on the pack — how the state identifies the game (e.g. 2417)." />
+              {t("lot.stateGame")}
+              <InfoTip text={t("lot.stateGameTip")} />
             </>
           }
         >
@@ -632,14 +662,14 @@ function AddGameModal({
             onChange={(e) => setGameNumber(e.target.value)}
           />
         </Field>
-        <Field label="Name">
+        <Field label={t("common.name")}>
           <Input
             type="text" value={name} required maxLength={120}
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
-        <MoneyInput label="Ticket price" value={price} onChange={setPrice} fullWidth />
-        <Field label="Tickets per pack">
+        <MoneyInput label={t("lot.colTicketPrice")} value={price} onChange={setPrice} fullWidth />
+        <Field label={t("lot.perPack")}>
           <Input
             type="number" min={1} value={perPack} required
             onChange={(e) => setPerPack(e.target.value)}
@@ -647,10 +677,10 @@ function AddGameModal({
         </Field>
         <ModalActions>
           <Button tone="secondary" type="button" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
-            Add game
+            {t("lot.addGameButton")}
           </Button>
         </ModalActions>
       </form>

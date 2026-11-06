@@ -18,6 +18,7 @@ import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./PurchaseInvoices.module.css";
 import { todayIso } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tn, useT } from "../i18n";
 
 // /app/purchase-invoices/new + /purchase-invoices/:id — key one
 // vendor invoice, optionally line-by-line. Lines resolve to
@@ -66,6 +67,7 @@ export default function PurchaseInvoiceForm() {
   const params = useParams();
   const id = params.id != null ? Number(params.id) : null;
   const existing = useInvoice(id);
+  const t = useT();
 
   if (id != null && existing.isLoading) {
     return (
@@ -78,7 +80,7 @@ export default function PurchaseInvoiceForm() {
     return (
       <PageShell maxWidth="64rem">
         <ErrorState
-          message="Could not load the invoice."
+          message={t("invForm.loadFailed")}
           onRetry={() => { void existing.refetch(); }}
         />
       </PageShell>
@@ -99,6 +101,7 @@ function InvoiceForm({
   invoiceId: number | null;
   existing: InvoiceDetail | null;
 }) {
+  const t = useT();
   const vendors = useVendors();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -129,7 +132,7 @@ function InvoiceForm({
     status, paidOn, notes, lines, updateCosts,
   });
   const guard = useUnsavedGuard(dirty && !busy, {
-    message: "You have unsaved edits on this invoice. Leave without saving?",
+    message: t("invForm.unsaved"),
   });
 
   function patchLine(index: number, patch: Partial<LineDraft>) {
@@ -215,13 +218,13 @@ function InvoiceForm({
       void qc.invalidateQueries({ queryKey: ["catalog"] });
       toast({
         message: result.items_cost_updated > 0
-          ? `Invoice saved — ${result.items_cost_updated} price-book cost(s) updated.`
-          : "Invoice saved.",
+          ? tn("invForm.savedCosts", result.items_cost_updated)
+          : t("invForm.saved"),
         tone: "success",
       });
       guard.proceed(() => navigate("/purchase-invoices"));
     } catch (err) {
-      setError(apiErrorMessage(err, "Could not save."));
+      setError(apiErrorMessage(err, t("invForm.saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -229,60 +232,60 @@ function InvoiceForm({
 
   return (
     <PageShell maxWidth="64rem">
-      <PageCrumbs current={invoiceId == null ? "New invoice" : "Edit invoice"} />
+      <PageCrumbs current={invoiceId == null ? t("invForm.newCrumb") : t("invForm.editTitle")} />
       <PageHeader
-        title={invoiceId == null ? "New purchase invoice" : "Edit invoice"}
-        subtitle="Key the paper invoice as printed."
+        title={invoiceId == null ? t("invForm.newTitle") : t("invForm.editTitle")}
+        subtitle={t("invForm.subtitle")}
       />
       <form onSubmit={onSubmit}>
         <Card>
-          <Section title="Invoice">
+          <Section title={t("invForm.invoice")}>
             {error && <Alert tone="error">{error}</Alert>}
             <div className={styles.formGrid}>
-              <Field label="Vendor">
+              <Field label={t("inv.colVendor")}>
                 <Select
                   value={vendorId} required
                   onChange={(e) => setVendorId(e.target.value)}
                 >
-                  <option value="" disabled>Pick a vendor…</option>
+                  <option value="" disabled>{t("invForm.pickVendor")}</option>
                   {(vendors.data?.vendors ?? []).map((v) => (
                     <option key={v.id} value={v.id}>{v.name}</option>
                   ))}
                 </Select>
               </Field>
-              <Field label="Invoice #">
+              <Field label={t("inv.colNumber")}>
                 <Input
                   type="text" value={number} required maxLength={60}
                   onChange={(e) => setNumber(e.target.value)}
                 />
               </Field>
-              <Field label="Invoice date">
+              <Field label={t("invForm.invoiceDate")}>
                 <DateInput
                   value={invoiceDate} required
                   onChange={(e) => setInvoiceDate(e.target.value)}
                 />
               </Field>
-              <Field label="Due date (optional)">
+              <Field label={t("invForm.dueDate")}>
                 <DateInput
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
                 />
               </Field>
               <MoneyInput
-                label="Merchandise subtotal" value={subtotal}
+                label={t("invForm.subtotal")} value={subtotal}
                 onChange={setSubtotal} fullWidth
               />
-              <MoneyInput label="Tax" value={tax} onChange={setTax} fullWidth />
+              <MoneyInput label={t("invForm.tax")} value={tax} onChange={setTax} fullWidth />
               <MoneyInput
                 label={
                   <>
-                    Other charges
-                    <InfoTip text="Freight, deposits, CRV — anything on the paper that isn't merchandise or tax." />
+                    {t("invForm.other")}
+                    <InfoTip text={t("invForm.otherTip")} />
                   </>
                 }
                 value={other} onChange={setOther} fullWidth
               />
-              <Field label="Status">
+              <Field label={t("common.status")}>
                 <Select
                   value={status}
                   onChange={(e) => {
@@ -292,12 +295,12 @@ function InvoiceForm({
                     }
                   }}
                 >
-                  <option value="open">Open</option>
-                  <option value="paid">Paid</option>
+                  <option value="open">{t("inv.open")}</option>
+                  <option value="paid">{t("inv.paid")}</option>
                 </Select>
               </Field>
               {status === "paid" && (
-                <Field label="Paid on">
+                <Field label={t("invForm.paidOn")}>
                   <DateInput
                     value={paidOn}
                     onChange={(e) => setPaidOn(e.target.value)}
@@ -305,7 +308,7 @@ function InvoiceForm({
                 </Field>
               )}
             </div>
-            <Field label="Notes (optional)">
+            <Field label={t("invForm.notes")}>
               <Textarea
                 value={notes} maxLength={500} rows={2}
                 onChange={(e) => setNotes(e.target.value)}
@@ -315,36 +318,32 @@ function InvoiceForm({
         </Card>
         <Card>
           <Section
-            title="Line items (optional)"
+            title={t("invForm.lines")}
             actions={
               <Button
                 size="sm" tone="secondary" type="button"
                 onClick={() => setLines((prev) => [...prev, EMPTY_LINE])}
               >
-                + Add line
+                {t("invForm.addLine")}
               </Button>
             }
           >
-            <p>
-              Type or scan an item&apos;s code to link it to the price
-              book — linked lines can update your catalog costs on
-              save. Leave the code blank for one-off charges.
-            </p>
+            <p>{t("invForm.linesHelp")}</p>
             {lines.map((line, i) => (
               <div key={i} className={styles.lineRow}>
-                <Field label={i === 0 ? "Scan code" : ""}>
+                <Field label={i === 0 ? t("invForm.scanCode") : ""}>
                   <Input
                     type="text" value={line.code} maxLength={30}
-                    placeholder="Optional"
+                    placeholder={t("invForm.optional")}
                     onChange={(e) => patchLine(i, { code: e.target.value })}
                     onBlur={(e) => { void resolveCode(i, e.target.value); }}
                   />
                   <span className={styles.lineMeta}>
-                    {line.codeStatus === "ok" && (line.itemName || "linked")}
-                    {line.codeStatus === "missing" && "No item with that code"}
+                    {line.codeStatus === "ok" && (line.itemName || t("invForm.linked"))}
+                    {line.codeStatus === "missing" && t("invForm.noItem")}
                   </span>
                 </Field>
-                <Field label={i === 0 ? "Description" : ""}>
+                <Field label={i === 0 ? t("invForm.description") : ""}>
                   <Input
                     type="text" value={line.description} maxLength={160}
                     onChange={(e) =>
@@ -352,7 +351,7 @@ function InvoiceForm({
                     }
                   />
                 </Field>
-                <Field label={i === 0 ? "Qty" : ""}>
+                <Field label={i === 0 ? t("invForm.qty") : ""}>
                   <Input
                     type="number" min={0} step="any" value={line.quantity}
                     onChange={(e) =>
@@ -361,17 +360,17 @@ function InvoiceForm({
                   />
                 </Field>
                 <MoneyInput
-                  label={i === 0 ? "Unit cost" : undefined}
-                  aria-label={`Line ${i + 1} unit cost`}
+                  label={i === 0 ? t("invForm.unitCost") : undefined}
+                  aria-label={t("invForm.lineUnitCost", { n: i + 1 })}
                   value={Number.parseFloat(line.unitCost) || 0}
                   onChange={(n) => patchLine(i, { unitCost: moneyDraft(n) })}
                   fullWidth
                 />
                 <MoneyInput
-                  label={i === 0 ? "Line total" : undefined}
-                  aria-label={`Line ${i + 1} total`}
+                  label={i === 0 ? t("invForm.lineTotal") : undefined}
+                  aria-label={t("invForm.lineTotalOf", { n: i + 1 })}
                   value={Number.parseFloat(line.lineTotal) || 0}
-                  placeholder="auto"
+                  placeholder={t("invForm.auto")}
                   onChange={(n) => patchLine(i, { lineTotal: moneyDraft(n) })}
                   fullWidth
                 />
@@ -382,7 +381,7 @@ function InvoiceForm({
                       setLines((prev) => prev.filter((_, j) => j !== i))
                     }
                   >
-                    Remove
+                    {t("invForm.remove")}
                   </Button>
                 </Field>
               </div>
@@ -390,12 +389,12 @@ function InvoiceForm({
             <div className={styles.totalsRow}>
               {lines.length > 0 && (
                 <span>
-                  <span className={styles.totalLabel}>Lines: </span>
+                  <span className={styles.totalLabel}>{t("invForm.linesTotal")} </span>
                   {fmtMoney2(linesTotal)}
                 </span>
               )}
               <span>
-                <span className={styles.totalLabel}>Invoice total: </span>
+                <span className={styles.totalLabel}>{t("invForm.invoiceTotal")} </span>
                 {fmtMoney2(invoiceTotal)}
               </span>
             </div>
@@ -403,7 +402,7 @@ function InvoiceForm({
               checked={updateCosts}
               onChange={(next) => setUpdateCosts(next)}
             >
-              Update price-book costs from linked lines
+              {t("invForm.updateCosts")}
             </Checkbox>
           </Section>
         </Card>
@@ -412,10 +411,10 @@ function InvoiceForm({
             tone="secondary" type="button"
             onClick={() => guard.confirmLeave(() => navigate("/purchase-invoices"))}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" busy={busy} disabled={busy}>
-            {invoiceId == null ? "Add invoice" : "Save changes"}
+            {invoiceId == null ? t("invForm.add") : t("common.saveChanges")}
           </Button>
         </FormActions>
       </form>
