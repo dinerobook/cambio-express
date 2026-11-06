@@ -24,7 +24,10 @@ import {
 } from "../lib/datetime";
 import styles from "./SuperadminAnnouncements.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtNumber, fmtCount } from "../lib/formatters";
+import { fmtNumber } from "../lib/formatters";
+import { planLabel } from "../api/billing";
+import { t as translate, tn, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // Superadmin-only banner CRUD at /app/superadmin/announcements.
 // Mirrors the legacy /superadmin/controls?tab=announcements panel.
@@ -33,7 +36,21 @@ const LEVELS: Array<CreateAnnouncementBody["level"]> = [
   "info", "warning", "error", "success",
 ];
 
+const LEVEL_LABELS: Record<string, MessageKey> = {
+  info: "saAnn.lvl.info",
+  warning: "saAnn.lvl.warning",
+  error: "saAnn.lvl.error",
+  success: "saAnn.lvl.success",
+};
+
+/** A banner level in the reader's language; one the SPA doesn't
+ *  list shows as sent. */
+function levelLabel(level: string): string {
+  return Object.hasOwn(LEVEL_LABELS, level) ? translate(LEVEL_LABELS[level]) : level;
+}
+
 export default function SuperadminAnnouncements() {
+  const t = useT();
   const identity = getCurrentIdentity();
   const qc = useQueryClient();
   const { data, isLoading, isError, error, refetch } = useAnnouncements();
@@ -41,8 +58,8 @@ export default function SuperadminAnnouncements() {
   if (identity?.role !== "superadmin") {
     return (
       <PageShell>
-        <PageHeader title="Announcements" />
-        <Empty>Superadmin scope required.</Empty>
+        <PageHeader title={navWord("Announcements")} />
+        <Empty>{t("sa.scopeRequired")}</Empty>
       </PageShell>
     );
   }
@@ -57,8 +74,8 @@ export default function SuperadminAnnouncements() {
       <PageCrumbs />
 
       <PageHeader
-        title="Announcements"
-        subtitle={data ? `${fmtNumber(data.total)} on file` : "—"}
+        title={navWord("Announcements")}
+        subtitle={data ? t("saAnn.onFile", { count: fmtNumber(data.total) }) : "—"}
       />
 
       <CreateForm onCreated={refresh} />
@@ -66,10 +83,9 @@ export default function SuperadminAnnouncements() {
       <div className={styles.gap} />
 
       <Card>
-        <SectionTitle>History</SectionTitle>
+        <SectionTitle>{t("saAnn.history")}</SectionTitle>
         <p className={styles.helpText}>
-          Banners shown to every user across the app. Disable to hide
-          without deleting; delete to remove permanently.
+          {t("saAnn.help")}
         </p>
         <DataTable
           columns={announcementColumns(refresh)}
@@ -77,7 +93,7 @@ export default function SuperadminAnnouncements() {
           rowKey={(r) => r.id}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle="No announcements yet."
+          emptyTitle={t("saAnn.empty")}
         />
       </Card>
     </PageShell>
@@ -85,6 +101,7 @@ export default function SuperadminAnnouncements() {
 }
 
 function CreateForm({ onCreated }: { onCreated: () => void }) {
+  const t = useT();
   const [message, setMessage] = useState("");
   const [level, setLevel] =
     useState<CreateAnnouncementBody["level"]>("info");
@@ -106,7 +123,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
     targetIds: Array.from(targetIds),
   });
   const guard = useUnsavedGuard(dirty && !busy, {
-    message: "You have a banner you haven't posted. Leave without posting?",
+    message: t("saAnn.unsaved"),
   });
 
   async function onSubmit(e: FormEvent) {
@@ -118,7 +135,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
     const target_store_ids =
       targetMode === "specific" ? Array.from(targetIds) : [];
     if (targetMode === "specific" && target_store_ids.length === 0) {
-      setErr("Pick at least one store, or switch to All stores.");
+      setErr(t("saAnn.pickStore"));
       return;
     }
     setBusy(true);
@@ -140,7 +157,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       markSaved();
       onCreated();
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not post."));
+      setErr(apiErrorMessage(e, t("saAnn.postFailed")));
     } finally {
       setBusy(false);
     }
@@ -148,20 +165,20 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
 
   return (
     <Card>
-      <SectionTitle>Post a new banner</SectionTitle>
+      <SectionTitle>{t("saAnn.newBanner")}</SectionTitle>
       <form onSubmit={onSubmit} className={styles.form}>
-        <Field label="Message">
+        <Field label={t("saAnn.message")}>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Maintenance window Friday 9pm–11pm CT"
+            placeholder={t("saAnn.messagePlaceholder")}
             rows={2}
             required
             style={{ minHeight: "3.5rem" }}
           />
         </Field>
         <div className={styles.fieldGrid}>
-          <Field label="Level">
+          <Field label={t("saAnn.level")}>
             <Select
               value={level}
               onChange={(e) =>
@@ -169,48 +186,48 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
               }
             >
               {LEVELS.map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l}>{levelLabel(l)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Expires (days)">
+          <Field label={t("saAnn.expires")}>
             <Input
               type="number"
               min="0"
               max="365"
               value={expiresDays}
               onChange={(e) => setExpiresDays(e.target.value)}
-              placeholder="0 = no expiry"
+              placeholder={t("saAnn.noExpiry")}
             />
           </Field>
-          <Field label="Schedule for later (optional)">
+          <Field label={t("saAnn.schedule")}>
             <Input
               type="datetime-local"
               value={scheduleLocal}
               onChange={(e) => setScheduleLocal(e.target.value)}
             />
           </Field>
-          <Field label="Email blast">
+          <Field label={t("saAnn.emailBlast")}>
             <Checkbox checked={broadcast} onChange={setBroadcast}>
-              Also email opted-in users
+              {t("saAnn.alsoEmail")}
             </Checkbox>
           </Field>
         </div>
-        <Field label="Audience">
+        <Field label={t("saAnn.audience")}>
           <div className={styles.targetModes}>
             <label className={styles.targetMode}>
               <input
                 type="radio" name="targetMode" checked={targetMode === "all"}
                 onChange={() => setTargetMode("all")}
               />
-              <span>All stores</span>
+              <span>{t("saAnn.allStores")}</span>
             </label>
             <label className={styles.targetMode}>
               <input
                 type="radio" name="targetMode" checked={targetMode === "specific"}
                 onChange={() => setTargetMode("specific")}
               />
-              <span>Specific stores</span>
+              <span>{t("saAnn.specific")}</span>
             </label>
           </div>
           {targetMode === "specific" && (
@@ -225,7 +242,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
             busy={busy}
             disabled={busy || !message.trim()}
           >
-            {busy ? "Posting…" : "Post banner"}
+            {busy ? t("saAnn.posting") : t("saAnn.post")}
           </Button>
         </FormActions>
       </form>
@@ -239,6 +256,7 @@ function StorePicker({
   selected: Set<number>;
   onChange: (next: Set<number>) => void;
 }) {
+  const t = useT();
   const { data, isLoading, isError, refetch } = useSuperadminStores();
   const [filter, setFilter] = useState("");
 
@@ -263,7 +281,7 @@ function StorePicker({
   if (isError) {
     return (
       <ErrorState
-        message="Could not load stores."
+        message={t("saAnn.storesFailed")}
         onRetry={() => { void refetch(); }}
       />
     );
@@ -273,13 +291,13 @@ function StorePicker({
     <div className={styles.storePicker}>
       <Input
         type="search"
-        placeholder="Filter stores…"
+        placeholder={t("saAnn.filterStores")}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
       <div className={styles.storeList}>
         {shown.length === 0 ? (
-          <span className={styles.helpText}>No stores match.</span>
+          <span className={styles.helpText}>{t("saAnn.noMatch")}</span>
         ) : (
           shown.map((s) => (
             <Checkbox
@@ -289,19 +307,19 @@ function StorePicker({
               style={{ alignItems: "center", width: "100%" }}
             >
               {s.name}{" "}
-              <Pill tone="neutral">{s.plan}</Pill>
+              <Pill tone="neutral">{planLabel(s.plan)}</Pill>
             </Checkbox>
           ))
         )}
       </div>
       <div className={styles.pickerMeta}>
-        <span>{selected.size} selected</span>
+        <span>{tn("saStores.selected", selected.size, fmtNumber)}</span>
         {selected.size > 0 && (
           <button
             type="button" className={styles.linkBtn}
             onClick={() => onChange(new Set())}
           >
-            Clear
+            {t("saStores.clear")}
           </button>
         )}
       </div>
@@ -311,51 +329,54 @@ function StorePicker({
 
 /** The history list as the kit ``<DataTable>``. */
 function announcementColumns(onChanged: () => void): DataColumn<AnnouncementRow>[] {
+  const t = translate;
   return [
     {
-      key: "message", header: "Message",
+      key: "message", header: t("saAnn.message"),
       render: (r) => <span className={styles.cellWide}>{r.message}</span>,
     },
     {
-      key: "level", header: "Level",
+      key: "level", header: t("saAnn.level"),
       render: (r) => (
-        <Pill tone={ANNOUNCEMENT_LEVEL_TONES[r.level] ?? "neutral"}>{r.level}</Pill>
+        <Pill tone={ANNOUNCEMENT_LEVEL_TONES[r.level] ?? "neutral"}>{levelLabel(r.level)}</Pill>
       ),
     },
-    { key: "status", header: "Status", render: (r) => <StatusCell row={r} /> },
-    { key: "audience", header: "Audience", render: (r) => <AudienceCell row={r} /> },
+    { key: "status", header: t("common.status"), render: (r) => <StatusCell row={r} /> },
+    { key: "audience", header: t("saAnn.audience"), render: (r) => <AudienceCell row={r} /> },
     {
-      key: "posted", header: "Posted",
+      key: "posted", header: t("saAnn.colPosted"),
       render: (r) => <span className={styles.dateCell}>{formatDate(r.created_at)}</span>,
     },
     {
-      key: "expires", header: "Expires",
+      key: "expires", header: t("saAnn.colExpires"),
       render: (r) => (r.expires_at
         ? <span className={styles.dateCell}>{formatDate(r.expires_at)}</span>
         : <span className={styles.dash}>—</span>),
     },
-    { key: "broadcast", header: "Broadcast", render: (r) => <BroadcastCell row={r} /> },
+    { key: "broadcast", header: t("saAnn.colBroadcast"), render: (r) => <BroadcastCell row={r} /> },
     {
-      key: "actions", header: "Actions", label: "",
+      key: "actions", header: t("common.actions"), label: "",
       render: (r) => <ActionsCell row={r} onChanged={onChanged} />,
     },
   ];
 }
 
 function StatusCell({ row }: { row: AnnouncementRow }) {
-  if (row.is_visible) return <Pill tone="accent">live</Pill>;
-  if (!row.is_active) return <Pill tone="neutral">disabled</Pill>;
+  const t = useT();
+  if (row.is_visible) return <Pill tone="accent">{t("saAnn.live")}</Pill>;
+  if (!row.is_active) return <Pill tone="neutral">{t("saAnn.disabled")}</Pill>;
   if (isScheduledForFuture(row.starts_at)) {
     return (
       <Pill tone="info">
-        scheduled · {formatScheduleHint(row.starts_at)}
+        {t("saAnn.scheduled", { when: formatScheduleHint(row.starts_at) })}
       </Pill>
     );
   }
-  return <Pill tone="warning">expired</Pill>;
+  return <Pill tone="warning">{t("saAnn.expired")}</Pill>;
 }
 
 function ActionsCell({ row, onChanged }: { row: AnnouncementRow; onChanged: () => void }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   // A refused delete keeps its dialog open, so its error shows there.
@@ -368,7 +389,7 @@ function ActionsCell({ row, onChanged }: { row: AnnouncementRow; onChanged: () =
       await toggleAnnouncement(row.id, !row.is_active);
       onChanged();
     } catch (e) {
-      setErr(apiErrorMessage(e, "Could not toggle."));
+      setErr(apiErrorMessage(e, t("saAnn.toggleFailed")));
     } finally {
       setBusy(false);
     }
@@ -381,7 +402,7 @@ function ActionsCell({ row, onChanged }: { row: AnnouncementRow; onChanged: () =
       onChanged();
       setConfirmingDelete(false);
     } catch (e) {
-      setDeleteErr(apiErrorMessage(e, "Could not delete."));
+      setDeleteErr(apiErrorMessage(e, t("saAnn.deleteFailed")));
     } finally {
       setBusy(false);
     }
@@ -391,19 +412,19 @@ function ActionsCell({ row, onChanged }: { row: AnnouncementRow; onChanged: () =
     <>
       <div className={styles.actionsRow}>
         <Button tone="secondary" size="sm" busy={busy} onClick={onToggle}>
-          {row.is_active ? "Disable" : "Enable"}
+          {row.is_active ? t("saFlags.disable") : t("saFlags.enable")}
         </Button>
         <Button tone="danger" size="sm" busy={busy}
           onClick={() => setConfirmingDelete(true)}>
-          Delete
+          {t("common.delete")}
         </Button>
       </div>
       {err && <span className={styles.rowError}>{err}</span>}
       <ConfirmDialog
         open={confirmingDelete}
-        title="Delete this announcement?"
-        message="Delete this announcement permanently? Operators who haven't dismissed it yet will lose the message."
-        confirmLabel="Delete"
+        title={t("saAnn.deleteTitle")}
+        message={t("saAnn.deleteBody")}
+        confirmLabel={t("common.delete")}
         confirmTone="danger"
         busy={busy}
         error={deleteErr}
@@ -429,7 +450,7 @@ function formatScheduleHint(iso: string): string {
   if (!d) return iso;
   const diffMs = d.getTime() - Date.now();
   const diffH = Math.round(diffMs / 3_600_000);
-  if (diffH < 24) return `in ${diffH}h`;
+  if (diffH < 24) return translate("saAnn.inHours", { count: fmtNumber(diffH) });
   return formatDateTime(iso);
 }
 
@@ -439,18 +460,19 @@ function formatScheduleHint(iso: string): string {
 // names underneath. Targeting was added in PR B — pre-targeting
 // rows come back with an empty list and render as global.
 function AudienceCell({ row }: { row: AnnouncementRow }) {
+  const t = useT();
   const names = row.target_store_names ?? [];
   if (names.length === 0) {
-    return <Pill tone="neutral">All stores</Pill>;
+    return <Pill tone="neutral">{t("saAnn.allStores")}</Pill>;
   }
   return (
     <div>
       <Pill tone="info">
-        {fmtCount(names.length, "store")}
+        {tn("saStores.stores", names.length, fmtNumber)}
       </Pill>
       <div className={styles.audienceNames}>
         {names.slice(0, 3).join(", ")}
-        {names.length > 3 ? ` +${names.length - 3} more` : ""}
+        {names.length > 3 ? ` ${t("saAnn.more", { count: fmtNumber(names.length - 3) })}` : ""}
       </div>
     </div>
   );
@@ -463,12 +485,13 @@ function AudienceCell({ row }: { row: AnnouncementRow }) {
 //   requested + not sent → "pending"  (queued or scheduled banner not yet activated)
 //   sent           → "sent · MMM dd"  (with date the broadcast landed)
 function BroadcastCell({ row }: { row: AnnouncementRow }) {
+  const t = useT();
   if (!row.broadcast_requested) {
     return <span className={styles.dash}>—</span>;
   }
   if (!row.broadcast_sent_at) {
-    return <Pill tone="warning">pending</Pill>;
+    return <Pill tone="warning">{t("saAnn.pending")}</Pill>;
   }
   const stamp = formatShortDate(row.broadcast_sent_at);
-  return <Pill tone="accent">sent · {stamp}</Pill>;
+  return <Pill tone="accent">{t("saAnn.sent", { date: stamp })}</Pill>;
 }

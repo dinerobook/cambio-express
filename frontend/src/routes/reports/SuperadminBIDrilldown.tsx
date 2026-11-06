@@ -22,7 +22,8 @@ import {
   formatShortDate, monthStartIso, todayIso,
 } from "../../lib/datetime";
 import { PageCrumbs } from "../../components/PageCrumbs";
-import { fmtCount } from "../../lib/formatters";
+import { fmtNumber } from "../../lib/formatters";
+import { t as translate, tn, useT, type MessageKey } from "../../i18n";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -51,30 +52,33 @@ ChartJS.register(
 //   - Skip: <2 or >40 rows (too cluttered or too sparse), or
 //           ambiguous shapes. Falls through to table-only render.
 //
-// Per-report title comes from `_SUPERADMIN_REPORT_TITLES`. Anything
-// not in the lookup falls back to a humanized slug.
+// Per-report title comes from `TITLE_KEYS`. Anything not in the
+// lookup falls back to a humanized slug. Column and total names are
+// the server's field names, humanized: they stay as sent.
 
-const _TITLES: Record<string, string> = {
-  "active-stores-by-plan":   "Active Stores by Plan",
-  "signup-funnel":           "Signup Funnel",
-  "login-activity":          "Login Activity",
-  "mrr-arr":                 "MRR & ARR",
-  "churn-cohort":            "Churn Cohort",
-  "conversion-rate":         "Conversion Rate",
-  "time-to-convert":         "Time to Convert",
-  "trial-expiry-timing":     "Trial Expiry Timing",
-  "bank-sync-adoption":      "Bank Sync Adoption",
-  "tv-display-adoption":     "TV Display Adoption",
-  "owner-adoption":          "Multi-store Owner Adoption",
-  "passkey-adoption":        "Passkey Adoption",
-  "password-resets":         "Password Resets",
-  "suspended-stores":        "Suspended Stores",
-  "retention-queue":         "Retention Queue",
-  "refunds":                 "Refunds",
-  "failed-payments":         "Failed Payments",
-  "payouts":                 "Payouts",
-  "dau-mau":                 "DAU / MAU",
-  "webhook-health":          "Webhook Health",
+// URL slug → the report center's `reportName.<key>`, so a report
+// reads the same name in the list and on its own page.
+const TITLE_KEYS: Record<string, MessageKey> = {
+  "active-stores-by-plan":   "reportName.active_stores_by_plan",
+  "signup-funnel":           "reportName.signup_funnel",
+  "login-activity":          "reportName.login_activity",
+  "mrr-arr":                 "reportName.mrr_arr",
+  "churn-cohort":            "reportName.churn",
+  "conversion-rate":         "reportName.conversion_rate",
+  "time-to-convert":         "reportName.time_to_convert",
+  "trial-expiry-timing":     "reportName.trial_expiry_timing",
+  "bank-sync-adoption":      "reportName.bank_sync_adoption",
+  "tv-display-adoption":     "reportName.tv_display_adoption",
+  "owner-adoption":          "reportName.owner_adoption",
+  "passkey-adoption":        "reportName.passkey_adoption",
+  "password-resets":         "reportName.password_resets",
+  "suspended-stores":        "reportName.suspended_stores",
+  "retention-queue":         "reportName.retention_queue",
+  "refunds":                 "reportName.refunds",
+  "failed-payments":         "reportName.failed_payments",
+  "payouts":                 "reportName.payouts",
+  "dau-mau":                 "reportName.dau_mau",
+  "webhook-health":          "reportName.webhook_health",
 };
 
 interface Envelope {
@@ -106,6 +110,7 @@ function saveViewMode(slug: string, mode: ViewMode): void {
 }
 
 export default function SuperadminBIDrilldown() {
+  const t = useT();
   const { slug } = useParams<{ slug: string }>();
   const [params, setParams] = useSearchParams();
   const [from, setFrom] = useState(() => params.get("from") || monthStartIso());
@@ -136,7 +141,7 @@ export default function SuperadminBIDrilldown() {
       `/api/v2/superadmin/reports/${slug}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
     )
       .then(setData)
-      .catch(e => setError(apiErrorMessage(e, "load failed")))
+      .catch(e => setError(apiErrorMessage(e, translate("rep.unknownError"))))
       .finally(() => setLoading(false));
   }, [slug, from, to]);
 
@@ -147,7 +152,7 @@ export default function SuperadminBIDrilldown() {
 
   if (!slug) return null;
 
-  const title = _TITLES[slug] || humanize(slug);
+  const title = Object.hasOwn(TITLE_KEYS, slug) ? t(TITLE_KEYS[slug]) : humanize(slug);
   const rows = data?.rows ?? [];
   const totals = data?.totals ?? {};
   const totalKeys = Object.keys(totals).filter(
@@ -167,7 +172,7 @@ export default function SuperadminBIDrilldown() {
           actions={(
             <div className={styles.actionRow}>
               <label className={styles.inputLabel}>
-                <span>From</span>
+                <span>{t("rep.from")}</span>
                 <DateInput
                   value={from}
                   onChange={e => setFrom(e.target.value)}
@@ -175,7 +180,7 @@ export default function SuperadminBIDrilldown() {
                 />
               </label>
               <label className={styles.inputLabel}>
-                <span>To</span>
+                <span>{t("rep.to")}</span>
                 <DateInput
                   value={to}
                   onChange={e => setTo(e.target.value)}
@@ -186,13 +191,13 @@ export default function SuperadminBIDrilldown() {
                 tone="secondary" size="sm"
                 onClick={() => { void downloadCsv(csvHref, csvFilename); }}
               >
-                Export CSV
+                {t("rep.exportCsv")}
               </Button>
               <Button
                 tone="secondary" size="sm"
                 onClick={() => window.print()}
               >
-                Print / PDF
+                {t("rep.print")}
               </Button>
             </div>
           )}
@@ -202,7 +207,7 @@ export default function SuperadminBIDrilldown() {
       {isLoading && <TableSkeleton rows={5} cols={4} />}
       {error && (
         <ErrorState
-          message={`Couldn't load report — ${error}`}
+          message={t("rep.loadFailed", { error })}
           onRetry={load}
         />
       )}
@@ -222,12 +227,12 @@ export default function SuperadminBIDrilldown() {
       <div className={styles.filterRow}>
         <span className={styles.muted}>{formatShortDate(from)} – {formatShortDate(to)}</span>
         {data && (
-          <span className={styles.muted}>{fmtCount(rows.length, "row")}</span>
+          <span className={styles.muted}>{tn("saBI.rows", rows.length, fmtNumber)}</span>
         )}
       </div>
 
       {data && rows.length === 0 && (
-        <EmptyState title="No data in this period." />
+        <EmptyState title={t("rep.noData")} />
       )}
 
       {data && rows.length > 0 && (() => {
@@ -359,15 +364,16 @@ function ViewModeToggle({
   mode: ViewMode;
   onChange: (m: ViewMode) => void;
 }) {
-  const opts: Array<{ value: ViewMode; label: string }> = [
-    { value: "chart", label: "Chart" },
-    { value: "table", label: "Table" },
-    { value: "both",  label: "Both"  },
+  const t = useT();
+  const opts: Array<{ value: ViewMode; label: MessageKey }> = [
+    { value: "chart", label: "saBI.chart" },
+    { value: "table", label: "saBI.table" },
+    { value: "both",  label: "saBI.both"  },
   ];
   return (
     <div
       role="group"
-      aria-label="View mode"
+      aria-label={t("saBI.viewMode")}
       className={styles.viewToggleGroup}
     >
       {opts.map(o => {
@@ -389,7 +395,7 @@ function ViewModeToggle({
               fontWeight: active ? 600 : 400,
             }}
           >
-            {o.label}
+            {t(o.label)}
           </button>
         );
       })}
@@ -439,7 +445,7 @@ function ChartBlock({
 
   return (
     <Card padding="1.25rem">
-      <div aria-label={`${title} chart`} style={{ height: 280 }}>
+      <div aria-label={translate("saBI.chartLabel", { title })} style={{ height: 280 }}>
         {plan.kind === "line"
           ? <Line data={data} options={lineOpts} />
           : <Bar  data={data} options={barOpts} />

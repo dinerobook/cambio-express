@@ -805,9 +805,15 @@ store plan or billing cycle shows through `planLabel()` /
 category through `ticketStatusLabel()` / `ticketCategoryLabel()`
 (`api/support.ts`); a value they do not know shows as sent. Server
 figures and setting names on the health page (`DATABASE_URL`, Stripe's
-mode, a price key) stay as sent. Next: the rest of the platform pages
-(billing, feature flags, dashboard, announcements, store form, users,
-the store page, the BI drilldown), then emails. The TV board's own words (its title,
+mode, a price key) stay as sent. Then billing, feature flags, the
+platform dashboard, announcements, the store form, the platform report
+list and the BI report page. A BI report's title is its report
+center name (`reportName.<key>`); its column and total names are the
+server's field names and stay as sent, like the dashboard's company
+names. A banner level, an activity kind or detail the SPA does not
+list shows as sent. The new store's default admin name is written in
+the reader's language, since once saved it is the person's own name.
+Next: platform users and the store page, then emails. The TV board's own words (its title,
 the sample subtitle) are board content and stay as the store types
 them; the country picker names each country in the reader's language
 (`Intl.DisplayNames`) but saves the English name, as before. Add-on
