@@ -5,7 +5,8 @@ import {
 } from "../api/admin";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import { fmtMoney, fmtMoney2, fmtCount } from "../lib/formatters";
+import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
+import { tn, tNodes, useT, type Translate } from "../i18n";
 import { formatDate } from "../lib/datetime";
 import {
   ButtonLink, Card, CopyButton, CopyField, Empty, ErrorState, KpiCard, KpiGrid, Loading,
@@ -25,12 +26,13 @@ import styles from "./AdminReferrals.module.css";
 // nested breadcrumb.
 
 export default function AdminReferrals() {
+  const t = useT();
   const identity = getCurrentIdentity();
   const { data, isLoading, isError, error, refetch } = useReferralCode();
 
   if (identity?.role !== "admin" && identity?.role !== "owner") {
     return (
-      <Empty>You need a store-admin sign-in to manage referrals.</Empty>
+      <Empty>{t("referral.needAdmin")}</Empty>
     );
   }
 
@@ -38,13 +40,10 @@ export default function AdminReferrals() {
   if (isError && error instanceof ApiError && error.status === 409) {
     return (
       <Card>
-          <h2 className={styles.cardTitle}>Unlock referrals on a paid plan</h2>
-          <p className={styles.lead}>
-            Refer another store, both of you get credit. Activate Basic
-            or Pro and your referral code mints automatically.
-          </p>
+          <h2 className={styles.cardTitle}>{t("referral.unlockTitle")}</h2>
+          <p className={styles.lead}>{t("referral.unlockLead")}</p>
           <ButtonLink to="/subscribe" tone="primary" style={{ marginTop: space.lg }}>
-            See plans →
+            {t("referral.seePlans")}
           </ButtonLink>
         </Card>
     );
@@ -55,7 +54,7 @@ export default function AdminReferrals() {
       {isLoading && <Loading />}
       {isError && !(error instanceof ApiError && error.status === 409) && (
         <ErrorState
-          message={apiErrorMessage(error, "Could not load")}
+          message={apiErrorMessage(error, t("referral.loadFailed"))}
           onRetry={() => { void refetch(); }}
         />
       )}
@@ -71,43 +70,40 @@ export default function AdminReferrals() {
 
           <KpiGrid minWidth="180px">
             <KpiCard
-              label="Successful referrals"
-              value={String(data.redeemed_count)}
-              sub="converted to paid"
+              label={t("referral.kpiReferrals")}
+              value={fmtNumber(data.redeemed_count)}
+              sub={t("referral.kpiReferralsSub")}
               tone="warning"
             />
             <KpiCard
-              label="Credits earned"
+              label={t("referral.kpiCredits")}
               value={fmtMoney2(data.credits_earned_cents / 100)}
-              sub="applied to your Stripe balance"
+              sub={t("referral.kpiCreditsSub")}
               tone="neon"
             />
             <KpiCard
-              label="Status"
-              value={data.is_active ? "Active" : "Disabled"}
+              label={t("referral.kpiStatus")}
+              value={data.is_active ? t("referral.active") : t("referral.disabled")}
               sub={data.is_active
-                ? "earning credits"
-                : "contact support to re-enable"}
+                ? t("referral.activeSub")
+                : t("referral.disabledSub")}
               tone="primary"
             />
           </KpiGrid>
 
           <section className={styles.howBox}>
-            <strong>How it works.</strong>{" "}
-            Give the code (or the link) to anyone signing up.
-            Their {fmtMoney(data.reward_referee_cents / 100)} posts
-            the moment they start a paid plan; your{" "}
-            {fmtMoney(data.reward_self_cents / 100)} posts the same
-            moment. Credits apply to your next invoice via Stripe's
-            customer-balance system — no coupon codes to redeem, no
-            accounting from your side.
+            <strong>{t("referral.howTitle")}</strong>{" "}
+            {t("referral.howBody", {
+              theirs: fmtMoney(data.reward_referee_cents / 100),
+              yours: fmtMoney(data.reward_self_cents / 100),
+            })}
           </section>
 
           <Card>
             <div className={styles.cardHeader}>
-              <span>History</span>
+              <span>{t("referral.history")}</span>
               <span className={styles.cardHeaderCount}>
-                {fmtCount(data.redemptions.length, "redemption")}
+                {tn("referral.redemptions", data.redemptions.length, fmtNumber)}
               </span>
             </div>
             <HistoryTable rows={data.redemptions} />
@@ -127,28 +123,27 @@ function Hero({
   rewardSelfCents: number;
   rewardRefereeCents: number;
 }) {
+  const t = useT();
   return (
     <section className={styles.hero}>
-      <div className={styles.heroLabel}>Your referral code</div>
+      <div className={styles.heroLabel}>{t("referral.yourCode")}</div>
       <div className={styles.heroCode}>{code}</div>
       <p className={styles.heroMeta}>
-        Share this with friends who run a money-service business.
-        When they sign up and subscribe,{" "}
-        <strong>they get {fmtMoney(rewardRefereeCents / 100)} off</strong>{" "}
-        their first paid month and{" "}
-        <strong>you get {fmtMoney(rewardSelfCents / 100)} off</strong>{" "}
-        yours — applied automatically to your next invoice as a credit.
+        {tNodes("referral.heroBody", {
+          theirs: <strong>{t("referral.theyGet", { amount: fmtMoney(rewardRefereeCents / 100) })}</strong>,
+          yours: <strong>{t("referral.youGet", { amount: fmtMoney(rewardSelfCents / 100) })}</strong>,
+        })}
       </p>
       <CopyField
         className={styles.shareRow}
-        aria-label="Referral share link"
+        aria-label={t("referral.shareLinkAria")}
         value={shareUrl}
-        copyLabel="Copy link"
+        copyLabel={t("referral.copyLink")}
         buttonClassName={styles.btnGold}
         actions={(
           <CopyButton
             text={code}
-            label="Copy code"
+            label={t("referral.copyCode")}
             className={styles.btnGold}
           />
         )}
@@ -159,53 +154,54 @@ function Hero({
 
 
 function HistoryTable({ rows }: { rows: ReferralRedemptionRow[] }) {
+  const t = useT();
   if (rows.length === 0) {
     return (
-      <Empty>
-        No referrals yet. Share your code above — your first credit
-        posts the moment someone subscribes.
-      </Empty>
+      <Empty>{t("referral.empty")}</Empty>
     );
   }
   return (
     <DataTable
-      columns={HISTORY_COLUMNS}
+      columns={historyColumns(t)}
       rows={rows}
       rowKey={(r) => `${r.referee_store_id}-${r.redeemed_at}`}
-      emptyTitle="No referrals yet."
+      emptyTitle={t("referral.emptyShort")}
     />
   );
 }
 
-const HISTORY_COLUMNS: DataColumn<ReferralRedemptionRow>[] = [
-  {
-    key: "date", header: "Date",
-    render: (r) => (
-      <span className={styles.monoMuted}>
-        {r.redeemed_at ? formatDate(r.redeemed_at) : "—"}
-      </span>
-    ),
-  },
-  { key: "store", header: "Referred store", render: (r) => `#${r.referee_store_id}` },
-  {
-    key: "yours", header: "Your credit",
-    render: (r) => (r.self_credit_applied ? (
-      <>
-        <Pill tone="success">Credited</Pill>
-        {r.stripe_self_txn_id && (
-          <span className={`${styles.monoMuted} ${styles.txnId}`}>
-            {r.stripe_self_txn_id}
-          </span>
-        )}
-      </>
-    ) : (
-      <Pill tone="warning">Pending</Pill>
-    )),
-  },
-  {
-    key: "theirs", header: "Their credit",
-    render: (r) => (r.referee_credit_applied
-      ? <Pill tone="success">Credited</Pill>
-      : <Pill tone="warning">Pending</Pill>),
-  },
-];
+// Built during render so the headings follow the language.
+function historyColumns(t: Translate): DataColumn<ReferralRedemptionRow>[] {
+  return [
+    {
+      key: "date", header: t("referral.colDate"),
+      render: (r) => (
+        <span className={styles.monoMuted}>
+          {r.redeemed_at ? formatDate(r.redeemed_at) : "—"}
+        </span>
+      ),
+    },
+    { key: "store", header: t("referral.colStore"), render: (r) => `#${r.referee_store_id}` },
+    {
+      key: "yours", header: t("referral.colYours"),
+      render: (r) => (r.self_credit_applied ? (
+        <>
+          <Pill tone="success">{t("referral.credited")}</Pill>
+          {r.stripe_self_txn_id && (
+            <span className={`${styles.monoMuted} ${styles.txnId}`}>
+              {r.stripe_self_txn_id}
+            </span>
+          )}
+        </>
+      ) : (
+        <Pill tone="warning">{t("referral.pending")}</Pill>
+      )),
+    },
+    {
+      key: "theirs", header: t("referral.colTheirs"),
+      render: (r) => (r.referee_credit_applied
+        ? <Pill tone="success">{t("referral.credited")}</Pill>
+        : <Pill tone="warning">{t("referral.pending")}</Pill>),
+    },
+  ];
+}

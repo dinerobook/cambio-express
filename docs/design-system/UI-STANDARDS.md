@@ -729,6 +729,8 @@ always the same Spanish word):
 | Shift / Clock in / Clock out | Turno / Marcar entrada / Marcar salida |
 | Schedule / Paystub | Horario / Talón de pago |
 | Passkey | Llave de acceso |
+| Referrals / Referral code | Referidos / Código de referido |
+| Audit log | Registro de auditoría |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -750,9 +752,15 @@ banner, install button, 404, and the rest of the kit); the team pages
 (employees and their form, logins, roles and access, role edit, the
 permission grids, payroll, schedule, punch credentials, the time
 clock and the paystub); the Subscribe plan picker and the billing
-server messages it can show. Next: settings and account pages, bank,
-monthly and reports, owner and billing pages, platform pages, then
-emails. The help articles
+server messages it can show; settings (profile, passkeys, store info
+and hours, password, owner access, money services, billing and
+referrals tabs), the account pages (notifications, devices, my
+activity), the audit log and its shared table and filters, data
+export and the switch store popup. Next: bank, monthly and reports,
+owner and billing pages, platform pages, then emails. An audit row's
+action and target show through `auditActionLabel()` /
+`auditTargetLabel()` (`components/auditFilters.ts`); a slug they
+don't know, and the server-written summary, show as sent. The help articles
 (`lib/help/registry.ts`) are still English.
 
 ## 11. The bell — one place for "something to do"

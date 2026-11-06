@@ -8,7 +8,8 @@ import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditF
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./AccountActivity.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtCount } from "../lib/formatters";
+import { fmtNumber } from "../lib/formatters";
+import { tn, useT } from "../i18n";
 
 // /app/account/activity — cross-store per-user audit feed.
 // Mirrors /app/admin/audit-log visually but is scoped to "things
@@ -16,6 +17,7 @@ import { fmtCount } from "../lib/formatters";
 // store cashier or an owner who works behind the counter).
 
 export default function AccountActivity() {
+  const t = useT();
   const filters = useUrlFilterState(
     { target: "", action: "" },
     { pageSizeKey: "my-activity" },
@@ -37,38 +39,38 @@ export default function AccountActivity() {
       <PageHeader
         title={
           <>
-            My activity
-            <InfoTip text="Covers your transfer creates, edits, status changes and deletes, daily-report locks and unlocks, and ACH batch creates and updates across every store you've touched." />
+            {t("audit.myTitle")}
+            <InfoTip text={t("audit.myTip")} />
           </>
         }
-        subtitle="Your recent page visits and actions."
+        subtitle={t("audit.mySubtitle")}
       />
 
       <Card style={{ marginBottom: space.lg }}>
         <div className={styles.cardHeader}>
-          Filters
+          {t("audit.filters")}
           <span className={styles.cardHeaderCount}>
-            {data ? `${fmtCount(data.total, "event")}` : "—"}
+            {data ? tn("audit.events", data.total, fmtNumber) : "—"}
           </span>
         </div>
         <div className={styles.filtersRow}>
-          <Field label="Target" style={{ minWidth: "10rem" }}>
+          <Field label={t("audit.target")} style={{ minWidth: "10rem" }}>
             <Select
               value={target}
               onChange={(e) => setParam("target", e.target.value)}
             >
               {AUDIT_TARGET_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{t(o.label)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Action" style={{ minWidth: "10rem" }}>
+          <Field label={t("audit.action")} style={{ minWidth: "10rem" }}>
             <Select
               value={action}
               onChange={(e) => setParam("action", e.target.value)}
             >
               {AUDIT_ACTION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{t(o.label)}</option>
               ))}
             </Select>
           </Field>
@@ -78,20 +80,20 @@ export default function AccountActivity() {
               size="sm"
               onClick={filters.reset}
             >
-              Clear
+              {t("audit.clear")}
             </Button>
           )}
         </div>
       </Card>
 
       <Card>
-        <div className={styles.cardHeader}>Recent activity</div>
+        <div className={styles.cardHeader}>{t("audit.recent")}</div>
         <AuditTable
           who="store"
           rows={data?.rows}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle="Nothing here yet — once you log a transfer, lock a daily book, or save a batch you'll see it."
+          emptyTitle={t("audit.myEmpty")}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,

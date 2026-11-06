@@ -7,6 +7,8 @@ import { MemoryRouter } from "react-router-dom";
 import SettingsMoneyServices from "./SettingsMoneyServices";
 import { ToastProvider } from "../components/ui/Toast";
 import type { MTCompanyEntry } from "../api/account";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Settings → Money services → "Money orders": not every provider
 // sells money orders, so each company has its own switch. Only
@@ -186,5 +188,33 @@ describe("Settings → money orders per company", () => {
     renderTab();
     expect(chargeBox("Intermex")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Settings → Money services in Spanish", () => {
+  it("companies, money orders and countries read in Spanish", () => {
+    setLanguage("es");
+    useStoreInfo.mockReturnValue(store([
+      { name: "Intermex", enabled: true, money_orders: true },
+      { name: "Maxi", enabled: false, money_orders: false },
+    ]));
+    renderTab();
+    expect(screen.getByText("Compañías de envío de dinero")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Intermex vende giros postales" })).toBeChecked();
+    expect(screen.getByRole("textbox", { name: "Intermex: cargo por giro postal" })).toBeInTheDocument();
+    expect(screen.getByText("Oculta")).toBeInTheDocument();
+    expect(screen.getByText("Países de envío")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Agregar una compañía (p. ej., Ria)")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["money."])).toEqual([]);
+  });
+
+  it("a duplicate company is refused in Spanish", async () => {
+    setLanguage("es");
+    useStoreInfo.mockReturnValue(store([{ name: "Intermex", enabled: true }]));
+    renderTab();
+    const user = userEvent.setup();
+    await user.type(screen.getByPlaceholderText("Agregar una compañía (p. ej., Ria)"), "intermex");
+    await user.click(screen.getByRole("button", { name: "Agregar compañía" }));
+    expect(await screen.findByText("intermex ya está en la lista.")).toBeInTheDocument();
   });
 });

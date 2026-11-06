@@ -26,7 +26,9 @@ import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./AccountNotifications.module.css";
 import { BRAND_NAME } from "../lib/brand";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { fmtCount } from "../lib/formatters";
+import { fmtNumber } from "../lib/formatters";
+import { tn, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/account/notifications — per-user boolean toggles.
 //
@@ -45,6 +47,7 @@ export default function AccountNotifications() {
   const [busy, setBusy]   = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const toast = useToast();
+  const t = useT();
 
   useEffect(() => {
     if (!data) return;
@@ -74,7 +77,7 @@ export default function AccountNotifications() {
     draft, Object.keys(draft).length > 0,
   );
   const guard = useUnsavedGuard(dirty && !busy, {
-    message: "You have unsaved notification preferences. Leave without saving?",
+    message: t("notify.unsavedMessage"),
   });
 
   function set<K extends keyof NotificationsUpdateBody>(
@@ -91,11 +94,11 @@ export default function AccountNotifications() {
     try {
       await updateNotifications(draft);
       markSaved();
-      toast({ message: "Notification preferences saved.", tone: "success" });
+      toast({ message: t("notify.saved"), tone: "success" });
       queryClient.invalidateQueries({ queryKey: ["account", "notifications"] });
     } catch (err) {
       setServerError(
-        apiErrorMessage(err, "Network error. Try again."),
+        apiErrorMessage(err, t("notify.networkError")),
       );
     } finally {
       setBusy(false);
@@ -105,7 +108,7 @@ export default function AccountNotifications() {
   if (isLoading) {
     return (
       <PageShell>
-        <PageHeader title="Notifications" />
+        <PageHeader title={navWord("Notifications")} />
         <Loading />
       </PageShell>
     );
@@ -113,9 +116,9 @@ export default function AccountNotifications() {
   if (isError || !data) {
     return (
       <PageShell>
-        <PageHeader title="Notifications" />
+        <PageHeader title={navWord("Notifications")} />
         <ErrorState
-          message={`Couldn't load preferences. ${apiErrorMessage(error, "")}`.trimEnd()}
+          message={`${t("notify.loadFailed")} ${apiErrorMessage(error, "")}`.trimEnd()}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
@@ -124,8 +127,8 @@ export default function AccountNotifications() {
 
   const trialApplies = data.trial_toggle_applies;
   const trialNotApplicableNote = data.role === "admin" || data.role === "owner"
-    ? "Not applicable for your account right now — you're on a paid plan (or no active trial)."
-    : "Not applicable for your account right now — you're on a role that doesn't own a trial.";
+    ? t("notify.trialNaPaid")
+    : t("notify.trialNaRole");
   const digestApplies = data.locked_day_digest_applies;
   const summaryApplies = data.daily_summary_applies;
 
@@ -134,31 +137,29 @@ export default function AccountNotifications() {
 
       <PageCrumbs />
 
-      <PageHeader title="Notifications" subtitle="Control which email and push alerts you receive." />
+      <PageHeader title={navWord("Notifications")} subtitle={t("notify.subtitle")} />
 
       <div className={styles.grid}>
-        <Section title="Your preferences">
+        <Section title={t("notify.yourPrefs")}>
           <Card>
             {serverError && <Alert tone="error">{serverError}</Alert>}
 
             <form onSubmit={onSubmit} autoComplete="off">
               <div className={styles.kindHeader}>
                 <span />
-                <span className={styles.channelLabel}>Email</span>
-                <span className={styles.channelLabel}>Push</span>
+                <span className={styles.channelLabel}>{t("notify.email")}</span>
+                <span className={styles.channelLabel}>{t("notify.push")}</span>
               </div>
 
               <PrefKindRow
-                title="Trial-ending reminder"
+                title={t("notify.trialTitle")}
                 disabled={busy || !trialApplies}
                 emailChecked={draft.notify_trial_reminders ?? false}
                 emailOnChange={(v) => set("notify_trial_reminders", v)}
                 pushChecked={draft.notify_trial_reminders_push ?? false}
                 pushOnChange={(v) => set("notify_trial_reminders_push", v)}
               >
-                One reminder during the last 3 days of my trial so I
-                can subscribe before the books lock. Turned off means
-                you'll only see the in-app banner.
+                {t("notify.trialBody")}
                 {!trialApplies && (
                   <>
                     <br />
@@ -170,138 +171,120 @@ export default function AccountNotifications() {
               </PrefKindRow>
 
               <PrefKindRow
-                title="Platform announcements"
+                title={t("notify.announceTitle")}
                 disabled={busy}
                 emailChecked={draft.notify_announcement_email ?? false}
                 emailOnChange={(v) => set("notify_announcement_email", v)}
                 pushChecked={draft.notify_announcement_push ?? false}
                 pushOnChange={(v) => set("notify_announcement_push", v)}
               >
-                New features, outages, policy changes. Email is off
-                by default; push is on for users who enabled the
-                browser-notifications channel below. You'll still see
-                every announcement as a banner when you sign in.
+                {t("notify.announceBody")}
               </PrefKindRow>
 
               <PrefKindRow
-                title="Daily book close-out digest"
+                title={t("notify.digestTitle")}
                 disabled={busy || !digestApplies}
                 emailChecked={draft.notify_locked_day_digest ?? false}
                 emailOnChange={(v) => set("notify_locked_day_digest", v)}
                 pushChecked={draft.notify_locked_day_digest_push ?? false}
                 pushOnChange={(v) => set("notify_locked_day_digest_push", v)}
               >
-                Notification when a daily book is locked, with the
-                receipts / disbursements / over-short totals so you can
-                cross-check against the bank. Sent to admins + linked
-                owners only.
+                {t("notify.digestBody")}
                 {!digestApplies && (
                   <>
                     <br />
                     <em className={styles.notApplicable}>
-                      Not applicable — your role doesn't receive this digest.
+                      {t("notify.digestNa")}
                     </em>
                   </>
                 )}
               </PrefKindRow>
 
               <PrefKindRow
-                title="Daily summary"
+                title={t("notify.summaryTitle")}
                 disabled={busy || !summaryApplies}
                 emailChecked={draft.notify_daily_summary ?? false}
                 emailOnChange={(v) => set("notify_daily_summary", v)}
                 pushChecked={draft.notify_daily_summary_push ?? false}
                 pushOnChange={(v) => set("notify_daily_summary_push", v)}
               >
-                Nightly per-store summary of the prior day's transfer
-                count, send volume, receipts, disbursements, and
-                over-short — so you see the close-out numbers by
-                morning without logging in. Quiet days don't generate
-                a notification. Sent to admins + linked owners only.
+                {t("notify.summaryBody")}
                 {!summaryApplies && (
                   <>
                     <br />
                     <em className={styles.notApplicable}>
-                      Not applicable — your role doesn't receive this digest.
+                      {t("notify.digestNa")}
                     </em>
                   </>
                 )}
               </PrefKindRow>
 
               <PrefKindRow
-                title="Support-ticket updates"
+                title={t("notify.ticketTitle")}
                 disabled={busy}
                 emailChecked={draft.notify_ticket_updates ?? false}
                 emailOnChange={(v) => set("notify_ticket_updates", v)}
                 pushChecked={draft.notify_ticket_updates_push ?? false}
                 pushOnChange={(v) => set("notify_ticket_updates_push", v)}
               >
-                A notification when support replies to a ticket you
-                filed or changes its status — so you don't have to
-                keep checking the ticket page for an answer.
+                {t("notify.ticketBody")}
               </PrefKindRow>
 
               <PrefKindRow
-                title="New sign-in alert"
+                title={t("notify.signInTitle")}
                 disabled={busy}
                 emailChecked={draft.notify_new_sign_in ?? false}
                 emailOnChange={(v) => set("notify_new_sign_in", v)}
                 pushChecked={draft.notify_new_sign_in_push ?? false}
                 pushOnChange={(v) => set("notify_new_sign_in_push", v)}
               >
-                A notification when someone signs in to your account
-                from a device it hasn't used before, with a link to
-                sign that device out. Off until you switch it on.
+                {t("notify.signInBody")}
               </PrefKindRow>
 
               {data.high_variance_applies && (
                 <PrefKindRow
-                  title="High over/short alert"
+                  title={t("notify.varianceTitle")}
                   disabled={busy}
                   emailChecked={draft.notify_high_variance ?? false}
                   emailOnChange={(v) => set("notify_high_variance", v)}
                   pushChecked={draft.notify_high_variance_push ?? false}
                   pushOnChange={(v) => set("notify_high_variance_push", v)}
                 >
-                  Alert when a store's daily over/short exceeds the
-                  normal range. Helps catch cash discrepancies early.
-                  Available to owners and admins.
+                  {t("notify.varianceBody")}
                 </PrefKindRow>
               )}
 
               {data.store_offline_applies && (
                 <PrefKindRow
-                  title="Store inactivity alert"
+                  title={t("notify.offlineTitle")}
                   disabled={busy}
                   emailChecked={draft.notify_store_offline ?? false}
                   emailOnChange={(v) => set("notify_store_offline", v)}
                   pushChecked={draft.notify_store_offline_push ?? false}
                   pushOnChange={(v) => set("notify_store_offline_push", v)}
                 >
-                  Alert when a store has had no transfer activity for
-                  an unusual period. Helps catch operational issues.
-                  Available to owners and admins.
+                  {t("notify.offlineBody")}
                 </PrefKindRow>
               )}
 
               <FormActions guard={guard}>
                 <Button type="submit" busy={busy} disabled={busy}>
-                  {busy ? "Saving…" : "Save preferences"}
+                  {busy ? t("common.saving") : t("notify.save")}
                 </Button>
               </FormActions>
             </form>
           </Card>
         </Section>
 
-        <Section title="Browser notifications">
+        <Section title={t("notify.browserTitle")}>
           <BrowserPushCard />
         </Section>
 
         <Section
           title={
             <>
-              What {BRAND_NAME} sends you
-              <InfoTip text="We send as little as possible. This is the complete list — anything user-controllable has a toggle on the left; the rest is essential (like password reset)." />
+              {t("notify.whatWeSend", { brand: BRAND_NAME })}
+              <InfoTip text={t("notify.whatWeSendTip")} />
             </>
           }
         >
@@ -309,55 +292,55 @@ export default function AccountNotifications() {
             <Table>
               <thead>
                 <tr>
-                  {["Channel", "What", "Control"].map((h) => (
+                  {[t("notify.colChannel"), t("notify.colWhat"), t("notify.colControl")].map((h) => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 <Row
-                  channel="Email" what="Password reset link"
-                  control="Always on — you initiate it."
+                  channel="notify.chEmail" what="notify.wReset"
+                  control="notify.cAlwaysOn"
                   muted
                 />
                 <Row
-                  channel="Email" what="Trial-ending reminder (last 3 days)"
-                  control="Toggle above."
+                  channel="notify.chEmail" what="notify.wTrial"
+                  control="notify.cToggle"
                 />
                 <Row
-                  channel="Email"
-                  what="Platform announcements (when superadmin broadcasts)"
-                  control="Toggle above."
+                  channel="notify.chEmail"
+                  what="notify.wAnnounce"
+                  control="notify.cToggle"
                 />
                 <Row
-                  channel="Email"
-                  what="Daily book close-out digest (admins + linked owners)"
-                  control="Toggle above."
+                  channel="notify.chEmail"
+                  what="notify.wDigest"
+                  control="notify.cToggle"
                 />
                 <Row
-                  channel="Email"
-                  what="Daily summary (nightly per-store, admins + linked owners)"
-                  control="Toggle above."
+                  channel="notify.chEmail"
+                  what="notify.wSummary"
+                  control="notify.cToggle"
                 />
                 <Row
-                  channel="Email + push"
-                  what="Support-ticket updates (reply or status change on your ticket)"
-                  control="Toggle above."
+                  channel="notify.chEmailPush"
+                  what="notify.wTicket"
+                  control="notify.cToggle"
                 />
                 <Row
-                  channel="Email + push"
-                  what="New sign-in alert (a device your account hasn't used before)"
-                  control="Toggle above."
+                  channel="notify.chEmailPush"
+                  what="notify.wSignIn"
+                  control="notify.cToggle"
                 />
                 <Row
-                  channel="Browser push"
-                  what="Platform announcements + future delivery alerts"
-                  control={'"Browser notifications" section above.'}
+                  channel="notify.chBrowserPush"
+                  what="notify.wBrowser"
+                  control="notify.cBrowser"
                 />
                 <Row
-                  channel="In-app banner"
-                  what="Announcements, trial status, retention notices"
-                  control="Not dismissible per-user (yet)."
+                  channel="notify.chBanner"
+                  what="notify.wBanner"
+                  control="notify.cBanner"
                   muted
                 />
               </tbody>
@@ -384,6 +367,7 @@ function PrefKindRow({
   pushOnChange:  (v: boolean) => void;
   children:      React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className={styles.kindRow}>
       <div className={styles.prefBody}>
@@ -402,7 +386,7 @@ function PrefKindRow({
           checked={emailChecked}
           disabled={disabled}
           onChange={emailOnChange}
-          aria-label={`Email — ${title}`}
+          aria-label={t("notify.emailAria", { title })}
         />
       </div>
       <div className={styles.channelCell}>
@@ -410,7 +394,7 @@ function PrefKindRow({
           checked={pushChecked}
           disabled={disabled}
           onChange={pushOnChange}
-          aria-label={`Push — ${title}`}
+          aria-label={t("notify.pushAria", { title })}
         />
       </div>
     </div>
@@ -421,16 +405,17 @@ function PrefKindRow({
 function Row({
   channel, what, control, muted,
 }: {
-  channel: string; what: string; control: string; muted?: boolean;
+  channel: MessageKey; what: MessageKey; control: MessageKey; muted?: boolean;
 }) {
+  const t = useT();
   const ctrlStyle: React.CSSProperties = muted
     ? { ...tdStyle, color: tokens.textMuted }
     : tdStyle;
   return (
     <tr>
-      <td style={tdStyle}>{channel}</td>
-      <td style={tdStyle}>{what}</td>
-      <td style={ctrlStyle}>{control}</td>
+      <td style={tdStyle}>{t(channel)}</td>
+      <td style={tdStyle}>{t(what)}</td>
+      <td style={ctrlStyle}>{t(control)}</td>
     </tr>
   );
 }
@@ -444,6 +429,7 @@ function BrowserPushCard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const t = useT();
   const supported = pushSupported();
 
   // Sync local "is this browser subscribed?" once on mount + after
@@ -460,8 +446,7 @@ function BrowserPushCard() {
     return (
       <Card>
         <p className={styles.pushUnsupported}>
-          Your browser doesn't support push notifications.  Try a
-          modern Chrome / Firefox / Edge / Safari 16.4+ build.
+          {t("notify.pushUnsupported")}
         </p>
       </Card>
     );
@@ -475,9 +460,7 @@ function BrowserPushCard() {
     return (
       <Card>
         <p className={styles.pushUnsupported}>
-          Push notifications aren't configured on this server yet.
-          Once the operator sets the VAPID keys, this section will
-          flip to an "Enable" button.
+          {t("notify.pushNotConfigured")}
         </p>
       </Card>
     );
@@ -497,13 +480,13 @@ function BrowserPushCard() {
       setLocalSubscribed(true);
       setPermission(getPushPermission());
       toast({
-        message: "Browser notifications enabled on this device.",
+        message: t("notify.enabledToast"),
         tone: "success",
       });
       queryClient.invalidateQueries({ queryKey: ["account", "push-status"] });
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Couldn't enable browser notifications.", { anyError: true }),
+        apiErrorMessage(err, t("notify.enableFailed"), { anyError: true }),
       );
     } finally {
       setBusy(false);
@@ -519,13 +502,13 @@ function BrowserPushCard() {
       }
       setLocalSubscribed(false);
       toast({
-        message: "Browser notifications disabled on this device.",
+        message: t("notify.disabledToast"),
         tone: "success",
       });
       queryClient.invalidateQueries({ queryKey: ["account", "push-status"] });
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Couldn't disable browser notifications.", { anyError: true }),
+        apiErrorMessage(err, t("notify.disableFailed"), { anyError: true }),
       );
     } finally {
       setBusy(false);
@@ -541,11 +524,11 @@ function BrowserPushCard() {
             aria-hidden="true"
           />
           {localSubscribed
-            ? "Browser notifications are enabled on this device."
-            : "Browser notifications are off on this device."}
+            ? t("notify.onHere")
+            : t("notify.offHere")}
           {status.device_count > 0 && (
             <span className={styles.pushDeviceHint}>
-              {" "}({fmtCount(status.device_count, "device")} on file)
+              {" "}{tn("notify.devices", status.device_count, fmtNumber)}
             </span>
           )}
         </div>
@@ -553,8 +536,7 @@ function BrowserPushCard() {
         {error && <Alert tone="error">{error}</Alert>}
         {permission === "denied" && (
           <Alert tone="info">
-            Notifications are blocked for this site.  Allow them in
-            your browser's site-settings, then click Enable.
+            {t("notify.blocked")}
           </Alert>
         )}
 
@@ -566,7 +548,7 @@ function BrowserPushCard() {
               disabled={busy || permission === "denied"}
               onClick={() => { void onEnable(); }}
             >
-              {busy ? "Enabling…" : "Enable browser notifications"}
+              {busy ? t("notify.enabling") : t("notify.enable")}
             </Button>
           )}
           {localSubscribed && (
@@ -575,16 +557,13 @@ function BrowserPushCard() {
               busy={busy} disabled={busy}
               onClick={() => { void onDisable(); }}
             >
-              {busy ? "Disabling…" : "Disable on this device"}
+              {busy ? t("notify.disabling") : t("notify.disable")}
             </Button>
           )}
         </div>
 
         <p className={styles.pushDeviceHint}>
-          You'll get a small system notification for platform
-          announcements (and future delivery / payroll alerts).
-          Disabling here only affects this device — you can re-
-          enable on a different browser without losing the others.
+          {t("notify.pushHint")}
         </p>
       </div>
     </Card>
@@ -602,15 +581,16 @@ function BrowserPushCard() {
 function ChannelStatusBadge({
   disabled, emailOn, pushOn,
 }: { disabled: boolean; emailOn: boolean; pushOn: boolean }) {
+  const t = useT();
   if (disabled) return null;
   const both = emailOn && pushOn;
   const none = !emailOn && !pushOn;
-  let label: string;
+  let label: MessageKey;
   let kind: "on" | "off" | "mixed";
-  if (both)        { label = "Email + push"; kind = "on"; }
-  else if (none)   { label = "Both off";     kind = "off"; }
-  else if (emailOn){ label = "Email only";   kind = "mixed"; }
-  else             { label = "Push only";    kind = "mixed"; }
+  if (both)        { label = "notify.badgeBoth";  kind = "on"; }
+  else if (none)   { label = "notify.badgeOff";   kind = "off"; }
+  else if (emailOn){ label = "notify.badgeEmail"; kind = "mixed"; }
+  else             { label = "notify.badgePush";  kind = "mixed"; }
   return (
     <span
       className={`${styles.statusBadge} ${
@@ -619,7 +599,7 @@ function ChannelStatusBadge({
                         : styles.statusBadgeMixed
       }`}
     >
-      {label}
+      {t(label)}
     </span>
   );
 }

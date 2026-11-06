@@ -12,6 +12,10 @@ import {
 } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { canAccess, canDo } from "../lib/access";
+import { tNodes, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
+
+const REPORTS_PATH = "/app/reports";
 
 // /app/admin/data-export — single hub for every authed CSV /
 // ZIP download the admin can pull. Catalogs the scattered
@@ -27,6 +31,7 @@ import { canAccess, canDo } from "../lib/access";
 // accountant) is not shown at all.
 
 export default function AdminDataExport() {
+  const t = useT();
   const taxYears = useTaxExportYears();
 
   // Tax-pack year picker. Default to last year (matches the
@@ -76,7 +81,7 @@ export default function AdminDataExport() {
         `tax-pack-${resolvedTaxYear}.zip`,
       );
     } catch (e) {
-      setTaxErr(apiErrorMessage(e, "Download failed."));
+      setTaxErr(apiErrorMessage(e, t("export.failed")));
     } finally {
       setTaxBusy(false);
     }
@@ -90,7 +95,7 @@ export default function AdminDataExport() {
         `customers-${today}.csv`,
       );
     } catch (e) {
-      setCustomersErr(apiErrorMessage(e, "Download failed."));
+      setCustomersErr(apiErrorMessage(e, t("export.failed")));
     } finally {
       setCustomersBusy(false);
     }
@@ -108,7 +113,7 @@ export default function AdminDataExport() {
         + `&store_ids=`;
       await downloadCsv(url, `transfers-${transFrom}-to-${transTo}.csv`);
     } catch (e) {
-      setTransErr(apiErrorMessage(e, "Download failed."));
+      setTransErr(apiErrorMessage(e, t("export.failed")));
     } finally {
       setTransBusy(false);
     }
@@ -123,7 +128,7 @@ export default function AdminDataExport() {
         + `&store_ids=`;
       await downloadCsv(url, `journal-entries-${journalFrom}-to-${journalTo}.csv`);
     } catch (e) {
-      setJournalErr(apiErrorMessage(e, "Download failed."));
+      setJournalErr(apiErrorMessage(e, t("export.failed")));
     } finally {
       setJournalBusy(false);
     }
@@ -137,7 +142,7 @@ export default function AdminDataExport() {
         + `&to=${encodeURIComponent(tcTo)}`;
       await downloadCsv(url, `timeclock-${tcFrom}-to-${tcTo}.csv`);
     } catch (e) {
-      setTcErr(apiErrorMessage(e, "Download failed."));
+      setTcErr(apiErrorMessage(e, t("export.failed")));
     } finally {
       setTcBusy(false);
     }
@@ -151,7 +156,7 @@ export default function AdminDataExport() {
         `audit-log-${today}.csv`,
       );
     } catch (e) {
-      setAuditErr(apiErrorMessage(e, "Download failed."));
+      setAuditErr(apiErrorMessage(e, t("export.failed")));
     } finally {
       setAuditBusy(false);
     }
@@ -160,32 +165,30 @@ export default function AdminDataExport() {
   return (
     <PageShell maxWidth="56rem">
 
-      <PageCrumbs under="/reports" current="Data export" />
+      <PageCrumbs under="/reports" current={navWord("Data export")} />
 
       <PageHeader
-        title="Data export"
-        subtitle="Pull a single dataset or every year-end record at once. All downloads stream over your authenticated session."
+        title={navWord("Data export")}
+        subtitle={t("export.subtitle")}
       />
 
       <Card>
-        <Section title="Year-end tax pack (ZIP)">
+        <Section title={t("export.taxTitle")}>
           <p className={styles.intro}>
-            Bundles every transfer, monthly P&amp;L, and closed daily
-            book for a calendar year into one ZIP. Pair with the
-            included README and hand the file to your accountant.
+            {t("export.taxIntro")}
           </p>
           {taxErr && (
             <Alert tone="error">{taxErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
-              <div className={styles.exportName}>Tax pack</div>
+              <div className={styles.exportName}>{t("export.taxName")}</div>
               <div className={styles.exportDesc}>
-                Tax year: pick from the dropdown.
+                {t("export.taxDesc")}
               </div>
             </div>
             <div className={styles.exportControls}>
-              <Field label="Year" style={{ minWidth: "10rem" }}>
+              <Field label={t("export.year")} style={{ minWidth: "10rem" }}>
                 <Select
                   value={resolvedTaxYear}
                   onChange={(e) => setTaxYear(Number(e.target.value))}
@@ -201,7 +204,7 @@ export default function AdminDataExport() {
                 onClick={() => { void onDownloadTaxPack(); }}
                 busy={taxBusy} disabled={taxBusy}
               >
-                {taxBusy ? "Building…" : "Download ZIP"}
+                {taxBusy ? t("export.building") : t("export.downloadZip")}
               </Button>
             </div>
           </div>
@@ -210,20 +213,18 @@ export default function AdminDataExport() {
 
       {canDo("customers.update") && (
         <Card>
-          <Section title="Customer directory">
+          <Section title={t("export.custTitle")}>
             <p className={styles.intro}>
-              Every customer row visible across your stores
-              (alphabetical), masked-phone-disabled — useful for
-              CRM exports + GDPR data-portability requests.
+              {t("export.custIntro")}
             </p>
             {customersErr && (
               <Alert tone="error">{customersErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
-              <div className={styles.exportName}>Customers CSV</div>
+              <div className={styles.exportName}>{t("export.custName")}</div>
               <div className={styles.exportDesc}>
-                Full directory snapshot.
+                {t("export.custDesc")}
               </div>
             </div>
             <div className={styles.exportControls}>
@@ -232,7 +233,7 @@ export default function AdminDataExport() {
                 onClick={() => { void onDownloadCustomers(); }}
                 busy={customersBusy} disabled={customersBusy}
               >
-                {customersBusy ? "Preparing…" : "Download CSV"}
+                {customersBusy ? t("export.preparing") : t("export.downloadCsv")}
               </Button>
             </div>
           </div>
@@ -241,30 +242,28 @@ export default function AdminDataExport() {
       )}
 
       <Card>
-        <Section title="Transfers (custom range)">
+        <Section title={t("export.transTitle")}>
           <p className={styles.intro}>
-            Every transfer in the window — including pending,
-            sent, and canceled. Use the date pickers for narrow
-            slices (last week's batch, a specific quarter, etc.).
+            {t("export.transIntro")}
           </p>
           {transErr && (
             <Alert tone="error">{transErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
-              <div className={styles.exportName}>Transfers CSV</div>
+              <div className={styles.exportName}>{t("export.transName")}</div>
               <div className={styles.exportDesc}>
-                Defaults to the last 30 days.
+                {t("export.last30")}
               </div>
             </div>
             <div className={styles.exportControls}>
-              <Field label="From" style={{ minWidth: "9rem" }}>
+              <Field label={t("export.from")} style={{ minWidth: "9rem" }}>
                 <DateInput
                   value={transFrom}
                   onChange={(e) => setTransFrom(e.target.value)}
                 />
               </Field>
-              <Field label="To" style={{ minWidth: "9rem" }}>
+              <Field label={t("export.to")} style={{ minWidth: "9rem" }}>
                 <DateInput
                   value={transTo}
                   onChange={(e) => setTransTo(e.target.value)}
@@ -275,7 +274,7 @@ export default function AdminDataExport() {
                 onClick={() => { void onDownloadTransfers(); }}
                 busy={transBusy} disabled={transBusy}
               >
-                {transBusy ? "Preparing…" : "Download CSV"}
+                {transBusy ? t("export.preparing") : t("export.downloadCsv")}
               </Button>
             </div>
           </div>
@@ -283,32 +282,28 @@ export default function AdminDataExport() {
       </Card>
 
       <Card>
-        <Section title="Journal entries (accounting)">
+        <Section title={t("export.journalTitle")}>
           <p className={styles.intro}>
-            Double-entry journal lines built from your booked day
-            closes — one balanced entry per business day (cash /
-            card / other tenders against per-department sales, sales
-            tax payable, and cash over/short). Import into
-            QuickBooks, Xero, or hand it to your accountant as-is.
+            {t("export.journalIntro")}
           </p>
           {journalErr && (
             <Alert tone="error">{journalErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
-              <div className={styles.exportName}>Journal entries CSV</div>
+              <div className={styles.exportName}>{t("export.journalName")}</div>
               <div className={styles.exportDesc}>
-                Defaults to the last 30 days.
+                {t("export.last30")}
               </div>
             </div>
             <div className={styles.exportControls}>
-              <Field label="From" style={{ minWidth: "9rem" }}>
+              <Field label={t("export.from")} style={{ minWidth: "9rem" }}>
                 <DateInput
                   value={journalFrom}
                   onChange={(e) => setJournalFrom(e.target.value)}
                 />
               </Field>
-              <Field label="To" style={{ minWidth: "9rem" }}>
+              <Field label={t("export.to")} style={{ minWidth: "9rem" }}>
                 <DateInput
                   value={journalTo}
                   onChange={(e) => setJournalTo(e.target.value)}
@@ -319,7 +314,7 @@ export default function AdminDataExport() {
                 onClick={() => { void onDownloadJournal(); }}
                 busy={journalBusy} disabled={journalBusy}
               >
-                {journalBusy ? "Preparing…" : "Download CSV"}
+                {journalBusy ? t("export.preparing") : t("export.downloadCsv")}
               </Button>
             </div>
           </div>
@@ -328,30 +323,28 @@ export default function AdminDataExport() {
 
       {canAccess("/admin/timeclock") && (
         <Card>
-          <Section title="Time-clock entries (custom range)">
+          <Section title={t("export.tcTitle")}>
             <p className={styles.intro}>
-              Every clock-in / clock-out in the window plus the
-              derived late-minutes and adjusted-after-the-fact
-              flags. Plugs straight into a payroll spreadsheet.
+              {t("export.tcIntro")}
             </p>
             {tcErr && (
               <Alert tone="error">{tcErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
-              <div className={styles.exportName}>Time-clock CSV</div>
+              <div className={styles.exportName}>{t("export.tcName")}</div>
               <div className={styles.exportDesc}>
-                Defaults to the last 30 days.
+                {t("export.last30")}
               </div>
             </div>
             <div className={styles.exportControls}>
-              <Field label="From" style={{ minWidth: "9rem" }}>
+              <Field label={t("export.from")} style={{ minWidth: "9rem" }}>
                 <DateInput
                   value={tcFrom}
                   onChange={(e) => setTcFrom(e.target.value)}
                 />
               </Field>
-              <Field label="To" style={{ minWidth: "9rem" }}>
+              <Field label={t("export.to")} style={{ minWidth: "9rem" }}>
                 <DateInput
                   value={tcTo}
                   onChange={(e) => setTcTo(e.target.value)}
@@ -362,7 +355,7 @@ export default function AdminDataExport() {
                 onClick={() => { void onDownloadTimeClock(); }}
                 busy={tcBusy} disabled={tcBusy}
               >
-                {tcBusy ? "Preparing…" : "Download CSV"}
+                {tcBusy ? t("export.preparing") : t("export.downloadCsv")}
               </Button>
             </div>
           </div>
@@ -372,21 +365,18 @@ export default function AdminDataExport() {
 
       {canAccess("/admin/audit-log") && (
         <Card>
-          <Section title="Audit log">
+          <Section title={t("export.auditTitle")}>
             <p className={styles.intro}>
-              Every operator + transfer audit row for this store —
-              who did what, when, with the before/after summary
-              line. Useful for compliance or for investigating a
-              disputed change.
+              {t("export.auditIntro")}
             </p>
             {auditErr && (
               <Alert tone="error">{auditErr}</Alert>
           )}
           <div className={styles.exportRow}>
             <div className={styles.exportText}>
-              <div className={styles.exportName}>Audit log CSV</div>
+              <div className={styles.exportName}>{t("export.auditName")}</div>
               <div className={styles.exportDesc}>
-                Full operator + transfer audit trail.
+                {t("export.auditDesc")}
               </div>
             </div>
             <div className={styles.exportControls}>
@@ -395,7 +385,7 @@ export default function AdminDataExport() {
                 onClick={() => { void onDownloadAuditLog(); }}
                 busy={auditBusy} disabled={auditBusy}
               >
-                {auditBusy ? "Preparing…" : "Download CSV"}
+                {auditBusy ? t("export.preparing") : t("export.downloadCsv")}
               </Button>
             </div>
           </div>
@@ -404,13 +394,9 @@ export default function AdminDataExport() {
       )}
 
       <Card>
-        <Section title="More report CSVs">
+        <Section title={t("export.moreTitle")}>
           <p className={styles.intro}>
-            Every report under <code>/app/reports</code> exposes
-            a CSV export via the toolbar — open the report,
-            adjust filters, click "Export CSV". This page
-            consolidates the everyday downloads; specialized
-            BI exports live on each report page.
+            {tNodes("export.moreIntro", { path: <code>{REPORTS_PATH}</code> })}
           </p>
         </Section>
       </Card>

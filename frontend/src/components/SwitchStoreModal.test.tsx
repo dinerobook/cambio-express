@@ -273,3 +273,66 @@ describe("owner switch popup (unchanged)", () => {
     expect(screen.getByRole("button", { name: "Favorite Beta Books" })).toBeInTheDocument();
   });
 });
+
+describe("owner switch popup: search, favourites, add a store", () => {
+  const OWNER_IN_STORE = { ...TEST_ADMIN, user_id: 7, role: "admin", owner_id: 7 };
+  const SEARCH = "Search stores by name or address…";
+
+  it("searches by name or address and says when nothing matches", async () => {
+    setCurrentIdentity(OWNER_IN_STORE);
+    mockFetch({ "GET /api/v2/auth/my-stores": { body: { stores: [ALPHA, BETA] } } });
+    renderModal();
+    await screen.findByText("Beta Books");
+    await userEvent.type(screen.getByPlaceholderText(SEARCH), "oak");
+    expect(screen.queryByText("Alpha Books")).toBeNull();
+    expect(screen.getByText("Beta Books")).toBeInTheDocument();
+    await userEvent.clear(screen.getByPlaceholderText(SEARCH));
+    await userEvent.type(screen.getByPlaceholderText(SEARCH), "zzz");
+    expect(screen.getByText("No stores match")).toBeInTheDocument();
+  });
+
+  it("the favourites tab is empty until a store is starred", async () => {
+    window.localStorage.removeItem("db.store_favorites");
+    setCurrentIdentity(OWNER_IN_STORE);
+    mockFetch({ "GET /api/v2/auth/my-stores": { body: { stores: [ALPHA, BETA] } } });
+    renderModal();
+    await screen.findByText("Beta Books");
+    await userEvent.click(screen.getByRole("button", { name: "★ Favorites (0)" }));
+    expect(screen.getByText("No favorites yet")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "All stores (2)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Favorite Beta Books" }));
+    expect(screen.getByRole("button", { name: "Unfavorite Beta Books" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "★ Favorites (1)" })).toBeInTheDocument();
+    window.localStorage.removeItem("db.store_favorites");
+  });
+
+  it("adds a store with the picked business type", async () => {
+    setCurrentIdentity(OWNER_IN_STORE);
+    const calls = mockFetch({
+      "GET /api/v2/auth/my-stores": { body: { stores: [ALPHA, BETA] } },
+      "POST /api/v2/auth/my-stores": { body: { ...BETA, store_id: 3, name: "Gamma" } },
+    });
+    renderModal();
+    await screen.findByText("Beta Books");
+    await userEvent.click(screen.getByRole("button", { name: "Add a new store" }));
+    const create = screen.getByRole("button", { name: "Create & enter →" });
+    expect(create).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Store name"), "Gamma");
+    await userEvent.selectOptions(screen.getByRole("combobox"), "gas_station");
+    await userEvent.click(create);
+    await waitFor(() => expect(callsTo(calls, "POST /api/v2/auth/my-stores")).toHaveLength(1));
+    expect(callsTo(calls, "POST /api/v2/auth/my-stores")[0].body)
+      .toEqual({ name: "Gamma", business_type: "gas_station" });
+  });
+
+  it("the add-store form reads in Spanish", async () => {
+    setLanguage("es");
+    setCurrentIdentity(OWNER_IN_STORE);
+    mockFetch({ "GET /api/v2/auth/my-stores": { body: { stores: [ALPHA, BETA] } } });
+    renderModal();
+    await screen.findByText("Beta Books");
+    await userEvent.click(screen.getByRole("button", { name: "Agregar una tienda nueva" }));
+    expect(screen.getByRole("option", { name: "Gasolinera" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["switchStore."])).toEqual([]);
+  });
+});

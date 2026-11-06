@@ -1,4 +1,5 @@
 import { Pill, type PillTone } from "./ui";
+import { auditActionLabel } from "./auditFilters";
 
 const TONE_BY_ACTION: Record<string, PillTone> = {
   create:         "success",
@@ -13,5 +14,5 @@ const TONE_BY_ACTION: Record<string, PillTone> = {
 };
 
 export function AuditActionBadge({ action }: { action: string }) {
-  return <Pill tone={TONE_BY_ACTION[action] ?? "neutral"}>{action}</Pill>;
+  return <Pill tone={TONE_BY_ACTION[action] ?? "neutral"}>{auditActionLabel(action)}</Pill>;
 }

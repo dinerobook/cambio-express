@@ -16,6 +16,8 @@ import {
 import styles from "./AccountSessions.module.css";
 import { formatDate, formatShortDate, parseTimestamp } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { t, tn, useT } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 // /app/account/sessions — every browser the current user is signed
 // in on. Backed by the refresh-token chain: one row per
@@ -30,17 +32,18 @@ export default function AccountSessions() {
   const [busy, setBusy] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const toast = useToast();
+  useT(); // re-render on a language switch
 
   async function onRevoke(sessionId: string) {
     setBusy(sessionId);
     setRevokeError(null);
     try {
       await revokeSession(sessionId);
-      toast({ message: "Session signed out.", tone: "success" });
+      toast({ message: t("sessions.signedOut"), tone: "success" });
       queryClient.invalidateQueries({ queryKey: ["account", "sessions"] });
     } catch (e) {
       setRevokeError(
-        apiErrorMessage(e, "Couldn't sign out that session."),
+        apiErrorMessage(e, t("sessions.revokeFailed")),
       );
     } finally {
       setBusy(null);
@@ -60,16 +63,14 @@ export default function AccountSessions() {
       const result = await revokeOtherSessions();
       toast({
         message: result.revoked === 0
-          ? "No other sessions to sign out."
-          : `Signed out ${result.revoked} other session${
-              result.revoked === 1 ? "" : "s"
-            }.`,
+          ? t("sessions.noOthers")
+          : tn("sessions.signedOutOthers", result.revoked),
         tone: "success",
       });
       queryClient.invalidateQueries({ queryKey: ["account", "sessions"] });
     } catch (e) {
       setRevokeError(
-        apiErrorMessage(e, "Couldn't sign out other sessions."),
+        apiErrorMessage(e, t("sessions.revokeOthersFailed")),
       );
     } finally {
       setBusy(null);
@@ -79,7 +80,7 @@ export default function AccountSessions() {
   if (isLoading) {
     return (
       <PageShell>
-        <PageHeader title="Devices" />
+        <PageHeader title={navWord("Devices")} />
         <Loading />
       </PageShell>
     );
@@ -87,10 +88,10 @@ export default function AccountSessions() {
   if (isError || !data) {
     return (
       <PageShell>
-        <PageHeader title="Devices" />
+        <PageHeader title={navWord("Devices")} />
         <ErrorState
           message={
-            `Couldn't load sessions. ${apiErrorMessage(error, "")}`.trimEnd()
+            `${t("sessions.loadFailed")} ${apiErrorMessage(error, "")}`.trimEnd()
           }
           onRetry={() => { void refetch(); }}
         />
@@ -107,10 +108,8 @@ export default function AccountSessions() {
       <PageCrumbs />
 
       <PageHeader
-        title="Devices"
-        subtitle={
-          `${sessions.length} device${sessions.length === 1 ? "" : "s"}`
-        }
+        title={navWord("Devices")}
+        subtitle={tn("sessions.count", sessions.length)}
         actions={otherCount > 0 ? (
           <Button
             tone="secondary"
@@ -119,7 +118,7 @@ export default function AccountSessions() {
             disabled={busy !== null}
             onClick={() => setConfirmingRevokeOthers(true)}
           >
-            Sign out everywhere else
+            {t("sessions.everywhereElse")}
           </Button>
         ) : undefined}
       />
@@ -133,8 +132,8 @@ export default function AccountSessions() {
       <Section
         title={
           <>
-            Signed-in devices
-            <InfoTip text="A session is one browser on one device. Signing out of a session ends every API call from that browser; the next action there will redirect to login." />
+            {t("sessions.signedIn")}
+            <InfoTip text={t("sessions.signedInTip")} />
           </>
         }
       >
@@ -146,7 +145,7 @@ export default function AccountSessions() {
             })}
             rows={sessions}
             rowKey={(s) => s.session_id}
-            emptyTitle="No signed-in devices."
+            emptyTitle={t("sessions.none")}
           />
         </Card>
       </Section>
@@ -154,9 +153,9 @@ export default function AccountSessions() {
 
       <ConfirmDialog
         open={confirmingRevokeOthers}
-        title="Sign out of other devices?"
-        message="You'll stay signed in here. Every other browser / installed PWA will be signed out and need to re-authenticate."
-        confirmLabel="Sign out everywhere else"
+        title={t("sessions.othersTitle")}
+        message={t("sessions.othersBody")}
+        confirmLabel={t("sessions.everywhereElse")}
         confirmTone="danger"
         busy={busy === "others"}
         onConfirm={() => { void doRevokeOthers(); }}
@@ -167,8 +166,9 @@ export default function AccountSessions() {
 }
 
 
-/** Signed-in devices as the kit ``<DataTable>``. The current
- *  session is marked and can't be signed out from here. */
+/** Signed-in devices as the kit ``<DataTable>``, built during render
+ *  so the headings follow the language. The current session is
+ *  marked and can't be signed out from here. */
 function sessionColumns({
   busyId, onRevoke,
 }: {
@@ -178,35 +178,35 @@ function sessionColumns({
 }): DataColumn<ActiveSessionRow>[] {
   return [
     {
-      key: "device", header: "Device",
+      key: "device", header: t("sessions.colDevice"),
       render: (session) => (
         <>
           <div className={styles.deviceCell}>
             <strong>{describeUserAgent(session.user_agent)}</strong>
             {session.is_current && (
-              <span className={styles.currentTag}>This device</span>
+              <span className={styles.currentTag}>{t("sessions.thisDevice")}</span>
             )}
           </div>
-          <div className={styles.uaRaw} title={session.user_agent || "(no User-Agent)"}>
-            {session.user_agent || "(no User-Agent)"}
+          <div className={styles.uaRaw} title={session.user_agent || t("sessions.noUa")}>
+            {session.user_agent || t("sessions.noUa")}
           </div>
         </>
       ),
     },
     {
-      key: "last", header: "Last activity",
+      key: "last", header: t("sessions.colLast"),
       render: (session) => (
         <span className={styles.timestamp}>{formatRelative(session.last_used_at)}</span>
       ),
     },
     {
-      key: "started", header: "Signed in",
+      key: "started", header: t("sessions.colSignedIn"),
       render: (session) => (
         <span className={styles.timestamp}>{formatRelative(session.started_at)}</span>
       ),
     },
     {
-      key: "ip", header: "IP",
+      key: "ip", header: IP_HEADER,
       render: (session) => (
         <span className={styles.ip}>{session.ip_address || "—"}</span>
       ),
@@ -214,7 +214,7 @@ function sessionColumns({
     {
       key: "actions", header: "", label: "",
       render: (session) => (session.is_current ? (
-        <span className={styles.muted}>Current</span>
+        <span className={styles.muted}>{t("sessions.current")}</span>
       ) : (
         <Button
           tone="danger"
@@ -223,19 +223,32 @@ function sessionColumns({
           disabled={busyId !== null}
           onClick={() => onRevoke(session.session_id)}
         >
-          Sign out
+          {t("sessions.signOut")}
         </Button>
       )),
     },
   ];
 }
 
+// The same in every language.
+const IP_HEADER = "IP";
+
 
 // Heuristic User-Agent → "Chrome on macOS" parser. Doesn't have to
 // be perfect — falls back to the raw string in a sub-line so the
 // detail-conscious user still sees what was captured.
+// Product names, the same in every language.
+const PLATFORMS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/iPhone/, "iPhone"],
+  [/iPad/, "iPad"],
+  [/Android/, "Android"],
+  [/Mac OS X/, "macOS"],
+  [/Windows/, "Windows"],
+  [/Linux/, "Linux"],
+];
+
 function describeUserAgent(ua: string): string {
-  if (!ua) return "Unknown device";
+  if (!ua) return t("sessions.unknown");
   const browser =
     /Edg\//.test(ua) ? "Edge" :
     /Firefox\//.test(ua) ? "Firefox" :
@@ -243,16 +256,9 @@ function describeUserAgent(ua: string): string {
     /Safari\//.test(ua) ? "Safari" :
     /curl\//.test(ua) ? "curl" :
     /python-requests/.test(ua) ? "python-requests" :
-    "Browser";
-  const platform =
-    /iPhone/.test(ua) ? "iPhone" :
-    /iPad/.test(ua) ? "iPad" :
-    /Android/.test(ua) ? "Android" :
-    /Mac OS X/.test(ua) ? "macOS" :
-    /Windows/.test(ua) ? "Windows" :
-    /Linux/.test(ua) ? "Linux" :
-    "";
-  return platform ? `${browser} on ${platform}` : browser;
+    t("sessions.browser");
+  const platform = PLATFORMS.find(([re]) => re.test(ua))?.[1] ?? "";
+  return platform ? t("sessions.browserOn", { browser, platform }) : browser;
 }
 
 
@@ -262,18 +268,18 @@ function formatRelative(iso: string): string {
   const d = parseTimestamp(iso);
   if (!d) return iso;
   const diffMs = Date.now() - d.getTime();
-  if (diffMs < 60_000) return "Just now";
+  if (diffMs < 60_000) return t("sessions.justNow");
   if (diffMs < 3_600_000) {
     const m = Math.floor(diffMs / 60_000);
-    return `${m} minute${m === 1 ? "" : "s"} ago`;
+    return tn("sessions.minutesAgo", m);
   }
   if (diffMs < 24 * 3_600_000) {
     const h = Math.floor(diffMs / 3_600_000);
-    return `${h} hour${h === 1 ? "" : "s"} ago`;
+    return tn("sessions.hoursAgo", h);
   }
   if (diffMs < 7 * 24 * 3_600_000) {
     const days = Math.floor(diffMs / (24 * 3_600_000));
-    return `${days} day${days === 1 ? "" : "s"} ago`;
+    return tn("sessions.daysAgo", days);
   }
   return diffMs < 300 * 24 * 3_600_000 ? formatShortDate(iso) : formatDate(iso);
 }
