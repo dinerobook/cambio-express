@@ -161,6 +161,8 @@ export const COVERED_FILES = [
   "routes/SuperadminAnnouncements.tsx",
   "routes/SuperadminStoreForm.tsx",
   "routes/reports/SuperadminBIDrilldown.tsx",
+  "routes/SuperadminUsers.tsx",
+  "routes/SuperadminStoreDrill.tsx",
   "api/billing.ts",
   "api/support.ts",
   // Monthly P&L and reports

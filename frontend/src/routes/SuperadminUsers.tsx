@@ -38,20 +38,37 @@ import {
 import styles from "./SuperadminUsers.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
+import { t as translate, tn, useT, type MessageKey } from "../i18n";
+import { navWord } from "../i18n/navWords";
 
 type UserAction =
   | "toggle" | "reset2fa" | "resetpw" | "impersonate" | "view" | "revokesessions";
 
-const ROLES = [
-  { value: "", label: "All roles" },
-  { value: "admin", label: "Admin" },
-  { value: "employee", label: "Employee" },
-  { value: "owner", label: "Owner" },
-  { value: "superadmin", label: "Superadmin" },
-  { value: "support", label: "Support" },
-];
+const ROLES = ["admin", "employee", "owner", "superadmin", "support"];
+
+// The roles a superadmin can move a store login between.
+const CHANGEABLE_ROLES = ["admin", "employee", "owner"];
+
+const CONFIRM_TITLES: Record<UserAction, MessageKey> = {
+  toggle: "saUsers.titleToggle",
+  reset2fa: "saUsers.titleReset2fa",
+  resetpw: "saUsers.titleResetPw",
+  revokesessions: "saUsers.titleRevoke",
+  view: "saUsers.titleView",
+  impersonate: "saUsers.titleImpersonate",
+};
+
+const CONFIRM_MESSAGES: Record<UserAction, MessageKey> = {
+  toggle: "saUsers.confirmToggle",
+  reset2fa: "saUsers.confirmReset2fa",
+  resetpw: "saUsers.confirmResetPw",
+  impersonate: "saUsers.confirmImpersonate",
+  view: "saUsers.confirmView",
+  revokesessions: "saUsers.confirmRevoke",
+};
 
 export default function SuperadminUsers() {
+  const t = useT();
   const qc = useQueryClient();
   const toast = useToast();
   // Filters and page live in the URL (shareable, back/forward
@@ -102,18 +119,18 @@ export default function SuperadminUsers() {
       if (action === "toggle") {
         const res = await toggleUserActive(userId);
         toast({
-          message: res.is_active ? "User enabled." : "User disabled.",
+          message: res.is_active ? t("saUsers.enabled") : t("saUsers.disabled"),
           tone: "success",
         });
         refresh();
       } else if (action === "reset2fa") {
         await resetUser2FA(userId);
-        toast({ message: "2FA cleared — user can re-enroll at next login.", tone: "success" });
+        toast({ message: t("saUsers.tfaCleared"), tone: "success" });
         refresh();
       } else if (action === "resetpw") {
         const res = await forcePasswordReset(userId);
         setTempPw({ userId, password: res.temp_password });
-        toast({ message: "Password reset.", tone: "success" });
+        toast({ message: t("saUsers.pwReset"), tone: "success" });
         refresh();
       } else if (action === "impersonate") {
         await startImpersonation(userId, "full");
@@ -125,61 +142,54 @@ export default function SuperadminUsers() {
         const res = await revokeUserSessions(userId);
         toast({
           message: res.revoked_count > 0
-            ? `Revoked ${res.revoked_count} active session${res.revoked_count === 1 ? "" : "s"}.`
-            : "No active sessions to revoke.",
+            ? tn("saUsers.revoked", res.revoked_count, fmtNumber)
+            : t("saUsers.noSessions"),
           tone: "success",
         });
         refresh();
       }
     } catch (err) {
-      setError(apiErrorMessage(err, "Action failed."));
+      setError(apiErrorMessage(err, t("saUsers.actionFailed")));
     } finally {
       setBusyId(null);
       setConfirmAction(null);
     }
   }
 
-  const confirmMessages: Record<string, string> = {
-    toggle: `Toggle active status for "${confirmAction?.username}"?`,
-    reset2fa: `Clear 2FA enrollment for "${confirmAction?.username}"? They'll need to re-enroll at next login.`,
-    resetpw: `Reset password for "${confirmAction?.username}"? A temporary password will be generated.`,
-    impersonate: `Sign in as "${confirmAction?.username}"? You'll leave this page and see the app from their perspective. Anything you save is recorded against them as "via superadmin". This is audit-logged.`,
-    view: `View the app as "${confirmAction?.username}"? Read-only: every save on that session is refused, so you can look without changing their books. This is audit-logged.`,
-    revokesessions: `Revoke every active session for "${confirmAction?.username}"? They'll be bounced to the login page on their next API call. Use for compromised credentials, departing staff, or any "lock them out now" incident.`,
-  };
 
   return (
     <PageShell>
       <PageCrumbs />
 
       <PageHeader
-        title="Users"
-        subtitle={data ? `${fmtNumber(data.total)} users` : "—"}
+        title={navWord("Users")}
+        subtitle={data ? tn("saUsers.users", data.total, fmtNumber) : "—"}
         actions={(
           <div className={styles.filterRow}>
             <Input
               type="search"
               value={filters.draft.q ?? filters.params.q}
-              placeholder="Search name, email, username…"
-              aria-label="Search users"
+              placeholder={t("saUsers.search")}
+              aria-label={t("saUsers.searchLabel")}
               onChange={(e) => filters.debounced("q", e.target.value)}
               className={styles.searchInput}
             />
             <Select
               value={role}
-              aria-label="Role"
+              aria-label={t("saUsers.role")}
               onChange={(e) => filters.setParam("role", e.target.value)}
             >
+              <option value="">{t("saUsers.allRoles")}</option>
               {ROLES.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
+                <option key={r} value={r}>{roleLabel(r)}</option>
               ))}
             </Select>
             <Select
               value={filters.params.store_id}
-              aria-label="Store"
+              aria-label={t("saUsers.colStore")}
               onChange={(e) => filters.setParam("store_id", e.target.value)}
             >
-              <option value="">All stores</option>
+              <option value="">{t("saTix.allStores")}</option>
               {(stores.data?.rows ?? []).map((s) => (
                 <option key={s.store_id} value={s.store_id}>{s.name}</option>
               ))}
@@ -195,7 +205,7 @@ export default function SuperadminUsers() {
           tone="secondary"
           onClick={() => setShowAddSupport((v) => !v)}
         >
-          {showAddSupport ? "Cancel" : "Add support login"}
+          {showAddSupport ? t("common.cancel") : t("saUsers.addSupport")}
         </Button>
       </div>
 
@@ -211,7 +221,7 @@ export default function SuperadminUsers() {
       {tempPw && (
         <Alert tone="success">
           <div className={styles.tempPwLabel}>
-            Temporary password (show to the user — it won't be displayed again):
+            {t("saUsers.tempPw")}
           </div>
           <div className={styles.tempPw}>{tempPw.password}</div>
         </Alert>
@@ -232,7 +242,7 @@ export default function SuperadminUsers() {
           rowKey={(u) => u.id}
           isLoading={isLoading} isError={isError} error={fetchError}
           onRetry={() => { void refetch(); }}
-          emptyTitle="No users match these filters."
+          emptyTitle={t("saUsers.empty")}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
             onPage: filters.setPage,
@@ -242,8 +252,8 @@ export default function SuperadminUsers() {
             filename: "users",
             fetchPage: (page, perPage) => fetchSuperadminUsers({ ...listQuery, page, perPage }),
             extraColumns: [
-              { header: "Username", csv: (u) => u.username },
-              { header: "Email", csv: (u) => u.email },
+              { header: t("saUsers.colUsername"), csv: (u) => u.username },
+              { header: t("common.email"), csv: (u) => u.email },
             ],
           }}
         />
@@ -251,20 +261,15 @@ export default function SuperadminUsers() {
 
       <ConfirmDialog
         open={confirmAction != null}
-        title={
-          confirmAction?.action === "toggle" ? "Toggle user"
-          : confirmAction?.action === "reset2fa" ? "Reset 2FA"
-          : confirmAction?.action === "resetpw" ? "Reset password"
-          : confirmAction?.action === "revokesessions" ? "Revoke sessions"
-          : confirmAction?.action === "view" ? "View as user"
-          : "Impersonate user"
-        }
-        message={confirmMessages[confirmAction?.action ?? "toggle"] ?? ""}
+        title={t(CONFIRM_TITLES[confirmAction?.action ?? "impersonate"])}
+        message={confirmAction
+          ? t(CONFIRM_MESSAGES[confirmAction.action], { name: confirmAction.username })
+          : ""}
         confirmLabel={
-          confirmAction?.action === "impersonate" ? "Sign in as user"
-          : confirmAction?.action === "view" ? "View read-only"
-          : confirmAction?.action === "revokesessions" ? "Revoke sessions"
-          : "Confirm"
+          confirmAction?.action === "impersonate" ? t("saUsers.signInAs")
+          : confirmAction?.action === "view" ? t("saUsers.viewReadOnly")
+          : confirmAction?.action === "revokesessions" ? t("saUsers.titleRevoke")
+          : t("common.confirm")
         }
         confirmTone={
           confirmAction?.action === "impersonate" ? "danger"
@@ -278,23 +283,25 @@ export default function SuperadminUsers() {
 
       <ConfirmDialog
         open={roleChange != null}
-        title="Change role"
+        title={t("saUsers.changeRole")}
         message={(
           <>
-            Change role for &quot;{roleChange?.username}&quot; from {roleChange?.currentRole} to:
+            {t("saUsers.changeRoleBody", {
+              name: roleChange?.username ?? "", role: roleLabel(roleChange?.currentRole ?? ""),
+            })}
             <Select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
               style={{ marginTop: "0.5rem" }}
             >
-              <option value="">— Select role —</option>
-              <option value="admin">Admin</option>
-              <option value="employee">Employee</option>
-              <option value="owner">Owner</option>
+              <option value="">{t("saUsers.selectRole")}</option>
+              {CHANGEABLE_ROLES.map((r) => (
+                <option key={r} value={r}>{roleLabel(r)}</option>
+              ))}
             </Select>
           </>
         )}
-        confirmLabel={busyId != null ? "Saving…" : "Change role"}
+        confirmLabel={busyId != null ? t("common.saving") : t("saUsers.changeRole")}
         busy={busyId != null}
         onConfirm={() => {
           if (!roleChange || !newRole) return;
@@ -302,13 +309,13 @@ export default function SuperadminUsers() {
           setRoleError(null);
           changeUserRole(roleChange.userId, newRole)
             .then(() => {
-              toast({ message: `Role changed to ${newRole}.`, tone: "success" });
+              toast({ message: t("saUsers.roleChanged", { role: roleLabel(newRole) }), tone: "success" });
               refresh();
               setRoleChange(null);
               setNewRole("");
             })
             .catch((err) => {
-              setRoleError(apiErrorMessage(err, "Failed to change role."));
+              setRoleError(apiErrorMessage(err, t("saUsers.roleFailed")));
             })
             .finally(() => setBusyId(null));
         }}
@@ -325,9 +332,10 @@ function userColumns({ busyId, onAction, onChangeRole }: {
   onAction: (user: SuperadminUserRow, action: UserAction) => void;
   onChangeRole: (user: SuperadminUserRow) => void;
 }): DataColumn<SuperadminUserRow>[] {
+  const t = translate;
   return [
     {
-      key: "user", header: "User",
+      key: "user", header: t("saUsers.colUser"),
       render: (u) => (
         <div>
           <div className={styles.userName}>{u.full_name || u.username}</div>
@@ -339,76 +347,76 @@ function userColumns({ busyId, onAction, onChangeRole }: {
       ),
       csv: (u) => u.full_name || u.username,
     },
-    { key: "role", header: "Role", render: (u) => <RolePill role={u.role} />, csv: (u) => roleLabel(u.role) },
+    { key: "role", header: t("saUsers.role"), render: (u) => <RolePill role={u.role} />, csv: (u) => roleLabel(u.role) },
     {
-      key: "store", header: "Store",
+      key: "store", header: t("saUsers.colStore"),
       render: (u) => (u.store_name
         ? <span>{u.store_name}</span>
         : <span className={styles.monoMuted}>—</span>),
       csv: (u) => u.store_name,
     },
     {
-      key: "status", header: "Status",
+      key: "status", header: t("common.status"),
       render: (u) => (
         <Pill tone={u.is_active ? "accent" : "neutral"}>
-          {u.is_active ? "Active" : "Inactive"}
+          {u.is_active ? t("common.active") : t("common.inactive")}
         </Pill>
       ),
-      csv: (u) => (u.is_active ? "Active" : "Inactive"),
+      csv: (u) => (u.is_active ? t("common.active") : t("common.inactive")),
     },
     {
-      key: "2fa", header: "2FA",
+      key: "2fa", header: t("saUsers.col2fa"),
       render: (u) => (u.has_2fa
-        ? <Pill tone="success">Enrolled</Pill>
+        ? <Pill tone="success">{t("saUsers.enrolled")}</Pill>
         : <span className={styles.monoMuted}>—</span>),
-      csv: (u) => (u.has_2fa ? "Enrolled" : ""),
+      csv: (u) => (u.has_2fa ? t("saUsers.enrolled") : ""),
     },
     {
-      key: "last", header: "Last login",
+      key: "last", header: t("saUsers.colLastLogin"),
       render: (u) => (
         <span className={styles.monoMuted}>
-          {u.last_login_at ? formatDate(u.last_login_at) : "Never"}
+          {u.last_login_at ? formatDate(u.last_login_at) : t("saUsers.never")}
         </span>
       ),
-      csv: (u) => (u.last_login_at ? csvTimestamp(u.last_login_at) : "Never"),
+      csv: (u) => (u.last_login_at ? csvTimestamp(u.last_login_at) : t("saUsers.never")),
     },
     {
-      key: "actions", header: "Actions", label: "", align: "right",
+      key: "actions", header: t("common.actions"), label: "", align: "right",
       render: (u) => (u.role === "superadmin" ? null : (
         <RowActions
           actions={[
             {
-              label: "Change role",
+              label: t("saUsers.changeRole"),
               onClick: () => onChangeRole(u),
               disabled: busyId === u.id,
             },
             {
-              label: u.is_active ? "Disable" : "Enable",
+              label: u.is_active ? t("saUsers.disable") : t("saUsers.enable"),
               onClick: () => onAction(u, "toggle"),
               disabled: busyId === u.id,
             },
             {
-              label: "Reset password",
+              label: t("saUsers.titleResetPw"),
               onClick: () => onAction(u, "resetpw"),
               disabled: busyId === u.id,
             },
             ...(u.has_2fa ? [{
-              label: "Reset 2FA",
+              label: t("saUsers.reset2fa"),
               onClick: () => onAction(u, "reset2fa"),
               disabled: busyId === u.id,
             }] : []),
             {
-              label: "View as (read-only)",
+              label: t("saUsers.viewAs"),
               onClick: () => onAction(u, "view"),
               disabled: busyId === u.id,
             },
             {
-              label: "Impersonate",
+              label: t("saUsers.impersonate"),
               onClick: () => onAction(u, "impersonate"),
               disabled: busyId === u.id,
             },
             {
-              label: "Revoke sessions",
+              label: t("saUsers.titleRevoke"),
               onClick: () => onAction(u, "revokesessions"),
               disabled: busyId === u.id,
             },
@@ -425,6 +433,7 @@ function userColumns({ busyId, onAction, onChangeRole }: {
  *  The role is fixed server-side (POST /superadmin/platform-users
  *  only mints support). */
 function AddSupportLoginCard({ onCreated }: { onCreated: () => void }) {
+  const t = useT();
   const toast = useToast();
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
@@ -445,13 +454,13 @@ function AddSupportLoginCard({ onCreated }: { onCreated: () => void }) {
         password,
       });
       toast({
-        message: `Support login "${username.trim()}" created.`,
+        message: t("saUsers.supportCreated", { name: username.trim() }),
         tone: "success",
       });
       onCreated();
     } catch (err) {
       setError(
-        apiErrorMessage(err, "Could not create the login."),
+        apiErrorMessage(err, t("saUsers.createFailed")),
       );
     } finally {
       setBusy(false);
@@ -462,31 +471,29 @@ function AddSupportLoginCard({ onCreated }: { onCreated: () => void }) {
     <Card>
       <form onSubmit={onSubmit} autoComplete="off">
         <p className={styles.addSupportLead}>
-          Support logins can only work the ticket queue - no store
-          data, no platform controls. They sign in with a password
-          and are logged out automatically 7 days after each login.
+          {t("saUsers.supportLead")}
         </p>
         {error && <Alert tone="error">{error}</Alert>}
         <div className={styles.addSupportGrid}>
-          <Field label="Username">
+          <Field label={t("saUsers.colUsername")}>
             <Input
               value={username} required minLength={3} maxLength={80}
               onChange={(e) => setUsername(e.target.value)}
             />
           </Field>
-          <Field label="Full name">
+          <Field label={t("saUsers.fullName")}>
             <Input
               value={fullName} maxLength={120}
               onChange={(e) => setFullName(e.target.value)}
             />
           </Field>
-          <Field label="Email" hint="Ticket-update emails go here.">
+          <Field label={t("common.email")} hint={t("saUsers.emailHint")}>
             <Input
               type="email" value={email} maxLength={255}
               onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
-          <Field label="Password" hint="At least 8 characters.">
+          <Field label={t("saUsers.password")} hint={t("saUsers.pwHint")}>
             <Input
               type="password" value={password} required
               minLength={8} maxLength={200}
@@ -495,7 +502,7 @@ function AddSupportLoginCard({ onCreated }: { onCreated: () => void }) {
           </Field>
         </div>
         <Button type="submit" busy={busy} disabled={busy}>
-          {busy ? "Creating\u2026" : "Create support login"}
+          {busy ? t("saForm.creating") : t("saUsers.createSupport")}
         </Button>
       </form>
     </Card>

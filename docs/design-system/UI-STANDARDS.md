@@ -813,7 +813,12 @@ server's field names and stay as sent, like the dashboard's company
 names. A banner level, an activity kind or detail the SPA does not
 list shows as sent. The new store's default admin name is written in
 the reader's language, since once saved it is the person's own name.
-Next: platform users and the store page, then emails. The TV board's own words (its title,
+Then platform users and the store page. A trial status
+(`exempt`, `active`, `expiring_soon`, `grace`, `expired`) and a recent
+transfer's status show in the reader's language; one the SPA does not
+list shows as sent. A module or flag name on the store page is the
+server's label and stays as sent.
+Next: emails. The TV board's own words (its title,
 the sample subtitle) are board content and stay as the store types
 them; the country picker names each country in the reader's language
 (`Intl.DisplayNames`) but saves the English name, as before. Add-on
