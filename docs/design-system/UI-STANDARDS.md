@@ -739,6 +739,9 @@ always the same Spanish word):
 | Commit (an import) | Confirmar |
 | Owner / Linked stores | Dueño / Tiendas vinculadas |
 | Connect code (owner invite) / Revoke | Código de conexión / Anular |
+| Add-on / Free trial | Complemento / Prueba gratis |
+| Ticket (support) / Reopen | Ticket / Reabrir |
+| Pair / Unpair (TV) | Vincular / Desvincular |
 
 Spanish uses the formal "usted" ("Inicie sesión", "Revise su correo").
 Sentence case applies in both languages (§7b).
@@ -771,8 +774,15 @@ report center, every report page and the Intermex report import; the
 owner pages (dashboard, locations, a store's page and its permissions,
 P&L rollup, cross-store reports, billing, connect a store, add user to
 stores, bulk permissions, cross-store defaults, team users, activity,
-owner settings) and the shared bulk results table. Next: signup and
-subscription, the back-office pages, platform pages, then emails. An audit row's
+owner settings) and the shared bulk results table; signup (store and
+owner), the payment-received page, billing and subscription with its
+cancel popup, support tickets and their conversation, and the TV
+display console and country editor. Next: the back-office pages,
+platform pages, then emails. The TV board's own words (its title,
+the sample subtitle) are board content and stay as the store types
+them; the country picker names each country in the reader's language
+(`Intl.DisplayNames`) but saves the English name, as before. Add-on
+names, taglines and prices come from the server and show as sent. An audit row's
 action and target show through `auditActionLabel()` /
 `auditTargetLabel()` (`components/auditFilters.ts`); a slug they
 don't know, and the server-written summary, show as sent. Bank

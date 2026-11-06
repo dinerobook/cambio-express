@@ -4,12 +4,14 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import TVDisplayAdmin, {
-  TVDisplayDevice, TVDisplayOverview,
+  TVDisplayContent, TVDisplayDevice, TVDisplayOverview,
 } from "./TVDisplayAdmin";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // TV Display console. Pinned here:
 //   - The layout's load failure is an ErrorState whose Retry refetches;
@@ -185,5 +187,46 @@ describe("TVDisplayAdmin", () => {
       expect(screen.queryByText("Display settings saved.")).not.toBeInTheDocument();
       expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
     });
+  });
+
+  it("reads in Spanish on every tab, country picker included", async () => {
+    setLanguage("es");
+    overview.mockReturnValue({
+      ...loaded(),
+      data: { ...DATA, active_pairing: {
+        id: 4, device_label: "Sala", paired_at: "2026-10-08T14:00:00", last_seen_at: "2026-10-08T15:00:00",
+      } },
+    });
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={["/tv-display/overview"]}>
+          <Routes>
+            <Route path="/tv-display" element={<TVDisplayAdmin />}>
+              <Route path="overview" element={<TVDisplayOverview />} />
+              <Route path="content" element={<TVDisplayContent />} />
+              <Route path="device" element={<TVDisplayDevice />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "Pantalla de TV" })).toBeInTheDocument();
+    expect(screen.getByText("Enlace público de la pantalla")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["tv."])).toEqual([]);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Contenido" }));
+    expect(screen.getByText("Secciones por país", { selector: "h2" })).toBeInTheDocument();
+    expect(screen.getByText("Mexico").closest("a")).toHaveTextContent("3 bancos · 7 tasas");
+    expect(screen.getByRole("option", { name: "México" })).toHaveValue("MX");
+    expect(englishLeftovers(document.body, ["tv."])).toEqual([]);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Equipo y ajustes" }));
+    expect(screen.getByText("Fire TV vinculado: Sala")).toBeInTheDocument();
+    expect(screen.getByText("Suscripción").parentElement).toHaveTextContent("$5/mes");
+    expect(screen.getByText("Oscuro")).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["tv."])).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Desvincular este Fire TV" }));
+    expect(await screen.findByRole("dialog", { name: "¿Desvincular el Fire TV?" })).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["tv."])).toEqual([]);
   });
 });

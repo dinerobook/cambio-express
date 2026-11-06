@@ -4,6 +4,7 @@ import { useStoreInfo } from "../api/account";
 import { getCurrentIdentity } from "../lib/auth";
 import { ButtonLink } from "../components/ui";
 import styles from "./SubscribeSuccess.module.css";
+import { useT } from "../i18n";
 
 // /app/subscribe/success — Stripe Checkout's success_url. Stripe
 // redirects here right after the customer pays; the
@@ -19,6 +20,7 @@ const POLL_INTERVAL_MS = 2000;
 const POLL_MAX_TICKS   = 15;  // ~30s total
 
 export default function SubscribeSuccess() {
+  const t = useT();
   const identity = getCurrentIdentity();
   const { data, refetch } = useStoreInfo();
   const [ticks, setTicks] = useState(0);
@@ -28,19 +30,17 @@ export default function SubscribeSuccess() {
 
   useEffect(() => {
     if (activated || ticks >= POLL_MAX_TICKS) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       refetch();
       setTicks((n) => n + 1);
     }, POLL_INTERVAL_MS);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [activated, ticks, refetch]);
 
   if (!identity) {
     return (
       <main className={styles.page}>
-        <p className={styles.muted}>
-          Sign in to view your subscription status.
-        </p>
+        <p className={styles.muted}>{t("subOk.signIn")}</p>
       </main>
     );
   }
@@ -54,19 +54,17 @@ export default function SubscribeSuccess() {
 
 
 function Activated({ plan }: { plan: string }) {
+  const t = useT();
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
     <>
       <div className={`${styles.badge} ${styles.badgeSuccess}`}>
         <Check />
       </div>
-      <h1 className={styles.title}>You're on {planLabel}</h1>
-      <p className={styles.lead}>
-        Your account is active. You now have full access to all{" "}
-        {planLabel} features.
-      </p>
+      <h1 className={styles.title}>{t("subOk.onPlan", { plan: planLabel })}</h1>
+      <p className={styles.lead}>{t("subOk.activeLead", { plan: planLabel })}</p>
       <ButtonLink to="/dashboard" tone="primary">
-        Go to dashboard →
+        {t("subOk.toDashboard")}
       </ButtonLink>
     </>
   );
@@ -74,20 +72,17 @@ function Activated({ plan }: { plan: string }) {
 
 
 function Pending() {
+  const t = useT();
   return (
     <>
       <div className={`${styles.badge} ${styles.badgePending}`}>
         <Clock />
       </div>
-      <h1 className={styles.title}>Payment received</h1>
-      <p className={styles.lead}>
-        We've received your payment and are activating your account.
-        This usually takes a few seconds — we'll flip this page
-        automatically as soon as the upgrade lands.
-      </p>
+      <h1 className={styles.title}>{t("subOk.received")}</h1>
+      <p className={styles.lead}>{t("subOk.pendingLead")}</p>
       <div className={styles.actions}>
         <ButtonLink to="/dashboard" tone="primary">
-          Go to dashboard →
+          {t("subOk.toDashboard")}
         </ButtonLink>
       </div>
     </>

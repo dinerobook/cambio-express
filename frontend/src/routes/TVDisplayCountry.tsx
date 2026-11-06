@@ -16,12 +16,14 @@ import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import styles from "./TVDisplayCountry.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { tn, useT } from "../i18n";
 
 // /app/tv-display/countries/:id — country editor for the rate
 // board. Save sends the whole editor (header, company columns,
 // bank renames / order / deletes, new banks, rate grid) in one
 // PUT, then returns to the TV display page.
 export default function TVDisplayCountry() {
+  const t = useT();
   const { countryId } = useParams<{ countryId: string }>();
   const cid = Number(countryId);
   const { data, isLoading, isError, error, refetch } =
@@ -71,7 +73,7 @@ export default function TVDisplayCountry() {
     bankDeletes: Array.from(bankDeletes), newBankNames, rateGrid,
   }, hydrated);
   const guard = useUnsavedGuard(dirty && !save.isPending, {
-    message: "You have unsaved edits on this country. Leave without saving?",
+    message: t("tvCountry.unsaved"),
   });
 
   const companies = useMemo(
@@ -82,7 +84,7 @@ export default function TVDisplayCountry() {
   if (isLoading) {
     return (
       <PageShell>
-        <Loading label="Loading country…" />
+        <Loading label={t("tvCountry.loading")} />
       </PageShell>
     );
   }
@@ -90,7 +92,7 @@ export default function TVDisplayCountry() {
     return (
       <PageShell>
         <ErrorState
-          message={`Couldn't load country — ${apiErrorMessage(error, "unknown error")}`}
+          message={t("tvCountry.loadFailed", { error: apiErrorMessage(error, t("tvCountry.unknownError")) })}
           onRetry={() => { void refetch(); }}
         />
       </PageShell>
@@ -108,7 +110,7 @@ export default function TVDisplayCountry() {
         const value = raw === "" ? null : Number(raw);
         if (value !== null && (!Number.isFinite(value) || value < 0)) {
           toast({
-            message: `${bankNames[b.id] ?? b.bank_name}: "${raw}" isn't a rate.`,
+            message: t("tvCountry.badRate", { bank: bankNames[b.id] ?? b.bank_name, raw }),
             tone: "error",
           });
           return;
@@ -132,10 +134,10 @@ export default function TVDisplayCountry() {
         new_banks: newBankNames.filter((n) => n.trim().length > 0),
       });
     } catch (err) {
-      toastError(err, "Couldn't save the country.");
+      toastError(err, t("tvCountry.saveFailed"));
       return;
     }
-    toast({ message: "Country saved.", tone: "success" });
+    toast({ message: t("tvCountry.saved"), tone: "success" });
     guard.proceed(() => navigate("/tv-display"));
   }
 
@@ -157,23 +159,22 @@ export default function TVDisplayCountry() {
   return (
     <PageShell>
       <div>
-        <PageCrumbs current={data.country_name || "Country"} />
+        <PageCrumbs current={data.country_name || t("tvCountry.country")} />
 
         <PageHeader
-          title={data.country_name || "Country"}
-          subtitle={
-            `${data.country_code} · ${data.banks.length} bank` +
-            `${data.banks.length === 1 ? "" : "s"} · ` +
-            `${data.mt_companies.length} company column` +
-            `${data.mt_companies.length === 1 ? "" : "s"}`
-          }
+          title={data.country_name || t("tvCountry.country")}
+          subtitle={[
+            data.country_code,
+            tn("tvCountry.banks", data.banks.length),
+            tn("tvCountry.columns", data.mt_companies.length),
+          ].join(" · ")}
         />
       </div>
 
       <form onSubmit={submit} className={styles.form}>
         <Card>
-          <h2 className={styles.cardH2}>Country header</h2>
-          <Field label="Country name">
+          <h2 className={styles.cardH2}>{t("tvCountry.header")}</h2>
+          <Field label={t("tvCountry.name")}>
             <Input
               name="country_name"
               value={countryName}
@@ -182,7 +183,7 @@ export default function TVDisplayCountry() {
               maxLength={80}
             />
           </Field>
-          <Field label="ISO country code">
+          <Field label={t("tvCountry.iso")}>
             <Input
               name="country_code"
               value={countryCode}
@@ -191,8 +192,8 @@ export default function TVDisplayCountry() {
             />
           </Field>
           <Field
-            label="Money transfer companies (comma-separated)"
-            hint="These become the column headers in the public board's rate grid. Order is preserved."
+            label={t("tvCountry.companies")}
+            hint={t("tvCountry.companiesHint")}
           >
             <Input
               name="mt_companies"
@@ -204,16 +205,16 @@ export default function TVDisplayCountry() {
         </Card>
 
         <Card>
-          <h2 className={styles.cardH2}>Banks &amp; rate matrix</h2>
+          <h2 className={styles.cardH2}>{t("tvCountry.matrix")}</h2>
           <Table>
             <thead>
               <tr>
-                <th style={thStyle}>Bank</th>
-                <th style={thStyle}>Order</th>
+                <th style={thStyle}>{t("tvCountry.bank")}</th>
+                <th style={thStyle}>{t("tvCountry.order")}</th>
                 {companies.map((co) => (
                   <th key={co} style={thStyle}>{co}</th>
                 ))}
-                <th style={thStyle}>Delete</th>
+                <th style={thStyle}>{t("tvCountry.delete")}</th>
               </tr>
             </thead>
             <tbody>
@@ -248,14 +249,14 @@ export default function TVDisplayCountry() {
         </Card>
 
         <Card>
-          <h2 className={styles.cardH2}>Add new banks</h2>
+          <h2 className={styles.cardH2}>{t("tvCountry.addBanks")}</h2>
           {newBankNames.map((name, idx) => (
             <Input
               key={idx}
               name="new_bank_name"
               value={name}
               onChange={(e) => setNewBankAt(idx, e.target.value)}
-              placeholder="Bank name (leave blank to skip)"
+              placeholder={t("tvCountry.newBankPlaceholder")}
               maxLength={120}
               className={styles.newBankInput}
             />
@@ -263,14 +264,14 @@ export default function TVDisplayCountry() {
         </Card>
 
         <FormActions guard={guard}>
-          <ButtonLink to="/tv-display" tone="secondary">Cancel</ButtonLink>
+          <ButtonLink to="/tv-display" tone="secondary">{t("common.cancel")}</ButtonLink>
           <Button
             type="submit"
             perm="settings.update"
             busy={save.isPending}
             disabled={save.isPending}
           >
-            {save.isPending ? "Saving…" : "Save changes"}
+            {save.isPending ? t("common.saving") : t("common.saveChanges")}
           </Button>
         </FormActions>
       </form>
@@ -293,6 +294,7 @@ function BankRow({
   rateGrid: Record<string, string>;
   setRate: (bankId: number, idx: number, v: string) => void;
 }) {
+  const t = useT();
   return (
     <tr className={toDelete ? styles.rowToDelete : undefined}>
       <td style={tdStyle}>
@@ -331,7 +333,7 @@ function BankRow({
           onChange={toggleDelete}
           style={{ alignItems: "center" }}
         >
-          delete
+          {t("tvCountry.deleteBox")}
         </Checkbox>
       </td>
     </tr>

@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SignupOwner from "./SignupOwner";
 import { ApiError } from "../lib/api";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // Multi-store owner signup: creates the owner, then lands on the
 // owner overview. Refusals render on the field the server names.
@@ -83,5 +85,15 @@ describe("SignupOwner", () => {
     renderPage();
     await fill();
     expect(await screen.findByRole("alert")).toHaveTextContent("Too many attempts.");
+  });
+
+  it("reads in Spanish", () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByText("Cree su cuenta de dueño")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre completo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Crear cuenta de dueño →" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Regístrese como tienda" })).toHaveAttribute("href", "/signup");
+    expect(englishLeftovers(document.body, ["signupOwner.", "signup."])).toEqual([]);
   });
 });

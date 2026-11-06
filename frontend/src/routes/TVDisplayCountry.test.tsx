@@ -9,6 +9,8 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { renderRouteWithGuard } from "../test/renderRoute";
 import { TEST_ADMIN } from "../test/setup";
+import { setLanguage } from "../i18n";
+import { englishLeftovers } from "../test/i18n";
 
 // TV rate board country editor. Save used to post an HTML form to a
 // server route that no longer exists, so every edit was lost. Pinned:
@@ -151,5 +153,15 @@ describe("TVDisplayCountry", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByText("Navigated to /tv-display")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
+  });
+
+  it("reads in Spanish", () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByText("MX · 2 bancos · 2 columnas de compañías")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre del país")).toHaveValue("Mexico");
+    expect(screen.getByRole("columnheader", { name: "Banco" })).toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox", { name: "borrar" })).toHaveLength(2);
+    expect(englishLeftovers(document.body, ["tvCountry."])).toEqual([]);
   });
 });

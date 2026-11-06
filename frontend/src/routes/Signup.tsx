@@ -9,6 +9,7 @@ import { ApiError } from "../lib/api";
 import { persistLoginResponse } from "../lib/auth";
 import styles from "./auth.module.css";
 import { fmtMoney } from "../lib/formatters";
+import { tNodes, useT } from "../i18n";
 
 // Owner-first signup at /app/signup (U-4b). Creates a store + its
 // OWNER user + JWT in one POST, then auto-enters the new store so
@@ -16,6 +17,7 @@ import { fmtMoney } from "../lib/formatters";
 // will see. Optional ?ref= preview reads /referral/<code> to show
 // the inline "$X off" banner before the user submits.
 export default function Signup() {
+  const t = useT();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const refFromUrl = (params.get("ref") || "").toUpperCase();
@@ -74,7 +76,7 @@ export default function Signup() {
           setError(null);
         }
       } else {
-        setError("Could not create account. Please try again.");
+        setError(t("signup.failed"));
       }
     } finally {
       setBusy(false);
@@ -82,68 +84,68 @@ export default function Signup() {
   }
 
   return (
-    <AuthChrome navLink={{ to: "/login", label: "Already have an account? Sign in" }}>
-      <StatusPill>✓ 7-DAY FREE TRIAL · NO CARD</StatusPill>
-      <div className={styles.cardTitle}>Create your store</div>
-      <div className={styles.cardSub}>Close your first daily book in ten minutes.</div>
+    <AuthChrome navLink={{ to: "/login", label: t("signup.signInNav") }}>
+      <StatusPill>{t("signup.trialPill")}</StatusPill>
+      <div className={styles.cardTitle}>{t("signup.title")}</div>
+      <div className={styles.cardSub}>{t("signup.subtitle")}</div>
 
       {referral && (
         <div className={styles.referralBanner}>
-          🎉 Referred by a DineroBook user — you'll get{" "}
-          <strong>{fmtMoney(referral.reward_referee_cents / 100)}</strong>{" "}
-          off your first paid month when you subscribe.
+          {tNodes("signup.referral", {
+            amount: <strong>{fmtMoney(referral.reward_referee_cents / 100)}</strong>,
+          })}
         </div>
       )}
 
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
         {error && <Alert tone="error">{error}</Alert>}
 
-        <Field label="Store name" error={errors.store_name}>
+        <Field label={t("signup.storeName")} error={errors.store_name}>
           <Input
             type="text"
             value={storeName}
             onChange={(e) => setStoreName(e.target.value)}
-            placeholder="e.g. Lamar Corner Store"
+            placeholder={t("signup.storeNamePlaceholder")}
             disabled={busy}
             required
           />
         </Field>
-        <Field label="Business type">
+        <Field label={t("signup.businessType")}>
           <Select
             value={bizType}
             onChange={(e) => setBizType(e.target.value)}
             disabled={busy}
           >
-            <option value="cstore">Convenience store</option>
-            <option value="gas_station">Gas station</option>
-            <option value="grocery">Grocery store</option>
-            <option value="msb_hybrid">Money services / hybrid</option>
+            <option value="cstore">{t("signup.bizCstore")}</option>
+            <option value="gas_station">{t("signup.bizGas")}</option>
+            <option value="grocery">{t("signup.bizGrocery")}</option>
+            <option value="msb_hybrid">{t("signup.bizMsb")}</option>
           </Select>
         </Field>
-        <Field label="Store email" error={errors.email}>
+        <Field label={t("signup.storeEmail")} error={errors.email}>
           <Input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="store@example.com"
+            placeholder={t("signup.emailPlaceholder")}
             autoComplete="email"
             disabled={busy}
             required
           />
         </Field>
-        <Field label="Password" error={errors.password}>
+        <Field label={t("login.password")} error={errors.password}>
           <Input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 8 characters"
+            placeholder={t("signup.passwordPlaceholder")}
             autoComplete="new-password"
             minLength={8}
             disabled={busy}
             required
           />
         </Field>
-        <Field label={<>Phone <span className={styles.optional}>(optional)</span></>}>
+        <Field label={<>{tNodes("signup.phoneLabel", { optional: <span className={styles.optional}>{t("signup.optional")}</span> })}</>}>
           <Input
             type="tel"
             value={phone}
@@ -153,12 +155,12 @@ export default function Signup() {
             disabled={busy}
           />
         </Field>
-        <Field label={<>Referral code <span className={styles.optional}>(optional)</span></>}>
+        <Field label={<>{tNodes("signup.referralLabel", { optional: <span className={styles.optional}>{t("signup.optional")}</span> })}</>}>
           <Input
             type="text"
             value={refCode}
             onChange={(e) => setRefCode(e.target.value.toUpperCase())}
-            placeholder="e.g. ABCD1234"
+            placeholder={t("signup.referralPlaceholder")}
             maxLength={12}
             disabled={busy}
             style={{
@@ -176,12 +178,12 @@ export default function Signup() {
           disabled={busy || !storeName || !email || !password}
           style={{ width: "100%" }}
         >
-          {busy ? "Creating store…" : "Start free trial →"}
+          {busy ? t("signup.creating") : t("signup.start")}
         </Button>
       </form>
 
       <div className={styles.loginPrompt}>
-        Already have an account? <Link to="/login">Sign in</Link>
+        {t("signup.haveAccount")} <Link to="/login">{t("signup.signIn")}</Link>
       </div>
     </AuthChrome>
   );
