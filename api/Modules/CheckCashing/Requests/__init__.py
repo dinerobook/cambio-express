@@ -70,6 +70,9 @@ class CheckSettingsBody(BaseModel):
     base_charge:       float | None = Field(None, gt=0, le=MAX_MONEY)
     base_charge_under: float | None = Field(None, gt=0, le=MAX_MONEY)
     expired_id_mode:   ExpiredIdMode = "warn"
+    # Most one customer may cash in one store day across the owner's
+    # stores before a manager must approve; empty = no limit.
+    daily_limit:       float | None = Field(None, gt=0, le=MAX_MONEY)
 
     @model_validator(mode="after")
     def _rules(self) -> "CheckSettingsBody":
@@ -90,6 +93,7 @@ class CheckSettingsResponse(BaseModel):
     base_charge:       float | None
     base_charge_under: float | None
     expired_id_mode:   ExpiredIdMode
+    daily_limit:       float | None
 
 
 # ── Customers ──────────────────────────────────────────────
@@ -256,3 +260,189 @@ class CheckCompanyResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     company: CheckCompanyDetail
+
+
+# ── Cash a check ───────────────────────────────────────────
+
+ReviewLevel = Literal["info", "warn", "approve", "block"]
+CheckStatus = Literal["cashed", "declined", "voided"]
+
+
+class CheckReviewBody(BaseModel):
+    """What the cashier has typed so far; the answer is the fee and
+    the review. Changes nothing."""
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    customer_id:  int | None = Field(None, ge=1)
+    company_id:   int | None = Field(None, ge=1)
+    check_number: str = Field("", max_length=20)
+    check_date:   date | None = None
+    amount:       float = Field(0, ge=0, le=MAX_MONEY)
+
+
+class CheckFeeOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str | None
+    # Percent (1.5) or dollars, as on the settings page.
+    value: float | None
+    fee: float
+    # customer, company or store: whose fee rule this is.
+    source: str
+    base_applied: bool
+
+
+class CheckReviewItemOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    level: ReviewLevel
+    count: int | None
+    amount: float | None
+    day: date | None
+
+
+class CheckReviewResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fee: CheckFeeOut | None
+    items: list[CheckReviewItemOut]
+    today_count: int
+    today_total: float
+
+
+class CashCheckBody(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    customer_id:  int = Field(..., ge=1)
+    company_id:   int = Field(..., ge=1)
+    check_number: str = Field("", max_length=20)
+    check_date:   date | None = None
+    amount:       float = Field(..., gt=0, le=MAX_MONEY)
+    # What the cashier charges; the suggested fee is saved beside it.
+    fee:          float = Field(0, ge=0, le=MAX_MONEY)
+    # Review codes the cashier ticked (warnings and approvals).
+    acknowledged: list[str] = Field(default_factory=list, max_length=20)
+    decision:     Literal["cash", "decline"] = "cash"
+    reason:       str = Field("", max_length=255)
+    micr:         str = Field("", max_length=120)
+
+    @model_validator(mode="after")
+    def _decline_reason(self) -> "CashCheckBody":
+        if self.decision == "decline" and not self.reason.strip():
+            raise ValueError("Say why the check is not accepted.")
+        return self
+
+
+class CashedCheckRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    store_name: str
+    store_day: date
+    created_at: str
+    customer_id: int
+    customer_name: str
+    company_id: int
+    company_name: str
+    check_number: str
+    check_date: date | None
+    amount: float
+    fee: float
+    cash: float
+    status: CheckStatus
+    reason: str
+    void_reason: str
+    cashier_name: str
+    warnings: list[str]
+    approved: bool
+    # A manager, at the store that cashed it, on that store day.
+    can_void: bool
+
+
+class CashedCheckResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    check: CashedCheckRow
+
+
+class CashedCheckListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[CashedCheckRow]
+    total: int
+    page: int
+    total_pages: int
+
+
+class VoidCheckBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(..., min_length=1, max_length=255)
+
+
+class CheckStatsOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # store = this store; all = every store under the same owner.
+    scope: Literal["store", "all"]
+    count: int
+    total: float
+    biggest: float
+    average: float
+    last_day: date | None
+    last_amount: float | None
+    declined: int
+    voided: int
+
+
+class CheckActivityResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # "all" only when the owner has more than one store.
+    stats: list[CheckStatsOut]
+    recent: list[CashedCheckRow]
+
+
+class CompanyCustomerRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    full_name: str
+    status: str
+    checks: int
+    last_day: date
+
+
+class CompanyCustomersResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[CompanyCustomerRow]
+
+
+class CompanyLookupResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # None when no company with these numbers is on file.
+    company: CheckCompanyDetail | None
+
+
+# ── The activated computer ─────────────────────────────────
+
+class CheckDeviceBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # The Admin's name for this computer ("Front counter").
+    name: str = Field(..., min_length=1, max_length=60)
+
+
+class CheckDeviceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # this: the activated computer; other: another one is; none: no
+    # computer is activated for the store yet.
+    state: Literal["this", "other", "none"]
+    name: str
+    activated_at: str
+    activated_by: str
+    last_seen_at: str

@@ -94,13 +94,23 @@ def on(test_store_id):
     return test_store_id
 
 
+def _activate(client, h, name="Front counter"):
+    """Make the test client the store's check cashing computer (the
+    key rides in the client's cookie jar from then on)."""
+    resp = client.post(f"{BASE}/device/activate", headers=h, json={"name": name})
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
 @pytest.fixture
 def admin(client, on):
-    return _h(login_admin(client, on))
+    h = _h(login_admin(client, on))
+    _activate(client, h)
+    return h
 
 
 @pytest.fixture
-def cashier(on):
+def cashier(on, admin):
     c, jwt = make_employee_client(on, username_suffix="cashier")
     return _h(jwt)
 
@@ -305,7 +315,7 @@ class TestRights:
         assert resp.status_code == 200, resp.text
         assert resp.json()["customer"]["status"] == "blocked"
 
-    def test_manage_switch_is_grantable_and_revocable(self, client, on):
+    def test_manage_switch_is_grantable_and_revocable(self, client, admin, on):
         from api.Core.Permissions import set_user_permissions
         base = {"check_cashing": {"create": True, "read": True, "update": True}}
         emp, uid = _employee(client, on, "cc_mgr", base)
@@ -346,7 +356,7 @@ class TestSettings:
         assert data == {
             "default_fee_kind": "percent", "default_fee_value": 0.0,
             "base_charge": None, "base_charge_under": None,
-            "expired_id_mode": "warn",
+            "expired_id_mode": "warn", "daily_limit": None,
         }
 
     def test_save_roundtrip_and_audit(self, client, admin, on):
@@ -356,7 +366,8 @@ class TestSettings:
         resp = client.put(f"{BASE}/settings", headers=admin, json=body)
         assert resp.status_code == 200, resp.text
         assert resp.json() == {**body, "default_fee_value": 1.25,
-                               "base_charge": 3.0, "base_charge_under": 100.0}
+                               "base_charge": 3.0, "base_charge_under": 100.0,
+                               "daily_limit": None}
         assert client.get(f"{BASE}/settings", headers=admin).json()[
             "expired_id_mode"] == "block"
         from api.Modules.CheckCashing.Models import CheckCashingSettings
@@ -630,6 +641,7 @@ class TestScope:
         other = _new_store("cc-other")
         _flag(other, True)
         h = _h(login_admin(client, other))
+        _activate(client, h)
         assert client.get(f"{BASE}/customers", headers=h).json()["total"] == 0
         assert client.get(f"{BASE}/companies", headers=h).json()["total"] == 0
         assert client.get(f"{BASE}/customers/{cust['id']}",
@@ -654,6 +666,7 @@ class TestScope:
         _flag(sibling, True)
         _link_owner(on, sibling)
         h = _h(login_admin(client, sibling))
+        _activate(client, h)
         rows = client.get(f"{BASE}/customers", headers=h).json()["rows"]
         assert [r["id"] for r in rows] == [cust["id"]]
         assert rows[0]["home_store_name"] != "Store cc-sibling"

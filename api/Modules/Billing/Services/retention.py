@@ -50,7 +50,7 @@ STORE_OWNED_MODELS: list[str] = [
     "Transfer", "ACHBatch", "DailyReport", "DailyDrop", "CheckDeposit",
     "DailyLineItem", "MoneyTransferSummary", "MoneyServiceSummary",
     "ReturnCheck",
-    "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
+    "CashedCheck", "CheckDevice", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
     "MonthlyFinancial", "MonthlyLineLabel", "BankRule", "BankTransaction",
     "StripeBankAccount", "StoreOwnerLink",
     # Lottery: counts FK packs FK games — purge in that order.
@@ -127,7 +127,8 @@ def _store_owned_models() -> list[tuple[type, str]]:
     )
     from api.Modules.ReturnChecks.Models import ReturnCheck
     from api.Modules.CheckCashing.Models import (
-        CheckCashingSettings, CheckCompany, CheckCustomer, CheckCustomerId,
+        CashedCheck, CheckCashingSettings, CheckCompany, CheckCustomer,
+        CheckCustomerId, CheckDevice,
     )
     from api.Modules.Tenancy.Models import (
         StoreEmployee, StoreOwnerLink, StoreRole, StoreRolePermission,
@@ -175,7 +176,11 @@ def _store_owned_models() -> list[tuple[type, str]]:
         (MoneyTransferSummary, "store_id"),
         (MoneyServiceSummary, "store_id"),
         (ReturnCheck, "store_id"),
-        # Check cashing: IDs FK customers — children first.
+        # Check cashing: checks FK customers + companies, IDs FK
+        # customers — children first. Shared customers/companies were
+        # moved to another store first (``rehome_shared_parties``).
+        (CashedCheck, "store_id"),
+        (CheckDevice, "store_id"),
         (CheckCustomerId, "store_id"),
         (CheckCustomer, "store_id"),
         (CheckCompany, "store_id"),
@@ -534,6 +539,14 @@ def retention_purge_dry_run(db: Session) -> dict[str, Any]:
     }
 
 
+def _rehome_check_cashing_parties(db: Session, store_id: int) -> None:
+    """A check customer or company another store under the same owner
+    cashed checks for moves there instead of being purged, so that
+    store's cashed checks keep their FKs."""
+    from api.Modules.CheckCashing.Services.cashing import rehome_shared_parties
+    rehome_shared_parties(db, store_id)
+
+
 def purge_expired_stores(db: Session) -> int:
     """Hard-delete inactive stores whose retention window has
     elapsed. Returns the count purged.
@@ -549,6 +562,7 @@ def purge_expired_stores(db: Session) -> int:
         _purge_user_scoped_rows(db, store.id)
         _purge_tv_display_chain(db, store.id)
         _purge_return_check_payments(db, store.id)
+        _rehome_check_cashing_parties(db, store.id)
         _purge_store_owned_rows(db, store.id)
         db.delete(store)
         purged += 1

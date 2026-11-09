@@ -386,8 +386,8 @@ export const CHECK_HOME = "/check-cashing";
 
 export const CHECK_NAV: NavGroup[] = [
   {
-    title: "Home",
-    icon: iconDashboard(),
+    title: "Cash a check",
+    icon: iconCheckCashing(),
     to: CHECK_HOME,
     end: true,
     flag: CHECK_DESK_FLAG,
@@ -402,7 +402,7 @@ export const CHECK_NAV: NavGroup[] = [
   },
   {
     title: "Companies",
-    icon: iconCheckCashing(),
+    icon: iconReceipt(),
     to: "/check-cashing/companies",
     flag: CHECK_DESK_FLAG,
     items: [],

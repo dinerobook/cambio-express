@@ -25,6 +25,8 @@ import { TEST_ADMIN } from "../test/setup";
 // Every page is checked in Spanish too.
 
 const api = vi.hoisted(() => ({
+  useCheckDevice: vi.fn(),
+  switchOffCheckDevice: vi.fn(),
   useCheckSettings: vi.fn(),
   saveCheckSettings: vi.fn(),
   useCheckCustomers: vi.fn(),
@@ -38,6 +40,8 @@ const api = vi.hoisted(() => ({
   useCheckCompany: vi.fn(),
   createCheckCompany: vi.fn(),
   updateCheckCompany: vi.fn(),
+  useCheckActivity: vi.fn(),
+  voidCheck: vi.fn(),
 }));
 
 vi.mock("../api/checkCashing", async (importOriginal) => ({
@@ -60,6 +64,7 @@ const ok = <T,>(data: T) => ({
 const settings: CheckSettings = {
   default_fee_kind: "percent", default_fee_value: 2,
   base_charge: null, base_charge_under: null, expired_id_mode: "warn",
+  daily_limit: null,
 };
 
 const customer: CheckCustomerDetail = {
@@ -85,12 +90,39 @@ const company: CheckCompanyDetail = {
   fee_value: 3, notes: "", home_store_name: "",
 } as CheckCompanyDetail;
 
+const cashedRow = {
+  id: 40, store_name: "Main St", store_day: "2026-11-09", created_at: "2026-11-09T15:00:00Z",
+  customer_id: 7, customer_name: "Ana Ruiz", company_id: 3, company_name: "Acme Payroll",
+  check_number: "1001", check_date: null, amount: 500, fee: 10, cash: 490,
+  status: "cashed" as const, reason: "", void_reason: "", cashier_name: "Admin",
+  warnings: [], approved: false, can_void: true,
+};
+
+const activity = {
+  stats: [
+    { scope: "store" as const, count: 2, total: 800, biggest: 500, average: 400,
+      last_day: "2026-11-09", last_amount: 500, declined: 1, voided: 0 },
+    { scope: "all" as const, count: 3, total: 1000, biggest: 500, average: 333.33,
+      last_day: "2026-11-09", last_amount: 500, declined: 1, voided: 0 },
+  ],
+  recent: [
+    cashedRow,
+    { ...cashedRow, id: 39, status: "declined" as const, reason: "Altered amount",
+      fee: 0, cash: 0, can_void: false },
+  ],
+};
+
 beforeEach(() => {
   for (const fn of Object.values(api)) fn.mockReset();
+  api.useCheckDevice.mockReturnValue(ok({
+    state: "this", name: "Front counter", activated_at: "2026-11-09T10:00:00Z",
+    activated_by: "Admin", last_seen_at: "2026-11-09T10:00:00Z",
+  }));
   signIn(MANAGER);
   api.useCheckSettings.mockReturnValue(ok(settings));
   api.useCheckCustomer.mockReturnValue(ok(undefined));
   api.useCheckCompany.mockReturnValue(ok(undefined));
+  api.useCheckActivity.mockReturnValue(ok(activity));
   api.useCheckCustomers.mockReturnValue(ok({
     rows: [{
       id: 7, full_name: "Ana Ruiz", phone_country: "+1", phone_number: "3055550142",
@@ -117,12 +149,12 @@ describe("check cashing sidebar and route rights", () => {
   it("has its own sidebar, only where the store's check_desk switch is on", () => {
     expect(checkNav("admin", MANAGER, [])).toEqual([]);
     expect(checkNav("admin", MANAGER, ["check_desk"]))
-      .toEqual(["Home", "Customers", "Companies", "Settings"]);
+      .toEqual(["Cash a check", "Customers", "Companies", "Settings"]);
   });
 
   it("gives a cashier everything but the settings", () => {
     expect(checkNav("employee", CASHIER, ["check_desk"]))
-      .toEqual(["Home", "Customers", "Companies"]);
+      .toEqual(["Cash a check", "Customers", "Companies"]);
     expect(checkNav("employee", [], ["check_desk"])).toEqual([]);
   });
 
@@ -291,6 +323,32 @@ describe("customer profile", () => {
     expect(await screen.findByText("Customer saved")).toBeInTheDocument();
   });
 
+  it("shows this store's and all stores' totals and the latest checks", () => {
+    renderRoute(<CheckCustomerForm />, at);
+    expect(api.useCheckActivity).toHaveBeenCalledWith("customers", 7);
+    expect(screen.getByText("This store")).toBeInTheDocument();
+    expect(screen.getByText("All your stores")).toBeInTheDocument();
+    expect(screen.getByText("$1,000.00")).toBeInTheDocument();
+    expect(screen.getByText(/Altered amount/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Acme Payroll/).length).toBeGreaterThan(0);
+  });
+
+  it("voids a check the same day after asking why", async () => {
+    api.voidCheck.mockResolvedValue({ check: { ...cashedRow, status: "voided" } });
+    renderRoute(<CheckCustomerForm />, at);
+    const voids = screen.getAllByRole("button", { name: "Void" });
+    expect(voids).toHaveLength(1);
+    await userEvent.click(voids[0]);
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Void" }));
+    expect(within(dialog).getByText("Say why you void this check.")).toBeInTheDocument();
+    expect(api.voidCheck).not.toHaveBeenCalled();
+    await userEvent.type(within(dialog).getByLabelText("Why void it?"), "Cash came back");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Void" }));
+    await waitFor(() => expect(api.voidCheck).toHaveBeenCalledWith(40, "Cash came back"));
+    expect(await screen.findByText("Check voided.")).toBeInTheDocument();
+  });
+
   it("is view only without the edit right", () => {
     signIn(["check_cashing.read"]);
     renderRoute(<CheckCustomerForm />, at);
@@ -361,6 +419,8 @@ describe("company form", () => {
     expect(screen.getByLabelText("Company name")).toHaveValue("Acme Payroll");
     expect(screen.queryByLabelText("Own fee")).not.toBeInTheDocument();
     expect(screen.getByText("Own fee: $3.00")).toBeInTheDocument();
+    expect(api.useCheckActivity).toHaveBeenCalledWith("companies", 3);
+    expect(screen.getByText("Latest checks")).toBeInTheDocument();
   });
 
   it("is in Spanish", () => {
@@ -379,6 +439,7 @@ describe("settings", () => {
     await waitFor(() => expect(api.saveCheckSettings).toHaveBeenCalledWith({
       default_fee_kind: "percent", default_fee_value: 2,
       base_charge: null, base_charge_under: null, expired_id_mode: "block",
+      daily_limit: null,
     }));
     expect(await screen.findByText("Settings saved")).toBeInTheDocument();
   });
@@ -386,9 +447,23 @@ describe("settings", () => {
   it("shows the base charge fields only when switched on, and wants both amounts", async () => {
     renderRoute(<CheckCashingSettings />);
     expect(screen.queryByLabelText(/^Base charge/)).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("switch"));
+    await userEvent.click(screen.getByRole("switch", { name: /base amount/i }));
     expect(screen.getByLabelText(/^Base charge/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save settings" })).toBeDisabled();
+  });
+
+  it("saves a daily limit per customer only when switched on", async () => {
+    api.saveCheckSettings.mockResolvedValue({ ...settings, daily_limit: 2500 });
+    renderRoute(<CheckCashingSettings />);
+    const save = screen.getByRole("button", { name: "Save settings" });
+    await userEvent.click(screen.getByRole("switch", { name: /daily limit/i }));
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/^Daily limit per customer/), { target: { value: "2500" } });
+    fireEvent.blur(screen.getByLabelText(/^Daily limit per customer/));
+    await userEvent.click(save);
+    await waitFor(() => expect(api.saveCheckSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ daily_limit: 2500 }),
+    ));
   });
 
   it("shows the server's refusal", async () => {

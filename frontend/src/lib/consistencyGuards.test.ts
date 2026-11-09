@@ -146,7 +146,7 @@ describe("page trail", () => {
     // and sign-in pages have no sidebar.
     const exempt = [
       "/Dashboard.tsx", "/SectionHub.tsx", "/ReportCenter.tsx",
-      "/CheckCashingHome.tsx",
+      "/CashCheck.tsx",
       "/Subscribe.tsx", "/SubscribeSuccess.tsx",
     ];
     const missing = routeFiles

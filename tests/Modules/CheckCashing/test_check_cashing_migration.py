@@ -1,48 +1,78 @@
-"""The check cashing migration spells out exactly the models' columns
-and indexes, imports no application code, and runs up and down twice
-(idempotent both ways)."""
+"""The check cashing migrations spell out exactly the models' columns
+and indexes, import no application code, and run up and down twice
+(idempotent both ways).
+
+  * d5e8a1c3f7b9 (PR 1): settings, customers, their IDs, companies;
+  * e2a7c4f9b1d3 (PR 2): cashed checks, the activated computer, plus
+    the settings' daily limit.
+"""
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 from api.Modules.CheckCashing.Models import (
-    CheckCashingSettings, CheckCompany, CheckCustomer, CheckCustomerId,
+    CashedCheck, CheckCashingSettings, CheckCompany, CheckCustomer,
+    CheckCustomerId, CheckDevice,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
-MIGRATION = ROOT / "alembic" / "versions" / "d5e8a1c3f7b9_add_check_cashing.py"
-MODELS = (CheckCashingSettings, CheckCustomer, CheckCustomerId, CheckCompany)
+VERSIONS = ROOT / "alembic" / "versions"
+PR1 = VERSIONS / "d5e8a1c3f7b9_add_check_cashing.py"
+PR2 = VERSIONS / "e2a7c4f9b1d3_add_cashed_checks.py"
+MIGRATIONS = (PR1, PR2)
+MODELS = (
+    CheckCashingSettings, CheckCustomer, CheckCustomerId, CheckCompany,
+    CashedCheck, CheckDevice,
+)
+BEFORE = "c9d4e7a2f1b6"
 
 
-def _migration():
-    spec = importlib.util.spec_from_file_location("cc_migration", MIGRATION)
+def _load(path):
+    spec = importlib.util.spec_from_file_location(path.stem, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def test_migration_matches_the_models():
-    m = _migration()
-    assert set(m.TABLES) == {model.__tablename__ for model in MODELS}
+def test_migrations_match_the_models():
+    """Every model column is created by exactly one migration: PR 1's
+    table list plus the columns later migrations add, then PR 2's
+    new table."""
+    pr1, pr2 = _load(PR1), _load(PR2)
+    columns: dict[str, list[str]] = {}
+    for m in (pr1, pr2):
+        for table, cols in m.TABLES.items():
+            assert table not in columns, table
+            columns[table] = list(cols)
+    for table, cols in pr2.ADDED_COLUMNS.items():
+        columns[table] += list(cols)
+    assert set(columns) == {model.__tablename__ for model in MODELS}
     for model in MODELS:
-        assert tuple(m.TABLES[model.__tablename__]) == tuple(
+        assert columns[model.__tablename__] == [
             c.name for c in model.__table__.columns
-        ), model.__tablename__
+        ], model.__tablename__
     model_indexes = {
         i.name: (i.table.name, [c.name for c in i.columns])
         for model in MODELS for i in model.__table__.indexes
     }
-    assert {k: (t, list(c)) for k, (t, c) in m.INDEXES.items()} == model_indexes
+    migration_indexes = {
+        k: (t, list(c)) for m in (pr1, pr2)
+        for k, (t, c) in {**m.INDEXES, **getattr(m, "UNIQUE_INDEXES", {})}.items()
+    }
+    assert migration_indexes == model_indexes
 
 
-def test_migration_does_not_import_application_code():
-    for line in MIGRATION.read_text().splitlines():
+@pytest.mark.parametrize("path", MIGRATIONS, ids=lambda p: p.stem)
+def test_migration_does_not_import_application_code(path):
+    for line in path.read_text().splitlines():
         stripped = line.strip()
         if stripped.startswith(("import ", "from ")):
             assert not stripped.startswith(("import api", "from api")), stripped
 
 
-def test_migration_runs_up_and_down_twice(tmp_path, monkeypatch):
+def test_migrations_run_up_and_down_twice(tmp_path, monkeypatch):
     from alembic import command
     from alembic.config import Config
     from sqlalchemy import create_engine, inspect
@@ -52,14 +82,34 @@ def test_migration_runs_up_and_down_twice(tmp_path, monkeypatch):
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(ROOT / "alembic"))
     cfg.set_main_option("sqlalchemy.url", url)
-    tables = set(_migration().TABLES)
-    command.upgrade(cfg, "c9d4e7a2f1b6")
-    command.upgrade(cfg, "d5e8a1c3f7b9")
-    engine = create_engine(url)
-    assert tables <= set(inspect(engine).get_table_names())
-    command.downgrade(cfg, "c9d4e7a2f1b6")
-    assert not tables & set(inspect(create_engine(url)).get_table_names())
-    command.downgrade(cfg, "c9d4e7a2f1b6")
-    command.upgrade(cfg, "d5e8a1c3f7b9")
-    command.upgrade(cfg, "d5e8a1c3f7b9")
-    assert tables <= set(inspect(create_engine(url)).get_table_names())
+    pr1, pr2 = _load(PR1), _load(PR2)
+
+    def tables():
+        return set(inspect(create_engine(url)).get_table_names())
+
+    def settings_columns():
+        return {
+            c["name"]
+            for c in inspect(create_engine(url)).get_columns("msb_check_settings")
+        }
+
+    command.upgrade(cfg, BEFORE)
+    command.upgrade(cfg, pr1.revision)
+    assert set(pr1.TABLES) <= tables()
+    assert "daily_limit_cents" not in settings_columns()
+    command.upgrade(cfg, pr2.revision)
+    assert set(pr2.TABLES) <= tables()
+    assert "daily_limit_cents" in settings_columns()
+
+    # PR 2 down leaves PR 1 intact.
+    command.downgrade(cfg, pr1.revision)
+    assert not set(pr2.TABLES) & tables()
+    assert set(pr1.TABLES) <= tables()
+    assert "daily_limit_cents" not in settings_columns()
+    command.downgrade(cfg, BEFORE)
+    assert not set(pr1.TABLES) & tables()
+    command.downgrade(cfg, BEFORE)
+
+    command.upgrade(cfg, pr2.revision)
+    command.upgrade(cfg, pr2.revision)
+    assert set(pr1.TABLES) | set(pr2.TABLES) <= tables()

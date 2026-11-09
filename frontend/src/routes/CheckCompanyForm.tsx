@@ -9,10 +9,12 @@ import {
 import {
   PartyRulesFields, PartyStatusPill, type PartyRules,
 } from "../components/CheckCashingFields";
+import { CheckActivity } from "../components/CheckActivity";
+import { DeskColumns, DeskForm, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
   Alert, Button, Card, ErrorState, Field, FormActions, Input, Loading,
-  PageHeader, PageShell, SectionTitle, Textarea, useToast,
+  PageHeader, SectionTitle, Textarea, useToast,
 } from "../components/ui";
 import { useT } from "../i18n";
 import { apiErrorMessage } from "../lib/api";
@@ -126,15 +128,15 @@ export default function CheckCompanyForm() {
 
   if (identity?.store_id == null) {
     return (
-      <PageShell maxWidth="62rem">
+      <DeskPage>
         <PageHeader title={title} />
         <p>{t("checkCashing.signIn")}</p>
-      </PageShell>
+      </DeskPage>
     );
   }
   if (isEdit && detail.isError && !detail.data) {
     return (
-      <PageShell maxWidth="62rem">
+      <DeskPage>
         <PageCrumbs current={t("checkCashing.companyTitle")} />
         <PageHeader title={t("checkCashing.companyTitle")} />
         <ErrorState
@@ -142,11 +144,11 @@ export default function CheckCompanyForm() {
           onRetry={() => void detail.refetch()}
           busy={detail.isFetching}
         />
-      </PageShell>
+      </DeskPage>
     );
   }
   if (isEdit && !detail.data) {
-    return <PageShell maxWidth="62rem"><Loading /></PageShell>;
+    return <DeskPage><Loading /></DeskPage>;
   }
 
   const company = detail.data?.company;
@@ -155,7 +157,7 @@ export default function CheckCompanyForm() {
   const routingShort = form.routing_number !== "" && form.routing_number.length !== 9;
 
   return (
-    <PageShell maxWidth="62rem">
+    <DeskPage>
       <PageCrumbs current={isEdit ? title : t("checkCashing.newCompany")} />
       <PageHeader
         title={title}
@@ -171,8 +173,10 @@ export default function CheckCompanyForm() {
         ) : t("checkCashing.newCompanySubtitle")}
       />
 
-      <form onSubmit={onSubmit} className="ds-form">
-        <fieldset disabled={!canEdit} className={styles.fieldset}>
+      <DeskColumns>
+      <DeskForm onSubmit={onSubmit}>
+        <DeskPane>
+        <fieldset disabled={!canEdit} className={`${styles.fieldset} ds-form`}>
           <Card>
             <SectionTitle>{t("checkCashing.companyDetails")}</SectionTitle>
             <div className={styles.fieldGrid}>
@@ -246,6 +250,7 @@ export default function CheckCompanyForm() {
             )}
           </Card>
         </fieldset>
+        </DeskPane>
 
         {error && <Alert tone="error">{error}</Alert>}
 
@@ -265,7 +270,14 @@ export default function CheckCompanyForm() {
             </Button>
           </FormActions>
         )}
-      </form>
-    </PageShell>
+      </DeskForm>
+      {company && (
+        <Card>
+          <SectionTitle>{t("checkCashing.checksTitle")}</SectionTitle>
+          <CheckActivity kind="companies" id={company.id} other="customer" />
+        </Card>
+      )}
+      </DeskColumns>
+    </DeskPage>
   );
 }

@@ -12,14 +12,22 @@ SPA files that count as CheckCashing files:
 `frontend/src/routes/CheckCompanies.tsx`,
 `frontend/src/routes/CheckCompanyForm.tsx`,
 `frontend/src/routes/CheckCashingSettings.tsx`,
-`frontend/src/routes/CheckCashingHome.tsx`,
-`frontend/src/components/CheckCashingFields.tsx`.
+`frontend/src/routes/CashCheck.tsx`,
+`frontend/src/components/CheckCashingFields.tsx`,
+`frontend/src/components/CheckActivity.tsx`,
+`frontend/src/components/DeskPage.tsx`,
+`frontend/src/lib/useDeskScreen.ts`.
 
 - **Its own app (owner, 2026-11-09).** Check cashing is a separate
   view of DineroBook, not a back office sidebar group: the top-bar
   "Back office | Check cashing" switch swaps the whole sidebar to
   `CHECK_NAV` (frontend/CLAUDE.md "Sidebar"). New check cashing pages
   live under `/check-cashing` and join `CHECK_NAV`, never `NAV`.
+- **A desk program on one computer (owner, 2026-11-09).** Every page
+  is a `DeskPage` (full window, no page scrolling, boxes scroll inside
+  themselves, desktop only) and every new router carries
+  `require_check_device` (INVARIANTS "One computer"); only the device
+  routes are ungated.
 
 - **Standalone (owner, 2026-11-07).** This module must not read or
   write the daily book, the monthly P&L, Returned checks or the

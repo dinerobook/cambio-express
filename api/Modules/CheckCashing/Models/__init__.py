@@ -17,6 +17,12 @@ switched on). See this module's ``INVARIANTS.md``.
 * ``CheckCompany``         — whoever wrote the check (an employer, a
   government agency…), found by its routing + account numbers.
   Shared across the owner umbrella like customers.
+* ``CashedCheck``          — one check brought to the counter: cashed,
+  not accepted ("declined") or voided later. Belongs to the store that
+  took it, on that store's day.
+* ``CheckDevice``          — the one computer a store has activated for
+  check cashing (owner, 2026-11-09). Only a hash of the key the
+  browser holds is stored; a switched-off computer keeps its row.
 
 Money is integer cents. A percent fee is stored in basis points
 (1% = 100), so ``fee_value`` is cents for a ``flat`` fee and basis
@@ -36,6 +42,7 @@ from api.Core.Database import Base
 FEE_KINDS = ("percent", "flat")
 PARTY_STATUSES = ("normal", "trusted", "blocked")
 EXPIRED_ID_MODES = ("warn", "block")
+CHECK_STATUSES = ("cashed", "declined", "voided")
 ID_TYPES = (
     "drivers_license", "state_id", "passport", "matricula",
     "military_id", "other",
@@ -59,6 +66,10 @@ class CheckCashingSettings(Base):
     expired_id_mode       = Column(String(10), nullable=False, default="warn")
     updated_by            = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
     updated_at            = Column(DateTime, default=utc_now, onupdate=utc_now)
+    # (PR 2, added last so the table matches the migrations.)
+    # Most one customer may cash in a store day across the owner's
+    # stores; above it a manager must approve. NULL = no limit.
+    daily_limit_cents     = Column(BigInteger, nullable=True)
 
 
 class CheckCustomer(Base):
@@ -123,3 +134,61 @@ class CheckCompany(Base):
     created_by     = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
     created_at     = Column(DateTime, default=utc_now)
     updated_at     = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+
+class CashedCheck(Base):
+    __tablename__ = "msb_cashed_check"
+    id                 = Column(Integer, primary_key=True)
+    # The store that took the check, and its business day there.
+    store_id           = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    store_day          = Column(Date, nullable=False, index=True)
+    customer_id        = Column(
+        Integer, ForeignKey("msb_check_customer.id"), nullable=False, index=True,
+    )
+    company_id         = Column(
+        Integer, ForeignKey("msb_check_company.id"), nullable=False, index=True,
+    )
+    check_number       = Column(String(20), nullable=False, default="")
+    check_date         = Column(Date, nullable=True)
+    amount_cents       = Column(BigInteger, nullable=False)
+    # The fee rule that applied (see ``CheckCashingSettings``) and the
+    # fee it gave, then the fee actually charged (the cashier may
+    # change it) and the cash handed over.
+    fee_kind           = Column(String(10), nullable=True)
+    fee_value          = Column(BigInteger, nullable=True)
+    fee_suggested_cents = Column(BigInteger, nullable=False, default=0)
+    fee_cents          = Column(BigInteger, nullable=False, default=0)
+    cash_cents         = Column(BigInteger, nullable=False, default=0)
+    # The bottom line of the check as read or typed.
+    micr               = Column(String(120), nullable=False, default="")
+    status             = Column(String(10), nullable=False, default="cashed")
+    # Why it was not accepted.
+    reason             = Column(String(255), nullable=False, default="")
+    # Warnings the cashier saw and went past, comma-separated codes;
+    # ``approved_by`` is the manager when one of them needed approval.
+    warnings           = Column(String(255), nullable=False, default="")
+    approved_by        = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_by         = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_at         = Column(DateTime, default=utc_now)
+    voided_by          = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    voided_at          = Column(DateTime, nullable=True)
+    void_reason        = Column(String(255), nullable=False, default="")
+
+    customer = relationship("CheckCustomer")
+    company = relationship("CheckCompany")
+
+
+class CheckDevice(Base):
+    __tablename__ = "msb_check_device"
+    id           = Column(Integer, primary_key=True)
+    store_id     = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    # The Admin's name for the computer ("Front counter").
+    name         = Column(String(60), nullable=False, default="")
+    # sha256 of the key kept in the computer's httpOnly cookie.
+    token_hash   = Column(String(64), nullable=False, unique=True, index=True)
+    created_by   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_at   = Column(DateTime, default=utc_now)
+    last_seen_at = Column(DateTime, nullable=True)
+    # Set when another computer is activated or an Admin switches it off.
+    revoked_at   = Column(DateTime, nullable=True)
+    revoked_by   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)

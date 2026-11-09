@@ -5,9 +5,10 @@ import {
   type CheckCustomerRow, type PartyListQuery,
 } from "../api/checkCashing";
 import { PartyStatusPill } from "../components/CheckCashingFields";
+import { DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
-  ButtonLink, Card, DataTable, Empty, Field, Input, PageHeader, PageShell,
+  ButtonLink, Card, DataTable, Empty, Field, Input, PageHeader,
   Pill, TabsBar, TabsButton, type DataColumn,
 } from "../components/ui";
 import { navWord } from "../i18n/navWords";
@@ -80,16 +81,16 @@ export default function CheckCustomers() {
 
   if (identity?.store_id == null) {
     return (
-      <PageShell>
+      <DeskPage>
         <PageCrumbs />
         <PageHeader title={title} />
         <Empty>{t("checkCashing.signIn")}</Empty>
-      </PageShell>
+      </DeskPage>
     );
   }
 
   return (
-    <PageShell>
+    <DeskPage>
       <PageCrumbs />
       <PageHeader
         title={title}
@@ -124,7 +125,8 @@ export default function CheckCustomers() {
         ))}
       </TabsBar>
 
-      <Card>
+      <DeskPane>
+        <Card>
         <DataTable
           columns={columns(t)}
           rows={data?.rows}
@@ -145,7 +147,8 @@ export default function CheckCustomers() {
             fetchPage: (page, perPage) => fetchCheckCustomersPage({ ...listQuery, page, perPage }),
           }}
         />
-      </Card>
-    </PageShell>
+        </Card>
+      </DeskPane>
+    </DeskPage>
   );
 }
