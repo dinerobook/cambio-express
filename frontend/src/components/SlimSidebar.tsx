@@ -35,6 +35,12 @@ export interface NavGroup {
    *  the Report Center) rather than a menu of sub-pages. `items`
    *  should be `[]` for a direct-link group. */
   to?: string;
+  /** Direct-link group only: highlight it on exactly `to`, not on
+   *  every page under it (a home link above its own sub-pages). */
+  end?: boolean;
+  /** Direct-link group only: module flag that must be ON for this
+   *  store, like `NavItem.flag`. */
+  flag?: string;
 }
 
 
@@ -55,10 +61,14 @@ export interface NavGroup {
  *  rules for backwards compat with the existing transitions). */
 export function SlimSidebar({
   groups, drawerOpen, brandName = "DineroBook", supportLink,
-  supportBadge = 0,
+  supportBadge = 0, drawerHeader,
 }: {
   groups: NavGroup[];
   drawerOpen: boolean;
+  /** Shown under the brand in the phone drawer (the "Back office |
+   *  Check cashing" switch, which the phone top bar has no room
+   *  for). */
+  drawerHeader?: ReactNode;
   brandName?: string;
   supportLink?: NavItem;
   /** Unread count rendered as a phone-style badge circle on the
@@ -126,6 +136,7 @@ export function SlimSidebar({
               <NavLink
                 key={group.title}
                 to={group.to}
+                end={group.end}
                 className={({ isActive }) =>
                   railClass(styles.groupBtn, isActive, group.title)}
                 title={navWord(group.title)}
@@ -246,12 +257,14 @@ export function SlimSidebar({
           <span className={styles.brandMark}>$</span>
           <span className={styles.drawerBrandName}>{brandName}</span>
         </div>
+        {drawerHeader}
         {groups.map((group) => (
           <div key={group.title} className={styles.drawerGroup}>
             {/* Direct-link group: the title IS the destination, no
                 /hub landing and no sub-item list. */}
             <NavLink
               to={group.to ?? `/hub/${sectionSlug(group.title)}`}
+              end={group.end}
               className={group.to
                 ? ({ isActive }) =>
                     `${styles.itemRow}${isActive ? " " + styles.isActive : ""}`

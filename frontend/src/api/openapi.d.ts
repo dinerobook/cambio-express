@@ -2683,6 +2683,131 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/check-cashing/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Companies Route */
+        get: operations["list_companies_route_check_cashing_companies_get"];
+        put?: never;
+        /** Create Company Route */
+        post: operations["create_company_route_check_cashing_companies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/companies/{company_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company Route */
+        get: operations["get_company_route_check_cashing_companies__company_id__get"];
+        /** Update Company Route */
+        put: operations["update_company_route_check_cashing_companies__company_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Customers Route */
+        get: operations["list_customers_route_check_cashing_customers_get"];
+        put?: never;
+        /** Create Customer Route */
+        post: operations["create_customer_route_check_cashing_customers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/customers/{customer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer Route */
+        get: operations["get_customer_route_check_cashing_customers__customer_id__get"];
+        /** Update Customer Route */
+        put: operations["update_customer_route_check_cashing_customers__customer_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/customers/{customer_id}/ids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Customer Id Route */
+        post: operations["add_customer_id_route_check_cashing_customers__customer_id__ids_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/customers/{customer_id}/ids/{id_row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Customer Id Route */
+        put: operations["update_customer_id_route_check_cashing_customers__customer_id__ids__id_row_id__put"];
+        post?: never;
+        /** Delete Customer Id Route */
+        delete: operations["delete_customer_id_route_check_cashing_customers__customer_id__ids__id_row_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings Route */
+        get: operations["get_settings_route_check_cashing_settings_get"];
+        /** Save Settings Route */
+        put: operations["save_settings_route_check_cashing_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/customers/export.csv": {
         parameters: {
             query?: never;
@@ -8637,6 +8762,348 @@ export interface components {
             current_password: string;
             /** New Password */
             new_password: string;
+        };
+        /** CheckCompanyBody */
+        CheckCompanyBody: {
+            /**
+             * Account Number
+             * @default
+             */
+            account_number: string;
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /** Fee Kind */
+            fee_kind?: ("percent" | "flat") | null;
+            /** Fee Value */
+            fee_value?: number | null;
+            /** Name */
+            name: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Phone
+             * @default
+             */
+            phone: string;
+            /**
+             * Routing Number
+             * @default
+             */
+            routing_number: string;
+            /**
+             * Status
+             * @default normal
+             * @enum {string}
+             */
+            status: "normal" | "trusted" | "blocked";
+            /**
+             * Status Reason
+             * @default
+             */
+            status_reason: string;
+        };
+        /** CheckCompanyDetail */
+        CheckCompanyDetail: {
+            /** Account Number */
+            account_number: string;
+            /** Address */
+            address: string;
+            /** Created At */
+            created_at: string;
+            /** Fee Kind */
+            fee_kind: string | null;
+            /** Fee Value */
+            fee_value: number | null;
+            /** Home Store Name */
+            home_store_name: string;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string;
+            /** Phone */
+            phone: string;
+            /** Routing Number */
+            routing_number: string;
+            /** Status */
+            status: string;
+            /** Status Reason */
+            status_reason: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** CheckCompanyListResponse */
+        CheckCompanyListResponse: {
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["CheckCompanyRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** CheckCompanyResponse */
+        CheckCompanyResponse: {
+            company: components["schemas"]["CheckCompanyDetail"];
+        };
+        /** CheckCompanyRow */
+        CheckCompanyRow: {
+            /** Account Last4 */
+            account_last4: string;
+            /** Created At */
+            created_at: string;
+            /** Home Store Name */
+            home_store_name: string;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone: string;
+            /** Routing Number */
+            routing_number: string;
+            /** Status */
+            status: string;
+        };
+        /** CheckCustomerCreateBody */
+        CheckCustomerCreateBody: {
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /** Dob */
+            dob?: string | null;
+            /** Fee Kind */
+            fee_kind?: ("percent" | "flat") | null;
+            /** Fee Value */
+            fee_value?: number | null;
+            /** Full Name */
+            full_name: string;
+            /** Ids */
+            ids: components["schemas"]["CheckCustomerIdBody"][];
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Phone Country
+             * @default +1
+             */
+            phone_country: string;
+            /**
+             * Phone Number
+             * @default
+             */
+            phone_number: string;
+            /**
+             * Status
+             * @default normal
+             * @enum {string}
+             */
+            status: "normal" | "trusted" | "blocked";
+            /**
+             * Status Reason
+             * @default
+             */
+            status_reason: string;
+        };
+        /** CheckCustomerDetail */
+        CheckCustomerDetail: {
+            /** Address */
+            address: string;
+            /** Created At */
+            created_at: string;
+            /** Dob */
+            dob: string | null;
+            /** Fee Kind */
+            fee_kind: string | null;
+            /** Fee Value */
+            fee_value: number | null;
+            /** Full Name */
+            full_name: string;
+            /** Home Store Name */
+            home_store_name: string;
+            /** Id */
+            id: number;
+            /** Ids */
+            ids: components["schemas"]["CheckCustomerIdRow"][];
+            /** Notes */
+            notes: string;
+            /** Phone Country */
+            phone_country: string;
+            /** Phone Number */
+            phone_number: string;
+            /** Status */
+            status: string;
+            /** Status Reason */
+            status_reason: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** CheckCustomerIdBody */
+        CheckCustomerIdBody: {
+            /** Expires On */
+            expires_on?: string | null;
+            /** Id Number */
+            id_number: string;
+            /**
+             * Id Type
+             * @enum {string}
+             */
+            id_type: "drivers_license" | "state_id" | "passport" | "matricula" | "military_id" | "other";
+            /**
+             * Issuer
+             * @default
+             */
+            issuer: string;
+        };
+        /** CheckCustomerIdRow */
+        CheckCustomerIdRow: {
+            /** Expired */
+            expired: boolean;
+            /** Expires On */
+            expires_on: string | null;
+            /** Id */
+            id: number;
+            /** Id Number */
+            id_number: string;
+            /** Id Type */
+            id_type: string;
+            /** Issuer */
+            issuer: string;
+        };
+        /** CheckCustomerListResponse */
+        CheckCustomerListResponse: {
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["CheckCustomerRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** CheckCustomerResponse */
+        CheckCustomerResponse: {
+            customer: components["schemas"]["CheckCustomerDetail"];
+        };
+        /**
+         * CheckCustomerRow
+         * @description One line of the customer list.
+         */
+        CheckCustomerRow: {
+            /** Created At */
+            created_at: string;
+            /** Full Name */
+            full_name: string;
+            /** Has Expired Id */
+            has_expired_id: boolean;
+            /** Home Store Name */
+            home_store_name: string;
+            /** Id */
+            id: number;
+            /** Id Summary */
+            id_summary: string;
+            /** Phone Country */
+            phone_country: string;
+            /** Phone Number */
+            phone_number: string;
+            /** Status */
+            status: string;
+        };
+        /**
+         * CheckCustomerUpdateBody
+         * @description The whole profile except the IDs, which have their own routes.
+         */
+        CheckCustomerUpdateBody: {
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /** Dob */
+            dob?: string | null;
+            /** Fee Kind */
+            fee_kind?: ("percent" | "flat") | null;
+            /** Fee Value */
+            fee_value?: number | null;
+            /** Full Name */
+            full_name: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Phone Country
+             * @default +1
+             */
+            phone_country: string;
+            /**
+             * Phone Number
+             * @default
+             */
+            phone_number: string;
+            /**
+             * Status
+             * @default normal
+             * @enum {string}
+             */
+            status: "normal" | "trusted" | "blocked";
+            /**
+             * Status Reason
+             * @default
+             */
+            status_reason: string;
+        };
+        /** CheckSettingsBody */
+        CheckSettingsBody: {
+            /** Base Charge */
+            base_charge?: number | null;
+            /** Base Charge Under */
+            base_charge_under?: number | null;
+            /**
+             * Default Fee Kind
+             * @enum {string}
+             */
+            default_fee_kind: "percent" | "flat";
+            /** Default Fee Value */
+            default_fee_value: number;
+            /**
+             * Expired Id Mode
+             * @default warn
+             * @enum {string}
+             */
+            expired_id_mode: "warn" | "block";
+        };
+        /** CheckSettingsResponse */
+        CheckSettingsResponse: {
+            /** Base Charge */
+            base_charge: number | null;
+            /** Base Charge Under */
+            base_charge_under: number | null;
+            /**
+             * Default Fee Kind
+             * @enum {string}
+             */
+            default_fee_kind: "percent" | "flat";
+            /** Default Fee Value */
+            default_fee_value: number;
+            /**
+             * Expired Id Mode
+             * @enum {string}
+             */
+            expired_id_mode: "warn" | "block";
         };
         /**
          * CheckoutSessionRequest
@@ -22082,6 +22549,499 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VendorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_companies_route_check_cashing_companies_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                status?: string;
+                /** @description name, created or status; empty = name A→Z. */
+                sort?: string;
+                dir?: string;
+                /** @description 1-based page number */
+                page?: number;
+                /** @description Rows per page (1 to 200) */
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCompanyListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_company_route_check_cashing_companies_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCompanyBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCompanyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_company_route_check_cashing_companies__company_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                company_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCompanyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_company_route_check_cashing_companies__company_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                company_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCompanyBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCompanyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_customers_route_check_cashing_customers_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                status?: string;
+                /** @description name, created or status; empty = name A→Z. */
+                sort?: string;
+                dir?: string;
+                /** @description 1-based page number */
+                page?: number;
+                /** @description Rows per page (1 to 200) */
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCustomerListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_customer_route_check_cashing_customers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCustomerCreateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCustomerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_customer_route_check_cashing_customers__customer_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                customer_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCustomerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_customer_route_check_cashing_customers__customer_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                customer_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCustomerUpdateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCustomerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_customer_id_route_check_cashing_customers__customer_id__ids_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                customer_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCustomerIdBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCustomerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_customer_id_route_check_cashing_customers__customer_id__ids__id_row_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                customer_id: number;
+                id_row_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCustomerIdBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCustomerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_customer_id_route_check_cashing_customers__customer_id__ids__id_row_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                customer_id: number;
+                id_row_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCustomerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_route_check_cashing_settings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckSettingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_settings_route_check_cashing_settings_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckSettingsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckSettingsResponse"];
                 };
             };
             /** @description Validation Error */

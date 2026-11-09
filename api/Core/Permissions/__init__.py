@@ -48,6 +48,7 @@ RBAC_RESOURCES = [
     "batches", "bank_sync", "reports", "settings",
     "users", "time_clock", "return_checks", "lottery",
     "day_close", "catalog", "day_lock", "bank_dismiss",
+    "check_cashing", "check_cashing_manage",
 ]
 RBAC_ACTIONS = ["create", "read", "update", "delete"]
 
@@ -61,6 +62,12 @@ RBAC_RESOURCE_ACTIONS: dict[str, list[str]] = {
     # "Dismiss bank transactions" (already handled, leave them).
     # Admin by default; employees only when an admin grants it.
     "bank_dismiss": ["update"],
+    # Check cashing (new module, behind ``check_desk``): no delete
+    # yet — a cashed check is voided, never deleted, and merge comes
+    # later. "Manage check cashing" — fees, block / trust, settings —
+    # is a single switch, Admin by default.
+    "check_cashing": ["create", "read", "update"],
+    "check_cashing_manage": ["update"],
 }
 
 
@@ -94,6 +101,10 @@ RBAC_DEFAULTS: dict[str, list[str]] = {
         # it keeps what employees could do before the switch existed;
         # a store admin turns it off on Roles & access.
         "day_lock.update",
+        # Cashiers add and update check customers and companies; the
+        # fee, block / trust and settings stay with the Admin
+        # (check_cashing_manage).
+        "check_cashing.create", "check_cashing.read", "check_cashing.update",
     ],
     "owner": (
         [f"{r}.read" for r in RBAC_RESOURCES if "read" in actions_for(r)]

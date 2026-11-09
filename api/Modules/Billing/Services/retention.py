@@ -50,6 +50,7 @@ STORE_OWNED_MODELS: list[str] = [
     "Transfer", "ACHBatch", "DailyReport", "DailyDrop", "CheckDeposit",
     "DailyLineItem", "MoneyTransferSummary", "MoneyServiceSummary",
     "ReturnCheck",
+    "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
     "MonthlyFinancial", "MonthlyLineLabel", "BankRule", "BankTransaction",
     "StripeBankAccount", "StoreOwnerLink",
     # Lottery: counts FK packs FK games — purge in that order.
@@ -125,6 +126,9 @@ def _store_owned_models() -> list[tuple[type, str]]:
         MonthlyFinancial, MonthlyLineLabel,
     )
     from api.Modules.ReturnChecks.Models import ReturnCheck
+    from api.Modules.CheckCashing.Models import (
+        CheckCashingSettings, CheckCompany, CheckCustomer, CheckCustomerId,
+    )
     from api.Modules.Tenancy.Models import (
         StoreEmployee, StoreOwnerLink, StoreRole, StoreRolePermission,
         User,
@@ -171,6 +175,11 @@ def _store_owned_models() -> list[tuple[type, str]]:
         (MoneyTransferSummary, "store_id"),
         (MoneyServiceSummary, "store_id"),
         (ReturnCheck, "store_id"),
+        # Check cashing: IDs FK customers — children first.
+        (CheckCustomerId, "store_id"),
+        (CheckCustomer, "store_id"),
+        (CheckCompany, "store_id"),
+        (CheckCashingSettings, "store_id"),
         # Lottery: counts FK packs FK games — purge in that order.
         (LotteryDayCount, "store_id"),
         (LotteryPack, "store_id"),

@@ -25,6 +25,10 @@ Read that module's `INVARIANTS.md` before editing these:
 - BankSync: `src/api/bankSync.ts`, `src/routes/BankTransactions.tsx`,
   `src/routes/BankRules.tsx`, `src/routes/BankMatching.tsx`,
   `src/components/BankRuleForm.tsx`
+- CheckCashing: `src/api/checkCashing.ts`, `src/routes/CheckCustomers.tsx`,
+  `src/routes/CheckCustomerForm.tsx`, `src/routes/CheckCompanies.tsx`,
+  `src/routes/CheckCompanyForm.tsx`, `src/routes/CheckCashingSettings.tsx`,
+  `src/routes/CheckCashingHome.tsx`, `src/components/CheckCashingFields.tsx`
 
 ## Design system — READ BEFORE TOUCHING ANY UI
 **Source of truth: [`docs/design-system/`](../docs/design-system/).**
@@ -189,6 +193,16 @@ Dashboard · Daily · Money services · Team · Reports · Finance · Displays
 exactly one group: add the link there and the route's access row in
 `src/lib/access.ts`. `filterNavForRole` hides items the person cannot
 open and groups left empty.
+**A separate app inside DineroBook** (today only check cashing) is not
+a group in `NAV`: it has its own table (`CHECK_NAV`) and the top-bar
+"Back office | Check cashing" switch (`WorkspaceSwitch`) swaps the
+whole sidebar. The URL decides the view (`workspaceForPath`: everything
+under `/check-cashing`; personal pages keep the last view), the switch
+shows only where the store has the app and the person also has back
+office rights (`lib/workspace.ts`), and someone with only check rights
+always lands in it. Its pages are titled by their `CHECK_NAV` title
+and their trail starts with the app's name. Never put a separate
+app's pages back into `NAV`.
 The view-only **Accountant** sees only the pages in `ACCOUNTANT_PAGES`
 (`src/lib/access.ts`), lands on Reports (`homePathFor`), and its
 Reports menu carries Monthly P&L and Data export (it has no

@@ -8,7 +8,7 @@
 > | Folder | Its `CLAUDE.md` holds |
 > |---|---|
 > | [`api/`](api/CLAUDE.md) | module map, `api/Core` helpers, the detail behind the backend invariants below, mypy ratchet, templates |
-> | `api/Modules/{Auth,BankSync,DailyBook,Monthly,Transfers}/` | that module's `INVARIANTS.md` (imported, so it is always in view) |
+> | `api/Modules/{Auth,BankSync,CheckCashing,DailyBook,Monthly,Transfers}/` | that module's `INVARIANTS.md` (imported, so it is always in view) |
 > | [`api/Modules/Customers/`](api/Modules/Customers/CLAUDE.md) | the Transfers invariants (customer upsert) |
 > | [`api/Modules/Notifications/`](api/Modules/Notifications/CLAUDE.md) | the top-bar bell: how items are built, how to add one |
 > | [`frontend/`](frontend/CLAUDE.md) | design system, UI standards, OpenAPI types, the SPA checks CI runs |
@@ -88,6 +88,8 @@ is in the file named after the arrow.
 2. **Sidebar** is ONE table, `NAV` in
    `frontend/src/components/navConfig.tsx`; a new page joins exactly
    one group and gets its access row in `frontend/src/lib/access.ts`.
+   A separate app (check cashing) has its own table (`CHECK_NAV`)
+   behind the top-bar "Back office | Check cashing" switch.
    → `frontend/CLAUDE.md`
 3. **Trial state machine** — `Store.plan ∈ {trial, basic, pro,
    inactive}`; routes reachable after expiry are listed in
@@ -101,7 +103,9 @@ is in the file named after the arrow.
    `api/Modules/Transfers/INVARIANTS.md`
 6. **Feature flags** — `store_feature_enabled()` resolves per-store →
    global default → fail-open; declare defaults in
-   `_DEFAULT_FEATURE_FLAGS`. → `api/CLAUDE.md`
+   `_DEFAULT_FEATURE_FLAGS`; a module still being built (check
+   cashing, `check_desk`) is opt-in instead and connects to nothing
+   else until finished. → `api/CLAUDE.md`
 7. **Audit log** — every superadmin mutation calls `record_audit(...)`
    (`audit_superadmin` / `audit_operator` from `api.Core.Audit`).
 8. **Stripe checkout** keeps `allow_promotion_codes=True` — discount
@@ -160,8 +164,8 @@ is in the file named after the arrow.
     worked out live, only dismissals (one store day) are stored.
     → `api/Modules/Notifications/CLAUDE.md`, UI-STANDARDS §11
 
-Money modules carry an `INVARIANTS.md` (Auth, BankSync, DailyBook,
-Monthly, Transfers). It loads with that module's `CLAUDE.md`; the SPA
+Money modules carry an `INVARIANTS.md` (Auth, BankSync, CheckCashing,
+DailyBook, Monthly, Transfers). It loads with that module's `CLAUDE.md`; the SPA
 files that count as part of a module are listed in `frontend/CLAUDE.md`.
 
 ## What NOT to do

@@ -2,7 +2,9 @@ import { useLocation } from "react-router-dom";
 
 import { getCurrentIdentity } from "../lib/auth";
 import { Breadcrumbs } from "./ui";
-import { filterNavForRole, navTrail, type NavCrumb } from "./navConfig";
+import {
+  CHECK_HOME, filterNavForRole, navTrail, workspaceForPath, type NavCrumb,
+} from "./navConfig";
 import { useT } from "../i18n";
 import { navWord } from "../i18n/navWords";
 
@@ -31,14 +33,21 @@ export function PageCrumbs({
   const identity = getCurrentIdentity();
   // Module flags only hide items; they never change which item a
   // URL sits under, so the trail does not wait on session-status.
+  const path = under ?? pathname;
+  // A check cashing page sits under that app's sidebar, and its
+  // trail starts with the app's name: "Check cashing / Customers".
+  const checks = workspaceForPath(path) === "checks";
   const groups = filterNavForRole(
     identity?.role ?? "",
     identity?.permissions ?? [],
+    undefined,
+    checks ? "checks" : "backoffice",
   );
   // Sidebar crumbs read in the person's language like the sidebar
   // itself; `via` and `current` arrive already translated.
   const crumbs = [
-    ...navTrail(under ?? pathname, groups)
+    ...(checks ? [{ label: navWord("Check cashing"), to: CHECK_HOME }] : []),
+    ...navTrail(path, groups)
       .map((c) => ({ ...c, label: navWord(c.label) })),
     ...via,
   ];

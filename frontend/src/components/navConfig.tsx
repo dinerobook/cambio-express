@@ -370,6 +370,66 @@ export const NAV: NavGroup[] = [
   },
 ];
 
+// ── Workspaces ───────────────────────────────────────────────
+// Check cashing is a separate app inside DineroBook (owner,
+// 2026-11-09): a store that has it gets a "Back office | Check
+// cashing" switch in the top bar, and in check cashing view the
+// whole sidebar is CHECK_NAV instead of NAV. The URL decides the
+// view: every page under /check-cashing is check cashing; the
+// person's own pages (profile, sessions, support) keep whichever
+// view they came from. Shown only where the store's `check_desk`
+// switch is on (api/Modules/CheckCashing).
+export type Workspace = "backoffice" | "checks";
+
+export const CHECK_DESK_FLAG = "check_desk";
+export const CHECK_HOME = "/check-cashing";
+
+export const CHECK_NAV: NavGroup[] = [
+  {
+    title: "Home",
+    icon: iconDashboard(),
+    to: CHECK_HOME,
+    end: true,
+    flag: CHECK_DESK_FLAG,
+    items: [],
+  },
+  {
+    title: "Customers",
+    icon: iconCustomers(),
+    to: "/check-cashing/customers",
+    flag: CHECK_DESK_FLAG,
+    items: [],
+  },
+  {
+    title: "Companies",
+    icon: iconCheckCashing(),
+    to: "/check-cashing/companies",
+    flag: CHECK_DESK_FLAG,
+    items: [],
+  },
+  {
+    title: "Settings",
+    icon: iconShield(),
+    to: "/check-cashing/settings",
+    flag: CHECK_DESK_FLAG,
+    items: [],
+  },
+];
+
+// Pages that belong to the person, not to either app: they keep
+// the view the person was in.
+const PERSONAL_PREFIXES = [
+  "/account", "/settings/profile", "/settings/security",
+];
+
+/** Which app a URL belongs to; `null` for the person's own pages. */
+export function workspaceForPath(path: string): Workspace | null {
+  const under = (p: string) => path === p || path.startsWith(`${p}/`);
+  if (under(CHECK_HOME)) return "checks";
+  if (PERSONAL_PREFIXES.some(under)) return null;
+  return "backoffice";
+}
+
 export const SUPPORT_LINK: NavItem = {
   to: "/account/tickets", label: "Support", icon: iconSupport(),
 };
@@ -388,6 +448,9 @@ export function filterNavForRole(
   // matching the shell's no-flash-while-loading posture for the
   // store gate. Superadmin always sees every module.
   features?: string[],
+  // Which app's sidebar: the back office (NAV) or check cashing
+  // (CHECK_NAV). See "Workspaces" above.
+  workspace: Workspace = "backoffice",
 ): NavGroup[] {
   // Permission comes from the route table (lib/access.ts) — the same
   // answer the router guard and every link primitive give — so a
@@ -401,10 +464,14 @@ export function filterNavForRole(
     if (i.flag && !hasModule(i.flag)) return false;
     return true;
   };
-  return NAV
+  // A direct-link group is a destination of its own, so it passes
+  // the same checks an item does.
+  const linkVisible = (g: NavGroup) =>
+    !!g.to && canAccessWith(identity, g.to) && (!g.flag || hasModule(g.flag));
+  return (workspace === "checks" ? CHECK_NAV : NAV)
     .filter((g) => !g.roles || g.roles.includes(role))
     .map((g) => ({ ...g, items: g.items.filter(visible) }))
-    .filter((g) => g.items.length > 0 || !!g.to);
+    .filter((g) => g.items.length > 0 || linkVisible(g));
 }
 
 export interface NavCrumb {
@@ -549,6 +616,19 @@ function iconRules() {
     </svg>
   );
 }
+function iconCheckCashing() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      strokeLinejoin="round">
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <path d="M6 10h8" />
+      <path d="M6 14h5" />
+      <path d="M15 14h3" />
+    </svg>
+  );
+}
+
 function iconReturnChecks() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"

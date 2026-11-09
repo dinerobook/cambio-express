@@ -53,7 +53,8 @@ AREAS: dict[str, str] = {
              "product lines.",
     "hr_": "Time clock now, payroll later. People-hours, not money.",
     "msb_": "Remittance money: transfers, senders, ACH batches, the MSB "
-            "daily book, monthly P&L, returned checks, the rate board.",
+            "daily book, monthly P&L, returned checks, check cashing, the rate "
+            "board.",
     "retail_": "C-store money: registers, departments, the Store daily "
                "book, lottery, POS journal ingest, price book, vendors, "
                "purchases.",
@@ -81,6 +82,7 @@ MODULE_PREFIX: dict[str, str] = {
     "DailyBook": "msb_",
     "Monthly": "msb_",
     "ReturnChecks": "msb_",
+    "CheckCashing": "msb_",
     "TVDisplay": "msb_",
     "DayClose": "retail_",
     "StoreBook": "retail_",

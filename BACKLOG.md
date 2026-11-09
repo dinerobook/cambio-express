@@ -706,6 +706,14 @@ relationship.
       is downstream bookkeeping; if/when check cashing lands, this
       becomes a regulatory must-have and should ship in the same
       release.
+- [ ] **One-click CTR filing for check cashing** (owner, 2026-11-09:
+      Lytcheck's main selling point, "definitely on our list"). When a
+      customer's cash out passes $10,000 in one business day (several
+      checks that day add up), the payout screen flags it and builds
+      the FinCEN CTR from the customer profile, ID and checks, ready to
+      file in one click; a filed CTR is kept with the check records.
+      Needs the cashed-check register (check cashing PR 2) first.
+      Suspicious activity reports (SAR) go in the same piece of work.
 
 ## Stripe Issuing (research first, then build)
 - [ ] **Phase 1: Research.** Stripe Issuing lets us mint virtual or

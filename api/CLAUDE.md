@@ -99,6 +99,13 @@ per-store override → global default → **fail-open** (undeclared flag
 returns True). New optional features gate on `addon_<key>` (add-ons) or
 a descriptive key (`bank_sync`, `multi_store_owner`). Declare defaults
 in `_DEFAULT_FEATURE_FLAGS`.
+A module still being built (check cashing, `check_desk`) is the
+exception to fail-open: it reads its flag through `opt_in_flag_enabled`
+(off unless a superadmin turns it on for the store), lists the key in
+`OPT_IN_NAV_FLAG_KEYS` so the SPA shows it only where it is on (check
+cashing as its own app behind the top-bar switch, frontend/CLAUDE.md),
+refuses every route with a 403 while off, and connects to no other
+module until it is finished.
 
 **7. Audit log** — every superadmin mutation calls `record_audit(action,
 target_type, target_id, details)`; use `audit_superadmin(db, user, ...)`

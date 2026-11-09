@@ -17,7 +17,9 @@ import { CommandPalette } from "./CommandPalette";
 import { HelpCenter } from "./HelpCenter";
 import { InstallAppButton } from "./InstallAppButton";
 import { NotificationBell } from "./NotificationBell";
-import { filterNavForRole, SUPPORT_LINK } from "./navConfig";
+import {
+  CHECK_HOME, filterNavForRole, SUPPORT_LINK, workspaceForPath, type Workspace,
+} from "./navConfig";
 import {
   isAccountantSession, isOwnerSession, useMyStores,
 } from "../api/switchStore";
@@ -25,6 +27,11 @@ import { SlimSidebar } from "./SlimSidebar";
 import SwitchStoreModal from "./SwitchStoreModal";
 import ThemeToggle from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
+import { WorkspaceSwitch } from "./WorkspaceSwitch";
+import {
+  checksAvailable, hasBackOffice, rememberedWorkspace, rememberWorkspace,
+  takeFirstLanding, workspaceFor,
+} from "../lib/workspace";
 
 // App chrome wrapping every authed page: slim icon sidebar + topbar.
 //
@@ -55,6 +62,7 @@ import { UserMenu } from "./UserMenu";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const identity = getCurrentIdentity();
   // Drawer is a mobile-only concern but the state lives unconditionally
   // so the CSS class flip is the same code path on every viewport.
@@ -123,6 +131,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       setPermissionsVersion((v) => v + 1);
     }
   }, [livePermissions]);
+  // Back office or check cashing (navConfig "Workspaces"). Worked
+  // out before the store gate below so the hooks run on every render.
+  const role = identity?.role ?? "";
+  const perms = identity?.permissions ?? [];
+  const features = sessionStatus?.features;
+  const userId = identity?.user_id;
+  const checks = checksAvailable(role, perms, features);
+  const backOffice = hasBackOffice(role, perms, features);
+  const workspace = workspaceFor(location.pathname, {
+    available: checks, backOffice, remembered: rememberedWorkspace(userId),
+  });
+  // The first page after sign-in opens the view the person used last;
+  // someone with nothing but check cashing always lands in it. Every
+  // page after that records which view they are in.
+  useEffect(() => {
+    if (features === undefined) return;
+    const first = takeFirstLanding();
+    if (location.pathname === "/dashboard" && checks
+      && (!backOffice || (first && rememberedWorkspace(userId) === "checks"))) {
+      navigate(CHECK_HOME, { replace: true });
+      return;
+    }
+    const here = workspaceForPath(location.pathname);
+    if (here && checks) rememberWorkspace(userId, here);
+  }, [location.pathname, features, checks, backOffice, userId, navigate]);
+
   const gated = sessionStatus?.gated === true;
   const gateReason = sessionStatus?.reason;
   // The subscription gate must let the Subscribe flow render so the user
@@ -148,18 +182,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const role = identity?.role ?? "";
-  const perms = identity?.permissions ?? [];
-  const groups = filterNavForRole(role, perms, sessionStatus?.features);
+  const groups = filterNavForRole(role, perms, features, workspace);
+  const showSwitch = checks && backOffice;
   return (
     <div className="app-shell">
       <SlimSidebar
         groups={groups}
         drawerOpen={drawerOpen}
+        drawerHeader={showSwitch
+          ? <WorkspaceSwitch current={workspace} placement="drawer" />
+          : undefined}
         supportLink={canAccess(SUPPORT_LINK.to) ? SUPPORT_LINK : undefined}
         supportBadge={ticketsUnread.data?.unread ?? 0}
       />
       <Topbar
+        workspace={showSwitch ? workspace : null}
         identity={identity}
         onSignOut={onSignOut}
         onToggleDrawer={() => setDrawerOpen((v) => !v)}
@@ -186,8 +223,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 function Topbar({
-  identity, onSignOut, onToggleDrawer,
+  workspace, identity, onSignOut, onToggleDrawer,
 }: {
+  /** The view in use, or null when this person has no switch. */
+  workspace: Workspace | null;
   identity: ReturnType<typeof getCurrentIdentity>;
   onSignOut: () => void;
   onToggleDrawer: () => void;
@@ -219,6 +258,7 @@ function Topbar({
       {(isOwnerSession() || isAccountantSession()) && (
         <StoreSwitchChip identity={identity} />
       )}
+      {workspace && <WorkspaceSwitch current={workspace} placement="topbar" />}
       <span style={topbarSpacer} />
       <TrialChip />
       {referralCode && <ReferralBadge code={referralCode} />}

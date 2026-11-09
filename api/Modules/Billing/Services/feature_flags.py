@@ -40,6 +40,12 @@ MODULE_FLAG_KEYS = (
     "module_check_cashing", "module_price_book",
 )
 
+# Opt-in flags that show a sidebar group, sent to the SPA beside the
+# module flags (``features`` on /auth/session-status) so its nav can
+# hide the group. Resolved with ``opt_in_flag_enabled`` (never fails
+# open) and not part of a person's ``module_access`` list.
+OPT_IN_NAV_FLAG_KEYS = ("check_desk",)
+
 _BUSINESS_TYPE_MODULE_DEFAULTS: dict[str, dict[str, bool]] = {
     # module_money_services: money-transfer ledger + ACH batches +
     # sender directory. Check cashing / returned checks are NOT in
@@ -208,6 +214,9 @@ def enabled_module_flags(db: Session, store: Store | None) -> list[str]:
     return [
         key for key in MODULE_FLAG_KEYS
         if store_feature_enabled(db, store, key)
+    ] + [
+        key for key in OPT_IN_NAV_FLAG_KEYS
+        if opt_in_flag_enabled(db, int(store.id), key)
     ]
 
 
@@ -231,6 +240,10 @@ def enabled_module_flags_for_user(
     if raw is None:
         return store_flags
     allowed = {key.strip() for key in str(raw).split(",") if key.strip()}
+    # Opt-in pages are not per-user modules: a person's module list
+    # predates them, so it must not hide them; the permission gate
+    # still decides who sees them.
+    allowed.update(OPT_IN_NAV_FLAG_KEYS)
     return [key for key in store_flags if key in allowed]
 
 

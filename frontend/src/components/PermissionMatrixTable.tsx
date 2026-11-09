@@ -40,6 +40,9 @@ export const RESOURCE_LABELS: Record<string, MessageKey> = {
   day_lock: "perm.resDayLock",
   // One switch: mark bank transactions as already handled.
   bank_dismiss: "perm.resBankDismiss",
+  check_cashing: "perm.resCheckCashing",
+  // One switch: fees, block / trust and the module's settings.
+  check_cashing_manage: "perm.resCheckCashingManage",
 };
 
 export const ACTION_LABELS: Record<string, MessageKey> = {
@@ -83,6 +86,10 @@ export const RESOURCE_GROUPS: { title: MessageKey; resources: string[] }[] = [
     resources: [
       "daily_book", "day_close", "day_lock", "monthly", "lottery", "catalog",
     ],
+  },
+  {
+    title: "perm.groupCheckCashing",
+    resources: ["check_cashing", "check_cashing_manage"],
   },
   { title: "perm.groupFinance", resources: ["bank_sync", "bank_dismiss", "reports"] },
   { title: "perm.groupTeam", resources: ["users", "time_clock"] },
