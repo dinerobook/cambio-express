@@ -9,6 +9,7 @@ import {
 import {
   PartyRulesFields, PartyStatusPill, type PartyRules,
 } from "../components/CheckCashingFields";
+import { CheckActivity } from "../components/CheckActivity";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
   Alert, Button, Card, ErrorState, Field, FormActions, Input, Loading,
@@ -170,6 +171,13 @@ export default function CheckCompanyForm() {
           </span>
         ) : t("checkCashing.newCompanySubtitle")}
       />
+
+      {company && (
+        <Card>
+          <SectionTitle>{t("checkCashing.checksTitle")}</SectionTitle>
+          <CheckActivity kind="companies" id={company.id} other="customer" />
+        </Card>
+      )}
 
       <form onSubmit={onSubmit} className="ds-form">
         <fieldset disabled={!canEdit} className={styles.fieldset}>

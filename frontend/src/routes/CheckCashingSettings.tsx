@@ -18,7 +18,8 @@ import styles from "./CheckCashing.module.css";
 
 // Check cashing app → Settings (/app/check-cashing/settings).
 // The store's default fee, the optional base charge for small checks,
-// and what an expired ID does. "Manage check cashing" only.
+// what an expired ID does, and an optional daily limit per customer.
+// "Manage check cashing" only.
 
 interface Form {
   fee_kind: FeeKind;
@@ -27,6 +28,8 @@ interface Form {
   base_charge: number;
   base_under: number;
   expired_id_mode: "warn" | "block";
+  limit_on: boolean;
+  limit: number;
 }
 
 function fromSettings(s: CheckSettings): Form {
@@ -37,6 +40,8 @@ function fromSettings(s: CheckSettings): Form {
     base_charge: s.base_charge ?? 0,
     base_under: s.base_charge_under ?? 0,
     expired_id_mode: s.expired_id_mode,
+    limit_on: s.daily_limit != null,
+    limit: s.daily_limit ?? 0,
   };
 }
 
@@ -75,6 +80,7 @@ export default function CheckCashingSettings() {
         base_charge: form.base_on ? form.base_charge : null,
         base_charge_under: form.base_on ? form.base_under : null,
         expired_id_mode: form.expired_id_mode,
+        daily_limit: form.limit_on ? form.limit : null,
       });
       const next = fromSettings(saved);
       setForm(next);
@@ -106,6 +112,7 @@ export default function CheckCashingSettings() {
   }
 
   const baseInvalid = form.base_on && (form.base_charge <= 0 || form.base_under <= 0);
+  const limitInvalid = form.limit_on && form.limit <= 0;
 
   return (
     <PageShell maxWidth="48rem">
@@ -171,10 +178,30 @@ export default function CheckCashingSettings() {
           </Field>
         </Card>
 
+        <Card>
+          <SectionTitle>{t("checkCashing.dailyLimit")}</SectionTitle>
+          <Switch
+            checked={form.limit_on}
+            onChange={(on) => setForm({ ...form, limit_on: on })}
+          >
+            {t("checkCashing.dailyLimitOn")}
+          </Switch>
+          {form.limit_on && (
+            <div className={styles.fieldGrid}>
+              <MoneyInput
+                label={t("checkCashing.dailyLimit")}
+                value={form.limit}
+                onChange={(v) => setForm({ ...form, limit: v })}
+              />
+            </div>
+          )}
+          <p className={styles.note}>{t("checkCashing.dailyLimitHint")}</p>
+        </Card>
+
         {error && <Alert tone="error">{error}</Alert>}
 
         <FormActions guard={guard}>
-          <Button type="submit" busy={busy} disabled={busy || baseInvalid}>
+          <Button type="submit" busy={busy} disabled={busy || baseInvalid || limitInvalid}>
             {t("checkCashing.saveSettings")}
           </Button>
         </FormActions>

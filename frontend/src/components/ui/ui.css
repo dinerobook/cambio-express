@@ -229,6 +229,14 @@
   border-top: 1px solid var(--db-border);
 }
 
+/* On a phone the help bubble (HelpCenter, fixed bottom-right) would
+ * sit on the bar's main button; keep its corner free. */
+@media (max-width: 640px) {
+  .ds-form-actions {
+    padding-right: 4.25rem;
+  }
+}
+
 .ds-form-actions--between {
   justify-content: space-between;
 }

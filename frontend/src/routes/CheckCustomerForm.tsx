@@ -10,6 +10,7 @@ import {
 import {
   IdFields, PartyRulesFields, PartyStatusPill, type PartyRules,
 } from "../components/CheckCashingFields";
+import { CheckActivity } from "../components/CheckActivity";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
   Alert, Button, Card, ConfirmDialog, DateInput, ErrorState, Field, FormActions,
@@ -187,6 +188,13 @@ export default function CheckCustomerForm() {
 
       {customer && (
         <CustomerIds customer={customer} canEdit={hasPermission("check_cashing", "update")} />
+      )}
+
+      {customer && (
+        <Card>
+          <SectionTitle>{t("checkCashing.checksTitle")}</SectionTitle>
+          <CheckActivity kind="customers" id={customer.id} other="company" />
+        </Card>
       )}
 
       <form onSubmit={onSubmit} className="ds-form">

@@ -122,10 +122,10 @@ export function fetchCheckCustomersPage(query: PartyListQuery = {}): Promise<Cus
   return api<CustomerList>(`${BASE}/customers?${listQs(query)}`);
 }
 
-export function useCheckCustomers(query: PartyListQuery = {}) {
+export function useCheckCustomers(query: PartyListQuery = {}, enabled = true) {
   const identity = getCurrentIdentity();
   return useQuery<CustomerList>({
-    enabled: identity?.store_id != null,
+    enabled: enabled && identity?.store_id != null,
     queryKey: ["check-cashing", "customers", identity?.store_id, listQs(query)],
     queryFn: () => fetchCheckCustomersPage(query),
     placeholderData: (prev) => prev,
@@ -177,10 +177,10 @@ export function fetchCheckCompaniesPage(query: PartyListQuery = {}): Promise<Com
   return api<CompanyList>(`${BASE}/companies?${listQs(query)}`);
 }
 
-export function useCheckCompanies(query: PartyListQuery = {}) {
+export function useCheckCompanies(query: PartyListQuery = {}, enabled = true) {
   const identity = getCurrentIdentity();
   return useQuery<CompanyList>({
-    enabled: identity?.store_id != null,
+    enabled: enabled && identity?.store_id != null,
     queryKey: ["check-cashing", "companies", identity?.store_id, listQs(query)],
     queryFn: () => fetchCheckCompaniesPage(query),
     placeholderData: (prev) => prev,
@@ -208,3 +208,109 @@ export function updateCheckCompany(id: number, body: CheckCompanyBody): Promise<
 export const EMPTY_ID: CheckCustomerIdBody = {
   id_type: "drivers_license", id_number: "", issuer: "", expires_on: null,
 };
+
+// ── Cash a check ─────────────────────────────────────────────
+
+export type CheckReviewBody = components["schemas"]["CheckReviewBody"];
+export type CheckReview = components["schemas"]["CheckReviewResponse"];
+export type CheckReviewItem = components["schemas"]["CheckReviewItemOut"];
+export type CashCheckBody = components["schemas"]["CashCheckBody"];
+export type CashedCheckRow = components["schemas"]["CashedCheckRow"];
+export type CheckStats = components["schemas"]["CheckStatsOut"];
+export type CheckActivity = components["schemas"]["CheckActivityResponse"];
+export type CompanyCustomerRow = components["schemas"]["CompanyCustomerRow"];
+type CashedCheckResponse = components["schemas"]["CashedCheckResponse"];
+type CompanyCustomers = components["schemas"]["CompanyCustomersResponse"];
+type CompanyLookup = components["schemas"]["CompanyLookupResponse"];
+
+export type ReviewLevel = CheckReviewItem["level"];
+
+/** Worst first: what the cashier must deal with comes on top. */
+export const REVIEW_LEVEL_ORDER: ReviewLevel[] = ["block", "approve", "warn", "info"];
+
+export const REVIEW_LEVEL_TONES: Record<ReviewLevel, PillTone> = {
+  block: "negative",
+  approve: "warning",
+  warn: "warning",
+  info: "neutral",
+};
+
+export function sortReviewItems(items: CheckReviewItem[]): CheckReviewItem[] {
+  return [...items].sort(
+    (a, b) => REVIEW_LEVEL_ORDER.indexOf(a.level) - REVIEW_LEVEL_ORDER.indexOf(b.level),
+  );
+}
+
+export const CHECK_STATUS_TONES: Record<string, PillTone> = {
+  cashed: "success",
+  declined: "negative",
+  voided: "neutral",
+};
+
+const CHECK_STATUS_KEYS: Record<string, MessageKey> = {
+  cashed: "checkCashing.checkCashed",
+  declined: "checkCashing.checkDeclined",
+  voided: "checkCashing.checkVoided",
+};
+
+export function checkStatusLabel(value: string): string {
+  return Object.hasOwn(CHECK_STATUS_KEYS, value) ? t(CHECK_STATUS_KEYS[value]) : value;
+}
+
+export function fetchCheckReview(body: CheckReviewBody): Promise<CheckReview> {
+  return api<CheckReview>(`${BASE}/checks/review`, { method: "POST", json: body });
+}
+
+/** The fee and review for what the cashier has typed so far. A POST
+ *  that changes nothing, cached by its body like any read. */
+export function useCheckReview(body: CheckReviewBody, enabled: boolean) {
+  const identity = getCurrentIdentity();
+  return useQuery<CheckReview>({
+    enabled: enabled && identity?.store_id != null,
+    queryKey: ["check-cashing", "review", identity?.store_id, body],
+    queryFn: () => fetchCheckReview(body),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function cashCheck(body: CashCheckBody): Promise<CashedCheckResponse> {
+  return api<CashedCheckResponse>(`${BASE}/checks`, { method: "POST", json: body });
+}
+
+export function voidCheck(id: number, reason: string): Promise<CashedCheckResponse> {
+  return api<CashedCheckResponse>(
+    `${BASE}/checks/${id}/void`, { method: "POST", json: { reason } },
+  );
+}
+
+/** Totals and the latest checks of a customer or a company. */
+export function useCheckActivity(kind: "customers" | "companies", id: number | undefined) {
+  const identity = getCurrentIdentity();
+  return useQuery<CheckActivity>({
+    enabled: id != null && Number.isFinite(id) && identity?.store_id != null,
+    queryKey: ["check-cashing", "activity", identity?.store_id, kind, id],
+    queryFn: () => api<CheckActivity>(`${BASE}/${kind}/${id}/activity`),
+  });
+}
+
+export function useCompanyCustomers(id: number | undefined) {
+  const identity = getCurrentIdentity();
+  return useQuery<CompanyCustomers>({
+    enabled: id != null && identity?.store_id != null,
+    queryKey: ["check-cashing", "company-customers", identity?.store_id, id],
+    queryFn: () => api<CompanyCustomers>(`${BASE}/companies/${id}/customers`),
+  });
+}
+
+/** The company a check's routing + account belong to, if on file. */
+export function useCompanyLookup(routing: string, account: string) {
+  const identity = getCurrentIdentity();
+  const ready = /^\d{9}$/.test(routing) && /^\d{1,20}$/.test(account);
+  return useQuery<CompanyLookup>({
+    enabled: ready && identity?.store_id != null,
+    queryKey: ["check-cashing", "company-lookup", identity?.store_id, routing, account],
+    queryFn: () => api<CompanyLookup>(
+      `${BASE}/company-lookup?${new URLSearchParams({ routing, account })}`,
+    ),
+  });
+}

@@ -7,14 +7,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "./AppShell";
 import { PageCrumbs } from "./PageCrumbs";
 import { workspaceForPath } from "./navConfig";
-import CheckCashingHome from "../routes/CheckCashingHome";
 import { setLanguage } from "../i18n";
 import {
   checksAvailable, hasBackOffice, rememberWorkspace, rememberedWorkspace,
   resetFirstLanding, workspaceFor,
 } from "../lib/workspace";
 import { mockFetch } from "../test/fetchMock";
-import { englishLeftovers } from "../test/i18n";
 import { renderRoute, signInAs } from "../test/renderRoute";
 import { TEST_ADMIN } from "../test/setup";
 import { ToastProvider } from "./ui/Toast";
@@ -171,30 +169,7 @@ describe("the app switch", () => {
   });
 });
 
-describe("check cashing home and trail", () => {
-  it("lists the app's pages as tiles, settings only for a manager", () => {
-    renderRoute(<CheckCashingHome />);
-    expect(screen.getByRole("heading", { name: "Check cashing" })).toBeInTheDocument();
-    expect(screen.getByText("Cash a check")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Customers/ }))
-      .toHaveAttribute("href", "/check-cashing/customers");
-    expect(screen.getByRole("link", { name: /Settings/ })).toBeInTheDocument();
-  });
-
-  it("shows a cashier no settings tile", () => {
-    signInAs({ role: "employee", permissions: CASHIER });
-    renderRoute(<CheckCashingHome />);
-    expect(screen.getByRole("link", { name: /Companies/ })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Settings/ })).not.toBeInTheDocument();
-  });
-
-  it("is in Spanish", () => {
-    setLanguage("es");
-    renderRoute(<CheckCashingHome />);
-    expect(screen.getByRole("heading", { name: "Cambio de cheques" })).toBeInTheDocument();
-    expect(englishLeftovers(document.body, ["checkCashing."])).toEqual([]);
-  });
-
+describe("check cashing trail", () => {
   it("starts a check cashing page's trail with the app", () => {
     renderRoute(<PageCrumbs current="Ana Ruiz" />, {
       path: "/check-cashing/customers/:id", at: "/check-cashing/customers/7",

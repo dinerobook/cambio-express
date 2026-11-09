@@ -76,7 +76,9 @@ What the person gets, the same on every form:
   the bottom of the window, so Save stays in reach on long forms
   (`sticky` keeps it pinned while clean too — the daily book). A
   `note` prop holds the clean-state hint. Never hand-write the pill,
-  a "you have unsaved edits" line, or a second save bar.
+  a "you have unsaved edits" line, or a second save bar. On a phone
+  the bar keeps clear of the round help button in the bottom-right
+  corner, so the main button is never under it.
 - **Leaving inside the app** — sidebar, breadcrumb, Cancel link,
   back button, `navigate()` — is held by the one router blocker in
   `components/UnsavedChangesHost.tsx` (needs the data router in
@@ -536,7 +538,9 @@ This is enforced by the kit, not by per-page checks:
   store buys on its own, like the competitors sell it) is a *view*,
   not a sidebar group. A "Back office | Check cashing" switch in the
   top bar (at the top of the drawer on a phone) swaps the whole
-  sidebar for the app's own (`CHECK_NAV`) and opens its home page.
+  sidebar for the app's own (`CHECK_NAV`) and opens on the app's main
+  job (check cashing: Cash a check), never on a hub of tiles: the
+  first sidebar entry is that page.
   The URL decides the view; personal pages (profile, sessions,
   support) keep the last one. The switch shows only where the store
   has the app AND the person has back office rights too; someone with

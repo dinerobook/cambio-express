@@ -35,6 +35,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "base_charge_cents": None,
     "base_charge_under_cents": None,
     "expired_id_mode": "warn",
+    "daily_limit_cents": None,
 }
 
 
@@ -100,6 +101,7 @@ def get_settings(db: Session, store_id: int) -> dict[str, Any]:
         "base_charge_cents": row.base_charge_cents,
         "base_charge_under_cents": row.base_charge_under_cents,
         "expired_id_mode": row.expired_id_mode,
+        "daily_limit_cents": row.daily_limit_cents,
     }
 
 
@@ -115,6 +117,7 @@ def save_settings(
     row.base_charge_cents = to_hundredths(data.get("base_charge"))
     row.base_charge_under_cents = to_hundredths(data.get("base_charge_under"))
     row.expired_id_mode = data["expired_id_mode"]
+    row.daily_limit_cents = to_hundredths(data.get("daily_limit"))
     row.updated_by = user_id
     row.updated_at = utc_now()
     db.flush()

@@ -3406,6 +3406,259 @@
         "title": "CancelledTransfersTotals",
         "type": "object"
       },
+      "CashCheckBody": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledged": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Acknowledged",
+            "type": "array"
+          },
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "check_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Date"
+          },
+          "check_number": {
+            "default": "",
+            "maxLength": 20,
+            "title": "Check Number",
+            "type": "string"
+          },
+          "company_id": {
+            "minimum": 1.0,
+            "title": "Company Id",
+            "type": "integer"
+          },
+          "customer_id": {
+            "minimum": 1.0,
+            "title": "Customer Id",
+            "type": "integer"
+          },
+          "decision": {
+            "default": "cash",
+            "enum": [
+              "cash",
+              "decline"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "fee": {
+            "default": 0,
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Fee",
+            "type": "number"
+          },
+          "micr": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Micr",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_id",
+          "company_id",
+          "amount"
+        ],
+        "title": "CashCheckBody",
+        "type": "object"
+      },
+      "CashedCheckListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CashedCheckRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages"
+        ],
+        "title": "CashedCheckListResponse",
+        "type": "object"
+      },
+      "CashedCheckResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "$ref": "#/components/schemas/CashedCheckRow"
+          }
+        },
+        "required": [
+          "check"
+        ],
+        "title": "CashedCheckResponse",
+        "type": "object"
+      },
+      "CashedCheckRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          },
+          "can_void": {
+            "title": "Can Void",
+            "type": "boolean"
+          },
+          "cash": {
+            "title": "Cash",
+            "type": "number"
+          },
+          "cashier_name": {
+            "title": "Cashier Name",
+            "type": "string"
+          },
+          "check_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Date"
+          },
+          "check_number": {
+            "title": "Check Number",
+            "type": "string"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "integer"
+          },
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "integer"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "cashed",
+              "declined",
+              "voided"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "store_day": {
+            "format": "date",
+            "title": "Store Day",
+            "type": "string"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "void_reason": {
+            "title": "Void Reason",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "store_name",
+          "store_day",
+          "created_at",
+          "customer_id",
+          "customer_name",
+          "company_id",
+          "company_name",
+          "check_number",
+          "check_date",
+          "amount",
+          "fee",
+          "cash",
+          "status",
+          "reason",
+          "void_reason",
+          "cashier_name",
+          "warnings",
+          "approved",
+          "can_void"
+        ],
+        "title": "CashedCheckRow",
+        "type": "object"
+      },
       "CashierProductivityResponse": {
         "additionalProperties": false,
         "properties": {
@@ -3550,6 +3803,31 @@
           "confirm_password"
         ],
         "title": "ChangePasswordRequest",
+        "type": "object"
+      },
+      "CheckActivityResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/CashedCheckRow"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "stats": {
+            "items": {
+              "$ref": "#/components/schemas/CheckStatsOut"
+            },
+            "title": "Stats",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stats",
+          "recent"
+        ],
+        "title": "CheckActivityResponse",
         "type": "object"
       },
       "CheckCompanyBody": {
@@ -4332,6 +4610,211 @@
         "title": "CheckCustomerUpdateBody",
         "type": "object"
       },
+      "CheckFeeOut": {
+        "additionalProperties": false,
+        "properties": {
+          "base_applied": {
+            "title": "Base Applied",
+            "type": "boolean"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "number"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "fee",
+          "source",
+          "base_applied"
+        ],
+        "title": "CheckFeeOut",
+        "type": "object"
+      },
+      "CheckReviewBody": {
+        "additionalProperties": false,
+        "description": "What the cashier has typed so far; the answer is the fee and\nthe review. Changes nothing.",
+        "properties": {
+          "amount": {
+            "default": 0,
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "check_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Date"
+          },
+          "check_number": {
+            "default": "",
+            "maxLength": 20,
+            "title": "Check Number",
+            "type": "string"
+          },
+          "company_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          }
+        },
+        "title": "CheckReviewBody",
+        "type": "object"
+      },
+      "CheckReviewItemOut": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "level": {
+            "enum": [
+              "info",
+              "warn",
+              "approve",
+              "block"
+            ],
+            "title": "Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "level",
+          "count",
+          "amount",
+          "day"
+        ],
+        "title": "CheckReviewItemOut",
+        "type": "object"
+      },
+      "CheckReviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "fee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckFeeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CheckReviewItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "today_count": {
+            "title": "Today Count",
+            "type": "integer"
+          },
+          "today_total": {
+            "title": "Today Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "fee",
+          "items",
+          "today_count",
+          "today_total"
+        ],
+        "title": "CheckReviewResponse",
+        "type": "object"
+      },
       "CheckSettingsBody": {
         "additionalProperties": false,
         "properties": {
@@ -4360,6 +4843,19 @@
               }
             ],
             "title": "Base Charge Under"
+          },
+          "daily_limit": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Limit"
           },
           "default_fee_kind": {
             "enum": [
@@ -4416,6 +4912,17 @@
             ],
             "title": "Base Charge Under"
           },
+          "daily_limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Limit"
+          },
           "default_fee_kind": {
             "enum": [
               "percent",
@@ -4442,9 +4949,83 @@
           "default_fee_value",
           "base_charge",
           "base_charge_under",
-          "expired_id_mode"
+          "expired_id_mode",
+          "daily_limit"
         ],
         "title": "CheckSettingsResponse",
+        "type": "object"
+      },
+      "CheckStatsOut": {
+        "additionalProperties": false,
+        "properties": {
+          "average": {
+            "title": "Average",
+            "type": "number"
+          },
+          "biggest": {
+            "title": "Biggest",
+            "type": "number"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "declined": {
+            "title": "Declined",
+            "type": "integer"
+          },
+          "last_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Amount"
+          },
+          "last_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Day"
+          },
+          "scope": {
+            "enum": [
+              "store",
+              "all"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          },
+          "voided": {
+            "title": "Voided",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "count",
+          "total",
+          "biggest",
+          "average",
+          "last_day",
+          "last_amount",
+          "declined",
+          "voided"
+        ],
+        "title": "CheckStatsOut",
         "type": "object"
       },
       "CheckoutSessionRequest": {
@@ -4575,6 +5156,78 @@
           "clock_in_at"
         ],
         "title": "ClockedInRow",
+        "type": "object"
+      },
+      "CompanyCustomerRow": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "title": "Checks",
+            "type": "integer"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_day": {
+            "format": "date",
+            "title": "Last Day",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "status",
+          "checks",
+          "last_day"
+        ],
+        "title": "CompanyCustomerRow",
+        "type": "object"
+      },
+      "CompanyCustomersResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyCustomerRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "CompanyCustomersResponse",
+        "type": "object"
+      },
+      "CompanyLookupResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckCompanyDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "company"
+        ],
+        "title": "CompanyLookupResponse",
         "type": "object"
       },
       "CompanyRow": {
@@ -24360,6 +25013,22 @@
         "title": "VendorWriteRequest",
         "type": "object"
       },
+      "VoidCheckBody": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "VoidCheckBody",
+        "type": "object"
+      },
       "WebhookAck": {
         "additionalProperties": false,
         "description": "Delivery accepted. ``warning`` is set when the event was\nrecorded but its handler failed (the sender must not retry a\nhandler bug). A bad signature or body answers 400\n``{\"error\": \u2026}`` instead.",
@@ -34649,6 +35318,396 @@
         ]
       }
     },
+    "/check-cashing/checks": {
+      "get": {
+        "operationId": "list_checks_route_check_cashing_checks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "customer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "company_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Company Id"
+            }
+          },
+          {
+            "description": "One store day (YYYY-MM-DD).",
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One store day (YYYY-MM-DD).",
+              "title": "Day"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "pattern": "^(|cashed|declined|voided)$",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-based page number",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "1-based page number",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page (1 to 200)",
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Rows per page (1 to 200)",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashedCheckListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Checks Route",
+        "tags": [
+          "check-cashing"
+        ]
+      },
+      "post": {
+        "operationId": "cash_check_route_check_cashing_checks_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashCheckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashedCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cash Check Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/checks/review": {
+      "post": {
+        "description": "POST only because the body is a form; nothing is saved.",
+        "operationId": "review_check_route_check_cashing_checks_review_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckReviewBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckReviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Check Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/checks/{check_id}/void": {
+      "post": {
+        "operationId": "void_check_route_check_cashing_checks__check_id__void_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "check_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Check Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidCheckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashedCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Void Check Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
     "/check-cashing/companies": {
       "get": {
         "operationId": "list_companies_route_check_cashing_companies_get",
@@ -35017,6 +36076,244 @@
         ]
       }
     },
+    "/check-cashing/companies/{company_id}/activity": {
+      "get": {
+        "operationId": "company_activity_route_check_cashing_companies__company_id__activity_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Company Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckActivityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Company Activity Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/companies/{company_id}/customers": {
+      "get": {
+        "operationId": "company_customers_route_check_cashing_companies__company_id__customers_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Company Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyCustomersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Company Customers Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/company-lookup": {
+      "get": {
+        "description": "The company a scanned or typed check belongs to, if known.",
+        "operationId": "company_lookup_route_check_cashing_company_lookup_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "routing",
+            "required": false,
+            "schema": {
+              "default": "",
+              "pattern": "^(\\d{9})?$",
+              "title": "Routing",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "default": "",
+              "pattern": "^\\d{0,20}$",
+              "title": "Account",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyLookupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Company Lookup Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
     "/check-cashing/customers": {
       "get": {
         "operationId": "list_customers_route_check_cashing_customers_get",
@@ -35380,6 +36677,81 @@
           }
         },
         "summary": "Update Customer Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/customers/{customer_id}/activity": {
+      "get": {
+        "operationId": "customer_activity_route_check_cashing_customers__customer_id__activity_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckActivityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Customer Activity Route",
         "tags": [
           "check-cashing"
         ]

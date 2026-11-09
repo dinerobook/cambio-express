@@ -346,7 +346,7 @@ class TestSettings:
         assert data == {
             "default_fee_kind": "percent", "default_fee_value": 0.0,
             "base_charge": None, "base_charge_under": None,
-            "expired_id_mode": "warn",
+            "expired_id_mode": "warn", "daily_limit": None,
         }
 
     def test_save_roundtrip_and_audit(self, client, admin, on):
@@ -356,7 +356,8 @@ class TestSettings:
         resp = client.put(f"{BASE}/settings", headers=admin, json=body)
         assert resp.status_code == 200, resp.text
         assert resp.json() == {**body, "default_fee_value": 1.25,
-                               "base_charge": 3.0, "base_charge_under": 100.0}
+                               "base_charge": 3.0, "base_charge_under": 100.0,
+                               "daily_limit": None}
         assert client.get(f"{BASE}/settings", headers=admin).json()[
             "expired_id_mode"] == "block"
         from api.Modules.CheckCashing.Models import CheckCashingSettings

@@ -133,6 +133,7 @@ def _settings_response(data: dict[str, Any]) -> CheckSettingsResponse:
         base_charge=from_hundredths(data["base_charge_cents"]),
         base_charge_under=from_hundredths(data["base_charge_under_cents"]),
         expired_id_mode=data["expired_id_mode"],
+        daily_limit=from_hundredths(data["daily_limit_cents"]),
     )
 
 

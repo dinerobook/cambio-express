@@ -12,8 +12,9 @@ SPA files that count as CheckCashing files:
 `frontend/src/routes/CheckCompanies.tsx`,
 `frontend/src/routes/CheckCompanyForm.tsx`,
 `frontend/src/routes/CheckCashingSettings.tsx`,
-`frontend/src/routes/CheckCashingHome.tsx`,
-`frontend/src/components/CheckCashingFields.tsx`.
+`frontend/src/routes/CashCheck.tsx`,
+`frontend/src/components/CheckCashingFields.tsx`,
+`frontend/src/components/CheckActivity.tsx`.
 
 - **Its own app (owner, 2026-11-09).** Check cashing is a separate
   view of DineroBook, not a back office sidebar group: the top-bar

@@ -98,3 +98,101 @@
   margin: 0;
   min-width: 0;
 }
+
+.subhead {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--db-text-muted);
+}
+
+/* Cash a check: the check on top, then company and customer side by
+ * side (stacked on a narrow screen), then the review and the money. */
+.cashColumns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.cashColumns > * {
+  min-width: 0;
+}
+
+.pickList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+/* One search result or company regular: a full-width button row. */
+.pickRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--db-border);
+  border-radius: 0.5rem;
+  background: var(--db-surface-2);
+  color: var(--db-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.pickRow:hover,
+.pickRow:focus-visible {
+  border-color: var(--db-accent);
+}
+
+.chosenHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.chosenName {
+  margin: 0;
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.reviewItem {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--db-border);
+}
+
+.reviewItem:last-child {
+  border-bottom: 0;
+}
+
+.reviewText {
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.money {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.payout {
+  font-family: var(--db-font-mono);
+  font-size: 1.6rem;
+  color: var(--db-accent);
+  overflow-wrap: anywhere;
+}
