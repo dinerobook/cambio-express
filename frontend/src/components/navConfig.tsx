@@ -150,6 +150,37 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    // Check cashing — the new standalone module (owner, 2026-11-07):
+    // its own customers, companies and settings, connected to nothing
+    // else yet. The whole group shows only where the store's opt-in
+    // `check_desk` switch is on (api/Modules/CheckCashing).
+    title: "Check cashing",
+    icon: iconCheckCashing(),
+    items: [
+      {
+        to: "/check-cashing/customers", label: "Check customers",
+        flag: "check_desk",
+        roles: ["admin", "employee"],
+        icon: iconCustomers(),
+        desc: "People who cash checks, with their IDs.",
+      },
+      {
+        to: "/check-cashing/companies", label: "Check companies",
+        flag: "check_desk",
+        roles: ["admin", "employee"],
+        icon: iconCheckCashing(),
+        desc: "Who writes the checks: routing and account.",
+      },
+      {
+        to: "/check-cashing/settings", label: "Check cashing settings",
+        flag: "check_desk",
+        roles: ["admin", "employee"],
+        icon: iconShield(),
+        desc: "Default fee, base charge and expired IDs.",
+      },
+    ],
+  },
+  {
     // HR — anything that's about people / payroll / scheduling
     // rather than money flow.  Time clock is visible to both
     // admin AND employee (employees punch in here); the rest
@@ -549,6 +580,19 @@ function iconRules() {
     </svg>
   );
 }
+function iconCheckCashing() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      strokeLinejoin="round">
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <path d="M6 10h8" />
+      <path d="M6 14h5" />
+      <path d="M15 14h3" />
+    </svg>
+  );
+}
+
 function iconReturnChecks() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"

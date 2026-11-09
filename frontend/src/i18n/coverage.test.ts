@@ -90,6 +90,15 @@ export const COVERED_FILES = [
   "components/auditFilters.ts",
   "routes/AdminReferrals.tsx",
   "routes/AdminDataExport.tsx",
+  // Check cashing
+  "routes/CheckCustomers.tsx",
+  "routes/CheckCustomerForm.tsx",
+  "routes/CheckCompanies.tsx",
+  "routes/CheckCompanyForm.tsx",
+  "routes/CheckCashingSettings.tsx",
+  "routes/checkCashingTabs.ts",
+  "components/CheckCashingFields.tsx",
+  "api/checkCashing.ts",
   // Bank
   "routes/Bank.tsx",
   "routes/BankTransactions.tsx",

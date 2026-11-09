@@ -89,6 +89,11 @@ const PurchaseInvoiceForm = lazy(
 );
 const PosImport = lazy(() => import("./routes/PosImport"));
 const ReturnChecks = lazy(() => import("./routes/ReturnChecks"));
+const CheckCustomers = lazy(() => import("./routes/CheckCustomers"));
+const CheckCustomerForm = lazy(() => import("./routes/CheckCustomerForm"));
+const CheckCompanies = lazy(() => import("./routes/CheckCompanies"));
+const CheckCompanyForm = lazy(() => import("./routes/CheckCompanyForm"));
+const CheckCashingSettings = lazy(() => import("./routes/CheckCashingSettings"));
 const SectionHub = lazy(() => import("./routes/SectionHub"));
 const Settings = lazy(() => import("./routes/Settings"));
 const RolesAccess = lazy(() => import("./routes/RolesAccess"));
@@ -332,6 +337,13 @@ export default function App() {
           <Route path="return-checks"          element={<Gate><ReturnChecks /></Gate>} />
           <Route path="return-checks/new"      element={<Gate><ReturnCheckForm /></Gate>} />
           <Route path="return-checks/:id/edit" element={<Gate><ReturnCheckForm /></Gate>} />
+          <Route path="check-cashing/customers"     element={<Gate><CheckCustomers /></Gate>} />
+          <Route path="check-cashing/customers/new" element={<Gate><CheckCustomerForm /></Gate>} />
+          <Route path="check-cashing/customers/:id" element={<Gate><CheckCustomerForm /></Gate>} />
+          <Route path="check-cashing/companies"     element={<Gate><CheckCompanies /></Gate>} />
+          <Route path="check-cashing/companies/new" element={<Gate><CheckCompanyForm /></Gate>} />
+          <Route path="check-cashing/companies/:id" element={<Gate><CheckCompanyForm /></Gate>} />
+          <Route path="check-cashing/settings"      element={<Gate><CheckCashingSettings /></Gate>} />
           <Route path="owner/connect"        element={<Gate><OwnerConnect /></Gate>} />
           <Route path="owner/dashboard"      element={<Gate><OwnerDashboard /></Gate>} />
           <Route path="owner/locations"      element={<Gate><OwnerLocations /></Gate>} />

@@ -91,6 +91,15 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/return-checks/new", perm: "return_checks.create" },
   { path: "/return-checks/:id/edit", perm: "return_checks.update" },
 
+  // ── Check cashing (new module, behind the store's check_desk) ─
+  { path: "/check-cashing/customers", perm: "check_cashing.read" },
+  { path: "/check-cashing/customers/new", perm: "check_cashing.create" },
+  { path: "/check-cashing/customers/:id", perm: "check_cashing.read" },
+  { path: "/check-cashing/companies", perm: "check_cashing.read" },
+  { path: "/check-cashing/companies/new", perm: "check_cashing.create" },
+  { path: "/check-cashing/companies/:id", perm: "check_cashing.read" },
+  { path: "/check-cashing/settings", perm: "check_cashing_manage.update" },
+
   // ── MSB books ──────────────────────────────────────────────
   { path: "/daily", perm: "daily_book.read" },
   { path: "/daily/edit", perm: "daily_book.update" },
@@ -248,6 +257,8 @@ export const RESOURCE_MODULE: Record<string, string> = {
   customers:     "module_money_services",
   batches:       "module_money_services",
   return_checks: "module_check_cashing",
+  check_cashing: "check_desk",
+  check_cashing_manage: "check_desk",
   lottery:       "module_lottery",
   day_close:     "module_day_close",
   catalog:       "module_price_book",

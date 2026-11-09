@@ -124,6 +124,7 @@ def test_boot_seeds_a_new_resource_once(restore_global):
     with db_session():
         assert seed_new_resources(db.session) == [
             "lottery", "day_close", "catalog", "day_lock", "bank_dismiss",
+            "check_cashing", "check_cashing_manage",
         ]
     m = get_global_matrix()["matrix"]["employee"]
     m["lottery"] = {a: False for a in ("create", "read", "update", "delete")}

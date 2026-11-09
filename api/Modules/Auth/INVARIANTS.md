@@ -240,7 +240,10 @@ what's moving and why.
 resource that is one on/off switch rather than an area (today
 `day_lock` → `["update"]`, "Lock / unlock days", and
 `bank_dismiss` → `["update"]`, "Dismiss bank transactions" —
-Admin only by default). `actions_for`
+Admin only by default; `check_cashing_manage` → `["update"]`, "Manage
+check cashing" (store fee settings, a customer's or company's
+status and own fee) — Admin only by default; the cashier's area
+`check_cashing` is `create/read/update`, no delete). `actions_for`
 is the one lookup: the writer, the implied-read rule, the rank
 ceiling (`matrix_grants`) and saved roles all ignore an action a
 resource does not have, so a switch never grows a phantom View row.

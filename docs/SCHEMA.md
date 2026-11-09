@@ -16,7 +16,7 @@ Every table is named `<area>_<thing>`. The prefix says which part of the product
 | `audit_` | Append-only history. Never edited, never purged early. | Audit |
 | `bank_` | Bank feed via Stripe Financial Connections. Shared across product lines. | BankSync |
 | `hr_` | Time clock now, payroll later. People-hours, not money. | TimeClock |
-| `msb_` | Remittance money: transfers, senders, ACH batches, the MSB daily book, monthly P&L, returned checks, the rate board. | Batches, Customers, DailyBook, Monthly, ReturnChecks, TVDisplay, Transfers |
+| `msb_` | Remittance money: transfers, senders, ACH batches, the MSB daily book, monthly P&L, returned checks, check cashing, the rate board. | Batches, CheckCashing, Customers, DailyBook, Monthly, ReturnChecks, TVDisplay, Transfers |
 | `retail_` | C-store money: registers, departments, the Store daily book, lottery, POS journal ingest, price book, vendors, purchases. | Catalog, DayClose, Lottery, PosImport, StoreBook |
 | `notify_` | In-app notifications: what a person dismissed on the top-bar bell. Never money, never a source of truth. | Notifications |
 
@@ -104,7 +104,11 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | Table | Model | Module | Scope | Foreign keys | Read first |
 |---|---|---|---|---|---|
 | `msb_ach_batch` | `ACHBatch` | `Batches` | store | `tenancy_store.id` | — |
+| `msb_check_company` | `CheckCompany` | `CheckCashing` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
+| `msb_check_customer` | `CheckCustomer` | `CheckCashing` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
+| `msb_check_customer_id` | `CheckCustomerId` | `CheckCashing` | store | `msb_check_customer.id`, `tenancy_store.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
 | `msb_check_deposit` | `CheckDeposit` | `DailyBook` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |
+| `msb_check_settings` | `CheckCashingSettings` | `CheckCashing` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
 | `msb_customer` | `Customer` | `Customers` | store | `tenancy_store.id` | — |
 | `msb_daily_drop` | `DailyDrop` | `DailyBook` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |
 | `msb_daily_line_item` | `DailyLineItem` | `DailyBook` | store | `msb_return_check.id`, `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |

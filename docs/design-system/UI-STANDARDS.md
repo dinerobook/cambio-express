@@ -528,6 +528,10 @@ This is enforced by the kit, not by per-page checks:
 - **Sidebar and section hubs** derive visibility from the same table
   (`filterNavForRole`). Nav items carry `roles` and `flag` only —
   never a duplicated `perm`.
+- **A module still being built** gets its own sidebar group behind an
+  opt-in store switch (`OPT_IN_NAV_FLAG_KEYS`, e.g. check cashing's
+  `check_desk`): no store sees it until a superadmin turns it on, and
+  no other page links to it until it is finished.
 - **In-page actions that are not links** declare what they need:
   `<Button perm="lottery.update">` and `RowActions` items with
   `perm: "users.update"` drop themselves. The value mirrors the

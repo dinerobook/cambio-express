@@ -87,6 +87,7 @@ def warn_default_signing_secret(
 # ``RBAC_RESOURCES``.
 LATER_RESOURCES: tuple[str, ...] = (
     "lottery", "day_close", "catalog", "day_lock", "bank_dismiss",
+    "check_cashing", "check_cashing_manage",
 )
 
 _SEED_MARKER = "casbin_seeded:{resource}"

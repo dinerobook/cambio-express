@@ -27,6 +27,11 @@ export const RESOURCE_ACTIONS: Record<string, string[]> = {
   day_lock: ["update"],
   // "Dismiss bank transactions" (already handled): Admin by default.
   bank_dismiss: ["update"],
+  // Check cashing: no delete (a check is voided, never deleted).
+  // "Manage check cashing" — fees, block / trust, settings — is one
+  // switch, Admin by default.
+  check_cashing: ["create", "read", "update"],
+  check_cashing_manage: ["update"],
 };
 
 /** The actions `resource` has, in the order `actions` lists them. */

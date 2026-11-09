@@ -1,0 +1,100 @@
+/* Shared layout for the check cashing pages (CheckCustomers,
+ * CheckCustomerForm, CheckCompanies, CheckCompanyForm,
+ * CheckCashingSettings). Everything that maps to a kit primitive goes
+ * through `components/ui`; this file only holds page layout. */
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+  gap: 0.75rem;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.search {
+  margin-bottom: 1rem;
+}
+
+.mono {
+  font-family: var(--db-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--db-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.name {
+  overflow-wrap: anywhere;
+}
+
+.statusCell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.note {
+  margin: 0 0 0.75rem;
+  color: var(--db-text-muted);
+  font-size: 0.9rem;
+}
+
+/* One ID document as a row: its words on the left, its buttons on the
+ * right; wraps under the words on a narrow screen. */
+.idRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--db-border);
+}
+
+.idRow:last-child {
+  border-bottom: 0;
+}
+
+.idText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.idActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* The new-customer ID editor: one bordered block per ID. */
+.idBlock {
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--db-border);
+  border-radius: 0.6rem;
+  background: var(--db-surface-2);
+}
+
+.idBlockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Wraps a form's cards so a person who may only view it gets every
+ * field disabled at once; no box of its own. */
+.fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}

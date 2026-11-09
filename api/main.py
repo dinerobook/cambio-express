@@ -92,6 +92,9 @@ def _register_routers(app: FastAPI) -> None:
     from api.Modules.Catalog.Controllers import router as catalog_router
     app.include_router(catalog_router)
 
+    from api.Modules.CheckCashing.Controllers import router as check_cashing_router
+    app.include_router(check_cashing_router)
+
     from api.Modules.Batches.Controllers import router as batches_router
     app.include_router(batches_router, prefix="/batches", tags=["batches"])
 

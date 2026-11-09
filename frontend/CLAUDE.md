@@ -25,6 +25,10 @@ Read that module's `INVARIANTS.md` before editing these:
 - BankSync: `src/api/bankSync.ts`, `src/routes/BankTransactions.tsx`,
   `src/routes/BankRules.tsx`, `src/routes/BankMatching.tsx`,
   `src/components/BankRuleForm.tsx`
+- CheckCashing: `src/api/checkCashing.ts`, `src/routes/CheckCustomers.tsx`,
+  `src/routes/CheckCustomerForm.tsx`, `src/routes/CheckCompanies.tsx`,
+  `src/routes/CheckCompanyForm.tsx`, `src/routes/CheckCashingSettings.tsx`,
+  `src/components/CheckCashingFields.tsx`
 
 ## Design system — READ BEFORE TOUCHING ANY UI
 **Source of truth: [`docs/design-system/`](../docs/design-system/).**

@@ -108,6 +108,16 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
      "Show the bell in the top bar with the store's to-do items "
      "(days not locked, cash due back, bank rows to check, old "
      "returned checks).", False),
+    # Off until a store is switched on (owner, 2026-11-09): the new
+    # standalone check cashing module (customers, companies, fees),
+    # owner's store first while it is built. Resolved with
+    # ``opt_in_flag_enabled`` — never fails open. Not the same as
+    # ``module_check_cashing`` below (Returned checks + fee boxes).
+    # api/Modules/CheckCashing/INVARIANTS.md.
+    ("check_desk", "Check cashing (new module)",
+     "The Check cashing sidebar group: check customers with their IDs, "
+     "companies, fees and settings. Being built; does not touch the "
+     "daily book or any other page.", False),
     # Module flags. The business-type bundle decides these per
     # store (``_BUSINESS_TYPE_MODULE_DEFAULTS``); the rows exist so
     # the superadmin Feature-flags page can set a PER-STORE override

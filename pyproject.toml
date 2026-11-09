@@ -50,6 +50,8 @@ files = [
     "api/Core/RateLimit.py",
     "api/Core/Schema.py",
     "api/Core/Sorting.py",
+    # ── api/Modules/CheckCashing ─────────────────────────────
+    "api/Modules/CheckCashing/Requests/__init__.py",
     # ── api/Modules/Admin ────────────────────────────────────
     "api/Modules/Admin/Repositories/store_info.py",
     "api/Modules/Admin/Repositories/team.py",
