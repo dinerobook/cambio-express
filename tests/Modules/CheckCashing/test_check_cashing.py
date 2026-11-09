@@ -520,16 +520,16 @@ class TestCustomers:
                  client.get(url, headers=admin).json()["rows"]]
         assert names == ["Ana Lopez", "Beto Ruiz", "Carlos Diaz"]
         for q in ("carlos", "832555", "S5551234"):
-            rows = client.get(f"{url}?{urlencode({"q": q})}", headers=admin).json()["rows"]
+            rows = client.get(f"{url}?{urlencode({'q': q})}", headers=admin).json()["rows"]
             assert [r["full_name"] for r in rows] == ["Carlos Diaz"], q
-        rows = client.get(f"{url}?{urlencode({"status": "blocked"})}", headers=admin).json()["rows"]
+        rows = client.get(f"{url}?{urlencode({'status': 'blocked'})}", headers=admin).json()["rows"]
         assert [r["full_name"] for r in rows] == ["Beto Ruiz"]
-        rows = client.get(f"{url}?{urlencode({"sort": "name", "dir": "desc"})}", headers=admin).json()["rows"]
+        rows = client.get(f"{url}?{urlencode({'sort': 'name', 'dir': 'desc'})}", headers=admin).json()["rows"]
         assert rows[0]["full_name"] == "Carlos Diaz"
-        page = client.get(f"{url}?{urlencode({"per_page": 2, "page": 2})}", headers=admin).json()
+        page = client.get(f"{url}?{urlencode({'per_page': 2, 'page': 2})}", headers=admin).json()
         assert page["total"] == 3 and page["total_pages"] == 2
         assert len(page["rows"]) == 1
-        assert client.get(f"{url}?{urlencode({"status": "vip"})}", headers=admin).status_code == 422
+        assert client.get(f"{url}?{urlencode({'status': 'vip'})}", headers=admin).status_code == 422
 
     def test_missing_customer_404(self, client, admin):
         assert client.get(f"{BASE}/customers/999999",
@@ -608,9 +608,9 @@ class TestCompanies:
         url = f"{BASE}/companies"
         for q, name in (("acme", "Acme Payroll"), ("0210", "Acme Payroll"),
                         ("5550", "Acme Payroll"), ("electric", "PD Electric LLC")):
-            rows = client.get(f"{url}?{urlencode({"q": q})}", headers=admin).json()["rows"]
+            rows = client.get(f"{url}?{urlencode({'q': q})}", headers=admin).json()["rows"]
             assert [r["name"] for r in rows] == [name], q
-        rows = client.get(f"{url}?{urlencode({"status": "trusted"})}", headers=admin).json()["rows"]
+        rows = client.get(f"{url}?{urlencode({'status': 'trusted'})}", headers=admin).json()["rows"]
         assert [r["name"] for r in rows] == ["Acme Payroll"]
 
     def test_missing_company_404(self, client, admin):
