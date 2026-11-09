@@ -20,6 +20,8 @@ import { TEST_ADMIN } from "../test/setup";
 // all disabled. In Spanish too.
 
 const api = vi.hoisted(() => ({
+  useCheckDevice: vi.fn(),
+  switchOffCheckDevice: vi.fn(),
   useCompanyLookup: vi.fn(),
   useCheckReview: vi.fn(),
   useCheckCompanies: vi.fn(),
@@ -79,6 +81,10 @@ let reviewData: CheckReview;
 
 beforeEach(() => {
   for (const fn of Object.values(api)) fn.mockReset();
+  api.useCheckDevice.mockReturnValue(ok({
+    state: "this", name: "Front counter", activated_at: "2026-11-09T10:00:00Z",
+    activated_by: "Admin", last_seen_at: "2026-11-09T10:00:00Z",
+  }));
   signIn(MANAGER);
   reviewData = review();
   api.useCompanyLookup.mockImplementation((routing: string, account: string) => ok(

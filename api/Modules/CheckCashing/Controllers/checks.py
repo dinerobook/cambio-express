@@ -31,6 +31,7 @@ from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import has_permission, require_permission
 from api.Modules.CheckCashing.Controllers import (
     MANAGE, _company_detail, _conflict, _not_found, _scope, _store_names,
+    require_check_device,
 )
 from api.Modules.CheckCashing.Models import CashedCheck
 from api.Modules.CheckCashing.Requests import (
@@ -72,7 +73,10 @@ from api.Modules.CheckCashing.Services.cashing import (
 )
 from api.Modules.Tenancy.Models import User
 
-router = APIRouter(prefix="/check-cashing", tags=["check-cashing"])
+router = APIRouter(
+    prefix="/check-cashing", tags=["check-cashing"],
+    dependencies=[Depends(require_check_device)],
+)
 
 RECENT = 15
 

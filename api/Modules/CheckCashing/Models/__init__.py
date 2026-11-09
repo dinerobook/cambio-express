@@ -20,6 +20,9 @@ switched on). See this module's ``INVARIANTS.md``.
 * ``CashedCheck``          — one check brought to the counter: cashed,
   not accepted ("declined") or voided later. Belongs to the store that
   took it, on that store's day.
+* ``CheckDevice``          — the one computer a store has activated for
+  check cashing (owner, 2026-11-09). Only a hash of the key the
+  browser holds is stored; a switched-off computer keeps its row.
 
 Money is integer cents. A percent fee is stored in basis points
 (1% = 100), so ``fee_value`` is cents for a ``flat`` fee and basis
@@ -173,3 +176,19 @@ class CashedCheck(Base):
 
     customer = relationship("CheckCustomer")
     company = relationship("CheckCompany")
+
+
+class CheckDevice(Base):
+    __tablename__ = "msb_check_device"
+    id           = Column(Integer, primary_key=True)
+    store_id     = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    # The Admin's name for the computer ("Front counter").
+    name         = Column(String(60), nullable=False, default="")
+    # sha256 of the key kept in the computer's httpOnly cookie.
+    token_hash   = Column(String(64), nullable=False, unique=True, index=True)
+    created_by   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_at   = Column(DateTime, default=utc_now)
+    last_seen_at = Column(DateTime, nullable=True)
+    # Set when another computer is activated or an Admin switches it off.
+    revoked_at   = Column(DateTime, nullable=True)
+    revoked_by   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)

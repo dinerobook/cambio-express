@@ -185,7 +185,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const groups = filterNavForRole(role, perms, features, workspace);
   const showSwitch = checks && backOffice;
   return (
-    <div className="app-shell">
+    <div className={`app-shell${workspaceForPath(location.pathname) === "checks" ? " app-shell--desk" : ""}`}>
       <SlimSidebar
         groups={groups}
         drawerOpen={drawerOpen}

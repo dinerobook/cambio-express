@@ -22,7 +22,7 @@ import pytest
 from tests._app import db, db_session
 from tests.conftest import login_admin
 from tests.Modules.CheckCashing.test_check_cashing import (  # noqa: F401
-    BASE, _audit_actions, _employee, _flag, _h, _link_owner, _mk_company,
+    BASE, _activate, _audit_actions, _employee, _flag, _h, _link_owner, _mk_company,
     _mk_customer, _new_store, admin, cashier, on,
 )
 
@@ -382,6 +382,7 @@ class TestVoid:
         _flag(sibling, True)
         _link_owner(on, sibling)
         h = _h(login_admin(client, sibling))
+        _activate(client, h)
         listed = client.get(CHECKS, headers=h).json()["rows"]
         assert [r["can_void"] for r in listed] == [False]
         resp = client.post(f"{CHECKS}/{row['id']}/void", headers=h,
@@ -438,6 +439,7 @@ class TestActivity:
         _flag(sibling, True)
         _link_owner(on, sibling)
         h = _h(login_admin(client, sibling))
+        _activate(client, h)
         resp = _cash(client, h, cust, comp, amount=200, check_number="77",
                      ack=["cashed_today"])
         assert resp.status_code == 201, resp.text
@@ -456,6 +458,7 @@ class TestActivity:
         other = _new_store("cc-act-other")
         _flag(other, True)
         h = _h(login_admin(client, other))
+        _activate(client, h)
         assert client.get(CHECKS, headers=h).json()["total"] == 0
         for path in (f"/customers/{cust['id']}/activity",
                      f"/companies/{comp['id']}/activity",
@@ -578,6 +581,7 @@ def test_purge_keeps_a_sibling_stores_records(client, admin, on, party):
     _flag(sibling, True)
     _link_owner(on, sibling)
     h = _h(login_admin(client, sibling))
+    _activate(client, h)
     kept = _cash(client, h, cust, comp, check_number="9").json()["check"]
     with db_session():
         store = db.session.get(Store, on)

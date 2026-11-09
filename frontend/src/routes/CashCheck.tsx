@@ -8,11 +8,12 @@ import {
   type CheckCustomerIdBody, type CheckReviewItem, type ReviewLevel,
 } from "../api/checkCashing";
 import { CheckActivity } from "../components/CheckActivity";
+import { DeskColumns, DeskPage } from "../components/DeskPage";
 import { IdFields, PartyStatusPill } from "../components/CheckCashingFields";
 import {
   Alert, AppLink, Button, Card, Checkbox, ConfirmDialog, DateInput, Empty, Field,
   FormActions, Input, Loading, Modal, ModalActions, MoneyInput, PageHeader,
-  PageShell, Pill, SectionTitle, useToast,
+  Pill, SectionTitle, useToast,
 } from "../components/ui";
 import { navWord } from "../i18n/navWords";
 import { useT, type MessageKey } from "../i18n";
@@ -175,21 +176,21 @@ export default function CashCheck() {
   const title = navWord("Cash a check");
   if (identity?.store_id == null) {
     return (
-      <PageShell>
+      <DeskPage>
         <PageHeader title={title} />
         <Empty>{t("checkCashing.signIn")}</Empty>
-      </PageShell>
+      </DeskPage>
     );
   }
 
   return (
-    <PageShell maxWidth="68rem">
+    <DeskPage>
       <PageHeader title={title} subtitle={t("checkCashing.cashSubtitle")} />
       {!canCash && <Alert tone="info">{t("checkCashing.viewOnlyCash")}</Alert>}
-      <fieldset disabled={!canCash || busy} className={`${styles.fieldset} ds-form`}>
+      <fieldset disabled={!canCash || busy} className={`${styles.fieldset} ${styles.deskFill}`}>
         <Card>
           <SectionTitle>{t("checkCashing.theCheck")}</SectionTitle>
-          <div className={styles.fieldGrid}>
+          <div className={styles.checkStrip}>
             <Field label={t("checkCashing.routing")}>
               <Input
                 type="text" inputMode="numeric" maxLength={9}
@@ -224,7 +225,7 @@ export default function CashCheck() {
           </div>
         </Card>
 
-        <div className={styles.cashColumns}>
+        <DeskColumns>
           <CompanyColumn
             companyId={companyId}
             routing={check.routing}
@@ -237,8 +238,7 @@ export default function CashCheck() {
             customerId={customerId}
             onPick={(id) => { setCustomerId(id); setFee(null); }}
           />
-        </div>
-
+          <div className={styles.reviewStack}>
         <Card>
           <SectionTitle>{t("checkCashing.review")}</SectionTitle>
           {!review.data ? (
@@ -258,6 +258,9 @@ export default function CashCheck() {
               })}
             />
           ))}
+          {canCash && ready && needsManager && (
+            <p className={styles.note}>{t("checkCashing.needsManager")}</p>
+          )}
         </Card>
 
         <Card>
@@ -280,6 +283,8 @@ export default function CashCheck() {
             </div>
           </div>
         </Card>
+          </div>
+        </DeskColumns>
       </fieldset>
 
       {error && !confirming && !declining && <Alert tone="error">{error}</Alert>}
@@ -303,9 +308,6 @@ export default function CashCheck() {
             {t("checkCashing.cashIt")}
           </Button>
         </FormActions>
-      )}
-      {canCash && ready && needsManager && (
-        <p className={styles.note}>{t("checkCashing.needsManager")}</p>
       )}
 
       <ConfirmDialog
@@ -352,7 +354,7 @@ export default function CashCheck() {
         </Field>
         {error && <Alert tone="error">{error}</Alert>}
       </Modal>
-    </PageShell>
+    </DeskPage>
   );
 }
 

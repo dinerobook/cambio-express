@@ -3,7 +3,8 @@ and indexes, import no application code, and run up and down twice
 (idempotent both ways).
 
   * d5e8a1c3f7b9 (PR 1): settings, customers, their IDs, companies;
-  * e2a7c4f9b1d3 (PR 2): cashed checks, plus the settings' daily limit.
+  * e2a7c4f9b1d3 (PR 2): cashed checks, the activated computer, plus
+    the settings' daily limit.
 """
 import importlib.util
 from pathlib import Path
@@ -12,7 +13,7 @@ import pytest
 
 from api.Modules.CheckCashing.Models import (
     CashedCheck, CheckCashingSettings, CheckCompany, CheckCustomer,
-    CheckCustomerId,
+    CheckCustomerId, CheckDevice,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -22,7 +23,7 @@ PR2 = VERSIONS / "e2a7c4f9b1d3_add_cashed_checks.py"
 MIGRATIONS = (PR1, PR2)
 MODELS = (
     CheckCashingSettings, CheckCustomer, CheckCustomerId, CheckCompany,
-    CashedCheck,
+    CashedCheck, CheckDevice,
 )
 BEFORE = "c9d4e7a2f1b6"
 
@@ -57,7 +58,8 @@ def test_migrations_match_the_models():
         for model in MODELS for i in model.__table__.indexes
     }
     migration_indexes = {
-        k: (t, list(c)) for m in (pr1, pr2) for k, (t, c) in m.INDEXES.items()
+        k: (t, list(c)) for m in (pr1, pr2)
+        for k, (t, c) in {**m.INDEXES, **getattr(m, "UNIQUE_INDEXES", {})}.items()
     }
     assert migration_indexes == model_indexes
 

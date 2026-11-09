@@ -314,3 +314,26 @@ export function useCompanyLookup(routing: string, account: string) {
     ),
   });
 }
+
+// ── The activated computer ───────────────────────────────────
+
+export type CheckDevice = components["schemas"]["CheckDeviceResponse"];
+
+/** Is this the store's check cashing computer? Every check cashing
+ *  page asks first (DeskPage); the server refuses the rest anyway. */
+export function useCheckDevice() {
+  const identity = getCurrentIdentity();
+  return useQuery<CheckDevice>({
+    enabled: identity?.store_id != null,
+    queryKey: ["check-cashing", "device", identity?.store_id],
+    queryFn: () => api<CheckDevice>(`${BASE}/device`),
+  });
+}
+
+export function activateCheckDevice(name: string): Promise<CheckDevice> {
+  return api<CheckDevice>(`${BASE}/device/activate`, { method: "POST", json: { name } });
+}
+
+export function switchOffCheckDevice(): Promise<CheckDevice> {
+  return api<CheckDevice>(`${BASE}/device/switch-off`, { method: "POST" });
+}

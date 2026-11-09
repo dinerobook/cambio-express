@@ -471,7 +471,7 @@ function AuthedShell() {
                 change, re-triggering the ds-page fade-up animation
                 on the PageShell inside each route. The shell
                 (sidebar + topbar) stays mounted. */}
-            <div key={location.pathname}>
+            <div key={location.pathname} className="app-route">
               <Outlet />
             </div>
           </RouteErrorBoundary>

@@ -425,3 +425,24 @@ class CompanyLookupResponse(BaseModel):
 
     # None when no company with these numbers is on file.
     company: CheckCompanyDetail | None
+
+
+# ── The activated computer ─────────────────────────────────
+
+class CheckDeviceBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # The Admin's name for this computer ("Front counter").
+    name: str = Field(..., min_length=1, max_length=60)
+
+
+class CheckDeviceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # this: the activated computer; other: another one is; none: no
+    # computer is activated for the store yet.
+    state: Literal["this", "other", "none"]
+    name: str
+    activated_at: str
+    activated_by: str
+    last_seen_at: str

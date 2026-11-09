@@ -100,6 +100,22 @@ body {
   overflow-y: auto;
 }
 
+/* Check cashing is a desk program (UI-STANDARDS §8): its pages fill
+ * the window and only boxes inside them scroll (DeskPage). */
+.app-shell--desk .app-content {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* The route wrapper (App.tsx) passes the full height down to the
+ * DeskPage, so the desk boxes grow to the bottom of the window. */
+.app-shell--desk .app-route {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Hamburger + backdrop are desktop-hidden by default. */
 .app-hamburger {
   display: none;

@@ -17,14 +17,16 @@ Mounts at ``/api/v2/check-cashing/*``:
   PUT  /companies/{id}                     edit it
 
 Every route needs the store's opt-in ``check_desk`` flag (403 when
-off) and a ``check_cashing`` right. Blocking or trusting someone and
+off), a ``check_cashing`` right and the store's activated computer
+(``require_check_device``; the activation routes live in
+``Controllers/device.py``). Blocking or trusting someone and
 giving them their own fee need the single switch
 ``check_cashing_manage.update`` (Admin by default), as do the
 settings. Every change writes an operator-audit row.
 """
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
 
 from api.Core.Audit import audit_operator
@@ -79,9 +81,48 @@ from api.Modules.CheckCashing.Services import (
     update_customer,
     update_customer_id,
 )
+from api.Modules.CheckCashing.Services.device import (
+    cookie_name, device_state, touch,
+)
 from api.Modules.Tenancy.Models import Store
 
-router = APIRouter(prefix="/check-cashing", tags=["check-cashing"])
+
+def require_check_device(
+    request: Request,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> None:
+    """Check cashing answers only on the store's activated computer
+    (owner, 2026-11-09). The platform superadmin is exempt (support);
+    a store that has the module off gets the module's own 403."""
+    if claims.get("role") == "superadmin":
+        return
+    try:
+        sid = resolve_store_scope(claims)
+    except HTTPException:
+        return
+    if not module_enabled(db, sid):
+        return
+    found = device_state(db, sid, request.cookies.get(cookie_name(sid)))
+    if found.state == "this" and found.device is not None:
+        if touch(db, found.device):
+            db.commit()
+        return
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            f"Check cashing is locked to {found.device.name}. "
+            "An Admin can move it to this computer."
+            if found.device is not None
+            else "This computer is not activated for check cashing."
+        ),
+    )
+
+
+router = APIRouter(
+    prefix="/check-cashing", tags=["check-cashing"],
+    dependencies=[Depends(require_check_device)],
+)
 
 RESOURCE = "check_cashing"
 MANAGE = "check_cashing_manage"

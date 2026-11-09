@@ -1,12 +1,13 @@
 """add cashed checks
 
 Check cashing module, PR 2 ("Cash a check"): one row per check brought
-to the counter (cashed, not accepted, or voided later), plus an
-optional per-customer daily limit on the store's settings. The module
+to the counter (cashed, not accepted, or voided later), an optional
+per-customer daily limit on the store's settings, and the one computer
+each store activates for check cashing. The module
 is standalone and behind the opt-in ``check_desk`` flag, so nothing
 existing reads these.
 
-Additive only: one new table and one new nullable column. Columns are
+Additive only: two new tables and one new nullable column. Columns are
 spelled out here (a migration never imports application code);
 ``tests/Modules/CheckCashing/test_check_cashing_migration.py`` asserts
 they match the models. Idempotent both ways.
@@ -44,6 +45,10 @@ TABLES: dict[str, tuple[str, ...]] = {
         "created_by", "created_at", "voided_by", "voided_at",
         "void_reason",
     ),
+    "msb_check_device": (
+        "id", "store_id", "name", "token_hash", "created_by", "created_at",
+        "last_seen_at", "revoked_at", "revoked_by",
+    ),
 }
 
 INDEXES: dict[str, tuple[str, list[str]]] = {
@@ -51,6 +56,12 @@ INDEXES: dict[str, tuple[str, list[str]]] = {
     "ix_msb_cashed_check_store_day": ("msb_cashed_check", ["store_day"]),
     "ix_msb_cashed_check_customer_id": ("msb_cashed_check", ["customer_id"]),
     "ix_msb_cashed_check_company_id": ("msb_cashed_check", ["company_id"]),
+    "ix_msb_check_device_store_id": ("msb_check_device", ["store_id"]),
+}
+
+# Unique indexes (created with unique=True).
+UNIQUE_INDEXES: dict[str, tuple[str, list[str]]] = {
+    "ix_msb_check_device_token_hash": ("msb_check_device", ["token_hash"]),
 }
 
 
@@ -114,15 +125,42 @@ def upgrade() -> None:
                       server_default=""),
         )
         for name, (table, cols) in INDEXES.items():
-            op.create_index(name, table, cols)
+            if table == "msb_cashed_check":
+                op.create_index(name, table, cols)
+    if "msb_check_device" not in tables:
+        op.create_table(
+            "msb_check_device",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("store_id", sa.Integer(), sa.ForeignKey("tenancy_store.id"),
+                      nullable=False),
+            sa.Column("name", sa.String(length=60), nullable=False,
+                      server_default=""),
+            sa.Column("token_hash", sa.String(length=64), nullable=False),
+            _user_fk("created_by"),
+            sa.Column("created_at", sa.DateTime(), nullable=True),
+            sa.Column("last_seen_at", sa.DateTime(), nullable=True),
+            sa.Column("revoked_at", sa.DateTime(), nullable=True),
+            _user_fk("revoked_by"),
+        )
+        for name, (table, cols) in INDEXES.items():
+            if table == "msb_check_device":
+                op.create_index(name, table, cols)
+        for name, (table, cols) in UNIQUE_INDEXES.items():
+            op.create_index(name, table, cols, unique=True)
 
 
 def downgrade() -> None:
     insp = _inspector()
     tables = set(insp.get_table_names())
+    if "msb_check_device" in tables:
+        for name, (table, _cols) in {**INDEXES, **UNIQUE_INDEXES}.items():
+            if table == "msb_check_device":
+                op.drop_index(name, table_name="msb_check_device")
+        op.drop_table("msb_check_device")
     if "msb_cashed_check" in tables:
-        for name in INDEXES:
-            op.drop_index(name, table_name="msb_cashed_check")
+        for name, (table, _cols) in INDEXES.items():
+            if table == "msb_cashed_check":
+                op.drop_index(name, table_name="msb_cashed_check")
         op.drop_table("msb_cashed_check")
     if "msb_check_settings" in tables:
         cols = {c["name"] for c in insp.get_columns("msb_check_settings")}

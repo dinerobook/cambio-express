@@ -547,6 +547,25 @@ This is enforced by the kit, not by per-page checks:
   only the app's rights always lands in it and never sees the switch.
   Each person's last view is remembered on the device and the first
   page after sign-in opens there.
+- **Check cashing is a desk program** (owner, 2026-11-09: "the full
+  screen must be used at all times and no page scrolling … so it
+  feels like a software"). Every check cashing page is a `DeskPage`
+  (`components/DeskPage.tsx`), never `PageShell`: it fills the window
+  and the window never scrolls (`.app-shell--desk .app-content` is
+  `overflow: hidden`). Fixed parts (trail, header, the action bar)
+  stay put; only boxes scroll inside themselves — `DeskPane` for one
+  box that takes the room left, `DeskColumns` for side-by-side boxes,
+  `DeskForm` for a form whose fields scroll above a fixed
+  `FormActions` bar (it keeps the help bubble's corner free).
+  Desktop only: under 1024 px wide
+  (`useDeskScreen`) the frame shows "works on a desktop computer"
+  instead of the page. It also works only on the store's one
+  activated computer (CheckCashing INVARIANTS "One computer"); on any
+  other browser the frame shows a lock screen where an Admin can
+  activate this computer or move check cashing here (confirm popup),
+  and a cashier is told to ask an Admin. `DeskPage.test.tsx` fails
+  when a check cashing route skips the frame or the CSS loses the
+  no-scroll rules.
 - **In-page actions that are not links** declare what they need:
   `<Button perm="lottery.update">` and `RowActions` items with
   `perm: "users.update"` drop themselves. The value mirrors the

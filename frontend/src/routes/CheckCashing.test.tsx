@@ -25,6 +25,8 @@ import { TEST_ADMIN } from "../test/setup";
 // Every page is checked in Spanish too.
 
 const api = vi.hoisted(() => ({
+  useCheckDevice: vi.fn(),
+  switchOffCheckDevice: vi.fn(),
   useCheckSettings: vi.fn(),
   saveCheckSettings: vi.fn(),
   useCheckCustomers: vi.fn(),
@@ -112,6 +114,10 @@ const activity = {
 
 beforeEach(() => {
   for (const fn of Object.values(api)) fn.mockReset();
+  api.useCheckDevice.mockReturnValue(ok({
+    state: "this", name: "Front counter", activated_at: "2026-11-09T10:00:00Z",
+    activated_by: "Admin", last_seen_at: "2026-11-09T10:00:00Z",
+  }));
   signIn(MANAGER);
   api.useCheckSettings.mockReturnValue(ok(settings));
   api.useCheckCustomer.mockReturnValue(ok(undefined));

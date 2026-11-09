@@ -11,10 +11,11 @@ import {
   IdFields, PartyRulesFields, PartyStatusPill, type PartyRules,
 } from "../components/CheckCashingFields";
 import { CheckActivity } from "../components/CheckActivity";
+import { DeskColumns, DeskForm, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
   Alert, Button, Card, ConfirmDialog, DateInput, ErrorState, Field, FormActions,
-  Input, Loading, Modal, ModalActions, PageHeader, PageShell, Pill, SectionTitle,
+  Input, Loading, Modal, ModalActions, PageHeader, Pill, SectionTitle,
   Textarea, useToast,
 } from "../components/ui";
 import { useT } from "../i18n";
@@ -142,15 +143,15 @@ export default function CheckCustomerForm() {
 
   if (identity?.store_id == null) {
     return (
-      <PageShell maxWidth="62rem">
+      <DeskPage>
         <PageHeader title={title} />
         <p>{t("checkCashing.signIn")}</p>
-      </PageShell>
+      </DeskPage>
     );
   }
   if (isEdit && detail.isError && !detail.data) {
     return (
-      <PageShell maxWidth="62rem">
+      <DeskPage>
         <PageCrumbs current={t("checkCashing.customerTitle")} />
         <PageHeader title={t("checkCashing.customerTitle")} />
         <ErrorState
@@ -158,11 +159,11 @@ export default function CheckCustomerForm() {
           onRetry={() => void detail.refetch()}
           busy={detail.isFetching}
         />
-      </PageShell>
+      </DeskPage>
     );
   }
   if (isEdit && !detail.data) {
-    return <PageShell maxWidth="62rem"><Loading /></PageShell>;
+    return <DeskPage><Loading /></DeskPage>;
   }
 
   const customer = detail.data?.customer;
@@ -170,7 +171,7 @@ export default function CheckCustomerForm() {
     || (!isEdit && ids.some((i) => !i.id_number.trim()));
 
   return (
-    <PageShell maxWidth="62rem">
+    <DeskPage>
       <PageCrumbs current={isEdit ? title : t("checkCashing.newCustomer")} />
       <PageHeader
         title={title}
@@ -186,19 +187,10 @@ export default function CheckCustomerForm() {
         ) : t("checkCashing.newCustomerSubtitle")}
       />
 
-      {customer && (
-        <CustomerIds customer={customer} canEdit={hasPermission("check_cashing", "update")} />
-      )}
-
-      {customer && (
-        <Card>
-          <SectionTitle>{t("checkCashing.checksTitle")}</SectionTitle>
-          <CheckActivity kind="customers" id={customer.id} other="company" />
-        </Card>
-      )}
-
-      <form onSubmit={onSubmit} className="ds-form">
-        <fieldset disabled={!canEdit} className={styles.fieldset}>
+      <DeskColumns>
+      <DeskForm onSubmit={onSubmit}>
+        <DeskPane>
+        <fieldset disabled={!canEdit} className={`${styles.fieldset} ds-form`}>
           <Card>
             <SectionTitle>{t("checkCashing.profile")}</SectionTitle>
             <div className={styles.fieldGrid}>
@@ -298,6 +290,7 @@ export default function CheckCustomerForm() {
             )}
           </Card>
         </fieldset>
+        </DeskPane>
 
         {error && <Alert tone="error">{error}</Alert>}
 
@@ -311,8 +304,18 @@ export default function CheckCustomerForm() {
             </Button>
           </FormActions>
         )}
-      </form>
-    </PageShell>
+      </DeskForm>
+      {customer && (
+        <div className="ds-form">
+          <CustomerIds customer={customer} canEdit={hasPermission("check_cashing", "update")} />
+          <Card>
+            <SectionTitle>{t("checkCashing.checksTitle")}</SectionTitle>
+            <CheckActivity kind="customers" id={customer.id} other="company" />
+          </Card>
+        </div>
+      )}
+      </DeskColumns>
+    </DeskPage>
   );
 }
 

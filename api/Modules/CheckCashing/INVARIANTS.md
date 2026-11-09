@@ -100,6 +100,36 @@ One `msb_cashed_check` row per check brought to the counter, status
   umbrella has more than one; the latest 15 checks of every status. A
   cross-DineroBook network count needs the owner's go-ahead first.
 
+## One computer
+
+Check cashing works on ONE activated computer per store (owner,
+2026-11-09: "if anyone can login anywhere then check cashing will be
+misused"). A password alone never opens it.
+
+- **The key** is a random token in an httpOnly, `SameSite=Strict`
+  cookie `db_check_device_<store_id>`, path `/api/v2/check-cashing`
+  (5 years; `Secure` in production). Only its sha256 is stored, in
+  `msb_check_device` (`Services/device.py` is the only writer). One
+  cookie per store, so one computer can serve several owner stores,
+  each activated on its own.
+- **The gate** is `require_check_device` on every check cashing router
+  except the device routes: without the store's live key, 403 "This
+  computer is not activated for check cashing." or "Check cashing is
+  locked to <name>. An Admin can move it to this computer." It runs
+  after the module switch (module off keeps its own 403) and refreshes
+  `last_seen_at` every 10 minutes. The superadmin is exempt (support).
+  The back office never checks the key.
+- **Device routes**: `GET /device` (any check cashing right: is this
+  the computer?), `POST /device/activate` and
+  `POST /device/switch-off` (`check_cashing_manage.update` only).
+  Activating revokes the old computer at once (its key opens nothing
+  any more); the SPA asks in a popup before moving. Switching off
+  with nothing active is 409.
+- **Desktop only**: activation refuses a phone or tablet browser (409,
+  by User-Agent); the SPA refuses windows under 1024 px. The cookie is
+  the lock; the screen size check is convenience.
+- Revoked rows are kept (history); devices purge with the store.
+
 ## Audit
 
 Every change writes an operator-audit row: `create_check_customer`,
@@ -109,6 +139,7 @@ Every change writes an operator-audit row: `create_check_customer`,
 `create_check_company`, `update_check_company`, `block_check_company`,
 `trust_check_company`, `unblock_check_company`,
 `update_check_cashing_settings`, `cash_check`, `decline_check`,
-`void_check`. ID numbers in summaries are masked.
+`void_check`, `activate_check_device` (summary names the computer it
+replaces), `switch_off_check_device`. ID numbers in summaries are masked.
 
 Tests: `tests/Modules/CheckCashing/`.

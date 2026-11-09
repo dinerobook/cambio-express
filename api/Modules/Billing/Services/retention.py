@@ -50,7 +50,7 @@ STORE_OWNED_MODELS: list[str] = [
     "Transfer", "ACHBatch", "DailyReport", "DailyDrop", "CheckDeposit",
     "DailyLineItem", "MoneyTransferSummary", "MoneyServiceSummary",
     "ReturnCheck",
-    "CashedCheck", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
+    "CashedCheck", "CheckDevice", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
     "MonthlyFinancial", "MonthlyLineLabel", "BankRule", "BankTransaction",
     "StripeBankAccount", "StoreOwnerLink",
     # Lottery: counts FK packs FK games — purge in that order.
@@ -128,7 +128,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
     from api.Modules.ReturnChecks.Models import ReturnCheck
     from api.Modules.CheckCashing.Models import (
         CashedCheck, CheckCashingSettings, CheckCompany, CheckCustomer,
-        CheckCustomerId,
+        CheckCustomerId, CheckDevice,
     )
     from api.Modules.Tenancy.Models import (
         StoreEmployee, StoreOwnerLink, StoreRole, StoreRolePermission,
@@ -180,6 +180,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
         # customers — children first. Shared customers/companies were
         # moved to another store first (``rehome_shared_parties``).
         (CashedCheck, "store_id"),
+        (CheckDevice, "store_id"),
         (CheckCustomerId, "store_id"),
         (CheckCustomer, "store_id"),
         (CheckCompany, "store_id"),
