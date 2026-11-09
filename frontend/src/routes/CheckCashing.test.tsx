@@ -108,38 +108,41 @@ beforeEach(() => {
   }));
 });
 
-describe("sidebar and route rights", () => {
-  const labels = (role: string, perms: string[], flags: string[]) =>
-    filterNavForRole(role, perms, flags)
-      .find((g) => g.title === "Check cashing")?.items.map((i) => i.label) ?? [];
+describe("check cashing sidebar and route rights", () => {
+  const checkNav = (role: string, perms: string[], flags: string[]) =>
+    filterNavForRole(role, perms, flags, "checks").map((g) => g.title);
+  const backOffice = (role: string, perms: string[], flags: string[]) =>
+    filterNavForRole(role, perms, flags).flatMap((g) => [g.title, ...g.items.map((i) => i.label)]);
 
-  it("shows the group only when the store's check_desk switch is on", () => {
-    expect(labels("admin", MANAGER, [])).toEqual([]);
-    expect(labels("admin", MANAGER, ["check_desk"]))
-      .toEqual(["Check customers", "Check companies", "Check cashing settings"]);
+  it("has its own sidebar, only where the store's check_desk switch is on", () => {
+    expect(checkNav("admin", MANAGER, [])).toEqual([]);
+    expect(checkNav("admin", MANAGER, ["check_desk"]))
+      .toEqual(["Home", "Customers", "Companies", "Settings"]);
   });
 
-  it("gives a cashier the lists but not the settings", () => {
-    expect(labels("employee", CASHIER, ["check_desk"]))
-      .toEqual(["Check customers", "Check companies"]);
-    expect(labels("employee", [], ["check_desk"])).toEqual([]);
+  it("gives a cashier everything but the settings", () => {
+    expect(checkNav("employee", CASHIER, ["check_desk"]))
+      .toEqual(["Home", "Customers", "Companies"]);
+    expect(checkNav("employee", [], ["check_desk"])).toEqual([]);
   });
 
-  it("keeps the old Returned checks item on its own flag", () => {
-    const money = filterNavForRole("admin", ["return_checks.read"], ["module_check_cashing"])
-      .flatMap((g) => g.items.map((i) => i.label));
-    expect(money).toContain("Returned checks");
-    expect(money).not.toContain("Check customers");
+  it("leaves the back office sidebar without check cashing", () => {
+    const words = backOffice("admin", [...MANAGER, "return_checks.read"],
+      ["check_desk", "module_check_cashing"]);
+    expect(words).not.toContain("Check cashing");
+    expect(words).toContain("Returned checks");
   });
 
   it("guards each route by its right", () => {
     signIn(CASHIER);
+    expect(canAccess("/check-cashing")).toBe(true);
     expect(canAccess("/check-cashing/customers")).toBe(true);
     expect(canAccess("/check-cashing/companies/new")).toBe(true);
     expect(canAccess("/check-cashing/settings")).toBe(false);
     signIn(MANAGER);
     expect(canAccess("/check-cashing/settings")).toBe(true);
     signIn([]);
+    expect(canAccess("/check-cashing")).toBe(false);
     expect(canAccess("/check-cashing/customers")).toBe(false);
   });
 });

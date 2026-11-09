@@ -88,6 +88,8 @@ is in the file named after the arrow.
 2. **Sidebar** is ONE table, `NAV` in
    `frontend/src/components/navConfig.tsx`; a new page joins exactly
    one group and gets its access row in `frontend/src/lib/access.ts`.
+   A separate app (check cashing) has its own table (`CHECK_NAV`)
+   behind the top-bar "Back office | Check cashing" switch.
    → `frontend/CLAUDE.md`
 3. **Trial state machine** — `Store.plan ∈ {trial, basic, pro,
    inactive}`; routes reachable after expiry are listed in

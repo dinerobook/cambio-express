@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logout } from "./auth";
 import { clearVisits } from "./recency";
 import { withoutUnsavedPrompt } from "./useUnsavedGuard";
+import { resetFirstLanding } from "./workspace";
 
 /** The one way to sign out from inside the app.
  *
@@ -17,6 +18,8 @@ import { withoutUnsavedPrompt } from "./useUnsavedGuard";
  *    customers, the books); the next person on a shared counter
  *    browser must not see it while their own pages load.
  *  - "Most Used" tiles are the previous cashier's habits.
+ *  - The next person to sign in on this tab opens in their own last
+ *    view (back office or check cashing), not this person's.
  *
  *  It always lands on /login, even when the server can't be
  *  reached: a sign-out that strands the person in the app is worse
@@ -29,6 +32,7 @@ export function useSignOut(): () => Promise<void> {
   return useCallback(async () => {
     try {
       clearVisits();
+      resetFirstLanding();
       await logout();
     } catch {
       /* the local half is done; never strand the person here */

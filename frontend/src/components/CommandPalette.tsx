@@ -4,7 +4,8 @@ import { Command } from "cmdk";
 
 import { useSessionStatus } from "../api/account";
 import { getCurrentIdentity } from "../lib/auth";
-import { filterNavForRole } from "./navConfig";
+import { CHECK_HOME, filterNavForRole } from "./navConfig";
+import { checksAvailable } from "../lib/workspace";
 import styles from "./CommandPalette.module.css";
 import { useT } from "../i18n";
 import { navWord } from "../i18n/navWords";
@@ -24,6 +25,20 @@ function buildItems(
 ): CommandItem[] {
   const groups = filterNavForRole(role, permissions, features);
   const items: CommandItem[] = [];
+  // Check cashing is its own app (navConfig "Workspaces"); its pages
+  // are searchable from either view, grouped under the app's name.
+  if (checksAvailable(role, permissions, features)) {
+    const app = navWord("Check cashing");
+    for (const g of filterNavForRole(role, permissions, features, "checks")) {
+      if (!g.to) continue;
+      items.push({
+        label: g.to === CHECK_HOME ? app : `${app}: ${navWord(g.title)}`,
+        to: g.to,
+        group: app,
+        keywords: `check cashing ${app} ${g.title} ${navWord(g.title)}`.toLowerCase(),
+      });
+    }
+  }
   for (const g of groups) {
     // Direct-link group (e.g. Reports): the group itself is the
     // destination, so add it as its own command entry.

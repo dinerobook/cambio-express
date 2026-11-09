@@ -11,7 +11,15 @@ SPA files that count as CheckCashing files:
 `frontend/src/routes/CheckCustomerForm.tsx`,
 `frontend/src/routes/CheckCompanies.tsx`,
 `frontend/src/routes/CheckCompanyForm.tsx`,
-`frontend/src/routes/CheckCashingSettings.tsx`.
+`frontend/src/routes/CheckCashingSettings.tsx`,
+`frontend/src/routes/CheckCashingHome.tsx`,
+`frontend/src/components/CheckCashingFields.tsx`.
+
+- **Its own app (owner, 2026-11-09).** Check cashing is a separate
+  view of DineroBook, not a back office sidebar group: the top-bar
+  "Back office | Check cashing" switch swaps the whole sidebar to
+  `CHECK_NAV` (frontend/CLAUDE.md "Sidebar"). New check cashing pages
+  live under `/check-cashing` and join `CHECK_NAV`, never `NAV`.
 
 - **Standalone (owner, 2026-11-07).** This module must not read or
   write the daily book, the monthly P&L, Returned checks or the

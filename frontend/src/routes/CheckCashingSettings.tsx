@@ -16,7 +16,7 @@ import { apiErrorMessage } from "../lib/api";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./CheckCashing.module.css";
 
-// Check cashing → Check cashing settings (/app/check-cashing/settings).
+// Check cashing app → Settings (/app/check-cashing/settings).
 // The store's default fee, the optional base charge for small checks,
 // and what an expired ID does. "Manage check cashing" only.
 
@@ -61,7 +61,7 @@ export default function CheckCashingSettings() {
   const guard = useUnsavedGuard(form != null && JSON.stringify(form) !== baseline && !busy, {
     message: t("checkCashing.unsavedSettings"),
   });
-  const title = navWord("Check cashing settings");
+  const title = navWord("Settings");
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { en } from "../i18n/en";
-import { NAV } from "../components/navConfig";
+import { CHECK_NAV, NAV } from "../components/navConfig";
 import { RESOURCE_LABELS } from "../components/PermissionMatrixTable";
 import matrixCss from "../components/PermissionMatrixTable.module.css?raw";
 import shellCss from "../styles.css?raw";
@@ -51,7 +51,7 @@ const routeFiles = Object.entries(sources).filter(([p]) =>
 
 describe("sentence case", () => {
   it("names every sidebar section and item in sentence case", () => {
-    const bad = NAV.flatMap((g) => [g.title, ...g.items.map((i) => i.label)])
+    const bad = [...NAV, ...CHECK_NAV].flatMap((g) => [g.title, ...g.items.map((i) => i.label)])
       .filter((l) => titleCased(l).length);
     expect(bad).toEqual([]);
   });
@@ -146,6 +146,7 @@ describe("page trail", () => {
     // and sign-in pages have no sidebar.
     const exempt = [
       "/Dashboard.tsx", "/SectionHub.tsx", "/ReportCenter.tsx",
+      "/CheckCashingHome.tsx",
       "/Subscribe.tsx", "/SubscribeSuccess.tsx",
     ];
     const missing = routeFiles

@@ -4,15 +4,17 @@ import { describe, expect, it } from "vitest";
 
 import { setLanguage } from "./index";
 import { NAV_WORDS_ES, navWord } from "./navWords";
-import { NAV, SUPPORT_LINK } from "../components/navConfig";
+import { CHECK_NAV, NAV, SUPPORT_LINK } from "../components/navConfig";
 import { SlimSidebar } from "../components/SlimSidebar";
 
 // The sidebar's words (UI-STANDARDS §10): NAV stays English and the
 // sidebar shows each title and label through navWord().
 
 function navWords(): string[] {
-  const words = new Set<string>([SUPPORT_LINK.label]);
-  for (const g of NAV) {
+  // "Check cashing" names the check cashing app (the top-bar switch,
+  // its trail and its home page title).
+  const words = new Set<string>([SUPPORT_LINK.label, "Check cashing"]);
+  for (const g of [...NAV, ...CHECK_NAV]) {
     words.add(g.title);
     for (const i of g.items) words.add(i.label);
   }

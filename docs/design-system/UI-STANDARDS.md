@@ -528,10 +528,21 @@ This is enforced by the kit, not by per-page checks:
 - **Sidebar and section hubs** derive visibility from the same table
   (`filterNavForRole`). Nav items carry `roles` and `flag` only —
   never a duplicated `perm`.
-- **A module still being built** gets its own sidebar group behind an
-  opt-in store switch (`OPT_IN_NAV_FLAG_KEYS`, e.g. check cashing's
-  `check_desk`): no store sees it until a superadmin turns it on, and
-  no other page links to it until it is finished.
+- **A module still being built** sits behind an opt-in store switch
+  (`OPT_IN_NAV_FLAG_KEYS`, e.g. check cashing's `check_desk`): no
+  store sees it until a superadmin turns it on, and no other page
+  links to it until it is finished.
+- **A separate app inside DineroBook** (check cashing: a product a
+  store buys on its own, like the competitors sell it) is a *view*,
+  not a sidebar group. A "Back office | Check cashing" switch in the
+  top bar (at the top of the drawer on a phone) swaps the whole
+  sidebar for the app's own (`CHECK_NAV`) and opens its home page.
+  The URL decides the view; personal pages (profile, sessions,
+  support) keep the last one. The switch shows only where the store
+  has the app AND the person has back office rights too; someone with
+  only the app's rights always lands in it and never sees the switch.
+  Each person's last view is remembered on the device and the first
+  page after sign-in opens there.
 - **In-page actions that are not links** declare what they need:
   `<Button perm="lottery.update">` and `RowActions` items with
   `perm: "users.update"` drop themselves. The value mirrors the

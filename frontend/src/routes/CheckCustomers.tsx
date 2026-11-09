@@ -18,7 +18,7 @@ import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { STATUS_TABS } from "./checkCashingTabs";
 import styles from "./CheckCashing.module.css";
 
-// Check cashing → Check customers (/app/check-cashing/customers).
+// Check cashing app → Customers (/app/check-cashing/customers).
 // Everyone who cashes checks here or at a store sharing this store's
 // owner. Live search by name, phone or ID number.
 
@@ -76,7 +76,7 @@ export default function CheckCustomers() {
   const { data, isLoading, isError, error, refetch } = useCheckCustomers({
     ...listQuery, page: filters.page, perPage: filters.perPage,
   });
-  const title = navWord("Check customers");
+  const title = navWord("Customers");
 
   if (identity?.store_id == null) {
     return (

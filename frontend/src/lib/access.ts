@@ -91,7 +91,8 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/return-checks/new", perm: "return_checks.create" },
   { path: "/return-checks/:id/edit", perm: "return_checks.update" },
 
-  // ── Check cashing (new module, behind the store's check_desk) ─
+  // ── Check cashing (its own app; navConfig "Workspaces") ────
+  { path: "/check-cashing", perm: "check_cashing.read" },
   { path: "/check-cashing/customers", perm: "check_cashing.read" },
   { path: "/check-cashing/customers/new", perm: "check_cashing.create" },
   { path: "/check-cashing/customers/:id", perm: "check_cashing.read" },

@@ -1,11 +1,10 @@
 import { Navigate, useParams } from "react-router-dom";
 
-import { AppLink, PageHeader, PageShell } from "../components/ui";
-import { Card } from "../components/ui";
+import { PageHeader, PageShell } from "../components/ui";
+import { NavTileGrid } from "../components/NavTileGrid";
 import { filterNavForRole, sectionSlug } from "../components/navConfig";
 import { useSessionStatus } from "../api/account";
 import { getCurrentIdentity } from "../lib/auth";
-import styles from "./SectionHub.module.css";
 
 // Polished "pick where to go" landing for a nav section.  Renders
 // the section's items as a tile grid — the same destinations the
@@ -46,25 +45,11 @@ export default function SectionHub() {
         title={group.title}
         subtitle="Choose where to go in this section."
       />
-      <div className={styles.grid}>
-        {group.items.map((item) => (
-          <AppLink key={item.to} to={item.to} className={styles.tileLink}>
-            <Card interactive>
-              <div className={styles.tile}>
-                <span className={styles.iconWrap} aria-hidden="true">
-                  {item.icon}
-                </span>
-                <span className={styles.tileBody}>
-                  <span className={styles.tileTitle}>{item.label}</span>
-                  {item.desc && (
-                    <span className={styles.tileDesc}>{item.desc}</span>
-                  )}
-                </span>
-              </div>
-            </Card>
-          </AppLink>
-        ))}
-      </div>
+      <NavTileGrid
+        tiles={group.items.map((item) => ({
+          to: item.to, icon: item.icon, label: item.label, desc: item.desc,
+        }))}
+      />
     </PageShell>
   );
 }

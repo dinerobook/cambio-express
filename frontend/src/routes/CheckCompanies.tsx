@@ -18,7 +18,7 @@ import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { STATUS_TABS } from "./checkCashingTabs";
 import styles from "./CheckCashing.module.css";
 
-// Check cashing → Check companies (/app/check-cashing/companies).
+// Check cashing app → Companies (/app/check-cashing/companies).
 // Whoever writes the checks (employers, agencies), found by the
 // routing and account numbers printed on the check.
 
@@ -69,7 +69,7 @@ export default function CheckCompanies() {
   const { data, isLoading, isError, error, refetch } = useCheckCompanies({
     ...listQuery, page: filters.page, perPage: filters.perPage,
   });
-  const title = navWord("Check companies");
+  const title = navWord("Companies");
 
   if (identity?.store_id == null) {
     return (

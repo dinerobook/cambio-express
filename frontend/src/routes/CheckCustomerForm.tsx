@@ -24,7 +24,7 @@ import { hasPermission } from "../lib/permissions";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./CheckCashing.module.css";
 
-// Check cashing → Check customers → New customer / a customer's
+// Check cashing app → Customers → New customer / a customer's
 // profile (/app/check-cashing/customers/new, /:id). A new customer is
 // saved with at least one ID; on the profile, IDs are added, edited
 // and removed one at a time (the last one always stays). Status and an

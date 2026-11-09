@@ -102,7 +102,8 @@ in `_DEFAULT_FEATURE_FLAGS`.
 A module still being built (check cashing, `check_desk`) is the
 exception to fail-open: it reads its flag through `opt_in_flag_enabled`
 (off unless a superadmin turns it on for the store), lists the key in
-`OPT_IN_NAV_FLAG_KEYS` so its sidebar group appears only where it is on,
+`OPT_IN_NAV_FLAG_KEYS` so the SPA shows it only where it is on (check
+cashing as its own app behind the top-bar switch, frontend/CLAUDE.md),
 refuses every route with a 403 while off, and connects to no other
 module until it is finished.
 

@@ -1,8 +1,8 @@
-/* Section-hub tile grid — the polished "pick where to go" landing
- * for a nav section (Daily, HR, Reports, …). Reuses the interactive
- * Card primitive; this module only holds the grid + tile-internal
- * layout. See CLAUDE.md → quick-link-card is the standard for
- * landing grids. */
+/* The "pick where to go" tile grid (NavTileGrid): a nav section's
+ * hub (Daily, HR, Reports, …) and the check cashing home. Reuses the
+ * interactive Card primitive; this module only holds the grid +
+ * tile-internal layout. See CLAUDE.md → quick-link-card is the
+ * standard for landing grids. */
 
 .grid {
   display: grid;

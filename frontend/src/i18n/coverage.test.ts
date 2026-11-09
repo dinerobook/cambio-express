@@ -91,6 +91,8 @@ export const COVERED_FILES = [
   "routes/AdminReferrals.tsx",
   "routes/AdminDataExport.tsx",
   // Check cashing
+  "routes/CheckCashingHome.tsx",
+  "components/WorkspaceSwitch.tsx",
   "routes/CheckCustomers.tsx",
   "routes/CheckCustomerForm.tsx",
   "routes/CheckCompanies.tsx",

@@ -4,7 +4,7 @@ import {
   ROUTE_ACCESS, canAccessWith, findAccess, modulesOffForGrants,
   normalisePath,
 } from "./access";
-import { NAV } from "../components/navConfig";
+import { CHECK_NAV, NAV } from "../components/navConfig";
 // Vite serves the source as a string — no node fs needed in jsdom.
 import appSource from "../App.tsx?raw";
 
@@ -157,7 +157,7 @@ describe("ROUTE_ACCESS covers App.tsx", () => {
 });
 
 describe("NAV targets are all in the table", () => {
-  for (const g of NAV) {
+  for (const g of [...NAV, ...CHECK_NAV]) {
     for (const item of [...g.items, ...(g.to ? [{ to: g.to, label: g.title }] : [])]) {
       it(`${item.label} → ${item.to}`, () => {
         expect(findAccess(item.to)).toBeDefined();

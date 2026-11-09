@@ -126,6 +126,9 @@ export const en = {
   "shell.trialAskAdmin": "{message} Ask your store admin to subscribe.",
   "shell.trialClickToSubscribe": "{message} Click to subscribe.",
   "shell.switchStore": "Switch store",
+  "shell.workspaceSwitch": "Switch between the back office and check cashing",
+  "shell.workspaceBackOffice": "Back office",
+  "shell.workspaceChecks": "Check cashing",
   "shell.enterStore": "Enter a store",
   "shell.referralTitle": "Earn $100 — share your code: {code}",
   "shell.referralLabel": "Referrals: earn $100",
@@ -4278,6 +4281,12 @@ export const en = {
   "checkCashing.expiredBlock": "Block cashing until the ID is updated",
   "checkCashing.saveSettings": "Save settings",
   "checkCashing.settingsSaved": "Settings saved",
+  "checkCashing.homeSubtitle": "Your check customers, the companies that write their checks, and your fee settings.",
+  "checkCashing.cashTitle": "Cash a check",
+  "checkCashing.cashComing": "Scanning and cashing checks with the MagTek Excella comes in the next update. Add your customers and companies now so they are ready.",
+  "checkCashing.tileCustomers": "People who cash checks, with their IDs.",
+  "checkCashing.tileCompanies": "Who writes the checks: routing and account.",
+  "checkCashing.tileSettings": "Default fee, base charge and expired IDs.",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -21,7 +21,7 @@ import { hasPermission } from "../lib/permissions";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./CheckCashing.module.css";
 
-// Check cashing → Check companies → New company / a company's profile
+// Check cashing app → Companies → New company / a company's profile
 // (/app/check-cashing/companies/new, /:id). The routing and account
 // numbers (from the bottom line of the check) identify the company:
 // the server checks the routing number's check digit and refuses a
