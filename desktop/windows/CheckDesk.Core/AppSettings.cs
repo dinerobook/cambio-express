@@ -40,9 +40,12 @@ public sealed class AppSettings
             }
         }
         s ??= new AppSettings();
-        // Only an https address (or a local test server) may be home.
+        // Only an https address (or an http test server on this
+        // computer) may be home. A file: address counts as "loopback"
+        // to Uri, so the scheme is checked first.
         if (!Uri.TryCreate(s.Home, UriKind.Absolute, out var home)
-            || !(home.Scheme == Uri.UriSchemeHttps || home.IsLoopback))
+            || !(home.Scheme == Uri.UriSchemeHttps
+                 || (home.Scheme == Uri.UriSchemeHttp && home.IsLoopback)))
         {
             s = new AppSettings { DocFeed = s.DocFeed, DemoScanner = s.DemoScanner };
         }
