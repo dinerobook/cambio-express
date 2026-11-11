@@ -282,6 +282,17 @@ behaviour exactly.
   (not a matchable tag). `?books=review|matched|dismissed` filters
   the list with the same rules in SQL (`books_clause`), and the list
   carries `books_counts`.
+- **To reconcile / Reconciled** (owner, 2026-11-11). The Bank page
+  opens on rows that still need a person and moves the rest to a
+  Reconciled tab: `?tab=to_reconcile|reconciled` ("" = every row),
+  with `to_reconcile_count` / `reconciled_count` worked out inside
+  the same filters (the tab cleared). ONE rule decides,
+  `to_reconcile_clauses`: switch on = the `review` status above;
+  switch off = no category yet. Void and dismissed rows are never to
+  do. `reconciled` is defined as NOT that rule, so the two tabs split
+  the list with no row in both or neither. The bell's bank item
+  counts with the same function — never a second copy. Nothing is
+  stored: untagging, unmatching or restoring a row moves it back.
 - **Dismiss** (`POST /transactions/dismiss`, `ids` XOR `before`) is
   the clean-up for old rows already handled by hand: a dismissed row
   is never matched, booked, tagged or touched by rules
@@ -345,6 +356,8 @@ cd frontend && npx vitest run src/lib/bankRules.test.ts src/lib/bankRuleSuggest.
   src/routes/BankMatching.test.tsx src/routes/EditDailyBook.inBank.test.tsx
 ```
 
+`test_reconcile_tabs.py` covers the To reconcile / Reconciled tabs
+(both switch states, undo, counts, scope, access, the bell agreeing).
 `test_matching.py` covers matching: the switch, every tier and
 window, direction, sums, check numbers, the daily-book hooks,
 review / reject / unmatch, locked days, doubles, dismiss, the

@@ -65,6 +65,9 @@ export interface BankTransactionListResponse {
   total_pages: number;
   page_total_cents: number;
   uncategorized_count: number;
+  /** Rows in each tab of the page inside the same filters. */
+  to_reconcile_count?: number;
+  reconciled_count?: number;
   /** The store's bank-matching switch and its store-wide counts. */
   matching_enabled?: boolean;
   books_counts?: BooksCounts | null;
@@ -80,6 +83,8 @@ export interface BankTransactionFilters {
   uncategorized_only?: boolean;
   /** Daily-book status: review | matched | dismissed. */
   books?: "" | "review" | "matched" | "dismissed";
+  /** The page's tab: still needs a person / the rest; "" = every row. */
+  tab?: "" | "to_reconcile" | "reconciled";
   /** posted | description | category | amount; default newest first. */
   sort?: string;
   dir?: "asc" | "desc";
@@ -125,6 +130,7 @@ export function fetchBankTransactions(
   if (filters.q)                  p.set("q",             filters.q);
   if (filters.uncategorized_only) p.set("uncategorized_only", "true");
   if (filters.books)              p.set("books",    filters.books);
+  if (filters.tab)                p.set("tab",      filters.tab);
   if (filters.sort)               p.set("sort",     filters.sort);
   if (filters.dir)                p.set("dir",      filters.dir);
   if (filters.page)               p.set("page",     String(filters.page));

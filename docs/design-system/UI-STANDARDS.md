@@ -203,6 +203,13 @@ on both sides (BankSync `INVARIANTS.md` → "Matching"):
   to that box asks first in a `ConfirmDialog` ("Already here from
   the bank?", "Add anyway" / "Don't add") — never a silent add, never
   a block.
+- **Bank page tabs**: `To reconcile (N)` (the default, a plain
+  `/bank-transactions` link opens it) · `Reconciled (N)` · `All`,
+  the kit `TabsBar` / `TabsButton` above the table, tab in the URL
+  (`?tab=`). The server decides which rows still need a person with
+  ONE rule, `reconcile.to_reconcile_clauses`, the same one the bell's
+  bank item counts, so the tab count and the bell always agree.
+  Never a second "to review" / "uncategorized only" toggle beside it.
 - "Is this already in the daily book?" is the one review popup
   (`MatchReviewModal`); Unmatch and Dismiss confirm with
   `confirmTone="danger"`; Dismiss buttons carry
@@ -781,6 +788,7 @@ always the same Spanish word):
 | Audit log | Registro de auditoría |
 | Bank transaction | Movimiento bancario |
 | Matched (bank row to daily book) / Dismiss | Conciliado / Descartar |
+| To reconcile / Reconciled (Bank page tabs) | Por conciliar / Conciliados |
 | Bank rule / Template | Regla bancaria / Plantilla |
 | Monthly P&L / P&L categories | P&L mensual / Categorías del P&L |
 | Report / Report center | Reporte / Reportes |

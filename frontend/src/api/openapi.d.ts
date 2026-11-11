@@ -8402,8 +8402,18 @@ export interface components {
             page_total_cents: number;
             /** Per Page */
             per_page: number;
+            /**
+             * Reconciled Count
+             * @default 0
+             */
+            reconciled_count: number;
             /** Rows */
             rows?: components["schemas"]["BankTransactionRow"][];
+            /**
+             * To Reconcile Count
+             * @default 0
+             */
+            to_reconcile_count: number;
             /** Total */
             total: number;
             /** Total Pages */
@@ -22004,6 +22014,8 @@ export interface operations {
                 uncategorized_only?: boolean;
                 /** @description Daily-book status: review (still needs a person), matched or dismissed. */
                 books?: string;
+                /** @description The Bank page's tab: to_reconcile (still needs a person, the bell's rule), reconciled (the rest), empty = every row. */
+                tab?: string;
                 /** @description posted, description, category or amount; empty = newest first. */
                 sort?: string;
                 dir?: string;

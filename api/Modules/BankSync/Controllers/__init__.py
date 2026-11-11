@@ -221,6 +221,13 @@ def list_transactions_route(
         "", pattern="^(|review|matched|dismissed)$",
         description="Daily-book status: review (still needs a person), matched or dismissed.",
     ),
+    tab: str = Query(
+        "", pattern="^(|to_reconcile|reconciled)$",
+        description=(
+            "The Bank page's tab: to_reconcile (still needs a person, "
+            "the bell's rule), reconciled (the rest), empty = every row."
+        ),
+    ),
     sort: str = Query("", description="posted, description, category or amount; empty = newest first."),
     dir: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -235,10 +242,12 @@ def list_transactions_route(
         "account_id": account_id, "category_slug": category_slug,
         "sign": sign, "q": q,
         "uncategorized_only": "1" if uncategorized_only else "",
-        "sort": sort, "dir": dir, "books": books,
+        "sort": sort, "dir": dir, "books": books, "tab": tab,
     })
+    from api.Modules.BankSync.Services.reconcile import to_reconcile_clauses
     page_obj = list_transactions_page(
         db, [sid], filters, page=page, per_page=per_page,
+        todo=to_reconcile_clauses(db, sid),
     )
     labels = _account_labels(
         db, [r.stripe_bank_account_id for r in page_obj.rows],
@@ -264,6 +273,8 @@ def list_transactions_route(
         total_pages=page_obj.total_pages,
         page_total_cents=page_obj.page_total_cents,
         uncategorized_count=page_obj.uncategorized_count,
+        to_reconcile_count=page_obj.to_reconcile_count,
+        reconciled_count=page_obj.reconciled_count,
         matching_enabled=states is not None,
         books_counts=counts,
     )

@@ -60,11 +60,9 @@ function useRefreshBank() {
 /** Store-wide counts, the "To review" filter, Match now, and the
  *  admin's bulk dismiss. */
 export function BooksSummary({
-  counts, reviewOnly, onReviewOnly, ticked, onClearTicked,
+  counts, ticked, onClearTicked,
 }: {
   counts: BooksCounts | null | undefined;
-  reviewOnly: boolean;
-  onReviewOnly: (on: boolean) => void;
   ticked: number[];
   onClearTicked: () => void;
 }) {
@@ -110,13 +108,6 @@ export function BooksSummary({
           && ` · ${t("match.countDismissed", { count: fmtNumber(counts?.dismissed ?? 0) })}`}
       </span>
       <div className={styles.headerActions}>
-        <Button
-          size="sm" tone={reviewOnly ? "primary" : "secondary"}
-          aria-pressed={reviewOnly}
-          onClick={() => onReviewOnly(!reviewOnly)}
-        >
-          {reviewOnly ? t("match.showingToReview") : t("match.toReview")}
-        </Button>
         <Button
           size="sm" tone="secondary" perm="bank_sync.update" busy={busy}
           onClick={async () => {

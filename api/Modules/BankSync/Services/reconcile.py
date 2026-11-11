@@ -38,7 +38,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any, Iterable, Sequence
 
-from sqlalchemy import or_
+from sqlalchemy import and_, not_, or_
 from sqlalchemy.orm import Session
 
 from api.Modules.BankSync.Models import BankDailyMatch, BankTransaction
@@ -675,6 +675,37 @@ def _clauses(kind: str) -> list[Any]:
 def books_clause(books: str) -> list[Any]:
     """The `?books=` filter of the transactions list."""
     return _clauses(books) if books in ("review", "matched", "dismissed") else []
+
+
+def to_reconcile_clauses(db: Session, store_id: int) -> list[Any]:
+    """SQL for "still needs a person" — the one rule behind the Bank
+    page's To reconcile tab and the bell's bank item, so the two
+    never disagree. With bank matching on it is the `review` status
+    (nothing booked or matched yet). Without it, a row with no
+    category. Either way void and dismissed rows are never to do."""
+    if matching_enabled(db, store_id):
+        return _clauses("review")
+    return [
+        BankTransaction.dismissed_at.is_(None),
+        or_(BankTransaction.status.is_(None), BankTransaction.status != "void"),
+        or_(BankTransaction.category_slug.is_(None),
+            BankTransaction.category_slug == ""),
+    ]
+
+
+RECONCILE_TABS = ("to_reconcile", "reconciled")
+
+
+def reconcile_tab_clause(todo: Sequence[Any], tab: str) -> list[Any]:
+    """The `?tab=` filter of the transactions list, from the store's
+    `to_reconcile_clauses`. `reconciled` is exactly the rest, so the
+    two tabs split the list with no row in both and none in neither;
+    "" lists every row."""
+    if tab == "to_reconcile":
+        return list(todo)
+    if tab == "reconciled":
+        return [not_(and_(*todo))]
+    return []
 
 
 def books_counts(db: Session, store_id: int) -> dict[str, int]:
