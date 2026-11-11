@@ -1,0 +1,52 @@
+name: Check Desk (Windows app)
+
+# Builds and tests the DineroBook Check Desk Windows app
+# (desktop/windows) and keeps the ready-to-run .exe as a download on
+# the run's page (Artifacts → DineroBookCheckDesk). Runs only when the
+# app changes; the web app's CI is ci.yml.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "desktop/windows/**"
+      - ".github/workflows/check-desk.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "desktop/windows/**"
+      - ".github/workflows/check-desk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build + test Check Desk
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test
+        run: dotnet test desktop/windows/CheckDesk.Tests/CheckDesk.Tests.csproj -c Release
+
+      - name: Publish one .exe (32-bit, for MagTek's 32-bit library)
+        run: >
+          dotnet publish desktop/windows/CheckDesk/CheckDesk.csproj -c Release
+          -r win-x86 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish
+
+      - name: Keep the .exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: DineroBookCheckDesk
+          path: publish/DineroBookCheckDesk.exe
+          if-no-files-found: error
+          retention-days: 30

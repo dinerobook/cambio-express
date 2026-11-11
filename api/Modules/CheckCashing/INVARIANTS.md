@@ -165,6 +165,42 @@ them on the store PC).
   stores took of a customer being deleted go with them
   (`rehome_pictures`).
 
+## Scanner
+
+The scanner is the default way a check gets in (owner, 2026-11-10/11:
+"open the app, hit Enter, and the machine is ready to take the check").
+It runs through the DineroBook Check Desk Windows app
+(`desktop/windows`): a WebView2 window on this site plus MagTek's
+`MTXMLMCR.dll` for the Excella. The server knows nothing of it; a
+scanned check is saved like a typed one (`micr` holds the line as read
+or typed, the pictures go through `POST /pictures`).
+
+- **Messages** (`frontend/src/lib/scanner.ts` ↔ `ScannerBridge`): the
+  page posts `{"type":"scanner.status"|"scanner.scan","id":n}` or
+  `{"type":"scanner.cancel"}` through `window.chrome.webview`; each
+  request with an id gets one `{"type":"scanner.reply","id":n,"ok":…}`:
+  `status` `ready`/`not_connected`, or `micr`
+  `{raw, routing, account, number, amount_cents}` plus `front`/`back`
+  base64 JPEGs, or `error` `not_connected`/`no_check`/`jam`/`busy`/
+  `failed`. One scan at a time; cancel ends the waiting one with
+  `no_check`.
+- **The window opens only this site**: any other address goes to the
+  normal browser, only this site's pages may send scanner messages, the
+  webcam is allowed for this site alone, and `home` must be https.
+- **Cash a check** (`CheckScanBar`): in the app with a scanner the page
+  opens with "Scan check" focused, and Enter (or Enter with nothing
+  focused) scans; the numbers fill the boxes and the two pictures fill
+  the check slots. Otherwise (a plain browser, or the scanner
+  unplugged) the MICR line box has the focus and Enter fills the boxes
+  through `parseMicrLine` (`frontend/src/lib/micr.ts`: the symbols ⑆ ⑈
+  ⑇ typed as T, U, $; a business check's number in front; a routing
+  number failing its check digit is filled but flagged). After a check
+  is saved or cleared the focus goes back, so the next check is one
+  Enter away. The cashier always sees the numbers and can correct them.
+- The app is built and tested by `.github/workflows/check-desk.yml`;
+  the `.exe` is that run's download. Signing and the Microsoft Store
+  come later.
+
 ## Audit
 
 Every change writes an operator-audit row: `create_check_customer`,

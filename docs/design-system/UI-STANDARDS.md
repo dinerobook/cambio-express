@@ -576,6 +576,14 @@ This is enforced by the kit, not by per-page checks:
   A file becomes base64 through `fileToBase64` (`lib/files.ts`), and
   a picture or download is fetched through `fetchBlob` (`lib/api.ts`,
   same sign-in refresh as `api()`), never a page's own copy.
+- **The scanner is the default on Cash a check** (owner, 2026-11-11:
+  cashiers know "open the program, hit Enter"). `CheckScanBar`
+  (`components/CheckScanBar.tsx`) is the one way numbers get in: in
+  the Check Desk Windows app it opens with "Scan check" focused and
+  Enter scans; without a scanner the MICR line box has the focus and
+  Enter fills the boxes (`lib/micr.ts` `parseMicrLine`, the one MICR
+  parser). After a save or clear the focus returns there. Scanner
+  messages go through `lib/scanner.ts` only.
 - **In-page actions that are not links** declare what they need:
   `<Button perm="lottery.update">` and `RowActions` items with
   `perm: "users.update"` drop themselves. The value mirrors the
