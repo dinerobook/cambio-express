@@ -128,7 +128,12 @@ async function fillCheck(amount = "500") {
 async function pickRegular() {
   await userEvent.click(await screen.findByRole("button", { name: /Ana Ruiz/ }));
   await screen.findByRole("link", { name: "Ana Ruiz" });
-  // The review follows the typing after the 300 ms pause.
+  // The review follows the typing after the 300 ms pause; wait until
+  // it has the customer too, so a field typed next is not re-synced
+  // by a late review mid-typing.
+  await waitFor(() => expect(api.useCheckReview).toHaveBeenLastCalledWith(
+    expect.objectContaining({ customer_id: 7 }), true,
+  ));
   await screen.findByText(/Suggested|Sugerida/);
 }
 

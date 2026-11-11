@@ -5,12 +5,16 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem 0.75rem;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .line {
-  width: 22rem;
-  max-width: 100%;
+  flex: 0 1 22rem;
+  min-width: 12rem;
+}
+
+.mono {
   font-family: var(--db-font-mono);
 }
 

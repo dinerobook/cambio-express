@@ -168,8 +168,9 @@ export function CheckScanBar({
               {t("checkCashing.scannerRetry")}
             </Button>
           )}
+          <span className={styles.line}>
           <Input
-            type="text" maxLength={120} className={styles.line}
+            type="text" maxLength={120} className={styles.mono}
             aria-label={t("checkCashing.micrLine")}
             placeholder={t("checkCashing.micrPlaceholder")}
             title={t("checkCashing.micrHint")}
@@ -180,6 +181,7 @@ export function CheckScanBar({
               if (e.key === "Enter") { e.preventDefault(); fill(); }
             }}
           />
+          </span>
           <Button
             type="button" tone="secondary" size="sm"
             disabled={disabled || !line.trim()} onClick={fill}
