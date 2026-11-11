@@ -42,6 +42,8 @@ const api = vi.hoisted(() => ({
   updateCheckCompany: vi.fn(),
   useCheckActivity: vi.fn(),
   voidCheck: vi.fn(),
+  uploadCheckPicture: vi.fn(),
+  useCheckPictureBlob: vi.fn(),
 }));
 
 vi.mock("../api/checkCashing", async (importOriginal) => ({
@@ -123,6 +125,11 @@ beforeEach(() => {
   api.useCheckCustomer.mockReturnValue(ok(undefined));
   api.useCheckCompany.mockReturnValue(ok(undefined));
   api.useCheckActivity.mockReturnValue(ok(activity));
+  api.useCheckPictureBlob.mockImplementation((id?: number | null) => (
+    ok(id != null ? new Blob(["x"], { type: "image/jpeg" }) : undefined)
+  ));
+  URL.createObjectURL = vi.fn(() => "blob:picture");
+  URL.revokeObjectURL = vi.fn();
   api.useCheckCustomers.mockReturnValue(ok({
     rows: [{
       id: 7, full_name: "Ana Ruiz", phone_country: "+1", phone_number: "3055550142",
@@ -349,9 +356,51 @@ describe("customer profile", () => {
     expect(await screen.findByText("Check voided.")).toBeInTheDocument();
   });
 
+  it("takes the photo and ID pictures, each saved on its own", async () => {
+    api.uploadCheckPicture.mockResolvedValue({
+      id: 90, kind: "photo", width: 600, height: 800, size_bytes: 9,
+    });
+    renderRoute(<CheckCustomerForm />, at);
+    expect(screen.getAllByText("No picture")).toHaveLength(5);  // photo + 2 IDs × 2 sides
+    const pic = () => new File(["pic"], "p.jpg", { type: "image/jpeg" });
+    await userEvent.upload(screen.getByLabelText("Picture file for Customer photo"), pic());
+    await waitFor(() => expect(api.uploadCheckPicture).toHaveBeenCalledWith({
+      kind: "photo", content_base64: btoa("pic"), customer_id: 7,
+    }));
+    await userEvent.upload(
+      screen.getByLabelText("Picture file for Back of Passport"), pic(),
+    );
+    await waitFor(() => expect(api.uploadCheckPicture).toHaveBeenLastCalledWith({
+      kind: "id_back", content_base64: btoa("pic"), customer_id: 7, id_row_id: 12,
+    }));
+  });
+
+  it("shows saved pictures, and a check's pictures from its history", async () => {
+    api.useCheckCustomer.mockReturnValue(ok({ customer: {
+      ...customer, photo_picture_id: 81,
+      ids: [{ ...customer.ids[0], front_picture_id: 82, back_picture_id: 83 }, customer.ids[1]],
+    } }));
+    api.useCheckActivity.mockReturnValue(ok({
+      ...activity,
+      recent: [{ ...cashedRow, front_picture_id: 84, back_picture_id: 85 }],
+    }));
+    renderRoute(<CheckCustomerForm />, at);
+    await userEvent.click(screen.getByRole("button", { name: "Show Customer photo large" }));
+    expect(within(await screen.findByRole("dialog")).getByRole("img", { name: "Customer photo" }))
+      .toHaveAttribute("src", "blob:picture");
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+    await userEvent.click(screen.getByRole("button", { name: "Pictures" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("img", { name: "Front of the check" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("img", { name: "Back of the check" })).toBeInTheDocument();
+    expect(api.useCheckPictureBlob).toHaveBeenCalledWith(85);
+  });
+
   it("is view only without the edit right", () => {
     signIn(["check_cashing.read"]);
     renderRoute(<CheckCustomerForm />, at);
+    expect(screen.queryByRole("button", { name: "Camera" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Picture file for/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Full name")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add ID" })).not.toBeInTheDocument();

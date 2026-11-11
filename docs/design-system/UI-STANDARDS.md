@@ -566,6 +566,16 @@ This is enforced by the kit, not by per-page checks:
   and a cashier is told to ask an Admin. `DeskPage.test.tsx` fails
   when a check cashing route skips the frame or the CSS loses the
   no-scroll rules.
+- **Check cashing pictures** (check front/back, ID front/back, the
+  customer's photo) go through ONE component pair in
+  `components/CheckPictures.tsx`: `PictureSlot` (the saved picture
+  plus Camera and File buttons, shown only to someone who may change
+  it) and `PictureView` (a thumbnail that opens large in a popup).
+  The webcam is the store PC's (`Permissions-Policy: camera=(self)`);
+  the server re-encodes every picture, so the page sends what it has.
+  A file becomes base64 through `fileToBase64` (`lib/files.ts`), and
+  a picture or download is fetched through `fetchBlob` (`lib/api.ts`,
+  same sign-in refresh as `api()`), never a page's own copy.
 - **In-page actions that are not links** declare what they need:
   `<Button perm="lottery.update">` and `RowActions` items with
   `perm: "users.update"` drop themselves. The value mirrors the

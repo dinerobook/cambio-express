@@ -4,13 +4,16 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import {
   addCheckCustomerId, createCheckCustomer, deleteCheckCustomerId, EMPTY_ID, feeLabel,
-  idTypeLabel, updateCheckCustomer, updateCheckCustomerId, useCheckCustomer,
+  idTypeLabel, updateCheckCustomer, updateCheckCustomerId, uploadCheckPicture,
+  useCheckCustomer,
   type CheckCustomerDetail, type CheckCustomerIdBody, type CheckCustomerIdRow,
 } from "../api/checkCashing";
 import {
   IdFields, PartyRulesFields, PartyStatusPill, type PartyRules,
 } from "../components/CheckCashingFields";
 import { CheckActivity } from "../components/CheckActivity";
+import { PictureSlot } from "../components/CheckPictures";
+import pictureStyles from "../components/CheckPictures.module.css";
 import { DeskColumns, DeskForm, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
@@ -29,8 +32,9 @@ import styles from "./CheckCashing.module.css";
 // Check cashing app → Customers → New customer / a customer's
 // profile (/app/check-cashing/customers/new, /:id). A new customer is
 // saved with at least one ID; on the profile, IDs are added, edited
-// and removed one at a time (the last one always stays). Status and an
-// own fee are for people with "Manage check cashing".
+// and removed one at a time (the last one always stays), each with a
+// picture of its front and back, beside the customer's photo. Status
+// and an own fee are for people with "Manage check cashing".
 
 interface Profile {
   full_name: string;
@@ -375,8 +379,19 @@ function CustomerIds({
   return (
     <Card>
       <SectionTitle>{t("checkCashing.ids")}</SectionTitle>
+      <PictureSlot
+        label={t("checkCashing.customerPhoto")} pictureId={customer.photo_picture_id}
+        canChange={canEdit}
+        save={async (b64) => {
+          await uploadCheckPicture({
+            kind: "photo", content_base64: b64, customer_id: customer.id,
+          });
+          await refresh();
+        }}
+      />
       {customer.ids.map((row) => (
-        <div key={row.id} className={styles.idRow}>
+        <div key={row.id} className={styles.idWithPictures}>
+        <div className={styles.idRow}>
           <div className={styles.idText}>
             <span className={styles.statusCell}>
               <strong>{idTypeLabel(row.id_type)}</strong>
@@ -417,6 +432,25 @@ function CustomerIds({
               )}
             </div>
           )}
+        </div>
+        <div className={pictureStyles.row}>
+          {(["id_front", "id_back"] as const).map((kind) => (
+            <PictureSlot
+              key={kind}
+              label={t(kind === "id_front" ? "checkCashing.idFront" : "checkCashing.idBack", {
+                id: idTypeLabel(row.id_type),
+              })}
+              pictureId={kind === "id_front" ? row.front_picture_id : row.back_picture_id}
+              canChange={canEdit}
+              save={async (b64) => {
+                await uploadCheckPicture({
+                  kind, content_base64: b64, customer_id: customer.id, id_row_id: row.id,
+                });
+                await refresh();
+              }}
+            />
+          ))}
+        </div>
         </div>
       ))}
       {canEdit && onlyOne && <p className={styles.note}>{t("checkCashing.lastIdStays")}</p>}

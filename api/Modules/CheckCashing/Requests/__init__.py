@@ -117,6 +117,9 @@ class CheckCustomerIdRow(BaseModel):
     issuer: str
     expires_on: date | None
     expired: bool
+    # Pictures of this ID (picture ids; null = none yet).
+    front_picture_id: int | None = None
+    back_picture_id: int | None = None
 
 
 class _CheckCustomerFields(_FeeFields):
@@ -171,6 +174,8 @@ class CheckCustomerDetail(BaseModel):
     fee_value: float | None
     notes: str
     ids: list[CheckCustomerIdRow]
+    # The customer's photo (picture id; null = none yet).
+    photo_picture_id: int | None = None
     home_store_name: str
     created_at: str
     updated_at: str
@@ -326,6 +331,8 @@ class CashCheckBody(BaseModel):
     decision:     Literal["cash", "decline"] = "cash"
     reason:       str = Field("", max_length=255)
     micr:         str = Field("", max_length=120)
+    # Pictures of this check saved first with POST /pictures.
+    picture_ids:  list[int] = Field(default_factory=list, max_length=2)
 
     @model_validator(mode="after")
     def _decline_reason(self) -> "CashCheckBody":
@@ -358,6 +365,8 @@ class CashedCheckRow(BaseModel):
     approved: bool
     # A manager, at the store that cashed it, on that store day.
     can_void: bool
+    front_picture_id: int | None = None
+    back_picture_id: int | None = None
 
 
 class CashedCheckResponse(BaseModel):
@@ -446,3 +455,45 @@ class CheckDeviceResponse(BaseModel):
     activated_at: str
     activated_by: str
     last_seen_at: str
+
+
+# ── Pictures ──────────────────────────────────────────────
+
+# The base64 text of the largest picture accepted (8 MB → ~10.7 MB).
+MAX_PICTURE_BASE64 = 11 * 1024 * 1024
+
+PictureKind = Literal["check_front", "check_back", "id_front", "id_back", "photo"]
+
+
+class CheckPictureBody(BaseModel):
+    """A picture from a file or the computer's camera, as base64. A
+    check picture needs nothing else; an ID picture names the customer
+    and the ID; the photo names the customer."""
+    model_config = ConfigDict(extra="forbid")
+
+    kind:           PictureKind
+    content_base64: str = Field(..., min_length=1, max_length=MAX_PICTURE_BASE64)
+    customer_id:    int | None = Field(None, ge=1)
+    id_row_id:      int | None = Field(None, ge=1)
+
+    @model_validator(mode="after")
+    def _owner(self) -> "CheckPictureBody":
+        if self.kind in ("id_front", "id_back"):
+            if not (self.customer_id and self.id_row_id):
+                raise ValueError("Name the customer and the ID.")
+        elif self.kind == "photo":
+            if not self.customer_id or self.id_row_id:
+                raise ValueError("Name the customer.")
+        elif self.customer_id or self.id_row_id:
+            raise ValueError("A check picture belongs to the check.")
+        return self
+
+
+class CheckPictureResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    kind: PictureKind
+    width: int
+    height: int
+    size_bytes: int

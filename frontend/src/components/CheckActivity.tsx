@@ -13,8 +13,10 @@ import {
 } from "../api/checkCashing";
 import {
   ConfirmDialog, Empty, ErrorState, Field, Input, KpiCard, KpiGrid, Loading,
-  Pill, SectionTitle, Button, useToast,
+  Modal, Pill, SectionTitle, Button, useToast,
 } from "./ui";
+import { PictureView } from "./CheckPictures";
+import pictureStyles from "./CheckPictures.module.css";
 import { useT } from "../i18n";
 import { apiErrorMessage } from "../lib/api";
 import { formatDate } from "../lib/datetime";
@@ -124,6 +126,7 @@ export function RecentChecks({
   const toast = useToast();
   const queryClient = useQueryClient();
   const [voiding, setVoiding] = useState<CashedCheckRow | null>(null);
+  const [viewing, setViewing] = useState<CashedCheckRow | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,18 +176,47 @@ export function RecentChecks({
               ].filter(Boolean).join(" · ")}
             </span>
           </div>
-          {row.can_void && (
+          {(row.can_void || row.front_picture_id != null || row.back_picture_id != null) && (
             <div className={styles.idActions}>
-              <Button
-                type="button" tone="ghost" size="sm"
-                onClick={() => { setReason(""); setError(null); setVoiding(row); }}
-              >
-                {t("checkCashing.void")}
-              </Button>
+              {(row.front_picture_id != null || row.back_picture_id != null) && (
+                <Button type="button" tone="ghost" size="sm" onClick={() => setViewing(row)}>
+                  {t("checkCashing.pictures")}
+                </Button>
+              )}
+              {row.can_void && (
+                <Button
+                  type="button" tone="ghost" size="sm"
+                  onClick={() => { setReason(""); setError(null); setVoiding(row); }}
+                >
+                  {t("checkCashing.void")}
+                </Button>
+              )}
             </div>
           )}
         </div>
       ))}
+      <Modal
+        open={viewing != null} onClose={() => setViewing(null)} size="lg"
+        title={viewing ? t("checkCashing.picturesOf", {
+          amount: fmtMoney2(viewing.amount), name: viewing.company_name,
+        }) : ""}
+        actions={(
+          <Button type="button" tone="secondary" onClick={() => setViewing(null)}>
+            {t("common.close")}
+          </Button>
+        )}
+      >
+        {viewing && (
+          <div className={pictureStyles.stack}>
+            {viewing.front_picture_id != null && (
+              <PictureView id={viewing.front_picture_id} label={t("checkCashing.checkFront")} size="large" />
+            )}
+            {viewing.back_picture_id != null && (
+              <PictureView id={viewing.back_picture_id} label={t("checkCashing.checkBack")} size="large" />
+            )}
+          </div>
+        )}
+      </Modal>
       <ConfirmDialog
         open={voiding != null}
         title={t("checkCashing.voidTitle")}

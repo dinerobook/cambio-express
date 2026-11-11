@@ -44,7 +44,9 @@ def test_referrer_policy_set(client):
 def test_permissions_policy_locks_down_apis(client):
     resp = client.get("/api/v2/auth/refresh")
     pp = resp.headers.get("permissions-policy", "")
-    assert "camera=()" in pp
+    # Our own pages may use the webcam (check cashing pictures); no
+    # other origin may.
+    assert "camera=(self)" in pp
     assert "microphone=()" in pp
 
 
@@ -80,7 +82,7 @@ def test_every_page_carries_the_common_headers(client, path):
     resp = client.get(path)
     assert resp.headers.get("x-content-type-options") == "nosniff", path
     assert resp.headers.get("referrer-policy") == "strict-origin-when-cross-origin", path
-    assert "camera=()" in resp.headers.get("permissions-policy", ""), path
+    assert "camera=(self)" in resp.headers.get("permissions-policy", ""), path
     assert resp.headers.get("strict-transport-security") == "max-age=31536000", path
 
 

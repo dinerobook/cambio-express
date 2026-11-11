@@ -71,6 +71,9 @@ from api.Modules.CheckCashing.Services.cashing import (
     stats,
     void,
 )
+from api.Modules.CheckCashing.Services.pictures import (
+    attach_check_pictures, current_pictures, picture_ids_by,
+)
 from api.Modules.Tenancy.Models import User
 
 router = APIRouter(
@@ -122,6 +125,10 @@ def _rows(
         int(u.id): (u.full_name or u.username or "")
         for u in db.query(User).filter(User.id.in_(user_ids))
     } if user_ids else {}
+    pics = picture_ids_by(
+        current_pictures(db, check_ids=[int(r.id) for r in rows]),
+        "cashed_check_id",
+    )
     return [
         CashedCheckRow(
             id=r.id, store_name=stores.get(int(r.store_id), ""),
@@ -141,6 +148,8 @@ def _rows(
                 manager and r.status == "cashed"
                 and int(r.store_id) == sid and r.store_day == today
             ),
+            front_picture_id=pics.get(r.id, {}).get("check_front"),
+            back_picture_id=pics.get(r.id, {}).get("check_back"),
         )
         for r in rows
     ]
@@ -225,6 +234,7 @@ def cash_check_route(
             today=store_local_today(db, sid),
             customer=customer, company=company,
         )
+        pictures = attach_check_pictures(db, sid, row, body.picture_ids)
     except CheckCashingNotFoundError as exc:
         raise _not_found(exc)
     except CheckCashingConflictError as exc:
@@ -243,6 +253,8 @@ def cash_check_route(
             summary += f", checked {row.warnings}"
         if row.approved_by:
             summary += ", manager approved"
+    if pictures:
+        summary += f", {len(pictures)} picture" + ("s" if len(pictures) > 1 else "")
     audit_operator(
         db, claims, action=action, target_type="cashed_check",
         target_id=str(row.id),

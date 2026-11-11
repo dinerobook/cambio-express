@@ -5,6 +5,7 @@
 // backend parses in memory and returns the rows for review.
 
 import { api } from "../lib/api";
+import { fileToBase64 } from "../lib/files";
 import type { components } from "./openapi";
 
 export type IntermexReport = components["schemas"]["IntermexReportResponse"];
@@ -12,19 +13,6 @@ export type IntermexRow = components["schemas"]["IntermexTxnRowResponse"];
 export type SectionTotals = components["schemas"]["SectionTotalsResponse"];
 export type IntermexCommit = components["schemas"]["IntermexCommitResponse"];
 
-/** Read a File as base64 (without the `data:...;base64,` prefix). */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result ?? "");
-      const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("read failed"));
-    reader.readAsDataURL(file);
-  });
-}
 
 /** Upload + parse an Intermex daily-close PDF. Returns the structured
  *  rows for review. Nothing is persisted. */

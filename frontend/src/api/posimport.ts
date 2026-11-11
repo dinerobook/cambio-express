@@ -92,19 +92,6 @@ export async function commitStagedDay(
   });
 }
 
-/** Read a File into the base64 payload the ingest API expects. */
-export function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => {
-      // result is "data:<mime>;base64,<payload>" — strip the prefix.
-      const url = String(reader.result);
-      resolve(url.slice(url.indexOf(",") + 1));
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 // ── Price-book warm start (P2-3) ─────────────────────────────
 

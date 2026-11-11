@@ -72,6 +72,17 @@
   gap: 0.5rem;
 }
 
+/* A saved ID on the profile with its front and back pictures under
+ * it, one line between IDs. */
+.idWithPictures {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--db-border);
+}
+
+.idWithPictures > .idRow {
+  border-bottom: 0;
+}
+
 /* The new-customer ID editor: one bordered block per ID. */
 .idBlock {
   padding: 0.75rem;

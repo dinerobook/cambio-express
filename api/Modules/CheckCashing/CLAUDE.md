@@ -16,6 +16,7 @@ SPA files that count as CheckCashing files:
 `frontend/src/components/CheckCashingFields.tsx`,
 `frontend/src/components/CheckActivity.tsx`,
 `frontend/src/components/DeskPage.tsx`,
+`frontend/src/components/CheckPictures.tsx`,
 `frontend/src/lib/useDeskScreen.ts`.
 
 - **Its own app (owner, 2026-11-09).** Check cashing is a separate

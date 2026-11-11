@@ -23,6 +23,11 @@ switched on). See this module's ``INVARIANTS.md``.
 * ``CheckDevice``          — the one computer a store has activated for
   check cashing (owner, 2026-11-09). Only a hash of the key the
   browser holds is stored; a switched-off computer keeps its row.
+* ``CheckPicture``         — a picture: the front or back of a check,
+  the front or back of an ID, or the customer's photo. The server
+  re-encodes every picture (JPEG, no metadata, size-capped) and keeps
+  the bytes in the row for the pilot (owner, 2026-11-09: pictures in
+  the cloud until the scanner program can keep them on the store PC).
 
 Money is integer cents. A percent fee is stored in basis points
 (1% = 100), so ``fee_value`` is cents for a ``flat`` fee and basis
@@ -31,9 +36,10 @@ points for a ``percent`` fee; ``fee_kind`` NULL = no own fee.
 from __future__ import annotations
 
 from sqlalchemy import (
-    BigInteger, Column, Date, DateTime, ForeignKey, Integer, String, Text,
+    BigInteger, Column, Date, DateTime, ForeignKey, Integer, LargeBinary,
+    String, Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred, relationship
 
 from api.Core.Clock import utc_now
 from api.Core.Database import Base
@@ -43,6 +49,11 @@ FEE_KINDS = ("percent", "flat")
 PARTY_STATUSES = ("normal", "trusted", "blocked")
 EXPIRED_ID_MODES = ("warn", "block")
 CHECK_STATUSES = ("cashed", "declined", "voided")
+# What a picture shows. Check pictures belong to a cashed check, ID
+# pictures to one of a customer's IDs, the photo to the customer.
+PICTURE_KINDS = ("check_front", "check_back", "id_front", "id_back", "photo")
+CHECK_PICTURE_KINDS = ("check_front", "check_back")
+ID_PICTURE_KINDS = ("id_front", "id_back")
 ID_TYPES = (
     "drivers_license", "state_id", "passport", "matricula",
     "military_id", "other",
@@ -192,3 +203,34 @@ class CheckDevice(Base):
     # Set when another computer is activated or an Admin switches it off.
     revoked_at   = Column(DateTime, nullable=True)
     revoked_by   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+
+
+class CheckPicture(Base):
+    __tablename__ = "msb_check_picture"
+    id               = Column(Integer, primary_key=True)
+    # The store whose computer took the picture (a customer's pictures
+    # move with the customer when the purge rehomes it).
+    store_id         = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    kind             = Column(String(20), nullable=False)
+    # Exactly one owner, set by kind; a check picture is uploaded first
+    # and joins its check when the check is saved.
+    cashed_check_id  = Column(
+        Integer, ForeignKey("msb_cashed_check.id"), nullable=True, index=True,
+    )
+    customer_id      = Column(
+        Integer, ForeignKey("msb_check_customer.id"), nullable=True, index=True,
+    )
+    customer_id_doc_id = Column(
+        Integer, ForeignKey("msb_check_customer_id.id"), nullable=True, index=True,
+    )
+    mime             = Column(String(20), nullable=False, default="image/jpeg")
+    width            = Column(Integer, nullable=False, default=0)
+    height           = Column(Integer, nullable=False, default=0)
+    size_bytes       = Column(Integer, nullable=False, default=0)
+    sha256           = Column(String(64), nullable=False, default="")
+    # Loaded only when the picture itself is asked for.
+    data             = deferred(Column(LargeBinary, nullable=False))
+    created_by       = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_at       = Column(DateTime, default=utc_now)
+    # Set when a newer picture of the same kind takes its place.
+    replaced_at      = Column(DateTime, nullable=True)

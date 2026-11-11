@@ -3473,6 +3473,14 @@
             "title": "Micr",
             "type": "string"
           },
+          "picture_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "title": "Picture Ids",
+            "type": "array"
+          },
           "reason": {
             "default": "",
             "maxLength": 255,
@@ -3544,6 +3552,17 @@
             "title": "Approved",
             "type": "boolean"
           },
+          "back_picture_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Back Picture Id"
+          },
           "can_void": {
             "title": "Can Void",
             "type": "boolean"
@@ -3595,6 +3614,17 @@
           "fee": {
             "title": "Fee",
             "type": "number"
+          },
+          "front_picture_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Front Picture Id"
           },
           "id": {
             "title": "Id",
@@ -4287,6 +4317,17 @@
             "title": "Phone Number",
             "type": "string"
           },
+          "photo_picture_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Picture Id"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -4370,6 +4411,17 @@
       "CheckCustomerIdRow": {
         "additionalProperties": false,
         "properties": {
+          "back_picture_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Back Picture Id"
+          },
           "expired": {
             "title": "Expired",
             "type": "boolean"
@@ -4385,6 +4437,17 @@
               }
             ],
             "title": "Expires On"
+          },
+          "front_picture_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Front Picture Id"
           },
           "id": {
             "title": "Id",
@@ -4711,6 +4774,100 @@
           "base_applied"
         ],
         "title": "CheckFeeOut",
+        "type": "object"
+      },
+      "CheckPictureBody": {
+        "additionalProperties": false,
+        "description": "A picture from a file or the computer's camera, as base64. A\ncheck picture needs nothing else; an ID picture names the customer\nand the ID; the photo names the customer.",
+        "properties": {
+          "content_base64": {
+            "maxLength": 11534336,
+            "minLength": 1,
+            "title": "Content Base64",
+            "type": "string"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "id_row_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Row Id"
+          },
+          "kind": {
+            "enum": [
+              "check_front",
+              "check_back",
+              "id_front",
+              "id_back",
+              "photo"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "content_base64"
+        ],
+        "title": "CheckPictureBody",
+        "type": "object"
+      },
+      "CheckPictureResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "check_front",
+              "check_back",
+              "id_front",
+              "id_back",
+              "photo"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "width",
+          "height",
+          "size_bytes"
+        ],
+        "title": "CheckPictureResponse",
         "type": "object"
       },
       "CheckReviewBody": {
@@ -37275,6 +37432,149 @@
           }
         },
         "summary": "Switch Off Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/pictures": {
+      "post": {
+        "operationId": "add_picture_route_check_cashing_pictures_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckPictureBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckPictureResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Picture Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/pictures/{picture_id}": {
+      "get": {
+        "operationId": "get_picture_route_check_cashing_pictures__picture_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "picture_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Picture Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Picture Route",
         "tags": [
           "check-cashing"
         ]
