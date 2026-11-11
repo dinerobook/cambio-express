@@ -69,8 +69,11 @@ COMMON_HEADERS: dict[str, str] = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
+    # camera=(self): check cashing takes ID and customer pictures
+    # with the store PC's webcam (CheckCashing INVARIANTS "Pictures");
+    # only our own pages may ask, never a framed third party.
     "Permissions-Policy": (
-        "camera=(), microphone=(), geolocation=(self), payment=(self)"
+        "camera=(self), microphone=(), geolocation=(self), payment=(self)"
     ),
     "Strict-Transport-Security": "max-age=31536000",
 }

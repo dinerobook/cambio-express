@@ -3,12 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useDepartments } from "../api/dayclose";
 import {
-  commitNaxml, commitStagedDay, fileToBase64, issueAgentKey,
+  commitNaxml, commitStagedDay, issueAgentKey,
   previewNaxml, revokeAgentKey, saveMappings, useAgentKeys,
   useStagedDays,
   type ImportRegisterRow, type NaxmlPreview,
 } from "../api/posimport";
 import { apiErrorMessage } from "../lib/api";
+import { fileToBase64 } from "../lib/files";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {

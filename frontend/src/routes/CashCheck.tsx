@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  cashCheck, createCheckCompany, createCheckCustomer, EMPTY_ID, REVIEW_LEVEL_TONES,
-  sortReviewItems, useCheckCompanies, useCheckCompany, useCheckCustomer,
+  cashCheck, createCheckCompany, createCheckCustomer, EMPTY_ID, idTypeLabel, REVIEW_LEVEL_TONES,
+  sortReviewItems, uploadCheckPicture, useCheckCompanies, useCheckCompany, useCheckCustomer,
   useCheckCustomers, useCheckReview, useCompanyCustomers, useCompanyLookup,
   type CheckCustomerIdBody, type CheckReviewItem, type ReviewLevel,
 } from "../api/checkCashing";
 import { CheckActivity } from "../components/CheckActivity";
+import { PictureSlot, PictureView } from "../components/CheckPictures";
+import pictureStyles from "../components/CheckPictures.module.css";
 import { DeskColumns, DeskPage } from "../components/DeskPage";
 import { IdFields, PartyStatusPill } from "../components/CheckCashingFields";
 import {
@@ -32,6 +34,8 @@ import styles from "./CheckCashing.module.css";
 // the left (found by its numbers or name, or added), the customer on
 // the right (picked from the company's regulars, searched, or added),
 // each with their totals; then the review, the fee and the payout.
+// Pictures of the check's front and back come from the camera or a
+// file for now (the scanner fills them later) and are saved with it.
 // Rules: api/Modules/CheckCashing/INVARIANTS.md ("Cash a check").
 
 interface CheckForm {
@@ -85,6 +89,7 @@ export default function CashCheck() {
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [fee, setFee] = useState<number | null>(null);
+  const [pictures, setPictures] = useState<{ front?: number; back?: number }>({});
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -126,6 +131,7 @@ export default function CashCheck() {
 
   const customer = useCheckCustomer(customerId ?? undefined);
   const dirty = companyId != null || customerId != null
+    || pictures.front != null || pictures.back != null
     || JSON.stringify(check) !== JSON.stringify(EMPTY_CHECK);
   const guard = useUnsavedGuard(dirty && !busy, { message: t("checkCashing.unsavedCheck") });
 
@@ -138,8 +144,17 @@ export default function CashCheck() {
     setCompanyId(null);
     setCustomerId(null);
     setFee(null);
+    setPictures({});
     setTicked(new Set());
     setError(null);
+  }
+
+  async function savePicture(side: "front" | "back", contentBase64: string) {
+    const saved = await uploadCheckPicture({
+      kind: side === "front" ? "check_front" : "check_back",
+      content_base64: contentBase64,
+    });
+    setPictures((p) => ({ ...p, [side]: saved.id }));
   }
 
   async function submit(decision: "cash" | "decline") {
@@ -153,6 +168,7 @@ export default function CashCheck() {
         acknowledged: needsTick.filter((i) => ticked.has(i.code)).map((i) => i.code),
         decision, reason: decision === "decline" ? declineReason.trim() : "",
         micr: "",
+        picture_ids: [pictures.front, pictures.back].filter((id) => id != null),
       });
       const name = customer.data?.customer.full_name ?? "";
       toast({
@@ -221,6 +237,16 @@ export default function CashCheck() {
               label={t("checkCashing.checkAmount")}
               value={check.amount}
               onChange={(v) => { setC("amount", v); setFee(null); }}
+            />
+          </div>
+          <div className={pictureStyles.row}>
+            <PictureSlot
+              label={t("checkCashing.checkFront")} pictureId={pictures.front}
+              save={(b64) => savePicture("front", b64)}
+            />
+            <PictureSlot
+              label={t("checkCashing.checkBack")} pictureId={pictures.back}
+              save={(b64) => savePicture("back", b64)}
             />
           </div>
         </Card>
@@ -545,6 +571,19 @@ function CustomerColumn({
                 </span>
               ))}
             </div>
+            {(c.photo_picture_id != null || c.ids.some((i) => i.front_picture_id != null)) && (
+              <div className={pictureStyles.row}>
+                {c.photo_picture_id != null && (
+                  <PictureView id={c.photo_picture_id} label={t("checkCashing.customerPhoto")} />
+                )}
+                {c.ids.map((i) => i.front_picture_id != null && (
+                  <PictureView
+                    key={i.id} id={i.front_picture_id}
+                    label={t("checkCashing.idFront", { id: idTypeLabel(i.id_type) })}
+                  />
+                ))}
+              </div>
+            )}
             <CheckActivity kind="customers" id={c.id} other="company" compact />
           </>
         )}

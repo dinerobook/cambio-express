@@ -265,16 +265,12 @@ export async function downloadCsv(
   return downloadFile(path, { filename, failure: "CSV download failed" });
 }
 
-/** Any authenticated file download (CSV, ZIP, a JSON data export).
- *  Same 401 refresh as `api()`; a failure throws an `ApiError` so
- *  the caller can toast it. Without `filename` the server's
- *  Content-Disposition name is used, else `fallbackName`. */
-export async function downloadFile(
-  path: string,
-  {
-    filename, fallbackName = "download", failure = "Download failed",
-  }: { filename?: string; fallbackName?: string; failure?: string } = {},
-): Promise<void> {
+/** Fetch an authenticated file (a download, a check cashing picture)
+ *  as a Blob, with the same 401 refresh as `api()`; a failure throws
+ *  an `ApiError`. */
+export async function fetchBlob(
+  path: string, failure = "Download failed",
+): Promise<{ blob: Blob; resp: Response }> {
   const tryFetch = () => fetch(path, { credentials: "include" });
   let resp = await tryFetch();
   if (resp.status === 401) {
@@ -291,7 +287,20 @@ export async function downloadFile(
     try { body = await resp.json(); } catch { body = null; }
     throw new ApiError(resp.status, `${failure} (${resp.status})`, body);
   }
-  const blob = await resp.blob();
+  return { blob: await resp.blob(), resp };
+}
+
+/** Any authenticated file download (CSV, ZIP, a JSON data export).
+ *  Same 401 refresh as `api()`; a failure throws an `ApiError` so
+ *  the caller can toast it. Without `filename` the server's
+ *  Content-Disposition name is used, else `fallbackName`. */
+export async function downloadFile(
+  path: string,
+  {
+    filename, fallbackName = "download", failure = "Download failed",
+  }: { filename?: string; fallbackName?: string; failure?: string } = {},
+): Promise<void> {
+  const { blob, resp } = await fetchBlob(path, failure);
   const served = /filename="([^"]+)"/
     .exec(resp.headers.get("content-disposition") ?? "")?.[1];
   saveBlob(blob, filename ?? served ?? fallbackName);

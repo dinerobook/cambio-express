@@ -40,7 +40,10 @@ describe("source guards", () => {
     // store-time dates, formulas defused, BOM). A page that glues
     // its own `text/csv` Blob or anchor download skips all of that.
     expect(offenders(/text\/csv/, ["./csv.ts", "/lib/csv.ts"])).toEqual([]);
-    expect(offenders(/URL\.createObjectURL\(/, ["./api.ts", "/lib/api.ts"])).toEqual([]);
+    // CheckPictures shows a fetched picture on screen (no download).
+    expect(offenders(/URL\.createObjectURL\(/, [
+      "./api.ts", "/lib/api.ts", "/components/CheckPictures.tsx",
+    ])).toEqual([]);
   });
 
   it("never derives a calendar day from the UTC clock", () => {

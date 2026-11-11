@@ -2967,6 +2967,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/check-cashing/pictures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Picture Route */
+        post: operations["add_picture_route_check_cashing_pictures_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/pictures/{picture_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Picture Route */
+        get: operations["get_picture_route_check_cashing_pictures__picture_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/check-cashing/settings": {
         parameters: {
             query?: never;
@@ -8873,6 +8907,8 @@ export interface components {
              * @default
              */
             micr: string;
+            /** Picture Ids */
+            picture_ids?: number[];
             /**
              * Reason
              * @default
@@ -8900,6 +8936,8 @@ export interface components {
             amount: number;
             /** Approved */
             approved: boolean;
+            /** Back Picture Id */
+            back_picture_id?: number | null;
             /** Can Void */
             can_void: boolean;
             /** Cash */
@@ -8922,6 +8960,8 @@ export interface components {
             customer_name: string;
             /** Fee */
             fee: number;
+            /** Front Picture Id */
+            front_picture_id?: number | null;
             /** Id */
             id: number;
             /** Reason */
@@ -9230,6 +9270,8 @@ export interface components {
             phone_country: string;
             /** Phone Number */
             phone_number: string;
+            /** Photo Picture Id */
+            photo_picture_id?: number | null;
             /** Status */
             status: string;
             /** Status Reason */
@@ -9256,10 +9298,14 @@ export interface components {
         };
         /** CheckCustomerIdRow */
         CheckCustomerIdRow: {
+            /** Back Picture Id */
+            back_picture_id?: number | null;
             /** Expired */
             expired: boolean;
             /** Expires On */
             expires_on: string | null;
+            /** Front Picture Id */
+            front_picture_id?: number | null;
             /** Id */
             id: number;
             /** Id Number */
@@ -9386,6 +9432,41 @@ export interface components {
             source: string;
             /** Value */
             value: number | null;
+        };
+        /**
+         * CheckPictureBody
+         * @description A picture from a file or the computer's camera, as base64. A
+         *     check picture needs nothing else; an ID picture names the customer
+         *     and the ID; the photo names the customer.
+         */
+        CheckPictureBody: {
+            /** Content Base64 */
+            content_base64: string;
+            /** Customer Id */
+            customer_id?: number | null;
+            /** Id Row Id */
+            id_row_id?: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "check_front" | "check_back" | "id_front" | "id_back" | "photo";
+        };
+        /** CheckPictureResponse */
+        CheckPictureResponse: {
+            /** Height */
+            height: number;
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "check_front" | "check_back" | "id_front" | "id_back" | "photo";
+            /** Size Bytes */
+            size_bytes: number;
+            /** Width */
+            width: number;
         };
         /**
          * CheckReviewBody
@@ -23801,6 +23882,76 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CheckDeviceResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_picture_route_check_cashing_pictures_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckPictureBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckPictureResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_picture_route_check_cashing_pictures__picture_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                picture_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

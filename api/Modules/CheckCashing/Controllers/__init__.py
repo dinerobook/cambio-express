@@ -11,6 +11,7 @@ Mounts at ``/api/v2/check-cashing/*``:
   POST /customers/{id}/ids                 add an ID
   PUT  /customers/{id}/ids/{id_id}         edit an ID
   DELETE /customers/{id}/ids/{id_id}       remove an ID (never the last)
+                                           and its pictures
   GET  /companies                          paginated, live search
   POST /companies                          add a company
   GET  /companies/{id}                     profile
@@ -83,6 +84,9 @@ from api.Modules.CheckCashing.Services import (
 )
 from api.Modules.CheckCashing.Services.device import (
     cookie_name, device_state, touch,
+)
+from api.Modules.CheckCashing.Services.pictures import (
+    current_pictures, delete_id_pictures, picture_ids_by,
 )
 from api.Modules.Tenancy.Models import Store
 
@@ -178,11 +182,16 @@ def _settings_response(data: dict[str, Any]) -> CheckSettingsResponse:
     )
 
 
-def _id_row(row: CheckCustomerId, today: Any) -> CheckCustomerIdRow:
+def _id_row(
+    row: CheckCustomerId, today: Any, pictures: dict[str, int] | None = None,
+) -> CheckCustomerIdRow:
+    pics = pictures or {}
     return CheckCustomerIdRow(
         id=row.id, id_type=row.id_type, id_number=row.id_number,
         issuer=row.issuer or "", expires_on=row.expires_on,
         expired=id_expired(row, today),
+        front_picture_id=pics.get("id_front"),
+        back_picture_id=pics.get("id_back"),
     )
 
 
@@ -191,6 +200,11 @@ def _customer_detail(
 ) -> CheckCustomerDetail:
     today = store_local_today(db, sid)
     names = _store_names(db, {int(row.store_id)})
+    pics = current_pictures(db, customer_ids=[int(row.id)])
+    by_id = picture_ids_by(pics, "customer_id_doc_id")
+    photo = picture_ids_by(
+        [p for p in pics if p.kind == "photo"], "customer_id",
+    ).get(row.id, {})
     return CheckCustomerDetail(
         id=row.id, full_name=row.full_name, dob=row.dob,
         phone_country=row.phone_country or "+1",
@@ -199,7 +213,8 @@ def _customer_detail(
         status_reason=row.status_reason or "",
         fee_kind=row.fee_kind, fee_value=from_hundredths(row.fee_value),
         notes=row.notes or "",
-        ids=[_id_row(i, today) for i in row.ids],
+        ids=[_id_row(i, today, by_id.get(i.id)) for i in row.ids],
+        photo_picture_id=photo.get("photo"),
         home_store_name=names.get(int(row.store_id), ""),
         created_at=iso(row.created_at), updated_at=iso(row.updated_at),
     )
@@ -447,6 +462,7 @@ def delete_customer_id_route(
     stores = umbrella(db, sid)
     try:
         id_row = delete_customer_id(db, stores, customer_id, id_row_id)
+        delete_id_pictures(db, id_row_id)
         customer = get_customer(db, stores, customer_id)
     except CheckCashingNotFoundError as exc:
         raise _not_found(exc)

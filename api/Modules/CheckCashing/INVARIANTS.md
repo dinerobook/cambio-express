@@ -130,6 +130,41 @@ misused"). A password alone never opens it.
   the lock; the screen size check is convenience.
 - Revoked rows are kept (history); devices purge with the store.
 
+## Pictures
+
+`msb_check_picture` holds the front and back of a check, the front and
+back of an ID, and the customer's photo. `Services/pictures.py` is the
+only writer. During the pilot the bytes live in the row (owner,
+2026-11-09: pictures in the cloud until the scanner program can keep
+them on the store PC).
+
+- **Every picture is re-encoded** (`clean_picture`): JPEG, PNG or WebP
+  only, at most 8 MB sent and 40 million pixels; opened, turned
+  upright, saved again as JPEG at most 1,600 px on the long side with
+  no metadata (camera, place, time). What is stored is never the file
+  as sent. Anything else is 409; bad base64 is 422.
+- **Check pictures** (`check_front`, `check_back`) are saved first
+  (`POST /pictures`, `check_cashing.create`) and join the check when it
+  is saved (`picture_ids` on `POST /checks`, cashed or not accepted):
+  taken at this store, a check side, not on another check, one of each
+  side, or the whole save is refused (409). One never attached is
+  removed after a day.
+- **ID pictures** (`id_front`, `id_back`) belong to one of the
+  customer's IDs, the **photo** to the customer (`check_cashing.update`;
+  audited `add_check_customer_picture`, ID number masked). A new one
+  replaces the old, which is kept (`replaced_at`) as history. Removing
+  an ID removes its pictures.
+- **Looking** (`GET /pictures/{id}`, `check_cashing.read`): any store of
+  the owner umbrella, like the customer; `Cache-Control: no-store`.
+  Same module switch and computer lock as every check cashing route.
+- **The camera**: the SPA takes pictures with the store PC's webcam,
+  which is why `Permissions-Policy` allows `camera=(self)` (our pages
+  only); a file works too.
+- **Purge**: pictures go first. Before that, a customer's pictures
+  follow them to the sibling store they move to, and pictures other
+  stores took of a customer being deleted go with them
+  (`rehome_pictures`).
+
 ## Audit
 
 Every change writes an operator-audit row: `create_check_customer`,
@@ -139,7 +174,8 @@ Every change writes an operator-audit row: `create_check_customer`,
 `create_check_company`, `update_check_company`, `block_check_company`,
 `trust_check_company`, `unblock_check_company`,
 `update_check_cashing_settings`, `cash_check`, `decline_check`,
-`void_check`, `activate_check_device` (summary names the computer it
-replaces), `switch_off_check_device`. ID numbers in summaries are masked.
+`void_check`, `add_check_customer_picture`, `activate_check_device` (summary names the computer it
+replaces), `switch_off_check_device`. ID numbers in summaries are masked. Check pictures show as "N pictures" in the
+`cash_check` / `decline_check` summary.
 
 Tests: `tests/Modules/CheckCashing/`.

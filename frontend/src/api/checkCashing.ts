@@ -4,7 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "../lib/api";
+import { api, fetchBlob } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2 } from "../lib/formatters";
 import type { PillTone } from "../components/ui";
@@ -336,4 +336,28 @@ export function activateCheckDevice(name: string): Promise<CheckDevice> {
 
 export function switchOffCheckDevice(): Promise<CheckDevice> {
   return api<CheckDevice>(`${BASE}/device/switch-off`, { method: "POST" });
+}
+
+// ── Pictures ─────────────────────────────────────────────────
+
+export type CheckPictureBody = components["schemas"]["CheckPictureBody"];
+export type CheckPicture = components["schemas"]["CheckPictureResponse"];
+export type PictureKind = CheckPictureBody["kind"];
+
+/** Save a picture (base64). The server cleans it and answers its id. */
+export function uploadCheckPicture(body: CheckPictureBody): Promise<CheckPicture> {
+  return api<CheckPicture>(`${BASE}/pictures`, { method: "POST", json: body });
+}
+
+/** A saved picture's bytes. A picture never changes (a new one gets
+ *  a new id), so it is fetched once per page visit; it sits outside
+ *  the "check-cashing" key so saving a check does not fetch it again. */
+export function useCheckPictureBlob(id: number | null | undefined) {
+  return useQuery<Blob>({
+    enabled: id != null,
+    queryKey: ["check-picture", id],
+    queryFn: async () => (await fetchBlob(`${BASE}/pictures/${id}`)).blob,
+    staleTime: Infinity,
+    gcTime: 5 * 60_000,
+  });
 }

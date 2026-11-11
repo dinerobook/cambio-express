@@ -17,7 +17,9 @@ import { TEST_ADMIN } from "../test/setup";
 // pick the customer, the review decides what must be ticked or
 // approved, the fee can be changed, and the payout asks first. A
 // refusal is saved with its reason. Someone who may only look sees it
-// all disabled. In Spanish too.
+// all disabled. Pictures of the check's two sides are saved first and
+// sent with it; the customer's photo and ID show for comparison. In
+// Spanish too.
 
 const api = vi.hoisted(() => ({
   useCheckDevice: vi.fn(),
@@ -33,6 +35,8 @@ const api = vi.hoisted(() => ({
   cashCheck: vi.fn(),
   createCheckCompany: vi.fn(),
   createCheckCustomer: vi.fn(),
+  uploadCheckPicture: vi.fn(),
+  useCheckPictureBlob: vi.fn(),
 }));
 
 vi.mock("../api/checkCashing", async (importOriginal) => ({
@@ -107,6 +111,11 @@ beforeEach(() => {
     rows: [{ id: 7, full_name: "Ana Ruiz", status: "normal", checks: 4, last_day: "2026-11-02" }],
   } : undefined));
   api.useCheckActivity.mockReturnValue(ok({ stats: [], recent: [] }));
+  api.useCheckPictureBlob.mockImplementation((id?: number | null) => (
+    ok(id != null ? new Blob(["x"], { type: "image/jpeg" }) : undefined)
+  ));
+  URL.createObjectURL = vi.fn(() => "blob:picture");
+  URL.revokeObjectURL = vi.fn();
 });
 
 async function fillCheck(amount = "500") {
@@ -153,6 +162,7 @@ describe("cash a check", () => {
     await waitFor(() => expect(api.cashCheck).toHaveBeenCalledWith({
       customer_id: 7, company_id: 3, check_number: "1001", check_date: null,
       amount: 500, fee: 10, acknowledged: [], decision: "cash", reason: "", micr: "",
+      picture_ids: [],
     }));
     expect(await screen.findByText("Paid $490.00 to Ana Ruiz.")).toBeInTheDocument();
     // Ready for the next check.
@@ -297,6 +307,62 @@ describe("cash a check", () => {
     ));
   });
 
+  it("saves the check's pictures first and sends them with it", async () => {
+    api.uploadCheckPicture
+      .mockResolvedValueOnce({ id: 55, kind: "check_front", width: 1200, height: 520, size_bytes: 9 })
+      .mockResolvedValueOnce({ id: 56, kind: "check_back", width: 1200, height: 520, size_bytes: 9 });
+    api.cashCheck.mockResolvedValue({ check: {} });
+    renderRoute(<CashCheck />);
+    const file = () => new File(["pic"], "check.jpg", { type: "image/jpeg" });
+    await userEvent.upload(screen.getByLabelText("Picture file for Front of the check"), file());
+    await waitFor(() => expect(api.uploadCheckPicture).toHaveBeenCalledWith({
+      kind: "check_front", content_base64: btoa("pic"),
+    }));
+    expect(await screen.findByRole("button", { name: "Show Front of the check large" }))
+      .toBeInTheDocument();
+    await userEvent.upload(screen.getByLabelText("Picture file for Back of the check"), file());
+    await screen.findByRole("button", { name: "Show Back of the check large" });
+    await fillCheck();
+    await pickRegular();
+    await waitFor(() => expect(cashButton()).toBeEnabled());
+    await userEvent.click(cashButton());
+    await userEvent.click(within(await screen.findByRole("dialog"))
+      .getByRole("button", { name: "Cash check" }));
+    await waitFor(() => expect(api.cashCheck).toHaveBeenCalledWith(
+      expect.objectContaining({ picture_ids: [55, 56] }),
+    ));
+    // Cleared for the next check.
+    await waitFor(() => expect(screen.getAllByText("No picture")).toHaveLength(2));
+  });
+
+  it("shows why a picture was refused", async () => {
+    api.uploadCheckPicture.mockRejectedValue(
+      new ApiError(409, "Send a JPEG, PNG or WebP picture.", {}),
+    );
+    renderRoute(<CashCheck />);
+    await userEvent.upload(
+      screen.getByLabelText("Picture file for Front of the check"),
+      new File(["x"], "c.jpg", { type: "image/jpeg" }),
+    );
+    expect(await screen.findByText("Send a JPEG, PNG or WebP picture.")).toBeInTheDocument();
+  });
+
+  it("shows the customer's photo and ID beside the check", async () => {
+    api.useCheckCustomer.mockImplementation((id?: number) => ok(id ? {
+      customer: {
+        ...customer, photo_picture_id: 81,
+        ids: [{ ...customer.ids[0], front_picture_id: 82, back_picture_id: null }],
+      },
+    } : undefined));
+    renderRoute(<CashCheck />);
+    await fillCheck();
+    await pickRegular();
+    expect(screen.getByRole("button", { name: "Show Customer photo large" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show Front of Driver license large" }))
+      .toBeInTheDocument();
+    expect(api.useCheckPictureBlob).toHaveBeenCalledWith(81);
+  });
+
   it("is view only without the right to cash", () => {
     signIn(["check_cashing.read"]);
     renderRoute(<CashCheck />);
@@ -304,6 +370,7 @@ describe("cash a check", () => {
     expect(screen.getByLabelText("Routing number")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Cash check" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Do not accept" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Camera" })[0]).toBeDisabled();
   });
 
   it("is in Spanish", async () => {
