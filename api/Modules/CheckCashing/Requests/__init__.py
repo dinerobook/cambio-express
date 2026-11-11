@@ -271,6 +271,8 @@ class CheckCompanyResponse(BaseModel):
 
 ReviewLevel = Literal["info", "warn", "approve", "block"]
 CheckStatus = Literal["cashed", "declined", "voided"]
+BadCheckReason = Literal["nsf", "closed_account", "stop_payment", "fraud", "other"]
+BadCheckStatus = Literal["open", "paid", "written_off"]
 
 
 class CheckReviewBody(BaseModel):
@@ -341,6 +343,16 @@ class CashCheckBody(BaseModel):
         return self
 
 
+class BadCheckBrief(BaseModel):
+    """A cashed check's bad check, on its row."""
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    status: BadCheckStatus
+    reason: BadCheckReason
+    balance: float
+
+
 class CashedCheckRow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -367,6 +379,10 @@ class CashedCheckRow(BaseModel):
     can_void: bool
     front_picture_id: int | None = None
     back_picture_id: int | None = None
+    # Set once the bank sent the check back.
+    bad_check: BadCheckBrief | None = None
+    # A manager, at the store that cashed it, while it is not one yet.
+    can_report_bad: bool = False
 
 
 class CashedCheckResponse(BaseModel):
@@ -434,6 +450,99 @@ class CompanyLookupResponse(BaseModel):
 
     # None when no company with these numbers is on file.
     company: CheckCompanyDetail | None
+
+
+# ── Bad checks ─────────────────────────────────────────────
+
+
+class ReportBadCheckBody(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    reason:      BadCheckReason
+    # The store day the bank's notice came in.
+    returned_on: date
+    # The returned-check fee charged to the customer (dollars).
+    fee:         float = Field(0, ge=0, le=MAX_FLAT)
+    note:        str = Field("", max_length=255)
+
+
+class BadCheckPaymentBody(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    amount: float = Field(..., gt=0, le=MAX_MONEY)
+    note:   str = Field("", max_length=255)
+
+
+class WriteOffBadCheckBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    note: str = Field(..., min_length=1, max_length=255)
+
+    @model_validator(mode="after")
+    def _say_why(self) -> "WriteOffBadCheckBody":
+        if not self.note.strip():
+            raise ValueError("Say why it is written off.")
+        return self
+
+
+class BadCheckRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    # The store that cashed the check.
+    store_name: str
+    cashed_check_id: int
+    cashed_on: date
+    customer_id: int
+    customer_name: str
+    company_id: int
+    company_name: str
+    check_number: str
+    amount: float
+    reason: BadCheckReason
+    returned_on: date
+    fee: float
+    owed: float
+    paid: float
+    balance: float
+    status: BadCheckStatus
+    note: str
+    write_off_note: str
+    created_at: str
+
+
+class BadCheckListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[BadCheckRow]
+    total: int
+    page: int
+    total_pages: int
+    # Every open bad check of the owner's stores, whatever the filters.
+    open_count: int
+    open_owed: float
+
+
+class BadCheckPaymentRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    paid_on: date
+    amount: float
+    note: str
+    store_name: str
+    taken_by: str
+
+
+class BadCheckDetailResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    bad_check: BadCheckRow
+    check: CashedCheckRow
+    payments: list[BadCheckPaymentRow]
+    # check_cashing.create while open; a manager writes off.
+    can_pay: bool
+    can_write_off: bool
 
 
 # ── The activated computer ─────────────────────────────────

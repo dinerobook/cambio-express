@@ -281,6 +281,21 @@ describe("cash a check", () => {
     expect(cashButton()).toBeDisabled();
   });
 
+  it("asks a manager to approve a customer or company with an unpaid bad check", async () => {
+    signIn(CASHIER);
+    reviewData = review([
+      { ...item("customer_bad_check", "approve"), count: 1, amount: 525 },
+      { ...item("company_bad_check", "approve"), count: 2, amount: 900 },
+    ]);
+    renderRoute(<CashCheck />);
+    await fillCheck();
+    await pickRegular();
+    expect(screen.getByText("Has unpaid bad checks: 1, $525.00 owed.")).toBeInTheDocument();
+    expect(screen.getByText("Bad checks from this company not paid back: 2, $900.00."))
+      .toBeInTheDocument();
+    expect(cashButton()).toBeDisabled();
+  });
+
   it("lets a manager approve by ticking", async () => {
     reviewData = review([item("daily_limit", "approve")]);
     api.cashCheck.mockResolvedValue({ check: {} });

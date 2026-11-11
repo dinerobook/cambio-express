@@ -8,13 +8,14 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  CHECK_STATUS_TONES, checkStatusLabel, useCheckActivity, voidCheck,
+  BAD_CHECK_STATUS_TONES, CHECK_STATUS_TONES, checkStatusLabel, useCheckActivity, voidCheck,
   type CashedCheckRow, type CheckStats,
 } from "../api/checkCashing";
 import {
   ConfirmDialog, Empty, ErrorState, Field, Input, KpiCard, KpiGrid, Loading,
   Modal, Pill, SectionTitle, Button, useToast,
 } from "./ui";
+import { BadCheckModal, ReportBadCheckDialog } from "./BadCheck";
 import { PictureView } from "./CheckPictures";
 import pictureStyles from "./CheckPictures.module.css";
 import { useT } from "../i18n";
@@ -127,6 +128,8 @@ export function RecentChecks({
   const queryClient = useQueryClient();
   const [voiding, setVoiding] = useState<CashedCheckRow | null>(null);
   const [viewing, setViewing] = useState<CashedCheckRow | null>(null);
+  const [reporting, setReporting] = useState<CashedCheckRow | null>(null);
+  const [badId, setBadId] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +162,14 @@ export function RecentChecks({
                 {checkStatusLabel(row.status)}
               </Pill>
               {row.approved && <Pill tone="info">{t("checkCashing.approvedPill")}</Pill>}
+              {row.bad_check && (
+                <Pill tone={BAD_CHECK_STATUS_TONES[row.bad_check.status] ?? "neutral"}>
+                  {t("checkCashing.badCheckPill")}
+                  {row.bad_check.status === "open" && ` · ${t("checkCashing.badCheckOwes", {
+                    amount: fmtMoney2(row.bad_check.balance),
+                  })}`}
+                </Pill>
+              )}
             </span>
             <span className={styles.name}>
               {other === "company" ? row.company_name : row.customer_name}
@@ -176,11 +187,22 @@ export function RecentChecks({
               ].filter(Boolean).join(" · ")}
             </span>
           </div>
-          {(row.can_void || row.front_picture_id != null || row.back_picture_id != null) && (
+          {(row.can_void || row.can_report_bad || row.bad_check
+            || row.front_picture_id != null || row.back_picture_id != null) && (
             <div className={styles.idActions}>
               {(row.front_picture_id != null || row.back_picture_id != null) && (
                 <Button type="button" tone="ghost" size="sm" onClick={() => setViewing(row)}>
                   {t("checkCashing.pictures")}
+                </Button>
+              )}
+              {row.bad_check && (
+                <Button type="button" tone="ghost" size="sm" onClick={() => setBadId(row.bad_check?.id ?? null)}>
+                  {t("checkCashing.viewBadCheck")}
+                </Button>
+              )}
+              {row.can_report_bad && (
+                <Button type="button" tone="ghost" size="sm" onClick={() => setReporting(row)}>
+                  {t("checkCashing.reportBad")}
                 </Button>
               )}
               {row.can_void && (
@@ -217,6 +239,8 @@ export function RecentChecks({
           </div>
         )}
       </Modal>
+      <ReportBadCheckDialog check={reporting} onClose={() => setReporting(null)} />
+      <BadCheckModal id={badId} onClose={() => setBadId(null)} />
       <ConfirmDialog
         open={voiding != null}
         title={t("checkCashing.voidTitle")}

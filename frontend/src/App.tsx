@@ -95,6 +95,7 @@ const CheckCustomerForm = lazy(() => import("./routes/CheckCustomerForm"));
 const CheckCompanies = lazy(() => import("./routes/CheckCompanies"));
 const CheckCompanyForm = lazy(() => import("./routes/CheckCompanyForm"));
 const CheckCashingSettings = lazy(() => import("./routes/CheckCashingSettings"));
+const BadChecks = lazy(() => import("./routes/BadChecks"));
 const SectionHub = lazy(() => import("./routes/SectionHub"));
 const Settings = lazy(() => import("./routes/Settings"));
 const RolesAccess = lazy(() => import("./routes/RolesAccess"));
@@ -345,6 +346,7 @@ export default function App() {
           <Route path="check-cashing/companies"     element={<Gate><CheckCompanies /></Gate>} />
           <Route path="check-cashing/companies/new" element={<Gate><CheckCompanyForm /></Gate>} />
           <Route path="check-cashing/companies/:id" element={<Gate><CheckCompanyForm /></Gate>} />
+          <Route path="check-cashing/bad-checks"    element={<Gate><BadChecks /></Gate>} />
           <Route path="check-cashing/settings"      element={<Gate><CheckCashingSettings /></Gate>} />
           <Route path="owner/connect"        element={<Gate><OwnerConnect /></Gate>} />
           <Route path="owner/dashboard"      element={<Gate><OwnerDashboard /></Gate>} />

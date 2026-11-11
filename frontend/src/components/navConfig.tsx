@@ -408,6 +408,13 @@ export const CHECK_NAV: NavGroup[] = [
     items: [],
   },
   {
+    title: "Bad checks",
+    icon: iconReturnChecks(),
+    to: "/check-cashing/bad-checks",
+    flag: CHECK_DESK_FLAG,
+    items: [],
+  },
+  {
     title: "Settings",
     icon: iconShield(),
     to: "/check-cashing/settings",

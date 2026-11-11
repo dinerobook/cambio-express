@@ -50,7 +50,7 @@ STORE_OWNED_MODELS: list[str] = [
     "Transfer", "ACHBatch", "DailyReport", "DailyDrop", "CheckDeposit",
     "DailyLineItem", "MoneyTransferSummary", "MoneyServiceSummary",
     "ReturnCheck",
-    "CheckPicture", "CashedCheck", "CheckDevice", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
+    "CheckPicture", "BadCheckPayment", "BadCheck", "CashedCheck", "CheckDevice", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
     "MonthlyFinancial", "MonthlyLineLabel", "BankRule", "BankTransaction",
     "StripeBankAccount", "StoreOwnerLink",
     # Lottery: counts FK packs FK games — purge in that order.
@@ -127,8 +127,9 @@ def _store_owned_models() -> list[tuple[type, str]]:
     )
     from api.Modules.ReturnChecks.Models import ReturnCheck
     from api.Modules.CheckCashing.Models import (
-        CashedCheck, CheckCashingSettings, CheckCompany, CheckCustomer,
-        CheckCustomerId, CheckDevice, CheckPicture,
+        BadCheck, BadCheckPayment, CashedCheck, CheckCashingSettings,
+        CheckCompany, CheckCustomer, CheckCustomerId, CheckDevice,
+        CheckPicture,
     )
     from api.Modules.Tenancy.Models import (
         StoreEmployee, StoreOwnerLink, StoreRole, StoreRolePermission,
@@ -180,7 +181,12 @@ def _store_owned_models() -> list[tuple[type, str]]:
         # customers — children first. Shared customers/companies were
         # moved to another store first (``rehome_shared_parties``);
         # pictures FK checks, IDs and customers, so they go first.
+        # Bad checks FK checks, paybacks FK bad checks; every payback
+        # touching the store was moved onto its bad check's store
+        # first (``rehome_bad_checks``).
         (CheckPicture, "store_id"),
+        (BadCheckPayment, "store_id"),
+        (BadCheck, "store_id"),
         (CashedCheck, "store_id"),
         (CheckDevice, "store_id"),
         (CheckCustomerId, "store_id"),
@@ -546,9 +552,11 @@ def _rehome_check_cashing_parties(db: Session, store_id: int) -> None:
     cashed checks for moves there instead of being purged, so that
     store's cashed checks keep their FKs."""
     from api.Modules.CheckCashing.Services.cashing import rehome_shared_parties
+    from api.Modules.CheckCashing.Services.bad_checks import rehome_bad_checks
     from api.Modules.CheckCashing.Services.pictures import rehome_pictures
     rehome_shared_parties(db, store_id)
     rehome_pictures(db, store_id)
+    rehome_bad_checks(db, store_id)
 
 
 def purge_expired_stores(db: Session) -> int:

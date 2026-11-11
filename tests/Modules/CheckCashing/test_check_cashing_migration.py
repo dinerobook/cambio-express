@@ -5,7 +5,8 @@ and indexes, import no application code, and run up and down twice
   * d5e8a1c3f7b9 (PR 1): settings, customers, their IDs, companies;
   * e2a7c4f9b1d3 (PR 2): cashed checks, the activated computer, plus
     the settings' daily limit;
-  * a3d9f2c6e8b1 (PR 3): pictures.
+  * a3d9f2c6e8b1 (PR 3): pictures;
+  * b7e4d2a9c3f1 (PR 5): bad checks and their paybacks.
 """
 import importlib.util
 from pathlib import Path
@@ -14,7 +15,7 @@ import pytest
 
 from api.Modules.CheckCashing.Models import (
     CashedCheck, CheckCashingSettings, CheckCompany, CheckCustomer,
-    CheckCustomerId, CheckDevice, CheckPicture,
+    CheckCustomerId, CheckDevice, CheckPicture, BadCheck, BadCheckPayment,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -22,10 +23,11 @@ VERSIONS = ROOT / "alembic" / "versions"
 PR1 = VERSIONS / "d5e8a1c3f7b9_add_check_cashing.py"
 PR2 = VERSIONS / "e2a7c4f9b1d3_add_cashed_checks.py"
 PR3 = VERSIONS / "a3d9f2c6e8b1_add_check_pictures.py"
-MIGRATIONS = (PR1, PR2, PR3)
+PR5 = VERSIONS / "b7e4d2a9c3f1_add_bad_checks.py"
+MIGRATIONS = (PR1, PR2, PR3, PR5)
 MODELS = (
     CheckCashingSettings, CheckCustomer, CheckCustomerId, CheckCompany,
-    CashedCheck, CheckDevice, CheckPicture,
+    CashedCheck, CheckDevice, CheckPicture, BadCheck, BadCheckPayment,
 )
 BEFORE = "c9d4e7a2f1b6"
 
@@ -42,9 +44,9 @@ def test_migrations_match_the_models():
     """Every model column is created by exactly one migration: PR 1's
     table list plus the columns later migrations add, then PR 2's
     new tables."""
-    pr1, pr2, pr3 = _load(PR1), _load(PR2), _load(PR3)
+    pr1, pr2, pr3, pr5 = _load(PR1), _load(PR2), _load(PR3), _load(PR5)
     columns: dict[str, list[str]] = {}
-    for m in (pr1, pr2, pr3):
+    for m in (pr1, pr2, pr3, pr5):
         for table, cols in m.TABLES.items():
             assert table not in columns, table
             columns[table] = list(cols)
@@ -60,7 +62,7 @@ def test_migrations_match_the_models():
         for model in MODELS for i in model.__table__.indexes
     }
     migration_indexes = {
-        k: (t, list(c)) for m in (pr1, pr2, pr3)
+        k: (t, list(c)) for m in (pr1, pr2, pr3, pr5)
         for k, (t, c) in {**m.INDEXES, **getattr(m, "UNIQUE_INDEXES", {})}.items()
     }
     assert migration_indexes == model_indexes
@@ -84,7 +86,7 @@ def test_migrations_run_up_and_down_twice(tmp_path, monkeypatch):
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(ROOT / "alembic"))
     cfg.set_main_option("sqlalchemy.url", url)
-    pr1, pr2, pr3 = _load(PR1), _load(PR2), _load(PR3)
+    pr1, pr2, pr3, pr5 = _load(PR1), _load(PR2), _load(PR3), _load(PR5)
 
     def tables():
         return set(inspect(create_engine(url)).get_table_names())
@@ -104,6 +106,13 @@ def test_migrations_run_up_and_down_twice(tmp_path, monkeypatch):
     assert "daily_limit_cents" in settings_columns()
     command.upgrade(cfg, pr3.revision)
     assert set(pr3.TABLES) <= tables()
+    command.upgrade(cfg, pr5.revision)
+    assert set(pr5.TABLES) <= tables()
+
+    # PR 5 down leaves PR 3 intact.
+    command.downgrade(cfg, pr3.revision)
+    assert not set(pr5.TABLES) & tables()
+    assert set(pr3.TABLES) <= tables()
 
     # PR 3 down leaves PR 2 intact.
     command.downgrade(cfg, pr2.revision)
@@ -119,6 +128,8 @@ def test_migrations_run_up_and_down_twice(tmp_path, monkeypatch):
     assert not set(pr1.TABLES) & tables()
     command.downgrade(cfg, BEFORE)
 
-    command.upgrade(cfg, pr3.revision)
-    command.upgrade(cfg, pr3.revision)
-    assert set(pr1.TABLES) | set(pr2.TABLES) | set(pr3.TABLES) <= tables()
+    command.upgrade(cfg, pr5.revision)
+    command.upgrade(cfg, pr5.revision)
+    assert (
+        set(pr1.TABLES) | set(pr2.TABLES) | set(pr3.TABLES) | set(pr5.TABLES)
+    ) <= tables()

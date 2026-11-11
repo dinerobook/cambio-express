@@ -2683,6 +2683,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/check-cashing/bad-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Bad Checks Route
+         * @description Bad checks of every store of the owner (a customer may pay back
+         *     at any of them).
+         */
+        get: operations["list_bad_checks_route_check_cashing_bad_checks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/bad-checks/{bad_check_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Bad Check Route */
+        get: operations["get_bad_check_route_check_cashing_bad_checks__bad_check_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/bad-checks/{bad_check_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Bad Check Payment Route */
+        post: operations["add_bad_check_payment_route_check_cashing_bad_checks__bad_check_id__payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/bad-checks/{bad_check_id}/write-off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Write Off Bad Check Route */
+        post: operations["write_off_bad_check_route_check_cashing_bad_checks__bad_check_id__write_off_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/check-cashing/checks": {
         parameters: {
             query?: never;
@@ -2715,6 +2787,23 @@ export interface paths {
          * @description POST only because the body is a form; nothing is saved.
          */
         post: operations["review_check_route_check_cashing_checks_review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/checks/{check_id}/bad-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report Bad Check Route */
+        post: operations["report_bad_check_route_check_cashing_checks__check_id__bad_check_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7798,6 +7887,135 @@ export interface components {
             role_id?: number | null;
         };
         /**
+         * BadCheckBrief
+         * @description A cashed check's bad check, on its row.
+         */
+        BadCheckBrief: {
+            /** Balance */
+            balance: number;
+            /** Id */
+            id: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "nsf" | "closed_account" | "stop_payment" | "fraud" | "other";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "paid" | "written_off";
+        };
+        /** BadCheckDetailResponse */
+        BadCheckDetailResponse: {
+            bad_check: components["schemas"]["BadCheckRow"];
+            /** Can Pay */
+            can_pay: boolean;
+            /** Can Write Off */
+            can_write_off: boolean;
+            check: components["schemas"]["CashedCheckRow"];
+            /** Payments */
+            payments: components["schemas"]["BadCheckPaymentRow"][];
+        };
+        /** BadCheckListResponse */
+        BadCheckListResponse: {
+            /** Open Count */
+            open_count: number;
+            /** Open Owed */
+            open_owed: number;
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["BadCheckRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** BadCheckPaymentBody */
+        BadCheckPaymentBody: {
+            /** Amount */
+            amount: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** BadCheckPaymentRow */
+        BadCheckPaymentRow: {
+            /** Amount */
+            amount: number;
+            /** Id */
+            id: number;
+            /** Note */
+            note: string;
+            /**
+             * Paid On
+             * Format: date
+             */
+            paid_on: string;
+            /** Store Name */
+            store_name: string;
+            /** Taken By */
+            taken_by: string;
+        };
+        /** BadCheckRow */
+        BadCheckRow: {
+            /** Amount */
+            amount: number;
+            /** Balance */
+            balance: number;
+            /** Cashed Check Id */
+            cashed_check_id: number;
+            /**
+             * Cashed On
+             * Format: date
+             */
+            cashed_on: string;
+            /** Check Number */
+            check_number: string;
+            /** Company Id */
+            company_id: number;
+            /** Company Name */
+            company_name: string;
+            /** Created At */
+            created_at: string;
+            /** Customer Id */
+            customer_id: number;
+            /** Customer Name */
+            customer_name: string;
+            /** Fee */
+            fee: number;
+            /** Id */
+            id: number;
+            /** Note */
+            note: string;
+            /** Owed */
+            owed: number;
+            /** Paid */
+            paid: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "nsf" | "closed_account" | "stop_payment" | "fraud" | "other";
+            /**
+             * Returned On
+             * Format: date
+             */
+            returned_on: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "paid" | "written_off";
+            /** Store Name */
+            store_name: string;
+            /** Write Off Note */
+            write_off_note: string;
+        };
+        /**
          * BankAccountListResponse
          * @description Envelope for /bank/accounts. Order matches the Repository:
          *     nickname → display_name → institution_name (case-insensitive)
@@ -8948,6 +9166,12 @@ export interface components {
             approved: boolean;
             /** Back Picture Id */
             back_picture_id?: number | null;
+            bad_check?: components["schemas"]["BadCheckBrief"] | null;
+            /**
+             * Can Report Bad
+             * @default false
+             */
+            can_report_bad: boolean;
             /** Can Void */
             can_void: boolean;
             /** Cash */
@@ -14532,6 +14756,29 @@ export interface components {
              */
             shift_label: string;
         };
+        /** ReportBadCheckBody */
+        ReportBadCheckBody: {
+            /**
+             * Fee
+             * @default 0
+             */
+            fee: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "nsf" | "closed_account" | "stop_payment" | "fraud" | "other";
+            /**
+             * Returned On
+             * Format: date
+             */
+            returned_on: string;
+        };
         /**
          * ReportCategory
          * @description Group of related reports (Sales / Financial / Operations /
@@ -18127,6 +18374,11 @@ export interface components {
             ok: boolean;
             /** Warning */
             warning?: string | null;
+        };
+        /** WriteOffBadCheckBody */
+        WriteOffBadCheckBody: {
+            /** Note */
+            note: string;
         };
         /**
          * CustomerRow
@@ -23083,6 +23335,159 @@ export interface operations {
             };
         };
     };
+    list_bad_checks_route_check_cashing_bad_checks_get: {
+        parameters: {
+            query?: {
+                status?: string;
+                q?: string;
+                /** @description 1-based page number */
+                page?: number;
+                /** @description Rows per page (1 to 200) */
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadCheckListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bad_check_route_check_cashing_bad_checks__bad_check_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                bad_check_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadCheckDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_bad_check_payment_route_check_cashing_bad_checks__bad_check_id__payments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                bad_check_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BadCheckPaymentBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadCheckDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    write_off_bad_check_route_check_cashing_bad_checks__bad_check_id__write_off_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                bad_check_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WriteOffBadCheckBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadCheckDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_checks_route_check_cashing_checks_get: {
         parameters: {
             query?: {
@@ -23187,6 +23592,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CheckReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_bad_check_route_check_cashing_checks__check_id__bad_check_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                check_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportBadCheckBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadCheckDetailResponse"];
                 };
             };
             /** @description Validation Error */
