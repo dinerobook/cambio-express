@@ -18,8 +18,8 @@ import type { BankTransactionRow, MatchCandidate, PossibleDouble } from "../api/
 // INVARIANTS.md "Matching"), the Bank page's side:
 //   - switch off: no Daily book column, no summary, no tick boxes;
 //   - switch on: one pill per row (Matched / Added from bank / Check
-//     match / Not on books / Dismissed), store-wide counts, and a
-//     "To review" filter kept in the URL;
+//     match / Not on books / Dismissed) and store-wide counts (the
+//     To reconcile tab is BankTransactions.test.tsx's);
 //   - Review asks "Is this already in the daily book?" with Yes / No
 //     per candidate; errors stay in the popup;
 //   - Unmatch and Dismiss confirm first; Restore brings a row back;
@@ -107,7 +107,6 @@ function renderPage(at = "/") {
 }
 
 const rowOf = (text: string) => screen.getByText(text).closest("tr")!;
-const lastFilters = () => useBankTransactions.mock.lastCall![0];
 
 function withPermissions(drop: string[] = [], add: string[] = []) {
   setCurrentIdentity({
@@ -158,22 +157,6 @@ describe("Bank page, matching switched on", () => {
     expect(within(rowOf("OLD 15")).getByText("Dismissed")).toBeInTheDocument();
     expect(screen.getByText("2 to review")).toBeInTheDocument();
     expect(screen.getByText(/1 matched/)).toBeInTheDocument();
-  });
-
-  it("filters to the rows to review, kept in the URL", async () => {
-    renderPage();
-    expect(lastFilters()).toMatchObject({ books: "" });
-    const btn = screen.getByRole("button", { name: "To review" });
-    expect(btn).toHaveAttribute("aria-pressed", "false");
-    await userEvent.click(btn);
-    await waitFor(() => expect(lastFilters()).toMatchObject({ books: "review" }));
-    expect(screen.getByRole("button", { name: "Showing to review" }))
-      .toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("reads the review filter back from the URL", () => {
-    renderPage("/?books=review");
-    expect(lastFilters()).toMatchObject({ books: "review" });
   });
 
   it("offers ticks only on rows nothing is booked for", () => {

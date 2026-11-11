@@ -152,7 +152,7 @@ describe("<NotificationBell> — the list", () => {
       `/daily/edit?date=${STORE_DAY}`,
       "/return-checks?status=pending",
       "/daily/edit?date=2026-11-03",
-      "/bank-transactions?uncategorized_only=1",
+      "/bank-transactions",
     ]);
     expect(within(panel).getByText("Money is past its back-by date")).toBeInTheDocument();
     expect(within(panel).getByText(/2 entries · \$750\.00 · since Sun, Nov 1, 2026/))

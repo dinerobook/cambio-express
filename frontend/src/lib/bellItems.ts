@@ -76,9 +76,8 @@ export const BELL_ITEMS: Record<BellKind, BellItemSpec> = {
     title: (i) => counted(i.count, "bell.bankOne", "bell.bankMany"),
     detail: (i) => t(i.view === "review"
       ? "bell.bankReview" : "bell.bankUncategorized"),
-    to: (i) => (i.view === "review"
-      ? "/bank-transactions?books=review"
-      : "/bank-transactions?uncategorized_only=1"),
+    // The Bank page opens on its To reconcile tab, the same rule.
+    to: () => "/bank-transactions",
   },
   "return_checks.pending": {
     icon: "check",

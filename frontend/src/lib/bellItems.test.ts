@@ -64,12 +64,16 @@ describe("BELL_ITEMS", () => {
       .toBe("Money is past its back-by date");
   });
 
-  it("bank rows open the view the server counted", () => {
+  it("bank rows open the page's To reconcile tab, whichever rule counted", () => {
     const spec = BELL_ITEMS["bank.to_check"];
     expect(spec.to(item("bank.to_check", { view: "review" }), ctx))
-      .toBe("/bank-transactions?books=review");
+      .toBe("/bank-transactions");
     expect(spec.to(item("bank.to_check", { view: "uncategorized" }), ctx))
-      .toBe("/bank-transactions?uncategorized_only=1");
+      .toBe("/bank-transactions");
+    expect(spec.detail(item("bank.to_check", { view: "review" }), ctx))
+      .toBe("Not in the daily book yet");
+    expect(spec.detail(item("bank.to_check", { view: "uncategorized" }), ctx))
+      .toBe("No category yet");
   });
 
   it("a grouped unlocked item points at its oldest day", () => {

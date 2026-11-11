@@ -1,8 +1,6 @@
 """Bank item: transactions that still need a person."""
 from __future__ import annotations
 
-from sqlalchemy import or_
-
 from api.Modules.BankSync.Models import BankTransaction
 from api.Modules.BankSync.Services import reconcile
 from api.Modules.Notifications.Services.bell.types import (
@@ -11,31 +9,18 @@ from api.Modules.Notifications.Services.bell.types import (
 
 
 def collect_to_check(ctx: BellContext) -> list[BellItem]:
-    """With bank matching on, the Bank page's own "review" count (the
-    same clause, so the bell and the page never disagree). Without
-    it, rows with no category that are not void or dismissed."""
-    if reconcile.matching_enabled(ctx.db, ctx.store_id):
-        view = "review"
-        count = (
-            ctx.db.query(BankTransaction.id)
-               .filter(BankTransaction.store_id == ctx.store_id,
-                       *reconcile.books_clause("review"))
-               .count()
-        )
-    else:
-        view = "uncategorized"
-        count = (
-            ctx.db.query(BankTransaction.id)
-               .filter(
-                   BankTransaction.store_id == ctx.store_id,
-                   BankTransaction.dismissed_at.is_(None),
-                   or_(BankTransaction.status.is_(None),
-                       BankTransaction.status != "void"),
-                   or_(BankTransaction.category_slug.is_(None),
-                       BankTransaction.category_slug == ""),
-               )
-               .count()
-        )
+    """The Bank page's own To reconcile count (`to_reconcile_clauses`,
+    the same clause, so the bell and the page never disagree)."""
+    view = (
+        "review" if reconcile.matching_enabled(ctx.db, ctx.store_id)
+        else "uncategorized"
+    )
+    count = (
+        ctx.db.query(BankTransaction.id)
+           .filter(BankTransaction.store_id == ctx.store_id,
+                   *reconcile.to_reconcile_clauses(ctx.db, ctx.store_id))
+           .count()
+    )
     if count == 0:
         return []
     return [BellItem(

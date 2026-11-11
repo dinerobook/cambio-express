@@ -219,20 +219,17 @@ describe("MatchReviewModal", () => {
 describe("BooksSummary", () => {
   const counts = { matched: 3, added: 2, to_review: 4, dismissed: 1 };
 
-  it("shows the store-wide counts and toggles the review filter", async () => {
-    const onReviewOnly = vi.fn();
-    wrap(<BooksSummary counts={counts as never} reviewOnly={false}
-      onReviewOnly={onReviewOnly} ticked={[]} onClearTicked={vi.fn()} />);
+  it("shows the store-wide counts", () => {
+    wrap(<BooksSummary counts={counts as never} ticked={[]} onClearTicked={vi.fn()} />);
     expect(screen.getByText(/3 matched/)).toBeInTheDocument();
     expect(screen.getByText("4 to review")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "To review" }));
-    expect(onReviewOnly).toHaveBeenCalledWith(true);
+    // The To reconcile tab is the page's filter now, not a button here.
+    expect(screen.queryByRole("button", { name: "To review" })).not.toBeInTheDocument();
   });
 
   it("runs matching and reports how many it matched", async () => {
     api.runMatching.mockResolvedValue({ matched: 2 });
-    wrap(<BooksSummary counts={counts as never} reviewOnly={false}
-      onReviewOnly={vi.fn()} ticked={[]} onClearTicked={vi.fn()} />);
+    wrap(<BooksSummary counts={counts as never} ticked={[]} onClearTicked={vi.fn()} />);
     await userEvent.click(screen.getByRole("button", { name: "Match now" }));
     expect(await screen.findByText("2 transactions matched to the daily book.")).toBeInTheDocument();
   });
@@ -240,8 +237,7 @@ describe("BooksSummary", () => {
   it("dismisses the ticked rows only after a confirm", async () => {
     api.dismissTransactions.mockResolvedValue({ dismissed: 2, skipped: 1 });
     const onClearTicked = vi.fn();
-    wrap(<BooksSummary counts={counts as never} reviewOnly={false}
-      onReviewOnly={vi.fn()} ticked={[7, 8, 9]} onClearTicked={onClearTicked} />);
+    wrap(<BooksSummary counts={counts as never} ticked={[7, 8, 9]} onClearTicked={onClearTicked} />);
     await userEvent.click(screen.getByRole("button", { name: "Dismiss ticked (3)" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Dismiss 3 transactions?")).toBeInTheDocument();
@@ -254,11 +250,10 @@ describe("BooksSummary", () => {
 
   it("hides dismiss and Match now from someone without the rights", () => {
     withPerms(["bank_sync.read"]);
-    wrap(<BooksSummary counts={counts as never} reviewOnly={false}
-      onReviewOnly={vi.fn()} ticked={[7]} onClearTicked={vi.fn()} />);
+    wrap(<BooksSummary counts={counts as never} ticked={[7]} onClearTicked={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Match now" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Dismiss/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "To review" })).toBeInTheDocument();
+    expect(screen.getByText("4 to review")).toBeInTheDocument();
   });
 });
 

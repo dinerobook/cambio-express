@@ -2570,12 +2570,22 @@
             "title": "Per Page",
             "type": "integer"
           },
+          "reconciled_count": {
+            "default": 0,
+            "title": "Reconciled Count",
+            "type": "integer"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/BankTransactionRow"
             },
             "title": "Rows",
             "type": "array"
+          },
+          "to_reconcile_count": {
+            "default": 0,
+            "title": "To Reconcile Count",
+            "type": "integer"
           },
           "total": {
             "title": "Total",
@@ -33077,6 +33087,19 @@
               "description": "Daily-book status: review (still needs a person), matched or dismissed.",
               "pattern": "^(|review|matched|dismissed)$",
               "title": "Books",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Bank page's tab: to_reconcile (still needs a person, the bell's rule), reconciled (the rest), empty = every row.",
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "The Bank page's tab: to_reconcile (still needs a person, the bell's rule), reconciled (the rest), empty = every row.",
+              "pattern": "^(|to_reconcile|reconciled)$",
+              "title": "Tab",
               "type": "string"
             }
           },

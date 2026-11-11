@@ -145,6 +145,70 @@ describe("BankTransactions list", () => {
   });
 });
 
+// Tabs: rows still needing a person (the bell's rule, worked out by
+// the server) are the default view; tagged / matched / dismissed rows
+// sit under Reconciled; All lists everything. The tab lives in the URL.
+describe("BankTransactions tabs", () => {
+  const last = () => useBankTransactions.mock.lastCall![0];
+
+  beforeEach(() => {
+    useBankTransactions.mockReset();
+    useBankTransactions.mockReturnValue({
+      ...EMPTY,
+      data: { ...EMPTY.data, to_reconcile_count: 4, reconciled_count: 12 },
+    });
+  });
+
+  it("opens on To reconcile, with each tab's count", () => {
+    renderPage();
+    expect(last()).toMatchObject({ tab: "to_reconcile" });
+    expect(screen.getByRole("tab", { name: "To reconcile (4)" }))
+      .toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Reconciled (12)" }))
+      .toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "All" })).toBeInTheDocument();
+  });
+
+  it("Reconciled and All change the list and come back to page 1", async () => {
+    const user = userEvent.setup();
+    renderPage("/?page=2");
+    await user.click(screen.getByRole("tab", { name: "Reconciled (12)" }));
+    await waitFor(() => expect(last()).toMatchObject({ tab: "reconciled", page: 1 }));
+    expect(screen.getByRole("tab", { name: "Reconciled (12)" }))
+      .toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("tab", { name: "All" }));
+    await waitFor(() => expect(last()).toMatchObject({ tab: "" }));
+    await user.click(screen.getByRole("tab", { name: "To reconcile (4)" }));
+    await waitFor(() => expect(last()).toMatchObject({ tab: "to_reconcile" }));
+  });
+
+  it("reads the tab back from the URL; an unknown one is To reconcile", () => {
+    renderPage("/?tab=reconciled");
+    expect(last()).toMatchObject({ tab: "reconciled" });
+    renderPage("/?tab=nonsense");
+    expect(last()).toMatchObject({ tab: "to_reconcile" });
+  });
+
+  it("shows a dash, not a wrong count, while the list loads", () => {
+    useBankTransactions.mockReturnValue({ ...EMPTY, data: undefined, isLoading: true });
+    renderPage();
+    expect(screen.getByRole("tab", { name: "To reconcile (—)" })).toBeInTheDocument();
+  });
+
+  it("no longer carries the old Uncategorized only box", () => {
+    renderPage();
+    expect(screen.queryByText("Uncategorized only")).not.toBeInTheDocument();
+  });
+
+  it("reads in Spanish", () => {
+    setLanguage("es");
+    renderPage();
+    expect(screen.getByRole("tab", { name: "Por conciliar (4)" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Conciliados (12)" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Todos" })).toBeInTheDocument();
+  });
+});
+
 
 describe("BankTransactions in Spanish", () => {
   const row = {

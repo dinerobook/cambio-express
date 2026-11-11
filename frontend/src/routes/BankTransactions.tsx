@@ -22,7 +22,7 @@ import { BankRuleForm } from "../components/BankRuleForm";
 import {
   AppLink, Button, ButtonLink,
   Card, Checkbox, DataTable, DateInput, Empty, Field, Input, KpiCard, KpiGrid,
-  Modal, monoStyle, PageHeader, PageShell, Select, useToast,
+  Modal, monoStyle, PageHeader, PageShell, Select, TabsBar, TabsButton, useToast,
   type DataColumn, type DataTableProps,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
@@ -44,8 +44,14 @@ import { booksStatusLabel, canDismissRow } from "../lib/bankMatching";
 import { t as translate, tn, tNodes, useT } from "../i18n";
 import { navWord } from "../i18n/navWords";
 
-// Bank transactions at /app/bank-transactions. Filters: account,
-// sign, uncategorized-only, free-text search. Each row's category
+// Bank transactions at /app/bank-transactions. Three tabs split the
+// list: To reconcile (the default — rows still needing a person, the
+// same rule as the bell, `reconcile.to_reconcile_clauses`),
+// Reconciled (the rest: tagged by a rule or by hand, matched, added
+// to the daily book, dismissed) and All. A row changed in one tab
+// moves to the other on the next load; clearing a category or
+// unmatching brings it back. Filters: account, category, sign, dates,
+// free-text search. Each row's category
 // cell is editable inline — pick a category and the SPA POSTs
 // /bank/transactions/{id}/categorize. A daily-book category books
 // the row on that day's book (the day's total moves at once) and
@@ -64,6 +70,19 @@ import { navWord } from "../i18n/navWords";
 // (matched / added from bank), needs a person (check match), or is
 // not on the books yet; admins can dismiss rows already handled.
 
+/** The page's tabs, in order. The URL keeps "" for the default tab
+ *  so a plain link (the bell's) opens To reconcile. */
+const RECONCILE_TABS = [
+  { slug: "", label: "bankTxn.tabToReconcile", count: "to_reconcile_count" },
+  { slug: "reconciled", label: "bankTxn.tabReconciled", count: "reconciled_count" },
+  { slug: "all", label: "bankTxn.tabAll", count: null },
+] as const;
+
+function tabFilter(slug: string): BankTransactionFilters["tab"] {
+  if (slug === "all") return "";
+  return slug === "reconciled" ? "reconciled" : "to_reconcile";
+}
+
 export default function BankTransactions() {
   const identity = getCurrentIdentity();
   const accounts = useBankAccounts();
@@ -79,7 +98,7 @@ export default function BankTransactions() {
   // characters) like every list — CLAUDE.md "Table search UX".
   const url = useUrlFilterState({
     posted_from: "", posted_to: "", account_id: "", category_slug: "",
-    sign: "", q: "", uncategorized_only: "", books: "",
+    sign: "", q: "", tab: "",
   }, {
     pageSizeKey: "bank-transactions",
     defaultSort: { key: "posted", direction: "desc" },
@@ -93,8 +112,7 @@ export default function BankTransactions() {
     category_slug:      params.category_slug,
     sign:               params.sign as "" | "credit" | "debit",
     q:                  params.q.length >= 2 ? params.q : "",
-    uncategorized_only: params.uncategorized_only === "1",
-    books:              params.books === "review" ? "review" : "",
+    tab:                tabFilter(params.tab),
     sort:               url.sort?.key,
     dir:                url.sort?.direction,
     page:               url.page,
@@ -223,23 +241,27 @@ export default function BankTransactions() {
               onChange={(e) => setParam("posted_to", e.target.value)}
             />
           </Field>
-          <Field label={t("bankTxn.filter")}>
-            <Checkbox
-              checked={filters.uncategorized_only}
-              onChange={(v) =>
-                setParam("uncategorized_only", v ? "1" : "")
-              }
-            >
-              {t("bankTxn.uncatOnly")}
-            </Checkbox>
-          </Field>
         </div>
+
+        <TabsBar>
+          {RECONCILE_TABS.map((tab) => (
+            <TabsButton
+              key={tab.slug}
+              active={params.tab === tab.slug}
+              onClick={() => { setTicked([]); setParam("tab", tab.slug); }}
+            >
+              {tab.count
+                ? t(tab.label, {
+                  count: txns.data ? fmtNumber(txns.data[tab.count] ?? 0) : "—",
+                })
+                : t(tab.label)}
+            </TabsButton>
+          ))}
+        </TabsBar>
 
         {matching && (
           <BooksSummary
             counts={txns.data?.books_counts}
-            reviewOnly={params.books === "review"}
-            onReviewOnly={(v) => setParam("books", v ? "review" : "")}
             ticked={ticked}
             onClearTicked={() => setTicked([])}
           />

@@ -69,6 +69,10 @@ class BankTransactionListResponse(BaseModel):
     total_pages: int
     page_total_cents: int
     uncategorized_count: int
+    # How many rows each tab of the Bank page holds inside the same
+    # filters (the tab itself cleared): still needs a person / the rest.
+    to_reconcile_count: int = 0
+    reconciled_count: int = 0
     # The store's matching switch, and its store-wide counts (all
     # zero when the switch is off).
     matching_enabled: bool = False

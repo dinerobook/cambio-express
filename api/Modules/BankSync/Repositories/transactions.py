@@ -43,6 +43,10 @@ class BankTransactionFilters:
     # the Service (`reconcile.books_clause`) and handed back in
     # `extra`.
     books: str = ""
+    # The Bank page's tab: "" (every row) | "to_reconcile" |
+    # "reconciled". Resolved by the Service (`reconcile.
+    # reconcile_tab_clause`) like `books`.
+    tab: str = ""
 
     @classmethod
     def from_query(cls, args: Any) -> "BankTransactionFilters":
@@ -86,6 +90,7 @@ class BankTransactionFilters:
                 else "desc"
             ),
             books=(args.get("books") or "").strip(),
+            tab=(args.get("tab") or "").strip(),
         )
 
 
