@@ -128,7 +128,12 @@ async function fillCheck(amount = "500") {
 async function pickRegular() {
   await userEvent.click(await screen.findByRole("button", { name: /Ana Ruiz/ }));
   await screen.findByRole("link", { name: "Ana Ruiz" });
-  // The review follows the typing after the 300 ms pause.
+  // The review follows the typing after the 300 ms pause; wait until
+  // it has the customer too, so a field typed next is not re-synced
+  // by a late review mid-typing.
+  await waitFor(() => expect(api.useCheckReview).toHaveBeenLastCalledWith(
+    expect.objectContaining({ customer_id: 7 }), true,
+  ));
   await screen.findByText(/Suggested|Sugerida/);
 }
 
@@ -167,6 +172,60 @@ describe("cash a check", () => {
     expect(await screen.findByText("Paid $490.00 to Ana Ruiz.")).toBeInTheDocument();
     // Ready for the next check.
     expect(screen.getByLabelText("Routing number")).toHaveValue("");
+  });
+
+  it("fills the check from a typed MICR line and saves the line", async () => {
+    api.cashCheck.mockResolvedValue({ check: {} });
+    renderRoute(<CashCheck />);
+    const box = screen.getByRole("textbox", { name: "MICR line" });
+    expect(box).toHaveFocus();
+    await userEvent.type(box, "T021000021T 123456789U 1001{Enter}");
+    expect(screen.getByLabelText("Routing number")).toHaveValue("021000021");
+    expect(screen.getByLabelText("Account number")).toHaveValue("123456789");
+    expect(screen.getByLabelText("Check number")).toHaveValue("1001");
+    await userEvent.type(screen.getByLabelText(/^Check amount/), "500");
+    await pickRegular();
+    await waitFor(() => expect(cashButton()).toBeEnabled());
+    await userEvent.click(cashButton());
+    await userEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Cash check" }));
+    await waitFor(() => expect(api.cashCheck).toHaveBeenCalledWith(expect.objectContaining({
+      check_number: "1001", micr: "T021000021T 123456789U 1001",
+    })));
+    // The next check starts at the MICR box again.
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "MICR line" })).toHaveFocus());
+  });
+
+  it("scans in the Check Desk app: numbers and both pictures", async () => {
+    api.uploadCheckPicture
+      .mockResolvedValueOnce({ id: 55, kind: "check_front", width: 1, height: 1, size_bytes: 1 })
+      .mockResolvedValueOnce({ id: 56, kind: "check_back", width: 1, height: 1, size_bytes: 1 });
+    const listeners = new Set<(e: { data: unknown }) => void>();
+    (window as unknown as { chrome: unknown }).chrome = { webview: {
+      postMessage(m: { type: string; id: number }) {
+        const reply = m.type === "scanner.status" ? { ok: true, status: "ready" } : {
+          ok: true, micr: { raw: "T021000021T 123456789U 1001", routing: "021000021",
+            account: "123456789", number: "1001", amount_cents: null },
+          front: "RlJPTlQ=", back: "QkFDSw==",
+        };
+        window.setTimeout(() => listeners.forEach((fn) => fn({
+          data: { type: "scanner.reply", id: m.id, ...reply } })), 0);
+      },
+      addEventListener: (_: string, fn: (e: { data: unknown }) => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: (e: { data: unknown }) => void) => listeners.delete(fn),
+    } };
+    try {
+      renderRoute(<CashCheck />);
+      expect(await screen.findByRole("button", { name: "Scan check" })).toHaveFocus();
+      await userEvent.keyboard("{Enter}");
+      await waitFor(() => expect(screen.getByLabelText("Routing number")).toHaveValue("021000021"));
+      expect(screen.getByLabelText("Check number")).toHaveValue("1001");
+      await waitFor(() => expect(api.uploadCheckPicture).toHaveBeenCalledTimes(2));
+      expect(api.uploadCheckPicture).toHaveBeenCalledWith({ kind: "check_front", content_base64: "RlJPTlQ=" });
+      expect(api.uploadCheckPicture).toHaveBeenCalledWith({ kind: "check_back", content_base64: "QkFDSw==" });
+      expect(await screen.findByRole("link", { name: "Acme Payroll" })).toBeInTheDocument();
+    } finally {
+      delete (window as unknown as { chrome?: unknown }).chrome;
+    }
   });
 
   it("lets the cashier change the fee, never above the check", async () => {

@@ -205,6 +205,15 @@
   gap: 0.85rem;
 }
 
+.checkHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
 .checkStrip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));

@@ -31,6 +31,7 @@ Read that module's `INVARIANTS.md` before editing these:
   `src/routes/CashCheck.tsx`, `src/components/CheckCashingFields.tsx`,
   `src/components/CheckActivity.tsx`, `src/components/DeskPage.tsx`,
   `src/components/CheckPictures.tsx`,
+  `src/components/CheckScanBar.tsx`, `src/lib/scanner.ts`, `src/lib/micr.ts`,
   `src/lib/useDeskScreen.ts`
 
 ## Design system — READ BEFORE TOUCHING ANY UI

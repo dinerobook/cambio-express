@@ -13,6 +13,7 @@
 > | [`api/Modules/Notifications/`](api/Modules/Notifications/CLAUDE.md) | the top-bar bell: how items are built, how to add one |
 > | [`frontend/`](frontend/CLAUDE.md) | design system, UI standards, OpenAPI types, the SPA checks CI runs |
 > | [`alembic/`](alembic/CLAUDE.md) | migrations and table naming |
+> | [`desktop/windows/`](desktop/windows/README.md) | the Check Desk Windows app (check cashing window + Excella scanner) |
 >
 > `tests/test_instruction_files.py` fails when a key rule disappears
 > from these files or a path they name stops existing. A new rule goes

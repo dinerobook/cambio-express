@@ -9,6 +9,7 @@ import {
 } from "../api/checkCashing";
 import { CheckActivity } from "../components/CheckActivity";
 import { PictureSlot, PictureView } from "../components/CheckPictures";
+import { CheckScanBar, type ReadCheck } from "../components/CheckScanBar";
 import pictureStyles from "../components/CheckPictures.module.css";
 import { DeskColumns, DeskPage } from "../components/DeskPage";
 import { IdFields, PartyStatusPill } from "../components/CheckCashingFields";
@@ -30,12 +31,13 @@ import styles from "./CheckCashing.module.css";
 
 // Check cashing app → Cash a check (/app/check-cashing), where the app
 // opens. Like the counter apps it replaces: the check on top (numbers
-// typed, or read by the scanner later), the company that wrote it on
+// read by the scanner — Enter scans, the default in the Check Desk
+// Windows app — or the MICR line typed), the company that wrote it on
 // the left (found by its numbers or name, or added), the customer on
 // the right (picked from the company's regulars, searched, or added),
 // each with their totals; then the review, the fee and the payout.
-// Pictures of the check's front and back come from the camera or a
-// file for now (the scanner fills them later) and are saved with it.
+// Pictures of the check's front and back come from the scanner, the
+// camera or a file, and are saved with it.
 // Rules: api/Modules/CheckCashing/INVARIANTS.md ("Cash a check").
 
 interface CheckForm {
@@ -90,6 +92,8 @@ export default function CashCheck() {
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [fee, setFee] = useState<number | null>(null);
   const [pictures, setPictures] = useState<{ front?: number; back?: number }>({});
+  const [micr, setMicr] = useState("");
+  const [resetKey, setResetKey] = useState(0);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -145,8 +149,29 @@ export default function CashCheck() {
     setCustomerId(null);
     setFee(null);
     setPictures({});
+    setMicr("");
     setTicked(new Set());
     setError(null);
+    setResetKey((k) => k + 1);
+  }
+
+  function readCheck(read: ReadCheck) {
+    setCheck((c) => ({
+      ...c,
+      routing: read.routing,
+      account: read.account || c.account,
+      number: read.number || c.number,
+      amount: read.amountCents != null ? read.amountCents / 100 : c.amount,
+    }));
+    setMicr(read.raw);
+    setFee(null);
+  }
+
+  async function savePictures(front: string | null, back: string | null) {
+    await Promise.all([
+      front ? savePicture("front", front) : null,
+      back ? savePicture("back", back) : null,
+    ]);
   }
 
   async function savePicture(side: "front" | "back", contentBase64: string) {
@@ -167,7 +192,7 @@ export default function CashCheck() {
         amount: check.amount, fee: decision === "cash" ? feeValue : 0,
         acknowledged: needsTick.filter((i) => ticked.has(i.code)).map((i) => i.code),
         decision, reason: decision === "decline" ? declineReason.trim() : "",
-        micr: "",
+        micr,
         picture_ids: [pictures.front, pictures.back].filter((id) => id != null),
       });
       const name = customer.data?.customer.full_name ?? "";
@@ -205,7 +230,15 @@ export default function CashCheck() {
       {!canCash && <Alert tone="info">{t("checkCashing.viewOnlyCash")}</Alert>}
       <fieldset disabled={!canCash || busy} className={`${styles.fieldset} ${styles.deskFill}`}>
         <Card>
-          <SectionTitle>{t("checkCashing.theCheck")}</SectionTitle>
+          <div className={styles.checkHead}>
+            <SectionTitle>{t("checkCashing.theCheck")}</SectionTitle>
+            {canCash && (
+              <CheckScanBar
+                onRead={readCheck} onPictures={savePictures}
+                disabled={busy} resetKey={resetKey}
+              />
+            )}
+          </div>
           <div className={styles.checkStrip}>
             <Field label={t("checkCashing.routing")}>
               <Input

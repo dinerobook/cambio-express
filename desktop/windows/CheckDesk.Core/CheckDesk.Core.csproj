@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- What the Check Desk window does, without the window: the page's
+       scanner messages and which addresses the window may open.
+       AnyCPU so the tests run on any machine. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DineroBook.CheckDesk</RootNamespace>
+  </PropertyGroup>
+
+</Project>

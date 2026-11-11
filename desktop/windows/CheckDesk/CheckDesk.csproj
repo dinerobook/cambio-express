@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- DineroBook Check Desk: the check cashing app in its own window,
+       with the MagTek Excella scanner. x86 because MagTek's
+       MTXMLMCR.dll is a 32-bit library. Published as one .exe by
+       .github/workflows/check-desk.yml. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x86</PlatformTarget>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>DineroBookCheckDesk</AssemblyName>
+    <RootNamespace>DineroBook.CheckDesk</RootNamespace>
+    <Product>DineroBook Check Desk</Product>
+    <Company>DineroBook</Company>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../CheckDesk.Core/CheckDesk.Core.csproj" />
+  </ItemGroup>
+
+</Project>

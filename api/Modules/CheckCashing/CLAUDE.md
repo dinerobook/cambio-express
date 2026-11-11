@@ -17,6 +17,8 @@ SPA files that count as CheckCashing files:
 `frontend/src/components/CheckActivity.tsx`,
 `frontend/src/components/DeskPage.tsx`,
 `frontend/src/components/CheckPictures.tsx`,
+`frontend/src/components/CheckScanBar.tsx`, `frontend/src/lib/scanner.ts`,
+`frontend/src/lib/micr.ts`, and the Windows app `desktop/windows/`,
 `frontend/src/lib/useDeskScreen.ts`.
 
 - **Its own app (owner, 2026-11-09).** Check cashing is a separate

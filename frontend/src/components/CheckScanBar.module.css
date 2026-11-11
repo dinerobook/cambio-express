@@ -1,0 +1,39 @@
+/* The scan button or MICR line box, in the "The check" card heading. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.line {
+  flex: 0 1 22rem;
+  min-width: 12rem;
+}
+
+.mono {
+  font-family: var(--db-font-mono);
+}
+
+.hint,
+.waiting {
+  color: var(--db-text-muted);
+  font-size: 0.9rem;
+}
+
+.waiting {
+  color: var(--db-text);
+}
+
+.ok {
+  color: var(--db-positive);
+  font-size: 0.9rem;
+}
+
+.warn {
+  color: var(--db-warning);
+  font-size: 0.9rem;
+}
