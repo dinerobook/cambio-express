@@ -591,6 +591,15 @@ This is enforced by the kit, not by per-page checks:
   Enter fills the boxes (`lib/micr.ts` `parseMicrLine`, the one MICR
   parser). After a save or clear the focus returns there. Scanner
   messages go through `lib/scanner.ts` only.
+- **A bad check is one popup everywhere** (`components/BadCheck.tsx`).
+  A manager marks a cashed check bad from its row in the recent checks
+  (`ReportBadCheckDialog`, "Mark bad"); the row then carries a "Bad
+  check · $X left" pill and "View bad check", which opens
+  `BadCheckModal` — the same popup the Bad checks page opens from a
+  row: what is owed, the payments, "Record payment" and the
+  manager's "Write off" (a danger confirm that asks why). Status
+  tones keep their one meaning: open = warning (money still owed),
+  paid back = success, written off = negative.
 - **In-page actions that are not links** declare what they need:
   `<Button perm="lottery.update">` and `RowActions` items with
   `perm: "users.update"` drop themselves. The value mirrors the

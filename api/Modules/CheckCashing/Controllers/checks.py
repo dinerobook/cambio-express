@@ -35,6 +35,7 @@ from api.Modules.CheckCashing.Controllers import (
 )
 from api.Modules.CheckCashing.Models import CashedCheck
 from api.Modules.CheckCashing.Requests import (
+    BadCheckBrief,
     CashCheckBody,
     CashedCheckListResponse,
     CashedCheckResponse,
@@ -58,6 +59,7 @@ from api.Modules.CheckCashing.Services import (
     get_customer,
     umbrella,
 )
+from api.Modules.CheckCashing.Services.bad_checks import bad_checks_for, balance
 from api.Modules.CheckCashing.Services.cashing import (
     CashRequest,
     Review,
@@ -125,10 +127,9 @@ def _rows(
         int(u.id): (u.full_name or u.username or "")
         for u in db.query(User).filter(User.id.in_(user_ids))
     } if user_ids else {}
-    pics = picture_ids_by(
-        current_pictures(db, check_ids=[int(r.id) for r in rows]),
-        "cashed_check_id",
-    )
+    check_ids = [int(r.id) for r in rows]
+    pics = picture_ids_by(current_pictures(db, check_ids=check_ids), "cashed_check_id")
+    bad = bad_checks_for(db, check_ids)
     return [
         CashedCheckRow(
             id=r.id, store_name=stores.get(int(r.store_id), ""),
@@ -145,11 +146,19 @@ def _rows(
             warnings=[w for w in (r.warnings or "").split(",") if w],
             approved=r.approved_by is not None,
             can_void=(
-                manager and r.status == "cashed"
+                manager and r.status == "cashed" and r.id not in bad
                 and int(r.store_id) == sid and r.store_day == today
             ),
             front_picture_id=pics.get(r.id, {}).get("check_front"),
             back_picture_id=pics.get(r.id, {}).get("check_back"),
+            bad_check=None if r.id not in bad else BadCheckBrief(
+                id=bad[r.id].id, status=bad[r.id].status,
+                reason=bad[r.id].reason, balance=_dollars(balance(bad[r.id])),
+            ),
+            can_report_bad=(
+                manager and r.status == "cashed" and r.id not in bad
+                and int(r.store_id) == sid
+            ),
         )
         for r in rows
     ]

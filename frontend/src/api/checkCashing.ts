@@ -315,6 +315,105 @@ export function useCompanyLookup(routing: string, account: string) {
   });
 }
 
+// ── Bad checks ───────────────────────────────────────────────
+
+export type BadCheckRow = components["schemas"]["BadCheckRow"];
+export type BadCheckDetail = components["schemas"]["BadCheckDetailResponse"];
+export type BadCheckPaymentRow = components["schemas"]["BadCheckPaymentRow"];
+export type ReportBadCheckBody = components["schemas"]["ReportBadCheckBody"];
+export type BadCheckReason = ReportBadCheckBody["reason"];
+type BadCheckList = components["schemas"]["BadCheckListResponse"];
+
+export const BAD_CHECK_REASONS: BadCheckReason[] = [
+  "nsf", "closed_account", "stop_payment", "fraud", "other",
+];
+
+const BAD_CHECK_REASON_KEYS: Record<string, MessageKey> = {
+  nsf: "checkCashing.badNsf",
+  closed_account: "checkCashing.badClosedAccount",
+  stop_payment: "checkCashing.badStopPayment",
+  fraud: "checkCashing.badFraud",
+  other: "checkCashing.badOther",
+};
+
+export function badCheckReasonLabel(value: string): string {
+  return Object.hasOwn(BAD_CHECK_REASON_KEYS, value) ? t(BAD_CHECK_REASON_KEYS[value]) : value;
+}
+
+/** Open is money still owed (pending), paid back is good, written
+ *  off a loss (UI-STANDARDS §3). */
+export const BAD_CHECK_STATUS_TONES: Record<string, PillTone> = {
+  open: "warning",
+  paid: "success",
+  written_off: "negative",
+};
+
+const BAD_CHECK_STATUS_KEYS: Record<string, MessageKey> = {
+  open: "checkCashing.badStatusOpen",
+  paid: "checkCashing.badStatusPaid",
+  written_off: "checkCashing.badStatusWrittenOff",
+};
+
+export function badCheckStatusLabel(value: string): string {
+  return Object.hasOwn(BAD_CHECK_STATUS_KEYS, value) ? t(BAD_CHECK_STATUS_KEYS[value]) : value;
+}
+
+export interface BadCheckListQuery {
+  q?: string; status?: string; page?: number; perPage?: number;
+}
+
+function badListQs({ q = "", status = "", page = 1, perPage = 50 }: BadCheckListQuery): string {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  if (q) qs.set("q", q);
+  if (status) qs.set("status", status);
+  return qs.toString();
+}
+
+/** One page of bad checks — the list page and its CSV export make
+ *  the same request. */
+export function fetchBadChecksPage(query: BadCheckListQuery = {}): Promise<BadCheckList> {
+  return api<BadCheckList>(`${BASE}/bad-checks?${badListQs(query)}`);
+}
+
+export function useBadChecks(query: BadCheckListQuery = {}) {
+  const identity = getCurrentIdentity();
+  return useQuery<BadCheckList>({
+    enabled: identity?.store_id != null,
+    queryKey: ["check-cashing", "bad-checks", identity?.store_id, badListQs(query)],
+    queryFn: () => fetchBadChecksPage(query),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useBadCheck(id: number | null) {
+  const identity = getCurrentIdentity();
+  return useQuery<BadCheckDetail>({
+    enabled: id != null && identity?.store_id != null,
+    queryKey: ["check-cashing", "bad-check", identity?.store_id, id],
+    queryFn: () => api<BadCheckDetail>(`${BASE}/bad-checks/${id}`),
+  });
+}
+
+export function reportBadCheck(checkId: number, body: ReportBadCheckBody): Promise<BadCheckDetail> {
+  return api<BadCheckDetail>(
+    `${BASE}/checks/${checkId}/bad-check`, { method: "POST", json: body },
+  );
+}
+
+export function addBadCheckPayment(
+  id: number, body: { amount: number; note: string },
+): Promise<BadCheckDetail> {
+  return api<BadCheckDetail>(
+    `${BASE}/bad-checks/${id}/payments`, { method: "POST", json: body },
+  );
+}
+
+export function writeOffBadCheck(id: number, note: string): Promise<BadCheckDetail> {
+  return api<BadCheckDetail>(
+    `${BASE}/bad-checks/${id}/write-off`, { method: "POST", json: { note } },
+  );
+}
+
 // ── The activated computer ───────────────────────────────────
 
 export type CheckDevice = components["schemas"]["CheckDeviceResponse"];

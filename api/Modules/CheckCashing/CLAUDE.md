@@ -4,7 +4,8 @@ Loaded automatically when Claude reads a file in this module. The rules
 are in `INVARIANTS.md`, imported below. Plan the owner approved on
 2026-11-09: https://claude.ai/artifact/E6PUWxZy3fefeoboJoTi9q (six PRs:
 foundation, Cash a check, images, the Excella helper, bad checks and
-reports, the cloud picture add-on).
+reports, the cloud picture add-on). PR 5 is split: bad checks first,
+then the checks list, daily summary and view-only reports.
 
 SPA files that count as CheckCashing files:
 `frontend/src/api/checkCashing.ts`, `frontend/src/routes/CheckCustomers.tsx`,
@@ -18,6 +19,7 @@ SPA files that count as CheckCashing files:
 `frontend/src/components/DeskPage.tsx`,
 `frontend/src/components/CheckPictures.tsx`,
 `frontend/src/components/CheckScanBar.tsx`, `frontend/src/lib/scanner.ts`,
+`frontend/src/routes/BadChecks.tsx`, `frontend/src/components/BadCheck.tsx`,
 `frontend/src/lib/micr.ts`, and the Windows app `desktop/windows/`,
 `frontend/src/lib/useDeskScreen.ts`.
 

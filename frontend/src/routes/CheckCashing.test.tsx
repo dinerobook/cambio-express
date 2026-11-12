@@ -156,12 +156,12 @@ describe("check cashing sidebar and route rights", () => {
   it("has its own sidebar, only where the store's check_desk switch is on", () => {
     expect(checkNav("admin", MANAGER, [])).toEqual([]);
     expect(checkNav("admin", MANAGER, ["check_desk"]))
-      .toEqual(["Cash a check", "Customers", "Companies", "Settings"]);
+      .toEqual(["Cash a check", "Customers", "Companies", "Bad checks", "Settings"]);
   });
 
   it("gives a cashier everything but the settings", () => {
     expect(checkNav("employee", CASHIER, ["check_desk"]))
-      .toEqual(["Cash a check", "Customers", "Companies"]);
+      .toEqual(["Cash a check", "Customers", "Companies", "Bad checks"]);
     expect(checkNav("employee", [], ["check_desk"])).toEqual([]);
   });
 
@@ -177,12 +177,14 @@ describe("check cashing sidebar and route rights", () => {
     expect(canAccess("/check-cashing")).toBe(true);
     expect(canAccess("/check-cashing/customers")).toBe(true);
     expect(canAccess("/check-cashing/companies/new")).toBe(true);
+    expect(canAccess("/check-cashing/bad-checks")).toBe(true);
     expect(canAccess("/check-cashing/settings")).toBe(false);
     signIn(MANAGER);
     expect(canAccess("/check-cashing/settings")).toBe(true);
     signIn([]);
     expect(canAccess("/check-cashing")).toBe(false);
     expect(canAccess("/check-cashing/customers")).toBe(false);
+    expect(canAccess("/check-cashing/bad-checks")).toBe(false);
   });
 });
 

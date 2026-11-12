@@ -1574,6 +1574,310 @@
         "title": "AssignRoleRequest",
         "type": "object"
       },
+      "BadCheckBrief": {
+        "additionalProperties": false,
+        "description": "A cashed check's bad check, on its row.",
+        "properties": {
+          "balance": {
+            "title": "Balance",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "nsf",
+              "closed_account",
+              "stop_payment",
+              "fraud",
+              "other"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "paid",
+              "written_off"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "reason",
+          "balance"
+        ],
+        "title": "BadCheckBrief",
+        "type": "object"
+      },
+      "BadCheckDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "bad_check": {
+            "$ref": "#/components/schemas/BadCheckRow"
+          },
+          "can_pay": {
+            "title": "Can Pay",
+            "type": "boolean"
+          },
+          "can_write_off": {
+            "title": "Can Write Off",
+            "type": "boolean"
+          },
+          "check": {
+            "$ref": "#/components/schemas/CashedCheckRow"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/BadCheckPaymentRow"
+            },
+            "title": "Payments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "bad_check",
+          "check",
+          "payments",
+          "can_pay",
+          "can_write_off"
+        ],
+        "title": "BadCheckDetailResponse",
+        "type": "object"
+      },
+      "BadCheckListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "open_count": {
+            "title": "Open Count",
+            "type": "integer"
+          },
+          "open_owed": {
+            "title": "Open Owed",
+            "type": "number"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BadCheckRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages",
+          "open_count",
+          "open_owed"
+        ],
+        "title": "BadCheckListResponse",
+        "type": "object"
+      },
+      "BadCheckPaymentBody": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "title": "BadCheckPaymentBody",
+        "type": "object"
+      },
+      "BadCheckPaymentRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "paid_on": {
+            "format": "date",
+            "title": "Paid On",
+            "type": "string"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "taken_by": {
+            "title": "Taken By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "paid_on",
+          "amount",
+          "note",
+          "store_name",
+          "taken_by"
+        ],
+        "title": "BadCheckPaymentRow",
+        "type": "object"
+      },
+      "BadCheckRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "balance": {
+            "title": "Balance",
+            "type": "number"
+          },
+          "cashed_check_id": {
+            "title": "Cashed Check Id",
+            "type": "integer"
+          },
+          "cashed_on": {
+            "format": "date",
+            "title": "Cashed On",
+            "type": "string"
+          },
+          "check_number": {
+            "title": "Check Number",
+            "type": "string"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "integer"
+          },
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "integer"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "owed": {
+            "title": "Owed",
+            "type": "number"
+          },
+          "paid": {
+            "title": "Paid",
+            "type": "number"
+          },
+          "reason": {
+            "enum": [
+              "nsf",
+              "closed_account",
+              "stop_payment",
+              "fraud",
+              "other"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "returned_on": {
+            "format": "date",
+            "title": "Returned On",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "paid",
+              "written_off"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "write_off_note": {
+            "title": "Write Off Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "store_name",
+          "cashed_check_id",
+          "cashed_on",
+          "customer_id",
+          "customer_name",
+          "company_id",
+          "company_name",
+          "check_number",
+          "amount",
+          "reason",
+          "returned_on",
+          "fee",
+          "owed",
+          "paid",
+          "balance",
+          "status",
+          "note",
+          "write_off_note",
+          "created_at"
+        ],
+        "title": "BadCheckRow",
+        "type": "object"
+      },
       "BankAccountListResponse": {
         "additionalProperties": false,
         "description": "Envelope for /bank/accounts. Order matches the Repository:\nnickname \u2192 display_name \u2192 institution_name (case-insensitive)\n+ id tie-break for stable rendering.",
@@ -3572,6 +3876,21 @@
               }
             ],
             "title": "Back Picture Id"
+          },
+          "bad_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BadCheckBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "can_report_bad": {
+            "default": false,
+            "title": "Can Report Bad",
+            "type": "boolean"
           },
           "can_void": {
             "title": "Can Void",
@@ -17082,6 +17401,46 @@
         "title": "RegisterCloseWriteRequest",
         "type": "object"
       },
+      "ReportBadCheckBody": {
+        "additionalProperties": false,
+        "properties": {
+          "fee": {
+            "default": 0,
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Fee",
+            "type": "number"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Note",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "nsf",
+              "closed_account",
+              "stop_payment",
+              "fraud",
+              "other"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "returned_on": {
+            "format": "date",
+            "title": "Returned On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "returned_on"
+        ],
+        "title": "ReportBadCheckBody",
+        "type": "object"
+      },
       "ReportCategory": {
         "additionalProperties": false,
         "description": "Group of related reports (Sales / Financial / Operations /\nCustomers / Audit). The icon is an inline stroke SVG matching\nthe rest of the design-system iconography (CLAUDE.md).",
@@ -25275,6 +25634,22 @@
           "ok"
         ],
         "title": "WebhookAck",
+        "type": "object"
+      },
+      "WriteOffBadCheckBody": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "WriteOffBadCheckBody",
         "type": "object"
       },
       "api__Modules__Customers__Requests__customers__CustomerRow": {
@@ -35553,6 +35928,366 @@
         ]
       }
     },
+    "/check-cashing/bad-checks": {
+      "get": {
+        "description": "Bad checks of every store of the owner (a customer may pay back\nat any of them).",
+        "operationId": "list_bad_checks_route_check_cashing_bad_checks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "pattern": "^(|open|paid|written_off)$",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 120,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-based page number",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "1-based page number",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page (1 to 200)",
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Rows per page (1 to 200)",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadCheckListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Bad Checks Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/bad-checks/{bad_check_id}": {
+      "get": {
+        "operationId": "get_bad_check_route_check_cashing_bad_checks__bad_check_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bad_check_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Bad Check Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadCheckDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Bad Check Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/bad-checks/{bad_check_id}/payments": {
+      "post": {
+        "operationId": "add_bad_check_payment_route_check_cashing_bad_checks__bad_check_id__payments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bad_check_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Bad Check Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BadCheckPaymentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadCheckDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Bad Check Payment Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/bad-checks/{bad_check_id}/write-off": {
+      "post": {
+        "operationId": "write_off_bad_check_route_check_cashing_bad_checks__bad_check_id__write_off_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bad_check_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Bad Check Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteOffBadCheckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadCheckDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Off Bad Check Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
     "/check-cashing/checks": {
       "get": {
         "operationId": "list_checks_route_check_cashing_checks_get",
@@ -35853,6 +36588,91 @@
           }
         },
         "summary": "Review Check Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/checks/{check_id}/bad-check": {
+      "post": {
+        "operationId": "report_bad_check_route_check_cashing_checks__check_id__bad_check_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "check_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Check Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportBadCheckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadCheckDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report Bad Check Route",
         "tags": [
           "check-cashing"
         ]

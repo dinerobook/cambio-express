@@ -17,9 +17,9 @@
 | Right | Who by default | Allows |
 |---|---|---|
 | `check_cashing.read` | Admin, employee, owner | Lists, profiles, settings (read) |
-| `check_cashing.create` | Admin, employee | Add a customer or company; cash a check or save it as not accepted |
+| `check_cashing.create` | Admin, employee | Add a customer or company; cash a check or save it as not accepted; record a bad check payment |
 | `check_cashing.update` | Admin, employee | Edit a profile, add / edit / remove an ID |
-| `check_cashing_manage.update` | Admin | Settings; block or trust; an own fee on a customer or company; approve a check that needs a manager; void a check |
+| `check_cashing_manage.update` | Admin | Settings; block or trust; an own fee on a customer or company; approve a check that needs a manager; void a check; mark a bad check; write one off |
 
 - `check_cashing` has no `delete` (a check is voided, never deleted;
   merge comes later). Both resources are in
@@ -77,7 +77,7 @@ One `msb_cashed_check` row per check brought to the counter, status
   | Level | Meaning | Codes |
   |---|---|---|
   | `block` | cannot be cashed until fixed | `customer_blocked`, `company_blocked`, `no_id`, `id_expired` when `expired_id_mode = "block"` |
-  | `approve` | a manager (`check_cashing_manage.update`) ticks it | `duplicate` (same company + check number already cashed in the umbrella), `daily_limit` (today's cashed total + this check over the store's `daily_limit_cents`) |
+  | `approve` | a manager (`check_cashing_manage.update`) ticks it | `duplicate` (same company + check number already cashed in the umbrella), `daily_limit` (today's cashed total + this check over the store's `daily_limit_cents`), `customer_bad_check` / `company_bad_check` (an open bad check of this customer / company in the umbrella; count and amount still owed) |
   | `warn` | the cashier ticks that they checked it | `cashed_today`, `id_expired` (default mode, every ID expired), `future_dated`, `stale_dated` (over 180 days) |
   | `info` | shown only | `customer_trusted`, `company_trusted`, `first_check`, `ctr_due` (today's cash + this check over $10,000; filing a CTR is backlog) |
 
@@ -94,11 +94,47 @@ One `msb_cashed_check` row per check brought to the counter, status
 - **Not accepted** is always saved, with its reason, even for a
   blocked customer: it is the history the next cashier sees.
 - **Void**: manager only, at the store that cashed it, on the same
-  store day (later it is a bad check, PR 5); with a reason. A voided
+  store day (later it is a bad check, below); with a reason. A bad
+  check is never voided. A voided
   or declined check never counts towards today's total or the stats.
 - **Stats** on a profile: this store, plus "all your stores" when the
   umbrella has more than one; the latest 15 checks of every status. A
   cross-DineroBook network count needs the owner's go-ahead first.
+
+## Bad checks
+
+A cashed check the bank sent back. One `msb_bad_check` row per cashed
+check (unique), its paybacks in `msb_bad_check_payment`.
+`Services/bad_checks.py` is the only writer.
+
+- **Marking** (`POST /checks/{id}/bad-check`): manager only, at the
+  store that cashed it, only a `cashed` check, once (409); reason
+  `nsf` / `closed_account` / `stop_payment` / `fraud` / `other`; the
+  return date between the day it was cashed and today; an optional
+  returned-check fee. The customer owes the check's amount plus that
+  fee (`owed_cents`). The check itself stays `cashed`: it was cashed,
+  and the day's totals do not change after the fact.
+- **Payments** (`POST /bad-checks/{id}/payments`, `check_cashing.create`):
+  at any store of the owner umbrella (the payment keeps the store that
+  took it), dated the store's today, never more than what is left
+  (409). At zero the bad check is `paid` and closes.
+- **Write off** (`POST /bad-checks/{id}/write-off`): manager only, with
+  a reason; what is left is a loss and the bad check closes as
+  `written_off`. A closed bad check takes nothing more (409).
+- **While open** it raises `customer_bad_check` and `company_bad_check`
+  (approve) on Cash a check, across the umbrella.
+- **The list** (`GET /bad-checks`): every store of the umbrella,
+  status filter, live search on customer, company or check number, plus
+  the umbrella's open count and amount still owed. The page opens on
+  Open.
+- **Standalone**: nothing here reaches the daily book, the P&L or the
+  back office Returned checks; booking a loss there is the owner's later
+  call.
+- **Purge**: paybacks, then bad checks, before cashed checks. Before
+  that, every payback touching the store moves onto its bad check's
+  store (one the store took for a sibling's bad check stays with the
+  sibling), and pointers at the store's logins on a sibling's bad
+  checks and paybacks are cleared (`rehome_bad_checks`).
 
 ## One computer
 
@@ -210,7 +246,8 @@ Every change writes an operator-audit row: `create_check_customer`,
 `create_check_company`, `update_check_company`, `block_check_company`,
 `trust_check_company`, `unblock_check_company`,
 `update_check_cashing_settings`, `cash_check`, `decline_check`,
-`void_check`, `add_check_customer_picture`, `activate_check_device` (summary names the computer it
+`void_check`, `report_bad_check`, `add_bad_check_payment`,
+`write_off_bad_check`, `add_check_customer_picture`, `activate_check_device` (summary names the computer it
 replaces), `switch_off_check_device`. ID numbers in summaries are masked. Check pictures show as "N pictures" in the
 `cash_check` / `decline_check` summary.
 

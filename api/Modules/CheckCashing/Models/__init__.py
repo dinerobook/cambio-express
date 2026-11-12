@@ -28,6 +28,12 @@ switched on). See this module's ``INVARIANTS.md``.
   re-encodes every picture (JPEG, no metadata, size-capped) and keeps
   the bytes in the row for the pilot (owner, 2026-11-09: pictures in
   the cloud until the scanner program can keep them on the store PC).
+* ``BadCheck``             — a cashed check the bank sent back (no
+  funds, stopped, fraud…): what the customer owes, open until paid
+  back or written off. One per cashed check, at the store that cashed
+  it.
+* ``BadCheckPayment``      — money the customer brought back against a
+  bad check, at any store of the owner.
 
 Money is integer cents. A percent fee is stored in basis points
 (1% = 100), so ``fee_value`` is cents for a ``flat`` fee and basis
@@ -54,6 +60,9 @@ CHECK_STATUSES = ("cashed", "declined", "voided")
 PICTURE_KINDS = ("check_front", "check_back", "id_front", "id_back", "photo")
 CHECK_PICTURE_KINDS = ("check_front", "check_back")
 ID_PICTURE_KINDS = ("id_front", "id_back")
+# Why the bank sent a check back, and where a bad check stands.
+BAD_CHECK_REASONS = ("nsf", "closed_account", "stop_payment", "fraud", "other")
+BAD_CHECK_STATUSES = ("open", "paid", "written_off")
 ID_TYPES = (
     "drivers_license", "state_id", "passport", "matricula",
     "military_id", "other",
@@ -234,3 +243,53 @@ class CheckPicture(Base):
     created_at       = Column(DateTime, default=utc_now)
     # Set when a newer picture of the same kind takes its place.
     replaced_at      = Column(DateTime, nullable=True)
+
+
+class BadCheck(Base):
+    __tablename__ = "msb_bad_check"
+    id                = Column(Integer, primary_key=True)
+    # The store that cashed the check (always the check's own store).
+    store_id          = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    cashed_check_id   = Column(
+        Integer, ForeignKey("msb_cashed_check.id"), nullable=False, unique=True,
+        index=True,
+    )
+    reason            = Column(String(20), nullable=False, default="nsf")
+    # The store day the bank's notice came in.
+    returned_on       = Column(Date, nullable=False)
+    # The returned-check fee the customer is charged on top of the check.
+    fee_cents         = Column(BigInteger, nullable=False, default=0)
+    # The check's amount + that fee; paybacks bring it down to zero.
+    owed_cents        = Column(BigInteger, nullable=False, default=0)
+    paid_cents        = Column(BigInteger, nullable=False, default=0)
+    status            = Column(String(12), nullable=False, default="open", index=True)
+    note              = Column(String(255), nullable=False, default="")
+    created_by        = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_at        = Column(DateTime, default=utc_now)
+    # Set when the balance reaches zero or a manager writes it off.
+    closed_at         = Column(DateTime, nullable=True)
+    written_off_by    = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    write_off_note    = Column(String(255), nullable=False, default="")
+
+    check = relationship("CashedCheck")
+    payments = relationship(
+        "BadCheckPayment", order_by="BadCheckPayment.id",
+        back_populates="bad_check",
+    )
+
+
+class BadCheckPayment(Base):
+    __tablename__ = "msb_bad_check_payment"
+    id           = Column(Integer, primary_key=True)
+    bad_check_id = Column(
+        Integer, ForeignKey("msb_bad_check.id"), nullable=False, index=True,
+    )
+    # The store that took the money (any store of the owner).
+    store_id     = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    paid_on      = Column(Date, nullable=False)
+    amount_cents = Column(BigInteger, nullable=False)
+    note         = Column(String(255), nullable=False, default="")
+    created_by   = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_at   = Column(DateTime, default=utc_now)
+
+    bad_check = relationship("BadCheck", back_populates="payments")

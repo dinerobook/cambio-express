@@ -24,6 +24,9 @@ from api.Modules.CheckCashing.Services import (
     CheckCashingConflictError, CheckCashingNotFoundError, get_settings,
     id_expired,
 )
+from api.Modules.CheckCashing.Services.bad_checks import (
+    bad_checks_for, open_bad_checks,
+)
 
 # A business that pays out more than this in cash to one person in one
 # day files a Currency Transaction Report (FinCEN). Filing it is a later
@@ -149,6 +152,12 @@ def review(
         result.today_count, result.today_cents = count, total
         if count:
             items.append(ReviewItem("cashed_today", "warn", count=count, amount_cents=total))
+        owed = open_bad_checks(db, store_ids, customer_id=int(customer.id))
+        if owed.count:
+            items.append(ReviewItem(
+                "customer_bad_check", "approve", count=owed.count,
+                amount_cents=owed.owed_cents,
+            ))
         limit = settings.get("daily_limit_cents")
         if limit and total + amount_cents > limit:
             items.append(ReviewItem("daily_limit", "approve", amount_cents=limit))
@@ -160,6 +169,12 @@ def review(
             items.append(ReviewItem("company_blocked", "block"))
         if company.status == "trusted":
             items.append(ReviewItem("company_trusted", "info"))
+        bounced = open_bad_checks(db, store_ids, company_id=int(company.id))
+        if bounced.count:
+            items.append(ReviewItem(
+                "company_bad_check", "approve", count=bounced.count,
+                amount_cents=bounced.owed_cents,
+            ))
         cashed = checks_query(db, store_ids).filter(
             CashedCheck.company_id == company.id, CashedCheck.status == "cashed",
         )
@@ -266,7 +281,7 @@ def void(
     today: date,
 ) -> CashedCheck:
     """Undo a cashed check, at the store that cashed it, on the same
-    store day (later it is a bad check, PR 5)."""
+    store day (later it is a bad check: ``bad_checks.report``)."""
     row = get_check(db, [store_id], check_id)
     if row.status != "cashed":
         raise CheckCashingConflictError("Only a cashed check can be voided.")
@@ -274,6 +289,8 @@ def void(
         raise CheckCashingConflictError(
             "A check can be voided only on the day it was cashed.",
         )
+    if bad_checks_for(db, [int(row.id)]):
+        raise CheckCashingConflictError("A bad check cannot be voided.")
     row.status = "voided"
     row.voided_by = user_id
     row.voided_at = utc_now()
