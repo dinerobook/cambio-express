@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Query, Session
 
 from api.Core.Clock import utc_now
@@ -104,6 +104,24 @@ def work_out_fee(
 
 def checks_query(db: Session, store_ids: list[int]) -> Query[CashedCheck]:
     return db.query(CashedCheck).filter(CashedCheck.store_id.in_(store_ids))
+
+
+def search_checks(query: Query[CashedCheck], q: str) -> Query[CashedCheck]:
+    """Checks whose customer, company or check number matches ``q``
+    (two characters at least, like every list)."""
+    text = q.strip()
+    if len(text) < 2:
+        return query
+    like = f"%{text.lower()}%"
+    return (
+        query.join(CheckCustomer, CheckCustomer.id == CashedCheck.customer_id)
+        .join(CheckCompany, CheckCompany.id == CashedCheck.company_id)
+        .filter(or_(
+            func.lower(CheckCustomer.full_name).like(like),
+            func.lower(CheckCompany.name).like(like),
+            CashedCheck.check_number.like(f"%{text}%"),
+        ))
+    )
 
 
 def _today_for_customer(

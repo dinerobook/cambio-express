@@ -93,6 +93,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
 
   // ── Check cashing (its own app; navConfig "Workspaces") ────
   { path: "/check-cashing", perm: "check_cashing.read" },
+  { path: "/check-cashing/checks", perm: "check_cashing.read" },
   { path: "/check-cashing/customers", perm: "check_cashing.read" },
   { path: "/check-cashing/customers/new", perm: "check_cashing.create" },
   { path: "/check-cashing/customers/:id", perm: "check_cashing.read" },
@@ -122,6 +123,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/purchase-invoices/:id", perm: "catalog.update" },
 
   // ── Reports ────────────────────────────────────────────────
+  { path: "/reports/check-cashing", perm: "check_cashing.read" },
   { path: "/reports", perm: "reports.read" },
   { path: "/reports/*", perm: "reports.read" },
   { path: "/store-reports", perm: "reports.read" },
@@ -177,6 +179,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   // ── Owner umbrella ─────────────────────────────────────────
   // The report index is the one owner endpoint the server refuses
   // the superadmin (Owners/Controllers `owner_reports_route`).
+  { path: "/owner/reports/check-cashing", roles: ["owner"] },
   { path: "/owner/reports", roles: ["owner"] },
   { path: "/owner/*", roles: ["owner", "superadmin"] },
 

@@ -96,6 +96,8 @@ const CheckCompanies = lazy(() => import("./routes/CheckCompanies"));
 const CheckCompanyForm = lazy(() => import("./routes/CheckCompanyForm"));
 const CheckCashingSettings = lazy(() => import("./routes/CheckCashingSettings"));
 const BadChecks = lazy(() => import("./routes/BadChecks"));
+const CheckChecks = lazy(() => import("./routes/CheckChecks"));
+const CheckCashingReport = lazy(() => import("./routes/CashedChecksReport"));
 const SectionHub = lazy(() => import("./routes/SectionHub"));
 const Settings = lazy(() => import("./routes/Settings"));
 const RolesAccess = lazy(() => import("./routes/RolesAccess"));
@@ -288,6 +290,8 @@ export default function App() {
           <Route path="reports/period-comparison"           element={<Gate><PeriodComparison /></Gate>} />
           <Route path="reports/employee-activity"           element={<Gate><EmployeeActivity /></Gate>} />
           <Route path="reports/period-pl"                   element={<Gate><PeriodPL /></Gate>} />
+          <Route path="reports/check-cashing"               element={<Gate><CheckCashingReport /></Gate>} />
+          <Route path="owner/reports/check-cashing"         element={<Gate><CheckCashingReport /></Gate>} />
           <Route path="superadmin/reports/:slug"            element={<Gate><SuperadminBIDrilldown /></Gate>} />
           <Route path="owner/reports/sales-by-company"      element={<Gate><SalesByCompany /></Gate>} />
           <Route path="owner/reports/sales-by-service-type" element={<Gate><SalesByService /></Gate>} />
@@ -346,6 +350,7 @@ export default function App() {
           <Route path="check-cashing/companies"     element={<Gate><CheckCompanies /></Gate>} />
           <Route path="check-cashing/companies/new" element={<Gate><CheckCompanyForm /></Gate>} />
           <Route path="check-cashing/companies/:id" element={<Gate><CheckCompanyForm /></Gate>} />
+          <Route path="check-cashing/checks"        element={<Gate><CheckChecks /></Gate>} />
           <Route path="check-cashing/bad-checks"    element={<Gate><BadChecks /></Gate>} />
           <Route path="check-cashing/settings"      element={<Gate><CheckCashingSettings /></Gate>} />
           <Route path="owner/connect"        element={<Gate><OwnerConnect /></Gate>} />

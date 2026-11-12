@@ -315,6 +315,59 @@ export function useCompanyLookup(routing: string, account: string) {
   });
 }
 
+// ── Checks list and the period report ────────────────────────
+
+export type CheckReport = components["schemas"]["CheckReportResponse"];
+export type CheckTotals = components["schemas"]["CheckTotalsOut"];
+type CashedCheckList = components["schemas"]["CashedCheckListResponse"];
+
+export interface CheckListQuery {
+  q?: string; status?: string; from?: string; to?: string;
+  page?: number; perPage?: number;
+}
+
+function checkListQs({
+  q = "", status = "", from = "", to = "", page = 1, perPage = 50,
+}: CheckListQuery): string {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  if (q) qs.set("q", q);
+  if (status) qs.set("status", status);
+  if (from) qs.set("from", from);
+  if (to) qs.set("to", to);
+  return qs.toString();
+}
+
+/** One page of checks — the Checks page and its CSV export make the
+ *  same request. */
+export function fetchChecksPage(query: CheckListQuery = {}): Promise<CashedCheckList> {
+  return api<CashedCheckList>(`${BASE}/checks?${checkListQs(query)}`);
+}
+
+export function useChecks(query: CheckListQuery = {}) {
+  const identity = getCurrentIdentity();
+  return useQuery<CashedCheckList>({
+    enabled: identity?.store_id != null,
+    queryKey: ["check-cashing", "checks", identity?.store_id, checkListQs(query)],
+    queryFn: () => fetchChecksPage(query),
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** Totals for a period: the Checks page's summary and the back office
+ *  report (any device; an owner may have no store). */
+export function useCheckReport(query: { from?: string; to?: string; storeId?: string }) {
+  const identity = getCurrentIdentity();
+  const qs = new URLSearchParams();
+  if (query.from) qs.set("from", query.from);
+  if (query.to) qs.set("to", query.to);
+  if (query.storeId) qs.set("store_id", query.storeId);
+  return useQuery<CheckReport>({
+    queryKey: ["check-cashing", "report", identity?.store_id, qs.toString()],
+    queryFn: () => api<CheckReport>(`${BASE}/report?${qs}`),
+    placeholderData: (prev) => prev,
+  });
+}
+
 // ── Bad checks ───────────────────────────────────────────────
 
 export type BadCheckRow = components["schemas"]["BadCheckRow"];
