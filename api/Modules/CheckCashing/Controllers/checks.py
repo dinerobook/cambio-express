@@ -70,6 +70,7 @@ from api.Modules.CheckCashing.Services.cashing import (
     get_check,
     record,
     review,
+    search_checks,
     stats,
     void,
 )
@@ -279,6 +280,9 @@ def list_checks_route(
     customer_id: int | None = Query(None, ge=1),
     company_id: int | None = Query(None, ge=1),
     day: date | None = Query(None, description="One store day (YYYY-MM-DD)."),
+    from_: date | None = Query(None, alias="from", description="First store day."),
+    to: date | None = Query(None, description="Last store day."),
+    q: str = Query("", max_length=120, description="Customer, company or check number."),
     status: str = Query("", pattern="^(|cashed|declined|voided)$"),
     pagination: PaginationParams = Depends(pagination_dep),
     db: Session = Depends(get_db),
@@ -292,6 +296,11 @@ def list_checks_route(
         query = query.filter(CashedCheck.company_id == company_id)
     if day:
         query = query.filter(CashedCheck.store_day == day)
+    if from_:
+        query = query.filter(CashedCheck.store_day >= from_)
+    if to:
+        query = query.filter(CashedCheck.store_day <= to)
+    query = search_checks(query, q)
     if status:
         query = query.filter(CashedCheck.status == status)
     query = query.order_by(CashedCheck.created_at.desc(), CashedCheck.id.desc())

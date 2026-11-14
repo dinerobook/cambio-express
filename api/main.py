@@ -110,6 +110,10 @@ def _register_routers(app: FastAPI) -> None:
         router as check_cashing_bad_checks_router,
     )
     app.include_router(check_cashing_bad_checks_router)
+    from api.Modules.CheckCashing.Controllers.reports import (
+        router as check_cashing_reports_router,
+    )
+    app.include_router(check_cashing_reports_router)
 
     from api.Modules.Batches.Controllers import router as batches_router
     app.include_router(batches_router, prefix="/batches", tags=["batches"])

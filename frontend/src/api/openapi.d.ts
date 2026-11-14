@@ -3090,6 +3090,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/check-cashing/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check Report Route */
+        get: operations["check_report_route_check_cashing_report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/check-cashing/settings": {
         parameters: {
             query?: never;
@@ -9772,6 +9789,105 @@ export interface components {
             /** Width */
             width: number;
         };
+        /** CheckReportBadChecks */
+        CheckReportBadChecks: {
+            /** Open Count */
+            open_count: number;
+            /** Open Owed */
+            open_owed: number;
+            /** Paid Back */
+            paid_back: number;
+            /** Returned */
+            returned: number;
+            /** Returned Owed */
+            returned_owed: number;
+        };
+        /** CheckReportDayRow */
+        CheckReportDayRow: {
+            /** Amount */
+            amount: number;
+            /** Average */
+            average: number;
+            /** Cash */
+            cash: number;
+            /** Cashed */
+            cashed: number;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Declined */
+            declined: number;
+            /** Fees */
+            fees: number;
+            /** Voided */
+            voided: number;
+        };
+        /** CheckReportPartyRow */
+        CheckReportPartyRow: {
+            /** Amount */
+            amount: number;
+            /** Cashed */
+            cashed: number;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** CheckReportResponse */
+        CheckReportResponse: {
+            bad_checks: components["schemas"]["CheckReportBadChecks"];
+            /** Companies */
+            companies: components["schemas"]["CheckReportPartyRow"][];
+            /** Customers */
+            customers: components["schemas"]["CheckReportPartyRow"][];
+            /** Days */
+            days: components["schemas"]["CheckReportDayRow"][];
+            /**
+             * From Day
+             * Format: date
+             */
+            from_day: string;
+            /** Store Options */
+            store_options: components["schemas"]["CheckReportStoreOption"][];
+            /** Stores */
+            stores: components["schemas"]["CheckReportStoreRow"][];
+            /**
+             * To Day
+             * Format: date
+             */
+            to_day: string;
+            totals: components["schemas"]["CheckTotalsOut"];
+        };
+        /** CheckReportStoreOption */
+        CheckReportStoreOption: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** CheckReportStoreRow */
+        CheckReportStoreRow: {
+            /** Amount */
+            amount: number;
+            /** Average */
+            average: number;
+            /** Cash */
+            cash: number;
+            /** Cashed */
+            cashed: number;
+            /** Declined */
+            declined: number;
+            /** Fees */
+            fees: number;
+            /** Store Id */
+            store_id: number;
+            /** Store Name */
+            store_name: string;
+            /** Voided */
+            voided: number;
+        };
         /**
          * CheckReviewBody
          * @description What the cashier has typed so far; the answer is the fee and
@@ -9885,6 +10001,23 @@ export interface components {
             scope: "store" | "all";
             /** Total */
             total: number;
+            /** Voided */
+            voided: number;
+        };
+        /** CheckTotalsOut */
+        CheckTotalsOut: {
+            /** Amount */
+            amount: number;
+            /** Average */
+            average: number;
+            /** Cash */
+            cash: number;
+            /** Cashed */
+            cashed: number;
+            /** Declined */
+            declined: number;
+            /** Fees */
+            fees: number;
             /** Voided */
             voided: number;
         };
@@ -23810,6 +23943,12 @@ export interface operations {
                 company_id?: number | null;
                 /** @description One store day (YYYY-MM-DD). */
                 day?: string | null;
+                /** @description First store day. */
+                from?: string | null;
+                /** @description Last store day. */
+                to?: string | null;
+                /** @description Customer, company or check number. */
+                q?: string;
                 status?: string;
                 /** @description 1-based page number */
                 page?: number;
@@ -24723,6 +24862,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_report_route_check_cashing_report_get: {
+        parameters: {
+            query?: {
+                /** @description First store day (YYYY-MM-DD). */
+                from?: string;
+                /** @description Last store day (YYYY-MM-DD). */
+                to?: string;
+                /** @description One store; empty = all. */
+                store_id?: number | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckReportResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

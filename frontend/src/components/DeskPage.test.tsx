@@ -13,7 +13,7 @@ import appCss from "../styles.css?raw";
 import frameCss from "./DeskPage.module.css?raw";
 
 const routeSources = import.meta.glob<string>(
-  ["../routes/Check*.tsx", "../routes/CashCheck*.tsx", "!../routes/*.test.tsx"],
+  ["../routes/Check*.tsx", "../routes/CashCheck*.tsx", "../routes/BadChecks*.tsx", "!../routes/*.test.tsx"],
   { query: "?raw", import: "default", eager: true },
 );
 
@@ -157,6 +157,7 @@ describe("no page scrolling", () => {
   const files = [
     "CashCheck.tsx", "CheckCustomers.tsx", "CheckCustomerForm.tsx",
     "CheckCompanies.tsx", "CheckCompanyForm.tsx", "CheckCashingSettings.tsx",
+    "CheckChecks.tsx", "BadChecks.tsx",
   ];
 
   it("puts every check cashing page in the desk frame, never PageShell", () => {

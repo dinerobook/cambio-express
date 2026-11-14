@@ -5199,6 +5199,261 @@
         "title": "CheckPictureResponse",
         "type": "object"
       },
+      "CheckReportBadChecks": {
+        "additionalProperties": false,
+        "properties": {
+          "open_count": {
+            "title": "Open Count",
+            "type": "integer"
+          },
+          "open_owed": {
+            "title": "Open Owed",
+            "type": "number"
+          },
+          "paid_back": {
+            "title": "Paid Back",
+            "type": "number"
+          },
+          "returned": {
+            "title": "Returned",
+            "type": "integer"
+          },
+          "returned_owed": {
+            "title": "Returned Owed",
+            "type": "number"
+          }
+        },
+        "required": [
+          "open_count",
+          "open_owed",
+          "returned",
+          "returned_owed",
+          "paid_back"
+        ],
+        "title": "CheckReportBadChecks",
+        "type": "object"
+      },
+      "CheckReportDayRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "average": {
+            "title": "Average",
+            "type": "number"
+          },
+          "cash": {
+            "title": "Cash",
+            "type": "number"
+          },
+          "cashed": {
+            "title": "Cashed",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "declined": {
+            "title": "Declined",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "voided": {
+            "title": "Voided",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cashed",
+          "amount",
+          "fees",
+          "cash",
+          "average",
+          "declined",
+          "voided",
+          "day"
+        ],
+        "title": "CheckReportDayRow",
+        "type": "object"
+      },
+      "CheckReportPartyRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "cashed": {
+            "title": "Cashed",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "cashed",
+          "amount"
+        ],
+        "title": "CheckReportPartyRow",
+        "type": "object"
+      },
+      "CheckReportResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "bad_checks": {
+            "$ref": "#/components/schemas/CheckReportBadChecks"
+          },
+          "companies": {
+            "items": {
+              "$ref": "#/components/schemas/CheckReportPartyRow"
+            },
+            "title": "Companies",
+            "type": "array"
+          },
+          "customers": {
+            "items": {
+              "$ref": "#/components/schemas/CheckReportPartyRow"
+            },
+            "title": "Customers",
+            "type": "array"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/CheckReportDayRow"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "from_day": {
+            "format": "date",
+            "title": "From Day",
+            "type": "string"
+          },
+          "store_options": {
+            "items": {
+              "$ref": "#/components/schemas/CheckReportStoreOption"
+            },
+            "title": "Store Options",
+            "type": "array"
+          },
+          "stores": {
+            "items": {
+              "$ref": "#/components/schemas/CheckReportStoreRow"
+            },
+            "title": "Stores",
+            "type": "array"
+          },
+          "to_day": {
+            "format": "date",
+            "title": "To Day",
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/CheckTotalsOut"
+          }
+        },
+        "required": [
+          "from_day",
+          "to_day",
+          "totals",
+          "store_options",
+          "stores",
+          "days",
+          "companies",
+          "customers",
+          "bad_checks"
+        ],
+        "title": "CheckReportResponse",
+        "type": "object"
+      },
+      "CheckReportStoreOption": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CheckReportStoreOption",
+        "type": "object"
+      },
+      "CheckReportStoreRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "average": {
+            "title": "Average",
+            "type": "number"
+          },
+          "cash": {
+            "title": "Cash",
+            "type": "number"
+          },
+          "cashed": {
+            "title": "Cashed",
+            "type": "integer"
+          },
+          "declined": {
+            "title": "Declined",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "voided": {
+            "title": "Voided",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cashed",
+          "amount",
+          "fees",
+          "cash",
+          "average",
+          "declined",
+          "voided",
+          "store_id",
+          "store_name"
+        ],
+        "title": "CheckReportStoreRow",
+        "type": "object"
+      },
       "CheckReviewBody": {
         "additionalProperties": false,
         "description": "What the cashier has typed so far; the answer is the fee and\nthe review. Changes nothing.",
@@ -5567,6 +5822,50 @@
           "voided"
         ],
         "title": "CheckStatsOut",
+        "type": "object"
+      },
+      "CheckTotalsOut": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "average": {
+            "title": "Average",
+            "type": "number"
+          },
+          "cash": {
+            "title": "Cash",
+            "type": "number"
+          },
+          "cashed": {
+            "title": "Cashed",
+            "type": "integer"
+          },
+          "declined": {
+            "title": "Declined",
+            "type": "integer"
+          },
+          "fees": {
+            "title": "Fees",
+            "type": "number"
+          },
+          "voided": {
+            "title": "Voided",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cashed",
+          "amount",
+          "fees",
+          "cash",
+          "average",
+          "declined",
+          "voided"
+        ],
+        "title": "CheckTotalsOut",
         "type": "object"
       },
       "CheckoutSessionRequest": {
@@ -36739,6 +37038,57 @@
             }
           },
           {
+            "description": "First store day.",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First store day.",
+              "title": "From"
+            }
+          },
+          {
+            "description": "Last store day.",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last store day.",
+              "title": "To"
+            }
+          },
+          {
+            "description": "Customer, company or check number.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Customer, company or check number.",
+              "maxLength": 120,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
             "in": "query",
             "name": "status",
             "required": false,
@@ -38811,6 +39161,114 @@
           }
         },
         "summary": "Get Picture Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/report": {
+      "get": {
+        "operationId": "check_report_route_check_cashing_report_get",
+        "parameters": [
+          {
+            "description": "First store day (YYYY-MM-DD).",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "First store day (YYYY-MM-DD).",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last store day (YYYY-MM-DD).",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Last store day (YYYY-MM-DD).",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One store; empty = all.",
+            "in": "query",
+            "name": "store_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One store; empty = all.",
+              "title": "Store Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckReportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Report Route",
         "tags": [
           "check-cashing"
         ]

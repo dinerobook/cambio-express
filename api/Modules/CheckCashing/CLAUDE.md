@@ -20,6 +20,8 @@ SPA files that count as CheckCashing files:
 `frontend/src/components/CheckPictures.tsx`,
 `frontend/src/components/CheckScanBar.tsx`, `frontend/src/lib/scanner.ts`,
 `frontend/src/routes/BadChecks.tsx`, `frontend/src/components/BadCheck.tsx`,
+`frontend/src/routes/CheckChecks.tsx`, `frontend/src/routes/CashedChecksReport.tsx`,
+`frontend/src/components/CheckTotals.tsx`,
 `frontend/src/lib/micr.ts`, and the Windows app `desktop/windows/`,
 `frontend/src/lib/useDeskScreen.ts`.
 
@@ -32,7 +34,8 @@ SPA files that count as CheckCashing files:
   is a `DeskPage` (full window, no page scrolling, boxes scroll inside
   themselves, desktop only) and every new router carries
   `require_check_device` (INVARIANTS "One computer"); only the device
-  routes are ungated.
+  routes and the view-only report (INVARIANTS "Checks and reports",
+  for owners' phones) are ungated.
 
 - **Standalone (owner, 2026-11-07).** This module must not read or
   write the daily book, the monthly P&L, Returned checks or the

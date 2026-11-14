@@ -592,6 +592,13 @@ This is enforced by the kit, not by per-page checks:
   Enter fills the boxes (`lib/micr.ts` `parseMicrLine`, the one MICR
   parser). After a save or clear the focus returns there. Scanner
   messages go through `lib/scanner.ts` only.
+- **Check cashing reports read from the back office.** The desk is the
+  separate app on one computer; what owners and Admins read about it
+  elsewhere is the back office "Check cashing report"
+  (`routes/CashedChecksReport.tsx`, a normal `PageShell` page in the
+  Reports menu, phone friendly, view only). A period's totals are ONE
+  component, `CheckTotalsGrid` (`components/CheckTotals.tsx`), on that
+  report and on the desk's Checks page.
 - **A bad check is one popup everywhere** (`components/BadCheck.tsx`).
   A manager marks a cashed check bad from its row in the recent checks
   (`ReportBadCheckDialog`, "Mark bad"); the row then carries a "Bad

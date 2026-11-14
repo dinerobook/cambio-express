@@ -45,6 +45,8 @@ MODULE_FLAG_KEYS = (
 # hide the group. Resolved with ``opt_in_flag_enabled`` (never fails
 # open) and not part of a person's ``module_access`` list.
 OPT_IN_NAV_FLAG_KEYS = ("check_desk",)
+# Sent to an owner: the check cashing report link (any device, no store needed).
+OWNER_CHECK_REPORT_FLAG = "check_desk_report"
 
 _BUSINESS_TYPE_MODULE_DEFAULTS: dict[str, dict[str, bool]] = {
     # module_money_services: money-transfer ledger + ACH batches +
@@ -234,6 +236,17 @@ def enabled_module_flags_for_user(
     this module doesn't grow a Tenancy import.
     """
     store_flags = enabled_module_flags(db, store)
+    if getattr(user, "role", None) == "owner":
+        # An owner gets the view-only check cashing report in their
+        # Reports menu once any of their stores has check cashing on
+        # (signed in without a store, too: the desk needs a store, the
+        # report does not).
+        from api.Modules.Owners.Services import owner_store_ids
+        if any(
+            opt_in_flag_enabled(db, int(sid), "check_desk")
+            for sid in owner_store_ids(db, user)
+        ):
+            store_flags = [*store_flags, OWNER_CHECK_REPORT_FLAG]
     if user is None or getattr(user, "role", None) not in ("admin", "employee"):
         return store_flags
     raw = getattr(user, "module_access", None)

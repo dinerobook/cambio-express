@@ -33,6 +33,12 @@ export function sectionSlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+// The store's check cashing switch, and the flag an owner signed in
+// without a store gets once any of their stores has it on (the report
+// only: the desk needs a store). See "Workspaces" below.
+export const CHECK_DESK_FLAG = "check_desk";
+export const OWNER_CHECK_REPORT_FLAG = "check_desk_report";
+
 export const NAV: NavGroup[] = [
   {
     // Dashboard as its own top-level destination (owner directive)
@@ -226,6 +232,15 @@ export const NAV: NavGroup[] = [
         icon: iconAudit(),
         desc: "Year-end tax pack and CSV downloads.",
       },
+      // The check cashing counter, view only and on any device (the
+      // desk itself is the separate app behind the top-bar switch).
+      {
+        to: "/reports/check-cashing", label: "Check cashing report",
+        flag: CHECK_DESK_FLAG,
+        roles: ["admin"],
+        icon: iconCheckCashing(),
+        desc: "Checks cashed, fees and bad checks.",
+      },
       {
         to: "/store-reports", label: "Store reports",
         flag: "module_day_close",
@@ -286,6 +301,7 @@ export const NAV: NavGroup[] = [
     items: [
       { to: "/owner/pl-rollup",  label: "P&L rollup", icon: iconRollup(),  desc: "Combined P&L for all stores." },
       { to: "/owner/reports", label: "Cross-store reports",    icon: iconReports(), desc: "Cross-store analytics." },
+      { to: "/owner/reports/check-cashing", label: "Check cashing report", flag: OWNER_CHECK_REPORT_FLAG, icon: iconCheckCashing(), desc: "Checks cashed, fees and bad checks." },
     ],
   },
   {
@@ -381,7 +397,6 @@ export const NAV: NavGroup[] = [
 // switch is on (api/Modules/CheckCashing).
 export type Workspace = "backoffice" | "checks";
 
-export const CHECK_DESK_FLAG = "check_desk";
 export const CHECK_HOME = "/check-cashing";
 
 export const CHECK_NAV: NavGroup[] = [
@@ -390,6 +405,13 @@ export const CHECK_NAV: NavGroup[] = [
     icon: iconCheckCashing(),
     to: CHECK_HOME,
     end: true,
+    flag: CHECK_DESK_FLAG,
+    items: [],
+  },
+  {
+    title: "Checks",
+    icon: iconReceipt(),
+    to: "/check-cashing/checks",
     flag: CHECK_DESK_FLAG,
     items: [],
   },
