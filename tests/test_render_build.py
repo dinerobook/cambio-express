@@ -103,3 +103,83 @@ def test_pkg_json_pins_engines_node_22_12_or_newer():
     assert (major, minor) >= (22, 12), (
         f"Vite 8 needs Node 22.12+; engines.node is {engines!r}"
     )
+
+
+# ── Gunicorn worker recycling (memory) ───────────────────────────
+# Render restarted the web service three times in Nov 2026 for going
+# over its memory limit. gunicorn.conf.py makes each worker retire
+# after a set number of requests so memory never creeps. Gunicorn
+# loads ./gunicorn.conf.py by itself, which is why the setting lives
+# there and not only in the start command: the live start command is
+# the one in the Render dashboard, which a render.yaml edit may not
+# reach.
+
+GUNICORN_CONF = REPO_ROOT / "gunicorn.conf.py"
+
+
+def _load_gunicorn_conf(monkeypatch, **env):
+    import runpy
+    for key in ("GUNICORN_MAX_REQUESTS", "GUNICORN_MAX_REQUESTS_JITTER"):
+        monkeypatch.delenv(key, raising=False)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    return runpy.run_path(str(GUNICORN_CONF))
+
+
+def test_gunicorn_conf_recycles_workers_by_default(monkeypatch):
+    conf = _load_gunicorn_conf(monkeypatch)
+    assert conf["max_requests"] == 1000
+    assert conf["max_requests_jitter"] == 200
+
+
+def test_gunicorn_conf_env_override(monkeypatch):
+    conf = _load_gunicorn_conf(
+        monkeypatch,
+        GUNICORN_MAX_REQUESTS="500", GUNICORN_MAX_REQUESTS_JITTER="50",
+    )
+    assert conf["max_requests"] == 500
+    assert conf["max_requests_jitter"] == 50
+
+
+def test_gunicorn_conf_zero_turns_recycling_off(monkeypatch):
+    conf = _load_gunicorn_conf(monkeypatch, GUNICORN_MAX_REQUESTS="0")
+    assert conf["max_requests"] == 0
+
+
+@pytest.mark.parametrize("bad,expected", [
+    ("lots", 1000), ("1e3", 1000), ("  ", 1000), ("-5", 0),
+])
+def test_gunicorn_conf_bad_env_never_breaks_boot(monkeypatch, bad, expected):
+    """A typo in the dashboard must not stop the service from
+    starting: junk falls back to the default, a negative to 0."""
+    conf = _load_gunicorn_conf(monkeypatch, GUNICORN_MAX_REQUESTS=bad)
+    assert conf["max_requests"] == expected
+
+
+def test_gunicorn_conf_is_a_valid_gunicorn_config(monkeypatch):
+    """Gunicorn itself accepts the file and ends up with the values."""
+    from gunicorn.app.base import Application
+
+    class _App(Application):
+        def init(self, parser, opts, args):  # pragma: no cover - unused
+            return None
+
+        def load(self):  # pragma: no cover - never served
+            return None
+
+    for key in ("GUNICORN_MAX_REQUESTS", "GUNICORN_MAX_REQUESTS_JITTER"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr("sys.argv", ["gunicorn", "-c", str(GUNICORN_CONF), "x:y"])
+    app = _App()
+    assert app.cfg.max_requests == 1000
+    assert app.cfg.max_requests_jitter == 200
+
+
+def test_start_commands_do_not_override_recycling():
+    """A --max-requests flag would beat gunicorn.conf.py; keep the
+    numbers in one place. Both start commands still serve asgi_app."""
+    for path in (RENDER, REPO_ROOT / "Dockerfile"):
+        body = path.read_text()
+        assert "gunicorn asgi:asgi_app" in body
+        assert "--max-requests" not in body, path.name
+        assert "--config" not in body and " -c " not in body, path.name
