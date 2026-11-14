@@ -10,6 +10,7 @@
 > | [`api/`](api/CLAUDE.md) | module map, `api/Core` helpers, the detail behind the backend invariants below, mypy ratchet, templates |
 > | `api/Modules/{Auth,BankSync,CheckCashing,DailyBook,Monthly,Transfers}/` | that module's `INVARIANTS.md` (imported, so it is always in view) |
 > | [`api/Modules/Customers/`](api/Modules/Customers/CLAUDE.md) | the Transfers invariants (customer upsert) |
+> | [`api/Modules/ReturnChecks/`](api/Modules/ReturnChecks/CLAUDE.md) | returned checks: batches, the company / customer grouping rule, the planned check cashing link |
 > | [`api/Modules/Notifications/`](api/Modules/Notifications/CLAUDE.md) | the top-bar bell: how items are built, how to add one |
 > | [`frontend/`](frontend/CLAUDE.md) | design system, UI standards, OpenAPI types, the SPA checks CI runs |
 > | [`alembic/`](alembic/CLAUDE.md) | migrations and table naming |

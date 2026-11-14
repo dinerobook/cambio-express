@@ -74,6 +74,10 @@
   .root td {
     display: block;
     width: 100%;
+    /* The cell's own padding stays inside that 100%; without it each
+     * line ran 8px past the card and the table clipped the last
+     * characters of every value. */
+    box-sizing: border-box;
   }
 
   .root thead {

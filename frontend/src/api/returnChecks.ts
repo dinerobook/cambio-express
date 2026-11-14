@@ -64,17 +64,29 @@ export interface ReturnCheckList {
 export interface ReturnCheckListQuery {
   status?: string; sort?: string; dir?: "asc" | "desc";
   page?: number; perPage?: number;
+  /** Free-text search: customer, company, check #, bank, routing #. */
+  q?: string;
+  /** Only one batch's checks. */
+  batchId?: number;
+  /** Grouping keys from the By company / By customer lists. */
+  company?: string;
+  customer?: string;
 }
 
 /** One page of the returned checks list — the request the list page
  *  and its CSV export both make. */
 export function fetchReturnChecksPage({
   status = "", sort = "bounced", dir = "desc", page = 1, perPage = 50,
+  q = "", batchId, company = "", customer = "",
 }: ReturnCheckListQuery = {}): Promise<ReturnCheckList> {
   const qs = new URLSearchParams({
     sort, dir, page: String(page), per_page: String(perPage),
   });
   if (status) qs.set("status", status);
+  if (q) qs.set("q", q);
+  if (batchId != null) qs.set("batch_id", String(batchId));
+  if (company) qs.set("company", company);
+  if (customer) qs.set("customer", customer);
   return api<ReturnCheckList>(`/api/v2/return-checks?${qs.toString()}`);
 }
 
@@ -82,11 +94,129 @@ export function useReturnChecks(query: ReturnCheckListQuery = {}) {
   const identity = getCurrentIdentity();
   const {
     status = "", sort = "bounced", dir = "desc", page = 1, perPage = 50,
+    q = "", batchId, company = "", customer = "",
   } = query;
   return useQuery<ReturnCheckList>({
     enabled: identity?.store_id != null,
-    queryKey: ["return-checks", "list", identity?.store_id, status, sort, dir, page, perPage],
+    queryKey: [
+      "return-checks", "list", identity?.store_id, status, sort, dir, page, perPage,
+      q, batchId ?? null, company, customer,
+    ],
     queryFn: () => fetchReturnChecksPage(query),
+    placeholderData: (prev) => prev,
+  });
+}
+
+// ── Batches ─────────────────────────────────────────────────
+
+export type ReturnCheckBatchRow = components["schemas"]["ReturnCheckBatchRow"];
+export type ReturnCheckBatchList = components["schemas"]["ReturnCheckBatchListResponse"];
+export type ReturnCheckBatchDetail = components["schemas"]["ReturnCheckBatchResponse"];
+export type ReturnCheckBatchCreateBody = components["schemas"]["ReturnCheckBatchCreateRequest"];
+export type ReturnCheckBatchCheckBody = components["schemas"]["ReturnCheckBatchCheckRequest"];
+export type ReturnCheckBatchUpdateBody = components["schemas"]["ReturnCheckBatchUpdateRequest"];
+
+export interface ReturnCheckBatchListQuery {
+  q?: string; sort?: string; dir?: "asc" | "desc"; page?: number; perPage?: number;
+}
+
+/** One page of returned batches — the list page and its CSV export. */
+export function fetchReturnCheckBatchesPage({
+  q = "", sort = "returned", dir = "desc", page = 1, perPage = 50,
+}: ReturnCheckBatchListQuery = {}): Promise<ReturnCheckBatchList> {
+  const qs = new URLSearchParams({
+    sort, dir, page: String(page), per_page: String(perPage),
+  });
+  if (q) qs.set("q", q);
+  return api<ReturnCheckBatchList>(`/api/v2/return-checks/batches?${qs.toString()}`);
+}
+
+export function useReturnCheckBatches(query: ReturnCheckBatchListQuery = {}) {
+  const identity = getCurrentIdentity();
+  const { q = "", sort = "returned", dir = "desc", page = 1, perPage = 50 } = query;
+  return useQuery<ReturnCheckBatchList>({
+    enabled: identity?.store_id != null,
+    queryKey: ["return-checks", "batches", identity?.store_id, q, sort, dir, page, perPage],
+    queryFn: () => fetchReturnCheckBatchesPage(query),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useReturnCheckBatch(batchId: number | undefined) {
+  const identity = getCurrentIdentity();
+  return useQuery<ReturnCheckBatchDetail>({
+    enabled: Number.isFinite(batchId) && identity?.store_id != null,
+    queryKey: ["return-checks", "batch", identity?.store_id, batchId],
+    queryFn: () => api<ReturnCheckBatchDetail>(`/api/v2/return-checks/batches/${batchId}`),
+  });
+}
+
+export function createReturnCheckBatch(
+  body: ReturnCheckBatchCreateBody,
+): Promise<ReturnCheckBatchDetail> {
+  return api<ReturnCheckBatchDetail>("/api/v2/return-checks/batches", {
+    method: "POST", json: body,
+  });
+}
+
+export function updateReturnCheckBatch(
+  batchId: number, body: ReturnCheckBatchUpdateBody,
+): Promise<ReturnCheckBatchDetail> {
+  return api<ReturnCheckBatchDetail>(`/api/v2/return-checks/batches/${batchId}`, {
+    method: "PUT", json: body,
+  });
+}
+
+export function deleteReturnCheckBatch(batchId: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/v2/return-checks/batches/${batchId}`, {
+    method: "DELETE",
+  });
+}
+
+/** "May 3, 2026 · RTN-77" — how a batch is named in pickers and
+ *  trails: its returned date, then the bank reference when there is one. */
+export function batchName(
+  batch: { returned_on: string; reference?: string | null },
+  formatDay: (iso: string) => string,
+): string {
+  const ref = (batch.reference ?? "").trim();
+  const day = formatDay(batch.returned_on);
+  return ref ? `${day} · ${ref}` : day;
+}
+
+// ── Tracking by company / customer ──────────────────────────
+
+export type ReturnCheckPartyRow = components["schemas"]["ReturnCheckPartyRow"];
+export type ReturnCheckPartyList = components["schemas"]["ReturnCheckPartyListResponse"];
+export type PartyKind = "company" | "customer";
+
+export interface ReturnCheckPartyQuery {
+  by: PartyKind; q?: string; from?: string; to?: string;
+  sort?: string; dir?: "asc" | "desc"; page?: number; perPage?: number;
+}
+
+/** One page of the By company / By customer list. */
+export function fetchReturnCheckPartiesPage({
+  by, q = "", from = "", to = "", sort = "checks", dir = "desc", page = 1, perPage = 50,
+}: ReturnCheckPartyQuery): Promise<ReturnCheckPartyList> {
+  const qs = new URLSearchParams({
+    by, sort, dir, page: String(page), per_page: String(perPage),
+  });
+  if (q) qs.set("q", q);
+  if (from) qs.set("from", from);
+  if (to) qs.set("to", to);
+  return api<ReturnCheckPartyList>(`/api/v2/return-checks/tracking?${qs.toString()}`);
+}
+
+export function useReturnCheckParties(query: ReturnCheckPartyQuery, enabled = true) {
+  const identity = getCurrentIdentity();
+  const {
+    by, q = "", from = "", to = "", sort = "checks", dir = "desc", page = 1, perPage = 50,
+  } = query;
+  return useQuery<ReturnCheckPartyList>({
+    enabled: enabled && identity?.store_id != null,
+    queryKey: ["return-checks", "tracking", identity?.store_id, by, q, from, to, sort, dir, page, perPage],
+    queryFn: () => fetchReturnCheckPartiesPage(query),
     placeholderData: (prev) => prev,
   });
 }
@@ -113,6 +243,10 @@ export interface ReturnCheckWriteBody {
   amount: number;
   return_check_fee?: number;
   notes?: string;
+  /** null = not in a batch. Left out, the check keeps its batch. */
+  batch_id?: number | null;
+  routing_number?: string;
+  account_number?: string;
 }
 
 export async function createReturnCheck(
@@ -158,6 +292,12 @@ export async function reopenReturnCheck(
     `/api/v2/return-checks/${rcId}/reopen`,
     { method: "POST", json: {} },
   );
+}
+
+/** Delete a check typed by mistake (Admin by default). The server
+ *  refuses while it still has paybacks: remove those first. */
+export function deleteReturnCheck(rcId: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/v2/return-checks/${rcId}`, { method: "DELETE" });
 }
 
 export type ReturnCheckPaymentRow = components["schemas"]["ReturnCheckPaymentRow"];

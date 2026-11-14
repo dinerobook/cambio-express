@@ -5226,6 +5226,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/return-checks/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Batches Route */
+        get: operations["batches_route_return_checks_batches_get"];
+        put?: never;
+        /**
+         * Create Batch Route
+         * @description Record a batch of returned checks in one save.
+         */
+        post: operations["create_batch_route_return_checks_batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/return-checks/batches/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Batch Route */
+        get: operations["get_batch_route_return_checks_batches__batch_id__get"];
+        /** Update Batch Route */
+        put: operations["update_batch_route_return_checks_batches__batch_id__put"];
+        post?: never;
+        /**
+         * Delete Batch Route
+         * @description Delete an empty batch; one that still has checks is a 409.
+         */
+        delete: operations["delete_batch_route_return_checks_batches__batch_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/return-checks/tracking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tracking Route
+         * @description Returned checks grouped by company or by customer: how many,
+         *     how much, what is still owed and what was written off.
+         */
+        get: operations["tracking_route_return_checks_tracking_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/return-checks/{rc_id}": {
         parameters: {
             query?: never;
@@ -5238,7 +5302,13 @@ export interface paths {
         /** Update Route */
         put: operations["update_route_return_checks__rc_id__put"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete Route
+         * @description Delete a returned check entered by mistake. Admin-only by
+         *     default (``return_checks.delete``); the audit row keeps what the
+         *     check was.
+         */
+        delete: operations["delete_route_return_checks__rc_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -14973,6 +15043,170 @@ export interface components {
             role: string;
         };
         /**
+         * ReturnCheckBatchCheckRequest
+         * @description One check on the New batch form. The returned date is the
+         *     batch's.
+         */
+        ReturnCheckBatchCheckRequest: {
+            /**
+             * Account Number
+             * @default
+             */
+            account_number: string;
+            /** Amount */
+            amount: number;
+            /**
+             * Check Number
+             * @default
+             */
+            check_number: string;
+            /** Company Name */
+            company_name: string;
+            /** Customer Name */
+            customer_name: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Payer Bank
+             * @default
+             */
+            payer_bank: string;
+            /**
+             * Return Check Fee
+             * @default 0
+             */
+            return_check_fee: number;
+            /**
+             * Routing Number
+             * @default
+             */
+            routing_number: string;
+        };
+        /**
+         * ReturnCheckBatchCreateRequest
+         * @description POST /return-checks/batches: the batch and its checks at once.
+         */
+        ReturnCheckBatchCreateRequest: {
+            /** Checks */
+            checks: components["schemas"]["ReturnCheckBatchCheckRequest"][];
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Reference
+             * @default
+             */
+            reference: string;
+            /** Returned On */
+            returned_on: string;
+        };
+        /** ReturnCheckBatchListResponse */
+        ReturnCheckBatchListResponse: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["ReturnCheckBatchRow"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Total Pages
+             * @default 1
+             */
+            total_pages: number;
+        };
+        /**
+         * ReturnCheckBatchResponse
+         * @description One batch and its checks.
+         */
+        ReturnCheckBatchResponse: {
+            batch: components["schemas"]["ReturnCheckBatchRow"];
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["ReturnCheckRow"][];
+        };
+        /**
+         * ReturnCheckBatchRow
+         * @description One returned batch with its totals (worked out from its checks).
+         */
+        ReturnCheckBatchRow: {
+            /**
+             * Amount Total
+             * @default 0
+             */
+            amount_total: number;
+            /**
+             * Check Count
+             * @default 0
+             */
+            check_count: number;
+            /**
+             * Companies
+             * @default []
+             */
+            companies: string[];
+            /**
+             * Fee Total
+             * @default 0
+             */
+            fee_total: number;
+            /** Id */
+            id: number;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Open Count
+             * @default 0
+             */
+            open_count: number;
+            /**
+             * Recovered Total
+             * @default 0
+             */
+            recovered_total: number;
+            /**
+             * Reference
+             * @default
+             */
+            reference: string;
+            /** Returned On */
+            returned_on: string;
+        };
+        /**
+         * ReturnCheckBatchUpdateRequest
+         * @description PUT /return-checks/batches/{id}: the batch's own fields. A new
+         *     date moves every check in the batch.
+         */
+        ReturnCheckBatchUpdateRequest: {
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Reference
+             * @default
+             */
+            reference: string;
+            /** Returned On */
+            returned_on: string;
+        };
+        /**
          * ReturnCheckListResponse
          * @description Every check, or one page when the list is asked for a
          *     ``page``; the envelope fields are filled either way.
@@ -14995,6 +15229,58 @@ export interface components {
              * @default 1
              */
             total_pages: number;
+        };
+        /** ReturnCheckPartyListResponse */
+        ReturnCheckPartyListResponse: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["ReturnCheckPartyRow"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Total Pages
+             * @default 1
+             */
+            total_pages: number;
+        };
+        /**
+         * ReturnCheckPartyRow
+         * @description A company or customer on the By company / By customer lists.
+         */
+        ReturnCheckPartyRow: {
+            /** Amount Total */
+            amount_total: number;
+            /** Check Count */
+            check_count: number;
+            /** Key */
+            key: string;
+            /**
+             * Last Returned On
+             * @default
+             */
+            last_returned_on: string;
+            /** Lost Count */
+            lost_count: number;
+            /** Lost Total */
+            lost_total: number;
+            /** Name */
+            name: string;
+            /** Open Count */
+            open_count: number;
+            /** Owed Total */
+            owed_total: number;
+            /**
+             * Routing Number
+             * @default
+             */
+            routing_number: string;
         };
         /**
          * ReturnCheckPaymentResponse
@@ -15068,8 +15354,20 @@ export interface components {
          *     /return-checks list page renders.
          */
         ReturnCheckRow: {
+            /**
+             * Account Number
+             * @default
+             */
+            account_number: string;
             /** Amount */
             amount: number;
+            /** Batch Id */
+            batch_id?: number | null;
+            /**
+             * Batch Reference
+             * @default
+             */
+            batch_reference: string;
             /** Bounced On */
             bounced_on: string;
             /**
@@ -15111,6 +15409,11 @@ export interface components {
              * @default 0
              */
             return_check_fee: number;
+            /**
+             * Routing Number
+             * @default
+             */
+            routing_number: string;
             /** Status */
             status: string;
             /**
@@ -15125,8 +15428,15 @@ export interface components {
          *     endpoints, not via this schema.
          */
         ReturnCheckWriteRequest: {
+            /**
+             * Account Number
+             * @default
+             */
+            account_number: string;
             /** Amount */
             amount: number;
+            /** Batch Id */
+            batch_id?: number | null;
             /** Bounced On */
             bounced_on: string;
             /**
@@ -15153,6 +15463,11 @@ export interface components {
              * @default 0
              */
             return_check_fee: number;
+            /**
+             * Routing Number
+             * @default
+             */
+            routing_number: string;
         };
         /** ReturnedCheckStatusResponse */
         ReturnedCheckStatusResponse: {
@@ -28813,7 +29128,15 @@ export interface operations {
             query?: {
                 /** @description Optional filter: pending, recovered, loss, fraud */
                 status?: string;
-                /** @description bounced, customer, check, bank, amount or status; empty = newest bounce first. */
+                /** @description Search customer, company, check number, bank or routing number. */
+                q?: string;
+                /** @description Only this batch's checks. */
+                batch_id?: number | null;
+                /** @description A company key from /tracking?by=company. */
+                company?: string;
+                /** @description A customer key from /tracking?by=customer. */
+                customer?: string;
+                /** @description bounced, customer, company, check, bank, amount or status; empty = newest bounce first. */
                 sort?: string;
                 dir?: string;
                 /** @description 1-based page. Omit for every check (the legacy shape). */
@@ -28874,6 +29197,240 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReturnCheckResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    batches_route_return_checks_batches_get: {
+        parameters: {
+            query?: {
+                /** @description Search reference, notes, or a check's customer, company or number. */
+                q?: string;
+                /** @description returned or reference; empty = newest return first. */
+                sort?: string;
+                dir?: string;
+                page?: number;
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnCheckBatchListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_batch_route_return_checks_batches_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnCheckBatchCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnCheckBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_batch_route_return_checks_batches__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnCheckBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_batch_route_return_checks_batches__batch_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnCheckBatchUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnCheckBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_batch_route_return_checks_batches__batch_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tracking_route_return_checks_tracking_get: {
+        parameters: {
+            query?: {
+                /** @description company or customer */
+                by?: string;
+                /** @description Search names. */
+                q?: string;
+                /** @description YYYY-MM-DD; empty = from the first check. */
+                from?: string;
+                /** @description YYYY-MM-DD; empty = up to today. */
+                to?: string;
+                /** @description checks, amount, owed, lost, last or name; empty = most checks first. */
+                sort?: string;
+                dir?: string;
+                page?: number;
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnCheckPartyListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -28948,6 +29505,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReturnCheckResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_route_return_checks__rc_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                rc_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
                 };
             };
             /** @description Validation Error */

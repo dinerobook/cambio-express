@@ -25,8 +25,11 @@ const markFraud = vi.fn();
 const reopenReturnCheck = vi.fn();
 const createReturnCheckPayment = vi.fn();
 const deleteReturnCheckPayment = vi.fn();
+const deleteReturnCheck = vi.fn();
 const useReturnCheck = vi.fn();
 const useReturnCheckPayments = vi.fn();
+const useReturnCheckBatches = vi.fn();
+const useReturnCheckBatch = vi.fn();
 const refetch = vi.fn();
 
 vi.mock("../api/returnChecks", async (importOriginal) => {
@@ -40,8 +43,13 @@ vi.mock("../api/returnChecks", async (importOriginal) => {
     reopenReturnCheck: (...a: unknown[]) => reopenReturnCheck(...a),
     createReturnCheckPayment: (...a: unknown[]) => createReturnCheckPayment(...a),
     deleteReturnCheckPayment: (...a: unknown[]) => deleteReturnCheckPayment(...a),
+    deleteReturnCheck: (...a: unknown[]) => deleteReturnCheck(...a),
     useReturnCheck: (id: number | undefined) => useReturnCheck(id),
     useReturnCheckPayments: (id: number | undefined) => useReturnCheckPayments(id),
+    useReturnCheckBatches: (q: unknown) => useReturnCheckBatches(q),
+    useReturnCheckBatch: (id: number | undefined) => useReturnCheckBatch(id),
+    // The name suggestions ask the tracking list; none here.
+    useReturnCheckParties: () => ({ data: undefined }),
   };
 });
 
@@ -51,6 +59,7 @@ function check(over: Partial<ReturnCheckRow> = {}): ReturnCheckRow {
     company_name: "Ruiz Foods", check_number: "1042", payer_bank: "Chase",
     amount: 500, return_check_fee: 25, status: "pending",
     status_changed_on: "", notes: "", recovered_total: 100, payment_count: 1,
+    batch_id: null, batch_reference: "", routing_number: "", account_number: "",
     ...over,
   };
 }
@@ -69,6 +78,12 @@ function setEdit(over: Partial<ReturnCheckRow> = {}) {
   });
 }
 
+const BATCH = {
+  id: 7, returned_on: "2026-11-10", reference: "RTN-77", notes: "",
+  check_count: 2, amount_total: 550, fee_total: 25, recovered_total: 0,
+  open_count: 2, companies: ["Acme LLC"],
+};
+
 let qc: QueryClient;
 // The returned-checks list as the list page cached it.
 const LIST_KEY = ["return-checks", "list", 1, "all"];
@@ -83,6 +98,7 @@ function renderForm(path: string) {
             <Route path="/return-checks/new" element={<ReturnCheckForm />} />
             <Route path="/return-checks/:id/edit" element={<ReturnCheckForm />} />
             <Route path="/return-checks" element={<div>checks list</div>} />
+            <Route path="/return-checks/batches/:id" element={<div>batch page</div>} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>
@@ -103,10 +119,16 @@ beforeEach(() => {
   for (const f of [
     createReturnCheck, updateReturnCheck, markLoss, markFraud,
     reopenReturnCheck, createReturnCheckPayment, deleteReturnCheckPayment,
-    useReturnCheck, useReturnCheckPayments, refetch,
+    deleteReturnCheck,
+    useReturnCheck, useReturnCheckPayments, useReturnCheckBatches,
+    useReturnCheckBatch, refetch,
   ]) {
     f.mockReset();
   }
+  useReturnCheckBatches.mockReturnValue({ data: { rows: [BATCH], total: 1, page: 1, total_pages: 1 } });
+  useReturnCheckBatch.mockImplementation((id: number | undefined) => ({
+    data: id === BATCH.id ? { batch: BATCH, checks: [] } : undefined,
+  }));
   useReturnCheck.mockReturnValue({ data: undefined, isLoading: false, refetch });
   useReturnCheckPayments.mockReturnValue({ data: undefined, isLoading: false });
   refetch.mockResolvedValue({});
@@ -143,6 +165,9 @@ describe("ReturnCheckForm create", () => {
       amount: 500.25,
       return_check_fee: 25,
       notes: "",
+      batch_id: null,
+      routing_number: "",
+      account_number: "",
     });
     expect(await screen.findByText("checks list")).toBeInTheDocument();
     expect(screen.getByText("Return check recorded.")).toBeInTheDocument();
@@ -179,6 +204,52 @@ describe("ReturnCheckForm create", () => {
   });
 });
 
+describe("ReturnCheckForm batch and routing", () => {
+  it("opened from a batch: no date field, saves into the batch on its day and goes back", async () => {
+    createReturnCheck.mockResolvedValue({});
+    renderForm("/return-checks/new?batch=7");
+    expect(screen.getByLabelText(/^Batch \(optional\)/)).toHaveValue("7");
+    expect(screen.queryByLabelText("Bounced on")).not.toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Customer name"), "Ana Ruiz");
+    await userEvent.type(screen.getByLabelText("Company name"), "Acme LLC");
+    await userEvent.type(screen.getByLabelText("Routing # (optional)"), "021-000-021");
+    await userEvent.type(screen.getByLabelText(/^Amount/), "100");
+    await userEvent.click(screen.getByRole("button", { name: "Create return check" }));
+    await waitFor(() => expect(createReturnCheck).toHaveBeenCalledTimes(1));
+    expect(createReturnCheck).toHaveBeenCalledWith(expect.objectContaining({
+      batch_id: 7, bounced_on: "2026-11-10", routing_number: "021000021",
+    }));
+    expect(await screen.findByText("batch page")).toBeInTheDocument();
+  });
+
+  it("picking no batch brings the date back; picking one hides it", async () => {
+    renderForm("/return-checks/new");
+    const picker = screen.getByLabelText(/^Batch \(optional\)/);
+    expect(picker).toHaveValue("");
+    expect(screen.getByLabelText("Bounced on")).toBeInTheDocument();
+    expect(within(picker).getByRole("option", { name: "Nov 10, 2026 · RTN-77" })).toBeInTheDocument();
+    await userEvent.selectOptions(picker, "7");
+    expect(screen.queryByLabelText("Bounced on")).not.toBeInTheDocument();
+    await userEvent.selectOptions(picker, "");
+    expect(screen.getByLabelText("Bounced on")).toBeInTheDocument();
+  });
+
+  it("edit shows the check's batch and routing / account and can take it out of the batch", async () => {
+    setEdit({ batch_id: 7, batch_reference: "RTN-77", routing_number: "021000021", account_number: "555" });
+    updateReturnCheck.mockResolvedValue({});
+    renderForm("/return-checks/5/edit");
+    expect(screen.getByLabelText(/^Batch \(optional\)/)).toHaveValue("7");
+    expect(screen.getByLabelText("Routing # (optional)")).toHaveValue("021000021");
+    expect(screen.getByLabelText("Account # (optional)")).toHaveValue("555");
+    await userEvent.selectOptions(screen.getByLabelText(/^Batch \(optional\)/), "");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(updateReturnCheck).toHaveBeenCalledTimes(1));
+    expect(updateReturnCheck).toHaveBeenCalledWith(5, expect.objectContaining({
+      batch_id: null, bounced_on: "2026-10-02", routing_number: "021000021",
+    }));
+  });
+});
+
 describe("ReturnCheckForm edit", () => {
   it("hydrates the form and PUTs the changed values", async () => {
     setEdit();
@@ -199,6 +270,9 @@ describe("ReturnCheckForm edit", () => {
       amount: 500,
       return_check_fee: 25,
       notes: "",
+      batch_id: null,
+      routing_number: "",
+      account_number: "",
     });
     expect(await screen.findByText("Return check updated.")).toBeInTheDocument();
     expect(listInvalidated()).toBe(true);
@@ -371,5 +445,84 @@ describe("ReturnCheckForm recovery payments", () => {
     renderForm("/return-checks/5/edit");
     expect(screen.getByText("at counter")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+  });
+});
+
+
+describe("ReturnCheckForm delete (a check entered by mistake)", () => {
+  function setNoPayments(over: Partial<ReturnCheckRow> = {}) {
+    setEdit({ recovered_total: 0, payment_count: 0, ...over });
+    useReturnCheckPayments.mockReturnValue({ data: { payments: [] }, isLoading: false });
+  }
+
+  it("asks first, then deletes and goes back to the list", async () => {
+    setNoPayments();
+    deleteReturnCheck.mockResolvedValue({ ok: true });
+    renderForm("/return-checks/5/edit");
+    await userEvent.click(screen.getByRole("button", { name: "Delete check" }));
+    expect(deleteReturnCheck).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("Delete this returned check?");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete check" }));
+    await waitFor(() => expect(deleteReturnCheck).toHaveBeenCalledWith(5));
+    expect(await screen.findByText("checks list")).toBeInTheDocument();
+    expect(listInvalidated()).toBe(true);
+  });
+
+  it("a batched check goes back to its batch", async () => {
+    setNoPayments({ batch_id: 7 });
+    deleteReturnCheck.mockResolvedValue({ ok: true });
+    renderForm("/return-checks/5/edit");
+    await userEvent.click(screen.getByRole("button", { name: "Delete check" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete check" }));
+    expect(await screen.findByText("batch page")).toBeInTheDocument();
+  });
+
+  it("cancelling the confirm deletes nothing", async () => {
+    setNoPayments();
+    renderForm("/return-checks/5/edit");
+    await userEvent.click(screen.getByRole("button", { name: "Delete check" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+    expect(deleteReturnCheck).not.toHaveBeenCalled();
+    expect(screen.queryByText("checks list")).not.toBeInTheDocument();
+  });
+
+  it("shows the server's refusal in the dialog and stays", async () => {
+    setNoPayments();
+    deleteReturnCheck.mockRejectedValue(
+      new ApiError(409, "Remove this check's paybacks before deleting it.", null),
+    );
+    renderForm("/return-checks/5/edit");
+    await userEvent.click(screen.getByRole("button", { name: "Delete check" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete check" }));
+    expect(await screen.findByText("Remove this check's paybacks before deleting it."))
+      .toBeInTheDocument();
+    expect(screen.queryByText("checks list")).not.toBeInTheDocument();
+  });
+
+  it("is not offered while the check has payments; says to remove them first", () => {
+    setEdit();
+    renderForm("/return-checks/5/edit");
+    expect(screen.queryByRole("button", { name: "Delete check" })).not.toBeInTheDocument();
+    expect(screen.getByText("To delete this check, remove its payments first.")).toBeInTheDocument();
+  });
+
+  it("is hidden, hint too, without return_checks.delete (employees by default)", () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN,
+      permissions: TEST_ADMIN.permissions.filter((p) => p !== "return_checks.delete"),
+    });
+    setNoPayments();
+    const { unmount } = renderForm("/return-checks/5/edit");
+    expect(screen.queryByRole("button", { name: "Delete check" })).not.toBeInTheDocument();
+    unmount();
+    setEdit();
+    renderForm("/return-checks/5/edit");
+    expect(screen.queryByText("To delete this check, remove its payments first.")).not.toBeInTheDocument();
+  });
+
+  it("is not on a new check", () => {
+    renderForm("/return-checks/new");
+    expect(screen.queryByRole("button", { name: "Delete check" })).not.toBeInTheDocument();
   });
 });

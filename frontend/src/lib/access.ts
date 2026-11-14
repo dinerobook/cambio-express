@@ -90,6 +90,11 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/return-checks", perm: "return_checks.read" },
   { path: "/return-checks/new", perm: "return_checks.create" },
   { path: "/return-checks/:id/edit", perm: "return_checks.update" },
+  { path: "/return-checks/batches", perm: "return_checks.read" },
+  { path: "/return-checks/batches/new", perm: "return_checks.create" },
+  { path: "/return-checks/batches/:id", perm: "return_checks.read" },
+  { path: "/return-checks/companies", perm: "return_checks.read" },
+  { path: "/return-checks/customers", perm: "return_checks.read" },
 
   // ── Check cashing (its own app; navConfig "Workspaces") ────
   { path: "/check-cashing", perm: "check_cashing.read" },

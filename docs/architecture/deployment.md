@@ -21,6 +21,7 @@ auto-deploys via `render.yaml`. The legacy `cashnet` service and
 | Deploy trigger | `git push origin main` → Render reads `render.yaml` → builds + restarts |
 | Build script | `scripts/build.sh` — installs Python deps, installs Node via `nodeenv`, builds SPA bundle |
 | Boot command | `gunicorn asgi:asgi_app -k uvicorn.workers.UvicornWorker --workers 2 --timeout 120` |
+| Gunicorn settings | `gunicorn.conf.py` (loaded by gunicorn itself): each worker is replaced after ~1,000 requests so memory never creeps. `GUNICORN_MAX_REQUESTS` / `GUNICORN_MAX_REQUESTS_JITTER` env vars change it, 0 turns it off. Each worker uses about 210–250 MB, so two workers need more than a 512 MB instance gives. |
 
 ## 1. First-time setup checklist
 

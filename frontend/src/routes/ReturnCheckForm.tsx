@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  batchName,
   createReturnCheck,
   createReturnCheckPayment,
+  deleteReturnCheck,
   deleteReturnCheckPayment,
   markFraud,
   RETURN_CHECK_PAYMENT_METHODS,
@@ -15,12 +17,15 @@ import {
   reopenReturnCheck,
   updateReturnCheck,
   useReturnCheck,
+  useReturnCheckBatch,
+  useReturnCheckBatches,
   useReturnCheckPayments,
   type ReturnCheckPaymentRow,
   type ReturnCheckWriteBody,
 } from "../api/returnChecks";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import { hasPermission } from "../lib/permissions";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -31,8 +36,9 @@ import {
   useToast,
 } from "../components/ui";
 import styles from "./ReturnCheckForm.module.css";
-import { todayIso } from "../lib/datetime";
+import { formatDate, todayIso } from "../lib/datetime";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { PartyNameInput } from "../components/PartyNameInput";
 import { tNodes, useT, type MessageKey } from "../i18n";
 
 /** A status change: what it does and the words its button and
@@ -77,6 +83,13 @@ export default function ReturnCheckForm() {
 
   const detail = useReturnCheck(isEdit ? rcId : undefined);
   const payments = useReturnCheckPayments(isEdit ? rcId : undefined);
+  // "Add check" on a batch page opens this form with ?batch=<id>.
+  const [search] = useSearchParams();
+  const presetBatch = !isEdit && Number(search.get("batch")) > 0
+    ? Number(search.get("batch")) : null;
+  // The batch picker: the store's latest batches, plus the check's own
+  // batch (or the preset one) when it is older than that page.
+  const batches = useReturnCheckBatches({ perPage: 100 });
 
   const emptyForm: ReturnCheckWriteBody = {
     bounced_on:       todayIso(),
@@ -87,6 +100,9 @@ export default function ReturnCheckForm() {
     amount:           0,
     return_check_fee: 0,
     notes:            "",
+    batch_id:         presetBatch,
+    routing_number:   "",
+    account_number:   "",
   };
   const [form, setForm] = useState<ReturnCheckWriteBody>(emptyForm);
   // Baseline = last-saved values; the form is "dirty" when it drifts
@@ -108,6 +124,9 @@ export default function ReturnCheckForm() {
       amount:           r.amount,
       return_check_fee: r.return_check_fee,
       notes:            r.notes,
+      batch_id:         r.batch_id ?? null,
+      routing_number:   r.routing_number ?? "",
+      account_number:   r.account_number ?? "",
     };
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate local editable form + dirty baseline from server-fetched return-check on edit
     setForm(hydrated);
@@ -120,8 +139,15 @@ export default function ReturnCheckForm() {
     message: t("returnCheck.unsavedMessage"),
   });
 
+  const ownBatch = useReturnCheckBatch(form.batch_id ?? undefined);
+  const batchOptions = [...(batches.data?.rows ?? [])];
+  const picked = ownBatch.data?.batch;
+  if (picked && !batchOptions.some((b) => b.id === picked.id)) batchOptions.unshift(picked);
+
+  // Back to the batch the form was opened from, else the list.
+  const backTo = presetBatch ? `/return-checks/batches/${presetBatch}` : "/return-checks";
   function leave() {
-    navigate("/return-checks", { replace: true });
+    navigate(backTo, { replace: true });
   }
   function onCancel() {
     guard.confirmLeave(leave);
@@ -138,8 +164,11 @@ export default function ReturnCheckForm() {
     setError(null); setField(null);
     setBusy(true);
     try {
+      // In a batch, the server dates the check with the batch's day.
+      const day = form.batch_id != null && picked ? picked.returned_on : form.bounced_on;
       const body: ReturnCheckWriteBody = {
         ...form,
+        bounced_on: day,
         amount: Number(form.amount) || 0,
         return_check_fee: Number(form.return_check_fee) || 0,
       };
@@ -152,7 +181,7 @@ export default function ReturnCheckForm() {
         message: isEdit ? t("returnCheck.updated") : t("returnCheck.recorded"),
         tone: "success",
       });
-      guard.proceed(() => navigate("/return-checks", { replace: true }));
+      guard.proceed(() => navigate(backTo, { replace: true }));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(apiErrorMessage(err, t("returnCheck.saveFailed")));
@@ -178,6 +207,30 @@ export default function ReturnCheckForm() {
   const [pendingTransition, setPendingTransition] =
     useState<Transition | null>(null);
   const [transitionError, setTransitionError] = useState<string | null>(null);
+
+  // Delete (a check typed by mistake). Only offered while the check
+  // has no paybacks; the server refuses otherwise.
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const hasPayments = (payments.data?.payments.length ?? 0) > 0;
+
+  async function onDelete() {
+    if (!isEdit) return;
+    setDeleteError(null); setBusy(true);
+    try {
+      await deleteReturnCheck(rcId);
+      void queryClient.invalidateQueries({ queryKey: ["return-checks"] });
+      toast({ message: t("returnCheck.deleted"), tone: "success" });
+      // A batched check goes back to its batch (now one check lighter).
+      const batchId = detail.data?.return_check.batch_id;
+      const after = batchId ? `/return-checks/batches/${batchId}` : backTo;
+      guard.proceed(() => navigate(after, { replace: true }));
+    } catch (err) {
+      setDeleteError(apiErrorMessage(err, t("returnCheck.deleteFailed")));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function doTransition() {
     if (!isEdit || !pendingTransition) return;
@@ -327,20 +380,36 @@ export default function ReturnCheckForm() {
         <Card>
           <SectionTitle>{t("returnCheck.checkDetails")}</SectionTitle>
           <div className={styles.fieldGrid}>
-            <Field label={t("returnCheck.bouncedOn")} highlight={field === "bounced_on"}>
-              <DateInput required
-                value={form.bounced_on}
-                onChange={(e) => set("bounced_on", e.target.value)} />
+            <Field label={t("returnCheck.batchOptional")} hint={t("returnCheck.batchPickHint")}>
+              <Select
+                value={form.batch_id != null ? String(form.batch_id) : ""}
+                onChange={(e) => set("batch_id", e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">{t("returnCheck.noBatch")}</option>
+                {batchOptions.map((b) => (
+                  <option key={b.id} value={String(b.id)}>{batchName(b, formatDate)}</option>
+                ))}
+              </Select>
             </Field>
+            {/* A check in a batch came back on the batch's day: the
+                date field gives way to it (a field that does not
+                apply disappears). */}
+            {form.batch_id == null && (
+              <Field label={t("returnCheck.bouncedOn")} highlight={field === "bounced_on"}>
+                <DateInput required
+                  value={form.bounced_on}
+                  onChange={(e) => set("bounced_on", e.target.value)} />
+              </Field>
+            )}
             <Field label={t("returnCheck.customerName")} highlight={field === "customer_name"}>
-              <Input type="text" required
+              <PartyNameInput by="customer" required
                 value={form.customer_name}
-                onChange={(e) => set("customer_name", e.target.value)} />
+                onChange={(v) => set("customer_name", v)} />
             </Field>
             <Field label={t("returnCheck.companyName")} highlight={field === "company_name"}>
-              <Input type="text" required
+              <PartyNameInput by="company" required
                 value={form.company_name}
-                onChange={(e) => set("company_name", e.target.value)} />
+                onChange={(v) => set("company_name", v)} />
             </Field>
             <Field label={t("returnCheck.checkNumber")}>
               <Input type="text"
@@ -351,6 +420,16 @@ export default function ReturnCheckForm() {
               <Input type="text"
                 value={form.payer_bank ?? ""}
                 onChange={(e) => set("payer_bank", e.target.value)} />
+            </Field>
+            <Field label={t("returnCheck.routingOptional")} highlight={field === "routing_number"}>
+              <Input type="text" inputMode="numeric" maxLength={9}
+                value={form.routing_number ?? ""}
+                onChange={(e) => set("routing_number", e.target.value.replace(/\D+/g, ""))} />
+            </Field>
+            <Field label={t("returnCheck.accountOptional")} highlight={field === "account_number"}>
+              <Input type="text" inputMode="numeric" maxLength={20}
+                value={form.account_number ?? ""}
+                onChange={(e) => set("account_number", e.target.value.replace(/\D+/g, ""))} />
             </Field>
             <MoneyInput
               label={t("dash.amount")}
@@ -376,13 +455,24 @@ export default function ReturnCheckForm() {
 
         {error && <Alert tone="error">{error}</Alert>}
 
+        {isEdit && hasPayments && hasPermission("return_checks", "delete") && (
+          <p className={styles.statusLine}>{t("returnCheck.deleteHint")}</p>
+        )}
+
         <FormActions guard={guard}>
+          {isEdit && payments.data && !hasPayments && (
+            <Button type="button" tone="danger" perm="return_checks.delete"
+              disabled={busy} onClick={() => setConfirmDelete(true)}>
+              {t("returnCheck.delete")}
+            </Button>
+          )}
           <Button type="button" tone="secondary" onClick={onCancel}>
             {t("common.cancel")}
           </Button>
           <Button
             type="submit" busy={busy}
-            disabled={busy || !form.customer_name || !form.company_name || !form.bounced_on}
+            disabled={busy || !form.customer_name || !form.company_name
+              || (form.batch_id == null ? !form.bounced_on : !picked)}
           >
             {busy ? t("transfer.saving") : isEdit ? t("transfer.saveChanges") : t("returnCheck.create")}
           </Button>
@@ -403,6 +493,18 @@ export default function ReturnCheckForm() {
         error={transitionError}
         onConfirm={() => { void doTransition(); }}
         onCancel={() => { setPendingTransition(null); setTransitionError(null); }}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={t("returnCheck.deleteTitle")}
+        message={t("returnCheck.deleteMessage")}
+        confirmLabel={t("returnCheck.delete")}
+        confirmTone="danger"
+        busy={busy}
+        error={deleteError}
+        onConfirm={() => { void onDelete(); }}
+        onCancel={() => { setConfirmDelete(false); setDeleteError(null); }}
       />
     </PageShell>
   );

@@ -17880,6 +17880,257 @@
         "title": "ResetRoleBody",
         "type": "object"
       },
+      "ReturnCheckBatchCheckRequest": {
+        "additionalProperties": false,
+        "description": "One check on the New batch form. The returned date is the\nbatch's.",
+        "properties": {
+          "account_number": {
+            "default": "",
+            "pattern": "^[0-9]{0,20}$",
+            "title": "Account Number",
+            "type": "string"
+          },
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "check_number": {
+            "default": "",
+            "maxLength": 40,
+            "title": "Check Number",
+            "type": "string"
+          },
+          "company_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Company Name",
+            "type": "string"
+          },
+          "customer_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Notes",
+            "type": "string"
+          },
+          "payer_bank": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Payer Bank",
+            "type": "string"
+          },
+          "return_check_fee": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Return Check Fee",
+            "type": "number"
+          },
+          "routing_number": {
+            "default": "",
+            "pattern": "^([0-9]{9})?$",
+            "title": "Routing Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_name",
+          "company_name",
+          "amount"
+        ],
+        "title": "ReturnCheckBatchCheckRequest",
+        "type": "object"
+      },
+      "ReturnCheckBatchCreateRequest": {
+        "additionalProperties": false,
+        "description": "POST /return-checks/batches: the batch and its checks at once.",
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnCheckBatchCheckRequest"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Checks",
+            "type": "array"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Notes",
+            "type": "string"
+          },
+          "reference": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Reference",
+            "type": "string"
+          },
+          "returned_on": {
+            "maxLength": 10,
+            "minLength": 10,
+            "title": "Returned On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "returned_on",
+          "checks"
+        ],
+        "title": "ReturnCheckBatchCreateRequest",
+        "type": "object"
+      },
+      "ReturnCheckBatchListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnCheckBatchRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "default": 1,
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "ReturnCheckBatchListResponse",
+        "type": "object"
+      },
+      "ReturnCheckBatchResponse": {
+        "additionalProperties": false,
+        "description": "One batch and its checks.",
+        "properties": {
+          "batch": {
+            "$ref": "#/components/schemas/ReturnCheckBatchRow"
+          },
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReturnCheckRow"
+            },
+            "title": "Checks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batch"
+        ],
+        "title": "ReturnCheckBatchResponse",
+        "type": "object"
+      },
+      "ReturnCheckBatchRow": {
+        "additionalProperties": false,
+        "description": "One returned batch with its totals (worked out from its checks).",
+        "properties": {
+          "amount_total": {
+            "default": 0.0,
+            "title": "Amount Total",
+            "type": "number"
+          },
+          "check_count": {
+            "default": 0,
+            "title": "Check Count",
+            "type": "integer"
+          },
+          "companies": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Companies",
+            "type": "array"
+          },
+          "fee_total": {
+            "default": 0.0,
+            "title": "Fee Total",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "open_count": {
+            "default": 0,
+            "title": "Open Count",
+            "type": "integer"
+          },
+          "recovered_total": {
+            "default": 0.0,
+            "title": "Recovered Total",
+            "type": "number"
+          },
+          "reference": {
+            "default": "",
+            "title": "Reference",
+            "type": "string"
+          },
+          "returned_on": {
+            "title": "Returned On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "returned_on"
+        ],
+        "title": "ReturnCheckBatchRow",
+        "type": "object"
+      },
+      "ReturnCheckBatchUpdateRequest": {
+        "additionalProperties": false,
+        "description": "PUT /return-checks/batches/{id}: the batch's own fields. A new\ndate moves every check in the batch.",
+        "properties": {
+          "notes": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Notes",
+            "type": "string"
+          },
+          "reference": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Reference",
+            "type": "string"
+          },
+          "returned_on": {
+            "maxLength": 10,
+            "minLength": 10,
+            "title": "Returned On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "returned_on"
+        ],
+        "title": "ReturnCheckBatchUpdateRequest",
+        "type": "object"
+      },
       "ReturnCheckListResponse": {
         "additionalProperties": false,
         "description": "Every check, or one page when the list is asked for a\n``page``; the envelope fields are filled either way.",
@@ -17911,6 +18162,98 @@
           "rows"
         ],
         "title": "ReturnCheckListResponse",
+        "type": "object"
+      },
+      "ReturnCheckPartyListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnCheckPartyRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "default": 1,
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "ReturnCheckPartyListResponse",
+        "type": "object"
+      },
+      "ReturnCheckPartyRow": {
+        "additionalProperties": false,
+        "description": "A company or customer on the By company / By customer lists.",
+        "properties": {
+          "amount_total": {
+            "title": "Amount Total",
+            "type": "number"
+          },
+          "check_count": {
+            "title": "Check Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_returned_on": {
+            "default": "",
+            "title": "Last Returned On",
+            "type": "string"
+          },
+          "lost_count": {
+            "title": "Lost Count",
+            "type": "integer"
+          },
+          "lost_total": {
+            "title": "Lost Total",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "open_count": {
+            "title": "Open Count",
+            "type": "integer"
+          },
+          "owed_total": {
+            "title": "Owed Total",
+            "type": "number"
+          },
+          "routing_number": {
+            "default": "",
+            "title": "Routing Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "check_count",
+          "amount_total",
+          "owed_total",
+          "open_count",
+          "lost_count",
+          "lost_total"
+        ],
+        "title": "ReturnCheckPartyRow",
         "type": "object"
       },
       "ReturnCheckPaymentResponse": {
@@ -18045,9 +18388,30 @@
         "additionalProperties": false,
         "description": "One bounced-check row. Mirrors the columns the legacy\n/return-checks list page renders.",
         "properties": {
+          "account_number": {
+            "default": "",
+            "title": "Account Number",
+            "type": "string"
+          },
           "amount": {
             "title": "Amount",
             "type": "number"
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
+          },
+          "batch_reference": {
+            "default": "",
+            "title": "Batch Reference",
+            "type": "string"
           },
           "bounced_on": {
             "title": "Bounced On",
@@ -18096,6 +18460,11 @@
             "title": "Return Check Fee",
             "type": "number"
           },
+          "routing_number": {
+            "default": "",
+            "title": "Routing Number",
+            "type": "string"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -18120,10 +18489,28 @@
         "additionalProperties": false,
         "description": "POST/PUT body. Status transitions go through dedicated\nendpoints, not via this schema.",
         "properties": {
+          "account_number": {
+            "default": "",
+            "pattern": "^[0-9]{0,20}$",
+            "title": "Account Number",
+            "type": "string"
+          },
           "amount": {
             "exclusiveMinimum": 0.0,
             "title": "Amount",
             "type": "number"
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
           },
           "bounced_on": {
             "maxLength": 10,
@@ -18166,6 +18553,12 @@
             "minimum": 0.0,
             "title": "Return Check Fee",
             "type": "number"
+          },
+          "routing_number": {
+            "default": "",
+            "pattern": "^([0-9]{9})?$",
+            "title": "Routing Number",
+            "type": "string"
           }
         },
         "required": [
@@ -48788,13 +49181,71 @@
             }
           },
           {
-            "description": "bounced, customer, check, bank, amount or status; empty = newest bounce first.",
+            "description": "Search customer, company, check number, bank or routing number.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Search customer, company, check number, bank or routing number.",
+              "maxLength": 120,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this batch's checks.",
+            "in": "query",
+            "name": "batch_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this batch's checks.",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "description": "A company key from /tracking?by=company.",
+            "in": "query",
+            "name": "company",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "A company key from /tracking?by=company.",
+              "maxLength": 120,
+              "title": "Company",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A customer key from /tracking?by=customer.",
+            "in": "query",
+            "name": "customer",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "A customer key from /tracking?by=customer.",
+              "maxLength": 120,
+              "title": "Customer",
+              "type": "string"
+            }
+          },
+          {
+            "description": "bounced, customer, company, check, bank, amount or status; empty = newest bounce first.",
             "in": "query",
             "name": "sort",
             "required": false,
             "schema": {
               "default": "",
-              "description": "bounced, customer, check, bank, amount or status; empty = newest bounce first.",
+              "description": "bounced, customer, company, check, bank, amount or status; empty = newest bounce first.",
               "title": "Sort",
               "type": "string"
             }
@@ -48975,7 +49426,672 @@
         ]
       }
     },
+    "/return-checks/batches": {
+      "get": {
+        "operationId": "batches_route_return_checks_batches_get",
+        "parameters": [
+          {
+            "description": "Search reference, notes, or a check's customer, company or number.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Search reference, notes, or a check's customer, company or number.",
+              "maxLength": 120,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "returned or reference; empty = newest return first.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "returned or reference; empty = newest return first.",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dir",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "pattern": "^(asc|desc)$",
+              "title": "Dir",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnCheckBatchListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batches Route",
+        "tags": [
+          "return-checks"
+        ]
+      },
+      "post": {
+        "description": "Record a batch of returned checks in one save.",
+        "operationId": "create_batch_route_return_checks_batches_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnCheckBatchCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnCheckBatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Batch Route",
+        "tags": [
+          "return-checks"
+        ]
+      }
+    },
+    "/return-checks/batches/{batch_id}": {
+      "delete": {
+        "description": "Delete an empty batch; one that still has checks is a 409.",
+        "operationId": "delete_batch_route_return_checks_batches__batch_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Batch Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Batch Route",
+        "tags": [
+          "return-checks"
+        ]
+      },
+      "get": {
+        "operationId": "get_batch_route_return_checks_batches__batch_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Batch Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnCheckBatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Batch Route",
+        "tags": [
+          "return-checks"
+        ]
+      },
+      "put": {
+        "operationId": "update_batch_route_return_checks_batches__batch_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Batch Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnCheckBatchUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnCheckBatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Batch Route",
+        "tags": [
+          "return-checks"
+        ]
+      }
+    },
+    "/return-checks/tracking": {
+      "get": {
+        "description": "Returned checks grouped by company or by customer: how many,\nhow much, what is still owed and what was written off.",
+        "operationId": "tracking_route_return_checks_tracking_get",
+        "parameters": [
+          {
+            "description": "company or customer",
+            "in": "query",
+            "name": "by",
+            "required": false,
+            "schema": {
+              "default": "company",
+              "description": "company or customer",
+              "title": "By",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search names.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Search names.",
+              "maxLength": 120,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD; empty = from the first check.",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "YYYY-MM-DD; empty = from the first check.",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD; empty = up to today.",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "YYYY-MM-DD; empty = up to today.",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "description": "checks, amount, owed, lost, last or name; empty = most checks first.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "checks, amount, owed, lost, last or name; empty = most checks first.",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dir",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "pattern": "^(asc|desc)$",
+              "title": "Dir",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnCheckPartyListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tracking Route",
+        "tags": [
+          "return-checks"
+        ]
+      }
+    },
     "/return-checks/{rc_id}": {
+      "delete": {
+        "description": "Delete a returned check entered by mistake. Admin-only by\ndefault (``return_checks.delete``); the audit row keeps what the\ncheck was.",
+        "operationId": "delete_route_return_checks__rc_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rc_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Rc Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Route",
+        "tags": [
+          "return-checks"
+        ]
+      },
       "get": {
         "operationId": "get_route_return_checks__rc_id__get",
         "parameters": [

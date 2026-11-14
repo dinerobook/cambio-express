@@ -14,7 +14,7 @@ from api.Modules.ReturnChecks.Models import (
     ReturnCheck, ReturnCheckPayment,
 )
 from api.Modules.ReturnChecks.Repositories import (
-    find_payment, find_return_check,
+    find_batch, find_payment, find_return_check,
 )
 from api.Core.Clock import store_local_today, utc_now
 
@@ -32,6 +32,22 @@ class ReturnCheckStateError(ValueError):
     row as loss without first reopening it)."""
 
 
+class ReturnCheckBatchNotFoundError(LookupError):
+    pass
+
+
+class _Unset:
+    """Marks a field the caller did not send, so an edit from a page
+    that predates batches leaves the check's batch and routing /
+    account number as they are instead of clearing them."""
+
+    def __repr__(self) -> str:
+        return "UNSET"
+
+
+UNSET = _Unset()
+
+
 @dataclass
 class ReturnCheckWriteInput:
     bounced_on: date
@@ -42,6 +58,33 @@ class ReturnCheckWriteInput:
     amount: float
     return_check_fee: float = 0.0
     notes: str = ""
+    batch_id: "int | None | _Unset" = UNSET
+    routing_number: "str | _Unset" = UNSET
+    account_number: "str | _Unset" = UNSET
+
+
+def _apply_optional_fields(
+    db: Session, row: ReturnCheck, store_id: int,
+    payload: ReturnCheckWriteInput,
+) -> None:
+    """Batch and routing / account number, only when sent. A check in
+    a batch takes the batch's returned date — the batch owns it."""
+    if not isinstance(payload.routing_number, _Unset):
+        row.routing_number = payload.routing_number.strip() or None
+    if not isinstance(payload.account_number, _Unset):
+        row.account_number = payload.account_number.strip() or None
+    if not isinstance(payload.batch_id, _Unset):
+        if payload.batch_id is None:
+            row.batch_id = None
+        else:
+            batch = find_batch(db, store_id, payload.batch_id)
+            if batch is None:
+                raise ReturnCheckBatchNotFoundError(f"id={payload.batch_id}")
+            row.batch_id = batch.id
+    if row.batch_id is not None:
+        batch = find_batch(db, store_id, int(row.batch_id))
+        if batch is not None:
+            row.bounced_on = batch.returned_on
 
 
 def create_return_check(
@@ -62,6 +105,7 @@ def create_return_check(
         notes=payload.notes,
         created_by=created_by,
     )
+    _apply_optional_fields(db, row, store_id, payload)
     db.add(row)
     db.flush()
     return row
@@ -90,8 +134,32 @@ def update_return_check(
     row.amount = float(payload.amount or 0)
     row.return_check_fee = float(payload.return_check_fee or 0)
     row.notes = payload.notes
+    _apply_optional_fields(db, row, store_id, payload)
     db.flush()
     _maybe_auto_recover(db, row)
+    db.flush()
+    return row
+
+
+def delete_return_check(
+    db: Session, *, store_id: int, rc_id: int,
+) -> ReturnCheck:
+    """Delete a check entered by mistake. Refused while it has
+    paybacks: each payback is a line on that day's daily book (and a
+    locked day can't change), so they are removed first, one by one,
+    through ``delete_payment`` with its lock check. A loss / fraud
+    check leaves the month it was written off in. Caller audits the
+    snapshot and commits."""
+    row = find_return_check(db, store_id, rc_id)
+    if row is None:
+        raise ReturnCheckNotFoundError(f"id={rc_id}")
+    paybacks = db.query(ReturnCheckPayment).filter_by(return_check_id=rc_id).count()
+    lines = db.query(DailyLineItem).filter_by(return_check_id=rc_id).count()
+    if paybacks or lines:
+        raise ReturnCheckStateError(
+            "Remove this check's paybacks before deleting it.",
+        )
+    db.delete(row)
     db.flush()
     return row
 
@@ -352,13 +420,16 @@ def delete_payment(
 
 
 __all__ = [
+    "UNSET",
     "RecordPaymentInput",
+    "ReturnCheckBatchNotFoundError",
     "ReturnCheckNotFoundError",
     "ReturnCheckPaymentNotFoundError",
     "ReturnCheckStateError",
     "ReturnCheckWriteInput",
     "create_return_check",
     "delete_payment",
+    "delete_return_check",
     "mark_fraud",
     "mark_loss",
     "record_payment",

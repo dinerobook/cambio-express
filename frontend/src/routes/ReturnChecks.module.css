@@ -18,3 +18,12 @@
   margin-left: 0.4rem;
   font-size: 0.85rem;
 }
+
+/* "Checks for company: Acme LLC  [Show all checks]" — the filter a
+ * By company / By customer row opened, with its way back. */
+.partyFilter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
