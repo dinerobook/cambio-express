@@ -28,6 +28,8 @@ export const NAV_WORDS_ES: Record<string, string> = {
   // Page labels
   "ACH batches": "Lotes ACH",
   "Bad checks": "Cheques rebotados",
+  "Check cashing report": "Reporte de cambio de cheques",
+  "Checks": "Cheques",
   "Activity stream": "Actividad",
   "Add user to stores": "Agregar usuario a tiendas",
   "Announcements": "Anuncios",

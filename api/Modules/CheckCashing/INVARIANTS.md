@@ -136,6 +136,32 @@ check (unique), its paybacks in `msb_bad_check_payment`.
   sibling), and pointers at the store's logins on a sibling's bad
   checks and paybacks are cleared (`rehome_bad_checks`).
 
+## Checks and reports
+
+- **Checks** (`/check-cashing/checks`, a desk page): every check of the
+  umbrella, today by default; `GET /checks` takes a store-day range
+  (`from`, `to`) and a live search on customer, company or check number
+  (two characters at least). The period's totals sit on top.
+- **The report** (`GET /check-cashing/report?from=&to=&store_id=`,
+  `Services/reports.py`, read only): cashed / not accepted / voided
+  counts, amount, fees and cash paid out, each store, each day, the five
+  busiest companies and customers, and bad checks (open now and still
+  owed; sent back and paid back in the period). Days are store days;
+  the period defaults to this month (`resolve_period`).
+- **Any device** (owner, 2026-11-11: owners read it on their phones):
+  the report is the one check cashing route besides the device routes
+  without `require_check_device`. It changes nothing and shows no ID
+  numbers or pictures. Same module switch and `check_cashing.read`;
+  the Accountant is refused. Only stores with check cashing on are in
+  it; `store_id` must be one of them (403).
+- **Who**: an Admin or cashier with the read right sees their umbrella;
+  an owner signed in without a store sees each of their stores with
+  check cashing on. The back office link is "Check cashing report" in
+  Reports (admins, flag `check_desk`) and in the owner's Reports
+  (flag `check_desk_report`, which session-status gives an owner once
+  any of their stores has check cashing on; never the desk flag
+  without a store).
+
 ## One computer
 
 Check cashing works on ONE activated computer per store (owner,
@@ -149,7 +175,7 @@ misused"). A password alone never opens it.
   cookie per store, so one computer can serve several owner stores,
   each activated on its own.
 - **The gate** is `require_check_device` on every check cashing router
-  except the device routes: without the store's live key, 403 "This
+  except the device routes and the view-only report (below): without the store's live key, 403 "This
   computer is not activated for check cashing." or "Check cashing is
   locked to <name>. An Admin can move it to this computer." It runs
   after the module switch (module off keeps its own 403) and refreshes

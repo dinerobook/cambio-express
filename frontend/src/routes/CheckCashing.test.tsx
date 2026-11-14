@@ -156,12 +156,12 @@ describe("check cashing sidebar and route rights", () => {
   it("has its own sidebar, only where the store's check_desk switch is on", () => {
     expect(checkNav("admin", MANAGER, [])).toEqual([]);
     expect(checkNav("admin", MANAGER, ["check_desk"]))
-      .toEqual(["Cash a check", "Customers", "Companies", "Bad checks", "Settings"]);
+      .toEqual(["Cash a check", "Checks", "Customers", "Companies", "Bad checks", "Settings"]);
   });
 
   it("gives a cashier everything but the settings", () => {
     expect(checkNav("employee", CASHIER, ["check_desk"]))
-      .toEqual(["Cash a check", "Customers", "Companies", "Bad checks"]);
+      .toEqual(["Cash a check", "Checks", "Customers", "Companies", "Bad checks"]);
     expect(checkNav("employee", [], ["check_desk"])).toEqual([]);
   });
 

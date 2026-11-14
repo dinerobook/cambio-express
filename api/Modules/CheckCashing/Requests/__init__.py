@@ -545,6 +545,75 @@ class BadCheckDetailResponse(BaseModel):
     can_write_off: bool
 
 
+# ── Checks and reports ─────────────────────────────────────
+
+
+class CheckTotalsOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cashed: int
+    amount: float
+    fees: float
+    cash: float
+    average: float
+    declined: int
+    voided: int
+
+
+class CheckReportStoreRow(CheckTotalsOut):
+    store_id: int
+    store_name: str
+
+
+class CheckReportDayRow(CheckTotalsOut):
+    day: date
+
+
+class CheckReportPartyRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    name: str
+    cashed: int
+    amount: float
+
+
+class CheckReportBadChecks(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Right now, whatever the period.
+    open_count: int
+    open_owed: float
+    # Sent back by the bank in the period (owed = check + fee).
+    returned: int
+    returned_owed: float
+    # Paid back in the period.
+    paid_back: float
+
+
+class CheckReportStoreOption(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    name: str
+
+
+class CheckReportResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    from_day: date
+    to_day: date
+    totals: CheckTotalsOut
+    # Every store in the report (each with check cashing on); one row
+    # per store with activity.
+    store_options: list[CheckReportStoreOption]
+    stores: list[CheckReportStoreRow]
+    days: list[CheckReportDayRow]
+    companies: list[CheckReportPartyRow]
+    customers: list[CheckReportPartyRow]
+    bad_checks: CheckReportBadChecks
+
+
 # ── The activated computer ─────────────────────────────────
 
 class CheckDeviceBody(BaseModel):
