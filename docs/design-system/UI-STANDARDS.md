@@ -308,6 +308,7 @@ Known shared components, and what they own:
 | `BulkResultsCard` + `useStoreSelection` (owner bulk actions) | a per-store Store / Status / Notes results table with its own status → pill map, or a hand-rolled "Select all / N of M selected" store picker |
 | `describeAppliedRule` (`lib/bankRules`) | your own "N tagged, N booked, N skipped (day locked)" toast text |
 | `MoneyInput` | `<input type="number">` + your own cents parsing |
+| `PartyNameInput` (`components/PartyNameInput.tsx`) | a plain text box for a returned check's company or customer — it suggests the names the store already used (a native `<datalist>`, never clipped) so the same party is typed the same way and the By company / By customer counts add up |
 | `DataTable` (+ `useUrlFilterState({ pageSizeKey, defaultSort })`) | any list page's `<table>`, header row, loading / empty / error states, clickable `<tr onClick>`, sort buttons, or `<Pager>` wiring — see "Lists" in §7 |
 | `DataTable` `exportCsv` (+ `csv` on columns, `lib/csv.ts`) | a page-local "Export CSV" button, a hand-built CSV string, `toFixed(2)` money or a `formatDate` cell in a file — see "Export" in §7 |
 | `pageOf` / `sortRows` (`lib/pagination`) | slicing or sorting a whole list in the browser by hand |
@@ -793,6 +794,7 @@ always the same Spanish word):
 | Receipt (register / POS) | Ticket |
 | Dashboard | Panel |
 | Returned check | Cheque devuelto |
+| Batch (returned checks the bank sent back together) | Lote |
 | Cleared / Held (ACH batch) | Acreditado / Retenido |
 | Time clock | Reloj checador |
 | Login (a person's sign-in) | Acceso |

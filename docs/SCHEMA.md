@@ -122,7 +122,8 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | `msb_monthly_line_label` | `MonthlyLineLabel` | `Monthly` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/Monthly/INVARIANTS.md) |
 | `msb_mt_service` | `MoneyServiceSummary` | `DailyBook` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |
 | `msb_mt_summary` | `MoneyTransferSummary` | `DailyBook` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |
-| `msb_return_check` | `ReturnCheck` | `ReturnChecks` | store | `tenancy_store.id`, `tenancy_user.id` | — |
+| `msb_return_check` | `ReturnCheck` | `ReturnChecks` | store | `msb_return_check_batch.id`, `tenancy_store.id`, `tenancy_user.id` | — |
+| `msb_return_check_batch` | `ReturnCheckBatch` | `ReturnChecks` | store | `tenancy_store.id`, `tenancy_user.id` | — |
 | `msb_return_check_payment` | `ReturnCheckPayment` | `ReturnChecks` | msb_return_check (FK) | `msb_return_check.id`, `tenancy_user.id` | — |
 | `msb_transfer` | `Transfer` | `Transfers` | store | `msb_customer.id`, `tenancy_store.id`, `tenancy_store_employee.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/Transfers/INVARIANTS.md) |
 | `msb_tv_bank_catalog` | `TVBankCatalog` | `TVDisplay` | global | — | — |

@@ -49,7 +49,8 @@ STORE_OWNED_MODELS: list[str] = [
     "TransferAudit", "OperatorAuditLog",
     "Transfer", "ACHBatch", "DailyReport", "DailyDrop", "CheckDeposit",
     "DailyLineItem", "MoneyTransferSummary", "MoneyServiceSummary",
-    "ReturnCheck",
+    # Returned checks FK their batch — checks first.
+    "ReturnCheck", "ReturnCheckBatch",
     "CheckPicture", "BadCheckPayment", "BadCheck", "CashedCheck", "CheckDevice", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
     "MonthlyFinancial", "MonthlyLineLabel", "BankRule", "BankTransaction",
     "StripeBankAccount", "StoreOwnerLink",
@@ -125,7 +126,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
     from api.Modules.Monthly.Models import (
         MonthlyFinancial, MonthlyLineLabel,
     )
-    from api.Modules.ReturnChecks.Models import ReturnCheck
+    from api.Modules.ReturnChecks.Models import ReturnCheck, ReturnCheckBatch
     from api.Modules.CheckCashing.Models import (
         BadCheck, BadCheckPayment, CashedCheck, CheckCashingSettings,
         CheckCompany, CheckCustomer, CheckCustomerId, CheckDevice,
@@ -177,6 +178,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
         (MoneyTransferSummary, "store_id"),
         (MoneyServiceSummary, "store_id"),
         (ReturnCheck, "store_id"),
+        (ReturnCheckBatch, "store_id"),
         # Check cashing: checks FK customers + companies, IDs FK
         # customers — children first. Shared customers/companies were
         # moved to another store first (``rehome_shared_parties``);

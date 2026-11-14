@@ -67,6 +67,11 @@ export const COVERED_FILES = [
   "routes/BatchForm.tsx",
   "routes/ReturnChecks.tsx",
   "routes/ReturnCheckForm.tsx",
+  "routes/ReturnCheckBatches.tsx",
+  "routes/ReturnCheckBatch.tsx",
+  "routes/ReturnCheckBatchForm.tsx",
+  "routes/ReturnCheckParties.tsx",
+  "components/ReturnChecksHeader.tsx",
   // Team: employees, logins, roles and the time clock
   "routes/Employees.tsx",
   "routes/EmployeeForm.tsx",

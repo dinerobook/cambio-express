@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
 import {
-  RETURN_CHECK_STATUS_TONES, fetchReturnChecksPage, returnCheckStatusLabel, useReturnChecks,
+  fetchReturnChecksPage, returnCheckStatusLabel, useReturnChecks,
   type ReturnCheckRow,
 } from "../api/returnChecks";
 import { csvMoney } from "../lib/csv";
@@ -9,19 +9,22 @@ import { getCurrentIdentity } from "../lib/auth";
 import { csvDate, formatDate } from "../lib/datetime";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
-  ButtonLink, Card, DataTable, Empty, PageHeader,
-  PageShell, Pill, TabsBar, TabsButton, type CsvColumn, type DataColumn,
+  Button, ButtonLink, Card, DataTable, Empty, Field, Input, PageHeader,
+  PageShell, Pill, Select, type CsvColumn, type DataColumn,
 } from "../components/ui";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./ReturnChecks.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { ReturnChecksHeader } from "../components/ReturnChecksHeader";
+import { ReturnCheckStatusPill } from "../components/ReturnCheckStatusPill";
 import { tn, useT, type MessageKey, type Translate } from "../i18n";
 
-// Bounced-check workflow list at /app/return-checks. Filter by
-// status pill, click any row (or the explicit Edit button) to
-// open the edit page where you can update fields, record partial
-// payments, or transition the status (Mark loss / Mark fraud /
-// Reopen).
+// The Checks view of /app/return-checks: every returned check,
+// searched as you type, filtered by status — and, when opened from
+// the By company / By customer lists, by that company or customer.
+// Click a row (or the explicit Edit button) to open the edit page
+// where you can update fields, record partial payments, or move the
+// status (Mark loss / Mark fraud / Reopen).
 
 const STATUSES: Array<{ slug: string; label: MessageKey }> = [
   { slug: "",          label: "returnCheck.all"             },
@@ -41,6 +44,8 @@ function returnCheckColumns(t: Translate): DataColumn<ReturnCheckRow>[] {
   },
   { key: "customer", header: t("transfer.customer"), sortKey: "customer", render: (r) => r.customer_name,
     csv: (r) => r.customer_name },
+  { key: "company", header: t("returnCheck.company"), sortKey: "company",
+    render: (r) => r.company_name || "—", csv: (r) => r.company_name },
   {
     key: "check", header: t("returnCheck.checkNumberShort"), sortKey: "check",
     render: (r) => <span className={styles.mono}>{r.check_number || "—"}</span>,
@@ -67,7 +72,7 @@ function returnCheckColumns(t: Translate): DataColumn<ReturnCheckRow>[] {
     ),
     csv: (r) => csvMoney(r.recovered_total),
   },
-  { key: "status", header: t("transfer.status"), sortKey: "status", render: (r) => <StatusPill status={r.status} />,
+  { key: "status", header: t("transfer.status"), sortKey: "status", render: (r) => <ReturnCheckStatusPill status={r.status} />,
     csv: (r) => returnCheckStatusLabel(r.status) },
   {
     // The explicit, discoverable action; the whole row opens the
@@ -86,6 +91,9 @@ function csvExtras(t: Translate): CsvColumn<ReturnCheckRow>[] {
   return [
     { header: t("returnCheck.csvFee"), csv: (r) => csvMoney(r.return_check_fee) },
     { header: t("returnCheck.csvPayments"), csv: (r) => r.payment_count },
+    { header: t("returnCheck.csvBatch"), csv: (r) => r.batch_reference || (r.batch_id ? `#${r.batch_id}` : "") },
+    { header: t("returnCheck.routingNumber"), csv: (r) => r.routing_number },
+    { header: t("returnCheck.accountNumber"), csv: (r) => r.account_number },
   ];
 }
 
@@ -94,13 +102,17 @@ export default function ReturnChecks() {
   const columns = returnCheckColumns(t);
   const identity = getCurrentIdentity();
   const navigate = useNavigate();
-  const filters = useUrlFilterState({ status: "" }, {
-    pageSizeKey: "return-checks",
-    defaultSort: { key: "bounced", direction: "desc" },
-  });
-  const status = filters.params.status;
+  const filters = useUrlFilterState(
+    { status: "", q: "", company: "", customer: "" },
+    {
+      pageSizeKey: "return-checks",
+      defaultSort: { key: "bounced", direction: "desc" },
+    },
+  );
+  const { status, q, company, customer } = filters.params;
   const listQuery = {
-    status, sort: filters.sort?.key, dir: filters.sort?.direction,
+    status, q, company, customer,
+    sort: filters.sort?.key, dir: filters.sort?.direction,
   };
   const { data, isLoading, isError, error, refetch } = useReturnChecks({
     ...listQuery, page: filters.page, perPage: filters.perPage,
@@ -116,13 +128,18 @@ export default function ReturnChecks() {
     );
   }
 
+  // Opened from By company / By customer: name the party with the
+  // spelling on its checks (the URL carries the grouping key).
+  const first = data?.rows[0];
+  const party = company
+    ? { label: t("returnCheck.forCompany", { name: first?.company_name || company }), key: "company" as const }
+    : customer
+      ? { label: t("returnCheck.forCustomer", { name: first?.customer_name || customer }), key: "customer" as const }
+      : null;
+
   return (
     <PageShell>
-
-      <PageCrumbs />
-
-      <PageHeader
-        title={t("returnCheck.listTitle")}
+      <ReturnChecksHeader
         subtitle={data
           ? status
             ? tn("returnCheck.countWithStatus", data.total, fmtNumber, {
@@ -130,24 +147,34 @@ export default function ReturnChecks() {
               })
             : tn("returnCheck.countTotal", data.total, fmtNumber)
           : "—"}
-        actions={(
-          <ButtonLink to="/return-checks/new" tone="primary" size="sm">
-            {t("returnCheck.newButton")}
-          </ButtonLink>
-        )}
       />
 
-      <TabsBar>
-        {STATUSES.map((s) => (
-          <TabsButton
-            key={s.slug}
-            active={status === s.slug}
-            onClick={() => filters.setParam("status", s.slug)}
-          >
-            {t(s.label)}
-          </TabsButton>
-        ))}
-      </TabsBar>
+      <Card className="ds-filter-bar">
+        <Field label={t("transfer.search")}>
+          <Input
+            type="search"
+            value={filters.draft.q ?? q}
+            onChange={(e) => filters.debounced("q", e.target.value)}
+            placeholder={t("returnCheck.searchPlaceholder")}
+          />
+        </Field>
+        <Field label={t("transfer.status")}>
+          <Select value={status} onChange={(e) => filters.setParam("status", e.target.value)}>
+            {STATUSES.map((s) => (
+              <option key={s.slug} value={s.slug}>{t(s.label)}</option>
+            ))}
+          </Select>
+        </Field>
+      </Card>
+
+      {party && (
+        <div className={styles.partyFilter}>
+          <Pill tone="info">{party.label}</Pill>
+          <Button tone="secondary" size="sm" onClick={() => filters.setParam(party.key, "")}>
+            {t("returnCheck.showAll")}
+          </Button>
+        </div>
+      )}
 
       <Card>
         <DataTable
@@ -158,9 +185,11 @@ export default function ReturnChecks() {
           rowLabel={(r) => t("returnCheck.openFrom", { name: r.customer_name })}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}
-          emptyTitle={status
-            ? t("returnCheck.emptyWithStatus", { status: returnCheckStatusLabel(status).toLowerCase() })
-            : t("returnCheck.empty")}
+          emptyTitle={q || party
+            ? t("returnCheck.noMatches")
+            : status
+              ? t("returnCheck.emptyWithStatus", { status: returnCheckStatusLabel(status).toLowerCase() })
+              : t("returnCheck.empty")}
           sort={filters.sort}
           page={data && {
             page: data.page, totalPages: data.total_pages, total: data.total,
@@ -177,9 +206,3 @@ export default function ReturnChecks() {
     </PageShell>
   );
 }
-
-function StatusPill({ status }: { status: string }) {
-  const tone = RETURN_CHECK_STATUS_TONES[status] ?? "neutral";
-  return <Pill tone={tone}>{returnCheckStatusLabel(status)}</Pill>;
-}
-

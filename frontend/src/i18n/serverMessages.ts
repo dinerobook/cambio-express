@@ -54,6 +54,8 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Return check not found": "returnCheck.serverNotFound",
   "Payment not found": "returnCheck.serverPaymentNotFound",
   "Payment amount must be > 0.": "returnCheck.serverAmountPositive",
+  "Returned batch not found": "returnCheck.serverBatchNotFound",
+  "This batch still has checks. Move them to another batch before deleting it.": "returnCheck.serverBatchHasChecks",
   "Return check is already fully recovered.": "returnCheck.fullyRecovered",
 };
 
