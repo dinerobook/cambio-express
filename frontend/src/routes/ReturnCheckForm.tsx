@@ -6,6 +6,7 @@ import {
   batchName,
   createReturnCheck,
   createReturnCheckPayment,
+  deleteReturnCheck,
   deleteReturnCheckPayment,
   markFraud,
   RETURN_CHECK_PAYMENT_METHODS,
@@ -24,6 +25,7 @@ import {
 } from "../api/returnChecks";
 import { ApiError, apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import { hasPermission } from "../lib/permissions";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { fmtMoney2 } from "../lib/formatters";
 import {
@@ -205,6 +207,30 @@ export default function ReturnCheckForm() {
   const [pendingTransition, setPendingTransition] =
     useState<Transition | null>(null);
   const [transitionError, setTransitionError] = useState<string | null>(null);
+
+  // Delete (a check typed by mistake). Only offered while the check
+  // has no paybacks; the server refuses otherwise.
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const hasPayments = (payments.data?.payments.length ?? 0) > 0;
+
+  async function onDelete() {
+    if (!isEdit) return;
+    setDeleteError(null); setBusy(true);
+    try {
+      await deleteReturnCheck(rcId);
+      void queryClient.invalidateQueries({ queryKey: ["return-checks"] });
+      toast({ message: t("returnCheck.deleted"), tone: "success" });
+      // A batched check goes back to its batch (now one check lighter).
+      const batchId = detail.data?.return_check.batch_id;
+      const after = batchId ? `/return-checks/batches/${batchId}` : backTo;
+      guard.proceed(() => navigate(after, { replace: true }));
+    } catch (err) {
+      setDeleteError(apiErrorMessage(err, t("returnCheck.deleteFailed")));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function doTransition() {
     if (!isEdit || !pendingTransition) return;
@@ -429,7 +455,17 @@ export default function ReturnCheckForm() {
 
         {error && <Alert tone="error">{error}</Alert>}
 
+        {isEdit && hasPayments && hasPermission("return_checks", "delete") && (
+          <p className={styles.statusLine}>{t("returnCheck.deleteHint")}</p>
+        )}
+
         <FormActions guard={guard}>
+          {isEdit && payments.data && !hasPayments && (
+            <Button type="button" tone="danger" perm="return_checks.delete"
+              disabled={busy} onClick={() => setConfirmDelete(true)}>
+              {t("returnCheck.delete")}
+            </Button>
+          )}
           <Button type="button" tone="secondary" onClick={onCancel}>
             {t("common.cancel")}
           </Button>
@@ -457,6 +493,18 @@ export default function ReturnCheckForm() {
         error={transitionError}
         onConfirm={() => { void doTransition(); }}
         onCancel={() => { setPendingTransition(null); setTransitionError(null); }}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={t("returnCheck.deleteTitle")}
+        message={t("returnCheck.deleteMessage")}
+        confirmLabel={t("returnCheck.delete")}
+        confirmTone="danger"
+        busy={busy}
+        error={deleteError}
+        onConfirm={() => { void onDelete(); }}
+        onCancel={() => { setConfirmDelete(false); setDeleteError(null); }}
       />
     </PageShell>
   );

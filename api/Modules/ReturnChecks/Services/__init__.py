@@ -141,6 +141,29 @@ def update_return_check(
     return row
 
 
+def delete_return_check(
+    db: Session, *, store_id: int, rc_id: int,
+) -> ReturnCheck:
+    """Delete a check entered by mistake. Refused while it has
+    paybacks: each payback is a line on that day's daily book (and a
+    locked day can't change), so they are removed first, one by one,
+    through ``delete_payment`` with its lock check. A loss / fraud
+    check leaves the month it was written off in. Caller audits the
+    snapshot and commits."""
+    row = find_return_check(db, store_id, rc_id)
+    if row is None:
+        raise ReturnCheckNotFoundError(f"id={rc_id}")
+    paybacks = db.query(ReturnCheckPayment).filter_by(return_check_id=rc_id).count()
+    lines = db.query(DailyLineItem).filter_by(return_check_id=rc_id).count()
+    if paybacks or lines:
+        raise ReturnCheckStateError(
+            "Remove this check's paybacks before deleting it.",
+        )
+    db.delete(row)
+    db.flush()
+    return row
+
+
 def _set_status(
     db: Session, store_id: int, rc_id: int,
     *, target_status: str, allowed_from: tuple[str, ...],
@@ -406,6 +429,7 @@ __all__ = [
     "ReturnCheckWriteInput",
     "create_return_check",
     "delete_payment",
+    "delete_return_check",
     "mark_fraud",
     "mark_loss",
     "record_payment",

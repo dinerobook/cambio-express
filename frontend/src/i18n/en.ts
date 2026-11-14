@@ -996,6 +996,13 @@ export const en = {
   "returnCheck.deleteBatchTitle": "Delete this batch?",
   "returnCheck.deleteBatchMessage": "Delete the empty batch {name}? This can't be undone.",
   "returnCheck.serverBatchNotFound": "Returned batch not found",
+  "returnCheck.delete": "Delete check",
+  "returnCheck.deleteTitle": "Delete this returned check?",
+  "returnCheck.deleteMessage": "Delete this check entered by mistake? It leaves the list, its batch, the tracking and the reports. This can't be undone.",
+  "returnCheck.deleted": "Returned check deleted.",
+  "returnCheck.deleteFailed": "Could not delete the check.",
+  "returnCheck.deleteHint": "To delete this check, remove its payments first.",
+  "returnCheck.serverDeleteHasPaybacks": "Remove this check's paybacks before deleting it.",
   "returnCheck.serverBatchHasChecks": "This batch still has checks. Move them to another batch before deleting it.",
 
   // ── Shared pieces ───────────────────────────────────────────
