@@ -1,7 +1,11 @@
 """ReturnChecks — Models.
 
-Two classes that own the bounced-customer-check workflow:
+Three classes that own the bounced-customer-check workflow:
 
+* ``ReturnCheckBatch``   — checks the bank sent back together (one
+                           return notice): the day they came back
+                           and the bank's reference. Optional — a
+                           check may sit outside any batch.
 * ``ReturnCheck``        — one row per bounced check. Status moves
                            pending → recovered / loss / fraud once,
                            landing the gain/loss on that month's P&L.
@@ -33,6 +37,35 @@ from api.Core.Clock import utc_now
 # reference the same vocabulary.
 RETURN_CHECK_STATUSES = ("pending", "recovered", "loss", "fraud")
 RETURN_CHECK_BOOKED   = ("recovered", "loss", "fraud")  # i.e. closed; affect P&L
+
+
+class ReturnCheckBatch(Base):
+    """Checks the bank returned together — one return notice.
+
+    The batch owns the date: a check in a batch has ``bounced_on``
+    equal to the batch's ``returned_on`` (the service keeps them in
+    step), so "when did checks come back" reads the same from either
+    side. A batch carries no money of its own: its totals are worked
+    out from its checks, and paybacks, the daily book and the P&L
+    still run per check exactly as before.
+    """
+
+    __tablename__ = "msb_return_check_batch"
+    id          = Column(Integer, primary_key=True)
+    store_id    = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    returned_on = Column(Date, nullable=False)
+    # The bank's return notice / deposit reference, as printed.
+    reference   = Column(String(80), nullable=False, server_default="", default="")
+    notes       = Column(Text, nullable=False, server_default="", default="")
+    created_by  = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_at  = Column(DateTime, default=utc_now)
+    updated_at  = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    checks = relationship(
+        "ReturnCheck",
+        back_populates="batch",
+        order_by="ReturnCheck.id",
+    )
 
 
 class ReturnCheck(Base):
@@ -104,6 +137,15 @@ class ReturnCheck(Base):
     # book's own return_check_hold_fees line stays the operator-entered
     # source for that.
     return_check_fee_cents = Column(BigInteger, nullable=False, server_default="0", default=0)
+    # The batch this check came back in (optional; NULL for every
+    # check entered before batches existed and for single entries).
+    batch_id        = Column(Integer, ForeignKey("msb_return_check_batch.id"),
+                             nullable=True, index=True)
+    # Routing and account number printed on the check (the company's
+    # account). Optional; the same pair the check cashing app keys its
+    # companies by, so a later link can carry them across unchanged.
+    routing_number  = Column(String(9),   nullable=True)
+    account_number  = Column(String(20),  nullable=True)
     status          = Column(String(16),  default="pending", nullable=False)
     status_changed_on = Column(Date,      nullable=True)
     notes           = Column(Text,        default="")
@@ -118,6 +160,7 @@ class ReturnCheck(Base):
         cascade="all, delete-orphan",
         order_by="ReturnCheckPayment.paid_on, ReturnCheckPayment.id",
     )
+    batch = relationship("ReturnCheckBatch", back_populates="checks")
 
     @property
     def amount(self) -> float:
@@ -228,5 +271,5 @@ class ReturnCheckPayment(Base):
 
 __all__ = [
     "RETURN_CHECK_BOOKED", "RETURN_CHECK_STATUSES",
-    "ReturnCheck", "ReturnCheckPayment",
+    "ReturnCheck", "ReturnCheckBatch", "ReturnCheckPayment",
 ]

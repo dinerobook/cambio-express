@@ -89,6 +89,10 @@ const PurchaseInvoiceForm = lazy(
 );
 const PosImport = lazy(() => import("./routes/PosImport"));
 const ReturnChecks = lazy(() => import("./routes/ReturnChecks"));
+const ReturnCheckBatches = lazy(() => import("./routes/ReturnCheckBatches"));
+const ReturnCheckBatch = lazy(() => import("./routes/ReturnCheckBatch"));
+const ReturnCheckBatchForm = lazy(() => import("./routes/ReturnCheckBatchForm"));
+const ReturnCheckParties = lazy(() => import("./routes/ReturnCheckParties"));
 const CashCheck = lazy(() => import("./routes/CashCheck"));
 const CheckCustomers = lazy(() => import("./routes/CheckCustomers"));
 const CheckCustomerForm = lazy(() => import("./routes/CheckCustomerForm"));
@@ -339,6 +343,11 @@ export default function App() {
           <Route path="return-checks"          element={<Gate><ReturnChecks /></Gate>} />
           <Route path="return-checks/new"      element={<Gate><ReturnCheckForm /></Gate>} />
           <Route path="return-checks/:id/edit" element={<Gate><ReturnCheckForm /></Gate>} />
+          <Route path="return-checks/batches"     element={<Gate><ReturnCheckBatches /></Gate>} />
+          <Route path="return-checks/batches/new" element={<Gate><ReturnCheckBatchForm /></Gate>} />
+          <Route path="return-checks/batches/:id" element={<Gate><ReturnCheckBatch /></Gate>} />
+          <Route path="return-checks/companies"   element={<Gate><ReturnCheckParties by="company" /></Gate>} />
+          <Route path="return-checks/customers"   element={<Gate><ReturnCheckParties by="customer" /></Gate>} />
           <Route path="check-cashing"               element={<Gate><CashCheck /></Gate>} />
           <Route path="check-cashing/customers"     element={<Gate><CheckCustomers /></Gate>} />
           <Route path="check-cashing/customers/new" element={<Gate><CheckCustomerForm /></Gate>} />

@@ -82,3 +82,39 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* New batch: one bordered block per check, a footer with "Add
+ * another check" and the running total. */
+.batchRow {
+  border: 1px solid var(--db-border);
+  border-radius: 0.6rem;
+  padding: 0.75rem 0.85rem 0.85rem;
+  margin: 0 0 0.75rem;
+  min-width: 0;
+}
+
+.batchRowTitle {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--db-text-muted);
+}
+
+.batchRowActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+}
+
+.batchFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.batchHint {
+  margin: 0;
+  color: var(--db-text-muted);
+  font-size: 0.85rem;
+}

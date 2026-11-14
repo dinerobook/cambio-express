@@ -2,7 +2,15 @@
 
 Mounts at `/api/v2/return-checks/*`. Endpoints:
 
-  GET    /                       list (optional ?status= filter)
+  GET    /                       list (?status, ?q search, ?batch_id,
+                                 ?company / ?customer grouping keys)
+  GET    /tracking               returned checks grouped by company
+                                 or customer (?by=company|customer)
+  GET    /batches                returned batches with their totals
+  POST   /batches                a batch and its checks at once
+  GET    /batches/{id}           one batch and its checks
+  PUT    /batches/{id}           edit a batch (its date moves its checks)
+  DELETE /batches/{id}           delete an EMPTY batch
   GET    /{id}                   single-row detail
   POST   /                       create new pending check
   PUT    /{id}                   edit core fields
@@ -25,16 +33,27 @@ from sqlalchemy.orm import Session
 
 from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
-from api.Core.Pagination import PaginationParams, paginate
+from api.Core.Money import to_dollars
+from api.Core.Pagination import PaginationParams, paginate, paginate_list
+from api.Core.Responses import OkResponse
 from api.Core.Sorting import SORT_DIR_PATTERN
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission, resolve_store_scope
 from api.Modules.ReturnChecks.Repositories import (
+    batches_query,
+    find_batch,
     find_return_check,
     list_payments,
     return_checks_query,
 )
 from api.Modules.ReturnChecks.Requests import (
+    ReturnCheckBatchCreateRequest,
+    ReturnCheckBatchListResponse,
+    ReturnCheckBatchResponse,
+    ReturnCheckBatchRow,
+    ReturnCheckBatchUpdateRequest,
+    ReturnCheckPartyListResponse,
+    ReturnCheckPartyRow,
     ReturnCheckListResponse,
     ReturnCheckPaymentResponse,
     ReturnCheckPaymentRow,
@@ -45,7 +64,9 @@ from api.Modules.ReturnChecks.Requests import (
     ReturnCheckWriteRequest,
 )
 from api.Modules.ReturnChecks.Services import (
+    UNSET,
     RecordPaymentInput,
+    ReturnCheckBatchNotFoundError,
     ReturnCheckNotFoundError,
     ReturnCheckPaymentNotFoundError,
     ReturnCheckStateError,
@@ -57,6 +78,12 @@ from api.Modules.ReturnChecks.Services import (
     record_payment,
     reopen,
     update_return_check,
+)
+from api.Modules.ReturnChecks.Services.batches import (
+    BatchWriteInput, batch_totals, create_batch, delete_batch, update_batch,
+)
+from api.Modules.ReturnChecks.Services.tracking import (
+    TRACK_BY, TRACK_SORTS, party_totals,
 )
 from typing import Any
 
@@ -80,16 +107,18 @@ def _audit_return_check_action(
 
     target_type is "return_check" for the parent + its lifecycle
     transitions, "return_check_payment" for the installment
-    record/delete pair — keeps the audit feed filterable per
-    legacy contract."""
+    record/delete pair, "return_check_batch" for a batch — keeps the
+    audit feed filterable per legacy contract."""
     from api.Core.Audit import audit_operator
+    if action in ("record_payment", "delete_payment"):
+        target_type = "return_check_payment"
+    elif action.endswith("_return_check_batch"):
+        target_type = "return_check_batch"
+    else:
+        target_type = "return_check"
     audit_operator(
         db, claims,
-        target_type=(
-            "return_check_payment"
-            if action in ("record_payment", "delete_payment")
-            else "return_check"
-        ),
+        target_type=target_type,
         target_id=target_id,
         target_label=target_label,
         action=action,
@@ -115,11 +144,41 @@ def _row(rc) -> ReturnCheckRow:
         notes=rc.notes or "",
         recovered_total=float(rc.recovered_total or 0),
         payment_count=len(rc.payments) if rc.payments else 0,
+        batch_id=int(rc.batch_id) if rc.batch_id is not None else None,
+        batch_reference=(rc.batch.reference or "") if rc.batch is not None else "",
+        routing_number=rc.routing_number or "",
+        account_number=rc.account_number or "",
     )
+
+
+def _batch_row(batch) -> ReturnCheckBatchRow:
+    totals = batch_totals(batch)
+    return ReturnCheckBatchRow(
+        id=batch.id,
+        returned_on=batch.returned_on.isoformat() if batch.returned_on else "",
+        reference=batch.reference or "",
+        notes=batch.notes or "",
+        check_count=totals.check_count,
+        amount_total=to_dollars(totals.amount_cents),
+        fee_total=to_dollars(totals.fee_cents),
+        recovered_total=to_dollars(totals.recovered_cents),
+        open_count=totals.open_count,
+        companies=totals.companies,
+    )
+
+
+def _batch_label(batch) -> str:
+    day = batch.returned_on.isoformat() if batch.returned_on else ""
+    ref = (batch.reference or "").strip()
+    return (f"{day} {ref}".strip())[:160]
+
+
+_BATCH_NOT_FOUND = "Returned batch not found"
 
 
 def _parse_payload(body: ReturnCheckWriteRequest) -> ReturnCheckWriteInput:
     bounced_on = parse_iso_day(body.bounced_on, field="bounced_on")
+    sent = body.model_fields_set
     return ReturnCheckWriteInput(
         bounced_on=bounced_on,
         customer_name=body.customer_name,
@@ -129,13 +188,20 @@ def _parse_payload(body: ReturnCheckWriteRequest) -> ReturnCheckWriteInput:
         amount=float(body.amount or 0),
         return_check_fee=float(body.return_check_fee or 0),
         notes=body.notes,
+        batch_id=body.batch_id if "batch_id" in sent else UNSET,
+        routing_number=body.routing_number if "routing_number" in sent else UNSET,
+        account_number=body.account_number if "account_number" in sent else UNSET,
     )
 
 
 @router.get("", response_model=ReturnCheckListResponse)
 def list_route(
     status: str = Query("", description="Optional filter: pending, recovered, loss, fraud"),
-    sort: str = Query("", description="bounced, customer, check, bank, amount or status; empty = newest bounce first."),
+    q: str = Query("", max_length=120, description="Search customer, company, check number, bank or routing number."),
+    batch_id: int | None = Query(None, ge=1, description="Only this batch's checks."),
+    company: str = Query("", max_length=120, description="A company key from /tracking?by=company."),
+    customer: str = Query("", max_length=120, description="A customer key from /tracking?by=customer."),
+    sort: str = Query("", description="bounced, customer, company, check, bank, amount or status; empty = newest bounce first."),
     dir: str = Query("desc", pattern=SORT_DIR_PATTERN),
     page: int | None = Query(
         None, ge=1,
@@ -149,6 +215,7 @@ def list_route(
     require_permission(claims, "return_checks", "read")
     query = return_checks_query(
         db, int(sid), status=status, sort=sort, direction=dir,
+        q=q, batch_id=batch_id, company=company, customer=customer,
     )
     if page is None:
         rows = query.all()
@@ -162,6 +229,196 @@ def list_route(
         rows=payload["rows"], total=payload["total"],
         page=payload["page"], total_pages=payload["total_pages"],
     )
+
+
+def _optional_day(raw: str, field: str):
+    return parse_iso_day(raw, field=field) if (raw or "").strip() else None
+
+
+@router.get("/tracking", response_model=ReturnCheckPartyListResponse)
+def tracking_route(
+    by: str = Query("company", description="company or customer"),
+    q: str = Query("", max_length=120, description="Search names."),
+    date_from: str = Query("", alias="from", description="YYYY-MM-DD; empty = from the first check."),
+    date_to: str = Query("", alias="to", description="YYYY-MM-DD; empty = up to today."),
+    sort: str = Query("", description="checks, amount, owed, lost, last or name; empty = most checks first."),
+    dir: str = Query("desc", pattern=SORT_DIR_PATTERN),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> ReturnCheckPartyListResponse:
+    """Returned checks grouped by company or by customer: how many,
+    how much, what is still owed and what was written off."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "return_checks", "read")
+    if by not in TRACK_BY:
+        raise HTTPException(status_code=422, detail="by must be company or customer")
+    rows = party_totals(
+        db, int(sid), by=by, q=q,
+        date_from=_optional_day(date_from, "from"),
+        date_to=_optional_day(date_to, "to"),
+        sort=sort if sort in TRACK_SORTS else "", direction=dir,
+    )
+    payload = paginate_list(rows, PaginationParams(page=page, per_page=per_page))
+    return ReturnCheckPartyListResponse(
+        rows=[
+            ReturnCheckPartyRow(
+                key=r.key, name=r.name, check_count=r.check_count,
+                amount_total=to_dollars(r.amount_cents),
+                owed_total=to_dollars(r.owed_cents),
+                open_count=r.open_count, lost_count=r.lost_count,
+                lost_total=to_dollars(r.lost_cents),
+                last_returned_on=(
+                    r.last_returned_on.isoformat() if r.last_returned_on else ""
+                ),
+                routing_number=r.routing_number,
+            )
+            for r in payload["rows"]
+        ],
+        total=payload["total"], page=payload["page"],
+        total_pages=payload["total_pages"],
+    )
+
+
+@router.get("/batches", response_model=ReturnCheckBatchListResponse)
+def batches_route(
+    q: str = Query("", max_length=120, description="Search reference, notes, or a check's customer, company or number."),
+    sort: str = Query("", description="returned or reference; empty = newest return first."),
+    dir: str = Query("desc", pattern=SORT_DIR_PATTERN),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> ReturnCheckBatchListResponse:
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "return_checks", "read")
+    payload = paginate(
+        batches_query(db, int(sid), q=q, sort=sort, direction=dir),
+        PaginationParams(page=page, per_page=per_page), adapter=_batch_row,
+    )
+    return ReturnCheckBatchListResponse(
+        rows=payload["rows"], total=payload["total"],
+        page=payload["page"], total_pages=payload["total_pages"],
+    )
+
+
+@router.post("/batches", response_model=ReturnCheckBatchResponse, status_code=201)
+def create_batch_route(
+    body: ReturnCheckBatchCreateRequest,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> ReturnCheckBatchResponse:
+    """Record a batch of returned checks in one save."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "return_checks", "create")
+    returned_on = parse_iso_day(body.returned_on, field="returned_on")
+    payload = BatchWriteInput(
+        returned_on=returned_on, reference=body.reference, notes=body.notes,
+        checks=[
+            ReturnCheckWriteInput(
+                bounced_on=returned_on,
+                customer_name=c.customer_name, company_name=c.company_name,
+                check_number=c.check_number, payer_bank=c.payer_bank,
+                amount=float(c.amount), return_check_fee=float(c.return_check_fee or 0),
+                notes=c.notes, routing_number=c.routing_number,
+                account_number=c.account_number,
+            )
+            for c in body.checks
+        ],
+    )
+    user_id = int(claims["sub"])
+    batch, checks = create_batch(db, store_id=sid, created_by=user_id, payload=payload)
+    total = sum(float(c.amount or 0) for c in checks)
+    _audit_return_check_action(
+        db, claims=claims, action="create_return_check_batch",
+        target_id=str(batch.id), target_label=_batch_label(batch),
+        summary=f"checks={len(checks)} amount=${total:,.2f} returned_on={returned_on.isoformat()}",
+    )
+    for row in checks:
+        _audit_return_check_action(
+            db, claims=claims, action="create_return_check",
+            target_id=str(row.id),
+            target_label=(row.customer_name or "")[:160],
+            summary=(
+                f"check #{row.check_number or '?'} amount=${float(row.amount or 0):,.2f} "
+                f"bounced_on={returned_on.isoformat()} batch={batch.id}"
+            ),
+        )
+    db.commit()
+    db.refresh(batch)
+    return ReturnCheckBatchResponse(
+        batch=_batch_row(batch), checks=[_row(c) for c in batch.checks],
+    )
+
+
+@router.get("/batches/{batch_id}", response_model=ReturnCheckBatchResponse)
+def get_batch_route(
+    batch_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> ReturnCheckBatchResponse:
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "return_checks", "read")
+    batch = find_batch(db, int(sid), batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail=_BATCH_NOT_FOUND)
+    return ReturnCheckBatchResponse(
+        batch=_batch_row(batch), checks=[_row(c) for c in batch.checks],
+    )
+
+
+@router.put("/batches/{batch_id}", response_model=ReturnCheckBatchResponse)
+def update_batch_route(
+    batch_id: int = Path(..., ge=1),
+    body: ReturnCheckBatchUpdateRequest = ...,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> ReturnCheckBatchResponse:
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "return_checks", "update")
+    returned_on = parse_iso_day(body.returned_on, field="returned_on")
+    try:
+        batch = update_batch(
+            db, store_id=sid, batch_id=batch_id, returned_on=returned_on,
+            reference=body.reference, notes=body.notes,
+        )
+    except ReturnCheckBatchNotFoundError:
+        raise HTTPException(status_code=404, detail=_BATCH_NOT_FOUND)
+    _audit_return_check_action(
+        db, claims=claims, action="update_return_check_batch",
+        target_id=str(batch.id), target_label=_batch_label(batch),
+        summary=f"returned_on={returned_on.isoformat()} checks={len(batch.checks or [])}",
+    )
+    db.commit()
+    db.refresh(batch)
+    return ReturnCheckBatchResponse(
+        batch=_batch_row(batch), checks=[_row(c) for c in batch.checks],
+    )
+
+
+@router.delete("/batches/{batch_id}", response_model=OkResponse)
+def delete_batch_route(
+    batch_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> OkResponse:
+    """Delete an empty batch; one that still has checks is a 409."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "return_checks", "delete")
+    try:
+        batch = delete_batch(db, store_id=sid, batch_id=batch_id)
+    except ReturnCheckBatchNotFoundError:
+        raise HTTPException(status_code=404, detail=_BATCH_NOT_FOUND)
+    except ReturnCheckStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    _audit_return_check_action(
+        db, claims=claims, action="delete_return_check_batch",
+        target_id=str(batch_id), target_label=_batch_label(batch),
+        summary="empty batch deleted",
+    )
+    db.commit()
+    return OkResponse(ok=True)
 
 
 @router.get("/{rc_id}", response_model=ReturnCheckResponse)
@@ -188,9 +445,12 @@ def create_route(
     require_permission(claims, "return_checks", "create")
     payload = _parse_payload(body)
     user_id = int(claims["sub"])
-    row = create_return_check(
-        db, store_id=sid, created_by=user_id, payload=payload,
-    )
+    try:
+        row = create_return_check(
+            db, store_id=sid, created_by=user_id, payload=payload,
+        )
+    except ReturnCheckBatchNotFoundError:
+        raise HTTPException(status_code=404, detail=_BATCH_NOT_FOUND)
     _audit_return_check_action(
         db, claims=claims, action="create_return_check",
         target_id=str(row.id),
@@ -220,6 +480,8 @@ def update_route(
         )
     except ReturnCheckNotFoundError:
         raise HTTPException(status_code=404, detail="Return check not found")
+    except ReturnCheckBatchNotFoundError:
+        raise HTTPException(status_code=404, detail=_BATCH_NOT_FOUND)
     _audit_return_check_action(
         db, claims=claims, action="update_return_check",
         target_id=str(row.id),

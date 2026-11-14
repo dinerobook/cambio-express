@@ -116,6 +116,9 @@ vi.mock("../api/returnChecks", async (importOriginal) => {
     }),
     useReturnCheck: () => CHECK_DETAIL,
     useReturnCheckPayments: () => CHECK_PAYMENTS,
+    useReturnCheckBatches: () => ({ data: { rows: [], total: 0, page: 1, total_pages: 1 } }),
+    useReturnCheckBatch: () => ({ data: undefined }),
+    useReturnCheckParties: () => ({ data: undefined }),
   };
 });
 
