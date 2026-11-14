@@ -1000,6 +1000,13 @@ export const es: Record<MessageKey, string> = {
   "returnCheck.deleteBatchTitle": "¿Eliminar este lote?",
   "returnCheck.deleteBatchMessage": "¿Eliminar el lote vacío {name}? No se puede deshacer.",
   "returnCheck.serverBatchNotFound": "No se encontró el lote de devolución",
+  "returnCheck.delete": "Eliminar cheque",
+  "returnCheck.deleteTitle": "¿Eliminar este cheque devuelto?",
+  "returnCheck.deleteMessage": "¿Eliminar este cheque ingresado por error? Sale de la lista, de su lote, del seguimiento y de los reportes. Esto no se puede deshacer.",
+  "returnCheck.deleted": "Cheque devuelto eliminado.",
+  "returnCheck.deleteFailed": "No se pudo eliminar el cheque.",
+  "returnCheck.deleteHint": "Para eliminar este cheque, primero quite sus pagos.",
+  "returnCheck.serverDeleteHasPaybacks": "Quite los pagos de este cheque antes de eliminarlo.",
   "returnCheck.serverBatchHasChecks": "Este lote todavía tiene cheques. Muévalos a otro lote antes de eliminarlo.",
 
   // ── Shared pieces ───────────────────────────────────────────

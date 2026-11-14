@@ -413,3 +413,89 @@ def test_party_key_rule():
 def test_retention_purges_batches_with_their_store(client, test_store_id):
     from api.Modules.Billing.Services.retention import STORE_OWNED_MODELS
     assert STORE_OWNED_MODELS.index("ReturnCheck") < STORE_OWNED_MODELS.index("ReturnCheckBatch")
+
+
+# ── Delete a check entered by mistake ───────────────────────
+
+
+def test_admin_deletes_a_mistaken_check_and_it_leaves_lists_and_tracking(client, test_store_id):
+    h = _auth(_login(client, test_store_id))
+    data = client.post(f"{BASE}/batches", json=_batch_body(), headers=h).get_json()
+    ana = next(c for c in data["checks"] if c["customer_name"] == "Ana Lopez")
+    resp = client.delete(f"{BASE}/{ana['id']}", headers=h)
+    assert resp.status_code == 200 and resp.get_json() == {"ok": True}
+    assert client.get(f"{BASE}/{ana['id']}", headers=h).status_code == 404
+    rows = client.get(f"{BASE}?page=1", headers=h).get_json()["rows"]
+    assert ana["id"] not in [r["id"] for r in rows]
+    batch = client.get(f"{BASE}/batches/{data['batch']['id']}", headers=h).get_json()["batch"]
+    assert batch["check_count"] == 1
+    customers = client.get(f"{BASE}/tracking?by=customer", headers=h).get_json()["rows"]
+    assert "ana lopez" not in [r["key"] for r in customers]
+    with db_session():
+        from api.Modules.Audit.Models import OperatorAuditLog
+        row = db.session.query(OperatorAuditLog).filter_by(action="delete_return_check").one()
+        assert row.target_id == str(ana["id"])
+        assert "amount=$400.00" in row.summary and "company=Acme LLC" in row.summary
+    # Deleting it again is a 404, not a crash.
+    assert client.delete(f"{BASE}/{ana['id']}", headers=h).status_code == 404
+
+
+def test_deleting_a_written_off_check_takes_it_out_of_that_months_pl(client, test_store_id):
+    from api.Modules.Owners.Services.return_checks import writeoff_total
+    nov = (date(2026, 11, 1), date(2026, 11, 30))
+    with db_session():
+        rid = _seed_rc(test_store_id, customer_name="Mistake", amount=700.0,
+                       status="loss")
+        from api.Modules.ReturnChecks.Models import ReturnCheck
+        rc = db.session.get(ReturnCheck, rid)
+        rc.status_changed_on = date(2026, 11, 5)
+        db.session.commit()
+        before = writeoff_total(db.session, [test_store_id], *nov, "loss")
+    h = _auth(_login(client, test_store_id))
+    assert client.delete(f"{BASE}/{rid}", headers=h).status_code == 200
+    with db_session():
+        after = writeoff_total(db.session, [test_store_id], *nov, "loss")
+    assert before == 700.0 and after == 0.0
+
+
+def test_delete_is_refused_while_the_check_has_paybacks(client, test_store_id):
+    h = _auth(_login(client, test_store_id))
+    with db_session():
+        rid = _seed_rc(test_store_id, customer_name="Paid Some", amount=300.0)
+    pay = client.post(f"{BASE}/{rid}/payments", json={
+        "paid_on": "2026-11-12", "amount": 100.0, "method": "cash",
+    }, headers=h).get_json()["payment"]
+    resp = client.delete(f"{BASE}/{rid}", headers=h)
+    assert resp.status_code == 409
+    assert resp.get_json()["detail"] == "Remove this check's paybacks before deleting it."
+    assert client.get(f"{BASE}/{rid}", headers=h).status_code == 200
+    # Remove the payback (its daily-book line goes with it), then delete.
+    assert client.delete(f"{BASE}/{rid}/payments/{pay['id']}", headers=h).status_code == 200
+    assert client.delete(f"{BASE}/{rid}", headers=h).status_code == 200
+
+
+def test_delete_is_admin_only_by_default_and_follows_the_grant(client, test_store_id):
+    with db_session():
+        rid = _seed_rc(test_store_id, customer_name="Keep Me")
+    emp_client, jwt = make_employee_client(test_store_id)
+    h = _auth(jwt)
+    assert emp_client.delete(f"{BASE}/{rid}", headers=h).status_code == 403
+    with db_session():
+        _revoke(test_store_id, read=True, delete=True)
+    assert emp_client.delete(f"{BASE}/{rid}", headers=h).status_code == 200
+    with db_session():
+        rid2 = _seed_rc(test_store_id, customer_name="Keep Me Too")
+        _revoke(test_store_id, read=True)
+    assert emp_client.delete(f"{BASE}/{rid2}", headers=h).status_code == 403
+
+
+def test_delete_another_stores_check_is_404_and_signed_out_is_401(client, test_store_id):
+    with db_session():
+        other = _other_store()
+        foreign = _seed_rc(other, customer_name="Foreign")
+    assert client.delete(f"{BASE}/{foreign}").status_code == 401
+    h = _auth(_login(client, test_store_id))
+    assert client.delete(f"{BASE}/{foreign}", headers=h).status_code == 404
+    with db_session():
+        from api.Modules.ReturnChecks.Models import ReturnCheck
+        assert db.session.get(ReturnCheck, foreign) is not None

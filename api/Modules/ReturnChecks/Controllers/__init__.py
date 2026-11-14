@@ -14,6 +14,9 @@ Mounts at `/api/v2/return-checks/*`. Endpoints:
   GET    /{id}                   single-row detail
   POST   /                       create new pending check
   PUT    /{id}                   edit core fields
+  DELETE /{id}                   delete a check entered by mistake
+                                 (return_checks.delete; refused while
+                                 it has paybacks)
   POST   /{id}/mark-loss         pending → loss
   POST   /{id}/mark-fraud        pending → fraud
   POST   /{id}/reopen            loss/fraud/recovered → pending
@@ -73,6 +76,7 @@ from api.Modules.ReturnChecks.Services import (
     ReturnCheckWriteInput,
     create_return_check,
     delete_payment,
+    delete_return_check,
     mark_fraud,
     mark_loss,
     record_payment,
@@ -492,6 +496,38 @@ def update_route(
     )
     db.commit()
     return ReturnCheckResponse(return_check=_row(row))
+
+
+@router.delete("/{rc_id}", response_model=OkResponse)
+def delete_route(
+    rc_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> OkResponse:
+    """Delete a returned check entered by mistake. Admin-only by
+    default (``return_checks.delete``); the audit row keeps what the
+    check was."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "return_checks", "delete")
+    try:
+        row = delete_return_check(db, store_id=sid, rc_id=rc_id)
+    except ReturnCheckNotFoundError:
+        raise HTTPException(status_code=404, detail="Return check not found")
+    except ReturnCheckStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    _audit_return_check_action(
+        db, claims=claims, action="delete_return_check",
+        target_id=str(rc_id),
+        target_label=(row.customer_name or "")[:160],
+        summary=(
+            f"check #{row.check_number or '?'} company={row.company_name or ''} "
+            f"amount=${float(row.amount or 0):,.2f} fee=${float(row.return_check_fee or 0):,.2f} "
+            f"bounced_on={row.bounced_on.isoformat() if row.bounced_on else ''} "
+            f"status={row.status or ''} batch={row.batch_id or ''}"
+        ),
+    )
+    db.commit()
+    return OkResponse(ok=True)
 
 
 def _transition(

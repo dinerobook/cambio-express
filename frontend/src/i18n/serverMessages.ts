@@ -57,6 +57,7 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Returned batch not found": "returnCheck.serverBatchNotFound",
   "This batch still has checks. Move them to another batch before deleting it.": "returnCheck.serverBatchHasChecks",
   "Return check is already fully recovered.": "returnCheck.fullyRecovered",
+  "Remove this check's paybacks before deleting it.": "returnCheck.serverDeleteHasPaybacks",
 };
 
 /** The server's `message` in the current language when known. A 429

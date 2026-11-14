@@ -25,6 +25,7 @@ const markFraud = vi.fn();
 const reopenReturnCheck = vi.fn();
 const createReturnCheckPayment = vi.fn();
 const deleteReturnCheckPayment = vi.fn();
+const deleteReturnCheck = vi.fn();
 const useReturnCheck = vi.fn();
 const useReturnCheckPayments = vi.fn();
 const useReturnCheckBatches = vi.fn();
@@ -42,6 +43,7 @@ vi.mock("../api/returnChecks", async (importOriginal) => {
     reopenReturnCheck: (...a: unknown[]) => reopenReturnCheck(...a),
     createReturnCheckPayment: (...a: unknown[]) => createReturnCheckPayment(...a),
     deleteReturnCheckPayment: (...a: unknown[]) => deleteReturnCheckPayment(...a),
+    deleteReturnCheck: (...a: unknown[]) => deleteReturnCheck(...a),
     useReturnCheck: (id: number | undefined) => useReturnCheck(id),
     useReturnCheckPayments: (id: number | undefined) => useReturnCheckPayments(id),
     useReturnCheckBatches: (q: unknown) => useReturnCheckBatches(q),
@@ -117,6 +119,7 @@ beforeEach(() => {
   for (const f of [
     createReturnCheck, updateReturnCheck, markLoss, markFraud,
     reopenReturnCheck, createReturnCheckPayment, deleteReturnCheckPayment,
+    deleteReturnCheck,
     useReturnCheck, useReturnCheckPayments, useReturnCheckBatches,
     useReturnCheckBatch, refetch,
   ]) {
@@ -442,5 +445,84 @@ describe("ReturnCheckForm recovery payments", () => {
     renderForm("/return-checks/5/edit");
     expect(screen.getByText("at counter")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+  });
+});
+
+
+describe("ReturnCheckForm delete (a check entered by mistake)", () => {
+  function setNoPayments(over: Partial<ReturnCheckRow> = {}) {
+    setEdit({ recovered_total: 0, payment_count: 0, ...over });
+    useReturnCheckPayments.mockReturnValue({ data: { payments: [] }, isLoading: false });
+  }
+
+  it("asks first, then deletes and goes back to the list", async () => {
+    setNoPayments();
+    deleteReturnCheck.mockResolvedValue({ ok: true });
+    renderForm("/return-checks/5/edit");
+    await userEvent.click(screen.getByRole("button", { name: "Delete check" }));
+    expect(deleteReturnCheck).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("Delete this returned check?");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete check" }));
+    await waitFor(() => expect(deleteReturnCheck).toHaveBeenCalledWith(5));
+    expect(await screen.findByText("checks list")).toBeInTheDocument();
+    expect(listInvalidated()).toBe(true);
+  });
+
+  it("a batched check goes back to its batch", async () => {
+    setNoPayments({ batch_id: 7 });
+    deleteReturnCheck.mockResolvedValue({ ok: true });
+    renderForm("/return-checks/5/edit");
+    await userEvent.click(screen.getByRole("button", { name: "Delete check" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete check" }));
+    expect(await screen.findByText("batch page")).toBeInTheDocument();
+  });
+
+  it("cancelling the confirm deletes nothing", async () => {
+    setNoPayments();
+    renderForm("/return-checks/5/edit");
+    await userEvent.click(screen.getByRole("button", { name: "Delete check" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+    expect(deleteReturnCheck).not.toHaveBeenCalled();
+    expect(screen.queryByText("checks list")).not.toBeInTheDocument();
+  });
+
+  it("shows the server's refusal in the dialog and stays", async () => {
+    setNoPayments();
+    deleteReturnCheck.mockRejectedValue(
+      new ApiError(409, "Remove this check's paybacks before deleting it.", null),
+    );
+    renderForm("/return-checks/5/edit");
+    await userEvent.click(screen.getByRole("button", { name: "Delete check" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete check" }));
+    expect(await screen.findByText("Remove this check's paybacks before deleting it."))
+      .toBeInTheDocument();
+    expect(screen.queryByText("checks list")).not.toBeInTheDocument();
+  });
+
+  it("is not offered while the check has payments; says to remove them first", () => {
+    setEdit();
+    renderForm("/return-checks/5/edit");
+    expect(screen.queryByRole("button", { name: "Delete check" })).not.toBeInTheDocument();
+    expect(screen.getByText("To delete this check, remove its payments first.")).toBeInTheDocument();
+  });
+
+  it("is hidden, hint too, without return_checks.delete (employees by default)", () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN,
+      permissions: TEST_ADMIN.permissions.filter((p) => p !== "return_checks.delete"),
+    });
+    setNoPayments();
+    const { unmount } = renderForm("/return-checks/5/edit");
+    expect(screen.queryByRole("button", { name: "Delete check" })).not.toBeInTheDocument();
+    unmount();
+    setEdit();
+    renderForm("/return-checks/5/edit");
+    expect(screen.queryByText("To delete this check, remove its payments first.")).not.toBeInTheDocument();
+  });
+
+  it("is not on a new check", () => {
+    renderForm("/return-checks/new");
+    expect(screen.queryByRole("button", { name: "Delete check" })).not.toBeInTheDocument();
   });
 });

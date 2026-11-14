@@ -276,6 +276,8 @@ describe("step 4a screens in Spanish", () => {
     // A stored method reads in Spanish in the table and the picker.
     expect(screen.getAllByText("Giro postal").length).toBeGreaterThan(1);
     expect(screen.getByRole("button", { name: "Marcar como pérdida" })).toBeInTheDocument();
+    // It has payments, so Delete waits and says why, in Spanish.
+    expect(screen.getByText("Para eliminar este cheque, primero quite sus pagos.")).toBeInTheDocument();
     expect(englishLeftovers(document.body, AREAS)).toEqual([]);
   });
 

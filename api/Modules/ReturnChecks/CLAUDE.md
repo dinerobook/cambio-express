@@ -23,11 +23,23 @@
 - A check in a batch is dated by the batch: `bounced_on` follows
   `returned_on` on create, on move into a batch, and when the batch's
   date is edited. Nothing else changes when a batch changes.
-- A batch with checks is never deleted (checks are never deleted);
-  only an empty one, with a confirm in the SPA.
+- A batch with checks is never deleted; only an empty one, with a
+  confirm in the SPA.
 - `batch_id`, `routing_number`, `account_number` on the write body are
   applied **only when sent** (`UNSET` in `Services/__init__.py`), so a
   page that predates batches cannot clear them.
+
+## Deleting a check (entered by mistake)
+- `DELETE /return-checks/{id}` (`delete_return_check`) needs
+  `return_checks.delete` — Admins by default, employees only when
+  granted. It is audited with a snapshot of the check.
+- Refused (409) while the check has any payback or `return_payback`
+  daily-book line: the person removes those first, each through its
+  own locked-day check, so deleting never edits the daily book or a
+  locked day. A deleted loss / fraud check leaves that month's P&L.
+- The SPA offers it on the check's page only when it has no payments
+  (else a hint says to remove them first). A $0 amount is refused
+  (422) on purpose: delete is the way to remove a wrong entry.
 
 ## Tracking by company / customer
 - `parties.py` `party_key` is the ONE rule that two typed names are the

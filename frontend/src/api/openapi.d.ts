@@ -5285,7 +5285,13 @@ export interface paths {
         /** Update Route */
         put: operations["update_route_return_checks__rc_id__put"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete Route
+         * @description Delete a returned check entered by mistake. Admin-only by
+         *     default (``return_checks.delete``); the audit row keeps what the
+         *     check was.
+         */
+        delete: operations["delete_route_return_checks__rc_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -29320,6 +29326,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReturnCheckResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_route_return_checks__rc_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                rc_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
                 };
             };
             /** @description Validation Error */

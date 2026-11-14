@@ -49560,6 +49560,80 @@
       }
     },
     "/return-checks/{rc_id}": {
+      "delete": {
+        "description": "Delete a returned check entered by mistake. Admin-only by\ndefault (``return_checks.delete``); the audit row keeps what the\ncheck was.",
+        "operationId": "delete_route_return_checks__rc_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rc_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Rc Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Route",
+        "tags": [
+          "return-checks"
+        ]
+      },
       "get": {
         "operationId": "get_route_return_checks__rc_id__get",
         "parameters": [

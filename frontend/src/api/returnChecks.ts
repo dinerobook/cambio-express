@@ -294,6 +294,12 @@ export async function reopenReturnCheck(
   );
 }
 
+/** Delete a check typed by mistake (Admin by default). The server
+ *  refuses while it still has paybacks: remove those first. */
+export function deleteReturnCheck(rcId: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/v2/return-checks/${rcId}`, { method: "DELETE" });
+}
+
 export type ReturnCheckPaymentRow = components["schemas"]["ReturnCheckPaymentRow"];
 
 export function useReturnCheckPayments(rcId: number | undefined) {
