@@ -75,7 +75,7 @@ from api.Modules.TimeClock.Services.shifts import (
     shifts_for_period,
     update_shift,
 )
-from typing import Any
+from typing import Any, Callable
 from api.Core.Clock import utc_now
 
 
@@ -135,6 +135,67 @@ def _names_for(
 # ── Employee-facing endpoints ───────────────────────────────
 
 
+_PUNCH_CONFLICTS = (
+    AlreadyClockedInError, NotClockedInError, AlreadyOnBreakError, NotOnBreakError,
+)
+
+
+def _punch(
+    db: Session,
+    claims: dict[str, Any],
+    *,
+    store_employee_id: int,
+    action: str,
+    run: Callable[[int, int | None], TimeClockEntry],
+    gate: Callable[[int], None] | None = None,
+) -> TimeClockPunchResponse:
+    """The one path every punch takes: permission, the token's store,
+    the optional passkey / geofence gate, the service call (404 for a
+    roster id outside the store, 409 for a punch the shift's state
+    refuses), the audit row and the answer."""
+    require_permission(claims, "time_clock", "create")
+    store_id = resolve_store_scope(claims)
+    user_id = _user_id_from(claims)
+    if gate is not None:
+        gate(store_id)
+    try:
+        entry = run(store_id, user_id)
+    except RosterEmployeeNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except _PUNCH_CONFLICTS as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    _audit_punch(
+        db,
+        store_id=store_id, user_id=user_id, claims=claims,
+        entry_id=entry.id,
+        store_employee_id=store_employee_id,
+        action=action,
+    )
+    db.commit()
+    return TimeClockPunchResponse(
+        entry=_to_row(entry, _names_for(db, [entry])),
+    )
+
+
+def _clock_gate(
+    request: Request, db: Session, body: ClockPunchRequest,
+) -> Callable[[int], None]:
+    """Clock in / out pass the store's passkey and geofence checks
+    first (401 / 403); breaks do not."""
+    def gate(store_id: int) -> None:
+        _enforce_passkey_gate(
+            request, db,
+            store_id=store_id,
+            store_employee_id=body.store_employee_id,
+            assert_token=body.assert_token,
+            assertion=body.assertion,
+        )
+        _enforce_geofence_gate(
+            db, store_id=store_id, geo_lat=body.geo_lat, geo_lng=body.geo_lng,
+        )
+    return gate
+
+
 @router.post(
     "/clock-in", response_model=TimeClockPunchResponse, status_code=201,
 )
@@ -149,44 +210,13 @@ def clock_in_route(
     open shift; 404 when the roster id doesn't belong to this
     store; 401 when the store requires a passkey and the
     assertion is missing / invalid."""
-    require_permission(claims, "time_clock", "create")
-    store_id = resolve_store_scope(claims)
-    user_id = _user_id_from(claims)
-    _enforce_passkey_gate(
-        request, db,
-        store_id=store_id,
-        store_employee_id=body.store_employee_id,
-        assert_token=body.assert_token,
-        assertion=body.assertion,
-    )
-    _enforce_geofence_gate(
-        db,
-        store_id=store_id,
-        geo_lat=body.geo_lat,
-        geo_lng=body.geo_lng,
-    )
-    try:
-        entry = clock_in(
-            db,
-            store_id=store_id,
-            store_employee_id=body.store_employee_id,
-            user_id=user_id,
-            notes=body.notes,
-        )
-    except RosterEmployeeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    except AlreadyClockedInError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    _audit_punch(
-        db,
-        store_id=store_id, user_id=user_id, claims=claims,
-        entry_id=entry.id,
-        store_employee_id=body.store_employee_id,
-        action="clock_in",
-    )
-    db.commit()
-    return TimeClockPunchResponse(
-        entry=_to_row(entry, _names_for(db, [entry])),
+    return _punch(
+        db, claims, store_employee_id=body.store_employee_id, action="clock_in",
+        gate=_clock_gate(request, db, body),
+        run=lambda store_id, user_id: clock_in(
+            db, store_id=store_id, store_employee_id=body.store_employee_id,
+            user_id=user_id, notes=body.notes,
+        ),
     )
 
 
@@ -203,44 +233,13 @@ def clock_out_route(
     nobody's clocked in for that name; 404 when the roster id
     doesn't belong to this store; 401 when the store requires
     a passkey and the assertion is missing / invalid."""
-    require_permission(claims, "time_clock", "create")
-    store_id = resolve_store_scope(claims)
-    user_id = _user_id_from(claims)
-    _enforce_passkey_gate(
-        request, db,
-        store_id=store_id,
-        store_employee_id=body.store_employee_id,
-        assert_token=body.assert_token,
-        assertion=body.assertion,
-    )
-    _enforce_geofence_gate(
-        db,
-        store_id=store_id,
-        geo_lat=body.geo_lat,
-        geo_lng=body.geo_lng,
-    )
-    try:
-        entry = clock_out(
-            db,
-            store_id=store_id,
-            store_employee_id=body.store_employee_id,
-            user_id=user_id,
-            notes_append=body.notes,
-        )
-    except RosterEmployeeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    except NotClockedInError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    _audit_punch(
-        db,
-        store_id=store_id, user_id=user_id, claims=claims,
-        entry_id=entry.id,
-        store_employee_id=body.store_employee_id,
-        action="clock_out",
-    )
-    db.commit()
-    return TimeClockPunchResponse(
-        entry=_to_row(entry, _names_for(db, [entry])),
+    return _punch(
+        db, claims, store_employee_id=body.store_employee_id, action="clock_out",
+        gate=_clock_gate(request, db, body),
+        run=lambda store_id, user_id: clock_out(
+            db, store_id=store_id, store_employee_id=body.store_employee_id,
+            user_id=user_id, notes_append=body.notes,
+        ),
     )
 
 
@@ -255,31 +254,11 @@ def break_start_route(
     """Pause the picked roster member's open shift. Sets
     ``break_started_at`` to now. 409 when nobody's clocked in
     or when the shift is already on break."""
-    require_permission(claims, "time_clock", "create")
-    store_id = resolve_store_scope(claims)
-    user_id = _user_id_from(claims)
-    try:
-        entry = start_break(
-            db,
-            store_id=store_id,
-            store_employee_id=body.store_employee_id,
-        )
-    except RosterEmployeeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    except NotClockedInError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except AlreadyOnBreakError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    _audit_punch(
-        db,
-        store_id=store_id, user_id=user_id, claims=claims,
-        entry_id=entry.id,
-        store_employee_id=body.store_employee_id,
-        action="break_start",
-    )
-    db.commit()
-    return TimeClockPunchResponse(
-        entry=_to_row(entry, _names_for(db, [entry])),
+    return _punch(
+        db, claims, store_employee_id=body.store_employee_id, action="break_start",
+        run=lambda store_id, _user_id: start_break(
+            db, store_id=store_id, store_employee_id=body.store_employee_id,
+        ),
     )
 
 
@@ -294,31 +273,11 @@ def break_stop_route(
     """Resume the picked roster member's shift. Adds the
     elapsed break time to ``break_minutes`` and clears
     ``break_started_at``. 409 when no break is in progress."""
-    require_permission(claims, "time_clock", "create")
-    store_id = resolve_store_scope(claims)
-    user_id = _user_id_from(claims)
-    try:
-        entry = end_break(
-            db,
-            store_id=store_id,
-            store_employee_id=body.store_employee_id,
-        )
-    except RosterEmployeeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    except NotClockedInError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except NotOnBreakError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    _audit_punch(
-        db,
-        store_id=store_id, user_id=user_id, claims=claims,
-        entry_id=entry.id,
-        store_employee_id=body.store_employee_id,
-        action="break_stop",
-    )
-    db.commit()
-    return TimeClockPunchResponse(
-        entry=_to_row(entry, _names_for(db, [entry])),
+    return _punch(
+        db, claims, store_employee_id=body.store_employee_id, action="break_stop",
+        run=lambda store_id, _user_id: end_break(
+            db, store_id=store_id, store_employee_id=body.store_employee_id,
+        ),
     )
 
 

@@ -19,8 +19,9 @@ second trial (post-reactivation) gets its own fresh reminder.
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
+
+from api.Modules.Notifications.Services.recipients import store_email_recipients
 
 from api.Modules.Billing.Services.trial import (
     get_trial_status,
@@ -74,38 +75,7 @@ def eligible_recipients(db: Session, store: Any) -> list[Any]:
     Deduplicated — the same user could be both admin of this
     store and an owner-link target.
     """
-    from api.Modules.Tenancy.Models import StoreOwnerLink, User
-    # NOTE: the legacy `app._trial_reminder_recipients` referenced
-    # `link.user_id` which doesn't exist on `StoreOwnerLink` (the
-    # FK column is `owner_id`). That code path never fired in
-    # production because trial stores don't have owner-links, but
-    # the Service uses the correct attribute so the multi-store
-    # owner case actually works the day a trial store gets one.
-    owner_user_ids = [
-        link.owner_id for link in
-        db.query(StoreOwnerLink).filter_by(store_id=store.id).all()
-    ]
-    conds = [User.store_id == store.id]
-    if owner_user_ids:
-        # Owners live in a different store's user row but link back.
-        conds.append(User.id.in_(owner_user_ids))
-    candidates = (
-        db.query(User)
-          .filter(
-              User.is_active == True,  # noqa: E712 — SQLAlchemy boolean
-              User.role.in_(("admin", "owner")),
-              User.email != "",
-              User.notify_trial_reminders == True,  # noqa: E712
-              # Hard-bounce suppression — same filter every other
-              # sender applies (daily_summary / broadcasts /
-              # missed_shifts); Resend told us the address is dead.
-              User.email_bounced_at.is_(None),
-              or_(*conds),
-          )
-          .all()
-    )
-    # Same user could be an owner AND an admin of this store.
-    return list({u.id: u for u in candidates}.values())
+    return store_email_recipients(db, store, "notify_trial_reminders")
 
 
 def run(

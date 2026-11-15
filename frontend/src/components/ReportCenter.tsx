@@ -1,8 +1,10 @@
 import { useState } from "react";
 
 import {
-  ButtonLink, Card, Input, PageHeader, Pill, EmptyState,
+  ButtonLink, Card, Input, PageHeader, Pill, EmptyState, ErrorState, Loading, PageShell,
 } from "./ui";
+import { PageCrumbs } from "./PageCrumbs";
+import { ApiError, apiErrorMessage } from "../lib/api";
 import styles from "./ReportCenter.module.css";
 import { t, useLanguage, type MessageKey } from "../i18n";
 import { en } from "../i18n/en";
@@ -150,5 +152,58 @@ function ReportRowView({ report }: { report: ReportRow }) {
           : <Pill tone="info">{t("reports.comingSoon")}</Pill>}
       </div>
     </div>
+  );
+}
+
+/** A whole report-center page: trail, loading, the error (a 403 means
+ *  the person is outside the list's scope and gets no retry), then the
+ *  center. The store, owner and platform report pages were three hand
+ *  copies of this; each now names only its title, its list and its two
+ *  messages. */
+export function ReportCenterPage({
+  title, list, scopeMessage, failedMessage,
+}: {
+  title: string;
+  list: {
+    data?: { categories: ReportCategoryRow[] };
+    isLoading: boolean;
+    isError: boolean;
+    error: unknown;
+    refetch: () => unknown;
+  };
+  /** Shown on a 403: signed in outside this list's scope. */
+  scopeMessage: string;
+  /** Any other failure, given the server's reason ("" if none). */
+  failedMessage: (reason: string) => string;
+}) {
+  useLanguage(); // re-render on a language switch
+  const { data, isLoading, isError, error, refetch } = list;
+  if (isLoading) {
+    return (
+      <PageShell>
+        <PageCrumbs />
+        <PageHeader title={title} />
+        <Loading />
+      </PageShell>
+    );
+  }
+  if (isError || !data) {
+    const forbidden = error instanceof ApiError && error.status === 403;
+    return (
+      <PageShell>
+        <PageCrumbs />
+        <PageHeader title={title} />
+        <ErrorState
+          message={forbidden ? scopeMessage : failedMessage(apiErrorMessage(error, "")).trim()}
+          onRetry={forbidden ? undefined : () => { void refetch(); }}
+        />
+      </PageShell>
+    );
+  }
+  return (
+    <PageShell>
+      <PageCrumbs />
+      <ReportCenter title={title} categories={data.categories} />
+    </PageShell>
   );
 }
