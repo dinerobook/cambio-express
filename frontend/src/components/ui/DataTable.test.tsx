@@ -40,6 +40,14 @@ describe("<DataTable>", () => {
     expect(within(juan).getByText("$25")).toHaveStyle({ textAlign: "right" });
   });
 
+  it("keeps money and counts on one line, other cells may wrap", () => {
+    // "$18,003.00" broke into "$18,003" / ".00" in a narrow column.
+    render(<DataTable {...base} rows={rows} />);
+    const juan = screen.getByText("Juan").closest("tr")!;
+    expect(getComputedStyle(within(juan).getByText("$25")).whiteSpace).toBe("nowrap");
+    expect(getComputedStyle(within(juan).getByText("Juan")).whiteSpace).not.toBe("nowrap");
+  });
+
   it("labels every cell for the phone card view", () => {
     render(<DataTable {...base} rows={rows} />);
     const cells = within(screen.getByText("Maria").closest("tr")!).getAllByRole("cell");

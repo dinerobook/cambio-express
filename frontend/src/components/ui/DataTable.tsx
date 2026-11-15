@@ -20,7 +20,8 @@ import { tdStyle, thStyle } from "./tokens";
 import styles from "./DataTable.module.css";
 
 /** One column of a ``<DataTable>``. ``render`` draws the cell;
- *  ``align: "right"`` is for money and counts. ``sortKey`` makes the
+ *  ``align: "right"`` is for money and counts, and keeps the cell on
+ *  one line ("$18,003.00" never breaks after the comma). ``sortKey`` makes the
  *  header a sort button when the table is given ``sort``. */
 export interface DataColumn<T> {
   key: string;
@@ -220,6 +221,7 @@ export function DataTable<T>({
                   <td
                     key={c.key}
                     data-label={cardLabel(c)}
+                    className={c.align === "right" ? styles.right : undefined}
                     style={c.align === "right" ? { ...tdStyle, textAlign: "right" } : tdStyle}
                   >
                     {c.render(row)}

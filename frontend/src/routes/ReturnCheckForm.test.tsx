@@ -383,7 +383,7 @@ describe("ReturnCheckForm recovery payments", () => {
     renderForm("/return-checks/5/edit");
     const row = screen.getByText("at counter").closest("tr")!;
     expect(row).toHaveTextContent("$100.00");
-    expect(row).toHaveTextContent("2026-10-03");
+    expect(row).toHaveTextContent("Oct 3, 2026");
 
     // $525 owed - $100 recovered.
     expect(screen.getByText("Up to $425.00 remaining.")).toBeInTheDocument();
@@ -421,7 +421,7 @@ describe("ReturnCheckForm recovery payments", () => {
     await userEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(deleteReturnCheckPayment).not.toHaveBeenCalled();
     const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveTextContent("Remove the $100.00 payment from 2026-10-03?");
+    expect(dialog).toHaveTextContent("Remove the $100.00 payment from Oct 3, 2026?");
     await userEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(deleteReturnCheckPayment).toHaveBeenCalledWith(5, 11));
   });

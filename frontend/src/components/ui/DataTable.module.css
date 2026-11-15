@@ -62,6 +62,14 @@
 
 /* Phone view: each row is a card of "label  value" lines. Inline
  * th/td styles come from the kit tokens, hence !important. */
+/* Money and counts (``align: "right"``) stay on one line: a narrow
+ * column used to break "$18,003.00" into "$18,003" / ".00". The table
+ * scrolls sideways inside its box instead. Phone cards (below) put
+ * the value beside its label and may wrap again. */
+.right {
+  white-space: nowrap;
+}
+
 @media (max-width: 36rem) {
   .root > div:not(.toolbar) {
     max-height: none;
@@ -98,6 +106,7 @@
     border-bottom: 0 !important;
     text-align: right !important;
     overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .root tbody > tr > td::before {

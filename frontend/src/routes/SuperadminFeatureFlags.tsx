@@ -302,9 +302,8 @@ function OverridesPanel({ flagKey }: { flagKey: string }) {
           </Table>
         </div>
       )}
-      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <div className="ds-input-row">
         <Input
-          style={{ width: "8rem" }}
           type="number"
           min={1}
           placeholder={t("saFlags.storeId")}

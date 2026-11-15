@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -79,6 +79,17 @@ describe("Settings → General timezone", () => {
     useStoreInfo.mockReturnValue(store("America/Chicago"));
     renderTab();
     expect(screen.queryByText(HINT)).not.toBeInTheDocument();
+  });
+
+  it("lets the Detect button wrap under the picker on a phone", () => {
+    // The row was an inline flex that never wrapped: in Spanish the
+    // "Detectar por la dirección" button left the card on a phone.
+    useStoreInfo.mockReturnValue(store(""));
+    renderTab();
+    const row = screen.getByRole("combobox", { name: /Timezone/ }).parentElement!;
+    expect(row).toHaveClass("ds-input-row");
+    expect(getComputedStyle(row).flexWrap).toBe("wrap");
+    expect(within(row).getByRole("button", { name: /Detect/ })).toBeInTheDocument();
   });
 
   it("saving refreshes the zone the whole app renders in", async () => {

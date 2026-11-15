@@ -21,6 +21,7 @@ export const tokens = {
   surface3:       "var(--db-surface-3)",
   border:         "var(--db-border)",
   borderSubtle:   "var(--db-border-subtle)",
+  borderStrong:   "var(--db-border-strong)",
   text:           "var(--db-text)",
   textMuted:      "var(--db-text-muted)",
   accent:         "var(--db-accent)",

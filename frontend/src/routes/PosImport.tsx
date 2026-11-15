@@ -112,7 +112,7 @@ export default function PosImport() {
       const result = await commitNaxml(payload, selectedDay);
       setCommitted(
         tn("posImp.committed", result.closes_written, String, {
-          day: result.day, registers: result.registers.join(", "),
+          day: formatDate(result.day), registers: result.registers.join(", "),
         }),
       );
       void qc.invalidateQueries({ queryKey: ["dayclose"] });
@@ -369,7 +369,7 @@ function AgentSection() {
     try {
       const result = await commitStagedDay(day);
       toast({
-        message: tn("posImp.booked", result.closes_written, String, { day: result.day }),
+        message: tn("posImp.booked", result.closes_written, String, { day: formatDate(result.day) }),
         tone: "success",
       });
       void qc.invalidateQueries({ queryKey: ["dayclose"] });
@@ -437,7 +437,7 @@ function AgentSection() {
               <tbody>
                 {stagedRows.map((d) => (
                   <tr key={d.business_date}>
-                    <td style={tdStyle}>{d.business_date}</td>
+                    <td style={tdStyle}>{formatDate(d.business_date)}</td>
                     <td style={tdStyle}>{d.file_count}</td>
                     <td style={tdStyle}>{d.error_count || "—"}</td>
                     <td style={tdStyle}>

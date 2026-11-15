@@ -109,6 +109,14 @@ describe("current language", () => {
     expect(t("pager.showing", { first: 1 })).toBe("Mostrando 1–{last} de {total}");
   });
 
+  it("never doubles a full stop after a value that ends one", () => {
+    setLanguage("es");
+    expect(t("checkCashing.computerLine", { name: "Caja", by: "Ana", when: "15 nov, 5:04 a.m." }))
+      .toBe("Activa en Caja, activada por Ana el 15 nov, 5:04 a.m.");
+    expect(t("checkCashing.computerLine", { name: "Caja", by: "Ana", when: "15 nov, 17:04" }))
+      .toBe("Activa en Caja, activada por Ana el 15 nov, 17:04.");
+  });
+
   it("restores the device's choice, ignoring anything unknown", () => {
     window.localStorage.setItem("dinerobook.language", "fr");
     initLanguageFromDevice();

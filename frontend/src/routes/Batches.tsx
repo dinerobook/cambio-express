@@ -11,6 +11,7 @@ import {
 import { getCurrentIdentity } from "../lib/auth";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { csvMoney } from "../lib/csv";
+import { csvDate, formatDate } from "../lib/datetime";
 import {
   ButtonLink, Card, DataTable, Empty, PageHeader, PageShell, Pill,
   type CsvColumn, type DataColumn,
@@ -34,8 +35,8 @@ function batchColumns(t: Translate): DataColumn<BatchRow>[] {
   return [
   {
     key: "date", header: t("transfer.date"), sortKey: "ach_date", sortFirst: "desc",
-    render: (r) => <span className={styles.monoMuted}>{r.ach_date}</span>,
-    csv: (r) => r.ach_date,
+    render: (r) => <span className={styles.monoMuted}>{formatDate(r.ach_date)}</span>,
+    csv: (r) => csvDate(r.ach_date),
   },
   { key: "company", header: t("transfer.company"), sortKey: "company", render: (r) => r.company,
     csv: (r) => r.company },

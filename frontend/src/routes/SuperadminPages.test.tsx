@@ -61,6 +61,13 @@ describe("SuperadminDashboard", () => {
     expect(screen.getByText("Cambio Nuevo")).toBeInTheDocument();
   });
 
+  it("lets an activity row wrap so its time stays inside the card on a phone", async () => {
+    mockFetch({ "GET /api/v2/superadmin/dashboard": { body: DASH } });
+    renderRoute(<SuperadminDashboard />);
+    const row = (await screen.findByText("Cambio Nuevo")).parentElement!;
+    expect(getComputedStyle(row).flexWrap).toBe("wrap");
+  });
+
   it("shows the kit empty state when there is no recent activity", async () => {
     mockFetch({ "GET /api/v2/superadmin/dashboard": { body: { ...DASH, activity: [] } } });
     renderRoute(<SuperadminDashboard />);

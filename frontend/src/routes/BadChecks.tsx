@@ -14,7 +14,8 @@ import {
 import { navWord } from "../i18n/navWords";
 import { tn, useT, type MessageKey, type Translate } from "../i18n";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate } from "../lib/datetime";
+import { csvMoney } from "../lib/csv";
+import { csvDate, formatDate } from "../lib/datetime";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./CheckCashing.module.css";
@@ -37,8 +38,8 @@ function columns(t: Translate): DataColumn<BadCheckRow>[] {
   return [
     {
       key: "returned", header: t("checkCashing.colReturned"),
-      render: (r) => <span className={styles.mono}>{formatDate(r.returned_on)}</span>,
-      csv: (r) => r.returned_on,
+      render: (r) => <span className={styles.day}>{formatDate(r.returned_on)}</span>,
+      csv: (r) => csvDate(r.returned_on),
     },
     {
       key: "customer", header: t("checkCashing.colCustomer"),
@@ -58,7 +59,7 @@ function columns(t: Translate): DataColumn<BadCheckRow>[] {
     {
       key: "check", header: t("checkCashing.colCheck"), align: "right",
       render: (r) => <span className={styles.mono}>{fmtMoney2(r.amount)}</span>,
-      csv: (r) => r.amount,
+      csv: (r) => csvMoney(r.amount),
     },
     {
       key: "reason", header: t("checkCashing.colReason"),
@@ -68,7 +69,7 @@ function columns(t: Translate): DataColumn<BadCheckRow>[] {
     {
       key: "balance", header: t("checkCashing.colBalance"), align: "right",
       render: (r) => <span className={styles.mono}>{fmtMoney2(r.balance)}</span>,
-      csv: (r) => r.balance,
+      csv: (r) => csvMoney(r.balance),
     },
     {
       key: "status", header: t("checkCashing.status"),

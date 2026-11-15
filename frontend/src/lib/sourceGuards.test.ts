@@ -46,6 +46,26 @@ describe("source guards", () => {
     ])).toEqual([]);
   });
 
+  it("writes CSV money and days through csvMoney / csvDate", () => {
+    // A raw number cell writes 1234.5 instead of 1234.50, and a raw
+    // day skips the store clock (check cashing's Checks and Bad
+    // checks did both). Money columns go through csvMoney, dates
+    // through csvDate / csvTimestamp.
+    expect(
+      offenders(/csv: \(\w+\) => \(?[\w ?.=">]*\b\w+\.\w*(amount|balance|fee|cash|total|owed|price|cost)\b(?!_)\s*[,):]/),
+    ).toEqual([]);
+    expect(
+      offenders(/csv: \(\w+\) => \w+\.\w*(_on|_day|_date)\s*[,}]/),
+    ).toEqual([]);
+  });
+
+  it("never prints a stored day as raw YYYY-MM-DD", () => {
+    // The ACH batch list and the transfers list showed "2026-11-14"
+    // while every other list says "Nov 14, 2026": a day goes
+    // through formatDate (or formatDateCompact in a dense report).
+    expect(offenders(/\{\w+\.\w*(_date|_on|_day)\}\s*(<|·)/)).toEqual([]);
+  });
+
   it("never derives a calendar day from the UTC clock", () => {
     // `toISOString().slice(0, 10)` names the UTC day: tomorrow for a
     // US store after ~7pm. Use todayIso / toIsoDate / daysAgoIso.

@@ -751,7 +751,7 @@ function ItemForm({
           label={t("pb.marginGoal")}
           hint={t("pb.marginHint")}
         >
-          <div style={{ display: "flex", gap: "0.4rem" }}>
+          <div className="ds-input-row">
             <Input
               type="number" min={0} max={99} step="0.01"
               value={marginGoal}

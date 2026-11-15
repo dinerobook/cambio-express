@@ -95,3 +95,15 @@ describe("<SlimSidebar> rail", () => {
     expect(daily().classList.contains(styles.groupBtn)).toBe(true);
   });
 });
+
+describe("long labels", () => {
+  it("break inside the rail instead of spilling out of the button", () => {
+    // "Configuración" (Spanish for Settings) is one word wider than
+    // the rail: it stuck out of its button by 5px.
+    renderRail("/dashboard");
+    const label = screen.getAllByText("Daily").find((el) => el.classList.contains(styles.groupLabel))!;
+    const css = getComputedStyle(label);
+    expect(css.maxWidth).toBe("100%");
+    expect(css.overflowWrap).toBe("anywhere");
+  });
+});
