@@ -4624,7 +4624,7 @@ export const es: Record<MessageKey, string> = {
   "checkCashing.ctrSearchPlaceholder": "Nombre del cliente",
   "checkCashing.ctrHowTo": "Presente cada informe en BSA E-Filing (bsaefiling.fincen.treas.gov) y luego guarde aquí el BSA ID de 14 dígitos.",
   "checkCashing.ctrSummary": "{cash} en efectivo el {day}. Vence el {due}.",
-  "checkCashing.ctrGtoNote": "Orden fronteriza (GTO): escriba {mark} en el punto 2 del informe.",
+  "checkCashing.ctrGtoNote": "Orden fronteriza (GTO): escriba {mark} en el campo 45 (Parte IV) del informe.",
   "checkCashing.ctrFiler": "Declarante (su negocio)",
   "checkCashing.ctrFilerMissing": "Falta en Configuración: {fields}.",
   "checkCashing.ctrPerson": "Persona que recibió el efectivo",

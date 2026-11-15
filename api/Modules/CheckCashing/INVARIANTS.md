@@ -155,7 +155,7 @@ saves the BSA ID back; direct filing later).
 - **Over the line**: `ctr` when cash > $10,000 (due 15 days after the
   day); with the store's `gto_enabled` switch (Southwest Border
   Geographic Targeting Order, off by default) `gto` from $1,000, due
-  in 30 days, with the mark `MSB0926GTO` for item 2 of the form.
+  in 30 days, with the mark `MSB0926GTO` for field 45 (Part IV) of the form (GTO reissued 2026-09-02, to 2027-03-01).
 - **At the counter** (`review()`): with this check over the line,
   `ctr_due` / `gto_due` (info) and, while any of the customer's CTR
   details (date of birth, SSN / ITIN, occupation, street, city, state,

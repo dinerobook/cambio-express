@@ -178,7 +178,7 @@ describe("the Compliance page", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Missing in Settings: EIN.")).toBeInTheDocument();
     expect(within(dialog).getByText("Missing for the report: Occupation.")).toBeInTheDocument();
-    expect(within(dialog).getByText(/write MSB0926GTO in item 2/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/write MSB0926GTO in field 45/)).toBeInTheDocument();
   });
 
   it("marks a report filed only with a 14-digit BSA ID", async () => {

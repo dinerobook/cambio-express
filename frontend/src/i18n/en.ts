@@ -4620,7 +4620,7 @@ export const en = {
   "checkCashing.ctrSearchPlaceholder": "Customer name",
   "checkCashing.ctrHowTo": "File each report on BSA E-Filing (bsaefiling.fincen.treas.gov), then save the 14-digit BSA ID here.",
   "checkCashing.ctrSummary": "{cash} cash on {day}. Due {due}.",
-  "checkCashing.ctrGtoNote": "Border order (GTO): write {mark} in item 2 of the report.",
+  "checkCashing.ctrGtoNote": "Border order (GTO): write {mark} in field 45 (Part IV) of the report.",
   "checkCashing.ctrFiler": "Filer (your business)",
   "checkCashing.ctrFilerMissing": "Missing in Settings: {fields}.",
   "checkCashing.ctrPerson": "Person paid the cash",
