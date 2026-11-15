@@ -8,6 +8,8 @@ pywebpush==2.0.0
 pyotp==2.9.0
 qrcode==7.4.2
 webauthn==2.7.1
+# Encrypts check cashing customers' SSN / ITIN (CheckCashing Services/pii.py).
+cryptography==50.0.1
 Pillow==13.0.0
 # Deterministic (text-layer) parsing of remittance-company daily
 # reports — see api/Modules/ReportImport. No OCR/vision: these PDFs

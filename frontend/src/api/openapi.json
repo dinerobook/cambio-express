@@ -3461,7 +3461,8 @@
               "daily_book.unlocked",
               "daily_book.due_back",
               "bank.to_check",
-              "return_checks.pending"
+              "return_checks.pending",
+              "check_cashing.ctr_due"
             ],
             "title": "Kind",
             "type": "string"
@@ -4465,6 +4466,523 @@
         "title": "CheckCompanyRow",
         "type": "object"
       },
+      "CheckCtrCheckRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "cash": {
+            "title": "Cash",
+            "type": "number"
+          },
+          "check_number": {
+            "title": "Check Number",
+            "type": "string"
+          },
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "fee": {
+            "title": "Fee",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "store_name",
+          "company_name",
+          "check_number",
+          "amount",
+          "fee",
+          "cash",
+          "created_at"
+        ],
+        "title": "CheckCtrCheckRow",
+        "type": "object"
+      },
+      "CheckCtrCounts": {
+        "additionalProperties": false,
+        "properties": {
+          "due_soon": {
+            "title": "Due Soon",
+            "type": "integer"
+          },
+          "overdue": {
+            "title": "Overdue",
+            "type": "integer"
+          },
+          "to_file": {
+            "title": "To File",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "to_file",
+          "overdue",
+          "due_soon"
+        ],
+        "title": "CheckCtrCounts",
+        "type": "object"
+      },
+      "CheckCtrDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckCtrCheckRow"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "filed_by": {
+            "title": "Filed By",
+            "type": "string"
+          },
+          "filer": {
+            "$ref": "#/components/schemas/CheckCtrFiler"
+          },
+          "gto_mark": {
+            "title": "Gto Mark",
+            "type": "string"
+          },
+          "person": {
+            "$ref": "#/components/schemas/CheckCtrPerson"
+          },
+          "row": {
+            "$ref": "#/components/schemas/CheckCtrRow"
+          }
+        },
+        "required": [
+          "row",
+          "filer",
+          "person",
+          "checks",
+          "gto_mark",
+          "filed_by"
+        ],
+        "title": "CheckCtrDetail",
+        "type": "object"
+      },
+      "CheckCtrDetailsBody": {
+        "additionalProperties": false,
+        "description": "What a CTR needs about the customer. ``tin`` empty keeps the\nnumber on file; a new one replaces it.",
+        "properties": {
+          "address": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "city": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "default": "US",
+            "pattern": "^[A-Z]{2}$",
+            "title": "Country",
+            "type": "string"
+          },
+          "dob": {
+            "format": "date",
+            "title": "Dob",
+            "type": "string"
+          },
+          "gender": {
+            "default": "",
+            "enum": [
+              "",
+              "male",
+              "female",
+              "unknown"
+            ],
+            "title": "Gender",
+            "type": "string"
+          },
+          "occupation": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Occupation",
+            "type": "string"
+          },
+          "state": {
+            "maxLength": 3,
+            "minLength": 2,
+            "title": "State",
+            "type": "string"
+          },
+          "tin": {
+            "default": "",
+            "maxLength": 25,
+            "title": "Tin",
+            "type": "string"
+          },
+          "tin_type": {
+            "enum": [
+              "ssn",
+              "itin",
+              "foreign"
+            ],
+            "title": "Tin Type",
+            "type": "string"
+          },
+          "zip_code": {
+            "pattern": "^[0-9A-Za-z]{3,9}$",
+            "title": "Zip Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dob",
+          "tin_type",
+          "occupation",
+          "address",
+          "city",
+          "state",
+          "zip_code"
+        ],
+        "title": "CheckCtrDetailsBody",
+        "type": "object"
+      },
+      "CheckCtrFileBody": {
+        "additionalProperties": false,
+        "properties": {
+          "bsa_id": {
+            "pattern": "^\\d{14}$",
+            "title": "Bsa Id",
+            "type": "string"
+          },
+          "filed_on": {
+            "format": "date",
+            "title": "Filed On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bsa_id",
+          "filed_on"
+        ],
+        "title": "CheckCtrFileBody",
+        "type": "object"
+      },
+      "CheckCtrFiler": {
+        "additionalProperties": false,
+        "description": "The store's FinCEN details (CTR Part III and the location).",
+        "properties": {
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "contact_name": {
+            "title": "Contact Name",
+            "type": "string"
+          },
+          "contact_phone": {
+            "title": "Contact Phone",
+            "type": "string"
+          },
+          "dba_name": {
+            "title": "Dba Name",
+            "type": "string"
+          },
+          "ein": {
+            "title": "Ein",
+            "type": "string"
+          },
+          "legal_name": {
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "msb_registration": {
+            "title": "Msb Registration",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          },
+          "zip_code": {
+            "title": "Zip Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "legal_name",
+          "dba_name",
+          "ein",
+          "street",
+          "city",
+          "state",
+          "zip_code",
+          "contact_name",
+          "contact_phone",
+          "msb_registration",
+          "missing"
+        ],
+        "title": "CheckCtrFiler",
+        "type": "object"
+      },
+      "CheckCtrListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/CheckCtrCounts"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CheckCtrRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages",
+          "counts"
+        ],
+        "title": "CheckCtrListResponse",
+        "type": "object"
+      },
+      "CheckCtrPerson": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "dob": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dob"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "gender": {
+            "title": "Gender",
+            "type": "string"
+          },
+          "id_issuer": {
+            "title": "Id Issuer",
+            "type": "string"
+          },
+          "id_number": {
+            "title": "Id Number",
+            "type": "string"
+          },
+          "id_type": {
+            "title": "Id Type",
+            "type": "string"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "occupation": {
+            "title": "Occupation",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "tin_masked": {
+            "title": "Tin Masked",
+            "type": "string"
+          },
+          "tin_type": {
+            "title": "Tin Type",
+            "type": "string"
+          },
+          "zip_code": {
+            "title": "Zip Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name",
+          "dob",
+          "tin_type",
+          "tin_masked",
+          "occupation",
+          "address",
+          "city",
+          "state",
+          "zip_code",
+          "country",
+          "gender",
+          "phone",
+          "id_type",
+          "id_number",
+          "id_issuer",
+          "missing"
+        ],
+        "title": "CheckCtrPerson",
+        "type": "object"
+      },
+      "CheckCtrResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ctr": {
+            "$ref": "#/components/schemas/CheckCtrDetail"
+          }
+        },
+        "required": [
+          "ctr"
+        ],
+        "title": "CheckCtrResponse",
+        "type": "object"
+      },
+      "CheckCtrRow": {
+        "additionalProperties": false,
+        "properties": {
+          "bsa_id": {
+            "title": "Bsa Id",
+            "type": "string"
+          },
+          "cash": {
+            "title": "Cash",
+            "type": "number"
+          },
+          "check_count": {
+            "title": "Check Count",
+            "type": "integer"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "integer"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "due_on": {
+            "format": "date",
+            "title": "Due On",
+            "type": "string"
+          },
+          "filed_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filed On"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "overdue": {
+            "title": "Overdue",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "store_day": {
+            "format": "date",
+            "title": "Store Day",
+            "type": "string"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "customer_id",
+          "customer_name",
+          "store_day",
+          "kind",
+          "cash",
+          "check_count",
+          "status",
+          "due_on",
+          "overdue",
+          "bsa_id",
+          "filed_on",
+          "store_name"
+        ],
+        "title": "CheckCtrRow",
+        "type": "object"
+      },
       "CheckCustomerCreateBody": {
         "additionalProperties": false,
         "properties": {
@@ -4577,9 +5095,24 @@
             "title": "Address",
             "type": "string"
           },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
+          },
+          "ctr_missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ctr Missing",
+            "type": "array"
           },
           "dob": {
             "anyOf": [
@@ -4619,6 +5152,10 @@
             "title": "Full Name",
             "type": "string"
           },
+          "gender": {
+            "title": "Gender",
+            "type": "string"
+          },
           "home_store_name": {
             "title": "Home Store Name",
             "type": "string"
@@ -4636,6 +5173,10 @@
           },
           "notes": {
             "title": "Notes",
+            "type": "string"
+          },
+          "occupation": {
+            "title": "Occupation",
             "type": "string"
           },
           "phone_country": {
@@ -4657,6 +5198,10 @@
             ],
             "title": "Photo Picture Id"
           },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -4665,8 +5210,20 @@
             "title": "Status Reason",
             "type": "string"
           },
+          "tin_masked": {
+            "title": "Tin Masked",
+            "type": "string"
+          },
+          "tin_type": {
+            "title": "Tin Type",
+            "type": "string"
+          },
           "updated_at": {
             "title": "Updated At",
+            "type": "string"
+          },
+          "zip_code": {
+            "title": "Zip Code",
             "type": "string"
           }
         },
@@ -4683,6 +5240,15 @@
           "fee_value",
           "notes",
           "ids",
+          "tin_type",
+          "tin_masked",
+          "occupation",
+          "city",
+          "state",
+          "zip_code",
+          "country",
+          "gender",
+          "ctr_missing",
           "home_store_name",
           "created_at",
           "updated_at"
@@ -5552,6 +6118,14 @@
             ],
             "title": "Day"
           },
+          "fields": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
           "level": {
             "enum": [
               "info",
@@ -5640,6 +6214,24 @@
             ],
             "title": "Base Charge Under"
           },
+          "city": {
+            "default": "",
+            "maxLength": 50,
+            "title": "City",
+            "type": "string"
+          },
+          "contact_name": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Contact Name",
+            "type": "string"
+          },
+          "contact_phone": {
+            "default": "",
+            "pattern": "^\\d{0,16}$",
+            "title": "Contact Phone",
+            "type": "string"
+          },
           "daily_limit": {
             "anyOf": [
               {
@@ -5666,6 +6258,12 @@
             "title": "Default Fee Value",
             "type": "number"
           },
+          "ein": {
+            "default": "",
+            "pattern": "^(\\d{9})?$",
+            "title": "Ein",
+            "type": "string"
+          },
           "expired_id_mode": {
             "default": "warn",
             "enum": [
@@ -5673,6 +6271,41 @@
               "block"
             ],
             "title": "Expired Id Mode",
+            "type": "string"
+          },
+          "gto_enabled": {
+            "default": false,
+            "title": "Gto Enabled",
+            "type": "boolean"
+          },
+          "legal_name": {
+            "default": "",
+            "maxLength": 150,
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "msb_registration": {
+            "default": "",
+            "maxLength": 30,
+            "title": "Msb Registration",
+            "type": "string"
+          },
+          "state": {
+            "default": "",
+            "pattern": "^([A-Z]{2})?$",
+            "title": "State",
+            "type": "string"
+          },
+          "street": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Street",
+            "type": "string"
+          },
+          "zip_code": {
+            "default": "",
+            "pattern": "^(\\d{5}|\\d{9})?$",
+            "title": "Zip Code",
             "type": "string"
           }
         },
@@ -5708,6 +6341,18 @@
             ],
             "title": "Base Charge Under"
           },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "contact_name": {
+            "title": "Contact Name",
+            "type": "string"
+          },
+          "contact_phone": {
+            "title": "Contact Phone",
+            "type": "string"
+          },
           "daily_limit": {
             "anyOf": [
               {
@@ -5731,12 +6376,40 @@
             "title": "Default Fee Value",
             "type": "number"
           },
+          "ein": {
+            "title": "Ein",
+            "type": "string"
+          },
           "expired_id_mode": {
             "enum": [
               "warn",
               "block"
             ],
             "title": "Expired Id Mode",
+            "type": "string"
+          },
+          "gto_enabled": {
+            "title": "Gto Enabled",
+            "type": "boolean"
+          },
+          "legal_name": {
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "msb_registration": {
+            "title": "Msb Registration",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          },
+          "zip_code": {
+            "title": "Zip Code",
             "type": "string"
           }
         },
@@ -5746,7 +6419,17 @@
           "base_charge",
           "base_charge_under",
           "expired_id_mode",
-          "daily_limit"
+          "daily_limit",
+          "legal_name",
+          "ein",
+          "street",
+          "city",
+          "state",
+          "zip_code",
+          "contact_name",
+          "contact_phone",
+          "msb_registration",
+          "gto_enabled"
         ],
         "title": "CheckSettingsResponse",
         "type": "object"
@@ -5822,6 +6505,25 @@
           "voided"
         ],
         "title": "CheckStatsOut",
+        "type": "object"
+      },
+      "CheckTinResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "tin": {
+            "title": "Tin",
+            "type": "string"
+          },
+          "tin_type": {
+            "title": "Tin Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tin_type",
+          "tin"
+        ],
+        "title": "CheckTinResponse",
         "type": "object"
       },
       "CheckTotalsOut": {
@@ -38112,6 +38814,280 @@
         ]
       }
     },
+    "/check-cashing/ctrs": {
+      "get": {
+        "operationId": "list_ctrs_route_check_cashing_ctrs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "pattern": "^(|to_file|filed|not_needed)$",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 120,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-based page number",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "1-based page number",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page (1 to 200)",
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Rows per page (1 to 200)",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckCtrListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ctrs Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/ctrs/{ctr_id}": {
+      "get": {
+        "operationId": "get_ctr_route_check_cashing_ctrs__ctr_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ctr_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Ctr Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckCtrResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ctr Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/ctrs/{ctr_id}/file": {
+      "post": {
+        "operationId": "file_ctr_route_check_cashing_ctrs__ctr_id__file_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ctr_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Ctr Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckCtrFileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckCtrResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "File Ctr Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
     "/check-cashing/customers": {
       "get": {
         "operationId": "list_customers_route_check_cashing_customers_get",
@@ -38555,6 +39531,91 @@
         ]
       }
     },
+    "/check-cashing/customers/{customer_id}/ctr-details": {
+      "put": {
+        "operationId": "save_ctr_details_route_check_cashing_customers__customer_id__ctr_details_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckCtrDetailsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckCustomerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Ctr Details Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
     "/check-cashing/customers/{customer_id}/ids": {
       "post": {
         "operationId": "add_customer_id_route_check_cashing_customers__customer_id__ids_post",
@@ -38813,6 +39874,82 @@
           }
         },
         "summary": "Update Customer Id Route",
+        "tags": [
+          "check-cashing"
+        ]
+      }
+    },
+    "/check-cashing/customers/{customer_id}/reveal-tin": {
+      "post": {
+        "description": "A POST, not a GET: every look is written to the audit log.",
+        "operationId": "reveal_tin_route_check_cashing_customers__customer_id__reveal_tin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Customer Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckTinResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reveal Tin Route",
         "tags": [
           "check-cashing"
         ]

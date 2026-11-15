@@ -88,4 +88,10 @@ export const BELL_ITEMS: Record<BellKind, BellItemSpec> = {
     ].join(" · "),
     to: () => "/return-checks?status=pending",
   },
+  "check_cashing.ctr_due": {
+    icon: "check",
+    title: (i) => counted(i.count, "bell.ctrOne", "bell.ctrMany"),
+    detail: (i, c) => t("bell.ctrDue", { day: dayWords(i.day, c.storeDay) }),
+    to: () => "/check-cashing/compliance",
+  },
 };

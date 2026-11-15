@@ -8,7 +8,7 @@ import { FeeFields, type FeeKind } from "../components/CheckCashingFields";
 import { DeskColumns, DeskForm, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
-  Alert, Button, Card, ConfirmDialog, ErrorState, Field, FormActions, Loading, MoneyInput,
+  Alert, Button, Card, ConfirmDialog, ErrorState, Field, FormActions, Input, Loading, MoneyInput,
   PageHeader, SectionTitle, Select, Switch, useToast,
 } from "../components/ui";
 import { navWord } from "../i18n/navWords";
@@ -20,7 +20,8 @@ import styles from "./CheckCashing.module.css";
 
 // Check cashing app → Settings (/app/check-cashing/settings).
 // The store's default fee, the optional base charge for small checks,
-// what an expired ID does, and an optional daily limit per customer.
+// what an expired ID does, an optional daily limit per customer, and
+// the business details a Currency Transaction Report needs.
 // "Manage check cashing" only.
 
 interface Form {
@@ -32,7 +33,16 @@ interface Form {
   expired_id_mode: "warn" | "block";
   limit_on: boolean;
   limit: number;
+  // The business as FinCEN knows it (CTR, PR 6a).
+  ctr: CtrFiler;
+  gto_enabled: boolean;
 }
+
+const CTR_FIELDS = [
+  "legal_name", "ein", "street", "city", "state", "zip_code",
+  "contact_name", "contact_phone", "msb_registration",
+] as const;
+type CtrFiler = Record<(typeof CTR_FIELDS)[number], string>;
 
 function fromSettings(s: CheckSettings): Form {
   return {
@@ -44,6 +54,8 @@ function fromSettings(s: CheckSettings): Form {
     expired_id_mode: s.expired_id_mode,
     limit_on: s.daily_limit != null,
     limit: s.daily_limit ?? 0,
+    ctr: Object.fromEntries(CTR_FIELDS.map((f) => [f, s[f]])) as CtrFiler,
+    gto_enabled: s.gto_enabled,
   };
 }
 
@@ -83,6 +95,8 @@ export default function CheckCashingSettings() {
         base_charge_under: form.base_on ? form.base_under : null,
         expired_id_mode: form.expired_id_mode,
         daily_limit: form.limit_on ? form.limit : null,
+        ...Object.fromEntries(CTR_FIELDS.map((f) => [f, form.ctr[f].trim()])) as CtrFiler,
+        gto_enabled: form.gto_enabled,
       });
       const next = fromSettings(saved);
       setForm(next);
@@ -115,6 +129,12 @@ export default function CheckCashingSettings() {
 
   const baseInvalid = form.base_on && (form.base_charge <= 0 || form.base_under <= 0);
   const limitInvalid = form.limit_on && form.limit <= 0;
+  const setCtr = (key: keyof CtrFiler, value: string) =>
+    setForm({ ...form, ctr: { ...form.ctr, [key]: value } });
+  const digits = (v: string, max: number) => v.replace(/\D/g, "").slice(0, max);
+  const einInvalid = form.ctr.ein !== "" && form.ctr.ein.length !== 9;
+  const zipInvalid = form.ctr.zip_code !== "" && ![5, 9].includes(form.ctr.zip_code.length);
+  const stateInvalid = form.ctr.state !== "" && form.ctr.state.length !== 2;
 
   return (
     <DeskPage>
@@ -202,12 +222,82 @@ export default function CheckCashingSettings() {
             <p className={styles.note}>{t("checkCashing.dailyLimitHint")}</p>
           </Card>
 
+          <Card>
+            <SectionTitle>{t("checkCashing.ctrSettings")}</SectionTitle>
+            <p className={styles.note}>{t("checkCashing.ctrSettingsHint")}</p>
+            <div className={styles.fieldGrid}>
+              <Field label={t("checkCashing.legalName")}>
+                <Input
+                  type="text" maxLength={150} value={form.ctr.legal_name}
+                  onChange={(e) => setCtr("legal_name", e.target.value)}
+                />
+              </Field>
+              <Field label={t("checkCashing.ein")} error={einInvalid ? t("checkCashing.einInvalid") : undefined}>
+                <Input
+                  type="text" inputMode="numeric" value={form.ctr.ein}
+                  onChange={(e) => setCtr("ein", digits(e.target.value, 9))}
+                />
+              </Field>
+              <Field label={t("checkCashing.msbRegistration")}>
+                <Input
+                  type="text" maxLength={30} value={form.ctr.msb_registration}
+                  onChange={(e) => setCtr("msb_registration", e.target.value)}
+                />
+              </Field>
+              <div className={styles.full}>
+                <Field label={t("checkCashing.street")}>
+                  <Input
+                    type="text" maxLength={100} value={form.ctr.street}
+                    onChange={(e) => setCtr("street", e.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field label={t("checkCashing.city")}>
+                <Input
+                  type="text" maxLength={50} value={form.ctr.city}
+                  onChange={(e) => setCtr("city", e.target.value)}
+                />
+              </Field>
+              <Field label={t("checkCashing.state")} error={stateInvalid ? t("checkCashing.stateInvalid") : undefined}>
+                <Input
+                  type="text" maxLength={2} value={form.ctr.state}
+                  onChange={(e) => setCtr("state", e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+                />
+              </Field>
+              <Field label={t("checkCashing.zip")} error={zipInvalid ? t("checkCashing.zipInvalid") : undefined}>
+                <Input
+                  type="text" inputMode="numeric" value={form.ctr.zip_code}
+                  onChange={(e) => setCtr("zip_code", digits(e.target.value, 9))}
+                />
+              </Field>
+              <Field label={t("checkCashing.contactName")}>
+                <Input
+                  type="text" maxLength={100} value={form.ctr.contact_name}
+                  onChange={(e) => setCtr("contact_name", e.target.value)}
+                />
+              </Field>
+              <Field label={t("checkCashing.contactPhone")}>
+                <Input
+                  type="tel" inputMode="numeric" value={form.ctr.contact_phone}
+                  onChange={(e) => setCtr("contact_phone", digits(e.target.value, 16))}
+                />
+              </Field>
+            </div>
+            <Switch
+              checked={form.gto_enabled}
+              onChange={(on) => setForm({ ...form, gto_enabled: on })}
+            >
+              {t("checkCashing.gtoOn")}
+            </Switch>
+            <p className={styles.note}>{t("checkCashing.gtoHint")}</p>
+          </Card>
+
           </DeskPane>
 
           {error && <Alert tone="error">{error}</Alert>}
 
           <FormActions guard={guard}>
-            <Button type="submit" busy={busy} disabled={busy || baseInvalid || limitInvalid}>
+            <Button type="submit" busy={busy} disabled={busy || baseInvalid || limitInvalid || einInvalid || zipInvalid || stateInvalid}>
               {t("checkCashing.saveSettings")}
             </Button>
           </FormActions>

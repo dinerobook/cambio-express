@@ -61,6 +61,8 @@ beforeEach(() => {
   api.useCheckSettings.mockReturnValue(ok({
     default_fee_kind: "percent", default_fee_value: 1, base_charge: null,
     base_charge_under: null, expired_id_mode: "warn", daily_limit: null,
+    legal_name: "", ein: "", street: "", city: "", state: "", zip_code: "",
+    contact_name: "", contact_phone: "", msb_registration: "", gto_enabled: false,
   }));
 });
 
@@ -157,7 +159,7 @@ describe("no page scrolling", () => {
   const files = [
     "CashCheck.tsx", "CheckCustomers.tsx", "CheckCustomerForm.tsx",
     "CheckCompanies.tsx", "CheckCompanyForm.tsx", "CheckCashingSettings.tsx",
-    "CheckChecks.tsx", "BadChecks.tsx",
+    "CheckChecks.tsx", "BadChecks.tsx", "CheckCompliance.tsx",
   ];
 
   it("puts every check cashing page in the desk frame, never PageShell", () => {

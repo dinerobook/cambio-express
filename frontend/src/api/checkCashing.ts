@@ -467,6 +467,112 @@ export function writeOffBadCheck(id: number, note: string): Promise<BadCheckDeta
   );
 }
 
+// ── Currency Transaction Reports (CTR) ───────────────────────
+
+export type CtrRow = components["schemas"]["CheckCtrRow"];
+export type CtrDetail = components["schemas"]["CheckCtrDetail"];
+export type CtrDetailsBody = components["schemas"]["CheckCtrDetailsBody"];
+type CtrList = components["schemas"]["CheckCtrListResponse"];
+type CtrResponse = components["schemas"]["CheckCtrResponse"];
+type TinResponse = components["schemas"]["CheckTinResponse"];
+
+/** To file is work waiting (pending), filed is done, not needed is
+ *  neutral (UI-STANDARDS §3). */
+export const CTR_STATUS_TONES: Record<string, PillTone> = {
+  to_file: "warning",
+  filed: "success",
+  not_needed: "neutral",
+};
+
+const CTR_STATUS_KEYS: Record<string, MessageKey> = {
+  to_file: "checkCashing.ctrToFile",
+  filed: "checkCashing.ctrFiled",
+  not_needed: "checkCashing.ctrNotNeeded",
+};
+
+export function ctrStatusLabel(value: string): string {
+  return Object.hasOwn(CTR_STATUS_KEYS, value) ? t(CTR_STATUS_KEYS[value]) : value;
+}
+
+export const TIN_TYPES = ["ssn", "itin", "foreign"] as const;
+
+const TIN_TYPE_KEYS: Record<string, MessageKey> = {
+  ssn: "checkCashing.tinSsn",
+  itin: "checkCashing.tinItin",
+  foreign: "checkCashing.tinForeign",
+};
+
+export function tinTypeLabel(value: string): string {
+  return Object.hasOwn(TIN_TYPE_KEYS, value) ? t(TIN_TYPE_KEYS[value]) : value;
+}
+
+/** The words for a CTR detail the profile is missing. */
+const CTR_FIELD_KEYS: Record<string, MessageKey> = {
+  dob: "checkCashing.dob",
+  tin: "checkCashing.tin",
+  occupation: "checkCashing.occupation",
+  address: "checkCashing.street",
+  city: "checkCashing.city",
+  state: "checkCashing.state",
+  zip_code: "checkCashing.zip",
+  legal_name: "checkCashing.legalName",
+  ein: "checkCashing.ein",
+  street: "checkCashing.street",
+};
+
+export function ctrFieldLabel(value: string): string {
+  return Object.hasOwn(CTR_FIELD_KEYS, value) ? t(CTR_FIELD_KEYS[value]) : value;
+}
+
+export interface CtrListQuery {
+  q?: string; status?: string; page?: number; perPage?: number;
+}
+
+function ctrListQs({ q = "", status = "", page = 1, perPage = 50 }: CtrListQuery): string {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  if (q) qs.set("q", q);
+  if (status) qs.set("status", status);
+  return qs.toString();
+}
+
+export function fetchCtrsPage(query: CtrListQuery = {}): Promise<CtrList> {
+  return api<CtrList>(`${BASE}/ctrs?${ctrListQs(query)}`);
+}
+
+export function useCtrs(query: CtrListQuery = {}) {
+  const identity = getCurrentIdentity();
+  return useQuery<CtrList>({
+    enabled: identity?.store_id != null,
+    queryKey: ["check-cashing", "ctrs", identity?.store_id, ctrListQs(query)],
+    queryFn: () => fetchCtrsPage(query),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useCtr(id: number | null) {
+  const identity = getCurrentIdentity();
+  return useQuery<CtrResponse>({
+    enabled: id != null && identity?.store_id != null,
+    queryKey: ["check-cashing", "ctr", identity?.store_id, id],
+    queryFn: () => api<CtrResponse>(`${BASE}/ctrs/${id}`),
+  });
+}
+
+export function fileCtr(id: number, body: { bsa_id: string; filed_on: string }): Promise<CtrResponse> {
+  return api<CtrResponse>(`${BASE}/ctrs/${id}/file`, { method: "POST", json: body });
+}
+
+export function saveCtrDetails(customerId: number, body: CtrDetailsBody): Promise<CustomerResponse> {
+  return api<CustomerResponse>(
+    `${BASE}/customers/${customerId}/ctr-details`, { method: "PUT", json: body },
+  );
+}
+
+/** The whole SSN / ITIN. A POST: every look is audited. */
+export function revealTin(customerId: number): Promise<TinResponse> {
+  return api<TinResponse>(`${BASE}/customers/${customerId}/reveal-tin`, { method: "POST" });
+}
+
 // ── The activated computer ───────────────────────────────────
 
 export type CheckDevice = components["schemas"]["CheckDeviceResponse"];

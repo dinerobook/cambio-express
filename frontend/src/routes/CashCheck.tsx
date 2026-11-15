@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  cashCheck, createCheckCompany, createCheckCustomer, EMPTY_ID, idTypeLabel, REVIEW_LEVEL_TONES,
+  cashCheck, createCheckCompany, createCheckCustomer, ctrFieldLabel, EMPTY_ID, idTypeLabel,
+  REVIEW_LEVEL_TONES,
   sortReviewItems, uploadCheckPicture, useCheckCompanies, useCheckCompany, useCheckCustomer,
   useCheckCustomers, useCheckReview, useCompanyCustomers, useCompanyLookup,
   type CheckCustomerIdBody, type CheckReviewItem, type ReviewLevel,
 } from "../api/checkCashing";
 import { CheckActivity } from "../components/CheckActivity";
+import { CtrDetailsDialog } from "../components/CtrDetails";
 import { PictureSlot, PictureView } from "../components/CheckPictures";
 import { CheckScanBar, type ReadCheck } from "../components/CheckScanBar";
 import pictureStyles from "../components/CheckPictures.module.css";
@@ -59,6 +61,8 @@ const REVIEW_WORDS: Record<string, MessageKey> = {
   daily_limit: "checkCashing.rvDailyLimit",
   customer_bad_check: "checkCashing.rvCustomerBadCheck",
   ctr_due: "checkCashing.rvCtrDue",
+  gto_due: "checkCashing.rvGtoDue",
+  ctr_details: "checkCashing.rvCtrDetails",
   company_blocked: "checkCashing.rvCompanyBlocked",
   company_trusted: "checkCashing.rvCompanyTrusted",
   duplicate: "checkCashing.rvDuplicate",
@@ -100,6 +104,8 @@ export default function CashCheck() {
   const [confirming, setConfirming] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  const [ctrOpen, setCtrOpen] = useState(false);
+  const canEditCustomer = hasPermission("check_cashing", "update");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -311,6 +317,7 @@ export default function CashCheck() {
               key={item.code}
               item={item}
               canApprove={canApprove}
+              onCtrDetails={canEditCustomer ? () => setCtrOpen(true) : undefined}
               ticked={ticked.has(item.code)}
               onTick={(on) => setTicked((s) => {
                 const next = new Set(s);
@@ -385,6 +392,12 @@ export default function CashCheck() {
         onCancel={() => { setConfirming(false); setError(null); }}
       />
 
+      <CtrDetailsDialog
+        customer={customer.data?.customer}
+        open={ctrOpen}
+        onClose={() => setCtrOpen(false)}
+      />
+
       <Modal
         open={declining}
         onClose={() => { if (!busy) setDeclining(false); }}
@@ -420,12 +433,14 @@ export default function CashCheck() {
 }
 
 function ReviewRow({
-  item, canApprove, ticked, onTick,
+  item, canApprove, ticked, onTick, onCtrDetails,
 }: {
   item: CheckReviewItem;
   canApprove: boolean;
   ticked: boolean;
   onTick: (on: boolean) => void;
+  /** ``ctr_details``: opens the customer's CTR details popup. */
+  onCtrDetails?: () => void;
 }) {
   const t = useT();
   const words = item.code === "cashed_today" && item.count === 1
@@ -434,6 +449,7 @@ function ReviewRow({
     count: item.count ?? 0,
     amount: fmtMoney2(item.amount ?? 0),
     date: item.day ? formatDate(item.day) : "",
+    fields: (item.fields ?? []).map(ctrFieldLabel).join(", "),
   }) : item.code;
   return (
     <div className={styles.reviewItem}>
@@ -441,6 +457,11 @@ function ReviewRow({
       <span className={styles.reviewText}>{text}</span>
       {item.level === "warn" && (
         <Checkbox checked={ticked} onChange={onTick}>{t("checkCashing.tickChecked")}</Checkbox>
+      )}
+      {item.code === "ctr_details" && onCtrDetails && (
+        <Button type="button" size="sm" onClick={onCtrDetails}>
+          {t("checkCashing.ctrDetailsAdd")}
+        </Button>
       )}
       {item.level === "approve" && (
         <Checkbox checked={ticked} onChange={onTick} disabled={!canApprove}>

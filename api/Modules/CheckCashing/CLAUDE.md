@@ -22,6 +22,7 @@ SPA files that count as CheckCashing files:
 `frontend/src/routes/BadChecks.tsx`, `frontend/src/components/BadCheck.tsx`,
 `frontend/src/routes/CheckChecks.tsx`, `frontend/src/routes/CashedChecksReport.tsx`,
 `frontend/src/components/CheckTotals.tsx`,
+`frontend/src/routes/CheckCompliance.tsx`, `frontend/src/components/CtrDetails.tsx`,
 `frontend/src/lib/micr.ts`, and the Windows app `desktop/windows/`,
 `frontend/src/lib/useDeskScreen.ts`.
 
@@ -39,7 +40,8 @@ SPA files that count as CheckCashing files:
 
 - **Standalone (owner, 2026-11-07).** This module must not read or
   write the daily book, the monthly P&L, Returned checks or the
-  Transfers `Customer` table, and no other module may read its tables.
+  Transfers `Customer` table, and no other module may read its tables
+  (one exception: the bell's read-only "CTR due", INVARIANTS "CTR").
   Connecting it is a later, separate decision of the owner.
 - **Two switches, not one.** `check_desk` (opt-in, off) shows this
   module; the older `module_check_cashing` (on for every store) is the

@@ -30,6 +30,7 @@ export const NAV_WORDS_ES: Record<string, string> = {
   "Bad checks": "Cheques rebotados",
   "Check cashing report": "Reporte de cambio de cheques",
   "Checks": "Cheques",
+  "Compliance": "Cumplimiento",
   "Activity stream": "Actividad",
   "Add user to stores": "Agregar usuario a tiendas",
   "Announcements": "Anuncios",

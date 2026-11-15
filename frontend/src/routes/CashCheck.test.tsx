@@ -33,6 +33,7 @@ const api = vi.hoisted(() => ({
   useCompanyCustomers: vi.fn(),
   useCheckActivity: vi.fn(),
   cashCheck: vi.fn(),
+  saveCtrDetails: vi.fn(),
   createCheckCompany: vi.fn(),
   createCheckCustomer: vi.fn(),
   uploadCheckPicture: vi.fn(),
@@ -66,6 +67,8 @@ const customer = {
   id: 7, full_name: "Ana Ruiz", dob: null, phone_country: "+1",
   phone_number: "3055550142", address: "", status: "normal", status_reason: "",
   fee_kind: null, fee_value: null, notes: "", home_store_name: "",
+  tin_type: "", tin_masked: "", occupation: "", city: "", state: "", zip_code: "",
+  country: "US", gender: "", ctr_missing: ["dob", "tin", "occupation"],
   ids: [{ id: 11, id_type: "drivers_license", id_number: "D1234567", issuer: "TX",
     expires_on: "2030-01-01", expired: false }],
 } as CheckCustomerDetail;
@@ -78,7 +81,7 @@ function review(items: CheckReview["items"] = []): CheckReview {
 }
 
 const item = (code: string, level: CheckReview["items"][number]["level"]) => ({
-  code, level, count: null, amount: null, day: null,
+  code, level, count: null, amount: null, day: null, fields: [] as string[],
 });
 
 let reviewData: CheckReview;
@@ -267,6 +270,32 @@ describe("cash a check", () => {
     expect(texts[0]).toBe("This customer is blocked.");
     await new Promise((r) => setTimeout(r, 350));
     expect(cashButton()).toBeDisabled();
+  });
+
+  it("stops a check over the CTR line until the customer's CTR details are in", async () => {
+    reviewData = review([
+      { ...item("ctr_due", "info"), amount: 10_500 },
+      { ...item("ctr_details", "block"), fields: ["tin", "occupation"] },
+    ]);
+    renderRoute(<CashCheck />);
+    await fillCheck("10700");
+    await pickRegular();
+    expect(screen.getByText(/reaches \$10,500.00/)).toBeInTheDocument();
+    expect(screen.getByText("The CTR needs: SSN or ITIN, Occupation.")).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 350));
+    expect(cashButton()).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Add CTR details" }));
+    expect(await screen.findByRole("dialog", { name: "CTR details for Ana Ruiz" })).toBeInTheDocument();
+  });
+
+  it("gives no CTR details button without the right to edit a customer", async () => {
+    signIn(["check_cashing.create", "check_cashing.read"]);
+    reviewData = review([{ ...item("ctr_details", "block"), fields: ["tin"] }]);
+    renderRoute(<CashCheck />);
+    await fillCheck("10700");
+    await pickRegular();
+    expect(screen.getByText("The CTR needs: SSN or ITIN.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add CTR details" })).not.toBeInTheDocument();
   });
 
   it("needs a manager for an approval", async () => {

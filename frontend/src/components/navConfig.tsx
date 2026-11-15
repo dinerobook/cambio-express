@@ -437,6 +437,13 @@ export const CHECK_NAV: NavGroup[] = [
     items: [],
   },
   {
+    title: "Compliance",
+    icon: iconAudit(),
+    to: "/check-cashing/compliance",
+    flag: CHECK_DESK_FLAG,
+    items: [],
+  },
+  {
     title: "Settings",
     icon: iconShield(),
     to: "/check-cashing/settings",

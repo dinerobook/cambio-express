@@ -21,6 +21,7 @@ BellKind = Literal[
     "daily_book.due_back",
     "bank.to_check",
     "return_checks.pending",
+    "check_cashing.ctr_due",
 ]
 
 # ``overdue`` sorts first and shows the warning tone; ``due`` is

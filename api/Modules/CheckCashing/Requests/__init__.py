@@ -73,6 +73,19 @@ class CheckSettingsBody(BaseModel):
     # Most one customer may cash in one store day across the owner's
     # stores before a manager must approve; empty = no limit.
     daily_limit:       float | None = Field(None, gt=0, le=MAX_MONEY)
+    # The business as FinCEN knows it, for CTRs (PR 6a). All optional;
+    # the CTR page says what is still missing.
+    legal_name:        str = Field("", max_length=150)
+    ein:               str = Field("", pattern=r"^(\d{9})?$")
+    street:            str = Field("", max_length=100)
+    city:              str = Field("", max_length=50)
+    state:             str = Field("", pattern=r"^([A-Z]{2})?$")
+    zip_code:          str = Field("", pattern=r"^(\d{5}|\d{9})?$")
+    contact_name:      str = Field("", max_length=100)
+    contact_phone:     str = Field("", pattern=r"^\d{0,16}$")
+    msb_registration:  str = Field("", max_length=30)
+    # FinCEN's Southwest Border order: report cash from $1,000.
+    gto_enabled:       bool = False
 
     @model_validator(mode="after")
     def _rules(self) -> "CheckSettingsBody":
@@ -94,6 +107,16 @@ class CheckSettingsResponse(BaseModel):
     base_charge_under: float | None
     expired_id_mode:   ExpiredIdMode
     daily_limit:       float | None
+    legal_name:        str
+    ein:               str
+    street:            str
+    city:              str
+    state:             str
+    zip_code:          str
+    contact_name:      str
+    contact_phone:     str
+    msb_registration:  str
+    gto_enabled:       bool
 
 
 # ── Customers ──────────────────────────────────────────────
@@ -174,6 +197,18 @@ class CheckCustomerDetail(BaseModel):
     fee_value: float | None
     notes: str
     ids: list[CheckCustomerIdRow]
+    # CTR details (PR 6a). The SSN / ITIN shows masked (``tin_masked``);
+    # a manager reveals it with POST /customers/{id}/reveal-tin.
+    tin_type: str
+    tin_masked: str
+    occupation: str
+    city: str
+    state: str
+    zip_code: str
+    country: str
+    gender: str
+    # What a CTR would still need from this profile.
+    ctr_missing: list[str]
     # The customer's photo (picture id; null = none yet).
     photo_picture_id: int | None = None
     home_store_name: str
@@ -307,6 +342,8 @@ class CheckReviewItemOut(BaseModel):
     count: int | None
     amount: float | None
     day: date | None
+    # ``ctr_details``: the profile fields the CTR still needs.
+    fields: list[str] = []
 
 
 class CheckReviewResponse(BaseModel):
@@ -675,3 +712,158 @@ class CheckPictureResponse(BaseModel):
     width: int
     height: int
     size_bytes: int
+
+
+# ── CTR (PR 6a) ────────────────────────────────────────────
+
+TinType = Literal["ssn", "itin", "foreign"]
+Gender = Literal["", "male", "female", "unknown"]
+
+
+class CheckCtrDetailsBody(BaseModel):
+    """What a CTR needs about the customer. ``tin`` empty keeps the
+    number on file; a new one replaces it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dob:        date
+    tin_type:   TinType
+    tin:        str = Field("", max_length=25)
+    occupation: str = Field(..., min_length=1, max_length=50)
+    address:    str = Field(..., min_length=1, max_length=100)
+    city:       str = Field(..., min_length=1, max_length=50)
+    state:      str = Field(..., min_length=2, max_length=3)
+    zip_code:   str = Field(..., pattern=r"^[0-9A-Za-z]{3,9}$")
+    country:    str = Field("US", pattern=r"^[A-Z]{2}$")
+    gender:     Gender = ""
+
+    @model_validator(mode="after")
+    def _tin(self) -> "CheckCtrDetailsBody":
+        tin = self.tin.replace("-", "").replace(" ", "")
+        if tin and self.tin_type in ("ssn", "itin") and not (len(tin) == 9 and tin.isdigit()):
+            raise ValueError("An SSN or ITIN is 9 digits.")
+        if tin and self.tin_type == "itin" and not tin.startswith("9"):
+            raise ValueError("An ITIN starts with 9.")
+        self.tin = tin
+        return self
+
+
+class CheckTinResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tin_type: str
+    tin: str
+
+
+class CheckCtrRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    customer_id: int
+    customer_name: str
+    store_day: date
+    kind: str
+    cash: float
+    check_count: int
+    status: str
+    due_on: date
+    overdue: bool
+    bsa_id: str
+    filed_on: date | None
+    store_name: str
+
+
+class CheckCtrCounts(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    to_file: int
+    overdue: int
+    due_soon: int
+
+
+class CheckCtrListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[CheckCtrRow]
+    total: int
+    page: int
+    total_pages: int
+    counts: CheckCtrCounts
+
+
+class CheckCtrCheckRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    store_name: str
+    company_name: str
+    check_number: str
+    amount: float
+    fee: float
+    cash: float
+    created_at: str
+
+
+class CheckCtrFiler(BaseModel):
+    """The store's FinCEN details (CTR Part III and the location)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    legal_name: str
+    dba_name: str
+    ein: str
+    street: str
+    city: str
+    state: str
+    zip_code: str
+    contact_name: str
+    contact_phone: str
+    msb_registration: str
+    # The settings a CTR needs that are still blank.
+    missing: list[str]
+
+
+class CheckCtrPerson(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: str
+    dob: date | None
+    tin_type: str
+    tin_masked: str
+    occupation: str
+    address: str
+    city: str
+    state: str
+    zip_code: str
+    country: str
+    gender: str
+    phone: str
+    id_type: str
+    id_number: str
+    id_issuer: str
+    missing: list[str]
+
+
+class CheckCtrDetail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    row: CheckCtrRow
+    filer: CheckCtrFiler
+    person: CheckCtrPerson
+    checks: list[CheckCtrCheckRow]
+    # Field 45 note for a Southwest Border report ("" otherwise).
+    gto_mark: str
+    filed_by: str
+
+
+class CheckCtrResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ctr: CheckCtrDetail
+
+
+class CheckCtrFileBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    bsa_id:   str = Field(..., pattern=r"^\d{14}$")
+    filed_on: date

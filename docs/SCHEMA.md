@@ -108,6 +108,7 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | `msb_bad_check_payment` | `BadCheckPayment` | `CheckCashing` | store | `msb_bad_check.id`, `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
 | `msb_cashed_check` | `CashedCheck` | `CheckCashing` | store | `msb_check_company.id`, `msb_check_customer.id`, `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
 | `msb_check_company` | `CheckCompany` | `CheckCashing` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
+| `msb_check_ctr` | `CtrReport` | `CheckCashing` | store | `msb_check_customer.id`, `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
 | `msb_check_customer` | `CheckCustomer` | `CheckCashing` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
 | `msb_check_customer_id` | `CheckCustomerId` | `CheckCashing` | store | `msb_check_customer.id`, `tenancy_store.id` | [INVARIANTS](../api/Modules/CheckCashing/INVARIANTS.md) |
 | `msb_check_deposit` | `CheckDeposit` | `DailyBook` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |

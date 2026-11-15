@@ -12,6 +12,7 @@ import {
   IdFields, PartyRulesFields, PartyStatusPill, type PartyRules,
 } from "../components/CheckCashingFields";
 import { CheckActivity } from "../components/CheckActivity";
+import { CtrDetailsCard } from "../components/CtrDetails";
 import { PictureSlot } from "../components/CheckPictures";
 import pictureStyles from "../components/CheckPictures.module.css";
 import { DeskColumns, DeskForm, DeskPage, DeskPane } from "../components/DeskPage";
@@ -312,6 +313,7 @@ export default function CheckCustomerForm() {
       {customer && (
         <div className="ds-form">
           <CustomerIds customer={customer} canEdit={hasPermission("check_cashing", "update")} />
+          <CtrDetailsCard customer={customer} />
           <Card>
             <SectionTitle>{t("checkCashing.checksTitle")}</SectionTitle>
             <CheckActivity kind="customers" id={customer.id} other="company" />

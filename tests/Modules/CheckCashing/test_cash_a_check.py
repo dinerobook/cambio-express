@@ -187,21 +187,25 @@ class TestReview:
         assert items["duplicate"]["level"] == "approve"
         assert items["duplicate"]["day"] == date.today().isoformat()
         assert items["daily_limit"] == {"code": "daily_limit", "level": "approve",
-                                        "count": None, "amount": 800.0, "day": None}
+                                        "count": None, "amount": 800.0, "day": None,
+                                        "fields": []}
         assert (r["today_count"], r["today_total"]) == (1, 500.0)
         # A different check number is no duplicate.
         other = _review(client, admin, customer_id=cust["id"],
                         company_id=comp["id"], check_number="1002", amount=10)
         assert "duplicate" not in _levels(other)
 
-    def test_ctr_alert_over_ten_thousand(self, client, admin, party):
+    def test_ctr_alert_over_ten_thousand_cash(self, client, admin, party):
+        """The line is the cash paid out (check less the 2% fee), over
+        $10,000: $10,204.09 less $204.08 is $10,000.01."""
         cust, comp = party
         r = _review(client, admin, customer_id=cust["id"],
-                    company_id=comp["id"], amount=10_000.01)
+                    company_id=comp["id"], amount=10_204.09)
+        assert r["fee"]["fee"] == 204.08
         assert _levels(r)["ctr_due"] == "info"
         assert "ctr_due" not in _levels(_review(
             client, admin, customer_id=cust["id"], company_id=comp["id"],
-            amount=10_000))
+            amount=10_204.08))
 
     def test_review_changes_nothing(self, client, admin, party):
         from api.Modules.CheckCashing.Models import CashedCheck

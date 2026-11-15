@@ -108,7 +108,7 @@ def _review_response(result: Review) -> CheckReviewResponse:
                 code=i.code, level=i.level,  # type: ignore[arg-type]
                 count=i.count,
                 amount=None if i.amount_cents is None else _dollars(i.amount_cents),
-                day=i.day,
+                day=i.day, fields=list(i.fields),
             )
             for i in result.items
         ],

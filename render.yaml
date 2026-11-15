@@ -20,6 +20,13 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
+      # Encrypts check cashing customers' SSN / ITIN (CTR details,
+      # api/Modules/CheckCashing/Services/pii.py). Render makes it once;
+      # never change or delete it: numbers saved under it could no
+      # longer be read. Until it exists the app encrypts with SECRET_KEY,
+      # and both keys keep reading what was saved under either.
+      - key: CHECK_PII_KEY
+        generateValue: true
       - key: DATABASE_URL
         fromDatabase:
           name: dinerobook-db

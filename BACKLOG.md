@@ -707,13 +707,13 @@ relationship.
       becomes a regulatory must-have and should ship in the same
       release.
 - [ ] **One-click CTR filing for check cashing** (owner, 2026-11-09:
-      Lytcheck's main selling point, "definitely on our list"). When a
-      customer's cash out passes $10,000 in one business day (several
-      checks that day add up), the payout screen flags it and builds
-      the FinCEN CTR from the customer profile, ID and checks, ready to
-      file in one click; a filed CTR is kept with the check records.
-      Needs the cashed-check register (check cashing PR 2) first.
-      Suspicious activity reports (SAR) go in the same piece of work.
+      Lytcheck's main selling point, "definitely on our list"). PR 6a
+      built detection, the CTR details at the counter, the Compliance
+      page and saving the BSA ID (CheckCashing INVARIANTS "CTR"). Still
+      to do: the BSA E-Filing batch XML file download (and the test
+      forms a first-time batch filer sends FinCEN), then direct
+      filing (FinCEN SDTM, needs FinCEN's approval). Suspicious
+      activity reports (SAR) go in the same piece of work.
 
 ## Stripe Issuing (research first, then build)
 - [ ] **Phase 1: Research.** Stripe Issuing lets us mint virtual or

@@ -51,7 +51,7 @@ STORE_OWNED_MODELS: list[str] = [
     "DailyLineItem", "MoneyTransferSummary", "MoneyServiceSummary",
     # Returned checks FK their batch — checks first.
     "ReturnCheck", "ReturnCheckBatch",
-    "CheckPicture", "BadCheckPayment", "BadCheck", "CashedCheck", "CheckDevice", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
+    "CheckPicture", "BadCheckPayment", "BadCheck", "CtrReport", "CashedCheck", "CheckDevice", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
     "MonthlyFinancial", "MonthlyLineLabel", "BankRule", "BankTransaction",
     "StripeBankAccount", "StoreOwnerLink",
     # Lottery: counts FK packs FK games — purge in that order.
@@ -130,7 +130,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
     from api.Modules.CheckCashing.Models import (
         BadCheck, BadCheckPayment, CashedCheck, CheckCashingSettings,
         CheckCompany, CheckCustomer, CheckCustomerId, CheckDevice,
-        CheckPicture,
+        CheckPicture, CtrReport,
     )
     from api.Modules.Tenancy.Models import (
         StoreEmployee, StoreOwnerLink, StoreRole, StoreRolePermission,
@@ -189,6 +189,9 @@ def _store_owned_models() -> list[tuple[type, str]]:
         (CheckPicture, "store_id"),
         (BadCheckPayment, "store_id"),
         (BadCheck, "store_id"),
+        # CTRs FK customers; a sibling's report keeps its customer
+        # (moved above) and loses the pointer at a deleted login.
+        (CtrReport, "store_id"),
         (CashedCheck, "store_id"),
         (CheckDevice, "store_id"),
         (CheckCustomerId, "store_id"),

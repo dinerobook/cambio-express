@@ -22,6 +22,12 @@ from tests._app import db, db_session
 from tests.conftest import login_admin, login_employee, make_employee_client
 
 BASE = "/api/v2/check-cashing"
+# The CTR settings (PR 6a) of a store that never filled them in.
+NO_CTR_SETTINGS = {
+    "legal_name": "", "ein": "", "street": "", "city": "", "state": "",
+    "zip_code": "", "contact_name": "", "contact_phone": "",
+    "msb_registration": "", "gto_enabled": False,
+}
 # Valid ABA routing numbers (check digit holds).
 ROUTING = "111000025"
 ROUTING_2 = "021000021"
@@ -357,6 +363,7 @@ class TestSettings:
             "default_fee_kind": "percent", "default_fee_value": 0.0,
             "base_charge": None, "base_charge_under": None,
             "expired_id_mode": "warn", "daily_limit": None,
+            **NO_CTR_SETTINGS,
         }
 
     def test_save_roundtrip_and_audit(self, client, admin, on):
@@ -367,7 +374,7 @@ class TestSettings:
         assert resp.status_code == 200, resp.text
         assert resp.json() == {**body, "default_fee_value": 1.25,
                                "base_charge": 3.0, "base_charge_under": 100.0,
-                               "daily_limit": None}
+                               "daily_limit": None, **NO_CTR_SETTINGS}
         assert client.get(f"{BASE}/settings", headers=admin).json()[
             "expired_id_mode"] == "block"
         from api.Modules.CheckCashing.Models import CheckCashingSettings

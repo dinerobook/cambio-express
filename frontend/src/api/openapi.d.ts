@@ -2917,6 +2917,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/check-cashing/ctrs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Ctrs Route */
+        get: operations["list_ctrs_route_check_cashing_ctrs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/ctrs/{ctr_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ctr Route */
+        get: operations["get_ctr_route_check_cashing_ctrs__ctr_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/ctrs/{ctr_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** File Ctr Route */
+        post: operations["file_ctr_route_check_cashing_ctrs__ctr_id__file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/check-cashing/customers": {
         parameters: {
             query?: never;
@@ -2970,6 +3021,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/check-cashing/customers/{customer_id}/ctr-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Ctr Details Route */
+        put: operations["save_ctr_details_route_check_cashing_customers__customer_id__ctr_details_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/check-cashing/customers/{customer_id}/ids": {
         parameters: {
             query?: never;
@@ -3000,6 +3068,26 @@ export interface paths {
         post?: never;
         /** Delete Customer Id Route */
         delete: operations["delete_customer_id_route_check_cashing_customers__customer_id__ids__id_row_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-cashing/customers/{customer_id}/reveal-tin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reveal Tin Route
+         * @description A POST, not a GET: every look is written to the audit log.
+         */
+        post: operations["reveal_tin_route_check_cashing_customers__customer_id__reveal_tin_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -9074,7 +9162,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "daily_book.unlocked" | "daily_book.due_back" | "bank.to_check" | "return_checks.pending";
+            kind: "daily_book.unlocked" | "daily_book.due_back" | "bank.to_check" | "return_checks.pending" | "check_cashing.ctr_due";
             /**
              * Urgency
              * @enum {string}
@@ -9521,6 +9609,213 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** CheckCtrCheckRow */
+        CheckCtrCheckRow: {
+            /** Amount */
+            amount: number;
+            /** Cash */
+            cash: number;
+            /** Check Number */
+            check_number: string;
+            /** Company Name */
+            company_name: string;
+            /** Created At */
+            created_at: string;
+            /** Fee */
+            fee: number;
+            /** Id */
+            id: number;
+            /** Store Name */
+            store_name: string;
+        };
+        /** CheckCtrCounts */
+        CheckCtrCounts: {
+            /** Due Soon */
+            due_soon: number;
+            /** Overdue */
+            overdue: number;
+            /** To File */
+            to_file: number;
+        };
+        /** CheckCtrDetail */
+        CheckCtrDetail: {
+            /** Checks */
+            checks: components["schemas"]["CheckCtrCheckRow"][];
+            /** Filed By */
+            filed_by: string;
+            filer: components["schemas"]["CheckCtrFiler"];
+            /** Gto Mark */
+            gto_mark: string;
+            person: components["schemas"]["CheckCtrPerson"];
+            row: components["schemas"]["CheckCtrRow"];
+        };
+        /**
+         * CheckCtrDetailsBody
+         * @description What a CTR needs about the customer. ``tin`` empty keeps the
+         *     number on file; a new one replaces it.
+         */
+        CheckCtrDetailsBody: {
+            /** Address */
+            address: string;
+            /** City */
+            city: string;
+            /**
+             * Country
+             * @default US
+             */
+            country: string;
+            /**
+             * Dob
+             * Format: date
+             */
+            dob: string;
+            /**
+             * Gender
+             * @default
+             * @enum {string}
+             */
+            gender: "" | "male" | "female" | "unknown";
+            /** Occupation */
+            occupation: string;
+            /** State */
+            state: string;
+            /**
+             * Tin
+             * @default
+             */
+            tin: string;
+            /**
+             * Tin Type
+             * @enum {string}
+             */
+            tin_type: "ssn" | "itin" | "foreign";
+            /** Zip Code */
+            zip_code: string;
+        };
+        /** CheckCtrFileBody */
+        CheckCtrFileBody: {
+            /** Bsa Id */
+            bsa_id: string;
+            /**
+             * Filed On
+             * Format: date
+             */
+            filed_on: string;
+        };
+        /**
+         * CheckCtrFiler
+         * @description The store's FinCEN details (CTR Part III and the location).
+         */
+        CheckCtrFiler: {
+            /** City */
+            city: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Contact Phone */
+            contact_phone: string;
+            /** Dba Name */
+            dba_name: string;
+            /** Ein */
+            ein: string;
+            /** Legal Name */
+            legal_name: string;
+            /** Missing */
+            missing: string[];
+            /** Msb Registration */
+            msb_registration: string;
+            /** State */
+            state: string;
+            /** Street */
+            street: string;
+            /** Zip Code */
+            zip_code: string;
+        };
+        /** CheckCtrListResponse */
+        CheckCtrListResponse: {
+            counts: components["schemas"]["CheckCtrCounts"];
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["CheckCtrRow"][];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** CheckCtrPerson */
+        CheckCtrPerson: {
+            /** Address */
+            address: string;
+            /** City */
+            city: string;
+            /** Country */
+            country: string;
+            /** Dob */
+            dob: string | null;
+            /** Full Name */
+            full_name: string;
+            /** Gender */
+            gender: string;
+            /** Id Issuer */
+            id_issuer: string;
+            /** Id Number */
+            id_number: string;
+            /** Id Type */
+            id_type: string;
+            /** Missing */
+            missing: string[];
+            /** Occupation */
+            occupation: string;
+            /** Phone */
+            phone: string;
+            /** State */
+            state: string;
+            /** Tin Masked */
+            tin_masked: string;
+            /** Tin Type */
+            tin_type: string;
+            /** Zip Code */
+            zip_code: string;
+        };
+        /** CheckCtrResponse */
+        CheckCtrResponse: {
+            ctr: components["schemas"]["CheckCtrDetail"];
+        };
+        /** CheckCtrRow */
+        CheckCtrRow: {
+            /** Bsa Id */
+            bsa_id: string;
+            /** Cash */
+            cash: number;
+            /** Check Count */
+            check_count: number;
+            /** Customer Id */
+            customer_id: number;
+            /** Customer Name */
+            customer_name: string;
+            /**
+             * Due On
+             * Format: date
+             */
+            due_on: string;
+            /** Filed On */
+            filed_on: string | null;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Overdue */
+            overdue: boolean;
+            /** Status */
+            status: string;
+            /**
+             * Store Day
+             * Format: date
+             */
+            store_day: string;
+            /** Store Name */
+            store_name: string;
+        };
         /** CheckCustomerCreateBody */
         CheckCustomerCreateBody: {
             /**
@@ -9569,8 +9864,14 @@ export interface components {
         CheckCustomerDetail: {
             /** Address */
             address: string;
+            /** City */
+            city: string;
+            /** Country */
+            country: string;
             /** Created At */
             created_at: string;
+            /** Ctr Missing */
+            ctr_missing: string[];
             /** Dob */
             dob: string | null;
             /** Fee Kind */
@@ -9579,6 +9880,8 @@ export interface components {
             fee_value: number | null;
             /** Full Name */
             full_name: string;
+            /** Gender */
+            gender: string;
             /** Home Store Name */
             home_store_name: string;
             /** Id */
@@ -9587,18 +9890,28 @@ export interface components {
             ids: components["schemas"]["CheckCustomerIdRow"][];
             /** Notes */
             notes: string;
+            /** Occupation */
+            occupation: string;
             /** Phone Country */
             phone_country: string;
             /** Phone Number */
             phone_number: string;
             /** Photo Picture Id */
             photo_picture_id?: number | null;
+            /** State */
+            state: string;
             /** Status */
             status: string;
             /** Status Reason */
             status_reason: string;
+            /** Tin Masked */
+            tin_masked: string;
+            /** Tin Type */
+            tin_type: string;
             /** Updated At */
             updated_at: string;
+            /** Zip Code */
+            zip_code: string;
         };
         /** CheckCustomerIdBody */
         CheckCustomerIdBody: {
@@ -9922,6 +10235,11 @@ export interface components {
             /** Day */
             day: string | null;
             /**
+             * Fields
+             * @default []
+             */
+            fields: string[];
+            /**
              * Level
              * @enum {string}
              */
@@ -9943,6 +10261,21 @@ export interface components {
             base_charge?: number | null;
             /** Base Charge Under */
             base_charge_under?: number | null;
+            /**
+             * City
+             * @default
+             */
+            city: string;
+            /**
+             * Contact Name
+             * @default
+             */
+            contact_name: string;
+            /**
+             * Contact Phone
+             * @default
+             */
+            contact_phone: string;
             /** Daily Limit */
             daily_limit?: number | null;
             /**
@@ -9953,11 +10286,46 @@ export interface components {
             /** Default Fee Value */
             default_fee_value: number;
             /**
+             * Ein
+             * @default
+             */
+            ein: string;
+            /**
              * Expired Id Mode
              * @default warn
              * @enum {string}
              */
             expired_id_mode: "warn" | "block";
+            /**
+             * Gto Enabled
+             * @default false
+             */
+            gto_enabled: boolean;
+            /**
+             * Legal Name
+             * @default
+             */
+            legal_name: string;
+            /**
+             * Msb Registration
+             * @default
+             */
+            msb_registration: string;
+            /**
+             * State
+             * @default
+             */
+            state: string;
+            /**
+             * Street
+             * @default
+             */
+            street: string;
+            /**
+             * Zip Code
+             * @default
+             */
+            zip_code: string;
         };
         /** CheckSettingsResponse */
         CheckSettingsResponse: {
@@ -9965,6 +10333,12 @@ export interface components {
             base_charge: number | null;
             /** Base Charge Under */
             base_charge_under: number | null;
+            /** City */
+            city: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Contact Phone */
+            contact_phone: string;
             /** Daily Limit */
             daily_limit: number | null;
             /**
@@ -9974,11 +10348,25 @@ export interface components {
             default_fee_kind: "percent" | "flat";
             /** Default Fee Value */
             default_fee_value: number;
+            /** Ein */
+            ein: string;
             /**
              * Expired Id Mode
              * @enum {string}
              */
             expired_id_mode: "warn" | "block";
+            /** Gto Enabled */
+            gto_enabled: boolean;
+            /** Legal Name */
+            legal_name: string;
+            /** Msb Registration */
+            msb_registration: string;
+            /** State */
+            state: string;
+            /** Street */
+            street: string;
+            /** Zip Code */
+            zip_code: string;
         };
         /** CheckStatsOut */
         CheckStatsOut: {
@@ -10003,6 +10391,13 @@ export interface components {
             total: number;
             /** Voided */
             voided: number;
+        };
+        /** CheckTinResponse */
+        CheckTinResponse: {
+            /** Tin */
+            tin: string;
+            /** Tin Type */
+            tin_type: string;
         };
         /** CheckTotalsOut */
         CheckTotalsOut: {
@@ -24397,6 +24792,120 @@ export interface operations {
             };
         };
     };
+    list_ctrs_route_check_cashing_ctrs_get: {
+        parameters: {
+            query?: {
+                status?: string;
+                q?: string;
+                /** @description 1-based page number */
+                page?: number;
+                /** @description Rows per page (1 to 200) */
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCtrListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ctr_route_check_cashing_ctrs__ctr_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                ctr_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCtrResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    file_ctr_route_check_cashing_ctrs__ctr_id__file_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                ctr_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCtrFileBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCtrResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_customers_route_check_cashing_customers_get: {
         parameters: {
             query?: {
@@ -24586,6 +25095,45 @@ export interface operations {
             };
         };
     };
+    save_ctr_details_route_check_cashing_customers__customer_id__ctr_details_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                customer_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckCtrDetailsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckCustomerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_customer_id_route_check_cashing_customers__customer_id__ids_post: {
         parameters: {
             query?: never;
@@ -24688,6 +25236,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CheckCustomerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reveal_tin_route_check_cashing_customers__customer_id__reveal_tin_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                customer_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckTinResponse"];
                 };
             };
             /** @description Validation Error */
