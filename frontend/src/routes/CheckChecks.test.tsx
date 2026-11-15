@@ -23,6 +23,7 @@ const api = vi.hoisted(() => ({
   useCheckDevice: vi.fn(),
   useChecks: vi.fn(),
   useCheckReport: vi.fn(),
+  fetchChecksPage: vi.fn(),
 }));
 
 vi.mock("../api/checkCashing", async (importOriginal) => ({
@@ -86,6 +87,23 @@ describe("the Checks page", () => {
     expect(screen.getByText("Persona Prueba")).toBeInTheDocument();
     expect(screen.getByText("Bad check")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Export CSV/i })).toBeInTheDocument();
+  });
+
+  it("exports money with two decimals and days on the store clock", async () => {
+    // The CSV wrote 18003.5 and the raw day; a spreadsheet wants
+    // 18003.50 like every other list's export.
+    api.fetchChecksPage.mockResolvedValue({
+      rows: [{ ...row, amount: 18003.5, fee: 0, cash: 18003.5 }], total: 1, page: 1, total_pages: 1,
+    });
+    let blob: Blob | null = null;
+    vi.spyOn(URL, "createObjectURL").mockImplementation((b) => { blob = b as Blob; return "blob:x"; });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    renderRoute(<CheckChecks />);
+    await userEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
+    await waitFor(() => expect(blob).not.toBeNull());
+    const csv = await blob!.text();
+    expect(csv).toContain("2026-11-11,Persona Prueba,Acme Payroll,18003.50,0.00,18003.50,");
+    vi.restoreAllMocks();
   });
 
   it("filters by status and searches as you type", async () => {

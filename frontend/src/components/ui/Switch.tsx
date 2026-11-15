@@ -81,6 +81,11 @@ function trackStyle(on: boolean): CSSProperties {
     height: "1.15rem",
     borderRadius: 999,
     background: on ? tokens.accent : tokens.surface3,
+    // The off track is the raised surface, which is the card's own
+    // colour in the light theme (white on white: only the dark thumb
+    // showed, as a black dot) and barely darker in the dark one. The
+    // ring draws the track's edge in both themes.
+    boxShadow: on ? "none" : `inset 0 0 0 1px ${tokens.borderStrong}`,
     transition: "background 140ms ease-out",
     flexShrink: 0,
     display: "inline-block",

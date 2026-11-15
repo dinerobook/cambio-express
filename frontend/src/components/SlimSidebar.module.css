@@ -145,6 +145,13 @@
   letter-spacing: 0.02em;
   line-height: 1;
   text-align: center;
+  /* A long single word ("Configuración", "Administración") wider
+   * than the rail breaks with a hyphen (the page's lang is the
+   * person's language), and only as a last resort anywhere, instead
+   * of spilling out of its button. */
+  max-width: 100%;
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 /* ── Support button (pinned to bottom of icon column) ── */

@@ -14,7 +14,7 @@ import {
   PageHeader, PageShell, Pill, Select, type CsvColumn, type DataColumn,
 } from "../components/ui";
 import styles from "./Transfers.module.css";
-import { formatTime } from "../lib/datetime";
+import { csvDate, formatDate, formatTime } from "../lib/datetime";
 import TransferKindPill from "../components/TransferKindPill";
 import {
   SERVICES, STATUSES, isPayout, serviceLabel, statusLabel,
@@ -272,8 +272,8 @@ function FilterBar({
 function transferColumns(t: Translate): DataColumn<TransferRow>[] {
   return [
   { key: "date", header: t("transfer.date"), sortKey: "date", sortFirst: "desc",
-    render: (r) => <span className={styles.monoMuted}>{r.send_date}</span>,
-    csv: (r) => r.send_date },
+    render: (r) => <span className={styles.monoMuted}>{formatDate(r.send_date)}</span>,
+    csv: (r) => csvDate(r.send_date) },
   { key: "company", header: t("transfer.company"), sortKey: "company", render: (r) => r.company,
     csv: (r) => r.company },
   { key: "sender", header: t("transfer.sender"), sortKey: "sender", render: (r) => r.sender_name,

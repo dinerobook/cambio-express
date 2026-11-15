@@ -45,4 +45,14 @@ describe("<Switch>", () => {
     render(<Switch checked={false} onChange={() => {}} />);
     expect(screen.getByRole("switch")).toBeInTheDocument();
   });
+
+  it("draws the off track's edge so it shows on a white card", () => {
+    // Light theme: the off track was the card's own white, so only
+    // the dark thumb showed, as a black dot.
+    const { rerender } = render(<Switch checked={false} onChange={() => {}}>Base charge</Switch>);
+    const track = screen.getByRole("switch").parentElement!;
+    expect(track.style.boxShadow).toContain("var(--db-border-strong)");
+    rerender(<Switch checked onChange={() => {}}>Base charge</Switch>);
+    expect(track.style.boxShadow).toBe("none");
+  });
 });

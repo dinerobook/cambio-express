@@ -101,7 +101,7 @@ export default function TransferDetail() {
         title={t("transfer.number", { id: row.id })}
         subtitle={(
           <span style={{ fontFamily: tokens.fontMono }}>
-            {row.send_date} · {row.company} · {serviceLabel(row.service_type)}{" "}
+            {formatDate(row.send_date)} · {row.company} · {serviceLabel(row.service_type)}{" "}
             <TransferKindPill
               serviceType={row.service_type}
               paymentMethod={row.payment_method}

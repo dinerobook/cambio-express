@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { Alert, Button, Loading, Modal, Pill } from "../components/ui";
 import { apiErrorMessage } from "../lib/api";
+import { formatDate } from "../lib/datetime";
 import { fmtMoney2 } from "../lib/formatters";
 import {
   commitIntermexReport,
@@ -136,7 +137,7 @@ export function ImportReportModal({
           {dateMismatch && (
             <Alert tone="warning">
               {tNodes("intermex.dateMismatch", {
-                reportDate: <strong>{result.report_date}</strong>,
+                reportDate: <strong>{formatDate(result.report_date)}</strong>,
                 editing: <strong>{reportDate}</strong>,
               })}
             </Alert>

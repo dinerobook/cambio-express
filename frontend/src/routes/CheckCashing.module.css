@@ -22,6 +22,14 @@
   overflow-wrap: anywhere;
 }
 
+/* A date in a table stays on one line ("Nov 15, 2026"): `.mono`
+ * breaks anywhere so long ID numbers fit, which split a date over
+ * three lines. */
+.day {
+  font-family: var(--db-font-mono);
+  white-space: nowrap;
+}
+
 .muted {
   color: var(--db-text-muted);
   overflow-wrap: anywhere;

@@ -100,9 +100,14 @@ export type MessageVars = Record<string, string | number>;
 
 function fill(template: string, vars?: MessageVars): string {
   if (!vars) return template;
-  return template.replace(/\{(\w+)\}/g, (whole, name: string) =>
-    name in vars ? String(vars[name]) : whole,
-  );
+  // A value that already ends a sentence ("5:04 a.m." in Spanish)
+  // swallows the template's own full stop after it, so the line
+  // never reads "a.m..".
+  return template.replace(/\{(\w+)\}(\.?)/g, (whole, name: string, stop: string) => {
+    if (!(name in vars)) return whole;
+    const value = String(vars[name]);
+    return stop && value.endsWith(".") ? value : value + stop;
+  });
 }
 
 /** The current language's words for `key`, placeholders filled. */

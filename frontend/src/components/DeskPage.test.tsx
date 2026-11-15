@@ -175,4 +175,18 @@ describe("no page scrolling", () => {
     expect(frameCss).toMatch(/\.page \{[^}]*overflow: hidden/);
     expect(frameCss).toMatch(/\.pane \{[^}]*overflow: auto/);
   });
+
+  it("never squeezes the header so its subtitle paints over the first box", () => {
+    // PageHeader's own min-height let the column shrink it to 40px:
+    // "7 checks" and a customer's "Normal · Added at …" drew over
+    // the card below. The fixed parts keep their height; the panes
+    // take what is left.
+    renderRoute(
+      <DeskPage>
+        <header data-testid="head">Checks</header>
+      </DeskPage>,
+    );
+    expect(getComputedStyle(screen.getByTestId("head")).flexShrink).toBe("0");
+    expect(frameCss).toMatch(/:where\(\.page > \*\) \{[^}]*flex-shrink: 0/);
+  });
 });

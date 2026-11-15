@@ -204,6 +204,28 @@
   }
 }
 
+/* ── A field with its button beside it ──────────────────────
+ * "Detect from address" beside the timezone, "Link store" beside
+ * the code, "Add override" beside a store id. The field takes the
+ * room; on a narrow screen the button wraps under it instead of
+ * being pushed out of its card (UI-STANDARDS §7). `--end` lines the
+ * button up with the input when the field has a label above it. */
+.ds-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ds-input-row--end {
+  align-items: flex-end;
+}
+
+.ds-input-row > :first-child {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
 /* ── Form layout: consistent vertical stack for form pages ─── */
 
 .ds-form {

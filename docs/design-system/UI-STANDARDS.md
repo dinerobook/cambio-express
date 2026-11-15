@@ -221,7 +221,7 @@ on both sides (BankSync `INVARIANTS.md` → "Matching"):
 |---|---|---|
 | Money | `fmtMoney2` (or `fmtMoney` for whole-dollar KPIs) | `` `$${x.toFixed(2)}` `` (drops thousands separators), private clones, inline `toLocaleString` |
 | Timestamp | `formatTimestamp` (audit trails, logs; names the zone), `formatDateTime` (feeds, "locked at"), `formatTime` (time of day) | `toLocaleString()` / `toLocaleTimeString()` inline |
-| Date | `formatDate`; `formatShortDate` in charts, `formatDateCompact` in dense tables, `formatDayLabel` for a day heading | `.slice(0, 10)` (wrong calendar date for US stores on UTC timestamps), `toLocaleDateString()` |
+| Date | `formatDate`; `formatShortDate` in charts, `formatDateCompact` in dense tables, `formatDayLabel` for a day heading — a stored day (`send_date`, `paid_on`) too, in a cell and in a sentence | `.slice(0, 10)` (wrong calendar date for US stores on UTC timestamps), `toLocaleDateString()`, printing the raw `2026-11-14` |
 | Comparing an API timestamp | `parseTimestamp` (reads the server's offset-less UTC strings as UTC) | `new Date(row.created_at)` (reads them as local time: off by the UTC offset) |
 | A `datetime-local` input | `utcToZonedInput` to prefill, `zonedInputToUtcIso` to send | `new Date(value).toISOString()` (the device's clock, not the store's) |
 | Counts | `fmtNumber`; a count with its noun (list subtitles, "N results") through `fmtCount(n, "transfer")` / `fmtCount(n, "person", "people")` | bare `.toLocaleString()`, a hand-written `n === 1 ? "x" : "xs"` |
@@ -311,6 +311,7 @@ Known shared components, and what they own:
 | `PartyNameInput` (`components/PartyNameInput.tsx`) | a plain text box for a returned check's company or customer — it suggests the names the store already used (a native `<datalist>`, never clipped) so the same party is typed the same way and the By company / By customer counts add up |
 | `DataTable` (+ `useUrlFilterState({ pageSizeKey, defaultSort })`) | any list page's `<table>`, header row, loading / empty / error states, clickable `<tr onClick>`, sort buttons, or `<Pager>` wiring — see "Lists" in §7 |
 | `DataTable` `exportCsv` (+ `csv` on columns, `lib/csv.ts`) | a page-local "Export CSV" button, a hand-built CSV string, `toFixed(2)` money or a `formatDate` cell in a file — see "Export" in §7 |
+| `.ds-input-row` (kit class, `ui.css`; `--end` when the field has a label above it) | an inline `style={{ display: "flex" }}` row of a field and its button ("Detect from address", "Link store") — it never wrapped, so on a phone the button left the card |
 | `pageOf` / `sortRows` (`lib/pagination`) | slicing or sorting a whole list in the browser by hand |
 | `Table`, `TableStates` | small tables inside a form or box (receipt lines, the daily-book boxes) — not list pages |
 | `PermissionMatrixTable` | a per-route permission grid |
@@ -390,6 +391,10 @@ needed if the kit had been checked first.
     list the server sends whole for other reasons (a store's
     employees, read by pickers too) sorts and pages with `sortRows`
     / `pageOf` instead.
+  - **Money stays on one line.** A column with `align: "right"`
+    (money, counts) never wraps on a desktop table: "$18,003.00"
+    broke into "$18,003" / ".00". The table scrolls inside its box
+    instead; phone cards may wrap again.
   - **Paged endpoints stay backwards compatible.** Adding paging to
     an endpoint other pages already read: `page` optional — no
     `page`, every row plus `total`; with it, the `api.Core.Pagination`
@@ -565,6 +570,10 @@ This is enforced by the kit, not by per-page checks:
   box that takes the room left, `DeskColumns` for side-by-side boxes,
   `DeskForm` for a form whose fields scroll above a fixed
   `FormActions` bar (it keeps the help bubble's corner free).
+  The fixed parts never give height to the boxes: the frame keeps
+  every direct child at `flex-shrink: 0` (a squeezed header painted
+  its subtitle over the first box), and only `DeskPane` /
+  `DeskColumns` / `DeskForm` or a page's own filling block shrink.
   Desktop only: under 1024 px wide
   (`useDeskScreen`) the frame shows "works on a desktop computer"
   instead of the page. It also works only on the store's one

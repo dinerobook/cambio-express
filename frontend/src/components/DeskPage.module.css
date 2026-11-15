@@ -16,6 +16,17 @@
   overflow: hidden;
 }
 
+/* The fixed parts never give up height to the panes. Without this a
+ * flex column shrinks them too: the kit PageHeader sets its own
+ * min-height (2.5rem), which overrides the flex item's content
+ * minimum, so a header with a subtitle was squeezed to 40px and its
+ * subtitle painted over the first box (Checks, a customer's page).
+ * `:where` keeps this at zero specificity, so a pane, `.fill`,
+ * `.columns` or a page's own filling block still flexes. */
+:where(.page > *) {
+  flex-shrink: 0;
+}
+
 /* A box that scrolls inside itself and takes the room that is left. */
 .pane {
   flex: 1 1 auto;

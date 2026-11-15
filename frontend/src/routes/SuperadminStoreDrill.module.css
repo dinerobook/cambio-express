@@ -145,3 +145,7 @@
   color: var(--db-text-muted);
   margin: 0;
 }
+
+.connectRow {
+  margin-top: 0.75rem;
+}

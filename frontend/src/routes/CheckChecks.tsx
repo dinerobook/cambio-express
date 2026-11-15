@@ -14,7 +14,8 @@ import {
 import { navWord } from "../i18n/navWords";
 import { tn, useT, type MessageKey, type Translate } from "../i18n";
 import { getCurrentIdentity } from "../lib/auth";
-import { formatDate, todayIso } from "../lib/datetime";
+import { csvMoney } from "../lib/csv";
+import { csvDate, formatDate, todayIso } from "../lib/datetime";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./CheckCashing.module.css";
@@ -36,8 +37,8 @@ function columns(t: Translate): DataColumn<CashedCheckRow>[] {
   return [
     {
       key: "day", header: t("checkCashing.colDay"),
-      render: (r) => <span className={styles.mono}>{formatDate(r.store_day)}</span>,
-      csv: (r) => r.store_day,
+      render: (r) => <span className={styles.day}>{formatDate(r.store_day)}</span>,
+      csv: (r) => csvDate(r.store_day),
     },
     {
       key: "customer", header: t("checkCashing.colCustomer"),
@@ -57,17 +58,17 @@ function columns(t: Translate): DataColumn<CashedCheckRow>[] {
     {
       key: "amount", header: t("checkCashing.colCheck"), align: "right",
       render: (r) => <span className={styles.mono}>{fmtMoney2(r.amount)}</span>,
-      csv: (r) => r.amount,
+      csv: (r) => csvMoney(r.amount),
     },
     {
       key: "fee", header: t("checkCashing.colFee"), align: "right",
       render: (r) => <span className={styles.mono}>{r.status === "cashed" ? fmtMoney2(r.fee) : "—"}</span>,
-      csv: (r) => (r.status === "cashed" ? r.fee : ""),
+      csv: (r) => (r.status === "cashed" ? csvMoney(r.fee) : ""),
     },
     {
       key: "cash", header: t("checkCashing.colCash"), align: "right",
       render: (r) => <span className={styles.mono}>{r.status === "cashed" ? fmtMoney2(r.cash) : "—"}</span>,
-      csv: (r) => (r.status === "cashed" ? r.cash : ""),
+      csv: (r) => (r.status === "cashed" ? csvMoney(r.cash) : ""),
     },
     {
       key: "status", header: t("checkCashing.status"),

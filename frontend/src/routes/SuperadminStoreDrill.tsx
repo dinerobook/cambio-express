@@ -430,7 +430,7 @@ export default function SuperadminStoreDrill() {
                     {data.recent_transfers.map((tr) => (
                       <tr key={tr.id}>
                         <td style={tdStyle}>
-                          <span className={styles.monoMuted}>{tr.send_date}</span>
+                          <span className={styles.monoMuted}>{formatDate(tr.send_date)}</span>
                         </td>
                         <td style={tdStyle}>{tr.sender_name || "—"}</td>
                         <td style={tdStyle}>{tr.recipient_name || "—"}</td>
@@ -960,8 +960,8 @@ function OwnerLinksSection({ storeId }: { storeId: number | undefined }) {
             </div>
           </div>
         ))}
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", alignItems: "flex-end" }}>
-          <div style={{ flex: 1 }}>
+        <div className={`ds-input-row ds-input-row--end ${styles.connectRow}`}>
+          <div>
             <Field label={t("saDrill.connectLabel")}>
               <Input
                 placeholder="owner@example.com"

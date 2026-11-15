@@ -668,7 +668,7 @@ function PaymentsTable({
           {rows.map((p) => (
             <tr key={p.id}>
               <td style={tdStyle}>
-                <span className={styles.monoMuted}>{p.paid_on}</span>
+                <span className={styles.monoMuted}>{formatDate(p.paid_on)}</span>
               </td>
               <td style={{ ...tdStyle, textAlign: "right" }}>
                 <span className={styles.mono}>{fmtMoney2(p.amount)}</span>
@@ -698,7 +698,7 @@ function PaymentsTable({
         message={
           pendingRemove
             ? t("returnCheck.removeMessage", {
-                amount: fmtMoney2(pendingRemove.amount), date: pendingRemove.paid_on,
+                amount: fmtMoney2(pendingRemove.amount), date: formatDate(pendingRemove.paid_on),
               })
             : ""
         }

@@ -176,3 +176,10 @@
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 0.6rem 1rem;
 }
+
+/* Owner access: the 8-letter connect code, spaced so it reads like
+ * the code on the owner's screen. */
+.codeInput {
+  font-family: var(--db-font-mono);
+  letter-spacing: 0.15em;
+}

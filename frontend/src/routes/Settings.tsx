@@ -817,12 +817,11 @@ function StoreInfoCard() {
               ? undefined
               : t("store.timezoneMissing")}
           >
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <div className="ds-input-row">
               <Select
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
                 disabled={!canEdit}
-                style={{ flex: "1 1 auto" }}
               >
                 <option value="">{t("store.timezoneNone")}</option>
                 {(data.store.timezone_choices ?? []).map((tz) => (
@@ -1140,14 +1139,14 @@ function OwnerAccessCard() {
         </Alert>
       )}
       {error && <Alert tone="error">{error}</Alert>}
-      <form onSubmit={(e) => { void handleRedeem(e); }} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+      <form onSubmit={(e) => { void handleRedeem(e); }} className="ds-input-row ds-input-row--end">
         <Field label={t("ownerAccess.code")}>
           <Input
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder={CODE_SAMPLE}
             maxLength={8}
-            style={{ fontFamily: "var(--db-font-mono)", letterSpacing: "0.15em", width: "12rem" }}
+            className={styles.codeInput}
           />
         </Field>
         <Button type="submit" busy={busy} disabled={!code.trim()}>
