@@ -1,22 +1,13 @@
-import { useNavigate } from "react-router-dom";
-
 import {
   fetchCheckCompaniesPage, partyStatusLabel, useCheckCompanies,
-  type CheckCompanyRow, type PartyListQuery,
+  type CheckCompanyRow,
 } from "../api/checkCashing";
 import { PartyStatusPill } from "../components/CheckCashingFields";
-import { DeskPage, DeskPane } from "../components/DeskPage";
-import { PageCrumbs } from "../components/PageCrumbs";
-import {
-  ButtonLink, Card, DataTable, Empty, Field, Input, PageHeader,
-  TabsBar, TabsButton, type DataColumn,
-} from "../components/ui";
+import { CheckPartyList } from "../components/CheckPartyList";
+import type { DataColumn } from "../components/ui";
 import { navWord } from "../i18n/navWords";
 import { tn, useT, type Translate } from "../i18n";
-import { getCurrentIdentity } from "../lib/auth";
 import { fmtNumber } from "../lib/formatters";
-import { useUrlFilterState } from "../lib/useUrlFilterState";
-import { STATUS_TABS } from "./checkCashingTabs";
 import styles from "./CheckCashing.module.css";
 
 // Check cashing app → Companies (/app/check-cashing/companies).
@@ -57,91 +48,22 @@ function columns(t: Translate): DataColumn<CheckCompanyRow>[] {
 
 export default function CheckCompanies() {
   const t = useT();
-  const navigate = useNavigate();
-  const identity = getCurrentIdentity();
-  const filters = useUrlFilterState({ q: "", status: "" }, {
-    pageSizeKey: "check-companies",
-    defaultSort: { key: "name", direction: "asc" },
-  });
-  const listQuery: PartyListQuery = {
-    q: filters.params.q, status: filters.params.status,
-    sort: filters.sort?.key, dir: filters.sort?.direction,
-  };
-  const { data, isLoading, isError, error, refetch } = useCheckCompanies({
-    ...listQuery, page: filters.page, perPage: filters.perPage,
-  });
-  const title = navWord("Companies");
-
-  if (identity?.store_id == null) {
-    return (
-      <DeskPage>
-        <PageCrumbs />
-        <PageHeader title={title} />
-        <Empty>{t("checkCashing.signIn")}</Empty>
-      </DeskPage>
-    );
-  }
-
   return (
-    <DeskPage>
-      <PageCrumbs />
-      <PageHeader
-        title={title}
-        subtitle={data ? tn("checkCashing.companyCount", data.total, fmtNumber) : "—"}
-        actions={(
-          <ButtonLink to="/check-cashing/companies/new" tone="primary" size="sm">
-            {t("checkCashing.newCompany")}
-          </ButtonLink>
-        )}
-      />
-
-      <Card className={styles.search}>
-        <Field label={t("checkCashing.search")}>
-          <Input
-            type="search"
-            value={filters.draft.q ?? filters.params.q}
-            onChange={(e) => filters.debounced("q", e.target.value)}
-            placeholder={t("checkCashing.companySearchPlaceholder")}
-          />
-        </Field>
-      </Card>
-
-      <TabsBar>
-        {STATUS_TABS.map((s) => (
-          <TabsButton
-            key={s.slug}
-            active={filters.params.status === s.slug}
-            onClick={() => filters.setParam("status", s.slug)}
-          >
-            {t(s.label)}
-          </TabsButton>
-        ))}
-      </TabsBar>
-
-      <DeskPane>
-        <Card>
-        <DataTable
-          columns={columns(t)}
-          rows={data?.rows}
-          rowKey={(r) => r.id}
-          onRowClick={(r) => navigate(`/check-cashing/companies/${r.id}`)}
-          rowLabel={(r) => t("checkCashing.openCompany", { name: r.name })}
-          isLoading={isLoading} isError={isError} error={error}
-          onRetry={() => { void refetch(); }}
-          emptyTitle={t("checkCashing.noCompanies")}
-          sort={filters.sort}
-          page={data && {
-            page: data.page, totalPages: data.total_pages, total: data.total,
-            onPage: filters.setPage,
-            perPage: filters.perPage, onPerPage: filters.setPerPage,
-          }}
-          exportCsv={{
-            filename: "check-companies",
-            fetchPage: (page, perPage) => fetchCheckCompaniesPage({ ...listQuery, page, perPage }),
-          }}
-        />
-        </Card>
-      </DeskPane>
-    </DeskPage>
+    <CheckPartyList<CheckCompanyRow>
+      title={navWord("Companies")}
+      subtitle={(total) => tn("checkCashing.companyCount", total, fmtNumber)}
+      newTo="/check-cashing/companies/new"
+      newLabel={t("checkCashing.newCompany")}
+      searchPlaceholder={t("checkCashing.companySearchPlaceholder")}
+      pageSizeKey="check-companies"
+      columns={columns(t)}
+      useRows={useCheckCompanies}
+      fetchPage={fetchCheckCompaniesPage}
+      rowKey={(r) => r.id}
+      rowTo={(r) => `/check-cashing/companies/${r.id}`}
+      rowLabel={(r) => t("checkCashing.openCompany", { name: r.name })}
+      emptyTitle={t("checkCashing.noCompanies")}
+      csvFilename="check-companies"
+    />
   );
 }

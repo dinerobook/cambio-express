@@ -1,9 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import ReportCenter, { type ReportCategoryRow } from "./ReportCenter";
+import ReportCenter, { ReportCenterPage, type ReportCategoryRow } from "./ReportCenter";
+import { ApiError } from "../lib/api";
 import { setLanguage } from "../i18n";
 import { englishLeftovers } from "../test/i18n";
 
@@ -97,5 +98,43 @@ describe("ReportCenter in Spanish", () => {
     await userEvent.clear(box);
     await userEvent.type(box, "zzz");
     expect(screen.getByText("Ningún reporte coincide con esa búsqueda.")).toBeInTheDocument();
+  });
+});
+
+describe("<ReportCenterPage>", () => {
+  // The store, owner and platform report pages share this: loading,
+  // the 403 (outside the list's scope, no retry), any other failure
+  // with retry, then the center.
+  const base = { isLoading: false, isError: false, error: null, refetch: vi.fn() };
+  function renderPage(list: Parameters<typeof ReportCenterPage>[0]["list"]) {
+    return render(
+      <MemoryRouter>
+        <ReportCenterPage
+          title="MSB reports" list={list}
+          scopeMessage="Sign in to a store first."
+          failedMessage={(reason) => `Could not load reports. ${reason}`}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it("shows the reports once the list is in", () => {
+    renderPage({ ...base, data: { categories: CATEGORIES } });
+    expect(screen.getByRole("heading", { name: "MSB reports" })).toBeInTheDocument();
+    expect(screen.getByText("Sales by company")).toBeInTheDocument();
+  });
+
+  it("says who can see the list on a 403, with no retry", () => {
+    renderPage({ ...base, isError: true, error: new ApiError(403, "Forbidden", null) });
+    expect(screen.getByText("Sign in to a store first.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /retry|try again/i })).not.toBeInTheDocument();
+  });
+
+  it("offers a retry on any other failure", async () => {
+    const refetch = vi.fn();
+    renderPage({ ...base, isError: true, error: new ApiError(500, "Server down", null), refetch });
+    expect(screen.getByText(/Could not load reports\. Server down/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /retry|try again/i }));
+    expect(refetch).toHaveBeenCalled();
   });
 });

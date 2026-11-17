@@ -6,10 +6,10 @@ import {
   idTypeLabel, useCtr, useCtrs, type CtrListQuery, type CtrRow,
 } from "../api/checkCashing";
 import { TinValue } from "../components/CtrDetails";
-import { DeskPage, DeskPane } from "../components/DeskPage";
+import { DeskNoStore, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
-  Alert, Button, Card, DataTable, DateInput, Empty, ErrorState, Field, Input,
+  Alert, Button, Card, DataTable, DateInput, ErrorState, Field, Input,
   KpiCard, KpiGrid, Loading, Modal, PageHeader, Pill, SectionTitle, Table,
   TabsBar, TabsButton, useToast, type DataColumn,
 } from "../components/ui";
@@ -107,15 +107,7 @@ export default function CheckCompliance() {
   const [open, setOpen] = useState<number | null>(null);
   const title = navWord("Compliance");
 
-  if (identity?.store_id == null) {
-    return (
-      <DeskPage>
-        <PageCrumbs />
-        <PageHeader title={title} />
-        <Empty>{t("checkCashing.signIn")}</Empty>
-      </DeskPage>
-    );
-  }
+  if (identity?.store_id == null) return <DeskNoStore title={title} />;
 
   return (
     <DeskPage>

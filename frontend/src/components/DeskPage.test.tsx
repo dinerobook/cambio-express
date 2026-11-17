@@ -1,9 +1,18 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DeskPage } from "./DeskPage";
+import BadChecks from "../routes/BadChecks";
+import CashCheck from "../routes/CashCheck";
 import CheckCashingSettings from "../routes/CheckCashingSettings";
+import CheckChecks from "../routes/CheckChecks";
+import CheckCompanies from "../routes/CheckCompanies";
+import CheckCompanyForm from "../routes/CheckCompanyForm";
+import CheckCompliance from "../routes/CheckCompliance";
+import CheckCustomerForm from "../routes/CheckCustomerForm";
+import CheckCustomers from "../routes/CheckCustomers";
 import { setLanguage } from "../i18n";
 import { ApiError } from "../lib/api";
 import { englishLeftovers } from "../test/i18n";
@@ -141,6 +150,29 @@ describe("the activated computer", () => {
   });
 });
 
+describe("signed in without a store", () => {
+  // A superadmin who has not picked a store: every desk page shows the
+  // same frame, title and one line (DeskNoStore), never a bare <p>.
+  const pages: Array<[string, () => ReactElement, RegExp]> = [
+    ["Cash a check", () => <CashCheck />, /Cash a check/],
+    ["Checks", () => <CheckChecks />, /Checks/],
+    ["Customers", () => <CheckCustomers />, /Customers/],
+    ["Companies", () => <CheckCompanies />, /Companies/],
+    ["Bad checks", () => <BadChecks />, /Bad checks/],
+    ["Compliance", () => <CheckCompliance />, /Compliance/],
+    ["New customer", () => <CheckCustomerForm />, /New customer/],
+    ["New company", () => <CheckCompanyForm />, /New company/],
+  ];
+  for (const [name, Page, heading] of pages) {
+    it(`${name} says to sign in to a store`, () => {
+      signInAs({ role: "superadmin", store_id: null });
+      renderRoute(<Page />);
+      expect(screen.getByRole("heading", { level: 1, name: heading })).toBeInTheDocument();
+      expect(screen.getByText("Sign in to a store to use check cashing.")).toBeInTheDocument();
+    });
+  }
+});
+
 describe("switching it off", () => {
   it("asks first on Settings, then switches off", async () => {
     api.switchOffCheckDevice.mockResolvedValue(device("none"));
@@ -166,7 +198,8 @@ describe("no page scrolling", () => {
     const pages = Object.keys(routeSources).map((p) => p.replace("../routes/", ""));
     expect(pages.sort()).toEqual([...files].sort());
     for (const [f, src] of Object.entries(routeSources)) {
-      expect(src, f).toMatch(/<DeskPage\b/);
+      // The two directories render the frame through CheckPartyList.
+      expect(src, f).toMatch(/<(DeskPage|CheckPartyList)\b/);
       expect(src, f).not.toMatch(/<PageShell\b/);
     }
   });

@@ -10,7 +10,7 @@ import {
 import { roleLabel } from "../api/roles";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { AuditTable } from "../components/AuditTable";
-import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
+import { AuditFilterFields } from "../components/AuditFilterFields";
 import styles from "./AdminAuditLog.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { fmtNumber } from "../lib/formatters";
@@ -58,26 +58,11 @@ export default function AdminAuditLog() {
           </span>
         </div>
         <div className={styles.filtersRow}>
-          <Field label={t("audit.target")} style={{ minWidth: "10rem" }}>
-            <Select
-              value={target}
-              onChange={(e) => setParam("target", e.target.value)}
-            >
-              {AUDIT_TARGET_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{t(o.label)}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("audit.action")} style={{ minWidth: "10rem" }}>
-            <Select
-              value={action}
-              onChange={(e) => setParam("action", e.target.value)}
-            >
-              {AUDIT_ACTION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{t(o.label)}</option>
-              ))}
-            </Select>
-          </Field>
+          <AuditFilterFields
+            target={target} action={action}
+            onTarget={(v) => setParam("target", v)}
+            onAction={(v) => setParam("action", v)}
+          />
           <Field label={t("audit.user")} style={{ minWidth: "10rem" }}>
             <Select
               value={user}

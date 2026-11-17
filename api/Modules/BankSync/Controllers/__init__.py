@@ -311,35 +311,7 @@ def list_accounts_route(
     on `enabled` if they only want active ones."""
     require_permission(claims, "bank_sync", "read")
     sid = resolve_store_scope(claims)
-    accounts = list_accounts(db, [sid])
-    rows = [
-        BankAccountRow(
-            id=a.id,
-            institution_name=a.institution_name or "",
-            display_name=a.display_name or "",
-            nickname=a.nickname or "",
-            last4=a.last4 or "",
-            label=a.label,
-            category=a.category or "",
-            subcategory=a.subcategory or "",
-            currency=a.currency or "usd",
-            last_balance_cents=a.last_balance_cents or 0,
-            last_balance=a.last_balance,
-            last_balance_as_of=(
-                a.last_balance_as_of.isoformat()
-                if a.last_balance_as_of else ""
-            ),
-            enabled=bool(a.enabled),
-            connected_at=(
-                a.connected_at.isoformat() if a.connected_at else ""
-            ),
-            disconnected_at=(
-                a.disconnected_at.isoformat()
-                if a.disconnected_at else ""
-            ),
-        )
-        for a in accounts
-    ]
+    rows = [_adapt_account_row(a) for a in list_accounts(db, [sid])]
     return BankAccountListResponse(rows=rows, total=len(rows))
 
 
@@ -1096,11 +1068,10 @@ def set_account_nickname_route(
     return _adapt_account_row(row)
 
 
-def _adapt_account_row(a) -> BankAccountRow:
-    """Mirror the row shape `list_accounts_route` builds — kept
-    DRY so the nickname endpoint returns the same envelope the
-    accounts list does and the SPA can drop the response right
-    into its TanStack-Query cache."""
+def _adapt_account_row(a: Any) -> BankAccountRow:
+    """One connected account as the SPA reads it — the accounts list
+    and the nickname endpoint both answer with it, so the SPA can drop
+    the rename's answer straight into its TanStack-Query cache."""
     return BankAccountRow(
         id=a.id,
         institution_name=a.institution_name or "",

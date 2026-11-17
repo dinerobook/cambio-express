@@ -5,10 +5,10 @@ import {
   fetchBadChecksPage, useBadChecks, type BadCheckListQuery, type BadCheckRow,
 } from "../api/checkCashing";
 import { BadCheckModal } from "../components/BadCheck";
-import { DeskPage, DeskPane } from "../components/DeskPage";
+import { DeskNoStore, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
-  Card, DataTable, Empty, Field, Input, KpiCard, KpiGrid, PageHeader, Pill,
+  Card, DataTable, Field, Input, KpiCard, KpiGrid, PageHeader, Pill,
   TabsBar, TabsButton, type DataColumn,
 } from "../components/ui";
 import { navWord } from "../i18n/navWords";
@@ -100,15 +100,7 @@ export default function BadChecks() {
   const [open, setOpen] = useState<number | null>(null);
   const title = navWord("Bad checks");
 
-  if (identity?.store_id == null) {
-    return (
-      <DeskPage>
-        <PageCrumbs />
-        <PageHeader title={title} />
-        <Empty>{t("checkCashing.signIn")}</Empty>
-      </DeskPage>
-    );
-  }
+  if (identity?.store_id == null) return <DeskNoStore title={title} />;
 
   return (
     <DeskPage>

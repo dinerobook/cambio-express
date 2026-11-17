@@ -305,7 +305,11 @@ Known shared components, and what they own:
 |---|---|
 | `MonthCalendar` + `MonthCalendarLegend` | a month grid, cell states, money/variance containment |
 | `PeriodStepper` (+ `shiftMonth` / `addDaysIso` / `mondayOfIso` / `monthRangeIso` / `formatWeekRange` in `lib/datetime`) | a ← / label / → day, week or month bar, its "Previous month" labels, "Today" button, ← / → key handling, or your own month/week arithmetic |
-| `BulkResultsCard` + `useStoreSelection` (owner bulk actions) | a per-store Store / Status / Notes results table with its own status → pill map, or a hand-rolled "Select all / N of M selected" store picker |
+| `BulkResultsCard` + `useStoreSelection` + `StoreChecklist` (owner bulk actions) | a per-store Store / Status / Notes results table with its own status → pill map, or a hand-rolled "Select all / N of M selected" store picker |
+| `ReportCenterPage` (`components/ReportCenter.tsx`) | a reports landing page with its own list fetch, scope message and load-error card — Reports, owner Reports and Platform reports are one page with three lists |
+| `AuditFilterFields` (`components/AuditFilterFields.tsx`) | your own Target / Action selects above an `AuditTable` |
+| `DeskNoStore` (`components/DeskPage.tsx`) | a check cashing page's own "sign in to a store" frame |
+| `CheckPartyList` (`components/CheckPartyList.tsx`) | a check cashing customer / company list page with its own status tabs, search and CSV wiring |
 | `describeAppliedRule` (`lib/bankRules`) | your own "N tagged, N booked, N skipped (day locked)" toast text |
 | `MoneyInput` | `<input type="number">` + your own cents parsing |
 | `PartyNameInput` (`components/PartyNameInput.tsx`) | a plain text box for a returned check's company or customer — it suggests the names the store already used (a native `<datalist>`, never clipped) so the same party is typed the same way and the By company / By customer counts add up |

@@ -29,8 +29,9 @@ import logging
 from datetime import date, time, timedelta
 from typing import Any, Optional
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
+
+from api.Modules.Notifications.Services.recipients import store_email_recipients
 from api.Core.Clock import local_day_start_utc, local_today
 
 
@@ -105,30 +106,7 @@ def eligible_recipients(db: Session, store: Any) -> list[Any]:
     info) overlap.  Splitting into its own column is a
     follow-up if operators ask.
     """
-    from api.Modules.Tenancy.Models import StoreOwnerLink, User
-
-    owner_user_ids = [
-        link.owner_id for link in
-        db.query(StoreOwnerLink).filter_by(store_id=store.id).all()
-    ]
-    conds = [User.store_id == store.id]
-    if owner_user_ids:
-        conds.append(User.id.in_(owner_user_ids))
-    candidates = (
-        db.query(User)
-          .filter(
-              User.is_active == True,  # noqa: E712 — SQLAlchemy boolean
-              User.role.in_(("admin", "owner")),
-              User.email != "",
-              User.notify_daily_summary == True,  # noqa: E712
-              User.email_bounced_at.is_(None),
-              or_(*conds),
-          )
-          .all()
-    )
-    # Dedup by user id — an owner linked to multiple stores can
-    # match the join multiple times.
-    return list({u.id: u for u in candidates}.values())
+    return store_email_recipients(db, store, "notify_daily_summary")
 
 
 def _employee_name(db: Session, store_employee_id: int) -> str:

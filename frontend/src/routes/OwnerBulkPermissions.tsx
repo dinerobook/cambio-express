@@ -5,11 +5,12 @@ import { api, apiErrorMessage } from "../lib/api";
 import { useOwnerLocations } from "../api/owner";
 import { PermissionMatrixTable } from "../components/PermissionMatrixTable";
 import {
-  Alert, Button, Card, Checkbox, ErrorState, InfoTip, Loading,
+  Alert, Button, Card, ErrorState, InfoTip, Loading,
   PageHeader, PageShell, SectionTitle, useToast,
 } from "../components/ui";
 import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
+import { StoreChecklist } from "../components/StoreChecklist";
 import { PageCrumbs } from "../components/PageCrumbs";
 import type { components } from "../api/openapi";
 import { t, tn, useT } from "../i18n";
@@ -149,22 +150,7 @@ export default function OwnerBulkPermissions() {
           {t("bulkPerm.step2")}
           <InfoTip text={t("bulkPerm.step2Tip")} />
         </SectionTitle>
-        <div style={{ marginBottom: "0.5rem" }}>
-          <Button size="sm" tone="secondary" onClick={stores.toggleAll} type="button">
-            {stores.allSelected ? t("bulkAdd.clearAll") : t("bulkAdd.selectAll")}
-          </Button>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          {locations?.rows.map((s) => (
-            <Checkbox
-              key={s.store_id}
-              checked={stores.isSelected(s.store_id)}
-              onChange={() => stores.toggle(s.store_id)}
-            >
-              {s.store_name}
-            </Checkbox>
-          ))}
-        </div>
+        <StoreChecklist stores={locations?.rows ?? []} selection={stores} />
       </Card>
 
       <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>

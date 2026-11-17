@@ -51,14 +51,14 @@ describe("Owner bulk permissions", () => {
   async function pickSourceAndTarget() {
     await userEvent.click(await screen.findByRole("button", { name: "Uno" }));
     expect(await screen.findByLabelText("View — Money transfers (employee)")).toBeChecked();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Dos" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /^Dos\b/ }));
   }
 
   it("keeps Push disabled until a source and a target are chosen", async () => {
     mockFetch(routes());
     renderRoute(<OwnerBulkPermissions />);
     expect(await screen.findByRole("button", { name: "Push to 0 stores" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Dos" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /^Dos\b/ }));
     expect(screen.getByRole("button", { name: "Push to 1 store" })).toBeDisabled();
   });
 
@@ -224,7 +224,7 @@ describe("Owner cross-store defaults", () => {
     renderRoute(<OwnerBulkPermissions />);
     expect(await screen.findByRole("button", { name: "Enviar a 0 tiendas" })).toBeDisabled();
     expect(screen.getByText("1. Elija la tienda de origen")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Dos" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /^Dos\b/ }));
     expect(screen.getByRole("button", { name: "Enviar a 1 tienda" })).toBeDisabled();
     expect(englishLeftovers(document.body, ["bulkPerm.", "bulkAdd."])).toEqual([]);
   });

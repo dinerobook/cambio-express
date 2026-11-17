@@ -13,10 +13,10 @@ import { CtrDetailsDialog } from "../components/CtrDetails";
 import { PictureSlot, PictureView } from "../components/CheckPictures";
 import { CheckScanBar, type ReadCheck } from "../components/CheckScanBar";
 import pictureStyles from "../components/CheckPictures.module.css";
-import { DeskColumns, DeskPage } from "../components/DeskPage";
+import { DeskColumns, DeskNoStore, DeskPage } from "../components/DeskPage";
 import { IdFields, PartyStatusPill } from "../components/CheckCashingFields";
 import {
-  Alert, AppLink, Button, Card, Checkbox, ConfirmDialog, DateInput, Empty, Field,
+  Alert, AppLink, Button, Card, Checkbox, ConfirmDialog, DateInput, Field,
   FormActions, Input, Loading, Modal, ModalActions, MoneyInput, PageHeader,
   Pill, SectionTitle, useToast,
 } from "../components/ui";
@@ -223,14 +223,7 @@ export default function CashCheck() {
   }
 
   const title = navWord("Cash a check");
-  if (identity?.store_id == null) {
-    return (
-      <DeskPage>
-        <PageHeader title={title} />
-        <Empty>{t("checkCashing.signIn")}</Empty>
-      </DeskPage>
-    );
-  }
+  if (identity?.store_id == null) return <DeskNoStore title={title} />;
 
   return (
     <DeskPage>

@@ -1,10 +1,9 @@
 import { useMyActivity } from "../api/account";
 import {
-  Button, Card, Field, InfoTip, PageHeader, PageShell,
-  Select, space,
+  Button, Card, InfoTip, PageHeader, PageShell, space,
 } from "../components/ui";
 import { AuditTable } from "../components/AuditTable";
-import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
+import { AuditFilterFields } from "../components/AuditFilterFields";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import styles from "./AccountActivity.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
@@ -54,26 +53,11 @@ export default function AccountActivity() {
           </span>
         </div>
         <div className={styles.filtersRow}>
-          <Field label={t("audit.target")} style={{ minWidth: "10rem" }}>
-            <Select
-              value={target}
-              onChange={(e) => setParam("target", e.target.value)}
-            >
-              {AUDIT_TARGET_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{t(o.label)}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("audit.action")} style={{ minWidth: "10rem" }}>
-            <Select
-              value={action}
-              onChange={(e) => setParam("action", e.target.value)}
-            >
-              {AUDIT_ACTION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{t(o.label)}</option>
-              ))}
-            </Select>
-          </Field>
+          <AuditFilterFields
+            target={target} action={action}
+            onTarget={(v) => setParam("target", v)}
+            onAction={(v) => setParam("action", v)}
+          />
           {hasFilters && (
             <Button
               tone="secondary"

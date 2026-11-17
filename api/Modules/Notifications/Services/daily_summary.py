@@ -31,8 +31,9 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Optional
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
+
+from api.Modules.Notifications.Services.recipients import store_email_recipients
 
 from api.Modules.Notifications.Services.format import fmt_money_2 as _fmt_money_2
 from api.Modules.Notifications.Services.smtp import send_email
@@ -125,28 +126,7 @@ def eligible_recipients(db: Session, store: Any) -> list[Any]:
     Mirrors the ``locked_day_digest.eligible_recipients`` query
     so a user opted out of one digest stays opted out of that
     one only — the two toggles are independent."""
-    from api.Modules.Tenancy.Models import StoreOwnerLink, User
-
-    owner_user_ids = [
-        link.owner_id for link in
-        db.query(StoreOwnerLink).filter_by(store_id=store.id).all()
-    ]
-    conds = [User.store_id == store.id]
-    if owner_user_ids:
-        conds.append(User.id.in_(owner_user_ids))
-    candidates = (
-        db.query(User)
-          .filter(
-              User.is_active == True,  # noqa: E712 — SQLAlchemy boolean
-              User.role.in_(("admin", "owner")),
-              User.email != "",
-              User.notify_daily_summary == True,  # noqa: E712
-              User.email_bounced_at.is_(None),
-              or_(*conds),
-          )
-          .all()
-    )
-    return list({u.id: u for u in candidates}.values())
+    return store_email_recipients(db, store, "notify_daily_summary")
 
 
 def stores_with_activity(db: Session, on_date: date) -> list[Any]:
