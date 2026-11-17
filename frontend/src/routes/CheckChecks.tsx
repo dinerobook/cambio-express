@@ -5,10 +5,10 @@ import {
   useCheckReport, useChecks, type CashedCheckRow, type CheckListQuery,
 } from "../api/checkCashing";
 import { CheckTotalsGrid } from "../components/CheckTotals";
-import { DeskPage, DeskPane } from "../components/DeskPage";
+import { DeskNoStore, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
-  Card, DataTable, DateInput, Empty, Field, Input, PageHeader, Pill,
+  Card, DataTable, DateInput, Field, Input, PageHeader, Pill,
   TabsBar, TabsButton, type DataColumn,
 } from "../components/ui";
 import { navWord } from "../i18n/navWords";
@@ -115,15 +115,7 @@ export default function CheckChecks() {
   const report = useCheckReport({ from: params.from, to: params.to });
   const title = navWord("Checks");
 
-  if (identity?.store_id == null) {
-    return (
-      <DeskPage>
-        <PageCrumbs />
-        <PageHeader title={title} />
-        <Empty>{t("checkCashing.signIn")}</Empty>
-      </DeskPage>
-    );
-  }
+  if (identity?.store_id == null) return <DeskNoStore title={title} />;
 
   return (
     <DeskPage>

@@ -13,6 +13,7 @@ import {
 import { useDirtyBaseline, useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { BulkResultsCard } from "../components/BulkResultsCard";
 import { useStoreSelection } from "../lib/useStoreSelection";
+import { StoreChecklist } from "../components/StoreChecklist";
 import styles from "./OwnerCrossStoreDefaults.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { t, tn, tNodes, useT } from "../i18n";
@@ -81,9 +82,8 @@ export default function OwnerCrossStoreDefaults() {
     () => locations?.rows.map((r) => r.store_id) ?? [],
     [locations],
   );
-  const {
-    selected: storeIds, isSelected, toggle: toggleStore, toggleAll, allSelected,
-  } = useStoreSelection(allStoreIds);
+  const selection = useStoreSelection(allStoreIds);
+  const storeIds = selection.selected;
 
   const { dirty, markSaved } = useDirtyBaseline({
     applyTz, tz, applyFedTax, fedTaxPct, applyEnforceHours, enforceHours,
@@ -251,30 +251,7 @@ export default function OwnerCrossStoreDefaults() {
             </Section>
 
             <Section title={t("bulkAdd.applyTo")}>
-              <div className={styles.toolbar}>
-                <Button
-                  type="button" tone="secondary" size="sm"
-                  onClick={toggleAll}
-                >
-                  {allSelected ? t("bulkAdd.clearAll") : t("bulkAdd.selectAll")}
-                </Button>
-                <span className={styles.toolbarCount}>
-                  {t("bulkAdd.selectedOf", { count: storeIds.length, total: allStoreIds.length })}
-                </span>
-              </div>
-              <ul className={styles.storeList}>
-                {locations.rows.map((s) => (
-                  <li key={s.store_id}>
-                    <Checkbox
-                      checked={isSelected(s.store_id)}
-                      onChange={() => toggleStore(s.store_id)}
-                    >
-                      <span className={styles.storeName}>{s.store_name}</span>
-                      <span className={styles.storeSlug}>{s.store_slug}</span>
-                    </Checkbox>
-                  </li>
-                ))}
-              </ul>
+              <StoreChecklist stores={locations.rows} selection={selection} />
             </Section>
 
             {err && <Alert tone="error">{err}</Alert>}

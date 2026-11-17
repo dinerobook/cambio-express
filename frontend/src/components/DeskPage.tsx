@@ -2,8 +2,10 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { activateCheckDevice, useCheckDevice, type CheckDevice } from "../api/checkCashing";
+import { PageCrumbs } from "./PageCrumbs";
 import {
-  Alert, Button, Card, ConfirmDialog, ErrorState, Field, Input, Loading, SectionTitle,
+  Alert, Button, Card, ConfirmDialog, Empty, ErrorState, Field, Input, Loading,
+  PageHeader, SectionTitle,
 } from "./ui";
 import { useT } from "../i18n";
 import { apiErrorMessage } from "../lib/api";
@@ -40,6 +42,22 @@ export function DeskPage({ children }: { children: ReactNode }) {
     <main className={`ds-page ${styles.page}`} data-desk-page>
       {body}
     </main>
+  );
+}
+
+/** A check cashing page opened by someone signed in without a store
+ *  (a superadmin who has not picked one): the frame, the trail, the
+ *  title and the one line that says to sign in to a store. Every desk
+ *  page uses this instead of its own copy (there were seven, two with
+ *  a bare <p> and no trail). */
+export function DeskNoStore({ title, current }: { title: ReactNode; current?: string }) {
+  const t = useT();
+  return (
+    <DeskPage>
+      <PageCrumbs current={current} />
+      <PageHeader title={title} />
+      <Empty>{t("checkCashing.signIn")}</Empty>
+    </DeskPage>
   );
 }
 

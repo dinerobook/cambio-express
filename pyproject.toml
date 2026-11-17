@@ -178,6 +178,7 @@ files = [
     "api/Modules/Notifications/Services/missed_shifts.py",
     "api/Modules/Notifications/Services/push.py",
     "api/Modules/Notifications/Services/smtp.py",
+    "api/Modules/Notifications/Services/recipients.py",
     "api/Modules/Notifications/Services/templates.py",
     "api/Modules/Notifications/Services/bell/__init__.py",
     "api/Modules/Notifications/Services/bell/types.py",

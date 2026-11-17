@@ -25,7 +25,7 @@ import {
 } from "../components/ui";
 import { AuditTable } from "../components/AuditTable";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
-import { AUDIT_ACTION_OPTIONS, AUDIT_TARGET_OPTIONS } from "../components/auditFilters";
+import { AuditFilterFields } from "../components/AuditFilterFields";
 import { t as translate, tn, tNodes, useT, type MessageKey } from "../i18n";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { formatDate } from "../lib/datetime";
@@ -1019,28 +1019,13 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
     <Section title={t("saDrill.activity")}>
       <Card>
         <div className={styles.activityFilters}>
-          <Field label={t("saDrill.target")} style={{ minWidth: "10rem" }}>
-            <Select
-              aria-label={t("saDrill.activityTarget")}
-              value={target}
-              onChange={(e) => filters.setParam("activity_target", e.target.value)}
-            >
-              {AUDIT_TARGET_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{t(o.label)}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("saDrill.action")} style={{ minWidth: "10rem" }}>
-            <Select
-              aria-label={t("saDrill.activityAction")}
-              value={action}
-              onChange={(e) => filters.setParam("activity_action", e.target.value)}
-            >
-              {AUDIT_ACTION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{t(o.label)}</option>
-              ))}
-            </Select>
-          </Field>
+          <AuditFilterFields
+            target={target} action={action}
+            onTarget={(v) => filters.setParam("activity_target", v)}
+            onAction={(v) => filters.setParam("activity_action", v)}
+            targetAria={t("saDrill.activityTarget")}
+            actionAria={t("saDrill.activityAction")}
+          />
           <span className={styles.activityCount}>
             {log.data ? tn("saEmail.events", log.data.total, fmtNumber) : ""}
           </span>

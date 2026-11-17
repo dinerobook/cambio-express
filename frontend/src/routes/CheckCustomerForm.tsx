@@ -14,7 +14,7 @@ import {
 import { CheckActivity } from "../components/CheckActivity";
 import { PictureSlot } from "../components/CheckPictures";
 import pictureStyles from "../components/CheckPictures.module.css";
-import { DeskColumns, DeskForm, DeskPage, DeskPane } from "../components/DeskPage";
+import { DeskColumns, DeskForm, DeskNoStore, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
   Alert, Button, Card, ConfirmDialog, DateInput, ErrorState, Field, FormActions,
@@ -145,14 +145,7 @@ export default function CheckCustomerForm() {
     ? detail.data?.customer.full_name || t("checkCashing.customerTitle")
     : t("checkCashing.newCustomer");
 
-  if (identity?.store_id == null) {
-    return (
-      <DeskPage>
-        <PageHeader title={title} />
-        <p>{t("checkCashing.signIn")}</p>
-      </DeskPage>
-    );
-  }
+  if (identity?.store_id == null) return <DeskNoStore title={title} current={t("checkCashing.customerTitle")} />;
   if (isEdit && detail.isError && !detail.data) {
     return (
       <DeskPage>

@@ -10,7 +10,7 @@ import {
   PartyRulesFields, PartyStatusPill, type PartyRules,
 } from "../components/CheckCashingFields";
 import { CheckActivity } from "../components/CheckActivity";
-import { DeskColumns, DeskForm, DeskPage, DeskPane } from "../components/DeskPage";
+import { DeskColumns, DeskForm, DeskNoStore, DeskPage, DeskPane } from "../components/DeskPage";
 import { PageCrumbs } from "../components/PageCrumbs";
 import {
   Alert, Button, Card, ErrorState, Field, FormActions, Input, Loading,
@@ -126,14 +126,7 @@ export default function CheckCompanyForm() {
     ? detail.data?.company.name || t("checkCashing.companyTitle")
     : t("checkCashing.newCompany");
 
-  if (identity?.store_id == null) {
-    return (
-      <DeskPage>
-        <PageHeader title={title} />
-        <p>{t("checkCashing.signIn")}</p>
-      </DeskPage>
-    );
-  }
+  if (identity?.store_id == null) return <DeskNoStore title={title} current={t("checkCashing.companyTitle")} />;
   if (isEdit && detail.isError && !detail.data) {
     return (
       <DeskPage>
