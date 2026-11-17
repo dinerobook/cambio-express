@@ -396,12 +396,17 @@ def start_totp_enrollment(
     secret, secret split into 4-char chunks, username, issuer.
 
     Refreshes reuse the pending secret so a user who already scanned
-    the QR doesn't have to start over. Caller commits.
+    the QR doesn't have to start over. Concurrent first calls (a
+    double click, React StrictMode running the effect twice) all get
+    the same secret: the mint only writes while the column is still
+    NULL, and the payload is built from what is stored. Caller
+    commits.
     """
     import io
     import pyotp
     import qrcode
     import qrcode.image.svg
+    from sqlalchemy import update
     from api.Modules.Auth.Services.totp import is_enrolled, needs_totp
 
     user = _user_for_enrollment(db, pending_token)
@@ -411,8 +416,19 @@ def start_totp_enrollment(
         # Never hand out a live secret: that IS the second factor.
         raise AuthenticationError(_PENDING_SESSION_ERROR)
     if not user.totp_secret:
-        user.totp_secret = pyotp.random_base32()
-        db.flush()
+        # First writer wins. A plain ORM assignment would overwrite a
+        # secret another request stored after we read NULL, so the QR
+        # that request showed would stop matching the stored secret.
+        db.execute(
+            update(User)
+            .where(User.id == user.id, User.totp_secret.is_(None))
+            .values(totp_secret=pyotp.random_base32())
+            .execution_options(synchronize_session=False),
+        )
+        db.refresh(user, ["totp_secret", "totp_enrolled_at"])
+        if is_enrolled(user):
+            # The other request finished enrolling meanwhile.
+            raise AuthenticationError(_PENDING_SESSION_ERROR)
     issuer = "DineroBook"
     uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(
         name=user.username, issuer_name=issuer,
