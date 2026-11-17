@@ -29,6 +29,16 @@ export default defineConfig({
         target: "http://localhost:5000",
         changeOrigin: false,
       },
+      // In dev Vite prefixes `base` onto the absolute /static/... links
+      // in index.html (design-tokens.css, favicon, manifest), so they
+      // arrive as /app/static/...; strip the prefix and send them to
+      // the same /static mount. The production build leaves those
+      // links as /static/..., so this only matters for `npm run dev`.
+      "/app/static": {
+        target: "http://localhost:5000",
+        changeOrigin: false,
+        rewrite: (path) => path.replace(/^\/app/, ""),
+      },
     },
   },
 });
