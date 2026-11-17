@@ -1,0 +1,15 @@
+/* The shared money transfer form (TransferForm.tsx). */
+
+/* Auto-fit rows: as many 13rem columns as fit, one on a phone. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+
+/* Muted line under a box: the linked customer, the employee rule. */
+.note {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--db-text-muted);
+}

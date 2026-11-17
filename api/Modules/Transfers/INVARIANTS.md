@@ -2,8 +2,10 @@
 
 > **Read this before editing anything in `api/Modules/Transfers/`,
 > `api/Modules/Customers/Services/customers.py` (the upsert path),
-> `frontend/src/routes/NewTransfer.tsx`, or
-> `frontend/src/routes/EditTransfer.tsx`.**
+> `frontend/src/routes/NewTransfer.tsx`,
+> `frontend/src/routes/EditTransfer.tsx`, or the one form both
+> render, `frontend/src/components/TransferForm.tsx` (+
+> `frontend/src/lib/transferForm.ts`).**
 >
 > The Transfer is the core revenue-bearing entity. Every fee dollar
 > the store earns, every federal-tax dollar that leaves with the
@@ -368,8 +370,9 @@ transfer never moves its attribution.
 `CreateTransferRequest` is written, and an omitted field is written
 as its default. So `GET /transfers/{id}` returns `TransferDetail`
 (the list row plus every field the PUT writes), and
-`EditTransfer.tsx` hydrates from it and sends back the fields it
-has no input for (commission, status notes, internal notes).
+`EditTransfer.tsx` hydrates the shared `TransferForm` from it
+(`transferValuesFrom`) and sends back the fields the form has no
+input for (commission, status notes, internal notes, ACH batch).
 When you add a field to `CreateTransferRequest`, add it to
 `TransferDetail` and `_to_detail` too, or every edit will blank it.
 `test_get_detail_round_trips_every_edit_field` pins this.

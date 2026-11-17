@@ -543,7 +543,7 @@ export const en = {
   "transfer.processedBy": "Processed by",
   "transfer.employee": "Employee",
   "transfer.selectPlaceholder": "— Select —",
-  "transfer.rosterFailed": "Couldn't load roster. Add cashiers via Settings → Team on the legacy admin page.",
+  "transfer.rosterFailed": "Couldn't load the employee list. Add cashiers under Settings → Team.",
   "transfer.rosterEmpty": "No active employees on this store's roster yet. Add them under Settings → Team.",
   "transfer.saving": "Saving…",
   "transfer.saveTransfer": "Save transfer",

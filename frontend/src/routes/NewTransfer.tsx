@@ -1,212 +1,33 @@
-import { Controller, useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
-import DebitCardCheckbox from "../components/DebitCardCheckbox";
-import FederalTaxPreview from "../components/FederalTaxPreview";
-import SenderAutocomplete from "../components/SenderAutocomplete";
-import StoreListField from "../components/StoreListField";
-import RecipientSuggestions from "../components/RecipientSuggestions";
-import {
-  Alert, Button, Card, DateInput, Empty, ErrorState, Field,
-  FormActions, InfoTip, Input, MoneyInput, PageHeader, PageShell, Pill,
-  Section, Select, tokens, useToast,
-} from "../components/ui";
-import { useUnsavedGuard } from "../lib/useUnsavedGuard";
-import { getOpenStatus, todayIso, weekdayNameLong } from "../lib/datetime";
-import {
-  createTransfer,
-  useEmployees,
-  useTransferChoices,
-} from "../api/transfers";
+import TransferForm from "../components/TransferForm";
+import { Alert, PageHeader, PageShell, tokens } from "../components/ui";
+import { getOpenStatus, weekdayNameLong } from "../lib/datetime";
+import { createTransfer } from "../api/transfers";
 import { useStoreInfo } from "../api/account";
-import { apiErrorMessage, newIdempotencyKey } from "../lib/api";
+import { newIdempotencyKey } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
-import {
-  DEFAULT_SERVICE, DEFAULT_STATUS, SERVICES, STATUSES, defaultCountry,
-  isPayout, serviceLabel, statusLabel, transferWording,
-} from "../lib/transferKinds";
+import { newTransferValues } from "../lib/transferForm";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { tIfKey, useT } from "../i18n";
+import { useT } from "../i18n";
 
-// New transfer form at /app/transfers/new.
-//
-// **Canonical example** for the SPA's form stack:
-//
-//   1. Layout — kit primitives from ``frontend/src/components/ui``
-//      (P2 #9, PR #561). Forms compose ``<PageShell>`` /
-//      ``<PageHeader>`` / ``<Card>`` / ``<Section>`` / ``<Field>`` /
-//      ``<Input>`` / ``<Select>`` / ``<Button>`` / ``<FormActions>``.
-//   2. State + validation — ``react-hook-form`` + ``zod`` (P2 #10,
-//      this PR). One ``useForm()`` per page; validation lives in
-//      a Zod schema co-located with the route. Fields register via
-//      ``register("field")``; complex inputs (autocomplete, …) wrap
-//      in ``<Controller>``. Submit handler receives the parsed
-//      payload — no manual coercion, no manual `disabled={...}`
-//      guards.
-//
-// Other forms (BatchForm, EditTransfer, EditMonthly, Settings, …)
-// migrate on-touch following this pattern.
-
-// Services and statuses live in lib/transferKinds.ts, shared with
-// EditTransfer. Companies and countries are the store's own lists
-// from Settings → General (`useTransferChoices`): the company picker
-// offers exactly the companies the MSB daily book breaks down by.
-
-// ── Validation schema ──────────────────────────────────────────
-//
-// Mirrors ``api/Modules/Transfers/Requests/CreateTransferRequest``.
-// Server-side is still the source of truth — Zod here is for
-// instant client feedback + type narrowing through the form. When
-// the OpenAPI → Zod generator lands (BACKLOG P1 #6 v2), this
-// hand-written schema is the first to retire.
-
-// Messages are translator keys: the screen shows them with tIfKey(),
-// so they read in the person's language when shown, not when built.
-const transferSchema = z.object({
-  send_date: z.string().min(1, "transfer.dateRequired"),
-  company: z.string().min(1, "transfer.pickCompany"),
-  service_type: z.enum(SERVICES),
-  payment_method: z.enum(["cash", "debit_card"]),
-  status: z.enum(STATUSES),
-
-  sender_name: z.string().min(1, "transfer.nameRequired"),
-  sender_phone_country: z.string(),
-  sender_phone: z.string(),
-  sender_address: z.string(),
-  sender_dob: z.string(),
-  customer_id: z.number().int().positive().nullable(),
-
-  country: z.string(),
-  recipient_name: z.string(),
-  recipient_phone: z.string(),
-
-  // MoneyInput hands the form numbers, so no coercion is needed.
-  send_amount: z.number().positive("transfer.amountPositive"),
-  fee: z.number().min(0, "transfer.feeNotNegative"),
-  confirm_number: z.string(),
-
-  // Employee is required — surfaces as a field-level error if the
-  // operator submits with the default ``— Select —`` option.
-  employee_id: z
-    .number({ message: "transfer.pickEmployee" })
-    .int()
-    .positive(),
-});
-
-type TransferFormValues = z.infer<typeof transferSchema>;
-
-// ``defaultValues`` is the RHF-side counterpart to the schema —
-// shapes the form's initial state. Zod doesn't see this; it only
-// validates whatever lands in ``handleSubmit``.
-const defaultValues = {
-  send_date: todayIso(),
-  // Company + country start on the store's lists once they load.
-  company: "",
-  service_type: DEFAULT_SERVICE,
-  payment_method: "cash" as const,
-  status: DEFAULT_STATUS,
-  sender_name: "",
-  sender_phone_country: "+1",
-  sender_phone: "",
-  sender_address: "",
-  sender_dob: "",
-  customer_id: null as number | null,
-  country: "",
-  recipient_name: "",
-  recipient_phone: "",
-  send_amount: 0,
-  fee: 0,
-  confirm_number: "",
-  employee_id: undefined as unknown as number,  // forces validator to fire
-};
-
+// New transfer at /app/transfers/new. The fields, the store's lists,
+// the guard and the save flow are the shared `TransferForm` (one form
+// with EditTransfer); this page adds the title, the out-of-hours
+// notice and the save-once key.
 
 export default function NewTransfer() {
   const t = useT();
-  const navigate = useNavigate();
-  const toast = useToast();
   const identity = getCurrentIdentity();
-  const roster = useEmployees();
   const storeInfo = useStoreInfo();
-  const choices = useTransferChoices();
-
-  const {
-    register, handleSubmit, control, setValue, setError, clearErrors,
-    reset,
-    formState: { errors, isSubmitting, isDirty },
-  } = useForm<TransferFormValues>({
-    resolver: zodResolver(transferSchema),
-    defaultValues,
-    mode: "onSubmit",  // surface field errors on submit, not as the user types
-  });
-
-  // Guard against losing a half-entered transfer: browser prompt on
-  // hard navigation + a discard confirm on Cancel while dirty.
-  const guard = useUnsavedGuard(isDirty && !isSubmitting, {
-    message: t("transfer.unsavedMessage"),
-  });
-
-  // ``useWatch`` (vs ``watch``) gets us a stable subscription to
-  // just these fields, so the rest of the form doesn't re-render
-  // on every keystroke. Used by the federal-tax preview + the
-  // "linked to customer #N" notice.
-  const sendAmount = useWatch({ control, name: "send_amount" });
-  const serviceType = useWatch({ control, name: "service_type" });
-  const country = useWatch({ control, name: "country" });
-  const paymentMethod = useWatch({ control, name: "payment_method" });
-  const customerId = useWatch({ control, name: "customer_id" });
-  const payout = isPayout(serviceType);
-  const words = transferWording(serviceType);
-
-  // Start on the store's first company and its default country once
-  // the lists arrive. They become the form's defaults (so loading them
-  // is not an unsaved edit), and anything already typed is kept.
-  const companies = choices.data?.companies;
-  const countries = choices.data?.countries;
-  const [listsApplied, setListsApplied] = useState(false);
-  useEffect(() => {
-    if (listsApplied || !companies || !countries) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot: adopt the server-fetched store lists as form defaults
-    setListsApplied(true);
-    reset(
-      {
-        ...defaultValues,
-        company: companies[0] ?? "",
-        country: defaultCountry(countries),
-      },
-      { keepDirtyValues: true },
-    );
-  }, [listsApplied, companies, countries, reset]);
-
-  // A payout is cash handed to the recipient: never by card, never a
-  // fee (the server refuses both). Clear them when Payout is picked.
-  useEffect(() => {
-    if (!payout) return;
-    setValue("payment_method", "cash");
-    setValue("fee", 0);
-  }, [payout, setValue]);
+  // Dated when the form opens, never when the app loaded.
+  const [initialValues] = useState(newTransferValues);
 
   // One key for this form, sent on every save attempt. If a save
   // landed but its response did not (dropped connection, an error
   // after the commit), pressing Save again returns that transfer
   // instead of logging the money a second time.
   const [saveKey] = useState(newIdempotencyKey);
-
-  async function onSubmit(values: TransferFormValues) {
-    clearErrors("root");
-    try {
-      const result = await createTransfer(values, saveKey);
-      toast({ message: t("transfer.saved"), tone: "success" });
-      guard.proceed(() => navigate(`/transfers/${result.transfer.id}`, { replace: true }));
-    } catch (err) {
-      setError("root", {
-        message: apiErrorMessage(err, t("transfer.saveFailed")),
-      });
-    }
-  }
 
   if (identity?.store_id == null) {
     return (
@@ -232,301 +53,19 @@ export default function NewTransfer() {
         storeTimezone={storeInfo.data?.store?.timezone}
       />
 
-      {choices.isError && (
-        <ErrorState
-          message={t("transfer.choicesFailed")}
-          onRetry={() => { void choices.refetch(); }}
-        />
-      )}
-
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="ds-form"
-      >
-        <Card>
-          <Section title={t("transfer.whenHow")}>
-            <Grid>
-              <Field label={t("transfer.date")} highlight={!!errors.send_date}>
-                <Controller
-                  name="send_date"
-                  control={control}
-                  rules={{ required: true }}
-                  render={({ field }) => (
-                    <DateInput
-                      value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      required
-                    />
-                  )}
-                />
-              </Field>
-              <Controller
-                control={control}
-                name="company"
-                render={({ field }) => (
-                  <StoreListField
-                    label={t("transfer.company")}
-                    options={companies}
-                    value={field.value}
-                    onChange={field.onChange}
-                    loading={choices.isLoading || choices.isError}
-                    error={tIfKey(errors.company?.message)}
-                    emptyText={t("transfer.noCompanies")}
-                  />
-                )}
-              />
-              <Field label={t("transfer.service")}>
-                <Select {...register("service_type")}>
-                  {SERVICES.map((c) => (
-                    <option key={c} value={c}>{serviceLabel(c)}</option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("transfer.status")}>
-                <Select {...register("status")}>
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>{statusLabel(s)}</option>
-                  ))}
-                </Select>
-              </Field>
-            </Grid>
-            {!payout && (
-              <Controller
-                control={control}
-                name="payment_method"
-                render={({ field }) => (
-                  <DebitCardCheckbox
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
-            )}
-          </Section>
-        </Card>
-
-        <Card>
-          <Section title={words.customer}>
-            <Grid>
-              <Field label={t("transfer.fullName")} highlight={!!errors.sender_name}>
-                <Controller
-                  control={control}
-                  name="sender_name"
-                  render={({ field }) => (
-                    <SenderAutocomplete
-                      value={field.value}
-                      onChange={field.onChange}
-                      onPick={(row) => {
-                        // Autofill the rest of the sender block + pin
-                        // ``customer_id`` so the upsert reuses the row.
-                        setValue("sender_name", row.full_name);
-                        setValue("sender_phone_country",
-                          row.phone_country || "+1");
-                        setValue("sender_phone", row.phone_number);
-                        setValue("sender_address", row.address);
-                        setValue("sender_dob", row.dob || "");
-                        setValue("customer_id", row.id);
-                      }}
-                      onClearPickedId={() =>
-                        setValue("customer_id", null)
-                      }
-                      required
-                    />
-                  )}
-                />
-              </Field>
-              <Field label={t("transfer.phoneCountry")}>
-                <Input
-                  type="text"
-                  placeholder="+1"
-                  {...register("sender_phone_country")}
-                />
-              </Field>
-              <Field label={t("transfer.phone")}>
-                <Input type="tel" {...register("sender_phone")} />
-              </Field>
-              <Field label={t("transfer.address")}>
-                <Input type="text" {...register("sender_address")} />
-              </Field>
-            </Grid>
-            {customerId != null && (
-              <p style={{ margin: "0.5rem 0 0" }}>
-                <Pill tone="info">{t("transfer.linkedCustomer", { id: customerId })}</Pill>
-                <InfoTip text={t("transfer.linkedCustomerTip")} />
-              </p>
-            )}
-          </Section>
-        </Card>
-
-        <Card>
-          <Section title={words.other}>
-            {/* Chip row of recent recipients for the picked sender.
-                Hidden when no sender is picked or the sender has no
-                history; otherwise one tap fills name / country /
-                phone in one go. */}
-            <RecipientSuggestions
-              customerId={customerId}
-              storeId={identity.store_id}
-              onPick={(row) => {
-                setValue("recipient_name", row.name);
-                // Only apply the country if it's on the store's list —
-                // past transfers may hold a country Settings has since
-                // dropped.
-                if (row.country && countries?.includes(row.country)) {
-                  setValue("country", row.country);
-                }
-                setValue("recipient_phone", row.phone);
-              }}
-            />
-            <Grid>
-              <Controller
-                control={control}
-                name="country"
-                render={({ field }) => (
-                  <StoreListField
-                    label={words.country}
-                    options={countries}
-                    value={field.value}
-                    onChange={field.onChange}
-                    loading={choices.isLoading || choices.isError}
-                    emptyText={t("transfer.noCountries")}
-                  />
-                )}
-              />
-              <Field label={words.otherName}>
-                <Input type="text" {...register("recipient_name")} />
-              </Field>
-              <Field label={words.otherPhone}>
-                <Input type="tel" {...register("recipient_phone")} />
-              </Field>
-            </Grid>
-          </Section>
-        </Card>
-
-        <Card>
-          <Section title={t("transfer.amounts")}>
-            <Grid>
-              <Controller
-                control={control}
-                name="send_amount"
-                render={({ field }) => (
-                  <MoneyInput
-                    label={t("transfer.inUsd", { label: words.amount })}
-                    value={field.value ?? 0}
-                    onChange={field.onChange}
-                    error={tIfKey(errors.send_amount?.message)}
-                  />
-                )}
-              />
-              {!payout && (
-                <Controller
-                  control={control}
-                  name="fee"
-                  render={({ field }) => (
-                    <MoneyInput
-                      label={t("transfer.inUsd", { label: t("transfer.fee") })}
-                      value={field.value ?? 0}
-                      onChange={field.onChange}
-                      error={tIfKey(errors.fee?.message)}
-                    />
-                  )}
-                />
-              )}
-              <FederalTaxPreview
-                sendAmount={sendAmount}
-                serviceType={serviceType}
-                country={country ?? ""}
-                paymentMethod={paymentMethod}
-                rate={choices.data?.federal_tax_rate ?? 0}
-              />
-              <Field label={t("transfer.confirmNumber")}>
-                <Input type="text" {...register("confirm_number")} />
-              </Field>
-            </Grid>
-          </Section>
-        </Card>
-
-        <Card>
-          <Section title={t("transfer.processedBy")}>
-            <Grid>
-              <Field
-                label={t("transfer.employee")}
-                highlight={!!errors.employee_id}
-                error={tIfKey(errors.employee_id?.message)}
-              >
-                <Select
-                  {...register("employee_id", {
-                    setValueAs: (v) => v === "" ? null : Number(v),
-                  })}
-                  required
-                  disabled={roster.isLoading}
-                >
-                  <option value="">{t("transfer.selectPlaceholder")}</option>
-                  {roster.data?.employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </Grid>
-            {roster.isError && (
-              <Alert tone="error">
-                {t("transfer.rosterFailed")}
-              </Alert>
-            )}
-            {!roster.isLoading &&
-              !roster.isError &&
-              roster.data &&
-              roster.data.employees.length === 0 && (
-                <Empty>
-                  {t("transfer.rosterEmpty")}
-                </Empty>
-              )}
-          </Section>
-        </Card>
-
-        {errors.root && (
-          <Alert tone="error">{errors.root.message}</Alert>
-        )}
-
-        <FormActions guard={guard}>
-          <Button
-            type="button"
-            tone="secondary"
-            onClick={() => guard.confirmLeave(() => navigate("/transfers"))}
-            disabled={isSubmitting}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button type="submit" busy={isSubmitting}>
-            {isSubmitting ? t("transfer.saving") : t("transfer.saveTransfer")}
-          </Button>
-        </FormActions>
-      </form>
+      <TransferForm
+        initialValues={initialValues}
+        startOnStoreLists
+        storeId={identity.store_id}
+        submitLabel={t("transfer.saveTransfer")}
+        cancelTo="/transfers"
+        savedMessage={t("transfer.saved")}
+        failedMessage={t("transfer.saveFailed")}
+        save={(values) => createTransfer(values, saveKey)}
+      />
     </PageShell>
   );
 }
-
-
-// ── Local helpers ──────────────────────────────────────────────
-
-
-function Grid({ children }: { children: React.ReactNode }) {
-  // Auto-fit grid for form rows — repeated several times above
-  // so it pays its keep as a local helper, not yet generic enough
-  // for the kit.
-  return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(13rem, 1fr))",
-      gap: "0.75rem",
-    }}>
-      {children}
-    </div>
-  );
-}
-
 
 
 // Soft warning above the New Transfer form when the operator is

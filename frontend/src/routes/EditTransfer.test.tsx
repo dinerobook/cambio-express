@@ -25,6 +25,8 @@ import { ApiError } from "../lib/api";
 //   - Paid by debit card hydrates and saves (a row with no payment
 //     method is cash); a stored payout opens clean, with no fee or
 //     card box; turning a send into a payout sends cash and no fee.
+//   - The fields are the shared TransferForm's, so they read exactly
+//     as on a new transfer (amounts "in USD").
 //   - Company and country pick from the store's Settings lists, and a
 //     transfer saved with one Settings has since dropped keeps it on
 //     an edit (it used to be swapped for "Other" / "Mexico" on save).
@@ -122,6 +124,13 @@ describe("EditTransfer", () => {
     expect(screen.getByLabelText(/^Send amount/)).toHaveValue("200");
     expect(screen.getByLabelText(/^Fee/)).toHaveValue("6");
     expect(screen.getByLabelText(/^Federal tax preview/)).toHaveValue("$2.00");
+  });
+
+  it("names the amounts in USD, as on a new transfer", async () => {
+    renderPage();
+    await screen.findByDisplayValue("2026-10-01");
+    expect(screen.getByLabelText(/^Send amount \(USD\)/)).toHaveValue("200");
+    expect(screen.getByLabelText(/^Fee \(USD\)/)).toHaveValue("6");
   });
 
   it("saves an untouched edit without losing any stored field", async () => {
