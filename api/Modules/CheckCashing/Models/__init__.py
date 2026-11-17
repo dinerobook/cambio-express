@@ -34,6 +34,9 @@ switched on). See this module's ``INVARIANTS.md``.
   it.
 * ``BadCheckPayment``      — money the customer brought back against a
   bad check, at any store of the owner.
+* ``CtrReport``            — a Currency Transaction Report: one
+  customer's cash on one business day over the line, until a manager
+  saves FinCEN's BSA ID for it.
 
 Money is integer cents. A percent fee is stored in basis points
 (1% = 100), so ``fee_value`` is cents for a ``flat`` fee and basis
@@ -42,9 +45,10 @@ points for a ``percent`` fee; ``fee_kind`` NULL = no own fee.
 from __future__ import annotations
 
 from sqlalchemy import (
-    BigInteger, Column, Date, DateTime, ForeignKey, Integer, LargeBinary,
-    String, Text,
+    BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer,
+    LargeBinary, String, Text, UniqueConstraint,
 )
+from sqlalchemy.sql.expression import false as sa_false
 from sqlalchemy.orm import deferred, relationship
 
 from api.Core.Clock import utc_now
@@ -63,6 +67,14 @@ ID_PICTURE_KINDS = ("id_front", "id_back")
 # Why the bank sent a check back, and where a bad check stands.
 BAD_CHECK_REASONS = ("nsf", "closed_account", "stop_payment", "fraud", "other")
 BAD_CHECK_STATUSES = ("open", "paid", "written_off")
+# Currency Transaction Reports (PR 6a). ``ctr`` = over $10,000 in a
+# business day; ``gto`` = $1,000 to $10,000 under FinCEN's Southwest
+# Border order. Where one stands: to file, filed (BSA ID saved), or
+# not needed any more (a same-day void took the day under the line).
+CTR_KINDS = ("ctr", "gto")
+CTR_STATUSES = ("to_file", "filed", "not_needed")
+TIN_TYPES = ("ssn", "itin", "foreign")
+GENDERS = ("male", "female", "unknown")
 ID_TYPES = (
     "drivers_license", "state_id", "passport", "matricula",
     "military_id", "other",
@@ -90,6 +102,22 @@ class CheckCashingSettings(Base):
     # Most one customer may cash in a store day across the owner's
     # stores; above it a manager must approve. NULL = no limit.
     daily_limit_cents     = Column(BigInteger, nullable=True)
+    # (PR 6a, CTR.) The business as FinCEN knows it: the CTR's filer
+    # and transaction location. Blank until an Admin fills them in;
+    # the CTR page says what is missing. ``ein`` is 9 digits; stores
+    # of one owner with the same EIN add a customer's cash together.
+    legal_name            = Column(String(150), nullable=False, default="", server_default="")
+    ein                   = Column(String(9), nullable=False, default="", server_default="")
+    street                = Column(String(100), nullable=False, default="", server_default="")
+    city                  = Column(String(50), nullable=False, default="", server_default="")
+    state                 = Column(String(2), nullable=False, default="", server_default="")
+    zip_code              = Column(String(9), nullable=False, default="", server_default="")
+    contact_name          = Column(String(100), nullable=False, default="", server_default="")
+    contact_phone         = Column(String(16), nullable=False, default="", server_default="")
+    msb_registration      = Column(String(30), nullable=False, default="", server_default="")
+    # Southwest Border Geographic Targeting Order: cash from $1,000 is
+    # reported too (FinCEN, MSBs in named counties). Off by default.
+    gto_enabled           = Column(Boolean, nullable=False, default=False, server_default=sa_false())
 
 
 class CheckCustomer(Base):
@@ -109,6 +137,20 @@ class CheckCustomer(Base):
     created_by    = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
     created_at    = Column(DateTime, default=utc_now)
     updated_at    = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    # (PR 6a, CTR.) What a Currency Transaction Report asks about
+    # the person. ``address`` above is the street line. The SSN / ITIN
+    # is stored encrypted (``Services/pii.py``) with its last four
+    # digits beside it for the masked view; never in a log or a CSV.
+    tin_type      = Column(String(10), nullable=False, default="", server_default="")
+    tin_encrypted = Column(Text, nullable=False, default="", server_default="")
+    tin_last4     = Column(String(4), nullable=False, default="", server_default="")
+    occupation    = Column(String(50), nullable=False, default="", server_default="")
+    city          = Column(String(50), nullable=False, default="", server_default="")
+    state         = Column(String(3), nullable=False, default="", server_default="")
+    zip_code      = Column(String(9), nullable=False, default="", server_default="")
+    country       = Column(String(2), nullable=False, default="US", server_default="US")
+    gender        = Column(String(10), nullable=False, default="", server_default="")
 
     ids = relationship(
         "CheckCustomerId", back_populates="customer",
@@ -293,3 +335,37 @@ class BadCheckPayment(Base):
     created_at   = Column(DateTime, default=utc_now)
 
     bad_check = relationship("BadCheck", back_populates="payments")
+
+
+class CtrReport(Base):
+    """One Currency Transaction Report: a customer's cash on one
+    business day across the owner's stores that share an EIN. Opened
+    by the cashing that takes the day over the line; kept in step by
+    every cashing and void that day (``Services/ctr.py``, the only
+    writer). ``store_id`` is the store where it was opened."""
+
+    __tablename__ = "msb_check_ctr"
+    __table_args__ = (
+        UniqueConstraint("customer_id", "store_day", "ein", name="uq_msb_check_ctr_day"),
+    )
+    id            = Column(Integer, primary_key=True)
+    store_id      = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    customer_id   = Column(
+        Integer, ForeignKey("msb_check_customer.id"), nullable=False, index=True,
+    )
+    store_day     = Column(Date, nullable=False, index=True)
+    # The filer's EIN when the report was opened ("" when not set yet).
+    ein           = Column(String(9), nullable=False, default="")
+    kind          = Column(String(4), nullable=False, default="ctr")
+    cash_cents    = Column(BigInteger, nullable=False, default=0)
+    check_count   = Column(Integer, nullable=False, default=0)
+    status        = Column(String(12), nullable=False, default="to_file", index=True)
+    due_on        = Column(Date, nullable=False)
+    # FinCEN's 14-digit BSA ID, typed by the manager who filed it.
+    bsa_id        = Column(String(14), nullable=False, default="")
+    filed_on      = Column(Date, nullable=True)
+    filed_by      = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
+    created_at    = Column(DateTime, default=utc_now)
+    updated_at    = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    customer = relationship("CheckCustomer")

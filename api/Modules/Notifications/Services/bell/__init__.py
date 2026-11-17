@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 from api.Core.Clock import local_today, utc_now
 from api.Modules.Notifications.Models import BellDismissal
 from api.Modules.Notifications.Services.bell.sources import (
-    bank, daily_book, return_checks,
+    bank, check_cashing, daily_book, return_checks,
 )
 from api.Modules.Notifications.Services.bell.types import (
     BellContext, BellItem, BellKind, BellSource,
@@ -54,6 +54,7 @@ SOURCES: tuple[BellSource, ...] = (
     daily_book.DUE_BACK,
     bank.TO_CHECK,
     return_checks.PENDING,
+    check_cashing.CTR_DUE,
 )
 
 ALL_KINDS: tuple[str, ...] = get_args(BellKind)

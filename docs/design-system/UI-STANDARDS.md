@@ -597,6 +597,14 @@ This is enforced by the kit, not by per-page checks:
   A file becomes base64 through `fileToBase64` (`lib/files.ts`), and
   a picture or download is fetched through `fetchBlob` (`lib/api.ts`,
   same sign-in refresh as `api()`), never a page's own copy.
+- **A taxpayer number (SSN / ITIN)** shows masked (`•••-••-1234`)
+  through ONE component, `TinValue` (`components/CtrDetails.tsx`):
+  a manager's Show button asks the server (a POST, audited every
+  time) and the number stays on screen only until the page closes.
+  It is typed in a password box with autocomplete off, an empty box
+  keeps the number on file, and it never goes into a table column, a
+  CSV or a toast. A customer's CTR details are edited in ONE popup,
+  `CtrDetailsDialog`, from the profile and from Cash a check alike.
 - **The scanner is the default on Cash a check** (owner, 2026-11-11:
   cashiers know "open the program, hit Enter"). `CheckScanBar`
   (`components/CheckScanBar.tsx`) is the one way numbers get in: in

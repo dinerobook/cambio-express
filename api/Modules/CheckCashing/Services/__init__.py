@@ -36,7 +36,24 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "base_charge_under_cents": None,
     "expired_id_mode": "warn",
     "daily_limit_cents": None,
+    # The business as FinCEN knows it, for CTRs (PR 6a).
+    "legal_name": "",
+    "ein": "",
+    "street": "",
+    "city": "",
+    "state": "",
+    "zip_code": "",
+    "contact_name": "",
+    "contact_phone": "",
+    "msb_registration": "",
+    "gto_enabled": False,
 }
+
+# The settings that are plain text, saved trimmed.
+CTR_SETTING_FIELDS = (
+    "legal_name", "ein", "street", "city", "state", "zip_code",
+    "contact_name", "contact_phone", "msb_registration",
+)
 
 
 class CheckCashingNotFoundError(LookupError):
@@ -102,6 +119,8 @@ def get_settings(db: Session, store_id: int) -> dict[str, Any]:
         "base_charge_under_cents": row.base_charge_under_cents,
         "expired_id_mode": row.expired_id_mode,
         "daily_limit_cents": row.daily_limit_cents,
+        **{f: getattr(row, f) or "" for f in CTR_SETTING_FIELDS},
+        "gto_enabled": bool(row.gto_enabled),
     }
 
 
@@ -118,6 +137,9 @@ def save_settings(
     row.base_charge_under_cents = to_hundredths(data.get("base_charge_under"))
     row.expired_id_mode = data["expired_id_mode"]
     row.daily_limit_cents = to_hundredths(data.get("daily_limit"))
+    for f in CTR_SETTING_FIELDS:
+        setattr(row, f, (data.get(f) or "").strip())
+    row.gto_enabled = bool(data.get("gto_enabled"))
     row.updated_by = user_id
     row.updated_at = utc_now()
     db.flush()

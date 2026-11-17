@@ -61,6 +61,7 @@ from api.Modules.CheckCashing.Requests import (
     CheckSettingsResponse,
 )
 from api.Modules.CheckCashing.Services import (
+    CTR_SETTING_FIELDS,
     CheckCashingConflictError,
     CheckCashingNotFoundError,
     add_customer_id,
@@ -82,6 +83,8 @@ from api.Modules.CheckCashing.Services import (
     update_customer,
     update_customer_id,
 )
+from api.Modules.CheckCashing.Services.ctr import details_missing
+from api.Modules.CheckCashing.Services.pii import mask_tin
 from api.Modules.CheckCashing.Services.device import (
     cookie_name, device_state, touch,
 )
@@ -179,6 +182,8 @@ def _settings_response(data: dict[str, Any]) -> CheckSettingsResponse:
         base_charge_under=from_hundredths(data["base_charge_under_cents"]),
         expired_id_mode=data["expired_id_mode"],
         daily_limit=from_hundredths(data["daily_limit_cents"]),
+        **{f: data[f] for f in CTR_SETTING_FIELDS},
+        gto_enabled=data["gto_enabled"],
     )
 
 
@@ -214,6 +219,11 @@ def _customer_detail(
         fee_kind=row.fee_kind, fee_value=from_hundredths(row.fee_value),
         notes=row.notes or "",
         ids=[_id_row(i, today, by_id.get(i.id)) for i in row.ids],
+        tin_type=row.tin_type or "", tin_masked=mask_tin(row.tin_last4 or ""),
+        occupation=row.occupation or "", city=row.city or "",
+        state=row.state or "", zip_code=row.zip_code or "",
+        country=row.country or "US", gender=row.gender or "",
+        ctr_missing=details_missing(row),
         photo_picture_id=photo.get("photo"),
         home_store_name=names.get(int(row.store_id), ""),
         created_at=iso(row.created_at), updated_at=iso(row.updated_at),

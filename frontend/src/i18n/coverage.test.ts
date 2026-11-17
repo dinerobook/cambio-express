@@ -103,6 +103,8 @@ export const COVERED_FILES = [
   "components/CheckScanBar.tsx",
   "components/BadCheck.tsx",
   "routes/BadChecks.tsx",
+  "routes/CheckCompliance.tsx",
+  "components/CtrDetails.tsx",
   "routes/CheckChecks.tsx",
   "routes/CashedChecksReport.tsx",
   "components/CheckTotals.tsx",

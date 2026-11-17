@@ -9,8 +9,9 @@
   `features` on `/auth/session-status` (`OPT_IN_NAV_FLAG_KEYS` in
   `api/Modules/Billing/Services/feature_flags.py`); a person's
   `module_access` list does not hide it.
-- Nothing outside this module reads these tables, and this module
-  writes nothing outside them except operator-audit rows.
+- Nothing outside this module reads these tables (the one exception:
+  the bell's read-only "CTR due", see "CTR"), and this module writes
+  nothing outside them except operator-audit rows.
 
 ## Rights
 
@@ -76,10 +77,10 @@ One `msb_cashed_check` row per check brought to the counter, status
 
   | Level | Meaning | Codes |
   |---|---|---|
-  | `block` | cannot be cashed until fixed | `customer_blocked`, `company_blocked`, `no_id`, `id_expired` when `expired_id_mode = "block"` |
+  | `block` | cannot be cashed until fixed | `customer_blocked`, `company_blocked`, `no_id`, `id_expired` when `expired_id_mode = "block"`, `ctr_details` (a CTR is due and the customer's CTR details are missing; `fields` names them) |
   | `approve` | a manager (`check_cashing_manage.update`) ticks it | `duplicate` (same company + check number already cashed in the umbrella), `daily_limit` (today's cashed total + this check over the store's `daily_limit_cents`), `customer_bad_check` / `company_bad_check` (an open bad check of this customer / company in the umbrella; count and amount still owed) |
   | `warn` | the cashier ticks that they checked it | `cashed_today`, `id_expired` (default mode, every ID expired), `future_dated`, `stale_dated` (over 180 days) |
-  | `info` | shown only | `customer_trusted`, `company_trusted`, `first_check`, `ctr_due` (today's cash + this check over $10,000; filing a CTR is backlog) |
+  | `info` | shown only | `customer_trusted`, `company_trusted`, `first_check`, `ctr_due` (the day's cash with this check over $10,000), `gto_due` (from $1,000 with the border order on); see "CTR" |
 
   The SPA lists them worst first. "Today" is the store's day
   (`store_local_today`); totals count `cashed` checks across the owner
@@ -135,6 +136,53 @@ check (unique), its paybacks in `msb_bad_check_payment`.
   store (one the store took for a sibling's bad check stays with the
   sibling), and pointers at the store's logins on a sibling's bad
   checks and paybacks are cleared (`rehome_bad_checks`).
+
+## CTR
+
+A Currency Transaction Report is due to FinCEN when cash paid to one
+person in one business day goes over $10,000 (31 CFR 1022.311). One
+`msb_check_ctr` row per customer, store day and EIN;
+`Services/ctr.py` is the only writer. Plan the owner approved on
+2026-11-15: https://claude.ai/artifact/TXgHwm7Kx5AKPcEniJzoKE
+(option 1: DineroBook prepares, the store files on BSA E-Filing and
+saves the BSA ID back; direct filing later).
+
+- **Cash** is the sum of `cash_cents` (amount − fee) of the
+  customer's `cashed` checks on the store day, across the umbrella
+  stores with the **same EIN** (one business, aggregated; a sibling
+  store under another EIN files its own). A store with no EIN yet
+  counts alone.
+- **Over the line**: `ctr` when cash > $10,000 (due 15 days after the
+  day); with the store's `gto_enabled` switch (Southwest Border
+  Geographic Targeting Order, off by default) `gto` from $1,000, due
+  in 30 days, with the mark `MSB0926GTO` for field 45 (Part IV) of the form (GTO reissued 2026-09-02, to 2027-03-01).
+- **At the counter** (`review()`): with this check over the line,
+  `ctr_due` / `gto_due` (info) and, while any of the customer's CTR
+  details (date of birth, SSN / ITIN, occupation, street, city, state,
+  ZIP) is missing, `ctr_details` (block). The cashier fills them in a
+  popup without leaving the check. Not accepted is still saved.
+- **The report** follows the checks (`sync()` after every cash and
+  void): created at `to_file` when the day goes over, back to
+  `not_needed` if a void takes it under, never touched once `filed`.
+- **Filing** (`POST /ctrs/{id}/file`, manager): the 14-digit BSA ID
+  from FinCEN's acknowledgement and the filed date (between the day
+  and today); only a `to_file` report; then it locks.
+- **The SSN / ITIN** is encrypted at rest (Fernet,
+  `Services/pii.py`, key `CHECK_PII_KEY`, else `SECRET_KEY`); only the
+  last four show (`•••-••-1234`). The whole number shows only to a
+  manager through `POST /customers/{id}/reveal-tin`, audited every
+  time. It is never in a log, an audit summary, a CSV or the list.
+  A new number replaces the old; an empty box keeps it.
+- **The Compliance page** (`/check-cashing/compliance`, a desk page,
+  manager only): To file (default) / Filed / All, soonest due first,
+  the to-file, due-in-5-days and overdue counts; a report opens with
+  the filer (store settings: legal name, EIN, address, contact, MSB
+  registration), the person, the checks, and Mark filed.
+- **The bell**: "CTR due" (`check_cashing.ctr_due`,
+  `check_cashing_manage.update`) once a report to file is due within 5
+  days, overdue after. The one place outside this module that reads
+  its tables (read only, owner's plan approval 2026-11-15).
+- **Purge**: CTR reports with the store, before cashed checks.
 
 ## Checks and reports
 
@@ -273,7 +321,9 @@ Every change writes an operator-audit row: `create_check_customer`,
 `trust_check_company`, `unblock_check_company`,
 `update_check_cashing_settings`, `cash_check`, `decline_check`,
 `void_check`, `report_bad_check`, `add_bad_check_payment`,
-`write_off_bad_check`, `add_check_customer_picture`, `activate_check_device` (summary names the computer it
+`write_off_bad_check`, `add_check_customer_picture`,
+`update_check_customer_ctr` (summary: type and masked number when a
+new one was typed), `reveal_check_customer_tin`, `file_check_ctr`, `activate_check_device` (summary names the computer it
 replaces), `switch_off_check_device`. ID numbers in summaries are masked. Check pictures show as "N pictures" in the
 `cash_check` / `decline_check` summary.
 

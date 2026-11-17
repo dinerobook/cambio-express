@@ -106,6 +106,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/check-cashing/companies/new", perm: "check_cashing.create" },
   { path: "/check-cashing/companies/:id", perm: "check_cashing.read" },
   { path: "/check-cashing/bad-checks", perm: "check_cashing.read" },
+  { path: "/check-cashing/compliance", perm: "check_cashing_manage.update" },
   { path: "/check-cashing/settings", perm: "check_cashing_manage.update" },
 
   // ── MSB books ──────────────────────────────────────────────

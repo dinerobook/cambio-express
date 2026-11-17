@@ -35,6 +35,7 @@ Read that module's `INVARIANTS.md` before editing these:
   `src/routes/BadChecks.tsx`, `src/components/BadCheck.tsx`,
   `src/routes/CheckChecks.tsx`, `src/routes/CashedChecksReport.tsx`,
   `src/components/CheckTotals.tsx`, `src/components/CheckPartyList.tsx`,
+  `src/routes/CheckCompliance.tsx`, `src/components/CtrDetails.tsx`,
   `src/lib/useDeskScreen.ts`
 
 ## Design system — READ BEFORE TOUCHING ANY UI

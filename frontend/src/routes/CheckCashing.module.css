@@ -233,3 +233,35 @@
   flex-direction: column;
   gap: 0.85rem;
 }
+
+/* CTR (PR 6a): the masked SSN with its Reveal button, and the short
+   label/value list on a profile card or a report. */
+.tinValue {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.factList {
+  display: grid;
+  grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+.factList dt {
+  color: var(--db-text-muted);
+}
+
+.factList dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.errorText {
+  color: var(--db-negative);
+  font-size: 0.85rem;
+}

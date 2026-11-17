@@ -63,10 +63,15 @@ const ok = <T,>(data: T) => ({
   refetch: vi.fn(),
 });
 
+const NO_CTR = {
+  legal_name: "", ein: "", street: "", city: "", state: "", zip_code: "",
+  contact_name: "", contact_phone: "", msb_registration: "", gto_enabled: false,
+};
+
 const settings: CheckSettings = {
   default_fee_kind: "percent", default_fee_value: 2,
   base_charge: null, base_charge_under: null, expired_id_mode: "warn",
-  daily_limit: null,
+  daily_limit: null, ...NO_CTR,
 };
 
 const customer: CheckCustomerDetail = {
@@ -74,6 +79,8 @@ const customer: CheckCustomerDetail = {
   phone_number: "3055550142", address: "1 Main St", status: "normal",
   status_reason: "", fee_kind: null, fee_value: null, notes: "",
   home_store_name: "", created_at: "2026-11-01T10:00:00Z",
+  tin_type: "", tin_masked: "", occupation: "", city: "", state: "", zip_code: "",
+  country: "US", gender: "", ctr_missing: ["tin", "occupation", "city", "state", "zip_code"],
   ids: [
     {
       id: 11, id_type: "drivers_license", id_number: "D1234567", issuer: "TX",
@@ -156,7 +163,7 @@ describe("check cashing sidebar and route rights", () => {
   it("has its own sidebar, only where the store's check_desk switch is on", () => {
     expect(checkNav("admin", MANAGER, [])).toEqual([]);
     expect(checkNav("admin", MANAGER, ["check_desk"]))
-      .toEqual(["Cash a check", "Checks", "Customers", "Companies", "Bad checks", "Settings"]);
+      .toEqual(["Cash a check", "Checks", "Customers", "Companies", "Bad checks", "Compliance", "Settings"]);
   });
 
   it("gives a cashier everything but the settings", () => {
@@ -490,9 +497,33 @@ describe("settings", () => {
     await waitFor(() => expect(api.saveCheckSettings).toHaveBeenCalledWith({
       default_fee_kind: "percent", default_fee_value: 2,
       base_charge: null, base_charge_under: null, expired_id_mode: "block",
-      daily_limit: null,
+      daily_limit: null, ...NO_CTR,
     }));
     expect(await screen.findByText("Settings saved")).toBeInTheDocument();
+  });
+
+  it("saves the business details a CTR needs, and the border order switch", async () => {
+    api.saveCheckSettings.mockResolvedValue(settings);
+    renderRoute(<CheckCashingSettings />);
+    const save = screen.getByRole("button", { name: "Save settings" });
+    await userEvent.type(screen.getByLabelText("Legal name"), "Cambios Prueba LLC");
+    await userEvent.type(screen.getByLabelText(/^EIN/), "12-34");
+    expect(screen.getByText("Enter the 9 digits of the EIN.")).toBeInTheDocument();
+    expect(save).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(/^EIN/), "56789");
+    await userEvent.type(screen.getByLabelText("Street"), "1 Test Ave");
+    await userEvent.type(screen.getByLabelText("City"), "Laredo");
+    await userEvent.type(screen.getByLabelText(/^State/), "tx");
+    await userEvent.type(screen.getByLabelText(/^ZIP code/), "780");
+    expect(screen.getByText("Enter 5 or 9 digits.")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/^ZIP code/), "40");
+    await userEvent.click(screen.getByRole("switch", { name: /Border order/ }));
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    await waitFor(() => expect(api.saveCheckSettings).toHaveBeenCalledWith(expect.objectContaining({
+      legal_name: "Cambios Prueba LLC", ein: "123456789", street: "1 Test Ave",
+      city: "Laredo", state: "TX", zip_code: "78040", gto_enabled: true,
+    })));
   });
 
   it("shows the base charge fields only when switched on, and wants both amounts", async () => {

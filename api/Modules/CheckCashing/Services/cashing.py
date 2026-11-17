@@ -24,14 +24,11 @@ from api.Modules.CheckCashing.Services import (
     CheckCashingConflictError, CheckCashingNotFoundError, get_settings,
     id_expired,
 )
+from api.Modules.CheckCashing.Services import ctr
 from api.Modules.CheckCashing.Services.bad_checks import (
     bad_checks_for, open_bad_checks,
 )
 
-# A business that pays out more than this in cash to one person in one
-# day files a Currency Transaction Report (FinCEN). Filing it is a later
-# PR; for now the review says one is due.
-CTR_THRESHOLD_CENTS = 1_000_000
 # A check older than this is "stale-dated" (UCC: banks may refuse a
 # check over six months old).
 STALE_DAYS = 180
@@ -60,6 +57,8 @@ class ReviewItem:
     count: int | None = None
     amount_cents: int | None = None
     day: date | None = None
+    # ``ctr_details``: the profile fields the CTR still needs.
+    fields: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -179,8 +178,20 @@ def review(
         limit = settings.get("daily_limit_cents")
         if limit and total + amount_cents > limit:
             items.append(ReviewItem("daily_limit", "approve", amount_cents=limit))
-        if total + amount_cents > CTR_THRESHOLD_CENTS:
-            items.append(ReviewItem("ctr_due", "info", amount_cents=total + amount_cents))
+        if amount_cents > 0 and fee is not None:
+            cash_today, _n = ctr.day_cash(
+                db, ctr.group(db, store_id), int(customer.id), today,
+            )
+            cash = cash_today + amount_cents - fee.cents
+            kind = ctr.threshold_kind(cash, ctr.gto_enabled(db, store_id))
+            if kind is not None:
+                items.append(ReviewItem(
+                    "ctr_due" if kind == "ctr" else "gto_due", "info",
+                    amount_cents=cash,
+                ))
+                missing = ctr.details_missing(customer)
+                if missing:
+                    items.append(ReviewItem("ctr_details", "block", fields=missing))
 
     if company is not None:
         if company.status == "blocked":
@@ -284,6 +295,7 @@ def record(
     row.approved_by = user_id if approvals else None
     db.add(row)
     db.flush()
+    ctr.sync(db, store_id, int(customer.id), today)
     return row
 
 
@@ -314,6 +326,7 @@ def void(
     row.voided_at = utc_now()
     row.void_reason = reason.strip()
     db.flush()
+    ctr.sync(db, store_id, int(row.customer_id), row.store_day)
     return row
 
 
@@ -428,4 +441,5 @@ def rehome_shared_parties(db: Session, store_id: int) -> None:
             others.filter(getattr(CashedCheck, col).in_(user_ids)).update(
                 {col: None}, synchronize_session=False,
             )
+        ctr.clear_logins(db, store_id, user_ids)
     db.flush()
