@@ -318,15 +318,21 @@ def _make_unenrolled_superadmin(*, slug="tsne"):
     return username, "super2025!"
 
 
-def _start_enroll_for(client, slug):
-    """Helper: log in, get pending token, call enroll/start.
-    Returns (pending_token, start_response_dict)."""
+def _enroll_pending_for(client, slug):
+    """Helper: make an unenrolled superadmin and log in. Returns the
+    enrollment pending token."""
     with db_session():
         username, password = _make_unenrolled_superadmin(slug=slug)
-    pending = client.post(
+    return client.post(
         "/api/v2/auth/login",
         json={"username": username, "password": password, "store_id": None},
     ).get_json()["pending_token"]
+
+
+def _start_enroll_for(client, slug):
+    """Helper: log in, get pending token, call enroll/start.
+    Returns (pending_token, start_response_dict)."""
+    pending = _enroll_pending_for(client, slug)
     start = client.post(
         "/api/v2/auth/login/totp/enroll/start",
         json={"pending_token": pending},
@@ -357,6 +363,82 @@ def test_enroll_start_is_idempotent_returns_same_secret(client):
         json={"pending_token": pending},
     ).get_json()
     assert body1["secret"] == body2["secret"]
+
+
+def _start_while_another_call_writes(monkeypatch, pending, username, **row):
+    """Run the enroll/start service with `row` written to the user by
+    "another request" after this call has read the user (secret NULL)
+    and before it writes its own secret. Simulated without threads:
+    the write is a Core UPDATE the session's identity map never sees,
+    which is what a READ COMMITTED statement sees of another
+    transaction's commit."""
+    from api.Modules.Auth.Services.login import start_totp_enrollment
+    from api.Modules.Tenancy.Models import User
+    real_random_base32 = pyotp.random_base32
+
+    def other_call_writes_first():
+        db.session.execute(
+            User.__table__.update()
+            .where(User.__table__.c.username == username)
+            .values(**row),
+        )
+        return real_random_base32()
+
+    monkeypatch.setattr(pyotp, "random_base32", other_call_writes_first)
+    try:
+        with db_session():
+            body = start_totp_enrollment(db.session, pending_token=pending)
+            db.session.commit()
+    finally:
+        monkeypatch.undo()
+    return body
+
+
+def test_enroll_start_keeps_a_secret_minted_by_a_concurrent_call(
+    client, monkeypatch,
+):
+    """Two enroll/start calls for a fresh user (a double click, or
+    React StrictMode running the SPA effect twice) both read
+    `totp_secret IS NULL`. The one that writes second must keep the
+    first one's secret and return it — otherwise the QR on screen
+    doesn't match the stored secret and every code fails at finish."""
+    from api.Modules.Tenancy.Models import User
+
+    pending = _enroll_pending_for(client, "te2race")
+    winner = pyotp.random_base32()
+    body = _start_while_another_call_writes(
+        monkeypatch, pending, "te2race@superadmin", totp_secret=winner,
+    )
+
+    assert body["secret"] == winner
+    assert body["secret_chunks"].replace(" ", "") == winner
+    with db_session():
+        stored = db.session.query(User).filter_by(
+            username="te2race@superadmin",
+        ).one().totp_secret
+    assert stored == winner
+    # The secret this call showed is the one finish verifies against.
+    fin = client.post(
+        "/api/v2/auth/login/totp/enroll/finish",
+        json={"pending_token": pending, "code": pyotp.TOTP(winner).now()},
+    )
+    assert fin.status_code == 200, fin.text
+
+
+def test_enroll_start_refuses_when_a_concurrent_call_finished_enrolling(
+    client, monkeypatch,
+):
+    """If the other call got through start AND finish in between,
+    the re-read shows a live secret: refuse rather than hand it out."""
+    import pytest
+    from api.Modules.Auth.Services.login import AuthenticationError
+
+    pending = _enroll_pending_for(client, "te2done")
+    with pytest.raises(AuthenticationError):
+        _start_while_another_call_writes(
+            monkeypatch, pending, "te2done@superadmin",
+            totp_secret=pyotp.random_base32(), totp_enrolled_at=utc_now(),
+        )
 
 
 def test_enroll_start_rejects_bad_pending_token(client):

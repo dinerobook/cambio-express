@@ -695,7 +695,15 @@ For roles where `needs_totp(user)` is True:
 2. `/auth/login/totp/enroll/start` mints `tenancy_user.totp_secret`
    (base32, 32 chars from `pyotp.random_base32()`). Idempotent
    — refreshes return the same secret until the user finishes
-   enrollment.
+   enrollment. The mint is one conditional UPDATE (`WHERE
+   totp_secret IS NULL`, first writer wins), and the answer is
+   built from the stored value re-read afterwards, so two calls
+   racing for a fresh user (a double click, React StrictMode
+   running the effect twice) both show the QR that `finish`
+   verifies against. Never a plain ORM assignment: the later
+   commit overwrote the earlier secret, the QR on screen stopped
+   matching, and every code failed at `finish`. Pinned by
+   `test_enroll_start_keeps_a_secret_minted_by_a_concurrent_call`.
 3. `/auth/login/totp/enroll/finish` verifies the user's first
    6-digit code, sets `tenancy_user.totp_enrolled_at`, mints **10
    one-shot recovery codes** (`generate_recovery_codes`).
