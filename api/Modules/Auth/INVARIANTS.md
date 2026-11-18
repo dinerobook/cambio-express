@@ -408,6 +408,15 @@ store is closed to its own people; the one rule lives in
   disabled store is **403** with the same message; an owner's
   switch-store token (`role=admin` + `owner_id`) for a store that
   is then disabled 401s like any other store session.
+- **Site-agent keys** (`POST /posimport/agent/upload`, the `pak_…`
+  key) carry no JWT, so neither `_require_live_principal` nor the
+  subscription gate sees them. The route asks
+  `agent_store_block` (`api/Modules/PosImport/Services/agent.py`)
+  after the key checks out: a disabled store is **403** with the
+  message above (`reason: "store_disabled"`), a frozen or lapsed
+  store **402** with `write_block_reason`'s reason, and nothing is
+  staged or booked. Tests:
+  `tests/Modules/PosImport/test_agent_store_gates.py`.
 - **Exempt:** the superadmin, store-less platform logins, and any
   token carrying `impersonated_by` — support can still look.
 - **Re-enabling restores access with no other step:** nothing is

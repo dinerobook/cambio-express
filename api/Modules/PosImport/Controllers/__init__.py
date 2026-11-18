@@ -28,7 +28,7 @@ from fastapi import (
     APIRouter, Depends, Header, HTTPException, Path, Query as FQuery,
     Request,
 )
-from fastapi.responses import Response as PlainResponse
+from fastapi.responses import JSONResponse, Response as PlainResponse
 from sqlalchemy.orm import Session
 
 from api.Core.Clock import parse_iso_day, utc_now
@@ -77,6 +77,7 @@ from api.Modules.PosImport.Services.transactions import (
 from api.Modules.PosImport.Services import (
     LoadedPayload,
     PosImportError,
+    agent_store_block,
     aggregate_events,
     authenticate_agent,
     commit_business_day,
@@ -346,15 +347,27 @@ def agent_upload_route(
     body: AgentUploadRequest,
     x_agent_key: str = Header(""),
     db: Session = Depends(get_db),
-) -> AgentUploadResponse:
+) -> AgentUploadResponse | JSONResponse:
     """Site-agent push: one journal file per call, authenticated by
     the per-store agent key (opaque 401 on any failure — no
     enumeration hints). Idempotent per filename so retries are
     free. Commits its own transaction: staging isn't an operator
-    mutation, so there's no audit row to co-commit."""
+    mutation, so there's no audit row to co-commit.
+
+    The key carries no JWT, so the store's gates are asked here
+    (``agent_store_block``): a disabled store is 403, a frozen or
+    lapsed one 402 with the subscription gate's ``reason``, and
+    nothing is staged or booked. Checked after the key, so a
+    stranger never learns a store's state."""
     cred = authenticate_agent(db, x_agent_key)
     if cred is None:
         raise HTTPException(status_code=401, detail="Invalid agent key.")
+    blocked = agent_store_block(db, int(cred.store_id))
+    if blocked is not None:
+        return JSONResponse(
+            status_code=blocked.status_code,
+            content={"detail": blocked.detail, "reason": blocked.reason},
+        )
     try:
         result = stage_journal_file(
             db, int(cred.store_id),

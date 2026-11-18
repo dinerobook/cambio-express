@@ -176,7 +176,11 @@ any; outside that is a 403. The token's OWN store is
 the live router and expects 401 from every route a stranger calls,
 except its `PUBLIC` table (sign-in and recovery, sign-up, price list,
 liveness, webhooks). A new public route goes on that list in the same
-PR, with a rate limit.
+PR, with a rate limit. A route that signs in with its own key
+(`OWN_KEY` there — the site agent's `X-Agent-Key`) sends no JWT, so
+the subscription gate and the disabled-store check never see it: it
+asks both itself, the way `agent_store_block`
+(`api/Modules/PosImport/Services/agent.py`) does.
 
 **21. NaN / Infinity** — every request model with a `float` carries
 `ConfigDict(allow_inf_nan=False)` (`tests/Core/test_request_bodies.py`

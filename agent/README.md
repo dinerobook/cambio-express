@@ -42,3 +42,10 @@ parsing improves.
   Deleting it is safe — the server ignores duplicates.
 - Revoking the key in DineroBook stops the agent instantly; issue
   a new key and update `agent.ini` to resume.
+- While the store is disabled (403), frozen, or its trial or
+  subscription has lapsed (402), the server refuses uploads, the
+  same as for anyone signed in. The agent logs why, waits five
+  minutes and tries again; the files stay on the PC and go up on
+  their own once the store is open again. Days older than the
+  auto-book window (3 days) are then booked by hand from staged
+  days.
