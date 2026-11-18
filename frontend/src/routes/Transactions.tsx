@@ -27,7 +27,9 @@ import { navWord } from "../i18n/navWords";
 //
 // A voided ticket is FLAGGED, not hidden: the whole reason to open
 // this screen is to see the void. Its money is already excluded
-// server-side, so the totals below never include one.
+// server-side, so the totals below never include one. The same goes
+// for a fuel prepay deposit its pump completion superseded: listed,
+// flagged, left out of the total.
 
 const KINDS: { value: string; label: MessageKey }[] = [
   { value: "", label: "posTx.allKinds" },
@@ -72,6 +74,7 @@ const columns = (): DataColumn<PosTransactionRow>[] => [
       r.training_mode ? t("posTx.training") : "",
       r.offline ? t("posTx.offline") : "",
       r.suspended ? t("posTx.suspended") : "",
+      r.superseded ? t("posTx.superseded") : "",
     ].filter(Boolean).join("; "),
     render: (r) => (
       <div className={styles.flags}>
@@ -80,6 +83,7 @@ const columns = (): DataColumn<PosTransactionRow>[] => [
         {r.training_mode && <Pill tone="neutral">{t("posTx.training")}</Pill>}
         {r.offline && <Pill tone="warning">{t("posTx.offline")}</Pill>}
         {r.suspended && <Pill tone="warning">{t("posTx.suspended")}</Pill>}
+        {r.superseded && <Pill tone="neutral">{t("posTx.superseded")}</Pill>}
       </div>
     ),
   },

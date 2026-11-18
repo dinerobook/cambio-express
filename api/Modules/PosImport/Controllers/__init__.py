@@ -370,7 +370,14 @@ def agent_upload_route(
     if not result.duplicate and result.file.business_date is not None:
         from api.Modules.PosImport.Services.agent import (
             auto_commit_rolled_days,
+            rebook_for_late_completion,
         )
+        # A prepay completed after its deposit's day was booked: that
+        # day still counts the deposit, so book it again.
+        if result.rebook_day is not None:
+            rebook_for_late_completion(
+                db, int(cred.store_id), result.rebook_day,
+            )
         auto_commit_rolled_days(db, int(cred.store_id))
     db.commit()
     return AgentUploadResponse(

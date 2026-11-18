@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey,
-    Integer, LargeBinary, String, UniqueConstraint,
+    Index, Integer, LargeBinary, String, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -71,8 +71,19 @@ class PosJournalFile(Base):
     parse_error   = Column(String(255), nullable=False, default="")
     content_gz    = Column(LargeBinary, nullable=False)
     received_at   = Column(DateTime, default=utc_now)
+    # ``PjrEvent.prepay_key`` at staging time: on a fuel prepay
+    # deposit its own identity, on a completion the identity of the
+    # event it restates (so a deposit and its completion share the
+    # value), "" on every other file. It is how a day's commit
+    # finds a completion staged on a LATER business day without
+    # re-parsing every later file. Files staged before the column
+    # existed carry "" and are simply not found.
+    prepay_key    = Column(String(80), nullable=False, default="")
     __table_args__ = (
         UniqueConstraint("store_id", "filename"),
+        Index(
+            "ix_retail_pos_journal_file_prepay_key", "store_id", "prepay_key",
+        ),
     )
 
 
@@ -150,6 +161,19 @@ class PosTransaction(Base):
     # True when ANY line on the event is status="cancel" — lets the
     # list flag "has a voided item" without joining the lines.
     has_voided_line = Column(Boolean, nullable=False, default=False)
+    # Fuel prepay (naxml module docstring). A completion carries the
+    # deposit it restates (Passport's LinkedTransactionInfo). A
+    # deposit whose sale / refund completion exists is ``superseded``:
+    # kept so the viewer shows it, left out of every money total.
+    # ``superseded_by_file`` names the completion by its file, not
+    # its id — a day rebuild re-creates rows with new ids, and the
+    # two halves can sit on different business days.
+    linked_reason         = Column(String(30), nullable=False, default="")
+    linked_register_id    = Column(String(20), nullable=False, default="")
+    linked_transaction_no = Column(String(30), nullable=False, default="")
+    linked_started_at     = Column(DateTime, nullable=True)
+    superseded            = Column(Boolean, nullable=False, default=False)
+    superseded_by_file    = Column(String(120), nullable=False, default="")
     __table_args__ = (
         UniqueConstraint("store_id", "source_file"),
     )

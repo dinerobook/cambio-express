@@ -271,6 +271,9 @@ class PosTransactionRow(BaseModel):
     training_mode: bool
     offline: bool
     suspended: bool
+    # A fuel prepay deposit whose completion restates it: listed,
+    # never added to a total.
+    superseded: bool
 
 
 class PosTransactionLineRow(BaseModel):
@@ -326,6 +329,14 @@ class PosTransactionDetail(BaseModel):
     tax: float
     grand_total: float
     has_voided_line: bool
+    # Fuel prepay. A superseded deposit points at its completion; a
+    # completion ("fuelPrepay") at the deposit it restates. The ids
+    # are null when the other half is not imported.
+    superseded: bool
+    superseded_by_id: int | None
+    linked_reason: str
+    linked_transaction_no: str
+    linked_id: int | None
     lines: list[PosTransactionLineRow]
     tenders: list[PosTransactionTenderRow]
 

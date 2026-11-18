@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ticketKindLabel, useTransaction } from "../api/posimport";
 import {
-  Alert, Button, Card, ErrorState, KpiCard, KpiGrid,
+  Alert, AppLink, Button, Card, ErrorState, KpiCard, KpiGrid,
   Loading, PageHeader, PageShell, Pill, Section, Table,
   tdStyle, thStyle, tokens,
 } from "../components/ui";
@@ -10,7 +10,7 @@ import { fmtMoney2 } from "../lib/formatters";
 import { formatTimestamp } from "../lib/datetime";
 import styles from "./TransactionDetail.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
-import { useT, type MessageKey } from "../i18n";
+import { tNodes, useT, type MessageKey } from "../i18n";
 
 const LINE_COLUMNS: MessageKey[] = [
   "posTx.colItem", "posTx.colScanCode", "posTx.colQty", "posTx.colPrice", "posTx.colAmount",
@@ -25,6 +25,13 @@ const TENDER_COLUMNS: MessageKey[] = ["posTx.colTender", "posTx.colType", "posTx
 // already (server-side), so the line total and the ticket total
 // will not agree when there is a void — which is correct, and the
 // page says so rather than leaving the reader to wonder.
+//
+// A fuel prepay is two tickets: the deposit rung when the customer
+// paid, and the completion rung when the pump stopped, restating
+// the whole ticket. The deposit is marked superseded and counted
+// nowhere; each half links to the other when both are imported.
+// (Passport can chain a second completion onto the first; the
+// first is then superseded too.)
 
 export default function TransactionDetail() {
   const t = useT();
@@ -77,9 +84,38 @@ export default function TransactionDetail() {
             {tx.offline && <Pill tone="warning">{t("posTx.offline")}</Pill>}
             {tx.suspended && <Pill tone="warning">{t("posTx.suspended")}</Pill>}
             {tx.outside && <Pill tone="neutral">{t("posTx.payAtPump")}</Pill>}
+            {tx.superseded && <Pill tone="neutral">{t("posTx.superseded")}</Pill>}
           </div>
         }
       />
+
+      {tx.superseded && (
+        <Alert tone="info">
+          {t("posTx.supersededNote")}
+          {tx.superseded_by_id !== null && (
+            <>
+              {" "}
+              <AppLink to={`/transactions/${tx.superseded_by_id}`} className="ds-link">
+                {t("posTx.openCompletion")}
+              </AppLink>
+            </>
+          )}
+        </Alert>
+      )}
+      {/* Only a completion that counts says so: a superseded one is
+          covered above, and a void completion never counts. */}
+      {tx.linked_reason === "fuelPrepay" && !tx.superseded
+        && (tx.kind === "sale" || tx.kind === "refund") && (
+        <Alert tone="info">
+          {tNodes("posTx.completesPrepay", {
+            ticket: tx.linked_id !== null ? (
+              <AppLink to={`/transactions/${tx.linked_id}`} className="ds-link" fallback="text">
+                {tx.linked_transaction_no || `#${tx.linked_id}`}
+              </AppLink>
+            ) : (tx.linked_transaction_no || "—"),
+          })}
+        </Alert>
+      )}
 
       {voidedLines.length > 0 && (
         <Alert tone="warning">

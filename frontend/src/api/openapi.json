@@ -16819,6 +16819,25 @@
             "title": "Lines",
             "type": "array"
           },
+          "linked_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Id"
+          },
+          "linked_reason": {
+            "title": "Linked Reason",
+            "type": "string"
+          },
+          "linked_transaction_no": {
+            "title": "Linked Transaction No",
+            "type": "string"
+          },
           "net": {
             "title": "Net",
             "type": "number"
@@ -16860,6 +16879,21 @@
               }
             ],
             "title": "Started At"
+          },
+          "superseded": {
+            "title": "Superseded",
+            "type": "boolean"
+          },
+          "superseded_by_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Id"
           },
           "suspended": {
             "title": "Suspended",
@@ -16911,6 +16945,11 @@
           "tax",
           "grand_total",
           "has_voided_line",
+          "superseded",
+          "superseded_by_id",
+          "linked_reason",
+          "linked_transaction_no",
+          "linked_id",
           "lines",
           "tenders"
         ],
@@ -17105,6 +17144,10 @@
             "title": "Register Id",
             "type": "string"
           },
+          "superseded": {
+            "title": "Superseded",
+            "type": "boolean"
+          },
           "suspended": {
             "title": "Suspended",
             "type": "boolean"
@@ -17137,7 +17180,8 @@
           "has_voided_line",
           "training_mode",
           "offline",
-          "suspended"
+          "suspended",
+          "superseded"
         ],
         "title": "PosTransactionRow",
         "type": "object"
