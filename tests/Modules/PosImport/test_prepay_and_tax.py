@@ -16,6 +16,7 @@ Fixtures are SYNTHETIC, shaped like real Passport 22.01 files — no
 store data in the repo.
 """
 import io
+import re
 import zipfile
 from datetime import date
 
@@ -580,6 +581,36 @@ def test_live_hourly_counts_a_prepaid_ticket_once_in_either_order():
         _stage(sid2, "PJR-comp.xml", _completion())
         _stage(sid2, "PJR-dep.xml", _deposit())
         assert _hourly(sid2, DAY) == {13: 3200}
+
+
+def _period_header(doc, begin="22:51:54"):
+    """The header as on real files: BeginTime is the report period's
+    start (the day close), not the event's time as ``_doc`` writes."""
+    return re.sub(
+        r"<BeginTime>[^<]*</BeginTime>", f"<BeginTime>{begin}</BeginTime>",
+        doc,
+    )
+
+
+def test_hourly_reads_each_half_by_its_own_start_not_the_period():
+    """Both halves carry the same period header; the deposit (12:48)
+    and its completion (13:02) still land in their own hours, live
+    and when the commit rebuilds the day."""
+    with db_session():
+        sid = _store("prepay-period-header")
+        _map_all(sid, "10", "1024")
+        _stage(sid, "PJR-dep.xml", _period_header(_deposit()))
+        assert _hourly(sid, DAY) == {12: 4200}
+        _stage(sid, "PJR-comp.xml", _period_header(_completion()))
+        assert _hourly(sid, DAY) == {13: 3200}
+
+        commit_business_day(
+            db.session, sid, DAY,
+            events=staged_events_for_day(db.session, sid, DAY),
+            created_by=None,
+        )
+        db.session.commit()
+        assert _hourly(sid, DAY) == {13: 3200}
 
 
 def test_completion_after_the_day_was_booked_rebooks_it(client, test_store_id):

@@ -15,6 +15,19 @@ Ground truth from a real Passport 22.01 site (23 business days,
 * ``BusinessDate`` is authoritative: the register's business day
   rolls at the site's day close (e.g. ~22:50), NOT midnight, and
   every event carries the day it belongs to.
+* **Each event carries its own clock; the header does not.** The
+  event holds ``EventStartDate`` + ``EventStartTime`` (the cashier
+  began the ticket), ``EventEndDate`` + ``EventEndTime`` and
+  ``ReceiptDate`` + ``ReceiptTime`` as separate date and time
+  elements. The JournalHeader's ``BeginDate`` + ``BeginTime`` is
+  the start of the report PERIOD the file belongs to (the day
+  close, e.g. 22:51:54, with ``EndDate`` 2100-01-01 while the
+  period is open), the same on every file of a business day, so it
+  says nothing about when the event happened. On a real export of
+  105,152 files every event has a start and an end, all but the
+  969 register opens / closes have a receipt, and none has an ISO
+  ``EventDateTime``. The hourly chart reads the start
+  (``_event_hour``).
 * Refund events carry NEGATIVE amounts end-to-end (summary and
   tenders), so plain summation nets them out of a day.
 * Void events contain only ``status="cancel"`` lines. Those lines
@@ -183,10 +196,10 @@ class PjrEvent:
     till_id: str
     transaction_id: str
     outside: bool = False
-    # Clock hour 0-23 of the event (G-3, hourly sales). Sourced
-    # from the first timestamp the file offers (see _event_hour);
-    # None when the file carries none — hourly charts simply skip
-    # such events, day totals are unaffected.
+    # Clock hour 0-23 the event started (G-3, hourly sales), read
+    # from the event's own clock (see _event_hour), never the
+    # report period's; None when the event carries none — hourly
+    # charts simply skip such events, day totals are unaffected.
     event_hour: int | None = None
     items: list[PjrItemLine] = field(default_factory=list)
     tenders: list[PjrTender] = field(default_factory=list)
@@ -376,34 +389,35 @@ def _stamp(el, date_tag: str, time_tag: str) -> datetime | None:
         return None
 
 
-def _event_hour(root, event_el) -> int | None:
-    """Best-effort clock hour for the event (G-3). Sites vary in
-    which timestamp the journal carries, so try candidates in
-    priority order and degrade to None — a missing hour only mutes
-    the hourly chart, never a day total:
+# The event's own clock times, best first (see _event_hour).
+_EVENT_CLOCK_TAGS = ("EventStartTime", "ReceiptTime", "EventEndTime")
 
-      1. event-level <EventDateTime> / <EventStartDateTime>
-         (ISO "2024-10-14T13:45:12"),
-      2. the JournalHeader's <BeginTime> ("13:45:12") — one file
-         per event, so the header time is the event time.
+
+def _event_hour(event_el) -> int | None:
+    """Clock hour 0-23 for the hourly chart (G-3): when the event
+    started, from the same ``EventStartTime`` that ``started_at``
+    and the prepay link read; else when its receipt printed; else
+    when it ended. On real files the three agree on 99.6% of sales;
+    the rest are tickets that ran past the top of an hour, and they
+    belong to the hour the cashier began them.
+
+    Never the JournalHeader's ``BeginTime``. That is the report
+    period's start (module docstring), so it files a whole business
+    day under the hour of the day close (on a real export, 98.6% of
+    sales landed in 22:00 or 23:00). An event with no clock of its
+    own yields None, which only mutes the chart; a period time would
+    fill it with a plausible, wrong shape.
+
+    Only the time element is read: a missing or malformed one falls
+    through to the next candidate. (``_stamp`` reads a missing time
+    as midnight, which would put such an event in hour 0.)
     """
-    for tag in ("EventDateTime", "EventStartDateTime"):
+    for tag in _EVENT_CLOCK_TAGS:
         raw = _text(event_el, tag)
-        if "T" in raw:
-            try:
-                hour = int(raw.split("T", 1)[1][:2])
-            except ValueError:
-                continue
-            if 0 <= hour <= 23:
-                return hour
-    raw = _text(root, "BeginTime")
-    if raw and ":" in raw:
         try:
-            hour = int(raw.split(":", 1)[0])
+            return datetime.strptime(raw[:8], "%H:%M:%S").hour
         except ValueError:
-            return None
-        if 0 <= hour <= 23:
-            return hour
+            continue
     return None
 
 
@@ -510,7 +524,7 @@ def parse_pjr(data: bytes | str) -> PjrEvent:
         outside=(
             outside_el is not None and outside_el.get("value") == "yes"
         ),
-        event_hour=_event_hour(root, event_el),
+        event_hour=_event_hour(event_el),
         event_sequence_id=_text(event_el, "EventSequenceID"),
         started_at=_stamp(event_el, "EventStartDate", "EventStartTime"),
         ended_at=_stamp(event_el, "EventEndDate", "EventEndTime"),

@@ -47,19 +47,25 @@ def _doc(event_xml: str) -> str:
 def _sale(business_date="2024-10-14", register="1", merch="17",
           amount="2.99", tax_collected="0.25", tender_code="cash",
           tendered="4.00", change="-0.76", event_dt=None):
-    # event_dt: optional ISO timestamp -> <EventDateTime> (G-3).
-    dt_el = (
-        f"<EventDateTime>{event_dt}</EventDateTime>" if event_dt else ""
-    )
+    # event_dt: optional "2024-10-14T13:45:12" -> the event's own
+    # <EventStartDate> + <EventStartTime>, where Passport writes
+    # them (G-3 reads the hourly chart's hour from it).
+    start_el = ""
+    if event_dt:
+        start_day, start_clock = event_dt.split("T")
+        start_el = (
+            f"<EventStartDate>{start_day}</EventStartDate>"
+            f"<EventStartTime>{start_clock}</EventStartTime>"
+        )
     # Real Passport files put tax INSIDE NetAmount (Net = Grand =
     # what the customer paid); Gross is the pre-promotion sale.
     paid = Decimal(amount) + Decimal(tax_collected)
     return _doc(f"""<SaleEvent>
-    {dt_el}
     <CashierID>91</CashierID>
     <RegisterID>{register}</RegisterID>
     <TillID>1310</TillID>
     <TransactionID>1472</TransactionID>
+    {start_el}
     <BusinessDate>{business_date}</BusinessDate>
     <TransactionDetailGroup>
      <TransactionLine status="normal">
