@@ -4652,6 +4652,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/posimport/movement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Movement Day Route
+         * @description The register's own movement reports for one business day
+         *     (G-7), read-only: fuel by grade, departments, tax levels and the
+         *     miscellaneous summary, plus the files received. Nothing here is
+         *     booked anywhere. Same permission as the staged-days list it sits
+         *     beside.
+         */
+        get: operations["movement_day_route_posimport_movement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/posimport/naxml/commit": {
         parameters: {
             query?: never;
@@ -13325,6 +13349,100 @@ export interface components {
             /** Months */
             months: components["schemas"]["MonthLogged"][];
         };
+        /** MovementDayResponse */
+        MovementDayResponse: {
+            /** Day */
+            day: string;
+            /** Departments */
+            departments: components["schemas"]["MovementDepartmentRow"][];
+            /** Files */
+            files: components["schemas"]["MovementFileRow"][];
+            /** Fuel */
+            fuel: components["schemas"]["MovementFuelRow"][];
+            /** Item Amount */
+            item_amount: number;
+            /** Item Quantity */
+            item_quantity: number;
+            /** Item Rows */
+            item_rows: number;
+            /** Misc */
+            misc: components["schemas"]["MovementMiscRow"][];
+            /** Tax Levels */
+            tax_levels: components["schemas"]["MovementTaxRow"][];
+        };
+        /** MovementDepartmentRow */
+        MovementDepartmentRow: {
+            /** Amount */
+            amount: number;
+            /** Description */
+            description: string;
+            /** Merchandise Code */
+            merchandise_code: string;
+            /** Quantity */
+            quantity: number;
+            /** Refunds */
+            refunds: number;
+            /** Transactions */
+            transactions: number;
+        };
+        /** MovementFileRow */
+        MovementFileRow: {
+            /** Family */
+            family: string;
+            /** Filename */
+            filename: string;
+            /** Parse Error */
+            parse_error: string;
+            /** Received At */
+            received_at: string | null;
+        };
+        /** MovementFuelRow */
+        MovementFuelRow: {
+            /** Amount */
+            amount: number;
+            /** Gallons */
+            gallons: number;
+            /** Grade Id */
+            grade_id: string;
+            /** Meter Amount */
+            meter_amount: number;
+            /** Meter Gallons */
+            meter_gallons: number;
+            /** Positions */
+            positions: number;
+        };
+        /** MovementMiscRow */
+        MovementMiscRow: {
+            /** Amount */
+            amount: number;
+            /** Code */
+            code: string;
+            /** Count */
+            count: number;
+            /** Modifier */
+            modifier: string | null;
+            /** Role */
+            role: string;
+            /** Sub Code */
+            sub_code: string;
+            /** Tender Code */
+            tender_code: string;
+            /** Tender Sub Code */
+            tender_sub_code: string;
+        };
+        /** MovementTaxRow */
+        MovementTaxRow: {
+            /** Tax Collected */
+            tax_collected: number;
+            /** Tax Exempt Sales */
+            tax_exempt_sales: number;
+            /** Tax Forgiven Sales */
+            tax_forgiven_sales: number;
+            /** Tax Level Id */
+            tax_level_id: string;
+            /** Taxable Sales */
+            taxable_sales: number;
+        };
         /**
          * MyActivityResponse
          * @description Page-shaped response for the activity feed.
@@ -16241,6 +16359,8 @@ export interface components {
             error_count: number;
             /** File Count */
             file_count: number;
+            /** Report Count */
+            report_count: number;
         };
         /** StagedDaysResponse */
         StagedDaysResponse: {
@@ -28374,6 +28494,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MappingListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    movement_day_route_posimport_movement_get: {
+        parameters: {
+            query: {
+                /** @description YYYY-MM-DD business day */
+                day: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovementDayResponse"];
                 };
             };
             /** @description Validation Error */

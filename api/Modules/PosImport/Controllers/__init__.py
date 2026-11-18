@@ -13,6 +13,8 @@ Mounts at `/api/v2/posimport/*`:
                         ONE business day into DayClose
                         (source="gilbarco"). Blocks with 422
                         while any code in the data is unmapped.
+  GET  /movement        the register's movement reports for one
+                        business day (G-7), read-only.
 
 Imports write day-close data, so every route requires
 day_close.update (admin) — the same surface that owns the
@@ -55,6 +57,12 @@ from api.Modules.PosImport.Requests import (
     MappingListResponse,
     MappingRow,
     MappingWriteRequest,
+    MovementDayResponse,
+    MovementDepartmentRow,
+    MovementFileRow,
+    MovementFuelRow,
+    MovementMiscRow,
+    MovementTaxRow,
     NaxmlCommitRequest,
     NaxmlCommitResponse,
     NaxmlPreviewResponse,
@@ -69,6 +77,8 @@ from api.Modules.PosImport.Requests import (
     StagedDayRow,
     StagedDaysResponse,
 )
+from api.Modules.PosImport.Services.movement import MOVEMENT_KIND
+from api.Modules.PosImport.Services.movement_ingest import movement_day
 from api.Modules.PosImport.Services.transactions import (
     TransactionQueryError,
     list_transactions,
@@ -366,8 +376,12 @@ def agent_upload_route(
     # G-1: a fresh file may mean the business day just rolled —
     # auto-book any completed, fully-mapped prior day. Gates and
     # audit live in the service; one cheap max() query when
-    # nothing is ready.
-    if not result.duplicate and result.file.business_date is not None:
+    # nothing is ready. A movement report is never that signal.
+    if (
+        not result.duplicate
+        and result.file.business_date is not None
+        and result.file.event_kind != MOVEMENT_KIND
+    ):
         from api.Modules.PosImport.Services.agent import (
             auto_commit_rolled_days,
         )
@@ -397,9 +411,88 @@ def staged_days_route(
             file_count=d.file_count,
             error_count=d.error_count,
             committed=d.committed,
+            report_count=d.report_count,
         )
         for d in staged_days(db, sid)
     ])
+
+
+@router.get("/movement", response_model=MovementDayResponse)
+def movement_day_route(
+    day: str = FQuery(..., description="YYYY-MM-DD business day"),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> MovementDayResponse:
+    """The register's own movement reports for one business day
+    (G-7), read-only: fuel by grade, departments, tax levels and the
+    miscellaneous summary, plus the files received. Nothing here is
+    booked anywhere. Same permission as the staged-days list it sits
+    beside."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "update")
+    summary = movement_day(db, sid, parse_iso_day(day, field="day"))
+    return MovementDayResponse(
+        day=summary.day.isoformat(),
+        files=[
+            MovementFileRow(
+                family=f.family,
+                filename=f.filename,
+                received_at=(
+                    f.received_at.isoformat() if f.received_at else None
+                ),
+                parse_error=f.parse_error,
+            )
+            for f in summary.files
+        ],
+        fuel=[
+            MovementFuelRow(
+                grade_id=g.grade_id,
+                gallons=g.sales_volume,
+                amount=g.sales_amount_cents / 100.0,
+                meter_gallons=g.meter_volume,
+                meter_amount=g.meter_amount_cents / 100.0,
+                positions=g.positions,
+            )
+            for g in summary.fuel
+        ],
+        departments=[
+            MovementDepartmentRow(
+                merchandise_code=d["merchandise_code"],
+                description=d["description"],
+                quantity=round(d["sales_quantity"], 3),
+                amount=d["sales_amount_cents"] / 100.0,
+                refunds=d["refund_amount_cents"] / 100.0,
+                transactions=d["transaction_count"],
+            )
+            for d in summary.departments
+        ],
+        tax_levels=[
+            MovementTaxRow(
+                tax_level_id=t["tax_level_id"],
+                taxable_sales=t["taxable_sales_amount_cents"] / 100.0,
+                tax_collected=t["tax_collected_amount_cents"] / 100.0,
+                tax_exempt_sales=t["tax_exempt_sales_amount_cents"] / 100.0,
+                tax_forgiven_sales=t["tax_forgiven_sales_cents"] / 100.0,
+            )
+            for t in summary.tax_levels
+        ],
+        misc=[
+            MovementMiscRow(
+                code=m["summary_code"],
+                sub_code=m["summary_sub_code"],
+                modifier=m["summary_sub_code_modifier"],
+                tender_code=m["tender_code"],
+                tender_sub_code=m["tender_sub_code"],
+                amount=m["summary_amount_cents"] / 100.0,
+                count=m["summary_count"],
+                role=m["role"],
+            )
+            for m in summary.misc
+        ],
+        item_rows=summary.item_rows,
+        item_quantity=summary.item_quantity,
+        item_amount=summary.item_amount_cents / 100.0,
+    )
 
 
 # ── Price-book warm start (P2-3) ───────────────────────────

@@ -175,6 +175,9 @@ class StagedDayRow(BaseModel):
     file_count: int
     error_count: int
     committed: bool
+    # Movement reports (G-7) staged for the day — not in file_count,
+    # which counts register events only.
+    report_count: int
 
 
 class StagedDaysResponse(BaseModel):
@@ -348,3 +351,80 @@ class PosTransactionDetailResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     transaction: PosTransactionDetail
+
+
+# ── Movement reports (G-7, read-only) ──────────────────────
+
+
+class MovementFileRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    family: str            # FGM / ISM / MCM / MSM / TLM / TPM, "" if unknown
+    filename: str
+    received_at: str | None
+    parse_error: str
+
+
+class MovementFuelRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    grade_id: str
+    gallons: float
+    amount: float
+    # Lifetime pump meters at the end of the day, one reading per
+    # position (never added across price tiers).
+    meter_gallons: float
+    meter_amount: float
+    positions: int
+
+
+class MovementDepartmentRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    merchandise_code: str
+    description: str
+    quantity: float
+    amount: float
+    refunds: float
+    transactions: int
+
+
+class MovementTaxRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tax_level_id: str
+    taxable_sales: float
+    tax_collected: float
+    tax_exempt_sales: float
+    tax_forgiven_sales: float
+
+
+class MovementMiscRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    sub_code: str
+    modifier: str | None
+    tender_code: str
+    tender_sub_code: str
+    # The register's own figure: dollars for most codes, but some
+    # (statistics, percentages) are plain numbers.
+    amount: float
+    count: float
+    # "subtotal" adds up the "part" rows of its code below it; never
+    # add both. "" = a row on its own.
+    role: str
+
+
+class MovementDayResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    day: str
+    files: list[MovementFileRow]
+    fuel: list[MovementFuelRow]
+    departments: list[MovementDepartmentRow]
+    tax_levels: list[MovementTaxRow]
+    misc: list[MovementMiscRow]
+    item_rows: int
+    item_quantity: float
+    item_amount: float

@@ -42,6 +42,7 @@ const SAME_IN_BOTH: MessageKey[] = [
   // A brand name, and words Spanish spells the same.
   "daily.boostMobile", "pl.line.boost_mobile", "rep.total", "rep.totalAch", "ownerBill.colPlan", "intermex.colTotal",
     "sbDay.gal", "posTx.colTicket", "posTx.colTotal", "posTx.tickets", "posTx.ticketTitle", "posTx.gal", "move.no", "inv.colTotal", "invForm.auto", "daily.total", "daily.totalCaps", "daily.totalLabel",
+  "posImp.subtotal",
   "transfer.total", "returnCheck.methodZelle", "roles.tabRoles", "roles.no", "payroll.no",
   "settings.tabGeneral", "store.planPro", "notify.colControl",
   "common.no", "saHealth.error", "plan.basic", "plan.pro", "saStores.colPlan",

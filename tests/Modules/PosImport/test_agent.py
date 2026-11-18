@@ -120,7 +120,7 @@ def test_staged_days_and_commit(client, test_store_id):
     ).json()["days"]
     assert days == [{
         "business_date": "2024-10-14", "file_count": 2,
-        "error_count": 0, "committed": False,
+        "error_count": 0, "committed": False, "report_count": 0,
     }]
 
     # Commit gate: unmapped codes block, then mapping unblocks.

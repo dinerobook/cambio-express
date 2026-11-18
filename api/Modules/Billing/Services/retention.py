@@ -70,6 +70,10 @@ STORE_OWNED_MODELS: list[str] = [
     # children first.
     "PosTransactionLine", "PosTransactionTender", "PosTransaction",
     "PosAgentCredential", "PosItemDaySale", "PosJournalFile",
+    # POS movement reports (G-7): no FKs between them.
+    "PosFuelGradeMovement", "PosItemSalesMovement",
+    "PosMerchandiseCodeMovement", "PosMiscSummaryMovement",
+    "PosTaxLevelMovement",
     # TimeClockEntry + TimeClockShift + StoreEmployeePasskey must
     # purge before StoreEmployee (all FK to it).
     "TimeClockEntry",
@@ -146,9 +150,10 @@ def _store_owned_models() -> list[tuple[type, str]]:
         Department, DepartmentSale, HourlySale, RegisterClose,
     )
     from api.Modules.PosImport.Models import (
-        PosAgentCredential, PosItemDaySale, PosJournalFile,
-        PosMerchandiseMap, PosTransaction, PosTransactionLine,
-        PosTransactionTender,
+        PosAgentCredential, PosFuelGradeMovement, PosItemDaySale,
+        PosItemSalesMovement, PosJournalFile, PosMerchandiseCodeMovement,
+        PosMerchandiseMap, PosMiscSummaryMovement, PosTaxLevelMovement,
+        PosTransaction, PosTransactionLine, PosTransactionTender,
     )
     from api.Modules.Catalog.Models import (
         PriceBookItem, PurchaseInvoice, PurchaseInvoiceLine, Vendor,
@@ -218,6 +223,11 @@ def _store_owned_models() -> list[tuple[type, str]]:
         (PosAgentCredential, "store_id"),
         (PosItemDaySale, "store_id"),
         (PosJournalFile, "store_id"),
+        (PosFuelGradeMovement, "store_id"),
+        (PosItemSalesMovement, "store_id"),
+        (PosMerchandiseCodeMovement, "store_id"),
+        (PosMiscSummaryMovement, "store_id"),
+        (PosTaxLevelMovement, "store_id"),
         # Originals FK store_daily_entry — children first.
         (StoreDailyEntryOriginal, "store_id"),
         (StoreDailyEntry, "store_id"),
