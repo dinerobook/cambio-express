@@ -25,6 +25,20 @@ Ground truth from a real Passport 22.01 site (23 business days,
 * ``MerchandiseCode`` is the site's numeric department. Fuel
   lines (``FuelLine``) additionally carry the grade, gallons
   (3-decimal quantity), and pump position.
+* A TransactionLine holds one of four sale lines: ``ItemLine``
+  (a scanned or PLU item), ``FuelLine``, ``MerchandiseCodeLine``
+  (an amount keyed straight to a department, no scan code — open
+  department sales, lotto sales, and lottery / lotto cashes as
+  negative amounts) and ``FuelPrepayLine``. The first three are
+  sales and are parsed. A prepay is only a deposit on a pump: it
+  carries no MerchandiseCode, and once the pump stops Passport
+  writes a completion event (``TransactionLinkReason`` fuelPrepay)
+  that restates the ticket with the prepay line cancelled and a
+  FuelLine for what was pumped. The fuel is booked from that
+  FuelLine, so the prepay is skipped — counting both would put
+  the same fuel into a day twice.
+  Checked on ~105k real files: TransactionTotalGrossAmount equals
+  the sum of all four line kinds on 95% of sales.
 * Change back to the customer appears as a negative cash tender
   with ``ChangeFlag="yes"`` — summing tenders as-is yields net
   cash taken in.
@@ -266,7 +280,9 @@ def _event_hour(root, event_el) -> int | None:
 
 def _parse_item_line(line_el, *, status: str = LINE_STATUS_NORMAL,
                      line_seq: int = 0) -> list[PjrItemLine]:
-    """Every ItemLine / FuelLine under one TransactionLine.
+    """Every ItemLine / FuelLine / MerchandiseCodeLine under one
+    TransactionLine (FuelPrepayLine is skipped on purpose — see the
+    module docstring).
 
     `status` is the parent TransactionLine's — a cancelled line's
     items are kept (so the viewer can show what was voided) and
@@ -308,6 +324,22 @@ def _parse_item_line(line_el, *, status: str = LINE_STATUS_NORMAL,
             status=status,
             line_seq=line_seq,
             actual_price_cents=_cents(fuel, "ActualSalesPrice"),
+        ))
+    for dept in line_el.findall(".//MerchandiseCodeLine"):
+        # Keyed to a department, never scanned: no ItemCode, so
+        # pos_code stays "" and the item-movement and price-book
+        # passes (which need a scan code) skip it, while the
+        # department rollup and the transaction viewer count it.
+        items.append(PjrItemLine(
+            merchandise_code=_text(dept, "MerchandiseCode"),
+            description=_text(dept, "Description"),
+            quantity=_float(dept, "SalesQuantity"),
+            amount_cents=_cents(dept, "SalesAmount"),
+            regular_price_cents=_cents(dept, "RegularSellPrice"),
+            status=status,
+            line_seq=line_seq,
+            actual_price_cents=_cents(dept, "ActualSalesPrice"),
+            tax_level_id=_text(dept, "ItemTax/TaxLevelID"),
         ))
     return items
 
