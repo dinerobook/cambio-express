@@ -374,8 +374,8 @@ to the register.
   install backlog stays a reviewed warm start). System audit row
   (`commit_pos_import_auto`, user_id NULL).
 - ✅ G-3 (#890) — hourly sales: `PjrEvent.event_hour` (the
-  event's own EventStartTime, else ReceiptTime, else EventEndTime;
-  never the JournalHeader BeginTime, which is the report period's
+  event's own EventStartTime, else EventEndTime; never ReceiptTime
+  or the JournalHeader BeginTime, which is the report period's
   start; None just mutes the chart), `DayClose.HourlySale`
   (net pre-tax, source-scoped, retention-registered), live
   per-upload increments + commit-time rebuild (self-healing),

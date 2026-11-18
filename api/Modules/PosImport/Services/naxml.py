@@ -15,19 +15,19 @@ Ground truth from a real Passport 22.01 site (23 business days,
 * ``BusinessDate`` is authoritative: the register's business day
   rolls at the site's day close (e.g. ~22:50), NOT midnight, and
   every event carries the day it belongs to.
-* **Each event carries its own clock; the header does not.** The
-  event holds ``EventStartDate`` + ``EventStartTime`` (the cashier
-  began the ticket), ``EventEndDate`` + ``EventEndTime`` and
-  ``ReceiptDate`` + ``ReceiptTime`` as separate date and time
-  elements. The JournalHeader's ``BeginDate`` + ``BeginTime`` is
-  the start of the report PERIOD the file belongs to (the day
-  close, e.g. 22:51:54, with ``EndDate`` 2100-01-01 while the
-  period is open), the same on every file of a business day, so it
-  says nothing about when the event happened. On a real export of
-  105,152 files every event has a start and an end, all but the
-  969 register opens / closes have a receipt, and none has an ISO
-  ``EventDateTime``. The hourly chart reads the start
-  (``_event_hour``).
+* **An event's time is its EventStart / EventEnd date and time —
+  nothing else** (the owner's rule). The event holds
+  ``EventStartDate`` + ``EventStartTime`` (the cashier began the
+  ticket) and ``EventEndDate`` + ``EventEndTime`` as separate date
+  and time elements. ``ReceiptDate`` + ``ReceiptTime`` (the receipt
+  print) is display detail, not the event's time. The JournalHeader's
+  ``BeginDate`` + ``BeginTime`` is the start of the report PERIOD the
+  file belongs to (the day close, e.g. 22:51:54, with ``EndDate``
+  2100-01-01 while the period is open), the same on every file of a
+  business day, so it says nothing about when the event happened.
+  On a real export of 105,152 files every event has a start and an
+  end, and none has an ISO ``EventDateTime``. The hourly chart
+  reads the start, else the end (``_event_hour``).
 * Refund events carry NEGATIVE amounts end-to-end (summary and
   tenders), so plain summation nets them out of a day.
 * Void events contain only ``status="cancel"`` lines. Those lines
@@ -389,17 +389,23 @@ def _stamp(el, date_tag: str, time_tag: str) -> datetime | None:
         return None
 
 
-# The event's own clock times, best first (see _event_hour).
-_EVENT_CLOCK_TAGS = ("EventStartTime", "ReceiptTime", "EventEndTime")
+# The event's own clock times, best first (see _event_hour). Only
+# the EventStart / EventEnd pair: an event's time is never its
+# ReceiptTime or the JournalHeader's BeginTime (module docstring).
+_EVENT_CLOCK_TAGS = ("EventStartTime", "EventEndTime")
 
 
 def _event_hour(event_el) -> int | None:
     """Clock hour 0-23 for the hourly chart (G-3): when the event
     started, from the same ``EventStartTime`` that ``started_at``
-    and the prepay link read; else when its receipt printed; else
-    when it ended. On real files the three agree on 99.6% of sales;
-    the rest are tickets that ran past the top of an hour, and they
-    belong to the hour the cashier began them.
+    and the prepay link read; else when it ended
+    (``EventEndTime``). On real files the two agree on 99.6% of
+    sales; the rest are tickets that ran past the top of an hour,
+    and they belong to the hour the cashier began them.
+
+    Never ``ReceiptTime``: the owner's rule is that an event's time
+    is its EventStart / EventEnd date and time only. (Every real
+    sale and refund has a start; the end is a safety net.)
 
     Never the JournalHeader's ``BeginTime``. That is the report
     period's start (module docstring), so it files a whole business

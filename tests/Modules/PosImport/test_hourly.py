@@ -3,10 +3,11 @@ increments, commit-time rebuild, and the dashboard block.
 
 The invariants under test:
   * ``event_hour`` is the hour the event STARTED (<EventStartTime>),
-    else its <ReceiptTime>, else its <EventEndTime>; never the
-    JournalHeader's <BeginTime>, which on real Passport files is the
-    report period's start (the ~22:50 day close), and None when the
-    event carries no clock (day totals unaffected either way),
+    else the hour it ended (<EventEndTime>); never <ReceiptTime>
+    and never the JournalHeader's <BeginTime>, which on real
+    Passport files is the report period's start (the ~22:50 day
+    close), and None when the event carries no start or end (day
+    totals unaffected either way),
   * each staged sale/refund increments its store-level hour bucket
     live; duplicate uploads never double-count,
   * committing a day REBUILDS its buckets from the staged
@@ -108,22 +109,26 @@ def test_event_hour_is_the_event_start_not_the_report_period():
     assert ev.event_hour == 13
 
 
-def test_event_hour_falls_back_to_receipt_then_end_never_the_period():
+def test_event_hour_falls_back_to_the_end_never_receipt_or_period():
+    """An event's time is its EventStart / EventEnd date and time
+    only (the owner's rule)."""
     from api.Modules.PosImport.Services.naxml import parse_pjr
 
-    # No start → the receipt.
+    # No start → the end, even when a receipt time is there.
     assert parse_pjr(_passport(
         end="2024-10-17 09:05:00", receipt="2024-10-17 08:59:59",
-    )).event_hour == 8
-    # No start, no receipt → the end.
-    assert parse_pjr(_passport(end="2024-10-17 09:05:00")).event_hour == 9
+    )).event_hour == 9
+    # A receipt alone is not the event's time → no hour.
+    assert parse_pjr(_passport(
+        receipt="2024-10-17 08:59:59",
+    )).event_hour is None
     # A malformed start time falls through, it does not fail the parse.
     assert parse_pjr(_passport(
-        "2024-10-17 7h35", receipt="2024-10-17 10:01:00",
+        "2024-10-17 7h35", end="2024-10-17 10:01:00",
     )).event_hour == 10
     # A start date without its time is not midnight.
     doc = _passport(
-        "2024-10-17 07:35:54", receipt="2024-10-17 11:20:00",
+        "2024-10-17 07:35:54", end="2024-10-17 11:20:00",
     ).replace("<EventStartTime>07:35:54</EventStartTime>", "")
     assert parse_pjr(doc).event_hour == 11
     # Only the header's period stamp → no hour, not 22.
@@ -152,7 +157,8 @@ def test_real_shaped_files_bucket_by_their_own_hour(client, test_store_id):
         ("H2-004.xml", "2025-01-11 16:20:00"),
     ]:
         resp = _agent_upload(client, key, name, _passport(
-            start, receipt=start, business_date=day, period=period,
+            start, end=start, receipt=start, business_date=day,
+            period=period,
         ))
         assert resp.status_code == 200, resp.text
     expected = {23: 299, 7: 598, 16: 299}
