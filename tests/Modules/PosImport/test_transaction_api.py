@@ -277,3 +277,110 @@ def test_anonymous_is_rejected(client, test_store_id, seeded):
         f"?start={DAY.isoformat()}&end={DAY.isoformat()}",
     )
     assert resp.status_code in (401, 403)
+
+
+# ── Only sales and refunds are money ────────────────────────
+#
+# Passport writes a VoidEvent with the ticket's full
+# TransactionTotalGrandAmount although nobody paid for it, and most of
+# its lines as normal rather than cancelled ($2,022.78 over 228 voids
+# in a real export). The void is listed; "Total rung" never adds it.
+
+VOID_CENTS = 777_77
+NO_DAY_CLOSE_READ = {
+    "day_close": {
+        "create": False, "read": False, "update": False, "delete": False,
+    },
+}
+
+
+def _list(http, headers, **params):
+    query = {"start": DAY.isoformat(), "end": DAY.isoformat(), **params}
+    return http.get(
+        "/api/v2/posimport/transactions?"
+        + "&".join(f"{k}={v}" for k, v in query.items()),
+        headers=headers,
+    )
+
+
+@pytest.fixture()
+def with_void_ticket(test_store_id, seeded):
+    with db_session():
+        _seed(
+            test_store_id, source_file="PJR-V.xml", transaction_no="8947",
+            grand_cents=VOID_CENTS, kind="void",
+        )
+        db.session.commit()
+
+
+def test_void_ticket_is_listed_but_not_rung(
+    client, test_store_id, with_void_ticket,
+):
+    resp = _list(client, _admin(client, test_store_id))
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["total"] == 3
+    assert "8947" in {r["transaction_no"] for r in body["rows"]}
+    # $3.00 + $12.00 — not the $777.77 the void still carries.
+    assert body["total_grand"] == pytest.approx(15.00)
+
+
+def test_void_filter_lists_the_voids_and_rings_nothing(
+    client, test_store_id, with_void_ticket,
+):
+    resp = _list(client, _admin(client, test_store_id), kind="void")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["rows"][0]["grand_total"] == pytest.approx(777.77)
+    assert body["total_grand"] == 0
+
+
+@pytest.mark.parametrize("kind", ["other", "financial"])
+def test_register_opens_and_financial_events_are_not_rung(
+    client, test_store_id, seeded, kind,
+):
+    """Both were $0 on every file of the real export; a site whose
+    Passport writes a total on one still did not sell anything."""
+    with db_session():
+        _seed(
+            test_store_id, source_file="PJR-O.xml", transaction_no="1",
+            grand_cents=250_00, kind=kind,
+        )
+        db.session.commit()
+    body = _list(client, _admin(client, test_store_id)).json()
+    assert body["total"] == 3
+    assert body["total_grand"] == pytest.approx(15.00)
+
+
+def test_a_refund_still_nets_off_total_rung(
+    client, test_store_id, with_void_ticket,
+):
+    with db_session():
+        _seed(
+            test_store_id, source_file="PJR-R.xml", transaction_no="8948",
+            grand_cents=-500, kind="refund",
+        )
+        db.session.commit()
+    body = _list(client, _admin(client, test_store_id)).json()
+    assert body["total"] == 4
+    # $3.00 + $12.00 − $5.00
+    assert body["total_grand"] == pytest.approx(10.00)
+
+
+def test_cashier_total_rung_leaves_the_void_out(
+    client, test_store_id, with_void_ticket,
+):
+    emp_client, token = make_employee_client(test_store_id)
+    resp = _list(emp_client, _headers(token))
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["total_grand"] == pytest.approx(15.00)
+
+
+def test_without_day_close_read_the_tickets_are_refused(
+    client, test_store_id, with_void_ticket,
+):
+    emp_client, token = make_employee_client(
+        test_store_id, permissions=NO_DAY_CLOSE_READ,
+    )
+    assert _list(emp_client, _headers(token)).status_code == 403

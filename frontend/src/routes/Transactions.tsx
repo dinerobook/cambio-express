@@ -25,11 +25,13 @@ import { navWord } from "../i18n/navWords";
 // asking "what sold on this transaction?" or "which tickets had an
 // item voided?" gets answered here.
 //
-// A voided ticket is FLAGGED, not hidden: the whole reason to open
-// this screen is to see the void. Its money is already excluded
-// server-side, so the totals below never include one. The same goes
-// for a fuel prepay deposit its pump completion superseded: listed,
-// flagged, left out of the total.
+// A voided item is FLAGGED, not hidden: the whole reason to open
+// this screen is to see the void. The ticket's own totals already
+// leave the cancelled line out. "Total rung" adds sales and refunds
+// only (server-side, `counts_toward_sales`): a whole voided ticket
+// still carries Passport's full grand total, so it is listed and
+// never summed, like a register open or a fuel prepay deposit its
+// pump completion superseded. The "Voided tickets" filter shows $0.
 
 const KINDS: { value: string; label: MessageKey }[] = [
   { value: "", label: "posTx.allKinds" },

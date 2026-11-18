@@ -181,3 +181,105 @@ def test_another_stores_tickets_never_leak(client, test_store_id):
     body = _summary(client, test_store_id)
     assert body["register"]["receipts"] == 1
     assert {r["transaction_no"] for r in body["recent_receipts"]} == {"mine"}
+
+
+# ── Only sales and refunds are money ────────────────────────
+#
+# Passport writes a VoidEvent with the ticket's full grand total and
+# most of its lines as normal, so filtering on line status alone lets
+# a void into "Total rung" and the fuel tiles.
+
+NO_DAY_CLOSE_READ = {
+    "day_close": {
+        "create": False, "read": False, "update": False, "delete": False,
+    },
+}
+
+
+def _seed_day_with_a_void(store_id):
+    with db_session():
+        sale = _txn(store_id, source_file="A.xml", no="1", cents=4000)
+        _fuel_line(sale, gallons=10.0, cents=4000)
+        _txn(store_id, source_file="B.xml", no="2", cents=-500,
+             kind="refund")
+        void = _txn(store_id, source_file="C.xml", no="3", cents=777_77,
+                    kind="void")
+        # Written as a normal line, the way Passport writes most voids.
+        _fuel_line(void, gallons=999.0, cents=777_77)
+        db.session.commit()
+
+
+def _employee_summary(store_id, **kwargs):
+    from tests.conftest import make_employee_client
+    emp_client, token = make_employee_client(store_id, **kwargs)
+    resp = emp_client.get(
+        "/api/v2/dashboard/summary", headers=_headers(token),
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+def test_void_ticket_moves_no_total(client, test_store_id):
+    _set_type(test_store_id)
+    _seed_day_with_a_void(test_store_id)
+
+    reg = _summary(client, test_store_id)["register"]
+    # The sale and the refund; the void is not a receipt.
+    assert reg["receipts"] == 2
+    assert reg["refunds"] == 1
+    # $40.00 − $5.00, not + $777.77.
+    assert reg["total_rung"] == pytest.approx(35.00)
+    assert reg["fuel_gallons"] == pytest.approx(10.0)
+    assert reg["fuel_sales"] == pytest.approx(40.00)
+
+
+@pytest.mark.parametrize("kind", ["other", "financial"])
+def test_register_opens_and_financial_events_are_not_receipts(
+    client, test_store_id, kind,
+):
+    _set_type(test_store_id)
+    with db_session():
+        _txn(test_store_id, source_file="A.xml", no="1", cents=300)
+        _txn(test_store_id, source_file="B.xml", no="2", cents=250_00,
+             kind=kind)
+        db.session.commit()
+
+    reg = _summary(client, test_store_id)["register"]
+    assert reg["receipts"] == 1
+    assert reg["total_rung"] == pytest.approx(3.00)
+
+
+def test_voided_tickets_tile_still_sees_every_kind(client, test_store_id):
+    """The void tile is the trouble signal: a void with a cancelled
+    line stays on it although it left the receipts."""
+    _set_type(test_store_id)
+    with db_session():
+        _txn(test_store_id, source_file="A.xml", no="1", cents=300)
+        _txn(test_store_id, source_file="B.xml", no="2", cents=1200,
+             kind="void", voided=True)
+        db.session.commit()
+
+    reg = _summary(client, test_store_id)["register"]
+    assert reg["receipts"] == 1
+    assert reg["voided_tickets"] == 1
+
+
+def test_cashier_dashboard_leaves_the_void_out(client, test_store_id):
+    _set_type(test_store_id)
+    _seed_day_with_a_void(test_store_id)
+
+    reg = _employee_summary(test_store_id)["register"]
+    assert reg is not None
+    assert reg["receipts"] == 2
+    assert reg["total_rung"] == pytest.approx(35.00)
+    assert reg["fuel_gallons"] == pytest.approx(10.0)
+
+
+def test_without_day_close_read_there_is_no_register_block(
+    client, test_store_id,
+):
+    _set_type(test_store_id)
+    _seed_day_with_a_void(test_store_id)
+
+    body = _employee_summary(test_store_id, permissions=NO_DAY_CLOSE_READ)
+    assert body["register"] is None
