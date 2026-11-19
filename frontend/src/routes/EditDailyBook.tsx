@@ -37,7 +37,7 @@ import { getCurrentIdentity } from "../lib/auth";
 import {
   Alert, type BreakdownPart, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
   ErrorState, Field, FormActions, InfoTip, Input, Loading, Modal,
-  MoneyInput, PageHeader, PageShell, PeriodStepper, Pill, RowActions,
+  ModalActions, MoneyInput, PageHeader, PageShell, PeriodStepper, Pill, RowActions,
   TabsBar, TabsButton, Textarea,
 } from "../components/ui";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
@@ -1111,7 +1111,10 @@ function SalesWidget({
 
           {err && <Alert tone="error">{err}</Alert>}
 
-          <div className={styles.mtSaveRow}>
+          {/* The popup's own button row: pinned to the bottom of the card,
+              so the total and Save stay in view however long the tables
+              above get (it used to scroll away under them). */}
+          <ModalActions>
             <span className={styles.mtSaveRowLeft}>
               {t("daily.totalLabel")} <strong>{fmtMoney2(total)}</strong>
             </span>
@@ -1125,7 +1128,7 @@ function SalesWidget({
             >
               {busy ? t("daily.saving") : t("daily.saveShort")}
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
     </>
@@ -1234,7 +1237,7 @@ function FeesWidget({
 
           {err && <Alert tone="error">{err}</Alert>}
 
-          <div className={styles.mtSaveRow}>
+          <ModalActions>
             <span className={styles.mtSaveRowLeft}>
               {t("daily.totalLabel")} <strong>{fmtMoney2(total)}</strong>
             </span>
@@ -1248,7 +1251,7 @@ function FeesWidget({
             >
               {busy ? t("daily.saving") : t("daily.saveShort")}
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
     </>
@@ -1489,7 +1492,9 @@ function ServicesWidget({
 
       <Modal
         open={open}
-        size="lg"
+        // xl: eight columns of amounts, each wide enough to read a
+        // whole figure, don't fit lg without scrolling to the total.
+        size="xl"
         title={
           <>
             {t("daily.services")}
@@ -1714,7 +1719,7 @@ function ServicesWidget({
 
           {err && <Alert tone="error">{err}</Alert>}
 
-          <div className={styles.mtSaveRow}>
+          <ModalActions>
             <span className={styles.mtSaveRowLeft}>
               {t("daily.grandTotal")} <strong>{fmtMoney2(draftTotal)}</strong>
             </span>
@@ -1728,7 +1733,7 @@ function ServicesWidget({
             >
               {busy ? t("daily.saving") : t("daily.saveServices")}
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
     </>
@@ -1809,6 +1814,7 @@ function MTCellInput({
         disabled={locked}
         prefix=""
         fullWidth
+        dense
         aria-label={label}
       />
     </td>

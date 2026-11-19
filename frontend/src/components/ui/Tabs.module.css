@@ -24,6 +24,11 @@
   scrollbar-color: var(--db-border-strong) transparent;
 }
 
+.barWrap {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
 .bar::-webkit-scrollbar {
   height: 4px;
 }

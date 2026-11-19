@@ -43,6 +43,9 @@
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  /* A pill beside a two-line note keeps its own height instead of
+   * stretching into a tall capsule. */
+  align-items: center;
 }
 
 .note {

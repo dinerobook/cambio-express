@@ -48,7 +48,7 @@ describe("<Modal>", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("has a visible ✕ that closes it, last in the tab order", async () => {
+  it("has a visible ✕ that closes it, while the first field takes focus", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
@@ -60,6 +60,62 @@ describe("<Modal>", () => {
     expect(screen.getByLabelText("Name")).toHaveFocus();
     await user.click(screen.getByRole("button", { name: "Close window" }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts on the first field, not a label's (i) button before it", () => {
+    render(
+      <Modal open onClose={() => {}} title="Add an item">
+        <p>Scan code <button type="button">(i)</button></p>
+        <input aria-label="Scan code" />
+      </Modal>,
+    );
+    expect(screen.getByRole("textbox", { name: "Scan code" })).toHaveFocus();
+  });
+
+  it("does not start on a date box, which would open its calendar over the buttons", () => {
+    render(
+      <Modal open onClose={() => {}} title="Change date">
+        <input aria-label="Date" aria-haspopup="dialog" />
+        <input aria-label="Note" />
+      </Modal>,
+    );
+    expect(screen.getByLabelText("Note")).toHaveFocus();
+  });
+
+  it("focuses the popup itself when its only field is a date box", () => {
+    render(
+      <Modal open onClose={() => {}} title="Change date">
+        <input aria-label="Date" aria-haspopup="dialog" />
+      </Modal>,
+    );
+    expect(screen.getByLabelText("Date")).not.toHaveFocus();
+    expect(screen.getByRole("dialog")).toHaveFocus();
+  });
+
+  it("draws one button row when the caller already wrapped it in ModalActions", () => {
+    render(
+      <Modal
+        open onClose={() => {}} title="One bar"
+        actions={<ModalActions><button type="button">Save</button></ModalActions>}
+      >
+        body
+      </Modal>,
+    );
+    const save = screen.getByRole("button", { name: "Save" });
+    // The Save button's row is a direct child of the card.
+    expect(save.parentElement?.parentElement).toBe(screen.getByRole("dialog"));
+  });
+
+  it("starts a confirm on its first button, not on the ✕", () => {
+    render(
+      <ConfirmDialog
+        open title="Delete this rule?" message="It stops matching."
+        confirmLabel="Delete" onConfirm={() => {}} onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Close window" })).not.toHaveFocus();
+    expect(document.activeElement?.textContent).not.toBe("");
+    expect(document.activeElement?.tagName).toBe("BUTTON");
   });
 
   it("disables the ✕ while the popup is busy", () => {

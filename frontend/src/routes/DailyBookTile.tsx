@@ -83,7 +83,9 @@ export function BoxTabs<K extends string>({
 }) {
   return (
     <div className={styles.tabsTipRow}>
-      <TabsBar>
+      {/* Wraps: a box's tabs ("Money transfer · $…" … "Money orders
+          · $…") are wider than the popup, and the last ones were cut. */}
+      <TabsBar wrap>
         {tabs.map((t) => (
           <TabsButton
             key={t.key}

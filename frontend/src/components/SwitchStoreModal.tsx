@@ -243,7 +243,7 @@ function SwitchStoreBody({ onClose }: { onClose: () => void }) {
                 )}
               </span>
               {s.address && (
-                <span className={styles.rowAddress}>{s.address}</span>
+                <span className={styles.rowAddress} title={s.address}>{s.address}</span>
               )}
             </button>
             <button

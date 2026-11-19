@@ -1,5 +1,5 @@
 import { useT } from "../../i18n";
-import { type CSSProperties, type ReactNode } from "react";
+import { isValidElement, type CSSProperties, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 import { Alert } from "./Alert";
@@ -62,8 +62,10 @@ export function Modal({
    *  is a form with its own submit row. */
   actions?: ReactNode;
   /** `sm` (24rem) for confirm dialogs, `md` (32rem) for short
-   *  forms, `lg` (48rem) for long forms / tables / wizards. */
-  size?: "sm" | "md" | "lg";
+   *  forms, `lg` (48rem) for long forms / tables / wizards, `xl`
+   *  (64rem) for a wide grid of inputs (the daily book's money
+   *  transfer table: eight columns of amounts). */
+  size?: "sm" | "md" | "lg" | "xl";
   /** Set false to keep the modal open when the user clicks the
    *  backdrop.  Default true. */
   closeOnBackdrop?: boolean;
@@ -90,6 +92,36 @@ export function Modal({
             // description — suppress Radix's aria-describedby
             // wiring (and its dev warning) explicitly.
             aria-describedby={undefined}
+            onOpenAutoFocus={(e) => {
+              // Start on the first field, not the first focusable
+              // thing: that was often a label's (i) button, whose tip
+              // then opened over the very box you were about to type
+              // in (Add an item). A date box is skipped: it opens its
+              // calendar on focus, and the calendar then covered the
+              // popup's buttons ("Change date"). No other field (a
+              // confirm) → Radix's own pick, the first button; only a
+              // date box → the card itself, so nothing pops open.
+              // The ✕ sits in the header, first in the DOM, so with no
+              // field the first button of the body or the button row
+              // (a confirm's Cancel) is picked, never the ✕.
+              const card = e.currentTarget as HTMLElement | null;
+              const first = card?.querySelector<HTMLElement>(FIRST_FIELD);
+              if (first) {
+                e.preventDefault();
+                first.focus();
+              } else if (card?.querySelector(PICKER_FIELD)) {
+                e.preventDefault();
+                card.focus();
+              } else {
+                const button = card?.querySelector<HTMLElement>(
+                  `.${styles.body} button:not(:disabled), .${styles.actions} button:not(:disabled)`,
+                );
+                if (button) {
+                  e.preventDefault();
+                  button.focus();
+                }
+              }
+            }}
             onEscapeKeyDown={(e) => {
               if (!closeOnEscape || disabled) e.preventDefault();
             }}
@@ -100,30 +132,45 @@ export function Modal({
               if (!closeOnBackdrop || disabled) e.preventDefault();
             }}
           >
-            <Dialog.Title asChild>
-              <h2 className={styles.title}>{title}</h2>
-            </Dialog.Title>
-            <div className={styles.body}>{children}</div>
-            {actions && <ModalActions>{actions}</ModalActions>}
-            {/* The ✕ in the corner: a way out you can see (Escape and
-                the backdrop were the only ones). Last in the DOM so the
-                first field — not the ✕ — gets focus when the popup
-                opens; drawn top-right by CSS. Named "Close window", not
-                "Close", so it never clashes with a popup's own Close
-                button. Disabled with the popup while a save runs. */}
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className={styles.close}
-                aria-label={t("modal.close")}
-                disabled={disabled}
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                </svg>
-              </button>
-            </Dialog.Close>
+            {/* Three parts (UI-STANDARDS §2 "A popup's size"): the
+                header (title + ✕) and the button row stay put, and only
+                the body between them scrolls — with its own visible
+                scrollbar, a line under the header once scrolled and a
+                fade over the button row while more is below. Before,
+                the whole card scrolled under a pinned button row: the
+                last fields slid behind Save with nothing to say there
+                was more ("Parent department" on Add a department). */}
+            <div className={styles.header}>
+              <Dialog.Title asChild>
+                <h2 className={styles.title}>{title}</h2>
+              </Dialog.Title>
+              {/* A way out you can see (Escape and the backdrop were
+                  the only ones). Named "Close window", not "Close", so
+                  it never clashes with a popup's own Close button.
+                  Disabled with the popup while a save runs. */}
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  className={styles.close}
+                  aria-label={t("modal.close")}
+                  disabled={disabled}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+                </button>
+              </Dialog.Close>
+            </div>
+            <div className={styles.body} ref={trackScroll}>{children}</div>
+            {actions && (
+              // A caller that already wrapped its buttons in
+              // <ModalActions> gets one bar, not a bar inside a bar
+              // (a second hairline and ~1rem of lost height).
+              isValidElement(actions) && actions.type === ModalActions
+                ? actions
+                : <ModalActions>{actions}</ModalActions>
+            )}
           </Dialog.Content>
         </Dialog.Overlay>
       </Dialog.Portal>
@@ -131,8 +178,56 @@ export function Modal({
   );
 }
 
-function sizeClass(size: "sm" | "md" | "lg"): string {
+/** Marks the card while its body is scrolled (`data-scrolled`: a line
+ *  under the header) and while more is below (`data-more`: a fade
+ *  over the button row), so a popup taller than the window says it
+ *  scrolls. A React 19 ref callback: the returned function detaches.
+ *  Re-measured on scroll and whenever the body or what is in it
+ *  changes size (a row added, an error shown). */
+function trackScroll(body: HTMLDivElement | null) {
+  if (!body) return;
+  const card = body.parentElement;
+  const update = () => {
+    const scrolled = body.scrollTop > 1;
+    const more = body.scrollTop + body.clientHeight < body.scrollHeight - 1;
+    card?.toggleAttribute("data-scrolled", scrolled);
+    card?.toggleAttribute("data-more", more);
+  };
+  update();
+  body.addEventListener("scroll", update, { passive: true });
+  const resize = typeof ResizeObserver === "undefined"
+    ? null
+    : new ResizeObserver(update);
+  resize?.observe(body);
+  const watch = () => {
+    for (const child of Array.from(body.children)) resize?.observe(child);
+    update();
+  };
+  watch();
+  const mutations = typeof MutationObserver === "undefined"
+    ? null
+    : new MutationObserver(watch);
+  mutations?.observe(body, { childList: true });
+  return () => {
+    body.removeEventListener("scroll", update);
+    resize?.disconnect();
+    mutations?.disconnect();
+  };
+}
+
+/** The first control a person types into or picks from — not a box
+ *  that opens a picker on focus (DateInput, aria-haspopup). */
+const FIRST_FIELD = [
+  "input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([aria-haspopup]):not(:disabled)",
+  "select:not(:disabled)",
+  "textarea:not(:disabled)",
+].join(", ");
+
+const PICKER_FIELD = "input[aria-haspopup]:not(:disabled)";
+
+function sizeClass(size: "sm" | "md" | "lg" | "xl"): string {
   if (size === "sm") return styles.sizeSm;
+  if (size === "xl") return styles.sizeXl;
   if (size === "lg") return styles.sizeLg;
   return styles.sizeMd;
 }

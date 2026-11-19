@@ -606,7 +606,9 @@ function EntryModal({
       title={isEdit ? t("payroll.editEntry") : t("payroll.newEntryTitle")}
       disabled={busy}
     >
-      <form onSubmit={onSubmit}>
+      {/* `ds-form`: the grid, an error and the button row get the
+          kit's gap instead of touching. */}
+      <form onSubmit={onSubmit} className="ds-form">
         <div className={styles.modalGrid}>
           <Field label={t("payroll.rosterName")} style={{ gridColumn: "1 / -1" }}>
             <Select

@@ -388,7 +388,12 @@ function CloseForm({
             {departments.map((d) => (
               <div key={d.id} className={styles.deptRow}>
                 <span className={styles.deptName}>{d.name}</span>
+                {/* A set width (not the input's default 20 characters,
+                    ~250px) so on a phone the department's name keeps
+                    room instead of shrinking to "Bever…". */}
                 <MoneyInput
+                  fullWidth
+                  style={{ flex: "0 0 9.5rem" }}
                   aria-label={t("rc.deptSalesOf", { name: d.name })}
                   value={deptAmounts[d.id] ?? 0}
                   onChange={(next) =>
