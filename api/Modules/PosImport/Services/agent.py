@@ -38,6 +38,7 @@ from api.Modules.PosImport.Models import (
 )
 from api.Modules.PosImport.Services.ingest import (
     IMPORT_SOURCE,
+    CommitDayResult,
     PosImportError,
 )
 from api.Modules.PosImport.Services.naxml import (
@@ -158,6 +159,60 @@ def agent_store_block(db: Session, store_id: int) -> AgentStoreBlock | None:
 class StageResult:
     file: PosJournalFile
     duplicate: bool
+    # A fuel prepay completion for a deposit on an EARLIER business
+    # day that is already booked: that day still counts the deposit
+    # and needs re-booking (``rebook_for_late_completion``).
+    rebook_day: date | None = None
+
+
+def _staged_prepay_partners(
+    db: Session, store_id: int, key: str, filename: str,
+) -> list[PjrEvent]:
+    """The other staged half (or halves) of a prepaid ticket: files
+    sharing ``key``, parsed. Unparseable files are skipped."""
+    if not key:
+        return []
+    rows = (
+        db.query(PosJournalFile)
+        .filter(
+            PosJournalFile.store_id == store_id,
+            PosJournalFile.prepay_key == key,
+            PosJournalFile.filename != filename,
+        )
+        .order_by(PosJournalFile.id)
+        .all()
+    )
+    partners: list[PjrEvent] = []
+    for f in rows:
+        try:
+            partner = parse_pjr(gzip.decompress(f.content_gz))
+        except (PosJournalParseError, OSError):
+            continue
+        partner.source_file = f.filename
+        partners.append(partner)
+    return partners
+
+
+def _bump_hourly(
+    db: Session, store_id: int, day: date, hour: int, cents: int,
+) -> None:
+    from api.Modules.DayClose.Models import HourlySale
+
+    bucket = (
+        db.query(HourlySale)
+        .filter_by(
+            store_id=store_id, report_date=day, hour=hour,
+            source=IMPORT_SOURCE,
+        )
+        .first()
+    )
+    if bucket is None:
+        db.add(HourlySale(
+            store_id=store_id, report_date=day, hour=hour,
+            amount_cents=cents, source=IMPORT_SOURCE,
+        ))
+    else:
+        bucket.amount_cents = int(bucket.amount_cents or 0) + cents
 
 
 def stage_journal_file(
@@ -166,7 +221,13 @@ def stage_journal_file(
     """Store one pushed journal file. Idempotent on (store,
     filename) — the agent can retry safely. Files that fail to
     parse are staged anyway with the error recorded (a future
-    parser fix re-parses them at commit time)."""
+    parser fix re-parses them at commit time).
+
+    A prepaid fuel ticket arrives twice (deposit, then the
+    completion that restates it — naxml module docstring). The live
+    hourly preview counts it once whichever half lands first, and a
+    completion whose deposit sits on an earlier, already-booked day
+    reports that day in ``rebook_day``."""
     filename = filename.strip().rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     if not filename:
         raise PosImportError("Filename is required.")
@@ -192,40 +253,65 @@ def stage_journal_file(
     except PosJournalParseError as exc:
         parse_error = str(exc)[:255]
 
+    prepay_key = event.prepay_key if event is not None else ""
+    partners = (
+        _staged_prepay_partners(db, store_id, prepay_key, filename)
+        if event is not None and (
+            event.is_prepay_deposit or event.completes_prepay
+        ) else []
+    )
+    deposit = next(
+        (p for p in partners if p.is_prepay_deposit), None,
+    ) if event is not None and event.completes_prepay else None
+
     # G-3 live hourly preview: increment the hour bucket as each
     # sale/refund arrives so the dashboard's hourly chart tracks
-    # the CURRENT business day in near-real-time. Commit rebuilds
+    # the CURRENT business day in near-real-time, on the same
+    # pre-tax basis as the booked gross_sales. Commit rebuilds
     # the day from the staged originals, self-healing any drift
     # (e.g. an upload that raced or a later parser fix). Runs
     # only for brand-new files — the duplicate short-circuit above
     # already returned, so retries never double-count.
     if (
         event is not None
-        and event.kind in ("sale", "refund")
+        and event.counts_toward_sales
         and business_date is not None
         and event.event_hour is not None
-    ):
-        from api.Modules.DayClose.Models import HourlySale
-        from api.Modules.PosImport.Services.ingest import IMPORT_SOURCE
-        bucket = (
-            db.query(HourlySale)
-            .filter_by(
-                store_id=store_id, report_date=business_date,
-                hour=event.event_hour, source=IMPORT_SOURCE,
-            )
-            .first()
+        # A deposit whose completion already arrived (out of order)
+        # is superseded — the completion is in the preview.
+        and not (
+            event.is_prepay_deposit
+            and any(p.completes_prepay for p in partners)
         )
-        if bucket is None:
-            db.add(HourlySale(
-                store_id=store_id, report_date=business_date,
-                hour=event.event_hour,
-                amount_cents=event.net_cents,
-                source=IMPORT_SOURCE,
-            ))
-        else:
-            bucket.amount_cents = (
-                int(bucket.amount_cents or 0) + event.net_cents
-            )
+    ):
+        _bump_hourly(
+            db, store_id, business_date, event.event_hour,
+            event.sales_cents,
+        )
+    # A completion restates its deposit: take the deposit back out
+    # of the preview, so the ticket counts once, from here.
+    if (
+        deposit is not None
+        and deposit.business_date is not None
+        and deposit.event_hour is not None
+    ):
+        _bump_hourly(
+            db, store_id, deposit.business_date, deposit.event_hour,
+            -deposit.sales_cents,
+        )
+
+    rebook_day: date | None = None
+    if (
+        deposit is not None
+        and deposit.business_date is not None
+        and business_date is not None
+        and deposit.business_date < business_date
+        and db.query(RegisterClose.id).filter_by(
+            store_id=store_id, report_date=deposit.business_date,
+            source=IMPORT_SOURCE,
+        ).first() is not None
+    ):
+        rebook_day = deposit.business_date
 
     row = PosJournalFile(
         store_id=store_id,
@@ -234,10 +320,11 @@ def stage_journal_file(
         event_kind=event_kind,
         parse_error=parse_error,
         content_gz=gzip.compress(content),
+        prepay_key=prepay_key[:80],
     )
     db.add(row)
     db.flush()
-    return StageResult(file=row, duplicate=False)
+    return StageResult(file=row, duplicate=False, rebook_day=rebook_day)
 
 
 @dataclass
@@ -415,6 +502,76 @@ def auto_commit_rolled_days(db: Session, store_id: int) -> list:
     return results
 
 
+def rebook_for_late_completion(
+    db: Session, store_id: int, day: date,
+) -> CommitDayResult | None:
+    """Re-book ``day`` after a fuel prepay taken on it was completed
+    on a LATER business day that arrived once ``day`` was booked.
+
+    Auto-commit books a day as soon as the next day's first file
+    lands, and a prepay rung just before the site's day close is
+    completed after it — so the booked day still counts a deposit
+    the completion now restates. Re-committing from the staged files
+    lets ``commit_business_day`` find the completion and drop the
+    deposit, keeping the drawer count and any typed note, as every
+    re-commit does.
+
+    Refused (None) when the day is not booked from the journal, or
+    when its stored transactions hold a file that was never staged:
+    such a day was booked from a manual upload, and re-booking it
+    from staged files alone would drop that upload's tickets. The
+    operator re-commits it by hand. Caller commits."""
+    from api.Modules.Audit.Services import record_operator_action
+    from api.Modules.PosImport.Models import PosTransaction
+    from api.Modules.PosImport.Services.ingest import commit_business_day
+
+    booked = (
+        db.query(RegisterClose)
+        .filter_by(store_id=store_id, report_date=day, source=IMPORT_SOURCE)
+        .first()
+    )
+    if booked is None:
+        return None
+    staged_names = (
+        db.query(PosJournalFile.filename)
+        .filter_by(store_id=store_id, business_date=day)
+    )
+    upload_only = (
+        db.query(PosTransaction.id)
+        .filter(
+            PosTransaction.store_id == store_id,
+            PosTransaction.business_date == day,
+            PosTransaction.source_file.notin_(staged_names),
+        )
+        .first()
+    )
+    if upload_only is not None:
+        return None
+    try:
+        result = commit_business_day(
+            db, store_id, day,
+            events=staged_events_for_day(db, store_id, day),
+            created_by=booked.created_by,
+        )
+    except PosImportError:
+        return None
+    record_operator_action(
+        db,
+        store_id=store_id,
+        user_id=None,
+        user_name="Gilbarco site agent",
+        user_role="system",
+        target_type="register_close",
+        target_id=day.isoformat(),
+        action="commit_pos_import_auto",
+        summary=(
+            f"re-booked {day.isoformat()}: a fuel prepay taken that day "
+            f"was completed on a later business day"
+        ),
+    )
+    return result
+
+
 def staged_events_for_day(
     db: Session, store_id: int, day: date,
 ) -> list[PjrEvent]:
@@ -443,6 +600,6 @@ __all__ = [
     "KEY_PREFIX", "MAX_AGENT_FILE_BYTES", "AgentStoreBlock", "StageResult",
     "StagedDay", "agent_store_block",
     "authenticate_agent", "issue_agent_key", "list_agent_keys",
-    "revoke_agent_key", "stage_journal_file", "staged_days",
-    "staged_events_for_day",
+    "rebook_for_late_completion", "revoke_agent_key",
+    "stage_journal_file", "staged_days", "staged_events_for_day",
 ]

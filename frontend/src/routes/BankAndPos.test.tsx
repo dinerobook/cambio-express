@@ -175,6 +175,7 @@ describe("Transactions (register journal)", () => {
       id: 77, transaction_no: "T-1001", business_date: "2026-10-09", receipt_at: "2026-10-09T15:00:00",
       register_id: "R1", cashier_id: "C9", item_count: 3, tax: 0.82, grand_total: 12.5,
       kind: "refund", has_voided_line: true, training_mode: false, offline: false, suspended: false,
+      superseded: false,
     }],
     total: 1, page: 1, total_pages: 1, total_grand: 12.5, voided_count: 1,
   };

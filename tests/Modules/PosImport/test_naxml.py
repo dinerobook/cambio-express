@@ -14,6 +14,8 @@ the repo. The invariants under test:
   * tender bucketing: cash vs card networks vs other,
   * malformed / non-POSJournal / XXE input fails loudly.
 """
+from decimal import Decimal
+
 import pytest
 
 from api.Modules.PosImport.Services import (
@@ -49,6 +51,9 @@ def _sale(business_date="2024-10-14", register="1", merch="17",
     dt_el = (
         f"<EventDateTime>{event_dt}</EventDateTime>" if event_dt else ""
     )
+    # Real Passport files put tax INSIDE NetAmount (Net = Grand =
+    # what the customer paid); Gross is the pre-promotion sale.
+    paid = Decimal(amount) + Decimal(tax_collected)
     return _doc(f"""<SaleEvent>
     {dt_el}
     <CashierID>91</CashierID>
@@ -97,8 +102,9 @@ def _sale(business_date="2024-10-14", register="1", merch="17",
     </TransactionDetailGroup>
     <TransactionSummary>
      <TransactionTotalGrossAmount>{amount}</TransactionTotalGrossAmount>
-     <TransactionTotalNetAmount>{amount}</TransactionTotalNetAmount>
+     <TransactionTotalNetAmount>{paid}</TransactionTotalNetAmount>
      <TransactionTotalTaxNetAmount>{tax_collected}</TransactionTotalTaxNetAmount>
+     <TransactionTotalGrandAmount direction="Collected">{paid}</TransactionTotalGrandAmount>
     </TransactionSummary>
    </SaleEvent>""")
 
@@ -214,6 +220,9 @@ def test_parse_sale_event():
     assert ev.items[0].amount_cents == 299
     assert ev.gross_cents == 299
     assert ev.tax_cents == 25
+    # NetAmount carries the tax; the pre-tax sale takes it back off.
+    assert ev.net_cents == 324
+    assert ev.sales_cents == 299
     # Tender 4.00 + change −0.76 = 3.24 net cash.
     assert sum(t.amount_cents for t in ev.tenders) == 324
     assert [t.is_change for t in ev.tenders] == [False, True]

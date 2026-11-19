@@ -4636,6 +4636,12 @@ export interface paths {
          *     enumeration hints). Idempotent per filename so retries are
          *     free. Commits its own transaction: staging isn't an operator
          *     mutation, so there's no audit row to co-commit.
+         *
+         *     The key carries no JWT, so the store's gates are asked here
+         *     (``agent_store_block``): a disabled store is 403, a frozen or
+         *     lapsed one 402 with the subscription gate's ``reason``, and
+         *     nothing is staged or booked. Checked after the key, so a
+         *     stranger never learns a store's state.
          */
         post: operations["agent_upload_route_posimport_agent_upload_post"];
         delete?: never;
@@ -14826,6 +14832,12 @@ export interface components {
             kind: string;
             /** Lines */
             lines: components["schemas"]["PosTransactionLineRow"][];
+            /** Linked Id */
+            linked_id: number | null;
+            /** Linked Reason */
+            linked_reason: string;
+            /** Linked Transaction No */
+            linked_transaction_no: string;
             /** Net */
             net: number;
             /** Offline */
@@ -14840,6 +14852,10 @@ export interface components {
             source_file: string;
             /** Started At */
             started_at: string | null;
+            /** Superseded */
+            superseded: boolean;
+            /** Superseded By Id */
+            superseded_by_id: number | null;
             /** Suspended */
             suspended: boolean;
             /** Tax */
@@ -14927,6 +14943,8 @@ export interface components {
             receipt_at: string | null;
             /** Register Id */
             register_id: string;
+            /** Superseded */
+            superseded: boolean;
             /** Suspended */
             suspended: boolean;
             /** Tax */

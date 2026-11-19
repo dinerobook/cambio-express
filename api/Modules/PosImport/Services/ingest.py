@@ -41,6 +41,7 @@ from api.Modules.PosImport.Services.naxml import (
     RegisterDayAggregate,
     aggregate_events,
     parse_pjr,
+    supersede_prepaid_deposits,
 )
 
 # Decoded-payload ceiling. A full month of journals from a busy
@@ -253,6 +254,66 @@ def with_staged_events(
     return events
 
 
+# SQLite caps bound parameters per statement; a day holds a few
+# hundred prepays at most, so this only ever splits a huge backlog.
+_KEY_CHUNK = 500
+
+
+def staged_prepay_completions(
+    db: Session, store_id: int, day: date, events: list[PjrEvent],
+) -> list[PjrEvent]:
+    """Staged completions, from any business day, for the prepay
+    deposits (and chained completions) ``events`` holds on ``day``
+    and does not already pair.
+
+    A prepay rung just before the site's day close is pumped after
+    it, so Passport books the completion to the NEXT business day
+    and it is not among the day's own files. The staged files'
+    ``prepay_key`` finds it with one indexed lookup instead of a
+    parse of every later file. Files ``events`` already holds (by
+    name) and unparseable files are skipped. The result only marks
+    what it restates (``supersede_prepaid_deposits``); it is never
+    summed."""
+    import gzip
+
+    from api.Modules.PosImport.Models import PosJournalFile
+
+    supersede_prepaid_deposits(events)
+    # A completion's staged prepay_key is the identity of the event
+    # it restates: a deposit, or an earlier completion in a chain.
+    keys = sorted({
+        e.identity_key for e in events
+        if e.business_date == day and e.can_be_superseded
+        and not e.superseded
+    })
+    if not keys:
+        return []
+    held = {e.source_file for e in events if e.source_file}
+    found: list[PjrEvent] = []
+    for start in range(0, len(keys), _KEY_CHUNK):
+        rows = (
+            db.query(PosJournalFile)
+            .filter(
+                PosJournalFile.store_id == store_id,
+                PosJournalFile.prepay_key.in_(keys[start:start + _KEY_CHUNK]),
+            )
+            .order_by(PosJournalFile.id)
+            .all()
+        )
+        for f in rows:
+            if f.filename in held:
+                continue
+            try:
+                event = parse_pjr(gzip.decompress(f.content_gz))
+            except (PosJournalParseError, OSError):
+                continue
+            if not event.completes_prepay:
+                continue  # the deposit's own staged copy
+            event.source_file = f.filename
+            found.append(event)
+    return found
+
+
 def register_label_for(register_key: str) -> str:
     if register_key == OUTSIDE_REGISTER_KEY:
         return OUTSIDE_REGISTER_LABEL
@@ -267,16 +328,19 @@ def rebuild_hourly_sales(
     of the staged originals — the live per-upload increments in
     ``agent.stage_journal_file`` are a running preview this
     rebuild self-heals. Events without a clock hour are skipped
-    (they still count toward day totals, just not the chart)."""
+    (they still count toward day totals, just not the chart).
+    Buckets hold the pre-tax sale (``sales_cents``), the same basis
+    as the booked gross_sales; a superseded prepay deposit is
+    skipped (callers mark it first — ``commit_business_day``)."""
     from api.Modules.DayClose.Models import HourlySale
 
     sums: dict[int, int] = {}
     for e in events:
-        if e.kind not in ("sale", "refund"):
+        if not e.counts_toward_sales:
             continue
         if e.business_date != day or e.event_hour is None:
             continue
-        sums[e.event_hour] = sums.get(e.event_hour, 0) + e.net_cents
+        sums[e.event_hour] = sums.get(e.event_hour, 0) + e.sales_cents
     (
         db.query(HourlySale)
         .filter_by(
@@ -308,7 +372,8 @@ def rebuild_item_day_sales(
     parse time; G-5 keeps them so the transaction viewer can show a
     voided item, which means every consumer that sums money now
     owns the filter. Selling a $5.49 item and voiding it mid-sale
-    must move zero units."""
+    must move zero units. A superseded prepay deposit is skipped
+    too: its completion restates the same items."""
     from api.Modules.PosImport.Models import PosItemDaySale
     from api.Modules.PosImport.Services.naxml import LINE_STATUS_NORMAL
 
@@ -317,7 +382,7 @@ def rebuild_item_day_sales(
     desc: dict[str, str] = {}
     merch: dict[str, str] = {}
     for e in events:
-        if e.kind not in ("sale", "refund") or e.business_date != day:
+        if not e.counts_toward_sales or e.business_date != day:
             continue
         for line in e.items:
             if line.status != LINE_STATUS_NORMAL:
@@ -362,7 +427,10 @@ def rebuild_transactions(
     register opens, financial events, and the individual lines the
     register cancelled mid-sale. Nothing here is summed into a
     total, so nothing needs filtering out; the callers that DO sum
-    (aggregate_events, rebuild_item_day_sales) own that filter.
+    (aggregate_events, rebuild_item_day_sales) own that filter. A
+    prepay deposit its completion superseded is stored with
+    ``superseded`` set, which is what every total over these rows
+    filters on.
 
     Events with no ``source_file`` are skipped: without it there is
     no idempotence key, and a re-commit would duplicate them.
@@ -423,6 +491,12 @@ def rebuild_transactions(
             has_voided_line=any(
                 i.status != LINE_STATUS_NORMAL for i in e.items
             ),
+            linked_reason=(e.link_reason or "")[:30],
+            linked_register_id=(e.linked_register_id or "")[:20],
+            linked_transaction_no=(e.linked_transaction_id or "")[:30],
+            linked_started_at=e.linked_started_at,
+            superseded=e.superseded,
+            superseded_by_file=(e.superseded_by_file or "")[:120],
         )
         db.add(txn)
         db.flush()  # need txn.id for the children
@@ -492,7 +566,15 @@ def commit_business_day(
     events: list[PjrEvent], created_by: int | None,
 ) -> CommitDayResult:
     """Book one business day's aggregates into DayClose. Leaves
-    commit to the Controller (invariant #7 pattern)."""
+    commit to the Controller (invariant #7 pattern).
+
+    Every prepay deposit with a completion — in ``events`` or staged
+    on a later business day — is marked superseded first, so the
+    closes, hourly buckets, item movement and stored transactions
+    below all count the ticket once, from its completion."""
+    supersede_prepaid_deposits(
+        events, staged_prepay_completions(db, store_id, day, events),
+    )
     days = [
         a for a in aggregate_events(events) if a.business_date == day
     ]
@@ -571,5 +653,6 @@ __all__ = [
     "list_mappings", "load_pjr_payload", "mapping_status",
     "rebuild_hourly_sales", "rebuild_item_day_sales",
     "rebuild_transactions",
-    "register_label_for", "set_mappings", "with_staged_events",
+    "register_label_for", "set_mappings", "staged_prepay_completions",
+    "with_staged_events",
 ]

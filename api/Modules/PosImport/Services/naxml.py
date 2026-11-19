@@ -30,15 +30,38 @@ Ground truth from a real Passport 22.01 site (23 business days,
   (an amount keyed straight to a department, no scan code — open
   department sales, lotto sales, and lottery / lotto cashes as
   negative amounts) and ``FuelPrepayLine``. The first three are
-  sales and are parsed. A prepay is only a deposit on a pump: it
-  carries no MerchandiseCode, and once the pump stops Passport
-  writes a completion event (``TransactionLinkReason`` fuelPrepay)
-  that restates the ticket with the prepay line cancelled and a
-  FuelLine for what was pumped. The fuel is booked from that
-  FuelLine, so the prepay is skipped — counting both would put
-  the same fuel into a day twice.
-  Checked on ~105k real files: TransactionTotalGrossAmount equals
-  the sum of all four line kinds on 95% of sales.
+  sales and are parsed into ``items``. A prepay is only a deposit
+  on a pump and carries no MerchandiseCode, so it is not an item;
+  the event just records that it holds one (``has_fuel_prepay``).
+* **Tax is inside TransactionTotalNetAmount.** On real Passport
+  files NetAmount always equals GrandAmount (what the customer
+  paid), so the pre-tax sale is NetAmount − TransactionTotalTax-
+  NetAmount (``PjrEvent.sales_cents``). That figure is also
+  exactly the sum of the normal lines' SalesAmount, which Passport
+  writes after promotions; TransactionTotalGrossAmount is before
+  promotions (a $50.73 pump sale with a $2.06 promotion has gross
+  50.73 and a 48.67 FuelLine). Checked on 103,954 real sales and
+  refunds: Net = Grand and Net − Tax = Σ lines on every one, and
+  tenders − (sales + tax) is −$60 over the whole export, where
+  using Gross instead is −$10,936 (the promotions).
+* **A prepaid fuel ticket is written twice.** Passport writes the
+  deposit (a normal FuelPrepayLine, the other items, the tenders)
+  when the customer pays. When the pump stops it writes a
+  completion carrying ``LinkedTransactionInfo`` with
+  ``TransactionLinkReason`` fuelPrepay that restates the WHOLE
+  ticket: same items, same tenders, the prepay line cancelled and
+  a FuelLine for what was pumped. ``OriginalRegisterID`` +
+  ``OriginalTransactionID`` + ``OriginalEventStartDate`` +
+  ``OriginalEventStartTime`` name the deposit. When a sale or
+  refund completion exists, the deposit leaves every money total
+  (``supersede_prepaid_deposits``); it stays in the transaction
+  viewer, marked superseded. A completion written as a VoidEvent
+  supersedes nothing: voids never count, so dropping the deposit
+  would drop the sale. Passport can chain completions (the pump
+  stops, then the change is handed back): the later one names the
+  earlier one, which is superseded the same way. On a real export
+  of 105,152 files: 4,661 links, no event restated twice, three
+  pairs on different business dates.
 * Change back to the customer appears as a negative cash tender
   with ``ChangeFlag="yes"`` — summing tenders as-is yields net
   cash taken in.
@@ -54,8 +77,10 @@ is just reported and skipped.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from itertools import chain
 
 from defusedxml import ElementTree as SafeET
 
@@ -88,6 +113,13 @@ CASH_TENDER_CODES = frozenset({"cash"})
 # discarded (a voided item, a mis-scan corrected mid-sale).
 LINE_STATUS_NORMAL = "normal"
 LINE_STATUS_CANCEL = "cancel"
+
+# LinkedTransactionInfo/TransactionLinkReason of a prepay completion.
+LINK_REASON_FUEL_PREPAY = "fuelPrepay"
+
+# The event kinds that carry money. Voids, register opens and
+# financial events never reach a sales total.
+SALES_KINDS = ("sale", "refund")
 
 
 @dataclass
@@ -178,6 +210,103 @@ class PjrEvent:
     # the persisted transaction idempotent across re-commits — one
     # event per file, so re-parsing replaces rather than duplicates.
     source_file: str = ""
+    # Fuel prepay (see the module docstring). A deposit holds a
+    # normal-status FuelPrepayLine; a completion carries the link to
+    # the deposit it restates.
+    has_fuel_prepay: bool = False
+    link_reason: str = ""
+    linked_register_id: str = ""
+    linked_transaction_id: str = ""
+    linked_started_at: datetime | None = None
+    # Set by ``supersede_prepaid_deposits``, never by the parse: a
+    # deposit whose completion exists. It stays visible but no
+    # longer counts toward any money total.
+    superseded: bool = False
+    superseded_by_file: str = ""
+
+    @property
+    def sales_cents(self) -> int:
+        """The pre-tax sale after promotions — what DayClose books as
+        gross_sales. NetAmount already includes tax (module
+        docstring), so tax comes off it."""
+        return self.net_cents - self.tax_cents
+
+    @property
+    def counts_toward_sales(self) -> bool:
+        """True for the events every money total sums: sales and
+        refunds, minus deposits a prepay completion superseded."""
+        return self.kind in SALES_KINDS and not self.superseded
+
+    @property
+    def identity_key(self) -> str:
+        """This event under the four keys a completion names its
+        original by (``prepay_link_key``)."""
+        return prepay_link_key(
+            self.register_id, self.transaction_id, self.started_at,
+        )
+
+    @property
+    def prepay_key(self) -> str:
+        """For a deposit, its own identity; for a fuelPrepay
+        completion, the identity of the event it restates. The two
+        halves of one prepaid ticket share this key; "" otherwise."""
+        if self.link_reason == LINK_REASON_FUEL_PREPAY:
+            return prepay_link_key(
+                self.linked_register_id, self.linked_transaction_id,
+                self.linked_started_at,
+            )
+        if self.has_fuel_prepay:
+            return prepay_link_key(
+                self.register_id, self.transaction_id, self.started_at,
+            )
+        return ""
+
+    @property
+    def completes_prepay(self) -> bool:
+        """A completion that supersedes its deposit. Only a sale or
+        refund does: a void completion counts for nothing, so letting
+        it drop the deposit would drop the sale."""
+        return (
+            self.link_reason == LINK_REASON_FUEL_PREPAY
+            and self.kind in SALES_KINDS
+            and bool(self.prepay_key)
+        )
+
+    @property
+    def is_prepay_deposit(self) -> bool:
+        return (
+            self.has_fuel_prepay
+            and self.link_reason != LINK_REASON_FUEL_PREPAY
+            and self.kind in SALES_KINDS
+            and bool(self.prepay_key)
+        )
+
+    @property
+    def can_be_superseded(self) -> bool:
+        """A sale or refund that is part of a prepaid ticket: the
+        deposit, or a completion a later completion restates in turn
+        (Passport chains them when change is handed back after the
+        pump stopped). Only these are ever matched to a completion."""
+        return (
+            self.kind in SALES_KINDS
+            and (
+                self.has_fuel_prepay
+                or self.link_reason == LINK_REASON_FUEL_PREPAY
+            )
+            and bool(self.identity_key)
+        )
+
+
+def prepay_link_key(
+    register_id: str, transaction_id: str, started_at: datetime | None,
+) -> str:
+    """Register + transaction number + start time: the four keys
+    Passport links a completion to its deposit by (date and time are
+    one datetime here). "" when any part is missing — an event the
+    key cannot name is never matched to anything."""
+    if not register_id or not transaction_id or started_at is None:
+        return ""
+    return f"{register_id}|{transaction_id}|{started_at:%Y-%m-%dT%H:%M:%S}"
 
 
 def _text(el, tag: str) -> str:
@@ -391,6 +520,15 @@ def parse_pjr(data: bytes | str) -> PjrEvent:
         suspended=_flag(event_el, "SuspendFlag"),
     )
 
+    link = event_el.find(".//LinkedTransactionInfo")
+    if link is not None:
+        event.link_reason = _text(link, "TransactionLinkReason")
+        event.linked_register_id = _text(link, "OriginalRegisterID")
+        event.linked_transaction_id = _text(link, "OriginalTransactionID")
+        event.linked_started_at = _stamp(
+            link, "OriginalEventStartDate", "OriginalEventStartTime",
+        )
+
     # Register open/close detail (OtherEvent): opening drawer cash.
     detail = event_el.find(".//RegisterDetail")
     if detail is not None and detail.get("detailType") == "open":
@@ -410,6 +548,10 @@ def parse_pjr(data: bytes | str) -> PjrEvent:
         event.items.extend(
             _parse_item_line(line, status=status, line_seq=seq),
         )
+        if status == LINE_STATUS_NORMAL and line.find(
+            ".//FuelPrepayLine",
+        ) is not None:
+            event.has_fuel_prepay = True
         for tender in line.findall(".//TenderInfo"):
             change_el = tender.find(".//ChangeFlag")
             event.tenders.append(PjrTender(
@@ -434,6 +576,37 @@ def parse_pjr(data: bytes | str) -> PjrEvent:
     return event
 
 
+# ── Fuel prepay pairs ──────────────────────────────────────
+
+
+def supersede_prepaid_deposits(
+    events: list[PjrEvent], completions: Iterable[PjrEvent] = (),
+) -> int:
+    """Mark every prepay deposit in ``events`` whose completion is in
+    ``events`` or ``completions`` (the module docstring has the
+    rule). ``completions`` is for completions that live outside the
+    list being booked — staged on a later business day. Marking only
+    ever adds, so calling this twice is harmless. Returns how many
+    deposits it newly marked."""
+    by_key: dict[str, PjrEvent] = {}
+    for ev in chain(events, completions):
+        if ev.completes_prepay:
+            by_key.setdefault(ev.prepay_key, ev)
+    if not by_key:
+        return 0
+    marked = 0
+    for ev in events:
+        if ev.superseded or not ev.can_be_superseded:
+            continue
+        completion = by_key.get(ev.identity_key)
+        if completion is None or completion is ev:
+            continue
+        ev.superseded = True
+        ev.superseded_by_file = completion.source_file
+        marked += 1
+    return marked
+
+
 # ── Day aggregation ────────────────────────────────────────
 
 
@@ -449,12 +622,15 @@ class FuelGradeAggregate:
 class RegisterDayAggregate:
     """One register's business day, rolled up from its journal
     events. Maps onto DayClose's RegisterClose + DepartmentSale:
-    ``net_sales_cents`` → gross_sales (merchandise + fuel, refunds
-    netted, pre-tax), ``tax_cents`` → sales_tax, tender buckets →
+    ``net_sales_cents`` → gross_sales (Σ ``PjrEvent.sales_cents``:
+    merchandise + fuel after promotions, refunds netted, tax NOT
+    included — TransactionTotalNetAmount carries tax, so it comes
+    off), ``tax_cents`` → sales_tax, tender buckets →
     cash/card/other totals, ``departments`` → department sale
     lines (keyed by the site's numeric MerchandiseCode — the
     operator maps codes to their Department catalog at review
-    time)."""
+    time). A prepay deposit its completion superseded counts in
+    none of these; the completion carries the ticket."""
 
     business_date: date
     register_id: str
@@ -477,11 +653,13 @@ def aggregate_events(
     """Roll parsed events into per-(business day, register)
     aggregates, sorted by day then register. Events without a
     business date are ignored (they cannot be booked to a day);
-    void events contribute nothing by construction (their lines
-    are all cancelled)."""
+    void events contribute nothing; a prepay deposit whose
+    completion is in ``events`` (or was marked earlier, e.g. from a
+    later staged day) is left out entirely."""
+    supersede_prepaid_deposits(events)
     by_key: dict[tuple[date, str], RegisterDayAggregate] = {}
     for ev in events:
-        if ev.business_date is None:
+        if ev.business_date is None or ev.superseded:
             continue
         register_key = (
             OUTSIDE_REGISTER_KEY if ev.outside else (ev.register_id or "")
@@ -500,7 +678,7 @@ def aggregate_events(
             if agg.opening_cash_cents is None:
                 agg.opening_cash_cents = ev.opening_cash_cents
             continue
-        if ev.kind not in ("sale", "refund"):
+        if not ev.counts_toward_sales:
             continue
 
         if ev.kind == "sale":
@@ -508,9 +686,9 @@ def aggregate_events(
         else:
             agg.refund_count += 1
             # Refund amounts are negative; track magnitude too.
-            agg.refunds_cents += -ev.net_cents
+            agg.refunds_cents += -ev.sales_cents
 
-        agg.net_sales_cents += ev.net_cents
+        agg.net_sales_cents += ev.sales_cents
         agg.tax_cents += ev.tax_cents
         for item in ev.items:
             # Voided lines are visible in the transaction viewer but
@@ -552,7 +730,9 @@ def aggregate_events(
 __all__ = [
     "CARD_TENDER_CODES", "CASH_TENDER_CODES",
     "LINE_STATUS_CANCEL", "LINE_STATUS_NORMAL", "FuelGradeAggregate",
-    "OUTSIDE_REGISTER_KEY", "OUTSIDE_REGISTER_LABEL",
+    "LINK_REASON_FUEL_PREPAY", "OUTSIDE_REGISTER_KEY",
+    "OUTSIDE_REGISTER_LABEL", "SALES_KINDS",
     "PjrEvent", "PjrItemLine", "PjrTender", "PosJournalParseError",
     "RegisterDayAggregate", "aggregate_events", "parse_pjr",
+    "prepay_link_key", "supersede_prepaid_deposits",
 ]
