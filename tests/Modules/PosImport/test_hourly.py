@@ -2,9 +2,12 @@
 increments, commit-time rebuild, and the dashboard block.
 
 The invariants under test:
-  * ``event_hour`` comes from <EventDateTime> when present, falls
-    back to the JournalHeader's <BeginTime>, and is None when the
-    file carries no timestamp (day totals unaffected either way),
+  * ``event_hour`` is the hour the event STARTED (<EventStartTime>),
+    else the hour it ended (<EventEndTime>); never <ReceiptTime>
+    and never the JournalHeader's <BeginTime>, which on real
+    Passport files is the report period's start (the ~22:50 day
+    close), and None when the event carries no start or end (day
+    totals unaffected either way),
   * each staged sale/refund increments its store-level hour bucket
     live; duplicate uploads never double-count,
   * committing a day REBUILDS its buckets from the staged
@@ -36,22 +39,143 @@ def _buckets(store_id, day_iso):
         return {int(r.hour): int(r.amount_cents) for r in rows}
 
 
+def _passport(start=None, *, receipt=None, end=None,
+              business_date="2024-10-16", period="2024-10-16 22:51:54",
+              **sale):
+    """A sale shaped like a real Passport 22.01 file: the header's
+    Begin stamp is the report PERIOD's start (the site's day close;
+    EndDate 2100-01-01 while the period is open), the same on every
+    file of the business day; the event carries its own start, end
+    and receipt as separate date and time elements, in Passport's
+    order. Stamps are "YYYY-MM-DD HH:MM:SS"; None leaves one out."""
+    def stamp(prefix, value):
+        if value is None:
+            return ""
+        day, clock = value.split(" ")
+        return (
+            f"<{prefix}Date>{day}</{prefix}Date>"
+            f"<{prefix}Time>{clock}</{prefix}Time>"
+        )
+
+    period_day, period_clock = period.split(" ")
+    business = f"<BusinessDate>{business_date}</BusinessDate>"
+    return (
+        _sale(business_date=business_date, **sale)
+        .replace(
+            "<BeginDate>2024-10-13</BeginDate>",
+            f"<BeginDate>{period_day}</BeginDate>"
+            f"<BeginTime>{period_clock}</BeginTime>"
+            "<EndDate>2100-01-01</EndDate><EndTime>00:00:00</EndTime>",
+        )
+        .replace(
+            business,
+            stamp("EventStart", start) + stamp("EventEnd", end)
+            + business + stamp("Receipt", receipt),
+        )
+    )
+
+
 def test_parser_event_hour_sources():
     from api.Modules.PosImport.Services.naxml import parse_pjr
 
-    # <EventDateTime> wins.
+    # The event's own start wins.
     ev = parse_pjr(_sale(event_dt="2024-10-14T13:45:12"))
     assert ev.event_hour == 13
-
-    # Falls back to the JournalHeader's <BeginTime>.
-    doc = _sale().replace(
-        "<BeginDate>2024-10-13</BeginDate>",
-        "<BeginDate>2024-10-13</BeginDate><BeginTime>07:02:11</BeginTime>",
-    )
-    assert parse_pjr(doc).event_hour == 7
+    assert ev.started_at.isoformat() == "2024-10-14T13:45:12"
 
     # No timestamp anywhere → None (chart mutes, totals intact).
     assert parse_pjr(_sale()).event_hour is None
+
+
+def test_event_hour_is_the_event_start_not_the_report_period():
+    """The real-file bug: the header says 22:51:54 (the day close
+    that opened this business day) on every file, the sale was rung
+    at 07:35 the next morning."""
+    from api.Modules.PosImport.Services.naxml import parse_pjr
+
+    ev = parse_pjr(_passport(
+        "2024-10-17 07:35:54", end="2024-10-17 07:36:09",
+        receipt="2024-10-17 07:36:09",
+    ))
+    assert ev.event_hour == 7
+    assert ev.business_date.isoformat() == "2024-10-16"
+
+    # A ticket that runs past the top of the hour stays in the hour
+    # the cashier began it.
+    ev = parse_pjr(_passport(
+        "2024-10-17 13:59:40", end="2024-10-17 14:00:25",
+        receipt="2024-10-17 14:00:25",
+    ))
+    assert ev.event_hour == 13
+
+
+def test_event_hour_falls_back_to_the_end_never_receipt_or_period():
+    """An event's time is its EventStart / EventEnd date and time
+    only (the owner's rule)."""
+    from api.Modules.PosImport.Services.naxml import parse_pjr
+
+    # No start → the end, even when a receipt time is there.
+    assert parse_pjr(_passport(
+        end="2024-10-17 09:05:00", receipt="2024-10-17 08:59:59",
+    )).event_hour == 9
+    # A receipt alone is not the event's time → no hour.
+    assert parse_pjr(_passport(
+        receipt="2024-10-17 08:59:59",
+    )).event_hour is None
+    # A malformed start time falls through, it does not fail the parse.
+    assert parse_pjr(_passport(
+        "2024-10-17 7h35", end="2024-10-17 10:01:00",
+    )).event_hour == 10
+    # A start date without its time is not midnight.
+    doc = _passport(
+        "2024-10-17 07:35:54", end="2024-10-17 11:20:00",
+    ).replace("<EventStartTime>07:35:54</EventStartTime>", "")
+    assert parse_pjr(doc).event_hour == 11
+    # Only the header's period stamp → no hour, not 22.
+    ev = parse_pjr(_passport())
+    assert ev.event_hour is None
+    assert ev.net_cents == 324  # the sale itself still parses
+
+
+def test_real_shaped_files_bucket_by_their_own_hour(client, test_store_id):
+    """Every file of the day carries the same period header
+    (22:51:54); the buckets follow each sale's own start, live and
+    when the commit rebuilds them from the staged originals."""
+    from api.Modules.DayClose.Models import HourlySale
+
+    h = _admin(client, test_store_id)
+    key = _issue_key(client, h)["key"]
+    dept = _mk_department(client, h, "Misc H2")
+    _map_codes(client, h, {"17": dept["id"]})
+
+    day = "2025-01-10"
+    period = f"{day} 22:51:54"
+    for name, start in [
+        ("H2-001.xml", f"{day} 23:10:00"),   # the day opens at night
+        ("H2-002.xml", "2025-01-11 07:35:54"),
+        ("H2-003.xml", "2025-01-11 07:50:00"),
+        ("H2-004.xml", "2025-01-11 16:20:00"),
+    ]:
+        resp = _agent_upload(client, key, name, _passport(
+            start, end=start, receipt=start, business_date=day,
+            period=period,
+        ))
+        assert resp.status_code == 200, resp.text
+    expected = {23: 299, 7: 598, 16: 299}
+    assert _buckets(test_store_id, day) == expected
+
+    # Drop the live preview: the commit must rebuild the same shape
+    # from the staged files alone.
+    with db_session():
+        db.session.query(HourlySale).filter_by(
+            store_id=test_store_id,
+        ).delete()
+        db.session.commit()
+    resp = client.post(
+        "/api/v2/posimport/staged/commit", headers=h, json={"day": day},
+    )
+    assert resp.status_code == 200, resp.text
+    assert _buckets(test_store_id, day) == expected
 
 
 def test_staging_increments_and_commit_rebuilds(client, test_store_id):
