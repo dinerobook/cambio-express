@@ -148,9 +148,14 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | `retail_lottery_game` | `LotteryGame` | `Lottery` | store | `tenancy_store.id` | — |
 | `retail_lottery_pack` | `LotteryPack` | `Lottery` | store | `retail_lottery_game.id`, `tenancy_store.id`, `tenancy_user.id` | — |
 | `retail_pos_agent_credential` | `PosAgentCredential` | `PosImport` | store | `tenancy_store.id` | — |
+| `retail_pos_fuel_grade_movement` | `PosFuelGradeMovement` | `PosImport` | store | `tenancy_store.id` | — |
 | `retail_pos_item_day_sale` | `PosItemDaySale` | `PosImport` | store | `tenancy_store.id` | — |
+| `retail_pos_item_sales_movement` | `PosItemSalesMovement` | `PosImport` | store | `tenancy_store.id` | — |
 | `retail_pos_journal_file` | `PosJournalFile` | `PosImport` | store | `tenancy_store.id` | — |
+| `retail_pos_merchandise_code_movement` | `PosMerchandiseCodeMovement` | `PosImport` | store | `tenancy_store.id` | — |
 | `retail_pos_merchandise_map` | `PosMerchandiseMap` | `PosImport` | store | `retail_department.id`, `tenancy_store.id` | — |
+| `retail_pos_misc_summary_movement` | `PosMiscSummaryMovement` | `PosImport` | store | `tenancy_store.id` | — |
+| `retail_pos_tax_level_movement` | `PosTaxLevelMovement` | `PosImport` | store | `tenancy_store.id` | — |
 | `retail_pos_transaction` | `PosTransaction` | `PosImport` | store | `tenancy_store.id` | — |
 | `retail_pos_transaction_line` | `PosTransactionLine` | `PosImport` | store | `retail_pos_transaction.id` | — |
 | `retail_pos_transaction_tender` | `PosTransactionTender` | `PosImport` | store | `retail_pos_transaction.id` | — |

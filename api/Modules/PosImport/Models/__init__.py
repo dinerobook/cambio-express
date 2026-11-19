@@ -11,11 +11,13 @@ review is a hard gate, not a silent default.
 """
 from __future__ import annotations
 
+from datetime import date, time
+
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey,
-    Index, Integer, LargeBinary, String, UniqueConstraint,
+    Index, Integer, LargeBinary, String, Time, UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from api.Core.Database import Base
 from api.Core.Clock import utc_now
@@ -249,8 +251,204 @@ class PosTransactionTender(Base):
     transaction = relationship("PosTransaction", back_populates="tenders")
 
 
+# ── Movement reports (G-7) ──────────────────────────────────
+
+
+class _MovementReportRow:
+    """The columns every movement row carries: which store, which
+    staged file, and the report's MovementHeader, repeated on each
+    row the way the owner's target schema lays them out.
+
+    A report is identified by (store, family, business date, begin
+    date + time, report periods). That is the replace key: ingesting
+    a report deletes the rows that key already holds, then writes
+    its own, so a re-sent file never doubles a total. The periods
+    are part of it so a shift report that starts when the day
+    starts can never overwrite the day report. ``detail_seq`` is
+    the row's position in the file (1-based), which keeps the
+    unique constraint below true even when a register repeats a
+    detail (MSM does).
+
+    These rows are DERIVED from the raw file kept in
+    ``PosJournalFile`` (``event_kind="movement"``). Nothing books
+    them into a day total, P&L or daily-entry line yet.
+    """
+
+    # Header columns sort first so a table reads like the file:
+    # which report, then what it says.
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, sort_order=-3)
+
+    @declared_attr
+    def store_id(cls) -> Mapped[int]:
+        return mapped_column(
+            Integer, ForeignKey("tenancy_store.id"), nullable=False,
+            sort_order=-2,
+        )
+
+    source_file: Mapped[str] = mapped_column(
+        String(120), nullable=False, sort_order=-1,
+    )
+    report_sequence_number: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, sort_order=-1,
+    )
+    primary_report_period: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, sort_order=-1,
+    )
+    secondary_report_period: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, sort_order=-1,
+    )
+    business_date: Mapped[date] = mapped_column(
+        Date, nullable=False, sort_order=-1,
+    )
+    begin_date: Mapped[date] = mapped_column(
+        Date, nullable=False, sort_order=-1,
+    )
+    begin_time: Mapped[time] = mapped_column(
+        Time, nullable=False, sort_order=-1,
+    )
+    end_date: Mapped[date | None] = mapped_column(
+        Date, nullable=True, sort_order=-1,
+    )
+    end_time: Mapped[time | None] = mapped_column(
+        Time, nullable=True, sort_order=-1,
+    )
+    detail_seq: Mapped[int] = mapped_column(
+        Integer, nullable=False, sort_order=-1,
+    )
+
+    @declared_attr.directive
+    def __table_args__(cls) -> tuple[UniqueConstraint, ...]:
+        # Leads with store_id + business_date, so it also serves the
+        # retention purge and every "one store, one day" read.
+        return (
+            UniqueConstraint(
+                "store_id", "business_date", "begin_date", "begin_time",
+                "primary_report_period", "secondary_report_period",
+                "detail_seq",
+                name=f"uq_{cls.__tablename__}_report_row",
+            ),
+        )
+
+
+class PosFuelGradeMovement(_MovementReportRow, Base):
+    """FGM — gallons and dollars per fuel grade, pump position and
+    price tier.
+
+    One row per ``FGMPriceTierSummary``. The non-resettable totals
+    are the pump's lifetime meter for that grade and POSITION; the
+    file states them once per position and every tier row repeats
+    them. Never sum them across tiers — take one per (grade,
+    position). ``PumpTestTotals/ReturnTankID`` is left out on
+    purpose.
+    """
+
+    __tablename__ = "retail_pos_fuel_grade_movement"
+    fuel_grade_id                     = Column(String(10), nullable=False, default="")
+    fuel_position_id                  = Column(String(10), nullable=False, default="")
+    non_resettable_total_volume       = Column(Float, nullable=False, default=0.0)
+    non_resettable_total_amount_cents = Column(BigInteger, nullable=False, default=0)
+    price_tier_code                   = Column(String(10), nullable=False, default="")
+    sales_volume                      = Column(Float, nullable=False, default=0.0)
+    sales_amount_cents                = Column(BigInteger, nullable=False, default=0)
+    pump_test_amount_cents            = Column(BigInteger, nullable=False, default=0)
+    pump_test_volume                  = Column(Float, nullable=False, default=0.0)
+    tax_exempt_sales_volume           = Column(Float, nullable=False, default=0.0)
+    discount_amount_cents             = Column(BigInteger, nullable=False, default=0)
+    discount_count                    = Column(Integer, nullable=False, default=0)
+    dispenser_discount_amount_cents   = Column(BigInteger, nullable=False, default=0)
+    dispenser_discount_count          = Column(Integer, nullable=False, default=0)
+
+
+class PosMerchandiseCodeMovement(_MovementReportRow, Base):
+    """MCM — the register's own department totals, one row per
+    ``MCMDetail``."""
+
+    __tablename__ = "retail_pos_merchandise_code_movement"
+    merchandise_code             = Column(String(20), nullable=False, default="")
+    description                  = Column(String(160), nullable=False, default="")
+    discount_amount_cents        = Column(BigInteger, nullable=False, default=0)
+    discount_count               = Column(Integer, nullable=False, default=0)
+    promotion_amount_cents       = Column(BigInteger, nullable=False, default=0)
+    promotion_count              = Column(Integer, nullable=False, default=0)
+    refund_amount_cents          = Column(BigInteger, nullable=False, default=0)
+    refund_count                 = Column(Integer, nullable=False, default=0)
+    sales_quantity               = Column(Float, nullable=False, default=0.0)
+    sales_amount_cents           = Column(BigInteger, nullable=False, default=0)
+    transaction_count            = Column(Integer, nullable=False, default=0)
+    open_dept_sales_amount_cents = Column(BigInteger, nullable=False, default=0)
+    open_dept_transaction_count  = Column(Integer, nullable=False, default=0)
+
+
+class PosItemSalesMovement(_MovementReportRow, Base):
+    """ISM — per-item movement straight from the register. One row
+    per ``ISMSellPriceSummary``: an item sold at two prices in the
+    period is two rows, so the item's totals are the sum of its
+    rows."""
+
+    __tablename__ = "retail_pos_item_sales_movement"
+    pos_code_format          = Column(String(20), nullable=False, default="")
+    pos_code                 = Column(String(30), nullable=False, default="")
+    pos_code_modifier        = Column(String(20), nullable=False, default="")
+    item_id                  = Column(String(50), nullable=False, default="")
+    description              = Column(String(160), nullable=False, default="")
+    merchandise_code         = Column(String(20), nullable=False, default="")
+    selling_units            = Column(String(20), nullable=False, default="")
+    actual_sales_price_cents = Column(BigInteger, nullable=False, default=0)
+    sales_quantity           = Column(Float, nullable=False, default=0.0)
+    sales_amount_cents       = Column(BigInteger, nullable=False, default=0)
+    discount_amount_cents    = Column(BigInteger, nullable=False, default=0)
+    discount_count           = Column(Integer, nullable=False, default=0)
+    promotion_amount_cents   = Column(BigInteger, nullable=False, default=0)
+    promotion_count          = Column(Integer, nullable=False, default=0)
+    refund_amount_cents      = Column(BigInteger, nullable=False, default=0)
+    refund_count             = Column(Integer, nullable=False, default=0)
+    transaction_count        = Column(Integer, nullable=False, default=0)
+
+
+class PosMiscSummaryMovement(_MovementReportRow, Base):
+    """MSM — payouts, pay-ins, safe drops and loans, statistics,
+    totalizers: one row per ``MSMDetail``.
+
+    ``summary_sub_code_modifier`` is NULL when the file has no
+    modifier element. Where a (code, sub code, tender) has both
+    kinds, the row WITHOUT a modifier is the subtotal of the rows
+    WITH one: payouts / vendorPay arrives as one subtotal plus one
+    row per payout. Sum the leaves or take the subtotal, never both
+    (``movement_ingest.msm_roles`` marks which is which) — adding
+    every row doubles it.
+    """
+
+    __tablename__ = "retail_pos_misc_summary_movement"
+    summary_code              = Column(String(50), nullable=False, default="")
+    summary_sub_code          = Column(String(50), nullable=False, default="")
+    summary_sub_code_modifier = Column(String(50), nullable=True)
+    tender_code               = Column(String(30), nullable=False, default="")
+    tender_sub_code           = Column(String(30), nullable=False, default="")
+    summary_amount_cents      = Column(BigInteger, nullable=False, default=0)
+    # A count, but fuel rows carry gallons here (3 decimals).
+    summary_count             = Column(Float, nullable=False, default=0.0)
+
+
+class PosTaxLevelMovement(_MovementReportRow, Base):
+    """TLM — taxable, exempt and forgiven sales and the tax
+    collected, one row per ``TLMDetail`` (tax level)."""
+
+    __tablename__ = "retail_pos_tax_level_movement"
+    tax_level_id                 = Column(String(20), nullable=False, default="")
+    merchandise_code             = Column(String(20), nullable=False, default="")
+    taxable_sales_amount_cents   = Column(BigInteger, nullable=False, default=0)
+    taxable_sales_refunded_cents = Column(BigInteger, nullable=False, default=0)
+    tax_collected_amount_cents   = Column(BigInteger, nullable=False, default=0)
+    tax_exempt_sales_amount_cents = Column(BigInteger, nullable=False, default=0)
+    tax_exempt_refunded_cents    = Column(BigInteger, nullable=False, default=0)
+    tax_forgiven_sales_cents     = Column(BigInteger, nullable=False, default=0)
+    tax_forgiven_refunded_cents  = Column(BigInteger, nullable=False, default=0)
+    tax_refunded_amount_cents    = Column(BigInteger, nullable=False, default=0)
+
+
 __all__ = [
-    "PosAgentCredential", "PosItemDaySale", "PosJournalFile",
-    "PosMerchandiseMap", "PosTransaction", "PosTransactionLine",
-    "PosTransactionTender",
+    "PosAgentCredential", "PosFuelGradeMovement", "PosItemDaySale",
+    "PosItemSalesMovement", "PosJournalFile", "PosMerchandiseCodeMovement",
+    "PosMerchandiseMap", "PosMiscSummaryMovement", "PosTaxLevelMovement",
+    "PosTransaction", "PosTransactionLine", "PosTransactionTender",
 ]

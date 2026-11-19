@@ -1,12 +1,12 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useDepartments } from "../api/dayclose";
 import {
   commitNaxml, commitStagedDay, issueAgentKey,
   previewNaxml, revokeAgentKey, saveMappings, useAgentKeys,
-  useStagedDays,
-  type ImportRegisterRow, type NaxmlPreview,
+  useMovementDay, useStagedDays,
+  type ImportRegisterRow, type MovementDay, type NaxmlPreview,
 } from "../api/posimport";
 import { apiErrorMessage } from "../lib/api";
 import { fileToBase64 } from "../lib/files";
@@ -16,9 +16,9 @@ import {
   formatDate, formatDateTime,
 } from "../lib/datetime";
 import { AppLink,
-  Alert, Button, Card, ConfirmDialog, EmptyState, Field, InfoTip,
-  Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill, Section,
-  Select, Table, tdStyle, thStyle, useToast,
+  Alert, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field,
+  InfoTip, Input, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pill,
+  Section, Select, Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
 import styles from "./PosImport.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
@@ -28,8 +28,53 @@ const REGISTER_COLUMNS: MessageKey[] = [
   "rc.colRegister", "posImp.netSales", "rc.colTax", "rc.colCash", "rc.colCard",
   "rc.colOther", "posImp.colSales", "posImp.colRefunds",
 ];
-const STAGED_COLUMNS: MessageKey[] = ["posImp.businessDay", "posImp.colFiles", "posImp.colErrors", "common.status"];
+const STAGED_COLUMNS: MessageKey[] = [
+  "posImp.businessDay", "posImp.colFiles", "posImp.colErrors",
+  "posImp.colReports", "common.status",
+];
 const KEY_COLUMNS: MessageKey[] = ["posImp.colLabel", "posImp.colCreated", "posImp.colLastSeen", "common.status"];
+const FUEL_COLUMNS: MessageKey[] = [
+  "posImp.colGrade", "posImp.colGallons", "posImp.colSales",
+  "posImp.colMeterGallons", "posImp.colMeterAmount",
+];
+const DEPT_COLUMNS: MessageKey[] = [
+  "posImp.colCode", "posImp.colDescription", "posTx.colQty",
+  "posImp.colSales", "posImp.colRefunds", "posImp.colTransactions",
+];
+const TAX_COLUMNS: MessageKey[] = [
+  "posImp.colTaxLevel", "posImp.colTaxable", "rc.colTax",
+  "posImp.colExempt", "posImp.colForgiven",
+];
+const MISC_COLUMNS: MessageKey[] = [
+  "posImp.colCode", "posImp.colSubCode", "posImp.colDetail",
+  "posImp.colTender", "posTx.colAmount", "posImp.colCount",
+];
+
+/** One headed table that scrolls sideways inside its box — every
+ *  table on this page. A trailing header cell leaves room for a
+ *  row's buttons. */
+function HeadedTable({
+  columns, trailing = false, children,
+}: {
+  columns: MessageKey[];
+  trailing?: boolean;
+  children: ReactNode;
+}) {
+  const t = useT();
+  return (
+    <div className={styles.tableScroll}>
+      <Table>
+        <thead>
+          <tr>
+            {columns.map((h) => <th key={h} style={thStyle}>{t(h)}</th>)}
+            {trailing && <th style={thStyle} />}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </Table>
+    </div>
+  );
+}
 
 /**
  * Gilbarco register import (P1-9): upload a day's (or a whole
@@ -310,31 +355,20 @@ export default function PosImport() {
                 />
               </KpiGrid>
               <Card>
-                <div style={{ overflowX: "auto" }}>
-                  <Table>
-                    <thead>
-                      <tr>
-                        {REGISTER_COLUMNS.map((h) => (
-                          <th key={h} style={thStyle}>{t(h)}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dayRegisters.map((r) => (
-                        <tr key={r.register_label}>
-                          <td style={tdStyle}>{r.register_label}</td>
-                          <td style={tdStyle}>{fmtMoney2(r.net_sales)}</td>
-                          <td style={tdStyle}>{fmtMoney2(r.sales_tax)}</td>
-                          <td style={tdStyle}>{fmtMoney2(r.cash_total)}</td>
-                          <td style={tdStyle}>{fmtMoney2(r.card_total)}</td>
-                          <td style={tdStyle}>{fmtMoney2(r.other_total)}</td>
-                          <td style={tdStyle}>{r.sale_count}</td>
-                          <td style={tdStyle}>{r.refund_count}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
+                <HeadedTable columns={REGISTER_COLUMNS}>
+                  {dayRegisters.map((r) => (
+                    <tr key={r.register_label}>
+                      <td style={tdStyle}>{r.register_label}</td>
+                      <td style={tdStyle}>{fmtMoney2(r.net_sales)}</td>
+                      <td style={tdStyle}>{fmtMoney2(r.sales_tax)}</td>
+                      <td style={tdStyle}>{fmtMoney2(r.cash_total)}</td>
+                      <td style={tdStyle}>{fmtMoney2(r.card_total)}</td>
+                      <td style={tdStyle}>{fmtMoney2(r.other_total)}</td>
+                      <td style={tdStyle}>{r.sale_count}</td>
+                      <td style={tdStyle}>{r.refund_count}</td>
+                    </tr>
+                  ))}
+                </HeadedTable>
               </Card>
             </>
           )}
@@ -358,6 +392,8 @@ function AgentSection() {
   const [newLabel, setNewLabel] = useState("");
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const [busyDay, setBusyDay] = useState("");
+  // The staged day whose register reports are open below the list.
+  const [reportDay, setReportDay] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
   // The key a revoke is waiting on confirmation for. A revoked key
   // stops the site agent uploading at once, so it is never one click.
@@ -424,44 +460,48 @@ function AgentSection() {
     >
       {stagedRows.length > 0 && (
         <Card>
-          <div style={{ overflowX: "auto" }}>
-            <Table>
-              <thead>
-                <tr>
-                  {STAGED_COLUMNS.map(
-                    (h) => <th key={h} style={thStyle}>{t(h)}</th>,
-                  )}
-                  <th style={thStyle} />
-                </tr>
-              </thead>
-              <tbody>
-                {stagedRows.map((d) => (
-                  <tr key={d.business_date}>
-                    <td style={tdStyle}>{formatDate(d.business_date)}</td>
-                    <td style={tdStyle}>{d.file_count}</td>
-                    <td style={tdStyle}>{d.error_count || "—"}</td>
-                    <td style={tdStyle}>
-                      <Pill tone={d.committed ? "success" : "neutral"}>
-                        {d.committed ? t("posImp.bookedPill") : t("posImp.ready")}
-                      </Pill>
-                    </td>
-                    <td style={tdStyle}>
-                      <Button
-                        size="sm"
-                        busy={busyDay === d.business_date}
-                        disabled={busyDay !== ""}
-                        tone={d.committed ? "secondary" : "primary"}
-                        onClick={() => { void bookDay(d.business_date); }}
-                      >
-                        {d.committed ? t("posImp.rebook") : t("posImp.bookDay")}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
+          <HeadedTable columns={STAGED_COLUMNS} trailing>
+            {stagedRows.map((d) => (
+              <tr key={d.business_date}>
+                <td style={tdStyle}>{formatDate(d.business_date)}</td>
+                <td style={tdStyle}>{d.file_count}</td>
+                <td style={tdStyle}>{d.error_count || "—"}</td>
+                <td style={tdStyle}>
+                  {d.report_count > 0 ? (
+                    <Button
+                      size="sm" tone="secondary"
+                      aria-pressed={reportDay === d.business_date}
+                      onClick={() => setReportDay(
+                        reportDay === d.business_date ? "" : d.business_date,
+                      )}
+                    >
+                      {tn("posImp.reportCount", d.report_count)}
+                    </Button>
+                  ) : "—"}
+                </td>
+                <td style={tdStyle}>
+                  <Pill tone={d.committed ? "success" : "neutral"}>
+                    {d.committed ? t("posImp.bookedPill") : t("posImp.ready")}
+                  </Pill>
+                </td>
+                <td style={tdStyle}>
+                  <Button
+                    size="sm"
+                    busy={busyDay === d.business_date}
+                    disabled={busyDay !== ""}
+                    tone={d.committed ? "secondary" : "primary"}
+                    onClick={() => { void bookDay(d.business_date); }}
+                  >
+                    {d.committed ? t("posImp.rebook") : t("posImp.bookDay")}
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </HeadedTable>
         </Card>
+      )}
+      {reportDay && (
+        <MovementDayPanel day={reportDay} onClose={() => setReportDay("")} />
       )}
       {staged.data && stagedRows.length === 0 && (
         <EmptyState
@@ -491,46 +531,34 @@ function AgentSection() {
           </Button>
         </div>
         {keyRows.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
-            <Table>
-              <thead>
-                <tr>
-                  {KEY_COLUMNS.map(
-                    (h) => <th key={h} style={thStyle}>{t(h)}</th>,
+          <HeadedTable columns={KEY_COLUMNS} trailing>
+            {keyRows.map((k) => (
+              <tr key={k.id}>
+                <td style={tdStyle}>{k.label || "—"}</td>
+                <td style={tdStyle}>{formatDate(k.created_at)}</td>
+                <td style={tdStyle}>
+                  {k.last_used_at
+                    ? formatDateTime(k.last_used_at)
+                    : t("posImp.never")}
+                </td>
+                <td style={tdStyle}>
+                  <Pill tone={k.revoked ? "neutral" : "accent"}>
+                    {k.revoked ? t("posImp.revoked") : t("posImp.active")}
+                  </Pill>
+                </td>
+                <td style={tdStyle}>
+                  {!k.revoked && (
+                    <Button
+                      size="sm" tone="secondary"
+                      onClick={() => setRevoking({ id: k.id, label: k.label })}
+                    >
+                      {t("posImp.revoke")}
+                    </Button>
                   )}
-                  <th style={thStyle} />
-                </tr>
-              </thead>
-              <tbody>
-                {keyRows.map((k) => (
-                  <tr key={k.id}>
-                    <td style={tdStyle}>{k.label || "—"}</td>
-                    <td style={tdStyle}>{formatDate(k.created_at)}</td>
-                    <td style={tdStyle}>
-                      {k.last_used_at
-                        ? formatDateTime(k.last_used_at)
-                        : t("posImp.never")}
-                    </td>
-                    <td style={tdStyle}>
-                      <Pill tone={k.revoked ? "neutral" : "accent"}>
-                        {k.revoked ? t("posImp.revoked") : t("posImp.active")}
-                      </Pill>
-                    </td>
-                    <td style={tdStyle}>
-                      {!k.revoked && (
-                        <Button
-                          size="sm" tone="secondary"
-                          onClick={() => setRevoking({ id: k.id, label: k.label })}
-                        >
-                          {t("posImp.revoke")}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
+                </td>
+              </tr>
+            ))}
+          </HeadedTable>
         )}
       </Card>
       <ConfirmDialog
@@ -546,5 +574,198 @@ function AgentSection() {
         onCancel={() => setRevoking(null)}
       />
     </Section>
+  );
+}
+
+// ── Register reports (G-7, read-only) ────────────────────────
+
+/** Two decimals, no "$": MSM amounts are the register's own figures
+ *  and some are counts or percentages rather than dollars. */
+function fmtFigure(n: number): string {
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+}
+
+/** Gallons and quantities as the register states them: up to three
+ *  decimals (fuel volume is metered to the thousandth). */
+function fmtQuantity(n: number): string {
+  return n.toLocaleString(undefined, { maximumFractionDigits: 3 });
+}
+
+function MovementDayPanel({ day, onClose }: { day: string; onClose: () => void }) {
+  const t = useT();
+  const report = useMovementDay(day);
+  return (
+    <Section
+      title={
+        <>
+          {t("posImp.reportsTitle", { day: formatDate(day) })}
+          <InfoTip text={t("posImp.reportsTip")} />
+        </>
+      }
+      actions={
+        <Button size="sm" tone="secondary" onClick={onClose}>
+          {t("common.close")}
+        </Button>
+      }
+    >
+      {report.isLoading && <Loading />}
+      {report.isError && (
+        <ErrorState
+          message={apiErrorMessage(report.error, t("posImp.reportsFailed"))}
+          onRetry={() => { void report.refetch(); }}
+          busy={report.isFetching}
+        />
+      )}
+      {report.data && <MovementDayBody data={report.data} />}
+    </Section>
+  );
+}
+
+function MovementDayBody({ data }: { data: MovementDay }) {
+  const t = useT();
+  if (data.files.length === 0) {
+    return (
+      <EmptyState
+        title={t("posImp.reportsEmpty")}
+        body={t("posImp.reportsEmptyBody")}
+      />
+    );
+  }
+  const unreadable = data.files.filter((f) => f.parse_error);
+  const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+  return (
+    <>
+      {unreadable.length > 0 && (
+        <Alert tone="warning">
+          {tn("posImp.reportErrors", unreadable.length)}
+          <div className={styles.parseErrors}>
+            {unreadable.map((f) => (
+              <div key={f.filename}>{f.filename}: {f.parse_error}</div>
+            ))}
+          </div>
+        </Alert>
+      )}
+      <KpiGrid>
+        <KpiCard
+          label={t("posImp.fuelGallons")}
+          value={sum(data.fuel.map((g) => g.gallons)).toLocaleString(undefined, {
+            maximumFractionDigits: 1,
+          })}
+        />
+        <KpiCard
+          label={t("posImp.fuelSales")}
+          value={fmtMoney2(sum(data.fuel.map((g) => g.amount)))}
+        />
+        <KpiCard
+          label={t("posImp.deptSales")}
+          value={fmtMoney2(sum(data.departments.map((d) => d.amount)))}
+        />
+        <KpiCard
+          label={t("posImp.salesTax")}
+          value={fmtMoney2(sum(data.tax_levels.map((l) => l.tax_collected)))}
+        />
+      </KpiGrid>
+
+      {data.fuel.length > 0 && (
+        <Section
+          title={
+            <>
+              {t("posImp.fuelTitle")}
+              <InfoTip text={t("posImp.meterTip")} />
+            </>
+          }
+        >
+          <Card>
+            <HeadedTable columns={FUEL_COLUMNS}>
+              {data.fuel.map((g) => (
+                <tr key={g.grade_id}>
+                  <td style={tdStyle}><span className={styles.mapCode}>{g.grade_id}</span></td>
+                  <td style={tdStyle}>{fmtQuantity(g.gallons)}</td>
+                  <td style={tdStyle}>{fmtMoney2(g.amount)}</td>
+                  <td style={tdStyle}>{fmtQuantity(g.meter_gallons)}</td>
+                  <td style={tdStyle}>{fmtMoney2(g.meter_amount)}</td>
+                </tr>
+              ))}
+            </HeadedTable>
+          </Card>
+        </Section>
+      )}
+
+      {data.departments.length > 0 && (
+        <Section title={t("posImp.deptTitle")}>
+          <Card>
+            <HeadedTable columns={DEPT_COLUMNS}>
+              {data.departments.map((d) => (
+                <tr key={d.merchandise_code}>
+                  <td style={tdStyle}><span className={styles.mapCode}>{d.merchandise_code}</span></td>
+                  <td style={tdStyle}>{d.description || "—"}</td>
+                  <td style={tdStyle}>{fmtQuantity(d.quantity)}</td>
+                  <td style={tdStyle}>{fmtMoney2(d.amount)}</td>
+                  <td style={tdStyle}>{fmtMoney2(d.refunds)}</td>
+                  <td style={tdStyle}>{d.transactions}</td>
+                </tr>
+              ))}
+            </HeadedTable>
+          </Card>
+        </Section>
+      )}
+
+      {data.tax_levels.length > 0 && (
+        <Section title={t("posImp.taxTitle")}>
+          <Card>
+            <HeadedTable columns={TAX_COLUMNS}>
+              {data.tax_levels.map((l) => (
+                <tr key={l.tax_level_id}>
+                  <td style={tdStyle}><span className={styles.mapCode}>{l.tax_level_id}</span></td>
+                  <td style={tdStyle}>{fmtMoney2(l.taxable_sales)}</td>
+                  <td style={tdStyle}>{fmtMoney2(l.tax_collected)}</td>
+                  <td style={tdStyle}>{fmtMoney2(l.tax_exempt_sales)}</td>
+                  <td style={tdStyle}>{fmtMoney2(l.tax_forgiven_sales)}</td>
+                </tr>
+              ))}
+            </HeadedTable>
+          </Card>
+        </Section>
+      )}
+
+      {data.misc.length > 0 && (
+        <Section
+          title={
+            <>
+              {t("posImp.miscTitle")}
+              <InfoTip text={t("posImp.miscTip")} />
+            </>
+          }
+        >
+          <Card>
+            <HeadedTable columns={MISC_COLUMNS}>
+              {data.misc.map((m, i) => (
+                <tr key={i}>
+                  <td style={tdStyle}>
+                    <span className={m.role === "part" ? styles.partIndent : undefined}>
+                      {m.code}
+                    </span>
+                  </td>
+                  <td style={tdStyle}>
+                    {m.sub_code}
+                    {m.role === "subtotal" && (
+                      <span className={styles.subtotalTag}>{t("posImp.subtotal")}</span>
+                    )}
+                  </td>
+                  <td style={tdStyle}>{m.modifier || "—"}</td>
+                  <td style={tdStyle}>
+                    {[m.tender_code, m.tender_sub_code].filter(Boolean).join(" / ") || "—"}
+                  </td>
+                  <td style={tdStyle}>{fmtFigure(m.amount)}</td>
+                  <td style={tdStyle}>{fmtQuantity(m.count)}</td>
+                </tr>
+              ))}
+            </HeadedTable>
+          </Card>
+        </Section>
+      )}
+    </>
   );
 }
