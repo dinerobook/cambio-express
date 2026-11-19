@@ -159,6 +159,14 @@ describe("source guards", () => {
     ).toEqual([]);
   });
 
+  it("keeps one money transfer form", () => {
+    // UI-STANDARDS §6: New transfer and Edit transfer both render
+    // components/TransferForm.tsx (they were two hand-kept copies that
+    // drifted). Its schema and starting values live in lib/transferForm.ts.
+    expect(offenders(/<SenderAutocomplete\b/, ["/components/TransferForm.tsx"])).toEqual([]);
+    expect(offenders(/sender_name: z\./, ["transferForm.ts"])).toEqual([]);
+  });
+
   it("keeps one copy of the public-page chrome pieces", () => {
     // main.tsx registers the service worker on every boot
     // (lib/installPrompt.ts); a page-level copy is dead code.

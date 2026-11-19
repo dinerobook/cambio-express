@@ -43,6 +43,7 @@ export const COVERED_FILES = [
   "routes/Transfers.tsx",
   "routes/NewTransfer.tsx",
   "routes/EditTransfer.tsx",
+  "components/TransferForm.tsx",
   "routes/TransferDetail.tsx",
   "routes/TransferReceipt.tsx",
   "components/TransferKindPill.tsx",

@@ -420,7 +420,7 @@ tests (webhook controllers, six owner routes, both notification
 crons → 100%).
 - Known remaining drift (documented, lower value): Dashboard's
   ~50 inline styles + dashTh/TdStyle constants;
-  SuperadminFeatureFlags / NewTransfer / OwnerBulkPermissions
+  SuperadminFeatureFlags / OwnerBulkPermissions
   have no module.css; EditDailyBook's five duplicated
   widget-card buttons + two raw tables; ReportDrilldown /
   SuperadminBIDrilldown raw tables; Login hero SVG hexes
