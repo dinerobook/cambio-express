@@ -154,7 +154,8 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | `retail_pos_transaction` | `PosTransaction` | `PosImport` | store | `tenancy_store.id` | — |
 | `retail_pos_transaction_line` | `PosTransactionLine` | `PosImport` | store | `retail_pos_transaction.id` | — |
 | `retail_pos_transaction_tender` | `PosTransactionTender` | `PosImport` | store | `retail_pos_transaction.id` | — |
-| `retail_price_book_item` | `PriceBookItem` | `Catalog` | store | `retail_department.id`, `retail_vendor.id`, `tenancy_store.id` | — |
+| `retail_price_book_item` | `PriceBookItem` | `Catalog` | store | `retail_department.id`, `retail_product.id`, `retail_vendor.id`, `tenancy_store.id` | — |
+| `retail_product` | `Product` | `Catalog` | global | — | — |
 | `retail_purchase_invoice` | `PurchaseInvoice` | `Catalog` | store | `retail_vendor.id`, `tenancy_store.id`, `tenancy_user.id` | — |
 | `retail_purchase_invoice_line` | `PurchaseInvoiceLine` | `Catalog` | store | `retail_price_book_item.id`, `retail_purchase_invoice.id`, `tenancy_store.id` | — |
 | `retail_register_close` | `RegisterClose` | `DayClose` | store | `tenancy_store.id`, `tenancy_user.id` | — |

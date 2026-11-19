@@ -10095,6 +10095,52 @@
         "title": "ImportDepartmentRow",
         "type": "object"
       },
+      "ImportIssueExample": {
+        "additionalProperties": false,
+        "properties": {
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          },
+          "scan_code": {
+            "title": "Scan Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "scan_code"
+        ],
+        "title": "ImportIssueExample",
+        "type": "object"
+      },
+      "ImportIssueRow": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssueExample"
+            },
+            "title": "Examples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "count",
+          "examples"
+        ],
+        "title": "ImportIssueRow",
+        "type": "object"
+      },
       "ImportRegisterRow": {
         "additionalProperties": false,
         "properties": {
@@ -11204,6 +11250,17 @@
             ],
             "title": "Case Cost"
           },
+          "case_discount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Discount"
+          },
           "case_size": {
             "anyOf": [
               {
@@ -11270,6 +11327,17 @@
             "title": "Price",
             "type": "number"
           },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
           "size": {
             "title": "Size",
             "type": "string"
@@ -11312,7 +11380,9 @@
           "size",
           "case_size",
           "case_cost",
-          "is_ebt"
+          "case_discount",
+          "is_ebt",
+          "product_id"
         ],
         "title": "ItemRow",
         "type": "object"
@@ -11331,6 +11401,18 @@
               }
             ],
             "title": "Case Cost"
+          },
+          "case_discount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Discount"
           },
           "case_size": {
             "anyOf": [
@@ -11505,6 +11587,18 @@
               }
             ],
             "title": "Case Cost"
+          },
+          "case_discount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Discount"
           },
           "case_size": {
             "anyOf": [
@@ -12720,6 +12814,123 @@
           "created_at"
         ],
         "title": "MessageRow",
+        "type": "object"
+      },
+      "ModisoftImportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "apply": {
+            "default": false,
+            "title": "Apply",
+            "type": "boolean"
+          },
+          "content_base64": {
+            "maxLength": 27962028,
+            "minLength": 1,
+            "title": "Content Base64",
+            "type": "string"
+          },
+          "update_existing": {
+            "default": true,
+            "title": "Update Existing",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "content_base64"
+        ],
+        "title": "ModisoftImportRequest",
+        "type": "object"
+      },
+      "ModisoftImportResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "columns_ignored": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns Ignored",
+            "type": "array"
+          },
+          "columns_used": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns Used",
+            "type": "array"
+          },
+          "departments_new": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Departments New",
+            "type": "array"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssueRow"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "items_new": {
+            "title": "Items New",
+            "type": "integer"
+          },
+          "items_skipped": {
+            "title": "Items Skipped",
+            "type": "integer"
+          },
+          "items_unchanged": {
+            "title": "Items Unchanged",
+            "type": "integer"
+          },
+          "items_updated": {
+            "title": "Items Updated",
+            "type": "integer"
+          },
+          "matched_other_spelling": {
+            "title": "Matched Other Spelling",
+            "type": "integer"
+          },
+          "products_known": {
+            "title": "Products Known",
+            "type": "integer"
+          },
+          "products_new": {
+            "title": "Products New",
+            "type": "integer"
+          },
+          "rows_read": {
+            "title": "Rows Read",
+            "type": "integer"
+          },
+          "store_codes": {
+            "title": "Store Codes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "applied",
+          "rows_read",
+          "items_new",
+          "items_updated",
+          "items_unchanged",
+          "items_skipped",
+          "matched_other_spelling",
+          "products_new",
+          "products_known",
+          "store_codes",
+          "departments_new",
+          "columns_used",
+          "columns_ignored",
+          "issues"
+        ],
+        "title": "ModisoftImportResponse",
         "type": "object"
       },
       "MonthLogged": {
@@ -19608,6 +19819,69 @@
           "amount"
         ],
         "title": "SalesTrendPoint",
+        "type": "object"
+      },
+      "ScanLookupResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "gtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gtin"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ItemRow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "gtin",
+              "store",
+              "invalid"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UniversalProductRow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "kind",
+          "gtin",
+          "note",
+          "item",
+          "product"
+        ],
+        "title": "ScanLookupResponse",
         "type": "object"
       },
       "SectionTotalsResponse": {
@@ -26516,6 +26790,51 @@
           "message"
         ],
         "title": "TrialBanner",
+        "type": "object"
+      },
+      "UniversalProductRow": {
+        "additionalProperties": false,
+        "description": "A shared product: only facts true at every store.",
+        "properties": {
+          "brand": {
+            "title": "Brand",
+            "type": "string"
+          },
+          "gtin": {
+            "title": "Gtin",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_verified": {
+            "title": "Is Verified",
+            "type": "boolean"
+          },
+          "nacs_code": {
+            "title": "Nacs Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "gtin",
+          "name",
+          "brand",
+          "size",
+          "nacs_code",
+          "is_verified"
+        ],
+        "title": "UniversalProductRow",
         "type": "object"
       },
       "UnreadCountResponse": {
@@ -36297,6 +36616,81 @@
         ]
       }
     },
+    "/catalog/import/modisoft": {
+      "post": {
+        "operationId": "import_modisoft_route_catalog_import_modisoft_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModisoftImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModisoftImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Modisoft Route",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/catalog/invoices": {
       "get": {
         "operationId": "list_invoices_route_catalog_invoices_get",
@@ -37084,6 +37478,82 @@
           }
         },
         "summary": "Update Item Route",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/catalog/products/lookup": {
+      "get": {
+        "operationId": "lookup_product_route_catalog_products_lookup_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanLookupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup Product Route",
         "tags": [
           "catalog"
         ]

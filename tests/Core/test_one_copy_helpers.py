@@ -13,6 +13,9 @@ shared versions:
 * ``utc_now`` (Core/Clock.py) — "now in UTC". ``datetime.utcnow`` was
   called directly in ~280 places, including every model's column
   defaults (2026-10-22).
+* ``decode_base64`` / ``b64_len`` (Core/Uploads.py) — an upload's
+  base64 body. Had 3 controller copies and a private size helper
+  (2026-11-18).
 """
 from __future__ import annotations
 
@@ -168,3 +171,25 @@ def test_signed_out_of_any_store_is_403_with_the_shared_message(client):
         resp = client.get(path, headers=h)
         assert resp.status_code == 403, path
         assert "store scope" in resp.get_data(as_text=True), path
+
+
+def test_no_controller_decodes_an_upload_by_hand():
+    offenders = [
+        p.relative_to(ROOT).as_posix() for p in CONTROLLERS
+        if "b64decode(" in _src(p)
+    ]
+    assert offenders == [], "use decode_base64 from api.Core.Uploads"
+
+
+def test_decode_base64_refuses_bad_text_and_drops_a_data_url_prefix():
+    from fastapi import HTTPException
+
+    from api.Core.Uploads import b64_len, decode_base64
+
+    assert decode_base64("aGk=") == b"hi"
+    assert decode_base64("data:text/plain;base64,aGk=") == b"hi"
+    with pytest.raises(HTTPException) as exc:
+        decode_base64("not base64!", detail="Bad file.")
+    assert exc.value.status_code == 422
+    assert exc.value.detail == "Bad file."
+    assert b64_len(3) == 4 and b64_len(4) == 8

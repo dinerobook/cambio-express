@@ -242,6 +242,7 @@ Retail modules (`DayClose`, `StoreBook`, `Lottery`, `PosImport`,
 | `Permissions` | Casbin RBAC — `check_permission`, `permissions_for`, `set_store_permissions`, the rank rule (`ranks.py`), the one matrix-route path (`matrix_update.py`) |
 | `RateLimit` | slowapi singleton + `client_ip` |
 | `StoreScope` | `authorize_store_id(s)` — which stores a client-supplied id may reach (invariant 19). The token's own store is `resolve_store_scope(claims)`; never re-write that 403 inline |
+| `Uploads` | A file sent as base64 JSON: `b64_len(n)` for the request field's `max_length`, `decode_base64(text, detail=…)` for the bytes or a 422. Never call `b64decode` in a controller (`tests/Core/test_one_copy_helpers.py`) |
 
 Top-level files:
 
