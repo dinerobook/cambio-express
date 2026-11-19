@@ -199,6 +199,10 @@ files = [
     "api/Modules/Owners/Services/bulk_users.py",
     "api/Modules/Owners/Services/cross_store.py",
     "api/Modules/Owners/Services/dashboard.py",
+    # ── api/Modules/PosImport ────────────────────────────────
+    # The movement-report parser (G-7). Its ingest sibling reads
+    # Column-typed models (api/CLAUDE.md "Known traps") and stays out.
+    "api/Modules/PosImport/Services/movement.py",
     # ── api/Modules/Reports ──────────────────────────────────
     "api/Modules/Reports/Repositories/transfers.py",
     "api/Modules/Reports/Requests/common.py",

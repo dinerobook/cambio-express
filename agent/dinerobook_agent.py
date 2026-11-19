@@ -1,10 +1,11 @@
 """DineroBook site agent — Gilbarco journal watcher.
 
 Watches the folder where Gilbarco Passport writes its NAXML
-journal files (PJR*.xml) and pushes each new file to the
-DineroBook API the moment it lands. Deliberately dumb by design:
-no parsing, no XML knowledge — the server does all of that, so
-this script almost never needs an update.
+files — the per-event journal (PJR*.xml) and the period movement
+reports (FGM / ISM / MCM / MSM / TLM / TPM) — and pushes each new
+file to the DineroBook API the moment it lands. Deliberately dumb
+by design: no parsing, no XML knowledge — the server does all of
+that, so this script almost never needs an update.
 
 Python 3.9+ standard library only — no pip installs at the site.
 
@@ -16,8 +17,12 @@ Config (agent.ini):
     api_url    = https://dinerobook.com
     agent_key  = pak_...            ; issued in DineroBook, shown once
     watch_dir  = C:\\Passport\\XMLGateway\\BOOutbox
-    pattern    = PJR*.xml
+    pattern    = PJR*.xml FGM*.xml ISM*.xml MCM*.xml MSM*.xml TLM*.xml TPM*.xml
     poll_seconds = 5
+
+``pattern`` is one or more filename patterns separated by spaces or
+commas; a file matching any of them is sent. Leave it out to get
+the default above.
 
 State: a plain text file (uploaded.txt next to this script) lists
 filenames already accepted by the server, so restarts never
@@ -44,6 +49,10 @@ from pathlib import Path
 log = logging.getLogger("dinerobook-agent")
 
 UPLOAD_PATH = "/api/v2/posimport/agent/upload"
+# The journal plus every movement report family Passport writes.
+DEFAULT_PATTERN = (
+    "PJR*.xml FGM*.xml ISM*.xml MCM*.xml MSM*.xml TLM*.xml TPM*.xml"
+)
 # Files can still be mid-write when first seen — require the size
 # to hold still for one poll before uploading.
 MAX_FILE_BYTES = 4 * 1024 * 1024
@@ -72,9 +81,20 @@ def load_config(path: str) -> dict:
         "api_url": section.get("api_url", "").rstrip("/"),
         "agent_key": section.get("agent_key", ""),
         "watch_dir": section.get("watch_dir", ""),
-        "pattern": section.get("pattern", "PJR*.xml"),
+        "patterns": parse_patterns(section.get("pattern", DEFAULT_PATTERN)),
         "poll_seconds": section.getint("poll_seconds", 5),
     }
+
+
+def parse_patterns(raw: str) -> list[str]:
+    """``"PJR*.xml, FGM*.xml MSM*.xml"`` → each pattern. An empty
+    value falls back to the default rather than matching nothing."""
+    patterns = [p for p in raw.replace(",", " ").split() if p]
+    return patterns or DEFAULT_PATTERN.split()
+
+
+def matches(name: str, patterns: list[str]) -> bool:
+    return any(fnmatch.fnmatch(name, p) for p in patterns)
 
 
 class UploadedLedger:
@@ -169,14 +189,14 @@ def watch(cfg: dict) -> None:
     ledger = UploadedLedger(Path(__file__).with_name("uploaded.txt"))
     log.info(
         "watching %s for %s (every %ss)",
-        watch_dir, cfg["pattern"], cfg["poll_seconds"],
+        watch_dir, " ".join(cfg["patterns"]), cfg["poll_seconds"],
     )
     pending_sizes: dict[str, int] = {}
     while True:
         try:
             for path in sorted(watch_dir.iterdir()):
                 name = path.name
-                if not fnmatch.fnmatch(name, cfg["pattern"]):
+                if not matches(name, cfg["patterns"]):
                     continue
                 if name in ledger:
                     continue

@@ -36,6 +36,7 @@ from api.Modules.Catalog.Models import PriceBookItem
 from api.Modules.Catalog.Services import create_item
 from api.Modules.DayClose.Models import Department
 from api.Modules.PosImport.Models import PosJournalFile, PosMerchandiseMap
+from api.Modules.PosImport.Services.agent import IS_JOURNAL
 from api.Modules.PosImport.Services.naxml import (
     LINE_STATUS_NORMAL,
     PosJournalParseError,
@@ -70,6 +71,7 @@ def harvest_price_book(
             PosJournalFile.store_id == store_id,
             PosJournalFile.parse_error == "",
             PosJournalFile.business_date.isnot(None),
+            IS_JOURNAL,
         )
         .all()
     )

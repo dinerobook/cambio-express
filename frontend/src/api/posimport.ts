@@ -84,6 +84,21 @@ export function useStagedDays() {
   });
 }
 
+// The register's own movement reports for one business day (G-7),
+// read-only: fuel by grade, departments, tax levels, payouts / drops.
+export type MovementDay = components["schemas"]["MovementDayResponse"];
+export type MovementMiscRow = components["schemas"]["MovementMiscRow"];
+
+export function useMovementDay(day: string) {
+  return useQuery<MovementDay>({
+    enabled: Boolean(day),
+    queryKey: ["posimport", "movement", day],
+    queryFn: () => api<MovementDay>(
+      `/api/v2/posimport/movement?day=${encodeURIComponent(day)}`,
+    ),
+  });
+}
+
 export async function commitStagedDay(
   day: string,
 ): Promise<NaxmlCommitResult> {

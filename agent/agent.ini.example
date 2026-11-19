@@ -2,5 +2,7 @@
 api_url    = https://dinerobook.com
 agent_key  = pak_PASTE_YOUR_KEY_HERE
 watch_dir  = C:\Passport\XMLGateway\BOOutbox
-pattern    = PJR*.xml
+; One or more filename patterns (spaces or commas between them):
+; the journal (PJR) plus every movement report Passport writes.
+pattern    = PJR*.xml FGM*.xml ISM*.xml MCM*.xml MSM*.xml TLM*.xml TPM*.xml
 poll_seconds = 5
