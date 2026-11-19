@@ -26,7 +26,11 @@ export function PageShell({
         // Slightly tighter horizontal padding + a more compact
         // top so PageHeader sits closer to the chrome and the
         // first card doesn't float in the middle of the screen.
-        padding: "1.5rem 1.5rem 2.5rem",
+        // The bottom leaves room for the round help button fixed in
+        // the bottom-right corner (HelpCenter): scrolled to the end,
+        // the last thing on the page — usually a form's Save — sits
+        // above it instead of under it.
+        padding: "1.5rem 1.5rem 5.5rem",
         maxWidth,
         margin: 0,
         width: "100%",

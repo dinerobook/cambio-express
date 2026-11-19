@@ -11,6 +11,25 @@
   cursor: pointer;
 }
 
+/* Room on the right for the calendar mark (two classes so this beats
+ * the kit's `.ds-input` padding whatever order the sheets load in). */
+.wrapper .trigger {
+  padding-right: 2.25rem;
+}
+
+.icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  fill: none;
+  stroke: var(--db-text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* Portalled to <body> by Radix and positioned by it. Above the kit
    Modal (z-index 100) so a date field inside a dialog stays usable;
    capped to the room Radix measures so it can always be scrolled. */

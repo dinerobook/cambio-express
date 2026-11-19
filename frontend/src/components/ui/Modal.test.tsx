@@ -48,6 +48,27 @@ describe("<Modal>", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("has a visible ✕ that closes it, last in the tab order", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(
+      <Modal open onClose={onClose} title="With a field">
+        <input aria-label="Name" />
+      </Modal>,
+    );
+    // The first field, not the ✕, takes focus when the popup opens.
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Close window" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the ✕ while the popup is busy", () => {
+    render(
+      <Modal open onClose={() => {}} title="Busy" disabled>body</Modal>,
+    );
+    expect(screen.getByRole("button", { name: "Close window" })).toBeDisabled();
+  });
+
   it("does NOT fire onClose on Escape when disabled=true (busy save)", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

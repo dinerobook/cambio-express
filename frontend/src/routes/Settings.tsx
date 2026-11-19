@@ -264,7 +264,7 @@ function ProfileCard() {
         autoComplete="off"
         style={{ display: "flex", flexDirection: "column", gap: space.lg, marginTop: space.lg }}
       >
-        <Field label={t("profile.displayName")} error={fieldErrors.full_name}>
+        <Field label={t("profile.displayName")} error={fieldErrors.full_name} required>
           <Input
             type="text" maxLength={120} required
             value={draft.full_name ?? ""}

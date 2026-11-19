@@ -142,7 +142,7 @@ describe("TransferForm", () => {
   it("says when the roster cannot load", () => {
     roster.mockReturnValue({ data: undefined, isLoading: false, isError: true });
     renderRoute(<TransferForm {...props()} />);
-    expect(screen.getByText("Couldn't load the employee list. Add cashiers under Settings → Team.")).toBeInTheDocument();
+    expect(screen.getByText("Couldn't load the employee list. Add cashiers under Team → Employees.")).toBeInTheDocument();
   });
 
   it("says when the store has no employees", () => {

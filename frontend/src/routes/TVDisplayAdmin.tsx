@@ -725,7 +725,7 @@ function CountrySections({
             </div>
           </summary>
           <form onSubmit={addCountry} style={{ padding: 18 }}>
-            <Field label={t("tv.countryField")} style={{ maxWidth: 460 }}>
+            <Field label={t("tv.countryField")} style={{ maxWidth: 460 }} required>
               <Select
                 value={picker}
                 required

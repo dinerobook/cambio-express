@@ -99,6 +99,26 @@
 
 .ds-btn:not(:disabled):active { transform: scale(0.97); }
 
+/* Touch screens: a small button (2rem) and a round icon button
+ * (1.5rem) are too small to hit reliably with a finger. Small
+ * buttons grow to 2.5rem; icon buttons keep their size on screen but
+ * get an invisible 2.5rem hit area (::after), so a table row's ↑ ↓
+ * or a card's × doesn't push the layout around. `!important` because
+ * the kit sizes buttons inline. */
+@media (pointer: coarse) {
+  .ds-btn--sm {
+    min-height: 2.5rem !important;
+  }
+  .ds-btn[class*="ds-iconbtn--"] {
+    position: relative;
+  }
+  .ds-btn[class*="ds-iconbtn--"]::after {
+    content: "";
+    position: absolute;
+    inset: -0.5rem;
+  }
+}
+
 .ds-btn:focus-visible {
   outline: 2px solid var(--db-accent);
   outline-offset: 2px;
@@ -117,13 +137,54 @@
   background: var(--db-tone-error-bg);
 }
 
-/* ── Inputs: focus glow ────────────────────────────────────── */
+/* ── Inputs: one look, every state ─────────────────────────────
+ * Input, Select, Textarea and the date box share this rule. The
+ * colours, border, radius, padding and font live HERE, not inline
+ * (tokens.ts inputStyle keeps only the sizing): an inline border
+ * beat every state rule, so hover, the focus border, the red invalid
+ * edge and the dimmed disabled box never showed.
+ * 0.6rem padding + 1.25 line height + the border = 2.5rem, the
+ * height of a md <Button>. */
 
 .ds-input {
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.85rem;
+  color: var(--db-text);
+  font-family: var(--db-font-body);
   font-size: 0.95rem;
+  line-height: 1.25;
+  outline: none;
   transition:
     border-color var(--ds-dur-base) var(--ds-ease),
-    box-shadow var(--ds-dur-base) var(--ds-ease);
+    box-shadow var(--ds-dur-base) var(--ds-ease),
+    background var(--ds-dur-base) var(--ds-ease);
+}
+
+.ds-input::placeholder {
+  color: var(--db-text-muted);
+  opacity: 0.8;
+}
+
+.ds-input:hover:not(:disabled):not(:focus) {
+  border-color: var(--db-border-strong);
+}
+
+/* A box you cannot type in reads as a value, not a field. */
+.ds-input[readonly] {
+  background: var(--db-surface-2);
+}
+
+.ds-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Invalid (a <Field error> / highlight, or aria-invalid set by the
+ * caller): the red edge stays while focused, with a red glow. */
+.ds-input[aria-invalid="true"] {
+  border-color: var(--db-negative);
 }
 
 /* iOS Safari zooms the whole page into any focused control whose
@@ -133,7 +194,12 @@
  * because the kit deliberately keeps font-size OUT of the inline
  * inputStyle (tokens.ts). */
 @media (max-width: 480px) {
-  .ds-input { font-size: 16px; }
+  /* Element + class so a page's own compact class (a 0.85rem table
+   * select, the 0.9rem hours boxes) can't take a phone field back
+   * under 16px. */
+  input.ds-input,
+  select.ds-input,
+  textarea.ds-input { font-size: 16px; }
 }
 
 /* `:focus-visible` instead of `:focus` so the neon glow only
@@ -145,6 +211,170 @@
   border-color: var(--db-accent);
   box-shadow: 0 0 0 3px var(--db-neon-glow-15);
   outline: none;
+}
+
+/* A <select> focused by a click doesn't match :focus-visible, so its
+ * list opened over a box with no sign of focus; :focus covers it. */
+.ds-select:focus {
+  border-color: var(--db-accent);
+}
+
+.ds-input[aria-invalid="true"]:focus-visible,
+.ds-select[aria-invalid="true"]:focus {
+  border-color: var(--db-negative);
+  box-shadow: 0 0 0 3px var(--db-tone-error-bg);
+}
+
+/* ── Money box (kit <MoneyInput>) ─────────────────────────────
+ * The "$" prefix and the input share one bordered box; the input has
+ * no border of its own, so the box carries every state. */
+.ds-money {
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
+  border-radius: 0.55rem;
+  overflow: hidden;
+  transition:
+    border-color var(--ds-dur-base) var(--ds-ease),
+    box-shadow var(--ds-dur-base) var(--ds-ease);
+}
+
+.ds-money:hover:not(.ds-money--disabled):not(:focus-within) {
+  border-color: var(--db-border-strong);
+}
+
+.ds-money:focus-within {
+  border-color: var(--db-accent);
+  box-shadow: 0 0 0 3px var(--db-neon-glow-15);
+}
+
+.ds-money--invalid,
+.ds-money--invalid:focus-within {
+  border-color: var(--db-negative);
+}
+
+.ds-money--invalid:focus-within {
+  box-shadow: 0 0 0 3px var(--db-tone-error-bg);
+}
+
+.ds-money--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ds-money:has(input[readonly]) {
+  background: var(--db-surface-2);
+}
+
+.ds-money input::placeholder {
+  color: var(--db-text-muted);
+  opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  .ds-money input { font-size: 16px !important; }
+}
+
+/* ── Fields (kit <Field>) ──────────────────────────────────────
+ * Label over the control; hint, then error, under it — outside the
+ * <label> so they describe the control instead of naming it
+ * (Field.tsx). */
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.ds-field__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.ds-field__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--db-text);
+}
+
+.ds-field--invalid .ds-field__label {
+  color: var(--db-negative);
+}
+
+/* The one required mark (`<Field required>`). Quiet on purpose: it
+ * marks, it doesn't alarm — red is for errors. */
+.ds-field__required {
+  margin-left: 0.2rem;
+  color: var(--db-text-muted);
+}
+
+.ds-field__hint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--db-text-muted);
+}
+
+.ds-field__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--db-negative);
+}
+
+.ds-field__error-icon {
+  flex-shrink: 0;
+  margin-top: 0.06rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* A checkbox in a row of text boxes ("Reconciled" beside the ACH
+ * amount) puts its first line on the text line of the boxes beside
+ * it (their padding + border) instead of riding at the top of the
+ * row. A longer label still wraps down from there. */
+.ds-field .ds-checkbox {
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding-top: calc(0.6rem + 1px);
+}
+
+/* ── Switch (kit <Switch>): keyboard focus ring ───────────────
+ * The real checkbox is invisible over the track, so the ring is
+ * drawn on the track when the input inside has keyboard focus. */
+.ds-switch__track:has(> input:focus-visible) {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 2px;
+}
+
+/* ── Section title inside a card ──────────────────────────────
+ * Cards have no gap of their own; a <SectionTitle> that opens one
+ * gets its own space before the first row of fields. */
+.ds-section-title {
+  margin: 0;
+}
+
+.ds-card > .ds-section-title:not(:last-child) {
+  margin-bottom: 0.9rem;
+}
+
+/* A full-width field under a grid of fields ("Notes" under the ACH
+ * batch, the returned check and the purchase invoice) keeps the
+ * grid's row gap instead of sitting on the last row's boxes. */
+.ds-card > .ds-field:not(:first-child) {
+  margin-top: 0.75rem;
+}
+
+/* Two <Section>s in one card: a hairline and room between them. */
+.ds-card .ds-section + .ds-section {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--db-border-subtle);
 }
 
 /* ── Links: underline reveal ───────────────────────────────── */
@@ -270,6 +500,10 @@
   background: var(--db-surface);
   padding-top: 0.85rem;
   padding-bottom: 0.85rem;
+  /* Pinned to the window's bottom edge, the bar's right end is where
+   * the round help button sits (HelpCenter) at every width — keep
+   * Save clear of it. */
+  padding-right: 4.75rem;
 }
 
 /* Status (pill or note) takes the left edge; buttons stay right. */

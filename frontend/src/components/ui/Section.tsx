@@ -6,12 +6,17 @@ import { fontSize, space, tokens } from "./tokens";
  *  inside ``<Section>``. */
 export function SectionTitle({ children }: { children: ReactNode }) {
   return (
+    // `ds-section-title` spaces a title that opens a <Card> from
+    // what follows it (ui.css). Cards have no gap of their own, so a
+    // bare title sat on the first row of labels.
     <h2
+      className="ds-section-title"
       style={{
         fontFamily: tokens.fontDisplay,
         fontSize: fontSize.lg,
         fontWeight: 600,
-        margin: 0,
+        // margin lives in the class (ui.css) so the in-card spacing
+        // rule can add to it; an inline margin would beat it.
       }}
     >
       {children}
@@ -30,7 +35,13 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: space.md }}>
+    // `ds-section`: two Sections in one Card ("Basic info", then
+    // "Contact") get a divider and room between them (ui.css) —
+    // they used to touch, the second title on the last field.
+    <section
+      className="ds-section"
+      style={{ display: "flex", flexDirection: "column", gap: space.md }}
+    >
       {(title || actions) && (
         <header
           style={{

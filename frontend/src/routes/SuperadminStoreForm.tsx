@@ -307,7 +307,7 @@ export default function SuperadminStoreForm() {
           <div className={styles.sectionTitle}>{t("saForm.businessInfo")}</div>
 
           <div className={styles.formGrid}>
-            <Field label={t("saForm.name")} error={fieldErrors.name}>
+            <Field label={t("saForm.name")} error={fieldErrors.name} required>
               <Input
                 type="text" required maxLength={120}
                 value={name}
@@ -319,6 +319,7 @@ export default function SuperadminStoreForm() {
 
             <Field
               label={t("saForm.slug")}
+              required
               error={fieldErrors.slug}
               hint={t("saForm.slugHint")}
             >
@@ -424,7 +425,7 @@ export default function SuperadminStoreForm() {
                   />
                 </Field>
 
-                <Field label={t("saForm.adminUsername")} error={fieldErrors.admin_username}>
+                <Field label={t("saForm.adminUsername")} error={fieldErrors.admin_username} required>
                   <Input
                     type="text" required maxLength={80}
                     value={adminUsername}
@@ -452,6 +453,7 @@ export default function SuperadminStoreForm() {
 
                 <Field
                   label={t("saForm.password")}
+                  required
                   error={fieldErrors.admin_password}
                   style={SPAN_2}
                 >

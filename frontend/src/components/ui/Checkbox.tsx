@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 
+import { fieldAria, useFieldControl } from "./fieldContext";
 import { tokens } from "./tokens";
 
 /** Boolean control.  Visually styled to match the kit's
@@ -38,8 +39,16 @@ export function Checkbox({
   /** Accessible name for label-less use (matrix cells etc.). */
   "aria-label"?: string;
 }) {
+  // Inside a <Field> (a "Reconciled" column beside text boxes), the
+  // box lines up with the inputs beside it (`.ds-field .ds-checkbox`
+  // in ui.css) and is described by the Field's hint / error.
+  const field = useFieldControl();
+  // Stays a <label> inside a <Field> too: a Field may hold a group of
+  // boxes, and only the box's own label sends a click on its text to
+  // the right box (the Field's label would tick the first one).
   return (
     <label
+      className="ds-checkbox"
       style={{
         display: "inline-flex",
         alignItems: "flex-start",
@@ -57,8 +66,8 @@ export function Checkbox({
         disabled={disabled}
         name={name}
         value={value}
-        aria-describedby={describedBy}
         aria-label={ariaLabel}
+        {...fieldAria(field, { "aria-describedby": describedBy })}
         style={inputStyle}
       />
       {children != null && children !== "" && <span>{children}</span>}
