@@ -48,7 +48,15 @@
   gap: 0.3rem;
   flex: 1;
   overflow-y: auto;
+  /* On a short window the column scrolls; its scrollbar would take
+   * ~10px of the 4.75rem rail and break "Dashboard" in two again.
+   * Hidden, it still scrolls by wheel, touch and keyboard. */
+  scrollbar-width: none;
   position: relative;
+}
+
+.iconCol::-webkit-scrollbar {
+  display: none;
 }
 
 .brand {

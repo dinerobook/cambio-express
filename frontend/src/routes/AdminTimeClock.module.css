@@ -108,10 +108,10 @@
   gap: 0.75rem;
 }
 
-@media (max-width: 30rem) {
-  /* On phones the modal pops up at ~95vw — a 2-column form
-     leaves no room for an actual ``HH:MM`` time input + a
-     readable label, so collapse to single-column. */
+@media (max-width: 40rem) {
+  /* Below ~640px wide the popup's columns drop under ~220px, too
+     narrow for a date-and-time box ("mm/dd/yyyy, --:-- --" + its
+     picker) — collapse to one column. */
   .modalGrid {
     grid-template-columns: 1fr;
   }

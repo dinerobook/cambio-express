@@ -92,7 +92,9 @@
 .full {
   display: block;
   max-width: 100%;
-  max-height: 70vh;
+  /* 70vh, but never so tall that the popup's title and Close row push
+   * the picture's bottom under the pinned button row. */
+  max-height: min(70vh, calc(100dvh - 12rem));
   margin: 0 auto;
   object-fit: contain;
 }

@@ -368,8 +368,9 @@
   align-items: flex-end;
 }
 
+/* Room for "hh:mm AM" plus the clock button at a phone's 16px. */
 .addRowTime {
-  flex: 0 0 7.5rem;
+  flex: 0 0 8.5rem;
 }
 
 .addRowAmount {
@@ -430,6 +431,17 @@
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
+
+/* An entry being edited in its row: the time and amount boxes keep a
+ * readable width (they shrank to their padding on a phone, showing
+ * no digits); the table's wrapper scrolls sideways instead. */
+.widgetTd input[type="time"] {
+  min-width: 7.5rem;
+}
+
+.widgetTd :global(.ds-money) {
+  min-width: 6.5rem;
 }
 
 .editRowActions {
@@ -520,26 +532,20 @@
   flex-wrap: wrap;
 }
 
-.mtSaveRow {
-  display: flex;
-  gap: 0.65rem;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--db-border-subtle);
-}
-
 .mtSaveRowLeft {
   color: var(--db-text-muted);
   font-size: 0.85rem;
   flex: 1;
 }
 
+/* 6rem + the dense money box (MoneyInput `dense`) shows ~7 digits
+ * ("4523.17"); at 4.75rem with the full padding only ~4 fit and an
+ * amount was cut. Six of them plus the name and total columns still
+ * fit the lg popup; narrower, the wrapper scrolls. */
 .mtCellTd {
   padding: 0.35rem 0.3rem;
   border-bottom: 1px solid var(--db-border-subtle);
-  min-width: 4.75rem;
+  min-width: 6rem;
 }
 
 /* The input's own intrinsic width (~20 characters) would otherwise

@@ -37,7 +37,7 @@ import { tokens } from "./tokens";
 export function MoneyInput({
   value, onChange, label, hint, error,
   disabled, readOnly, required, prefix = "$", placeholder,
-  align = "right", style, fullWidth = false,
+  align = "right", style, fullWidth = false, dense = false,
   "aria-label": ariaLabel,
 }: {
   /** Current numeric value.  `0` renders as empty input. */
@@ -66,6 +66,9 @@ export function MoneyInput({
    *  (e.g. the money-transfer breakdown) so columns shrink to fit the
    *  available width instead of forcing a horizontal scroll. */
   fullWidth?: boolean;
+  /** Tighter side padding for a box in a table cell (the daily book's
+   *  money-transfer grid), so a narrow column still shows ~7 digits. */
+  dense?: boolean;
   "aria-label"?: string;
 }) {
   const id = useId();
@@ -185,7 +188,7 @@ export function MoneyInput({
             outline: "none",
             background: "transparent",
             color: tokens.text,
-            padding: "0.65rem 0.85rem",
+            padding: dense ? "0.6rem 0.45rem" : "0.6rem 0.85rem",
             fontFamily: tokens.fontMono,
             fontSize: "0.95rem",
             lineHeight: 1.25,
