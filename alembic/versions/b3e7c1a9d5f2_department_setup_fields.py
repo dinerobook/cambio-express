@@ -14,7 +14,7 @@ application code); ``tests/Modules/DayClose/test_department_setup.py``
 asserts they match the model. Idempotent both ways.
 
 Revision ID: b3e7c1a9d5f2
-Revises: d4f8b2c6e1a3
+Revises: c6d2e8a4f1b7
 Create Date: 2026-11-19 10:00:00.000000
 
 """
@@ -26,7 +26,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'b3e7c1a9d5f2'
-down_revision: Union[str, None] = 'd4f8b2c6e1a3'
+down_revision: Union[str, None] = 'c6d2e8a4f1b7'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
