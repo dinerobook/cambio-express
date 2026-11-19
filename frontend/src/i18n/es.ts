@@ -3301,7 +3301,7 @@ export const es: Record<MessageKey, string> = {
   "posImp.pickDept": "Elija un departamento…",
   "posImp.noDepts": "Todavía no hay departamentos",
   "posImp.noDeptsBody": "Primero configure sus departamentos en la {link}; el juego inicial se crea con un clic.",
-  "posImp.deptsTab": "pestaña Departamentos de la lista de precios",
+  "posImp.deptsPage": "página Cuenta → Departamentos",
   "posImp.step3": "3 · Revisar e importar",
   "posImp.businessDay": "Día del negocio",
   "posImp.importDay": "Importar este día",

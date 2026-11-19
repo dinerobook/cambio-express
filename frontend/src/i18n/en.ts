@@ -3297,7 +3297,7 @@ export const en = {
   "posImp.pickDept": "Pick a department…",
   "posImp.noDepts": "No departments yet",
   "posImp.noDeptsBody": "Set up your departments first on the {link} — the starter set takes one click.",
-  "posImp.deptsTab": "Price book’s Departments tab",
+  "posImp.deptsPage": "Account → Departments page",
   "posImp.step3": "3 · Review & import",
   "posImp.businessDay": "Business day",
   "posImp.importDay": "Import this day",

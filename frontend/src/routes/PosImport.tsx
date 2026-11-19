@@ -294,7 +294,7 @@ export default function PosImport() {
               body={
                 <>
                   {tNodes("posImp.noDeptsBody", {
-                    link: <AppLink fallback="text" to="/price-book">{t("posImp.deptsTab")}</AppLink>,
+                    link: <AppLink fallback="text" to="/account/departments">{t("posImp.deptsPage")}</AppLink>,
                   })}
                 </>
               }

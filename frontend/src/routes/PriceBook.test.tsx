@@ -104,6 +104,14 @@ describe("PriceBook", () => {
     lookupScanCode.mockResolvedValue(lookup());
   });
 
+  it("has Items and Vendors tabs only: departments live in Account", () => {
+    // Owner, 2026-11-19: departments are set up in one place,
+    // Account → Departments; the Price book only picks one per item.
+    renderPage();
+    const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+    expect(tabs).toEqual(["Items", "Vendors"]);
+  });
+
   it("lists items with their price and cost", () => {
     renderPage();
     const row = screen.getByText("Cola 12oz").closest("tr")!;

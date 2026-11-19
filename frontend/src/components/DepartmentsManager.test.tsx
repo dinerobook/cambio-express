@@ -11,8 +11,7 @@ import { TEST_ADMIN } from "../test/setup";
 import { setLanguage } from "../i18n";
 import { englishLeftovers } from "../test/i18n";
 
-// The store's department setup (Account → Departments, and the Price
-// book's Departments tab). Pinned: the empty catalog offers a starter
+// The store's department setup (Account → Departments). Pinned: the empty catalog offers a starter
 // set (created in the reader's language, since the names become the
 // store's own); a department deactivates rather than deletes; a
 // refused save shows inside the popup; the Modisoft-style setup
