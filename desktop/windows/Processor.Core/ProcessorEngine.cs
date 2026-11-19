@@ -4,9 +4,11 @@ using Microsoft.Extensions.Logging;
 namespace DineroBook.Processor;
 
 /// <summary>
-/// One pass of the Processor: read the settings, list Passport's folder, send
-/// the files that are ready, write status.json. The service calls
-/// <see cref="RunCycleAsync"/> in a loop and waits the time it returns.
+/// The Processor's pipeline: list Passport's folder → wait until each file
+/// held still → read its business day → send, several at a time → ledger.
+/// The service calls <see cref="RunCycleAsync"/>, then
+/// <see cref="WaitAsync"/> for the time it returns (or until an upload
+/// finishes), in a loop.
 /// <para>
 /// The rules it keeps:
 /// <list type="bullet">
@@ -14,15 +16,18 @@ namespace DineroBook.Processor;
 /// locked;</item>
 /// <item>a file goes up once its size and time held still across two
 /// polls;</item>
-/// <item>strictly oldest first (by write time): a file that fails is tried
-/// again before anything newer, and no file goes ahead of an older one that
-/// is still settling. The server books a business day as soon as a file
-/// from a later day arrives, so a day's files must all be up before the
-/// next day's;</item>
+/// <item>business days in order (<see cref="UploadScheduler"/>): a day's
+/// files go in parallel, and no file of a later day goes while a file of an
+/// earlier day is still on its way — the server books day D as soon as a
+/// file of a later day arrives;</item>
+/// <item>a slow or failing file never holds up files of its own day; it is
+/// retried with backoff;</item>
 /// <item>nothing is ever dropped: every answer but "accepted" and "refused
 /// for good (422)" leaves the file to be tried again;</item>
 /// <item>under the server's rate limit (<see cref="UploadPacer"/>).</item>
 /// </list>
+/// All bookkeeping happens on the thread that calls RunCycleAsync; an
+/// upload task only reads the file and talks to the server.
 /// </para>
 /// </summary>
 public sealed class ProcessorEngine
@@ -38,6 +43,15 @@ public sealed class ProcessorEngine
     /// take effect quickly.</summary>
     public static readonly TimeSpan RecheckEvery = TimeSpan.FromSeconds(10);
 
+    /// <summary>Business days read per pass (a first run in a big folder
+    /// reads them over several passes).</summary>
+    public const int DayReadsPerCycle = 500;
+
+    /// <summary>This many failed tries in a row, whatever the file, means
+    /// DineroBook (or the network) is down: one upload at a time, with the
+    /// backoff ladder between them, until one goes through.</summary>
+    public const int OutageStreak = 4;
+
     private static readonly TimeSpan StatusEvery = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ProgressEvery = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan RepeatProblemLogEvery = TimeSpan.FromMinutes(30);
@@ -48,24 +62,27 @@ public sealed class ProcessorEngine
     private readonly Func<Uri, string, IAgentUploader> _uploaderFor;
     private readonly TimeProvider _time;
     private readonly ILogger _log;
-    private readonly Func<TimeSpan, CancellationToken, Task> _delay;
     private readonly Action<ProcessorStatus> _writeStatus;
 
-    private readonly StabilityTracker _tracker = new();
+    private readonly UploadScheduler _schedule = new();
     private readonly UploadPacer _pacer = new();
+    private readonly List<InFlight> _inFlight = new();
     private readonly ProcessorStatus _status;
+    private readonly object _signalGate = new();
+    private TaskCompletionSource _activity = NewSignal();
 
     private FileLedger? _sent;
     private FileLedger? _skipped;
     private EngineConfig? _cfg;
     private IAgentUploader? _uploader;
+    private int _generation;
     private FilePatterns _patterns = new(ProcessorSettings.DefaultPatterns);
     private string _watchFolder = "";
+    private DateTimeOffset _nextSweepAt = DateTimeOffset.MinValue;
+    private bool _folderOk = true;
 
     private DateTimeOffset _pausedUntil;
-    private int _consecutiveFailures;
-    private string _failingFile = "";
-    private int _failingFileCount;
+    private int _failureStreak;
 
     private DateOnly _today;
     private int _todayCount;
@@ -75,7 +92,11 @@ public sealed class ProcessorEngine
     private (string State, string Message, DateTimeOffset At)? _lastLoggedProblem;
     private bool _statusWriteFailed;
 
-    private enum Step { Done, NotReady, Pause }
+    private sealed record InFlight(TrackedFile File, BusinessDay Day, int Generation, Task<Attempt> Task);
+
+    private enum AttemptKind { Uploaded, NotReady, Gone, DayChanged, ReadFailed, Cancelled }
+
+    private sealed record Attempt(AttemptKind Kind, UploadResult? Result = null, BusinessDay Day = default, string Error = "");
 
     public ProcessorEngine(
         DataPaths paths,
@@ -85,7 +106,6 @@ public sealed class ProcessorEngine
         TimeProvider time,
         ILogger log,
         string version,
-        Func<TimeSpan, CancellationToken, Task>? delay = null,
         Action<ProcessorStatus>? writeStatus = null)
     {
         _paths = paths;
@@ -94,7 +114,6 @@ public sealed class ProcessorEngine
         _uploaderFor = uploaderFor;
         _time = time;
         _log = log;
-        _delay = delay ?? ((d, ct) => Task.Delay(d, time, ct));
         _writeStatus = writeStatus ?? (s => s.Write(paths.Status));
         _status = new ProcessorStatus { Version = version, Running = true, StartedAt = time.GetUtcNow() };
     }
@@ -102,16 +121,48 @@ public sealed class ProcessorEngine
     /// <summary>The status as last written (for tests and the console).</summary>
     public ProcessorStatus Status => _status;
 
+    /// <summary>The schedule (for tests).</summary>
+    public UploadScheduler Schedule => _schedule;
+
+    public int UploadsInFlight => _inFlight.Count;
+
     private DateTimeOffset Now => _time.GetUtcNow();
 
-    public async Task<TimeSpan> RunCycleAsync(CancellationToken ct)
+    private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private void Signal()
     {
-        var cycleStart = Now;
+        lock (_signalGate) _activity.TrySetResult();
+    }
+
+    /// <summary>Waits <paramref name="wait"/>, or less when an upload
+    /// finishes first.</summary>
+    public async Task WaitAsync(TimeSpan wait, CancellationToken ct)
+    {
+        Task signal;
+        lock (_signalGate) signal = _activity.Task;
+        if (wait <= TimeSpan.Zero || signal.IsCompleted) return;
+        await Task.WhenAny(Task.Delay(wait, _time, ct), signal).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+    }
+
+    /// <summary>One pass. It never waits on an upload (those run on their
+    /// own), so it finishes at once; the returned time is when the next
+    /// pass is due.</summary>
+    public Task<TimeSpan> RunCycleAsync(CancellationToken ct) => Task.FromResult(RunCycle(ct));
+
+    private TimeSpan RunCycle(CancellationToken ct)
+    {
+        lock (_signalGate)
+        {
+            if (_activity.Task.IsCompleted) _activity = NewSignal();
+        }
         if (!OpenLedgers())
         {
             FlushStatus(force: true);
             return RecheckEvery;
         }
+        Collect();
 
         var cfg = _config.Current(out var changed);
         if (changed || _cfg is null) Apply(cfg);
@@ -125,14 +176,48 @@ public sealed class ProcessorEngine
             return RecheckEvery;
         }
 
-        if (_pausedUntil > cycleStart)
+        var now = Now;
+        if (now >= _nextSweepAt) Sweep(now, poll);
+        var moreDays = _folderOk && ReadDays();
+
+        // Start what may go; uploads that finish at once make room for more.
+        for (var i = 0; i < 50 && _folderOk; i++)
         {
-            _status.NextTryAt = _pausedUntil;
-            FlushStatus(force: true);
-            return Min(_pausedUntil - cycleStart, RecheckEvery);
+            var started = Dispatch(ct);
+            var finished = Collect();
+            if (!started && !finished) break;
         }
 
-        // ── Sweep ──
+        Summarize();
+        FlushStatus(force: true);
+        return NextWake(poll, moreDays);
+    }
+
+    /// <summary>At shutdown: lets uploads in flight finish (briefly) and
+    /// records the ones that went through.</summary>
+    public async Task DrainAsync(TimeSpan timeout)
+    {
+        if (_inFlight.Count > 0)
+        {
+            await Task.WhenAny(Task.WhenAll(_inFlight.Select(x => x.Task)), Task.Delay(timeout)).ConfigureAwait(false);
+        }
+        Collect();
+    }
+
+    /// <summary>Marks the status stopped (service shutting down).</summary>
+    public void Stopped()
+    {
+        _status.Running = false;
+        _status.Uploading = 0;
+        SetState(ProcessorState.Stopped, "The service is stopped.");
+        _status.NextTryAt = null;
+        FlushStatus(force: true);
+    }
+
+    // ── Sweep and business days ──
+
+    private void Sweep(DateTimeOffset now, TimeSpan poll)
+    {
         List<FileSnapshot> pending;
         try
         {
@@ -143,178 +228,224 @@ public sealed class ProcessorEngine
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
                                        or System.Security.SecurityException or ArgumentException)
         {
+            _folderOk = false;
             Problem(ProcessorState.FolderUnavailable,
                 $"Cannot open the Passport folder {_watchFolder}: {ex.Message}", LogLevel.Error);
-            _tracker.Reset();
-            FlushStatus(force: true);
-            return poll;
+            _nextSweepAt = now + poll;
+            return;
         }
-        if (_status.State == ProcessorState.FolderUnavailable)
+        if (!_folderOk || _status.State == ProcessorState.FolderUnavailable)
         {
+            _folderOk = true;
             ClearProblem($"The Passport folder {_watchFolder} can be read again.");
         }
-
-        var stable = _tracker.Observe(pending)
-            .Select(f => f.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        // Oldest first, and only up to the first file that is not ready:
-        // a newer file never goes ahead of an older one still settling.
-        // (An empty file can never be sent, so it holds nothing back.)
-        var ready = pending
-            .Where(f => f.Length > 0)
-            .OrderBy(f => f.LastWriteUtc)
-            .ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
-            .TakeWhile(f => stable.Contains(f.Name))
-            .ToList();
-        _status.Waiting = pending.Count(f => f.Length > 0);
-
-        if (ready.Count == 0)
-        {
-            SettleState();
-            FlushStatus(force: true);
-            return poll;
-        }
-
-        // ── Send, oldest first, until it is time to list the folder again ──
-        var sweepEvery = ready.Count > BacklogThreshold ? Max(poll, BacklogSweepEvery) : poll;
-        var deadline = cycleStart + sweepEvery;
-        SetState(ProcessorState.Sending, $"Sending {_status.Waiting:N0} file(s).");
-        foreach (var file in ready)
-        {
-            ct.ThrowIfCancellationRequested();
-            var now = Now;
-            if (now >= deadline)
-            {
-                FlushStatus(force: true);
-                return TimeSpan.Zero;
-            }
-            var wait = _pacer.WaitBeforeNext(now);
-            if (wait > TimeSpan.Zero)
-            {
-                if (now + wait >= deadline)
-                {
-                    FlushStatus(force: true);
-                    return wait;
-                }
-                await _delay(wait, ct).ConfigureAwait(false);
-            }
-            switch (await SendAsync(file, ct).ConfigureAwait(false))
-            {
-                case Step.Pause:
-                    FlushStatus(force: true);
-                    return Min(_pausedUntil - Now, RecheckEvery);
-                case Step.NotReady:
-                    // Changed since the listing: it waits for two more
-                    // polls, and nothing newer may go ahead of it.
-                    FlushStatus(force: true);
-                    return poll;
-                default:
-                    _status.Waiting = Math.Max(0, _status.Waiting - 1);
-                    LogProgress();
-                    FlushStatus(force: false);
-                    break;
-            }
-        }
-
-        SettleState();
-        FlushStatus(force: true);
-        return poll;
+        _schedule.Observe(pending, now);
+        var backlog = _schedule.Files.Count(f => f.Stage is FileStage.Ready or FileStage.Retrying) > BacklogThreshold;
+        _nextSweepAt = now + (backlog ? Max(poll, BacklogSweepEvery) : poll);
     }
 
-    /// <summary>Marks the status stopped (service shutting down).</summary>
-    public void Stopped()
+    /// <summary>Reads business days that are still needed. True when more
+    /// are waiting than one pass reads.</summary>
+    private bool ReadDays()
     {
-        _status.Running = false;
-        SetState(ProcessorState.Stopped, "The service is stopped.");
-        _status.NextTryAt = null;
-        FlushStatus(force: true);
+        var batch = _schedule.NeedDay(DayReadsPerCycle);
+        foreach (var f in batch)
+        {
+            var complete = f.Stage != FileStage.Settling;
+            try
+            {
+                _schedule.SetDay(f.Name, _folder.ReadDay(f.Snapshot, complete), final: complete);
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                _schedule.Gone(f.Name);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Locked for a moment, or not readable: tried again next pass.
+                _schedule.DayUnreadable(f.Name, ex.Message);
+            }
+        }
+        return batch.Count >= DayReadsPerCycle;
     }
 
-    // ── One file ──
+    // ── Sending ──
 
-    private async Task<Step> SendAsync(FileSnapshot file, CancellationToken ct)
+    private bool Dispatch(CancellationToken ct)
     {
-        if (file.Name.Length > ServerContract.MaxFilenameLength)
-        {
-            Skip(file, "name_too_long",
-                $"the name is longer than the {ServerContract.MaxFilenameLength} characters the server takes");
-            return Step.Done;
-        }
-        if (file.Length > ServerContract.MaxFileBytes)
-        {
-            Skip(file, "too_large", $"{file.Length:N0} bytes; the server takes up to {ServerContract.MaxFileBytes:N0}");
-            return Step.Done;
-        }
+        var now = Now;
+        if (_pausedUntil > now || _uploader is null) return false;
+        var limit = _failureStreak >= OutageStreak ? 1 : _cfg!.Settings.EffectiveMaxConcurrentUploads;
+        var slots = limit - _inFlight.Count;
+        if (slots <= 0) return false;
 
-        byte[]? content;
+        var started = false;
+        foreach (var f in _schedule.NextToStart(now, slots))
+        {
+            if (f.Name.Length > ServerContract.MaxFilenameLength)
+            {
+                Skip(f.Name, "name_too_long",
+                    $"the name is longer than the {ServerContract.MaxFilenameLength} characters the server takes");
+                started = true;
+                continue;
+            }
+            if (f.Snapshot.Length > ServerContract.MaxFileBytes)
+            {
+                Skip(f.Name, "too_large", $"{f.Snapshot.Length:N0} bytes; the server takes up to {ServerContract.MaxFileBytes:N0}");
+                started = true;
+                continue;
+            }
+            if (_pacer.WaitBeforeNext(now) > TimeSpan.Zero) break;
+            _pacer.Record(now);
+            _schedule.Started(f);
+            var task = SendAsync(f.Snapshot, f.Day, _uploader, ct);
+            _inFlight.Add(new InFlight(f, f.Day, _generation, task));
+            _ = task.ContinueWith(_ => Signal(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            started = true;
+        }
+        return started;
+    }
+
+    /// <summary>Reads one file and sends it. Touches no engine state.</summary>
+    private async Task<Attempt> SendAsync(FileSnapshot file, BusinessDay day, IAgentUploader uploader, CancellationToken ct)
+    {
         try
         {
-            content = _folder.Read(file);
+            byte[]? content;
+            try
+            {
+                content = await _folder.ReadAsync(file, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                return new Attempt(AttemptKind.Gone);
+            }
+            catch (IOException ex) when (IsSharingViolation(ex))
+            {
+                return new Attempt(AttemptKind.NotReady);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return new Attempt(AttemptKind.ReadFailed, Error: "cannot read the file: " + ex.Message);
+            }
+            if (content is null) return new Attempt(AttemptKind.NotReady);
+
+            // The bytes about to go decide the day, not an earlier look.
+            var actual = BusinessDateReader.Read(content, complete: true);
+            if (actual != day) return new Attempt(AttemptKind.DayChanged, Day: actual);
+
+            var result = await uploader.UploadAsync(file.Name, content, ct).ConfigureAwait(false);
+            return new Attempt(AttemptKind.Uploaded, result);
         }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            _log.LogInformation("{File} was removed from the folder before it could be sent.", file.Name);
-            _tracker.Forget(file.Name);
-            return Step.Done;
+            return new Attempt(AttemptKind.Cancelled);
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex)
         {
-            return Failed(file, "cannot read the file: " + ex.Message);
+            return new Attempt(AttemptKind.Uploaded, UploadAnswers.FromException(ex));
         }
-        catch (IOException ex) when (IsSharingViolation(ex))
+    }
+
+    /// <summary>Takes in every upload that has finished. True when any did.</summary>
+    private bool Collect()
+    {
+        var done = _inFlight.Where(x => x.Task.IsCompleted).ToList();
+        foreach (var x in done)
         {
-            // Passport has it open without sharing: still being written.
-            _tracker.Forget(file.Name);
-            return Step.NotReady;
+            _inFlight.Remove(x);
+            var attempt = x.Task.IsCompletedSuccessfully
+                ? x.Task.Result
+                : new Attempt(AttemptKind.Uploaded, UploadAnswers.FromException(x.Task.Exception?.GetBaseException() ?? new IOException("upload failed")));
+            Apply(x, attempt);
         }
-        catch (IOException ex)
+        return done.Count > 0;
+    }
+
+    private void Apply(InFlight x, Attempt attempt)
+    {
+        var name = x.File.Name;
+        switch (attempt.Kind)
         {
-            return Failed(file, "cannot read the file: " + ex.Message);
-        }
-        if (content is null)
-        {
-            _tracker.Forget(file.Name);
-            return Step.NotReady;
+            case AttemptKind.Gone:
+                _log.LogInformation("{File} was removed from the folder before it could be sent.", name);
+                _schedule.Gone(name);
+                return;
+            case AttemptKind.NotReady:
+                _schedule.Unsettle(name);
+                return;
+            case AttemptKind.Cancelled:
+                _schedule.Requeue(name);
+                return;
+            case AttemptKind.DayChanged:
+                _log.LogInformation("{File}: business day is {Day}, not {Expected}; it waits for its own day.", name, attempt.Day, x.Day);
+                _schedule.SetDay(name, attempt.Day, final: true);
+                _schedule.Requeue(name);
+                return;
+            case AttemptKind.ReadFailed:
+                Failed(name, attempt.Error);
+                return;
         }
 
-        _pacer.Record(Now);
-        var result = await _uploader!.UploadAsync(file.Name, content, ct).ConfigureAwait(false);
+        var result = attempt.Result!;
+        // A refusal for a key or server that has since been replaced
+        // says nothing about the new one.
+        var current = x.Generation == _generation;
         switch (result.Verdict)
         {
             case UploadVerdict.Accepted:
-                Accepted(file, result.Accepted!);
-                return Step.Done;
+                Accepted(name, x.Day, result.Accepted!);
+                break;
             case UploadVerdict.RejectedForGood:
-                Skip(file, "rejected", $"HTTP {result.Status}: {result.Detail}");
-                ResetFailures();
-                return Step.Done;
+                Skip(name, "rejected", $"HTTP {result.Status}: {result.Detail}");
+                _failureStreak = 0;
+                break;
             case UploadVerdict.KeyRejected:
-                Pause(RetryPolicy.BlockedPause, ProcessorState.KeyRejected,
-                    "DineroBook refused the agent key. Open DineroBook Manager and choose Sign in again.");
-                return Step.Pause;
+                _schedule.Requeue(name);
+                if (current)
+                {
+                    Pause(RetryPolicy.BlockedPause, ProcessorState.KeyRejected,
+                        "DineroBook refused the agent key. Open DineroBook Manager and choose Sign in again.");
+                }
+                break;
             case UploadVerdict.StoreClosed:
-                Pause(RetryPolicy.BlockedPause, ProcessorState.StoreClosed,
-                    "DineroBook is not taking uploads for this store: " + result.Detail);
-                return Step.Pause;
+                _schedule.Requeue(name);
+                if (current)
+                {
+                    Pause(RetryPolicy.BlockedPause, ProcessorState.StoreClosed,
+                        "DineroBook is not taking uploads for this store: " + result.Detail);
+                }
+                break;
             case UploadVerdict.ContractMismatch:
-                Pause(RetryPolicy.BlockedPause, ProcessorState.UpdateNeeded,
-                    "DineroBook refused the upload format; this DineroBook Processor needs an update. " + result.Detail);
-                return Step.Pause;
+                _schedule.Requeue(name);
+                if (current)
+                {
+                    Pause(RetryPolicy.BlockedPause, ProcessorState.UpdateNeeded,
+                        "DineroBook refused the upload format; this DineroBook Processor needs an update. " + result.Detail);
+                }
+                break;
             case UploadVerdict.RateLimited:
-                Pause(RetryPolicy.RateLimitedPause, ProcessorState.RetryLater,
-                    "DineroBook asked us to slow down (too many uploads). Carrying on in a minute.", LogLevel.Warning);
-                return Step.Pause;
+                _schedule.Requeue(name);
+                if (current)
+                {
+                    Pause(RetryPolicy.RateLimitedPause, ProcessorState.RetryLater,
+                        "DineroBook asked us to slow down (too many uploads). Carrying on in a minute.", LogLevel.Warning);
+                }
+                break;
             default:
-                return Failed(file, result.Detail);
+                // 5xx (two uploads colliding on the server end up here too),
+                // network, odd answers: this file waits, the others go on.
+                Failed(name, result.Detail);
+                break;
         }
     }
 
-    private void Accepted(FileSnapshot file, AcceptedFile answer)
+    private void Accepted(string name, BusinessDay day, AcceptedFile answer)
     {
         var at = Now;
         try
         {
-            _sent!.Add(file.Name, at, answer.Outcome);
+            _sent!.Add(name, at, answer.Outcome);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -322,8 +453,8 @@ public sealed class ProcessorEngine
             // would answer "duplicate".
             _log.LogError("Could not write {Ledger}: {Error}", _paths.SentLedger, ex.Message);
         }
-        _tracker.Forget(file.Name);
-        ResetFailures();
+        _schedule.Done(name);
+        _failureStreak = 0;
 
         var today = Today(at);
         if (today != _today)
@@ -337,74 +468,67 @@ public sealed class ProcessorEngine
         _status.TodayDate = _today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         _status.SentTotal = _sent!.Count;
         _status.LastUploadAt = at;
-        _status.LastUploadFile = file.Name;
+        _status.LastUploadFile = name;
         _status.LastUploadResult = answer.Outcome;
-        if (_lastLoggedProblem is not null)
+        if (_lastLoggedProblem is not null && _pausedUntil <= at)
         {
             _log.LogInformation("Uploads are going through again.");
             _lastLoggedProblem = null;
         }
-        SetState(ProcessorState.Sending, $"Sending {_status.Waiting:N0} file(s).");
 
         switch (answer.Outcome)
         {
             case "duplicate":
-                _log.LogInformation("{File}: already on the server (duplicate).", file.Name);
+                _log.LogInformation("{File}: already on the server (duplicate).", name);
                 break;
             case "parse_error":
-                _log.LogWarning("{File}: sent; the server could not read it (parse_error: {Error}).",
-                    file.Name, answer.ParseError);
+                _log.LogWarning("{File}: sent; the server could not read it (parse_error: {Error}).", name, answer.ParseError);
                 break;
             default:
-                _log.LogInformation("{File}: staged (business day {Day}).", file.Name, answer.BusinessDate ?? "unknown");
+                _log.LogInformation("{File}: staged (business day {Day}).", name, answer.BusinessDate ?? day.ToString());
                 break;
         }
+        LogProgress();
     }
 
-    private void Skip(FileSnapshot file, string outcome, string why)
+    private void Skip(string name, string outcome, string why)
     {
         try
         {
-            _skipped!.Add(file.Name, Now, outcome + ": " + why);
+            _skipped!.Add(name, Now, outcome + ": " + why);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _log.LogError("Could not write {Ledger}: {Error}", _paths.SkippedLedger, ex.Message);
         }
-        _tracker.Forget(file.Name);
+        _schedule.Done(name);
         _status.SkippedTotal = _skipped!.Count;
-        _log.LogWarning("{File}: not sent, and will not be tried again ({Why}).", file.Name, why);
+        _log.LogWarning("{File}: not sent, and will not be tried again ({Why}).", name, why);
     }
 
-    /// <summary>A try that did not work (5xx, network, odd answer). The file
-    /// stays first in line and is tried again after the next step of the
-    /// ladder.</summary>
-    private Step Failed(FileSnapshot file, string detail)
+    /// <summary>A try that did not work (5xx, network, odd answer, a read
+    /// error). That file is retried on the ladder; files of its own day go
+    /// on, later days wait for it.</summary>
+    private void Failed(string name, string detail)
     {
-        _consecutiveFailures++;
-        if (string.Equals(_failingFile, file.Name, StringComparison.OrdinalIgnoreCase))
-        {
-            _failingFileCount++;
-        }
-        else
-        {
-            _failingFile = file.Name;
-            _failingFileCount = 1;
-        }
-        var pause = RetryPolicy.AfterFailures(_consecutiveFailures);
-        var stuck = _failingFileCount >= RetryPolicy.StuckAfter;
-        Pause(pause, ProcessorState.RetryLater,
-            (stuck ? $"Stuck on {file.Name} ({_failingFileCount} tries): " : $"Could not send {file.Name}: ")
-            + detail + $". Trying again in {Describe(pause)}; newer files wait behind it.",
+        var now = Now;
+        _failureStreak++;
+        var tries = (_schedule.Get(name)?.Failures ?? 0) + 1;
+        var wait = RetryPolicy.AfterFailures(tries);
+        _schedule.Failed(name, detail, now + wait);
+        var stuck = tries >= RetryPolicy.StuckAfter;
+        Problem(ProcessorState.RetryLater,
+            (stuck ? $"Stuck on {name} ({tries} tries): " : $"Could not send {name}: ")
+            + detail + $". Trying it again in {Describe(wait)}; files of later business days wait for it.",
             stuck ? LogLevel.Error : LogLevel.Warning);
-        return Step.Pause;
-    }
-
-    private void ResetFailures()
-    {
-        _consecutiveFailures = 0;
-        _failingFile = "";
-        _failingFileCount = 0;
+        if (_failureStreak >= OutageStreak)
+        {
+            // Everything is failing: DineroBook or the network is down.
+            // One upload at a time, spaced on the ladder, until one works.
+            var pause = RetryPolicy.AfterFailures(_failureStreak - OutageStreak + 1);
+            _pausedUntil = now + pause;
+            _status.NextTryAt = _pausedUntil;
+        }
     }
 
     // ── State, status, logging ──
@@ -451,19 +575,26 @@ public sealed class ProcessorEngine
         if (cfg.Problem.Length > 0 && cfg.CanRun) _log.LogWarning("{Problem}", cfg.Problem);
         if (keyChanged)
         {
+            _generation++;
             _uploader = cfg.CanRun ? _uploaderFor(cfg.ApiBase!, cfg.AgentKey!) : null;
             // A new key (or server) means someone acted: try at once.
             _pausedUntil = DateTimeOffset.MinValue;
-            ResetFailures();
+            _failureStreak = 0;
             _status.NextTryAt = null;
             if (cfg.CanRun)
             {
-                _log.LogInformation("Sending files from {Folder} to {Api} for {Store}.", _watchFolder, _status.ApiUrl,
-                    cfg.Settings.StoreName.Length > 0 ? cfg.Settings.StoreName : "this store");
+                _log.LogInformation("Sending files from {Folder} to {Api} for {Store}, up to {Parallel} at a time.",
+                    _watchFolder, _status.ApiUrl,
+                    cfg.Settings.StoreName.Length > 0 ? cfg.Settings.StoreName : "this store",
+                    cfg.Settings.EffectiveMaxConcurrentUploads);
                 ClearProblem("Ready to send.");
             }
         }
-        if (folderChanged) _tracker.Reset();
+        if (folderChanged && _inFlight.Count == 0)
+        {
+            _schedule.Reset();
+            _nextSweepAt = DateTimeOffset.MinValue;
+        }
     }
 
     private void Pause(TimeSpan pause, string state, string message, LogLevel level = LogLevel.Error)
@@ -498,18 +629,56 @@ public sealed class ProcessorEngine
         SetState(ProcessorState.Idle, message);
     }
 
-    /// <summary>After a pass with nothing more to send now.</summary>
-    private void SettleState()
+    /// <summary>The status after a pass (a pause keeps its own message).</summary>
+    private void Summarize()
     {
-        _status.NextTryAt = null;
-        if (_status.Waiting > 0)
+        var now = Now;
+        _status.Uploading = _inFlight.Count;
+        _status.Waiting = _schedule.Files.Count(f => f.Snapshot.Length != 0);
+        var held = _schedule.HeldBy(now);
+        _status.WaitingOn = held is { } h
+            ? $"{h.File.Name}" + (h.File.Day.Kind == DayKind.Dated ? $" (business day {h.File.Day})" : "") + $": {h.Why}"
+            : "";
+
+        if (_pausedUntil > now || !_folderOk) return;
+        var heldNote = _status.WaitingOn.Length > 0 ? $" Later business days wait on {_status.WaitingOn}." : "";
+        if (_inFlight.Count > 0 || _schedule.Files.Any(f => f.Stage == FileStage.Ready))
         {
-            SetState(ProcessorState.Waiting, $"{_status.Waiting:N0} file(s) not ready yet.");
+            _status.NextTryAt = null;
+            SetState(ProcessorState.Sending, $"Sending {_status.Waiting:N0} file(s), {_inFlight.Count} at a time now." + heldNote);
+        }
+        else if (_status.Waiting > 0)
+        {
+            SetState(ProcessorState.Waiting, $"{_status.Waiting:N0} file(s) not ready yet." + heldNote);
         }
         else
         {
+            _status.NextTryAt = null;
             SetState(ProcessorState.Idle, "Up to date.");
         }
+    }
+
+    private TimeSpan NextWake(TimeSpan poll, bool moreDays)
+    {
+        if (moreDays) return TimeSpan.Zero;
+        var now = Now;
+        var wake = RecheckEvery;
+        void Consider(TimeSpan t)
+        {
+            if (t < wake) wake = t < TimeSpan.Zero ? TimeSpan.Zero : t;
+        }
+        Consider(_nextSweepAt - now);
+        if (_pausedUntil > now)
+        {
+            Consider(_pausedUntil - now);
+        }
+        else
+        {
+            var limit = _failureStreak >= OutageStreak ? 1 : _cfg!.Settings.EffectiveMaxConcurrentUploads;
+            if (_inFlight.Count < limit && _schedule.NextToStart(now, 1).Count > 0) Consider(_pacer.WaitBeforeNext(now));
+            if (_schedule.NextRetryAt is { } r) Consider(r - now);
+        }
+        return wake;
     }
 
     private void SetState(string state, string message)
@@ -522,10 +691,10 @@ public sealed class ProcessorEngine
     {
         var now = Now;
         if (now - _lastProgressLog < ProgressEvery) return;
-        if (_lastProgressLog != default && _sentSinceProgress > 0)
+        if (_lastProgressLog != default && _sentSinceProgress > 1)
         {
             _log.LogInformation("Sent {Count} file(s) in the last {Minutes:N0} minute(s); {Waiting:N0} waiting.",
-                _sentSinceProgress, (now - _lastProgressLog).TotalMinutes, _status.Waiting);
+                _sentSinceProgress, (now - _lastProgressLog).TotalMinutes, _schedule.Count);
         }
         _lastProgressLog = now;
         _sentSinceProgress = 0;
@@ -554,12 +723,6 @@ public sealed class ProcessorEngine
 
     private DateOnly Today(DateTimeOffset at) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(at, _time.LocalTimeZone).DateTime);
-
-    private static TimeSpan Min(TimeSpan a, TimeSpan b)
-    {
-        var m = a < b ? a : b;
-        return m < TimeSpan.Zero ? TimeSpan.Zero : m;
-    }
 
     private static TimeSpan Max(TimeSpan a, TimeSpan b) => a > b ? a : b;
 

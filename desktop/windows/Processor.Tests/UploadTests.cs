@@ -140,13 +140,18 @@ public class UploadPacerTests
     private static readonly DateTimeOffset T0 = new(2026, 11, 18, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void Spaces_uploads_evenly()
+    public void Several_registers_files_go_at_once_then_it_refills()
     {
         var p = new UploadPacer();
-        Assert.Equal(TimeSpan.Zero, p.WaitBeforeNext(T0));
-        p.Record(T0);
-        Assert.Equal(UploadPacer.Spacing, p.WaitBeforeNext(T0));
-        Assert.Equal(TimeSpan.Zero, p.WaitBeforeNext(T0 + UploadPacer.Spacing));
+        for (var i = 0; i < UploadPacer.Burst; i++)
+        {
+            Assert.Equal(TimeSpan.Zero, p.WaitBeforeNext(T0));
+            p.Record(T0);
+        }
+        Assert.Equal(UploadPacer.Refill, p.WaitBeforeNext(T0));
+        Assert.Equal(TimeSpan.Zero, p.WaitBeforeNext(T0 + UploadPacer.Refill));
+        p.Record(T0 + UploadPacer.Refill);
+        Assert.True(p.WaitBeforeNext(T0 + UploadPacer.Refill) > TimeSpan.Zero);
     }
 
     [Fact]
@@ -175,7 +180,7 @@ public class UploadPacerTests
             Assert.True(inHour < ServerContract.UploadLimitPerHour);
         }
         // ...and still moves a backlog at ~5,000 an hour.
-        Assert.InRange(sent.Count, 9_900, 10_001);
+        Assert.InRange(sent.Count, 9_900, 10_010);
     }
 
     [Fact]

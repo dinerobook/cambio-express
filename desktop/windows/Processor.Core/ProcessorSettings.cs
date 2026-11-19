@@ -29,6 +29,12 @@ public sealed class ProcessorSettings
 
     public int PollSeconds { get; set; } = DefaultPollSeconds;
 
+    /// <summary>Uploads at the same time (files of one business day; a
+    /// store with 2–4 registers writes several at once). 1 to 8.</summary>
+    public int MaxConcurrentUploads { get; set; } = DefaultMaxConcurrentUploads;
+
+    public const int DefaultMaxConcurrentUploads = 4;
+
     // Which store the saved key belongs to (written by the Manager at sign-in).
     public int? StoreId { get; set; }
     public string StoreName { get; set; } = "";
@@ -47,6 +53,9 @@ public sealed class ProcessorSettings
 
     [JsonIgnore]
     public int EffectivePollSeconds => Math.Clamp(PollSeconds, 2, 300);
+
+    [JsonIgnore]
+    public int EffectiveMaxConcurrentUploads => Math.Clamp(MaxConcurrentUploads, 1, 8);
 
     internal static readonly JsonSerializerOptions Json = new()
     {

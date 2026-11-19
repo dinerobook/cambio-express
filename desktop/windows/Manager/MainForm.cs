@@ -27,7 +27,7 @@ internal sealed class MainForm : Form
     private readonly Dictionary<string, Label> _values = new();
     private static readonly string[] StatusRows =
     [
-        "Service", "Store", "Now", "Last upload", "Sent today", "Waiting", "Skipped", "Last problem",
+        "Service", "Store", "Now", "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Last problem",
         "Passport folder", "DineroBook", "Updated",
     ];
 
@@ -274,7 +274,7 @@ internal sealed class MainForm : Form
         if (status is null)
         {
             Set("Now", running ? "Starting…" : "—");
-            foreach (var k in new[] { "Last upload", "Sent today", "Waiting", "Skipped", "Last problem", "Updated" }) Set(k, "—");
+            foreach (var k in new[] { "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Last problem", "Updated" }) Set(k, "—");
         }
         else
         {
@@ -285,7 +285,13 @@ internal sealed class MainForm : Form
                 ? $"{status.LastUploadFile} at {lu.LocalDateTime:g} ({status.LastUploadResult})"
                 : "None yet");
             Set("Sent today", status.TodayCount.ToString("N0", CultureInfo.CurrentCulture));
-            Set("Waiting", status.Waiting.ToString("N0", CultureInfo.CurrentCulture));
+            Set("Waiting", status.Waiting.ToString("N0", CultureInfo.CurrentCulture)
+                           + (status.Uploading > 0 ? $" ({status.Uploading} being sent now)" : ""));
+            // Files of later business days wait for this one (the server
+            // books a day as soon as a later day's file arrives).
+            Set("Waiting on", status.WaitingOn.Length > 0
+                ? status.WaitingOn + " — files of later business days wait for it"
+                : "Nothing");
             Set("Skipped", status.SkippedTotal == 0
                 ? "0"
                 : $"{status.SkippedTotal:N0} refused for good by DineroBook (see the Log)");

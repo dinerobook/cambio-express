@@ -53,64 +53,89 @@ public class FilePatternsTests
     }
 }
 
-public class StabilityTrackerTests
+public class StabilityTests
 {
     private static readonly DateTime T0 = new(2026, 11, 18, 10, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTimeOffset Now = new(2026, 11, 18, 12, 0, 0, TimeSpan.Zero);
 
     private static FileSnapshot F(string name, long length, DateTime? write = null) =>
         new(name, @"C:\x\" + name, length, write ?? T0);
 
+    private static FileStage? StageOf(UploadScheduler s, string name) => s.Get(name)?.Stage;
+
     [Fact]
     public void A_file_is_ready_once_it_held_still_across_two_polls()
     {
-        var t = new StabilityTracker();
-        Assert.Empty(t.Observe([F("PJR1.xml", 100)]));
-        Assert.Single(t.Observe([F("PJR1.xml", 100)]));
+        var s = new UploadScheduler();
+        s.Observe([F("PJR1.xml", 100)], Now);
+        Assert.Equal(FileStage.Settling, StageOf(s, "PJR1.xml"));
+        s.Observe([F("PJR1.xml", 100)], Now);
+        Assert.Equal(FileStage.Ready, StageOf(s, "PJR1.xml"));
     }
 
     [Fact]
     public void A_growing_file_waits()
     {
-        var t = new StabilityTracker();
-        t.Observe([F("PJR1.xml", 100)]);
-        Assert.Empty(t.Observe([F("PJR1.xml", 200)]));
-        Assert.Single(t.Observe([F("PJR1.xml", 200)]));
+        var s = new UploadScheduler();
+        s.Observe([F("PJR1.xml", 100)], Now);
+        s.Observe([F("PJR1.xml", 200)], Now);
+        Assert.Equal(FileStage.Settling, StageOf(s, "PJR1.xml"));
+        s.Observe([F("PJR1.xml", 200)], Now);
+        Assert.Equal(FileStage.Ready, StageOf(s, "PJR1.xml"));
     }
 
     [Fact]
     public void A_rewrite_of_the_same_size_waits()
     {
-        var t = new StabilityTracker();
-        t.Observe([F("PJR1.xml", 100, T0)]);
-        Assert.Empty(t.Observe([F("PJR1.xml", 100, T0.AddSeconds(3))]));
+        var s = new UploadScheduler();
+        s.Observe([F("PJR1.xml", 100, T0)], Now);
+        s.Observe([F("PJR1.xml", 100, T0.AddSeconds(3))], Now);
+        Assert.Equal(FileStage.Settling, StageOf(s, "PJR1.xml"));
+    }
+
+    [Fact]
+    public void A_ready_file_that_changes_starts_over_and_its_day_is_read_again()
+    {
+        var s = new UploadScheduler();
+        s.Observe([F("PJR1.xml", 100)], Now);
+        s.Observe([F("PJR1.xml", 100)], Now);
+        s.SetDay("PJR1.xml", BusinessDay.Of(new DateOnly(2026, 11, 17)), final: true);
+        s.Observe([F("PJR1.xml", 150, T0.AddSeconds(9))], Now);
+        Assert.Equal(FileStage.Settling, StageOf(s, "PJR1.xml"));
+        Assert.Equal(DayKind.Unknown, s.Get("PJR1.xml")!.Day.Kind);
     }
 
     [Fact]
     public void An_empty_file_is_never_ready()
     {
-        var t = new StabilityTracker();
-        t.Observe([F("PJR1.xml", 0)]);
-        Assert.Empty(t.Observe([F("PJR1.xml", 0)]));
+        var s = new UploadScheduler();
+        s.Observe([F("PJR1.xml", 0)], Now);
+        s.Observe([F("PJR1.xml", 0)], Now);
+        Assert.Equal(FileStage.Settling, StageOf(s, "PJR1.xml"));
+        Assert.Empty(s.NeedDay(10));
     }
 
     [Fact]
-    public void A_file_that_left_the_listing_starts_over()
+    public void A_file_that_left_the_listing_is_forgotten()
     {
-        var t = new StabilityTracker();
-        t.Observe([F("PJR1.xml", 100)]);
-        t.Observe([]);
-        Assert.Empty(t.Observe([F("PJR1.xml", 100)]));
-        Assert.Equal(1, t.Tracked);
+        var s = new UploadScheduler();
+        s.Observe([F("PJR1.xml", 100)], Now);
+        s.Observe([], Now);
+        Assert.Null(s.Get("PJR1.xml"));
+        s.Observe([F("PJR1.xml", 100)], Now);
+        Assert.Equal(FileStage.Settling, StageOf(s, "PJR1.xml"));
     }
 
     [Fact]
-    public void Forget_starts_one_file_over()
+    public void Unsettle_starts_one_file_over()
     {
-        var t = new StabilityTracker();
-        t.Observe([F("PJR1.xml", 100), F("PJR2.xml", 100)]);
-        t.Forget("PJR1.xml");
-        var ready = t.Observe([F("PJR1.xml", 100), F("PJR2.xml", 100)]);
-        Assert.Equal(["PJR2.xml"], ready.Select(f => f.Name));
+        var s = new UploadScheduler();
+        s.Observe([F("PJR1.xml", 100), F("PJR2.xml", 100)], Now);
+        s.Observe([F("PJR1.xml", 100), F("PJR2.xml", 100)], Now);
+        s.Unsettle("PJR1.xml");
+        s.Observe([F("PJR1.xml", 100), F("PJR2.xml", 100)], Now);
+        Assert.Equal(FileStage.Settling, StageOf(s, "PJR1.xml"));
+        Assert.Equal(FileStage.Ready, StageOf(s, "PJR2.xml"));
     }
 }
 
@@ -204,7 +229,7 @@ public class PassportFolderTests
     }
 
     [Fact]
-    public void Reads_while_Passport_still_has_the_file_open_for_writing()
+    public async Task Reads_while_Passport_still_has_the_file_open_for_writing()
     {
         using var dir = new TempDir();
         var path = dir.File("PJR1.xml");
@@ -213,11 +238,12 @@ public class PassportFolderTests
         var snap = folder.List(dir.Path).Single();
         // Passport holding the file with write access, letting readers in.
         using var writer = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.Read);
-        Assert.Equal("<a/>"u8.ToArray(), folder.Read(snap));
+        Assert.Equal("<a/>"u8.ToArray(), await folder.ReadAsync(snap, CancellationToken.None));
+        Assert.Equal(DayKind.Undated, folder.ReadDay(snap, complete: true).Kind);
     }
 
     [Fact]
-    public void A_file_still_being_written_lists_a_stale_size_and_is_not_read()
+    public async Task A_file_still_being_written_lists_a_stale_size_and_is_not_read()
     {
         using var dir = new TempDir();
         var path = dir.File("PJR1.xml");
@@ -229,7 +255,7 @@ public class PassportFolderTests
         // NTFS updates the listed size when the writer closes the file, so
         // the listing and the open file can disagree: then it is not ready.
         // Whatever comes back always matches the listing.
-        var read = folder.Read(snap);
+        var read = await folder.ReadAsync(snap, CancellationToken.None);
         Assert.True(read is null ? snap.Length != 4 : read.Length == snap.Length);
     }
 
@@ -254,7 +280,7 @@ public class PassportFolderTests
     }
 
     [Fact]
-    public void A_file_that_changed_size_since_the_listing_is_not_read()
+    public async Task A_file_that_changed_size_since_the_listing_is_not_read()
     {
         using var dir = new TempDir();
         var path = dir.File("PJR1.xml");
@@ -262,18 +288,22 @@ public class PassportFolderTests
         var folder = new PassportFolder();
         var snap = folder.List(dir.Path).Single();
         File.AppendAllText(path, "<b/>");
-        Assert.Null(folder.Read(snap));
+        Assert.Null(await folder.ReadAsync(snap, CancellationToken.None));
     }
 
     [Fact]
-    public void Never_writes_to_the_folder()
+    public async Task Never_writes_to_the_folder()
     {
         using var dir = new TempDir();
         File.WriteAllText(dir.File("PJR1.xml"), "<a/>");
         var before = Directory.GetFileSystemEntries(dir.Path).Order().ToArray();
         var write = File.GetLastWriteTimeUtc(dir.File("PJR1.xml"));
         var folder = new PassportFolder();
-        foreach (var f in folder.List(dir.Path)) folder.Read(f);
+        foreach (var f in folder.List(dir.Path))
+        {
+            folder.ReadDay(f, complete: true);
+            await folder.ReadAsync(f, CancellationToken.None);
+        }
         Assert.Equal(before, Directory.GetFileSystemEntries(dir.Path).Order().ToArray());
         Assert.Equal(write, File.GetLastWriteTimeUtc(dir.File("PJR1.xml")));
     }

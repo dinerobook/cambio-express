@@ -16,7 +16,7 @@ Processor needs no update when parsing improves.
 |---|---|
 | `Processor/` | The service (`DineroBookProcessor.exe`): a .NET Worker Service with `UseWindowsService()`, plus `--console` for testing. |
 | `Manager/` | The window (`DineroBookManager.exe`, WinForms). |
-| `Processor.Core/` | Everything both do, without the service or the window: the folder sweep (`ProcessorEngine`), the ledger, the upload answers, the rate pacer, the agent key on disk (DPAPI), the sign-in calls (`SignIn/`), and `ServerContract.cs`, the server values copied by hand. |
+| `Processor.Core/` | Everything both do, without the service or the window: the pipeline (`ProcessorEngine`), the business-day rules (`UploadScheduler`, `BusinessDateReader`), the ledger, the upload answers, the rate pacer, the agent key on disk (DPAPI), the sign-in calls (`SignIn/`), and `ServerContract.cs`, the server values copied by hand. |
 | `Processor.Tests/` | xUnit tests for `Processor.Core`. |
 | `../DineroBookProcessor.sln` | Opens all four in Visual Studio. |
 
@@ -35,15 +35,33 @@ field there no longer matches the server.
   back-office programs reading the same folder are never in the way.
 - **A file goes once its size and time held still across two polls**
   (every 5 seconds). Empty files are never sent.
-- **Oldest first, strictly.** The server books a business day as soon
-  as a file from a later day arrives, so a newer file never goes ahead
-  of an older one, not even of one that keeps failing.
+- **Several at a time.** A store with 2–4 registers writes several files
+  at once, so up to 4 go together (`maxConcurrentUploads` in
+  settings.json, 1–8). A slow or failing file never holds up the others
+  of its day; it is retried on its own.
+- **Business days in order.** The server books day D as soon as any
+  file of a later business day arrives (`auto_commit_rolled_days`), and
+  a file arriving after its day was booked is not added. At day close
+  register 1's last sale of day D and register 2's first sale of day
+  D+1 are written at the same moment, so the Processor reads each file's
+  `BusinessDate` (the journal event's, or the movement report's
+  `MovementHeader`, exactly as the server reads it) and:
+  1. sends older business days first;
+  2. sends files of the same day in parallel;
+  3. sends nothing of a later day while any file of an earlier day is
+     still being written, waiting, being sent or being retried. A file
+     that keeps failing holds later days back, and the Status page
+     names it ("Waiting on …");
+  4. sends a file with no readable business day (not a journal or
+     report) in file name order, with no barrier.
+  The date is read with DTDs prohibited and a size cap, and checked
+  again on the exact bytes about to be sent.
 - **Polls; no FileSystemWatcher.** A watcher holds the folder open and
   drops events on network shares; a poll never misses a file.
-- **Paced under the server's limit** (`120/minute;6000/hour`): one
-  upload every 0.72 s at most, about 5,000 an hour. A first run in a
-  folder with years of files takes a day or so; new sales show up once
-  it has caught up.
+- **Paced under the server's limit** (`120/minute;6000/hour`): up to 8
+  uploads at once, refilled at 5,000 an hour, never more than 100 in a
+  minute. A first run in a folder with years of files takes a day or
+  so, a day at a time; new sales show up once it has caught up.
 
 Each answer of `POST /api/v2/posimport/agent/upload`:
 
@@ -54,7 +72,8 @@ Each answer of `POST /api/v2/posimport/agent/upload`:
 | 402 / 403 | The store is closed to uploads (lapsed, frozen, disabled). Files wait; it looks again every 5 minutes. |
 | 422 with a message | That file can never go (too large, no name): recorded in `skipped.txt`, never tried again. |
 | 422 from the request check | The server no longer takes this version's upload format. Nothing is skipped; the status asks for an update. |
-| 429, 5xx, network, anything else | Tried again: 5 s, 15 s, 1 min, then every 5 min. Never dropped. After 3 failures of the same file it is an Error in the Event Log ("Stuck on …"). |
+| 429 | Too many requests: everything pauses a minute. |
+| 5xx, network, anything else | That file is tried again: 5 s, 15 s, 1 min, then every 5 min; the others of its day go on. Never dropped. After 3 failures of the same file it is an Error in the Event Log ("Stuck on …"). Two uploads colliding on the server come back as a 5xx too; the retry then finds the file staged (`duplicate`), which counts as sent. When every try fails (DineroBook or the network is down) it sends one file at a time on the same ladder until one goes through. |
 
 Files over the server's 4 MB, or with names over 120 characters, are
 skipped without sending (logged).
@@ -171,8 +190,12 @@ dotnet publish desktop/windows/Manager/Manager.csproj -c Release -r win-x64 --se
 ## Rules for changes
 
 - Passport's files are read only: list, open shared, read, close.
-- Never drop a file, never let a newer file overtake an older one; the
-  only "never again" is a 422 with a message from the route itself.
+- Never drop a file; the only "never again" is a 422 with a message from
+  the route itself.
+- Never send a file of a later business day while one of an earlier day
+  is still on its way (`UploadScheduler`); the business day is read the
+  way the server reads it (`BusinessDateReader`, whose event kinds the
+  contract test compares with the server's).
 - A server value used here goes in `ServerContract.cs` and its check in
   `test_processor_contract.py`.
 - The key never reaches a log, the status, a message or a generated

@@ -7,6 +7,8 @@ that file and fail when the two sides drift apart:
   * the limits it mirrors (file size, filename and label length, key
     prefix, the upload and sign-in rate limits);
   * every path it calls is a live route with that method;
+  * its business-day reader knows the journal event kinds, in the
+    server's order (``BusinessDateReader.cs``);
   * the answer fields it reads still exist;
   * "Test connection" checks a key with content that is not base64: the
     key is checked first (401) and the content is refused (422, that
@@ -74,6 +76,19 @@ def test_mirrored_limits_match_the_server():
     assert _int("MaxKeyLabelLength") == label["maxLength"]
     assert _str("AgentKeyPrefix") == KEY_PREFIX
     assert set(upload) == {"filename", "content_base64"}
+
+
+def test_the_business_day_reader_knows_the_servers_event_kinds_in_order():
+    """The Processor keeps a business day's files ahead of the next day's,
+    reading each file's day as parse_pjr does: the first event kind found
+    in this order. A kind the server learns but the reader does not would
+    make those files "undated" there, sent with no day barrier."""
+    from api.Modules.PosImport.Services.naxml import _EVENT_KINDS
+    src = (CONTRACT.parent / "BusinessDateReader.cs").read_text(encoding="utf-8")
+    m = re.search(r"EventKinds = \[([^\]]+)\];", src)
+    assert m, "EventKinds missing from BusinessDateReader.cs"
+    kinds = re.findall(r'"([A-Za-z]+)"', m.group(1))
+    assert kinds == list(_EVENT_KINDS)
 
 
 def test_mirrored_rate_limits_match_the_routes():

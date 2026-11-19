@@ -48,8 +48,15 @@ public sealed class ProcessorStatus
     public int SkippedTotal { get; set; }
 
     /// <summary>Matching files not sent yet (including ones still being
-    /// written).</summary>
+    /// written and ones being sent).</summary>
     public int Waiting { get; set; }
+
+    /// <summary>Files being sent right now.</summary>
+    public int Uploading { get; set; }
+
+    /// <summary>When files of later business days are held back: the file
+    /// of the older day they wait for, and why ("" when none).</summary>
+    public string WaitingOn { get; set; } = "";
 
     public string LastError { get; set; } = "";
     public DateTimeOffset? LastErrorAt { get; set; }
