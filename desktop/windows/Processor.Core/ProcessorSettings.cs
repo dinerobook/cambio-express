@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 
 namespace DineroBook.Processor;
 
@@ -8,34 +7,26 @@ namespace DineroBook.Processor;
 /// settings.json: what the Manager set. Every key is optional. The agent
 /// key itself is NOT here (agent-key.bin); the store fields only say which
 /// store that key belongs to, for the status page.
+/// <para>
+/// Keys an older version wrote (<c>patterns</c>, <c>maxConcurrentUploads</c>)
+/// are ignored: every file goes, and the server's rate limit is the only
+/// limit on uploads at once (owner, 2026-11-18).
+/// </para>
 /// </summary>
 public sealed class ProcessorSettings
 {
-    public const string DefaultWatchFolder = @"C:\Passport\XMLGateway\BOOutbox";
+    /// <summary>Passport's BOOutbox is always a network share on the
+    /// Passport server, which sits at this address at Gilbarco sites (the
+    /// owner's LdPosService install guide uses the same path).</summary>
+    public const string DefaultWatchFolder = @"\\10.5.48.2\XMLGateway\BOOutBox";
     public const int DefaultPollSeconds = 5;
-
-    /// <summary>Passport's journal (PJR) and every movement report it writes
-    /// at day close — the same list as the Python agent's
-    /// <c>agent.ini.example</c>.</summary>
-    public static readonly IReadOnlyList<string> DefaultPatterns =
-        ["PJR*.xml", "FGM*.xml", "ISM*.xml", "MCM*.xml", "MSM*.xml", "TLM*.xml", "TPM*.xml"];
 
     public string ApiUrl { get; set; } = ServerContract.DefaultApiUrl;
     public string WatchFolder { get; set; } = DefaultWatchFolder;
 
-    /// <summary>File name patterns to send; null or empty means
-    /// <see cref="DefaultPatterns"/>.</summary>
-    public List<string>? Patterns { get; set; }
-
     public int PollSeconds { get; set; } = DefaultPollSeconds;
 
-    /// <summary>Uploads at the same time (files of one business day; a
-    /// store with 2–4 registers writes several at once). 1 to 8.</summary>
-    public int MaxConcurrentUploads { get; set; } = DefaultMaxConcurrentUploads;
-
-    public const int DefaultMaxConcurrentUploads = 4;
-
-    // Which store the saved key belongs to (written by the Manager at sign-in).
+    // Which store the saved key belongs to (written by the Manager on connect).
     public int? StoreId { get; set; }
     public string StoreName { get; set; } = "";
     public int? KeyId { get; set; }
@@ -43,19 +34,8 @@ public sealed class ProcessorSettings
     public string ConnectedBy { get; set; } = "";
     public DateTimeOffset? ConnectedAt { get; set; }
 
-    private static readonly Regex SafePattern = new(@"^[A-Za-z0-9*?._\-]{1,64}$", RegexOptions.CultureInvariant);
-
-    [JsonIgnore]
-    public IReadOnlyList<string> EffectivePatterns =>
-        Patterns is { Count: > 0 } p && p.All(x => x is not null && SafePattern.IsMatch(x))
-            ? p
-            : DefaultPatterns;
-
     [JsonIgnore]
     public int EffectivePollSeconds => Math.Clamp(PollSeconds, 2, 300);
-
-    [JsonIgnore]
-    public int EffectiveMaxConcurrentUploads => Math.Clamp(MaxConcurrentUploads, 1, 8);
 
     internal static readonly JsonSerializerOptions Json = new()
     {

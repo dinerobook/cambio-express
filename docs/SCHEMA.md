@@ -148,6 +148,7 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | `retail_lottery_game` | `LotteryGame` | `Lottery` | store | `tenancy_store.id` | — |
 | `retail_lottery_pack` | `LotteryPack` | `Lottery` | store | `retail_lottery_game.id`, `tenancy_store.id`, `tenancy_user.id` | — |
 | `retail_pos_agent_credential` | `PosAgentCredential` | `PosImport` | store | `tenancy_store.id` | — |
+| `retail_pos_agent_pairing` | `PosAgentPairing` | `PosImport` | store | `retail_pos_agent_credential.id`, `tenancy_store.id` | — |
 | `retail_pos_fuel_grade_movement` | `PosFuelGradeMovement` | `PosImport` | store | `tenancy_store.id` | — |
 | `retail_pos_item_day_sale` | `PosItemDaySale` | `PosImport` | store | `tenancy_store.id` | — |
 | `retail_pos_item_sales_movement` | `PosItemSalesMovement` | `PosImport` | store | `tenancy_store.id` | — |

@@ -12,6 +12,7 @@ internal sealed class FakeFolder : IPassportFolder
     public Exception? ListError;
     public Func<FileSnapshot, byte[]?>? ReadOverride;
     public Func<FileSnapshot, BusinessDay?>? DayOverride;
+    public Exception? DayError;
 
     public void Put(string name, string content, DateTime write) => Files[name] = (Naxml.Bytes(content), write);
 
@@ -23,6 +24,7 @@ internal sealed class FakeFolder : IPassportFolder
 
     public BusinessDay ReadDay(FileSnapshot file, bool complete)
     {
+        if (DayError is not null) throw DayError;
         if (DayOverride?.Invoke(file) is { } day) return day;
         if (!Files.TryGetValue(file.Name, out var f)) throw new FileNotFoundException(file.Name);
         return BusinessDateReader.Read(f.Content, complete);
@@ -100,8 +102,8 @@ internal sealed class FixedConfig : IConfigSource
         return _cfg;
     }
 
-    public static EngineConfig Running(string key = EngineTests.Key, string folder = @"C:\Passport\XMLGateway\BOOutbox", int parallel = 4) =>
-        new(new ProcessorSettings { WatchFolder = folder, StoreName = "Main St", MaxConcurrentUploads = parallel },
+    public static EngineConfig Running(string key = EngineTests.Key, string folder = @"\\10.5.48.2\XMLGateway\BOOutBox") =>
+        new(new ProcessorSettings { WatchFolder = folder, StoreName = "Main St" },
             new Uri("https://dinerobook.com"), key, "", "");
 }
 
@@ -123,15 +125,19 @@ public class EngineTests
         public readonly List<string> StatusJson = new();
         public ProcessorEngine Engine;
         public DataPaths Paths;
+        private readonly int? _maxInFlight;
 
-        public Rig()
+        /// <summary><paramref name="maxInFlight"/>: tests only, to watch one
+        /// upload at a time; the service has no fixed limit.</summary>
+        public Rig(int? maxInFlight = null)
         {
+            _maxInFlight = maxInFlight;
             Paths = new DataPaths(Dir.Path, isCustom: true);
             Engine = NewEngine();
         }
 
         public ProcessorEngine NewEngine() => new(Paths, Config, Folder, Server.For, Clock, Log, "0.1.0",
-            s => StatusJson.Add(JsonSerializer.Serialize(s)));
+            s => StatusJson.Add(JsonSerializer.Serialize(s)), _maxInFlight);
 
         /// <summary>One pass, then the wait it asked for.</summary>
         public async Task<TimeSpan> Cycle()
@@ -191,16 +197,16 @@ public class EngineTests
     }
 
     [Fact]
-    public async Task Only_matching_files_go()
+    public async Task Every_file_in_the_folder_goes()
     {
+        // Owner, 2026-11-18: no file name or extension filter.
         using var rig = new Rig();
         rig.Folder.Put("PJR1.xml", Naxml.Sale(D), W0);
         rig.Folder.Put("MSM1.xml", Naxml.Movement("MiscellaneousSummaryMovement", D), W0.AddSeconds(1));
         rig.Folder.Put("PJR1.zip", "zip", W0);
         rig.Folder.Put("notes.txt", "x", W0);
-        await rig.Cycle();
-        await rig.Cycle();
-        Assert.Equal(["MSM1.xml", "PJR1.xml"], rig.Server.Uploads.Order(StringComparer.Ordinal));
+        await rig.Until(() => rig.Server.Uploads.Count == 4);
+        Assert.Equal(["MSM1.xml", "PJR1.xml", "PJR1.zip", "notes.txt"], rig.Server.Uploads.Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -250,23 +256,48 @@ public class EngineTests
     }
 
     [Fact]
-    public async Task No_more_than_the_configured_number_go_at_once()
+    public async Task There_is_no_fixed_limit_only_the_servers_rate()
     {
+        // Owner, 2026-11-18: no cap on uploads at once. The pacer's burst
+        // goes at once, then the rest as its tokens come back.
         using var rig = new Rig();
-        rig.Config.Set(FixedConfig.Running(parallel: 2));
-        for (var i = 1; i <= 6; i++)
+        for (var i = 1; i <= 12; i++)
         {
             rig.Folder.Put($"PJR{i}.xml", Naxml.Sale(D), W0.AddSeconds(i));
             rig.Server.Hold($"PJR{i}.xml");
         }
         await rig.Cycle();
         await rig.Cycle();
-        Assert.Equal(2, rig.Engine.UploadsInFlight);
-        await rig.Release("PJR1.xml");
+        Assert.Equal(UploadPacer.Burst, rig.Engine.UploadsInFlight);
+        await rig.Until(() => rig.Engine.UploadsInFlight == 12);
+        Assert.Equal(12, rig.Server.MostOpen);
+    }
+
+    [Fact]
+    public async Task A_share_that_stops_answering_is_folder_unavailable_never_a_hang()
+    {
+        using var rig = new Rig();
+        rig.Folder.Put("PJR1.xml", Naxml.Sale(D), W0);
+        rig.Folder.Put("PJR2.xml", Naxml.Sale(D), W0.AddSeconds(1));
+        rig.Folder.DayError = new FolderTimeoutException("PJR1.xml did not answer within 20 seconds (is the network share down?)");
         await rig.Cycle();
-        Assert.Equal(2, rig.Engine.UploadsInFlight);
-        Assert.Equal(3, rig.Server.Uploads.Count);
-        Assert.Equal(2, rig.Server.MostOpen);
+        await rig.Cycle();
+        Assert.Equal(ProcessorState.FolderUnavailable, rig.Engine.Status.State);
+        Assert.Contains("did not answer", rig.Engine.Status.Message);
+        Assert.Empty(rig.Server.Uploads);
+
+        rig.Folder.DayError = null;
+        await rig.Until(() => rig.Engine.Status.SentTotal == 2);
+    }
+
+    [Fact]
+    public async Task A_listing_that_times_out_says_the_folder_is_unavailable()
+    {
+        using var rig = new Rig();
+        rig.Folder.ListError = new FolderTimeoutException(@"The folder \\10.5.48.2\XMLGateway\BOOutBox did not answer within 20 seconds (is the network share down?)");
+        await rig.Cycle();
+        Assert.Equal(ProcessorState.FolderUnavailable, rig.Engine.Status.State);
+        Assert.Contains("did not answer within 20 seconds", rig.Engine.Status.Message);
     }
 
     /// <summary>
@@ -406,8 +437,7 @@ public class EngineTests
     [Fact]
     public async Task A_refused_key_stops_sending_until_a_new_key_is_saved()
     {
-        using var rig = new Rig();
-        rig.Config.Set(FixedConfig.Running(parallel: 1));
+        using var rig = new Rig(maxInFlight: 1);
         rig.Folder.Put("PJR1.xml", Naxml.Sale(D), W0);
         rig.Folder.Put("PJR2.xml", Naxml.Sale(D), W0.AddSeconds(1));
         rig.Server.Answer = _ => FakeServer.Status(401, """{"detail":"Invalid agent key."}""");
@@ -415,15 +445,15 @@ public class EngineTests
         await rig.Cycle();
         Assert.Equal(["PJR1.xml"], rig.Server.Uploads);
         Assert.Equal(ProcessorState.KeyRejected, rig.Engine.Status.State);
-        Assert.Contains("Sign in again", rig.Engine.Status.Message);
+        Assert.Contains("Connect again", rig.Engine.Status.Message);
         Assert.False(File.Exists(rig.Paths.SentLedger) && File.ReadAllText(rig.Paths.SentLedger).Contains("PJR1"));
 
         for (var i = 0; i < 6; i++) await rig.Cycle();
         Assert.Single(rig.Server.Uploads);
 
-        // "Sign in again" saves a new key: sending resumes at once.
+        // "Connect again" saves a new key: sending resumes at once.
         rig.Server.Answer = _ => FakeServer.Ok();
-        rig.Config.Set(FixedConfig.Running("pak_NEWKEY_0123456789abcdefghijklmnopqrstuvw", parallel: 1));
+        rig.Config.Set(FixedConfig.Running("pak_NEWKEY_0123456789abcdefghijklmnopqrstuvw"));
         await rig.Cycle();
         await rig.Cycle();
         Assert.Equal(["PJR1.xml", "PJR1.xml", "PJR2.xml"], rig.Server.Uploads);
@@ -480,8 +510,7 @@ public class EngineTests
     [Fact]
     public async Task A_422_from_the_request_check_skips_nothing_and_asks_for_an_update()
     {
-        using var rig = new Rig();
-        rig.Config.Set(FixedConfig.Running(parallel: 1));
+        using var rig = new Rig(maxInFlight: 1);
         rig.Folder.Put("PJR1.xml", Naxml.Sale(D), W0);
         rig.Folder.Put("PJR2.xml", Naxml.Sale(D), W0.AddSeconds(1));
         rig.Server.Answer = _ => FakeServer.Status(422, """{"detail":[{"loc":["body","x"],"msg":"Field required"}]}""");
@@ -595,10 +624,25 @@ public class EngineTests
         rig.Folder.ListError = new DirectoryNotFoundException("Could not find a part of the path.");
         await rig.Cycle();
         Assert.Equal(ProcessorState.FolderUnavailable, rig.Engine.Status.State);
-        Assert.Contains(@"C:\Passport\XMLGateway\BOOutbox", rig.Engine.Status.Message);
+        Assert.Contains(@"\\10.5.48.2\XMLGateway\BOOutBox", rig.Engine.Status.Message);
+        Assert.DoesNotContain("drive letter", rig.Engine.Status.Message);
         rig.Folder.ListError = null;
         rig.Folder.Put("PJR1.xml", Naxml.Sale(D), W0);
         await rig.Until(() => rig.Server.Uploads.Count == 1);
+    }
+
+    [Fact]
+    public async Task A_mapped_drive_letter_the_service_cannot_see_says_how_to_fix_it()
+    {
+        // A drive letter this computer does not have, like the person's own Z:.
+        var free = Enumerable.Range('D', 23).Select(c => (char)c)
+            .First(c => !Directory.Exists(c + @":\"));
+        using var rig = new Rig();
+        rig.Config.Set(FixedConfig.Running(folder: free + @":\BOOutBox"));
+        rig.Folder.ListError = new DirectoryNotFoundException("Could not find a part of the path.");
+        await rig.Cycle();
+        Assert.Equal(ProcessorState.FolderUnavailable, rig.Engine.Status.State);
+        Assert.Contains("mapped drive letters", rig.Engine.Status.Message);
     }
 
     [Fact]

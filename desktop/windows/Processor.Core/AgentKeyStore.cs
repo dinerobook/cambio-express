@@ -107,8 +107,8 @@ public static class AgentKeyStore
 /// nobody else;</item>
 /// <item>state\ (ledger, status, logs): the service writes it; Users read it.</item>
 /// </list>
-/// "The service" is both its account (LocalService or the account chosen
-/// for a network share) and its own service SID (NT SERVICE\DineroBookProcessor).
+/// "The service" is both its account (NetworkService) and its own service
+/// SID (NT SERVICE\DineroBookProcessor).
 /// </summary>
 [SupportedOSPlatform("windows")]
 public static class DataFolderSecurity
@@ -116,7 +116,7 @@ public static class DataFolderSecurity
     public static SecurityIdentifier LocalSystem => new(WellKnownSidType.LocalSystemSid, null);
     public static SecurityIdentifier Administrators => new(WellKnownSidType.BuiltinAdministratorsSid, null);
     public static SecurityIdentifier Users => new(WellKnownSidType.BuiltinUsersSid, null);
-    public static SecurityIdentifier LocalService => new(WellKnownSidType.LocalServiceSid, null);
+    public static SecurityIdentifier NetworkService => new(WellKnownSidType.NetworkServiceSid, null);
 
     private const InheritanceFlags Inherit = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
 

@@ -24,7 +24,11 @@ namespace DineroBook.Processor;
 /// retried with backoff;</item>
 /// <item>nothing is ever dropped: every answer but "accepted" and "refused
 /// for good (422)" leaves the file to be tried again;</item>
-/// <item>under the server's rate limit (<see cref="UploadPacer"/>).</item>
+/// <item>every file in the folder goes, and no fixed number at once: the
+/// server's rate limit (<see cref="UploadPacer"/>) is the only limit (owner,
+/// 2026-11-18);</item>
+/// <item>a network share that stops answering is "folder unavailable", never
+/// a hang (<see cref="PassportFolder"/>'s time limits).</item>
 /// </list>
 /// All bookkeeping happens on the thread that calls RunCycleAsync; an
 /// upload task only reads the file and talks to the server.
@@ -76,7 +80,7 @@ public sealed class ProcessorEngine
     private EngineConfig? _cfg;
     private IAgentUploader? _uploader;
     private int _generation;
-    private FilePatterns _patterns = new(ProcessorSettings.DefaultPatterns);
+    private readonly int _maxInFlight;
     private string _watchFolder = "";
     private DateTimeOffset _nextSweepAt = DateTimeOffset.MinValue;
     private bool _folderOk = true;
@@ -106,7 +110,8 @@ public sealed class ProcessorEngine
         TimeProvider time,
         ILogger log,
         string version,
-        Action<ProcessorStatus>? writeStatus = null)
+        Action<ProcessorStatus>? writeStatus = null,
+        int? maxInFlight = null)
     {
         _paths = paths;
         _config = config;
@@ -115,6 +120,8 @@ public sealed class ProcessorEngine
         _time = time;
         _log = log;
         _writeStatus = writeStatus ?? (s => s.Write(paths.Status));
+        // Tests only: the real service has no fixed limit.
+        _maxInFlight = maxInFlight ?? int.MaxValue;
         _status = new ProcessorStatus { Version = version, Running = true, StartedAt = time.GetUtcNow() };
     }
 
@@ -222,15 +229,13 @@ public sealed class ProcessorEngine
         try
         {
             pending = _folder.List(_watchFolder)
-                .Where(f => _patterns.Matches(f.Name) && !_sent!.Contains(f.Name) && !_skipped!.Contains(f.Name))
+                .Where(f => FileNames.Sendable(f.Name) && !_sent!.Contains(f.Name) && !_skipped!.Contains(f.Name))
                 .ToList();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
                                        or System.Security.SecurityException or ArgumentException)
         {
-            _folderOk = false;
-            Problem(ProcessorState.FolderUnavailable,
-                $"Cannot open the Passport folder {_watchFolder}: {ex.Message}", LogLevel.Error);
+            FolderDown(ex.Message);
             _nextSweepAt = now + poll;
             return;
         }
@@ -242,6 +247,17 @@ public sealed class ProcessorEngine
         _schedule.Observe(pending, now);
         var backlog = _schedule.Files.Count(f => f.Stage is FileStage.Ready or FileStage.Retrying) > BacklogThreshold;
         _nextSweepAt = now + (backlog ? Max(poll, BacklogSweepEvery) : poll);
+    }
+
+    private void FolderDown(string error)
+    {
+        _folderOk = false;
+        // A mapped drive letter (Z:) is the signed-in person's; the service never sees it.
+        var hint = MissingDrive(_watchFolder)
+            ? " The service does not see mapped drive letters: choose the folder again in DineroBook Manager, which saves its network path."
+            : "";
+        Problem(ProcessorState.FolderUnavailable,
+            $"Cannot open the Passport folder {_watchFolder}: {error}" + hint, LogLevel.Error);
     }
 
     /// <summary>Reads business days that are still needed. True when more
@@ -260,6 +276,13 @@ public sealed class ProcessorEngine
             {
                 _schedule.Gone(f.Name);
             }
+            catch (FolderTimeoutException ex)
+            {
+                // The share stopped answering: no more reads until a listing works.
+                _schedule.DayUnreadable(f.Name, ex.Message);
+                FolderDown(ex.Message);
+                return false;
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Locked for a moment, or not readable: tried again next pass.
@@ -275,7 +298,7 @@ public sealed class ProcessorEngine
     {
         var now = Now;
         if (_pausedUntil > now || _uploader is null) return false;
-        var limit = _failureStreak >= OutageStreak ? 1 : _cfg!.Settings.EffectiveMaxConcurrentUploads;
+        var limit = _failureStreak >= OutageStreak ? 1 : _maxInFlight;
         var slots = limit - _inFlight.Count;
         if (slots <= 0) return false;
 
@@ -405,7 +428,7 @@ public sealed class ProcessorEngine
                 if (current)
                 {
                     Pause(RetryPolicy.BlockedPause, ProcessorState.KeyRejected,
-                        "DineroBook refused the agent key. Open DineroBook Manager and choose Sign in again.");
+                        "DineroBook refused the agent key. Open DineroBook Manager and choose Connect again.");
                 }
                 break;
             case UploadVerdict.StoreClosed:
@@ -567,7 +590,6 @@ public sealed class ProcessorEngine
         var folderChanged = !string.Equals(_cfg?.Settings.WatchFolder, cfg.Settings.WatchFolder,
             StringComparison.OrdinalIgnoreCase);
         _cfg = cfg;
-        _patterns = new FilePatterns(cfg.Settings.EffectivePatterns);
         _watchFolder = cfg.Settings.WatchFolder;
         _status.ApiUrl = cfg.ApiBase?.ToString().TrimEnd('/') ?? cfg.Settings.ApiUrl;
         _status.WatchFolder = cfg.Settings.WatchFolder;
@@ -583,10 +605,9 @@ public sealed class ProcessorEngine
             _status.NextTryAt = null;
             if (cfg.CanRun)
             {
-                _log.LogInformation("Sending files from {Folder} to {Api} for {Store}, up to {Parallel} at a time.",
+                _log.LogInformation("Sending every file in {Folder} to {Api} for {Store}, as many at once as DineroBook's rate limit allows.",
                     _watchFolder, _status.ApiUrl,
-                    cfg.Settings.StoreName.Length > 0 ? cfg.Settings.StoreName : "this store",
-                    cfg.Settings.EffectiveMaxConcurrentUploads);
+                    cfg.Settings.StoreName.Length > 0 ? cfg.Settings.StoreName : "this store");
                 ClearProblem("Ready to send.");
             }
         }
@@ -674,7 +695,7 @@ public sealed class ProcessorEngine
         }
         else
         {
-            var limit = _failureStreak >= OutageStreak ? 1 : _cfg!.Settings.EffectiveMaxConcurrentUploads;
+            var limit = _failureStreak >= OutageStreak ? 1 : _maxInFlight;
             if (_inFlight.Count < limit && _schedule.NextToStart(now, 1).Count > 0) Consider(_pacer.WaitBeforeNext(now));
             if (_schedule.NextRetryAt is { } r) Consider(r - now);
         }
@@ -715,6 +736,20 @@ public sealed class ProcessorEngine
         {
             if (!_statusWriteFailed) _log.LogWarning("Could not write {Status}: {Error}", _paths.Status, ex.Message);
             _statusWriteFailed = true;
+        }
+    }
+
+    /// <summary>A path on a drive letter this process has no such drive for.</summary>
+    internal static bool MissingDrive(string path)
+    {
+        if (path.Length < 2 || path[1] != ':' || !char.IsAsciiLetter(path[0])) return false;
+        try
+        {
+            return !Directory.Exists(path[..2] + @"\");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

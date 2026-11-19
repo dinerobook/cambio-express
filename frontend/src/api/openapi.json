@@ -1278,6 +1278,93 @@
         "title": "AgentKeyRow",
         "type": "object"
       },
+      "AgentPairRequest": {
+        "additionalProperties": false,
+        "description": "DineroBook Manager sends the connect code (scanned or typed;\nspaces and dashes are ignored) and the label its key gets.",
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "AgentPairRequest",
+        "type": "object"
+      },
+      "AgentPairResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "connected_by": {
+            "title": "Connected By",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "key",
+          "store_id",
+          "store_name",
+          "connected_by"
+        ],
+        "title": "AgentPairResponse",
+        "type": "object"
+      },
+      "AgentPairingResponse": {
+        "additionalProperties": false,
+        "description": "A new connect code for DineroBook Manager: shown once, good for\n``minutes`` and one use.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "expires_at",
+          "minutes"
+        ],
+        "title": "AgentPairingResponse",
+        "type": "object"
+      },
       "AgentUploadRequest": {
         "additionalProperties": false,
         "properties": {
@@ -47415,6 +47502,126 @@
           }
         },
         "summary": "Revoke Agent Key Route",
+        "tags": [
+          "posimport"
+        ]
+      }
+    },
+    "/posimport/agent-pairing": {
+      "post": {
+        "description": "A connect code for DineroBook Manager: the person at the store\nscans or types it, and the Manager gets the store's agent key\nwithout anyone typing a name or a password. A newer code ends an\nearlier unused one.",
+        "operationId": "issue_agent_pairing_route_posimport_agent_pairing_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPairingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Agent Pairing Route",
+        "tags": [
+          "posimport"
+        ]
+      }
+    },
+    "/posimport/agent/pair": {
+      "post": {
+        "description": "DineroBook Manager trades a connect code for the store's agent\nkey. Public (the code is the credential), rate limited per\naddress, one opaque 401 for a code that is wrong, used or\nexpired. ``X-Agent-Key``, when sent, is the computer's previous\nkey: it is revoked if it belongs to the same store. A closed\nstore gets the upload route's own answer and no key.",
+        "operationId": "agent_pair_route_posimport_agent_pair_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-agent-key",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Agent-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPairRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPairResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Agent Pair Route",
         "tags": [
           "posimport"
         ]

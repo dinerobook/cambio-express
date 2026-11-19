@@ -57,7 +57,7 @@ public class AgentKeyStoreTests
     {
         using var dir = new TempDir();
         var path = dir.File("agent-key.bin");
-        var service = new SecurityIdentifier(WellKnownSidType.LocalServiceSid, null);
+        var service = new SecurityIdentifier(WellKnownSidType.NetworkServiceSid, null);
         AgentKeyStore.Save(path, Key, DataFolderSecurity.ForKeyFile([service, Me], ownedByAdministrators: false));
 
         var acl = new FileInfo(path).GetAccessControl();
@@ -78,7 +78,7 @@ public class AgentKeyStoreTests
     [Fact]
     public void Folder_permissions_let_users_read_and_only_the_service_write_state()
     {
-        var service = new SecurityIdentifier(WellKnownSidType.LocalServiceSid, null);
+        var service = new SecurityIdentifier(WellKnownSidType.NetworkServiceSid, null);
         var root = DataFolderSecurity.ForRoot([service], ownedByAdministrators: false);
         var state = DataFolderSecurity.ForState([service], ownedByAdministrators: false);
         Assert.True(root.AreAccessRulesProtected);
@@ -157,9 +157,10 @@ public class ProcessorSettingsTests
         var s = ProcessorSettings.Parse(null, out var problem);
         Assert.Equal("", problem);
         Assert.Equal("https://dinerobook.com", s.ApiUrl);
-        Assert.Equal(@"C:\Passport\XMLGateway\BOOutbox", s.WatchFolder);
+        // Passport's BOOutbox is always the network share on the Passport server.
+        Assert.Equal(@"\\10.5.48.2\XMLGateway\BOOutBox", s.WatchFolder);
+        Assert.True(ServiceFolder.IsShare(s.WatchFolder));
         Assert.Equal(5, s.EffectivePollSeconds);
-        Assert.Equal(ProcessorSettings.DefaultPatterns, s.EffectivePatterns);
     }
 
     [Fact]
@@ -194,13 +195,18 @@ public class ProcessorSettingsTests
         Assert.Contains("settings.json", problem);
     }
 
-    [Theory]
-    [InlineData("""{"patterns":[]}""")]
-    [InlineData("""{"patterns":["..\\*.xml"]}""")]
-    [InlineData("""{"patterns":["PJR*.xml", null]}""")]
-    public void Odd_patterns_fall_back_to_the_default_list(string json)
+    [Fact]
+    public void Keys_an_older_version_wrote_are_ignored()
     {
-        Assert.Equal(ProcessorSettings.DefaultPatterns, ProcessorSettings.Parse(json, out _).EffectivePatterns);
+        // Every file goes and no fixed number at once (owner, 2026-11-18):
+        // a file filter or a cap left in settings.json changes nothing.
+        var s = ProcessorSettings.Parse("""
+            {"watchFolder":"\\\\BOPC\\BOOutbox","patterns":["PJR*.xml"],"maxConcurrentUploads":2}
+            """, out var problem);
+        Assert.Equal("", problem);
+        Assert.Equal(@"\\BOPC\BOOutbox", s.WatchFolder);
+        Assert.DoesNotContain("patterns", s.ToJson());
+        Assert.DoesNotContain("maxConcurrentUploads", s.ToJson());
     }
 
     [Theory]

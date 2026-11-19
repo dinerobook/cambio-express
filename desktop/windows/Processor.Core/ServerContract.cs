@@ -39,37 +39,20 @@ public static class ServerContract
     /// "Test connection" uses it to check a key without sending a file.</summary>
     public const string NotBase64Detail = "content_base64 is not valid base64.";
 
-    // ── Agent keys (same controller; day_close.update on the token's store) ──
+    // ── Connect (same controller :: agent_pair_route) ──
 
-    /// <summary>POST <c>{label}</c> → 201 <c>{id, label, key}</c>.</summary>
-    public const string AgentKeysPath = "/api/v2/posimport/agent-keys";
+    /// <summary>POST <c>{code, label}</c>, optional <see cref="AgentKeyHeader"/>
+    /// (the computer's previous key, revoked) → 200 <c>{id, label, key,
+    /// store_id, store_name, connected_by}</c>. Public: the one-time connect
+    /// code made on the Register import page is the credential, so nobody at
+    /// the store types a name or a password.</summary>
+    public const string PairPath = "/api/v2/posimport/agent/pair";
 
-    /// <summary>POST /api/v2/posimport/agent-keys/{key_id}/revoke.</summary>
-    public const string AgentKeyRevokePathFormat = "/api/v2/posimport/agent-keys/{0}/revoke";
+    /// <summary>The connect route's limit, "10/minute;50/hour" per address.</summary>
+    public const int PairLimitPerMinute = 10;
 
-    /// <summary>AgentKeyIssueRequest.label max_length.</summary>
+    /// <summary>AgentPairRequest.label max_length.</summary>
     public const int MaxKeyLabelLength = 80;
-
-    // ── Sign-in (api/Modules/Auth/Controllers) ──
-
-    public const string LoginCrossStorePath = "/api/v2/auth/login-cross-store";
-    public const string LoginPath = "/api/v2/auth/login";
-    public const string LoginTotpPath = "/api/v2/auth/login/totp";
-    public const string LoginRecoveryPath = "/api/v2/auth/login/recovery";
-    public const string LogoutPath = "/api/v2/auth/logout";
-    public const string MyStoresPath = "/api/v2/auth/my-stores";
-    public const string SwitchStorePath = "/api/v2/auth/switch-store";
-    public const string SessionStatusPath = "/api/v2/auth/session-status";
-
-    /// <summary>Each sign-in route allows "10/minute;50/hour" per address.</summary>
-    public const int SignInLimitPerMinute = 10;
-
-    /// <summary>/auth/logout ends the sign-in named by this cookie (the
-    /// <c>refresh_jti</c> of the login answer).</summary>
-    public const string RefreshCookieName = "db_refresh_token";
-
-    /// <summary>The permission the agent-key routes ask for.</summary>
-    public const string AgentKeyPermission = "day_close.update";
 
     // ── Liveness (api/main.py :: health) ──
 

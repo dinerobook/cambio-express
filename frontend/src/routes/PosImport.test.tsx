@@ -17,6 +17,7 @@ import { englishLeftovers } from "../test/i18n";
 // to fire on the first click.
 
 const revokeAgentKey = vi.fn();
+const createAgentPairing = vi.fn();
 let stagedDays: StagedDay[] = [];
 let movementDay: MovementDay | undefined;
 const movementDayFor = vi.fn();
@@ -26,6 +27,7 @@ vi.mock("../api/posimport", async (importOriginal) => {
   return {
     ...real,
     revokeAgentKey: (...a: unknown[]) => revokeAgentKey(...a),
+    createAgentPairing: () => createAgentPairing(),
     useStagedDays: () => ({ data: { days: stagedDays }, isLoading: false, isError: false }),
     useMovementDay: (day: string) => {
       movementDayFor(day);
@@ -224,6 +226,53 @@ describe("PosImport register reports", () => {
     expect(screen.getByRole("heading", { name: /Reportes de la caja ·/ })).toBeInTheDocument();
     expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
       .toEqual(expect.arrayContaining(["Grado", "Galones", "Forma de pago", "Nivel de impuesto"]));
+    expect(englishLeftovers(document.body, ["posImp."])).toEqual([]);
+  });
+});
+
+// Connect a computer: DineroBook Manager on the store PC scans a
+// one-time code, so nobody there types a name or a password.
+
+describe("PosImport connect a computer", () => {
+  beforeEach(() => {
+    setLanguage("en");
+    createAgentPairing.mockReset();
+    stagedDays = [];
+    movementDay = undefined;
+  });
+
+  const PAIRING = { code: "K7M4-Q2XP-9HD3", expires_at: "2026-11-19T15:10:00", minutes: 10 };
+
+  it("shows the code as text and as a barcode", async () => {
+    createAgentPairing.mockResolvedValue(PAIRING);
+    renderPage();
+    expect(screen.queryByRole("img", { name: /Barcode/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Connect a computer" }));
+    expect(await screen.findByText("K7M4-Q2XP-9HD3")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Barcode for connect code K7M4-Q2XP-9HD3" })).toBeInTheDocument();
+    expect(screen.getByText(/Works once, until/)).toBeInTheDocument();
+    // Another click makes a fresh code (the server ends the old one).
+    createAgentPairing.mockResolvedValue({ ...PAIRING, code: "ZZZZ-YYYY-XXXX" });
+    await userEvent.click(screen.getByRole("button", { name: "Make a new code" }));
+    expect(await screen.findByText("ZZZZ-YYYY-XXXX")).toBeInTheDocument();
+    expect(createAgentPairing).toHaveBeenCalledTimes(2);
+  });
+
+  it("says so when no code could be made", async () => {
+    createAgentPairing.mockRejectedValue(new ApiError(403, "Permission denied", null));
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Connect a computer" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Permission denied");
+    expect(screen.queryByRole("img", { name: /Barcode/ })).not.toBeInTheDocument();
+  });
+
+  it("reads in Spanish", async () => {
+    setLanguage("es");
+    createAgentPairing.mockResolvedValue(PAIRING);
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Conectar una computadora" }));
+    expect(await screen.findByRole("img", { name: "Código de barras del código de conexión K7M4-Q2XP-9HD3" })).toBeInTheDocument();
+    expect(screen.getByText(/Sirve una vez, hasta las/)).toBeInTheDocument();
     expect(englishLeftovers(document.body, ["posImp."])).toEqual([]);
   });
 });
