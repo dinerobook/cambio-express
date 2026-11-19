@@ -114,6 +114,12 @@ class SubscriptionGateMiddleware(BaseHTTPMiddleware):
     auth layer's job to reject with a 401, and a billing gate that
     starts inventing its own auth failures is worse than one that
     lets an already-authenticated edge case through.
+
+    It finds the store through the JWT only, so a route that
+    authenticates with its own key instead (the site agent's
+    ``X-Agent-Key``) is never gated here and must ask
+    ``write_block_reason`` itself — ``agent_store_block`` in
+    ``api/Modules/PosImport/Services/agent.py`` does.
     """
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
