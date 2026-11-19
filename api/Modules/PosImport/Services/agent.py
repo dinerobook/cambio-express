@@ -114,6 +114,43 @@ def authenticate_agent(
     return cred
 
 
+@dataclass(frozen=True)
+class AgentStoreBlock:
+    status_code: int
+    detail: str
+    reason: str
+
+
+def agent_store_block(db: Session, store_id: int) -> AgentStoreBlock | None:
+    """Why this store's agent may not upload, or None when it may.
+
+    An agent key sends no JWT, so neither the subscription gate
+    (``SubscriptionGateMiddleware`` finds the store through the
+    token) nor the disabled-store check in ``get_principal`` ever
+    sees an upload. Both rules are asked here instead, with the
+    answers a signed-in write gets: 403 for a store the superadmin
+    disabled (``store_access``), 402 with ``write_block_reason``'s
+    reason for a frozen store or a lapsed trial / subscription. A
+    store row that is gone counts as disabled (fail closed). The
+    site agent keeps refused files and sends them once the store is
+    open again."""
+    from api.Core.Subscription import write_block_reason
+    from api.Modules.Auth.Services.store_access import (
+        STORE_DISABLED_MESSAGE,
+        store_is_active,
+    )
+    from api.Modules.Tenancy.Models import Store
+
+    store = db.get(Store, store_id)
+    if store is None or not store_is_active(store):
+        return AgentStoreBlock(403, STORE_DISABLED_MESSAGE, "store_disabled")
+    blocked = write_block_reason(store)
+    if blocked is not None:
+        reason, message = blocked
+        return AgentStoreBlock(402, message, reason)
+    return None
+
+
 # ── Staging ────────────────────────────────────────────────
 
 
@@ -403,7 +440,8 @@ def staged_events_for_day(
 
 
 __all__ = [
-    "KEY_PREFIX", "MAX_AGENT_FILE_BYTES", "StageResult", "StagedDay",
+    "KEY_PREFIX", "MAX_AGENT_FILE_BYTES", "AgentStoreBlock", "StageResult",
+    "StagedDay", "agent_store_block",
     "authenticate_agent", "issue_agent_key", "list_agent_keys",
     "revoke_agent_key", "stage_journal_file", "staged_days",
     "staged_events_for_day",

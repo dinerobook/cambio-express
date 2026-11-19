@@ -48,6 +48,19 @@ UPLOAD_PATH = "/api/v2/posimport/agent/upload"
 # to hold still for one poll before uploading.
 MAX_FILE_BYTES = 4 * 1024 * 1024
 RETRY_BACKOFF_SECONDS = (5, 15, 60, 300)
+# Wait after the server refuses the key (401) or the store (402: the
+# subscription has lapsed or the store is frozen; 403: the store has
+# been disabled). Nothing a quick retry can fix, so back off; refused
+# files stay unsent and go up once the store is open again.
+REFUSED_WAIT_SECONDS = 300
+
+
+def _server_detail(exc: urllib.error.HTTPError) -> str:
+    """The server's ``detail`` message from an error answer, or ""."""
+    try:
+        return str(json.loads(exc.read().decode()).get("detail") or "")
+    except Exception:            # noqa: BLE001 — best effort, for the log
+        return ""
 
 
 def load_config(path: str) -> dict:
@@ -129,7 +142,16 @@ def upload(cfg: dict, path: Path) -> bool:
         except urllib.error.HTTPError as exc:
             if exc.code == 401:
                 log.error("agent key rejected — fix agent.ini and restart")
-                time.sleep(300)
+                time.sleep(REFUSED_WAIT_SECONDS)
+                return False
+            if exc.code in (402, 403):
+                log.error(
+                    "server refused uploads for this store (HTTP %s: %s) "
+                    "— files stay here and upload once the store is open "
+                    "again",
+                    exc.code, _server_detail(exc) or "no detail",
+                )
+                time.sleep(REFUSED_WAIT_SECONDS)
                 return False
             if exc.code == 422:
                 log.warning("%s rejected by server (422) — skipping", path.name)
