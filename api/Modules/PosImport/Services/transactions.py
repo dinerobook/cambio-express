@@ -15,19 +15,25 @@ The same holds for a fuel prepay deposit its completion superseded
 (naxml module docstring): the ticket is listed, flagged, and points
 at its completion, but no total here adds it — the completion
 restates the whole ticket.
+
+And for every event that is not a sale or refund (``SALES_KINDS``):
+a VoidEvent keeps Passport's full ``TransactionTotalGrandAmount``
+although nothing was sold, so a void is listed and never summed.
+``counts_toward_sales`` is the one filter every money total uses.
 """
 from __future__ import annotations
 
 from datetime import date
 from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import ColumnElement, and_, func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from api.Core.Money import to_dollars
 from api.Modules.PosImport.Models import (
     PosTransaction, PosTransactionLine,
 )
+from api.Modules.PosImport.Services.naxml import SALES_KINDS
 
 # Guard rails on the list query. A c-store runs a few thousand
 # tickets a day, so an unbounded range would page through months of
@@ -38,6 +44,18 @@ MAX_PER_PAGE = 200
 
 class TransactionQueryError(Exception):
     """User-safe failure (bad range, unknown filter…)."""
+
+
+def counts_toward_sales() -> ColumnElement[bool]:
+    """The ``pos_transaction`` rows a money total may add: the SQL
+    twin of ``PjrEvent.counts_toward_sales``. Sales and refunds
+    only — a void carries the grand total of a ticket nobody paid
+    for, and register opens and financial events are not sales —
+    minus prepay deposits a completion superseded."""
+    return and_(
+        PosTransaction.kind.in_(SALES_KINDS),
+        PosTransaction.superseded.is_(False),
+    )
 
 
 def _stamp(value: Any) -> str | None:
@@ -107,8 +125,10 @@ def list_transactions(
         register_id=register_id, voided_only=voided_only,
     )
     total = query.count()
+    # `total` counts every listed ticket; the money beside it adds
+    # only the ones that count (a void filter therefore shows $0).
     total_grand_cents = (
-        query.filter(PosTransaction.superseded.is_(False)).with_entities(
+        query.filter(counts_toward_sales()).with_entities(
             func.coalesce(func.sum(PosTransaction.grand_total_cents), 0),
         ).scalar() or 0
     )
@@ -280,5 +300,5 @@ def transaction_detail(
 
 __all__ = [
     "MAX_PER_PAGE", "MAX_RANGE_DAYS", "TransactionQueryError",
-    "list_transactions", "transaction_detail",
+    "counts_toward_sales", "list_transactions", "transaction_detail",
 ]
