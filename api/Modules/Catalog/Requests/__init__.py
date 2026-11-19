@@ -5,7 +5,15 @@ cents stay in the DB + Services (P0-3 convention). Item lists use
 the shared pagination envelope (rows/total/page/total_pages) so the
 SPA's Pager + live-search hooks work unchanged.
 """
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
+
+from api.Core.Uploads import b64_len
+
+# The largest price-book export we read (a 20,000-item Modisoft file
+# is about 1.4 MB).
+MAX_IMPORT_BYTES = 20 * 1024 * 1024
 
 
 # ── Vendors ────────────────────────────────────────────────
@@ -80,6 +88,8 @@ class ItemWriteRequest(BaseModel):
     size:            str = Field("", max_length=40)
     case_size:       int | None = Field(None, ge=1)
     case_cost:       float | None = Field(None, ge=0)
+    # The vendor's discount per case; the unit cost is after it.
+    case_discount:   float | None = Field(None, ge=0)
     is_ebt:          bool = False
 
 
@@ -104,6 +114,7 @@ class ItemUpdateRequest(BaseModel):
     # mirroring the FK-clear sentinel above.
     case_size:       int | None = Field(None, ge=0)
     case_cost:       float | None = Field(None, ge=0)
+    case_discount:   float | None = Field(None, ge=0)
     is_ebt:          bool | None = None
 
 
@@ -127,7 +138,11 @@ class ItemRow(BaseModel):
     size: str
     case_size: int | None
     case_cost: float | None
+    case_discount: float | None
     is_ebt: bool
+    # The shared product (universal catalog) this item is, when its
+    # scan code is a real GTIN.
+    product_id: int | None
 
 
 class ItemResponse(BaseModel):
@@ -143,6 +158,86 @@ class ItemListResponse(BaseModel):
     total: int
     page: int
     total_pages: int
+
+
+# ── Universal products + scan lookup ───────────────────────
+
+
+class UniversalProductRow(BaseModel):
+    """A shared product: only facts true at every store."""
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    gtin: str
+    name: str
+    brand: str
+    size: str
+    nacs_code: str
+    is_verified: bool
+
+
+class ScanLookupResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    # gtin = a real barcode shared across stores; store = this store's
+    # own code (PLU, in-store number, doubtful check digit); invalid =
+    # not a usable code.
+    kind: Literal["gtin", "store", "invalid"]
+    gtin: str | None
+    note: str
+    # This store's item for the code, when it already sells it.
+    item: ItemRow | None
+    product: UniversalProductRow | None
+
+
+# ── Modisoft price book import ─────────────────────────────
+
+
+class ModisoftImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    content_base64: str = Field(
+        ..., min_length=1, max_length=b64_len(MAX_IMPORT_BYTES),
+    )
+    # false = check the file and report, writing nothing.
+    apply: bool = False
+    # false = leave items already in the price book alone.
+    update_existing: bool = True
+
+
+class ImportIssueExample(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    line: int
+    scan_code: str
+
+
+class ImportIssueRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    count: int
+    examples: list[ImportIssueExample]
+
+
+class ModisoftImportResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    applied: bool
+    rows_read: int
+    items_new: int
+    items_updated: int
+    items_unchanged: int
+    items_skipped: int
+    matched_other_spelling: int
+    products_new: int
+    products_known: int
+    store_codes: int
+    departments_new: list[str]
+    columns_used: list[str]
+    columns_ignored: list[str]
+    issues: list[ImportIssueRow]
 
 
 # ── Purchase invoices ──────────────────────────────────────

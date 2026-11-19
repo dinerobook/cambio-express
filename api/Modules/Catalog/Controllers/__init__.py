@@ -10,6 +10,11 @@ Mounts at `/api/v2/catalog/*`:
                                   &include_inactive=1&page=&per_page=)
   POST /items                    create item
   PUT  /items/{id}               update item / deactivate
+  GET  /products/lookup?code=    what a scanned code is: this store's
+                                 item and/or the shared product
+                                 (fills the item form). Read-only.
+  POST /import/modisoft          check (apply=false) or import a
+                                 Modisoft price book export (.xlsx)
   GET  /invoices                 paginated invoice list
                                  (?q=&vendor_id=&status=)
   GET  /invoices/{id}            invoice detail with lines
@@ -31,6 +36,7 @@ from api.Core.Audit import audit_operator
 from api.Core.Responses import OkResponse
 from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
+from api.Core.Uploads import decode_base64
 from api.Core.Pagination import PaginationParams, paginate, pagination_dep
 from api.Core.Sorting import SORT_DIR_PATTERN
 from api.Modules.Auth.Controllers import get_principal
@@ -40,6 +46,7 @@ from api.Modules.Auth.Services.principal import (
 )
 from api.Modules.Catalog.Models import (
     PriceBookItem,
+    Product,
     PurchaseInvoice,
     Vendor,
 )
@@ -56,6 +63,12 @@ from api.Modules.Catalog.Requests import (
     ItemRow,
     ItemUpdateRequest,
     ItemWriteRequest,
+    ImportIssueExample,
+    ImportIssueRow,
+    ModisoftImportRequest,
+    ModisoftImportResponse,
+    ScanLookupResponse,
+    UniversalProductRow,
     VendorListResponse,
     VendorResponse,
     VendorRow,
@@ -76,6 +89,12 @@ from api.Modules.Catalog.Services import (
     update_item,
     update_vendor,
 )
+from api.Modules.Catalog.Services.modisoft_import import (
+    ImportFileError,
+    ImportReport,
+    run_import,
+)
+from api.Modules.Catalog.Services.products import lookup_scan_code
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
@@ -116,7 +135,43 @@ def _item_row(i: PriceBookItem) -> ItemRow:
             None if i.case_cost_cents is None
             else i.case_cost_cents / 100.0
         ),
+        case_discount=(
+            None if i.case_discount_cents is None
+            else i.case_discount_cents / 100.0
+        ),
         is_ebt=bool(i.is_ebt),
+        product_id=i.product_id,
+    )
+
+
+def _product_row(p: Product) -> UniversalProductRow:
+    return UniversalProductRow(
+        id=p.id, gtin=p.gtin, name=p.name or "", brand=p.brand or "",
+        size=p.size or "", nacs_code=p.nacs_code or "",
+        is_verified=bool(p.is_verified),
+    )
+
+
+def _import_response(r: ImportReport) -> ModisoftImportResponse:
+    return ModisoftImportResponse(
+        applied=r.applied, rows_read=r.rows_read,
+        items_new=r.items_new, items_updated=r.items_updated,
+        items_unchanged=r.items_unchanged, items_skipped=r.items_skipped,
+        matched_other_spelling=r.matched_other_spelling,
+        products_new=r.products_new, products_known=r.products_known,
+        store_codes=r.store_codes,
+        departments_new=r.departments_new,
+        columns_used=r.columns_used, columns_ignored=r.columns_ignored,
+        issues=[
+            ImportIssueRow(
+                code=code, count=issue.count,
+                examples=[
+                    ImportIssueExample(line=line, scan_code=scan)
+                    for line, scan in issue.examples
+                ],
+            )
+            for code, issue in r.issues.items()
+        ],
     )
 
 
@@ -268,6 +323,63 @@ def update_item_route(
     )
     db.commit()
     return ItemResponse(item=_item_row(item))
+
+
+# ── Universal products + import ────────────────────────────
+
+
+@router.get("/products/lookup", response_model=ScanLookupResponse)
+def lookup_product_route(
+    code: str = Query(..., min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> ScanLookupResponse:
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "catalog", "read")
+    found = lookup_scan_code(db, sid, code)
+    return ScanLookupResponse(
+        code=found.code.raw, kind=found.code.kind, gtin=found.code.gtin,
+        note=found.code.note,
+        item=_item_row(found.item) if found.item is not None else None,
+        product=(
+            _product_row(found.product) if found.product is not None else None
+        ),
+    )
+
+
+@router.post("/import/modisoft", response_model=ModisoftImportResponse)
+def import_modisoft_route(
+    body: ModisoftImportRequest,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> ModisoftImportResponse:
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "catalog", "update")
+    data = decode_base64(
+        body.content_base64, detail="Could not read the uploaded file.",
+    )
+    try:
+        report = run_import(
+            db, sid, data, apply=body.apply,
+            update_existing=body.update_existing,
+        )
+    except ImportFileError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc))
+    if not body.apply:
+        db.rollback()
+        return _import_response(report)
+    audit_operator(
+        db, claims, action="import_price_book",
+        target_type="price_book", target_id=str(sid),
+        summary=(
+            f"Modisoft price book: {report.items_new} new, "
+            f"{report.items_updated} updated, "
+            f"{len(report.departments_new)} departments added"
+        ),
+    )
+    db.commit()
+    return _import_response(report)
 
 
 # ── Purchase invoices ──────────────────────────────────────

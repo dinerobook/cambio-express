@@ -180,6 +180,7 @@ def seed_price_book(
                 "price": h.price_cents / 100.0,
             },
             source=SEED_SOURCE,
+            share_name=bool(h.description),
         )
         created += 1
     return SeedResult(created=created, skipped_existing=skipped)

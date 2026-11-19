@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey,
-    Integer, String, UniqueConstraint,
+    Integer, String, UniqueConstraint, false,
 )
 from sqlalchemy.orm import relationship
 
@@ -91,17 +91,56 @@ class PriceBookItem(Base):
     # EBT/SNAP-eligible — feeds labels/exports; the POS is still the
     # enforcement point until POS integration lands.
     is_ebt          = Column(Boolean, default=False, nullable=False)
-    # Provenance: "manual" or an import source like "gilbarco".
-    # Display only — imported items stay editable like any other.
+    # Provenance: "manual" or an import source like "gilbarco" /
+    # "modisoft". Display only — imported items stay editable.
     source          = Column(String(20), nullable=False, default="manual")
     created_at      = Column(DateTime, default=utc_now)
     updated_at      = Column(
         DateTime, default=utc_now, onupdate=utc_now,
     )
+    # The universal product this item is (same GTIN at every store).
+    # NULL for store codes — PLUs and codes that are not a valid GTIN
+    # are never shared (Services/barcodes.py).
+    product_id      = Column(
+        Integer, ForeignKey("retail_product.id"), nullable=True, index=True,
+    )
+    # Vendor's discount per case (Modisoft "Case Discount"). The unit
+    # cost after it is cost_cents. NULL = not tracked.
+    case_discount_cents = Column(BigInteger, nullable=True)
     __table_args__ = (UniqueConstraint("store_id", "pos_code"),)
 
     department = relationship("Department")
     vendor     = relationship("Vendor")
+    product    = relationship("Product")
+
+
+class Product(Base):
+    """The universal product catalog: one row per GTIN, shared by every
+    store. Only facts true everywhere live here (barcode, name, brand,
+    size, NACS category). Price, cost, department, tax and vendor are
+    the store's own and stay on its price-book item — no store ever
+    sees another store's price or cost through this table.
+
+    Rows are learned from store data (a Modisoft import, the register
+    seed, a typed item): the first store to bring a GTIN names it, and
+    later stores never overwrite that name (their own wording stays on
+    their item). ``is_verified`` is for a platform-curated name later.
+    Platform-level, not per store: a store leaving does not delete the
+    products it introduced.
+    """
+
+    __tablename__ = "retail_product"
+    id          = Column(Integer, primary_key=True)
+    gtin        = Column(String(14), nullable=False, unique=True)
+    name        = Column(String(160), nullable=False)
+    brand       = Column(String(100), nullable=False, default="", server_default="")
+    size        = Column(String(40), nullable=False, default="", server_default="")
+    nacs_code   = Column(String(10), nullable=False, default="", server_default="")
+    is_verified = Column(Boolean, nullable=False, default=False, server_default=false())
+    # Who first brought it: "modisoft", "gilbarco", "manual".
+    source      = Column(String(20), nullable=False, default="", server_default="")
+    created_at  = Column(DateTime, default=utc_now)
+    updated_at  = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 # Invoice lifecycle. Not a DB enum so a future state ("disputed",
@@ -189,6 +228,6 @@ class PurchaseInvoiceLine(Base):
 
 
 __all__ = [
-    "INVOICE_STATUSES", "POS_CODE_FORMATS", "PriceBookItem",
+    "INVOICE_STATUSES", "POS_CODE_FORMATS", "PriceBookItem", "Product",
     "PurchaseInvoice", "PurchaseInvoiceLine", "Vendor",
 ]

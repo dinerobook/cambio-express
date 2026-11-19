@@ -19,6 +19,11 @@ existing DBs upgrade in place. There is no `db.create_all()` and no
 - **Additive and backwards compatible.** New columns are nullable or
   carry a server default; new behaviour is opt-in. Idempotent revisions
   (check the column / table exists first) survive a replay.
+- **One head, always.** Two branches that each add a revision off the
+  same parent leave two heads once both merge, and `upgrade head` at
+  boot then refuses to run. The branch that merges second re-points its
+  `down_revision` at the other's revision first;
+  `tests/Core/test_alembic_single_head.py` fails otherwise.
 - **Never drop a column from a running database without a backfill
   step** — rename it in one revision, copy the data, drop the old
   column in a follow-up once the dual-write window has passed.

@@ -171,6 +171,7 @@ export const COVERED_FILES = [
   "components/DepartmentsManager.tsx",
   "routes/Lottery.tsx",
   "routes/PriceBook.tsx",
+  "routes/ModisoftImportModal.tsx",
   // Superadmin pages and the 2FA screens
   "routes/SuperadminPermissions.tsx",
   "routes/SuperadminReports.tsx",

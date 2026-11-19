@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createItem, createVendor, updateItem, updateVendor,
-  fetchItemsPage, useItems, useVendors,
-  type PriceBookItem, type Vendor,
+  fetchItemsPage, lookupScanCode, useItems, useVendors,
+  type PriceBookItem, type ScanLookup, type Vendor,
 } from "../api/catalog";
 import {
   commitPriceBookSeed, previewPriceBookSeed,
@@ -18,6 +18,7 @@ import { csvMoney } from "../lib/csv";
 import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import DepartmentsManager from "../components/DepartmentsManager";
+import { ModisoftImportModal } from "./ModisoftImportModal";
 import {
   Alert, Button, Card, Checkbox, EmptyState, ErrorState,
   DataTable, Field, InfoTip, Input, Loading, Modal, MoneyInput, PageHeader, PageShell,
@@ -117,6 +118,7 @@ function ItemsTab() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<PriceBookItem | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   function refresh() {
     void qc.invalidateQueries({ queryKey: ["catalog"] });
@@ -213,6 +215,12 @@ function ItemsTab() {
             >
               {t("pb.seed")}
             </Button>
+            <Button
+              size="sm" tone="secondary"
+              onClick={() => setImporting(true)}
+            >
+              {t("pb.importModisoft")}
+            </Button>
             <a
               href="/api/v2/posimport/naxml/pricebook-export"
               download
@@ -308,11 +316,17 @@ function ItemsTab() {
         vendors={vendors.data?.vendors ?? []}
         onClose={() => { setAdding(false); setEditing(null); }}
         onDone={() => { setAdding(false); setEditing(null); refresh(); }}
+        onOpenExisting={(item) => { setAdding(false); setEditing(item); }}
       />
       <SeedModal
         open={seeding}
         onClose={() => setSeeding(false)}
         onDone={() => { setSeeding(false); refresh(); }}
+      />
+      <ModisoftImportModal
+        open={importing}
+        onClose={() => setImporting(false)}
+        onDone={() => { setImporting(false); refresh(); }}
       />
     </Section>
   );
@@ -465,7 +479,7 @@ function SeedPreview({
 // ── Item modal (add / edit one price-book item) ──────────────
 
 function ItemModal({
-  open, existing, departments, vendors, onClose, onDone,
+  open, existing, departments, vendors, onClose, onDone, onOpenExisting,
 }: {
   open: boolean;
   existing: PriceBookItem | null;
@@ -473,6 +487,8 @@ function ItemModal({
   vendors: Vendor[];
   onClose: () => void;
   onDone: () => void;
+  /** A scanned code the store already sells: open that item instead. */
+  onOpenExisting: (item: PriceBookItem) => void;
 }) {
   useT(); // re-render on a language switch
   return (
@@ -491,6 +507,7 @@ function ItemModal({
           vendors={vendors}
           onClose={onClose}
           onDone={onDone}
+          onOpenExisting={onOpenExisting}
         />
       )}
     </Modal>
@@ -498,13 +515,14 @@ function ItemModal({
 }
 
 function ItemForm({
-  existing, departments, vendors, onClose, onDone,
+  existing, departments, vendors, onClose, onDone, onOpenExisting,
 }: {
   existing: PriceBookItem | null;
   departments: Department[];
   vendors: Vendor[];
   onClose: () => void;
   onDone: () => void;
+  onOpenExisting: (item: PriceBookItem) => void;
 }) {
   useT(); // re-render on a language switch
   const [posCode, setPosCode] = useState(existing?.pos_code ?? "");
@@ -531,10 +549,51 @@ function ItemForm({
     existing?.case_size != null ? String(existing.case_size) : "",
   );
   const [caseCost, setCaseCost] = useState(existing?.case_cost ?? 0);
+  const [caseDiscount, setCaseDiscount] = useState(existing?.case_discount ?? 0);
   const [ebt, setEbt] = useState(existing?.is_ebt ?? false);
   const [marginGoal, setMarginGoal] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Scan lookup (new items only): what the typed / scanned code is —
+  // an item this store already sells, or a product another store
+  // named in the shared catalog (fills the empty name and size).
+  const [scan, setScan] = useState<ScanLookup | null>(null);
+  const [filled, setFilled] = useState(false);
+  const [lookedUp, setLookedUp] = useState("");
+  // What the lookup typed in, so a changed code takes it back out
+  // (never anything the person typed themselves).
+  const [autoFill, setAutoFill] = useState({ name: "", size: "" });
+
+  async function lookUp(code: string) {
+    if (existing || !code || code === lookedUp) return;
+    setLookedUp(code);
+    try {
+      const found = await lookupScanCode(code);
+      setScan(found);
+      if (found.kind === "store" && found.note === "plu") setPosFormat("plu");
+      else if (found.kind === "gtin") setPosFormat("upc");
+      const product = found.item == null ? found.product : null;
+      const fill = { name: "", size: "" };
+      if (product && !name.trim()) { setName(product.name); fill.name = product.name; }
+      if (product?.size && !size.trim()) { setSize(product.size); fill.size = product.size; }
+      setAutoFill(fill);
+      setFilled(fill.name !== "" || fill.size !== "");
+    } catch {
+      // A failed lookup never blocks typing the item in by hand.
+      setScan(null);
+      setFilled(false);
+    }
+  }
+
+  function codeChanged(next: string) {
+    setPosCode(next);
+    setScan(null);
+    setFilled(false);
+    setLookedUp("");
+    if (autoFill.name && name === autoFill.name) setName("");
+    if (autoFill.size && size === autoFill.size) setSize("");
+    setAutoFill({ name: "", size: "" });
+  }
 
   // Cronysoft-style Department → Sub Department cascade. The flat
   // department list carries parent_id; departmentId always holds
@@ -556,7 +615,9 @@ function ItemForm({
   // Derived numbers for the pricing helpers.
   const caseSizeNum = Number.parseInt(caseSize, 10) || 0;
   const unitFromCase =
-    caseSizeNum > 0 && caseCost > 0 ? caseCost / caseSizeNum : null;
+    caseSizeNum > 0 && caseCost > 0
+      ? Math.max(caseCost - caseDiscount, 0) / caseSizeNum
+      : null;
   const margin =
     price > 0 ? ((price - cost) / price) * 100 : null;
 
@@ -582,6 +643,7 @@ function ItemForm({
           // 0 clears the nullable case fields server-side.
           case_size: caseSizeNum > 0 ? caseSizeNum : 0,
           case_cost: caseCost > 0 ? caseCost : 0,
+          case_discount: caseDiscount > 0 ? caseDiscount : 0,
           is_ebt: ebt,
         });
       } else {
@@ -598,6 +660,7 @@ function ItemForm({
           size: size.trim(),
           case_size: caseSizeNum > 0 ? caseSizeNum : null,
           case_cost: caseCost > 0 ? caseCost : null,
+          case_discount: caseDiscount > 0 ? caseDiscount : null,
           is_ebt: ebt,
         });
       }
@@ -609,9 +672,41 @@ function ItemForm({
     }
   }
 
+  const shared = scan?.item == null ? scan?.product ?? null : null;
+  const scanHint = filled
+    ? t("pb.scanFilled")
+    : shared && shared.name !== name.trim()
+      ? (
+        <>
+          {t("pb.scanShared", { name: shared.name })}{" "}
+          <Button
+            type="button" tone="secondary" size="sm"
+            onClick={() => {
+              setName(shared.name);
+              setFilled(true);
+              setAutoFill((a) => ({ ...a, name: shared.name }));
+            }}
+          >
+            {t("pb.scanUse")}
+          </Button>
+        </>
+      )
+      : undefined;
+
   return (
     <form onSubmit={onSubmit} className={styles.modalForm}>
       {error && <Alert tone="error">{error}</Alert>}
+      {scan?.item && (
+        <Alert tone="warning">
+          {t("pb.scanExists", { name: scan.item.name, code: scan.item.pos_code })}{" "}
+          <Button
+            type="button" tone="secondary" size="sm"
+            onClick={() => { if (scan.item) onOpenExisting(scan.item); }}
+          >
+            {t("pb.scanEdit")}
+          </Button>
+        </Alert>
+      )}
       <div className={styles.fieldGrid}>
         <Field
           label={
@@ -620,10 +715,22 @@ function ItemForm({
               <InfoTip text={t("pb.scanTip")} />
             </>
           }
+          hint={scanHint}
         >
           <Input
             type="text" value={posCode} required maxLength={30}
-            onChange={(e) => setPosCode(e.target.value)}
+            onChange={(e) => codeChanged(e.target.value)}
+            onBlur={() => { void lookUp(posCode.trim()); }}
+            onKeyDown={(e) => {
+              // A barcode scanner ends with Enter: look the code up and
+              // move on to the name instead of submitting the form.
+              if (e.key !== "Enter" || existing) return;
+              e.preventDefault();
+              const form = e.currentTarget.form;
+              void lookUp(posCode.trim());
+              const next = form?.elements.namedItem("item-name");
+              if (next instanceof HTMLInputElement) next.focus();
+            }}
           />
         </Field>
         <Field label={t("pb.codeType")}>
@@ -638,7 +745,7 @@ function ItemForm({
       </div>
       <Field label={t("pb.itemName")}>
         <Input
-          type="text" value={name} required maxLength={160}
+          type="text" name="item-name" value={name} required maxLength={160}
           onChange={(e) => setName(e.target.value)}
         />
       </Field>
@@ -717,6 +824,10 @@ function ItemForm({
               : undefined
           }
           value={caseCost} onChange={setCaseCost} fullWidth
+        />
+        <MoneyInput
+          label={t("pb.caseDiscount")}
+          value={caseDiscount} onChange={setCaseDiscount} fullWidth
         />
         <div className={styles.moneyWithAction}>
           <MoneyInput

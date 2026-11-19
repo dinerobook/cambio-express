@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { fileToBase64 } from "../lib/files";
 import type { components } from "./openapi";
 
 // Typed straight off the FastAPI OpenAPI spec (CLAUDE.md standard).
@@ -83,6 +84,34 @@ export async function updateItem(
 ): Promise<ItemResponse> {
   return api<ItemResponse>(`/api/v2/catalog/items/${id}`, {
     method: "PUT", json: body,
+  });
+}
+
+// ── Universal products: scan lookup + Modisoft import ────────
+
+export type ScanLookup = components["schemas"]["ScanLookupResponse"];
+export type ModisoftImportReport = components["schemas"]["ModisoftImportResponse"];
+export type ImportIssue = components["schemas"]["ImportIssueRow"];
+
+/** What a scanned code is: this store's item (any spelling of the
+ *  barcode) and/or the shared product. Read-only. */
+export function lookupScanCode(code: string): Promise<ScanLookup> {
+  const qs = new URLSearchParams({ code });
+  return api<ScanLookup>(`/api/v2/catalog/products/lookup?${qs}`);
+}
+
+/** Check (`apply: false`, writes nothing) or import a Modisoft price
+ *  book export. The same file is sent both times. */
+export async function importModisoftPriceBook(
+  file: File, opts: { apply: boolean; updateExisting: boolean },
+): Promise<ModisoftImportReport> {
+  return api<ModisoftImportReport>("/api/v2/catalog/import/modisoft", {
+    method: "POST",
+    json: {
+      content_base64: await fileToBase64(file),
+      apply: opts.apply,
+      update_existing: opts.updateExisting,
+    },
   });
 }
 

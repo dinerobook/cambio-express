@@ -19,10 +19,14 @@ import { englishLeftovers } from "../test/i18n";
 //   - A refused save shows the server's reason; a failed load offers
 //     Retry.
 //   - Someone who can only look items up gets no add / edit controls.
+//   - A scanned code fills the empty name / size from the shared
+//     catalog (Enter from a scanner never submits), and a code the
+//     store already sells offers to open that item instead.
 
 const useItems = vi.fn();
 const createItem = vi.fn();
 const updateItem = vi.fn();
+const lookupScanCode = vi.fn();
 
 vi.mock("../api/catalog", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/catalog")>();
@@ -32,6 +36,7 @@ vi.mock("../api/catalog", async (importOriginal) => {
     useVendors: () => ({ data: { vendors: [] }, isLoading: false }),
     createItem: (...a: unknown[]) => createItem(...a),
     updateItem: (...a: unknown[]) => updateItem(...a),
+    lookupScanCode: (...a: unknown[]) => lookupScanCode(...a),
   };
 });
 
@@ -48,8 +53,16 @@ const ITEM = {
   name: "Cola 12oz", department_id: null, department_name: "",
   vendor_id: null, vendor_name: "", price: 1.99, cost: 0.85,
   is_taxable: true, is_active: true, is_ebt: false, item_number: "",
-  size: "12oz", case_size: 24, case_cost: 20.4, source: "manual",
+  size: "12oz", case_size: 24, case_cost: 20.4, case_discount: null,
+  source: "manual", product_id: 3,
 };
+
+function lookup(over: Record<string, unknown> = {}) {
+  return {
+    code: "049000006346", kind: "gtin", gtin: "00049000006346", note: "",
+    item: null, product: null, ...over,
+  };
+}
 
 function listOf(rows: unknown[]) {
   return {
@@ -87,6 +100,8 @@ describe("PriceBook", () => {
     createItem.mockResolvedValue({ item: ITEM });
     updateItem.mockReset();
     updateItem.mockResolvedValue({ item: ITEM });
+    lookupScanCode.mockReset();
+    lookupScanCode.mockResolvedValue(lookup());
   });
 
   it("lists items with their price and cost", () => {
@@ -119,6 +134,95 @@ describe("PriceBook", () => {
       cost: 1.25,
       case_size: 12,
       case_cost: 15,
+    }));
+  });
+
+  it("fills the name and size from the shared catalog on a scan", async () => {
+    lookupScanCode.mockResolvedValue(lookup({
+      product: {
+        id: 3, gtin: "00049000006346", name: "Coke 20oz", brand: "",
+        size: "20oz", nacs_code: "", is_verified: false,
+      },
+    }));
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "+ Add item" }));
+    // A scanner types the code and presses Enter.
+    await user.type(screen.getByLabelText(/^Scan code/), "049000006346{Enter}");
+    expect(lookupScanCode).toHaveBeenCalledWith("049000006346");
+    await waitFor(() => expect(screen.getByLabelText("Item name")).toHaveValue("Coke 20oz"));
+    expect(screen.getByLabelText("Item size (optional)")).toHaveValue("20oz");
+    expect(screen.getByText("Name and size filled in from the shared product catalog.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Item name")).toHaveFocus();
+    expect(createItem).not.toHaveBeenCalled();
+  });
+
+  it("never overwrites a typed name; offers the shared one instead", async () => {
+    lookupScanCode.mockResolvedValue(lookup({
+      product: {
+        id: 3, gtin: "00049000006346", name: "Coke 20oz", brand: "",
+        size: "", nacs_code: "", is_verified: false,
+      },
+    }));
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "+ Add item" }));
+    await user.type(screen.getByLabelText("Item name"), "My cola");
+    await user.type(screen.getByLabelText(/^Scan code/), "049000006346");
+    await user.tab();
+    expect(await screen.findByText("Shared catalog name: Coke 20oz")).toBeInTheDocument();
+    expect(screen.getByLabelText("Item name")).toHaveValue("My cola");
+    await user.click(screen.getByRole("button", { name: "Use it" }));
+    expect(screen.getByLabelText("Item name")).toHaveValue("Coke 20oz");
+  });
+
+  it("a changed code takes back only what the lookup filled in", async () => {
+    lookupScanCode.mockResolvedValue(lookup({
+      product: {
+        id: 3, gtin: "00049000006346", name: "Coke 20oz", brand: "",
+        size: "20oz", nacs_code: "", is_verified: false,
+      },
+    }));
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "+ Add item" }));
+    await user.type(screen.getByLabelText(/^Scan code/), "049000006346{Enter}");
+    await waitFor(() => expect(screen.getByLabelText("Item name")).toHaveValue("Coke 20oz"));
+    await user.clear(screen.getByLabelText("Item size (optional)"));
+    await user.type(screen.getByLabelText("Item size (optional)"), "24-pack");
+    await user.type(screen.getByLabelText(/^Scan code/), "9");
+    expect(screen.getByLabelText("Item name")).toHaveValue("");
+    expect(screen.getByLabelText("Item size (optional)")).toHaveValue("24-pack");
+  });
+
+  it("a code the store already sells opens that item instead", async () => {
+    lookupScanCode.mockResolvedValue(lookup({ item: ITEM }));
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "+ Add item" }));
+    await user.type(screen.getByLabelText(/^Scan code/), "12345678905{Enter}");
+    expect(await screen.findByText(
+      "Already in your price book: Cola 12oz (012345678905).",
+    )).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit it" }));
+    expect(await screen.findByRole("dialog", { name: "Edit Cola 12oz" })).toBeInTheDocument();
+  });
+
+  it("sends the case discount and takes it off the unit cost", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "+ Add item" }));
+    await user.type(screen.getByLabelText(/^Scan code/), "7");
+    await user.type(screen.getByLabelText("Item name"), "Ice");
+    await user.type(screen.getByLabelText("Case size"), "10");
+    await user.type(money("Case cost"), "12");
+    await user.type(money("Case discount"), "2");
+    expect(screen.getByText("Unit cost from case: $1.0000")).toBeInTheDocument();
+    await user.type(money("Retail price"), "2.99");
+    await user.click(screen.getByRole("button", { name: "Add item" }));
+    await waitFor(() => expect(createItem).toHaveBeenCalledTimes(1));
+    expect(createItem).toHaveBeenCalledWith(expect.objectContaining({
+      case_cost: 12, case_discount: 2,
     }));
   });
 

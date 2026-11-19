@@ -50,6 +50,11 @@ files = [
     "api/Core/RateLimit.py",
     "api/Core/Schema.py",
     "api/Core/Sorting.py",
+    "api/Core/Uploads.py",
+    # ── api/Modules/Catalog ──────────────────────────────────
+    "api/Modules/Catalog/Services/barcodes.py",
+    "api/Modules/Catalog/Services/modisoft_import.py",
+    "api/Modules/Catalog/Services/xlsx.py",
     # ── api/Modules/CheckCashing ─────────────────────────────
     "api/Modules/CheckCashing/Requests/__init__.py",
     # ── api/Modules/Admin ────────────────────────────────────

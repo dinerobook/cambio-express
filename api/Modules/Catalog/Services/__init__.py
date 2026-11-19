@@ -21,6 +21,7 @@ from api.Modules.Catalog.Models import (
     PurchaseInvoiceLine,
     Vendor,
 )
+from api.Modules.Catalog.Services.products import link_item
 from api.Modules.DayClose.Models import Department
 
 
@@ -202,8 +203,11 @@ def _resolve_vendor(
 
 def create_item(
     db: Session, store_id: int, fields: dict[str, Any], *,
-    source: str = "manual",
+    source: str = "manual", share_name: bool = True,
 ) -> PriceBookItem:
+    """``share_name=False`` when the name is a stand-in ("Item 0123"):
+    the item still links to a shared product that already exists, but
+    never creates one under that name (Services/products.py)."""
     pos_code = str(fields["pos_code"]).strip()
     if not pos_code:
         raise CatalogConflictError("Scan code is required.")
@@ -234,8 +238,13 @@ def create_item(
             to_cents(fields["case_cost"])
             if fields.get("case_cost") is not None else None
         ),
+        case_discount_cents=(
+            to_cents(fields["case_discount"])
+            if fields.get("case_discount") is not None else None
+        ),
         is_ebt=bool(fields.get("is_ebt", False)),
     )
+    link_item(db, item, source=source, named=share_name)
     db.add(item)
     db.flush()
     return item
@@ -296,8 +305,15 @@ def update_item(
     if changes.get("case_cost") is not None:
         cc = float(changes["case_cost"])
         item.case_cost_cents = None if cc == 0 else to_cents(cc)
+    if changes.get("case_discount") is not None:
+        cd = float(changes["case_discount"])
+        item.case_discount_cents = None if cd == 0 else to_cents(cd)
     if changes.get("is_ebt") is not None:
         item.is_ebt = bool(changes["is_ebt"])
+    # A new code (or a first real name) may now match a shared
+    # product; an item saved before the catalog existed links here.
+    if changes.get("pos_code") is not None or changes.get("name") is not None:
+        link_item(db, item, source="manual")
     db.flush()
     return item
 
