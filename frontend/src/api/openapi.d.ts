@@ -11213,16 +11213,29 @@ export interface components {
         };
         /** DepartmentRow */
         DepartmentRow: {
+            /**
+             * Department Type
+             * @enum {string}
+             */
+            department_type: "merchandise" | "fuel" | "lottery_sell" | "lottery_cash" | "lotto_sell" | "lotto_cash" | "money_order" | "money_order_fee" | "money_transfer" | "money_transfer_fee" | "check_cash_fee" | "service" | "misc";
             /** Id */
             id: number;
             /** Is Active */
             is_active: boolean;
+            /** Is Taxable */
+            is_taxable: boolean;
+            /** Min Age */
+            min_age: number | null;
+            /** Nacs Code */
+            nacs_code: string;
             /** Name */
             name: string;
             /** Parent Id */
             parent_id: number | null;
             /** Parent Name */
             parent_name: string;
+            /** Pos Codes */
+            pos_codes: string[];
             /** Sort Order */
             sort_order: number;
         };
@@ -11253,21 +11266,51 @@ export interface components {
         };
         /** DepartmentUpdateRequest */
         DepartmentUpdateRequest: {
+            /** Department Type */
+            department_type?: ("merchandise" | "fuel" | "lottery_sell" | "lottery_cash" | "lotto_sell" | "lotto_cash" | "money_order" | "money_order_fee" | "money_transfer" | "money_transfer_fee" | "check_cash_fee" | "service" | "misc") | null;
             /** Is Active */
             is_active?: boolean | null;
+            /** Is Taxable */
+            is_taxable?: boolean | null;
+            /** Min Age */
+            min_age?: number | null;
+            /** Nacs Code */
+            nacs_code?: string | null;
             /** Name */
             name?: string | null;
             /** Parent Id */
             parent_id?: number | null;
+            /** Pos Codes */
+            pos_codes?: string[] | null;
             /** Sort Order */
             sort_order?: number | null;
         };
         /** DepartmentWriteRequest */
         DepartmentWriteRequest: {
+            /**
+             * Department Type
+             * @default merchandise
+             * @enum {string}
+             */
+            department_type: "merchandise" | "fuel" | "lottery_sell" | "lottery_cash" | "lotto_sell" | "lotto_cash" | "money_order" | "money_order_fee" | "money_transfer" | "money_transfer_fee" | "check_cash_fee" | "service" | "misc";
+            /**
+             * Is Taxable
+             * @default true
+             */
+            is_taxable: boolean;
+            /** Min Age */
+            min_age?: number | null;
+            /**
+             * Nacs Code
+             * @default
+             */
+            nacs_code: string;
             /** Name */
             name: string;
             /** Parent Id */
             parent_id?: number | null;
+            /** Pos Codes */
+            pos_codes?: string[];
             /**
              * Sort Order
              * @default 0

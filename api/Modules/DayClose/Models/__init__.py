@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from sqlalchemy import (
     BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer,
-    String, UniqueConstraint,
+    String, UniqueConstraint, true,
 )
 from sqlalchemy.orm import relationship
 
@@ -40,11 +40,40 @@ from api.Core.Money import DollarView, to_cents, to_dollars
 from api.Core.Clock import utc_now
 
 
+# What kind of sales a department holds. The daily paperwork reads
+# it to put each department's register total on the right line
+# (lottery sales, lotto payouts, money order fees…), so the values
+# match the owner's daily-entry design. Shown to the operator grouped
+# the way Modisoft groups them (Merchandise, Fuel, Lottery, Services,
+# Misc). Not a DB enum: a new type lands without a migration.
+DEPARTMENT_TYPES: tuple[str, ...] = (
+    "merchandise",
+    "fuel",
+    "lottery_sell", "lottery_cash", "lotto_sell", "lotto_cash",
+    "money_order", "money_order_fee", "money_transfer",
+    "money_transfer_fee", "check_cash_fee", "service",
+    "misc",
+)
+
+
 class Department(Base):
     __tablename__ = "retail_department"
     id         = Column(Integer, primary_key=True)
     store_id   = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
     name       = Column(String(80), nullable=False)
+    # Setup fields (Account → Departments). The register's department
+    # number is NOT a column here: it lives in retail_pos_merchandise_map
+    # (one row per number), the table the register import already reads,
+    # so there is one place that says which number is which department.
+    department_type = Column(
+        String(30), nullable=False, default="merchandise",
+        server_default="merchandise",
+    )
+    is_taxable = Column(Boolean, nullable=False, default=True, server_default=true())
+    # Minimum buyer age (18 lottery, 21 beer / tobacco). NULL = none.
+    min_age    = Column(Integer, nullable=True)
+    # NACS product category code (400 general, 411 cigarettes…).
+    nacs_code  = Column(String(10), nullable=False, default="", server_default="")
     # Sub-departments (P2-4): one level deep only — a parent must
     # itself be top-level, enforced in the Service. Sales lines and
     # price-book items keep pointing at whichever department they
@@ -184,4 +213,7 @@ class HourlySale(Base):
     )
 
 
-__all__ = ["Department", "DepartmentSale", "HourlySale", "RegisterClose"]
+__all__ = [
+    "DEPARTMENT_TYPES", "Department", "DepartmentSale", "HourlySale",
+    "RegisterClose",
+]

@@ -10,6 +10,15 @@ export type DayCloseSummary = components["schemas"]["DayCloseSummaryResponse"];
 export type RegisterCloseWrite =
   components["schemas"]["RegisterCloseWriteRequest"];
 
+export type DepartmentType = Department["department_type"];
+// The server fills every field but the name with its default, so a
+// caller may send only what it sets (the generated type marks
+// defaulted fields as present).
+type DepartmentWriteSchema = components["schemas"]["DepartmentWriteRequest"];
+export type DepartmentWrite =
+  Pick<DepartmentWriteSchema, "name"> & Partial<Omit<DepartmentWriteSchema, "name">>;
+export type DepartmentUpdate = components["schemas"]["DepartmentUpdateRequest"];
+
 type DepartmentListResponse = components["schemas"]["DepartmentListResponse"];
 type DepartmentResponse = components["schemas"]["DepartmentResponse"];
 
@@ -30,21 +39,19 @@ export function useDayClose(day: string) {
   });
 }
 
-export async function createDepartment(body: {
-  name: string; sort_order?: number; parent_id?: number | null;
-}): Promise<DepartmentResponse> {
+export async function createDepartment(
+  body: DepartmentWrite,
+): Promise<DepartmentResponse> {
   return api<DepartmentResponse>("/api/v2/dayclose/departments", {
     method: "POST", json: body,
   });
 }
 
+// PATCH-style: an omitted field is left unchanged. parent_id 0 and
+// min_age 0 clear the value; pos_codes is the complete new list.
 export async function updateDepartment(
   id: number,
-  body: {
-    name?: string; sort_order?: number; is_active?: boolean;
-    // 0 clears the parent link (server PATCH semantics).
-    parent_id?: number;
-  },
+  body: DepartmentUpdate,
 ): Promise<DepartmentResponse> {
   return api<DepartmentResponse>(`/api/v2/dayclose/departments/${id}`, {
     method: "PUT", json: body,

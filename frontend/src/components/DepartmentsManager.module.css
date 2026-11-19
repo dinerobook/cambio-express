@@ -1,6 +1,5 @@
-/* Department catalog — the few treatments the kit primitives don't
-   cover. Moved here from DayClose.module.css when the catalog left
-   the close-out screen for the price book. */
+/* Department setup (Account → Departments, also Price book →
+   Departments) — the few treatments the kit primitives don't cover. */
 
 .modalForm {
   display: flex;
@@ -8,9 +7,83 @@
   gap: 0.75rem;
 }
 
-
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
+/* Search + type filter + count, above the table. Wraps on a phone. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.typeFilter {
+  flex: 0 1 14rem;
+  min-width: 0;
+}
+
+.count {
+  color: var(--db-text-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* Register numbers and NACS codes are codes, not prose. */
+.code {
+  font-family: var(--db-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--db-text-muted);
+}
+
+.nameCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  color: var(--db-text-muted);
+  font-size: 0.8125rem;
+}
+
+/* The popup's fields: one column on a phone, two side by side once
+   there is room. A heading spans the full width. */
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem 1rem;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.groupTitle {
+  grid-column: 1 / -1;
+  margin: 0.5rem 0 0;
+  color: var(--db-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 36rem) {
+  .formGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -19,6 +19,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.Modules.DayClose.Models import (
+    DEPARTMENT_TYPES,
     Department,
     DepartmentSale,
     RegisterClose,
@@ -97,9 +98,91 @@ def _resolve_parent(
     return parent.id
 
 
+def _check_department_type(department_type: str) -> str:
+    if department_type not in DEPARTMENT_TYPES:
+        raise DayCloseStateError(
+            f"Unknown department type {department_type!r}.",
+        )
+    return department_type
+
+
+def pos_codes_by_department(db: Session, store_id: int) -> dict[int, list[str]]:
+    """``{department_id: [register numbers]}`` for the store, from the
+    register-import mapping (``retail_pos_merchandise_map``) — the one
+    place a register department number is tied to a department."""
+    from api.Modules.PosImport.Models import PosMerchandiseMap
+
+    out: dict[int, list[str]] = {}
+    rows = (
+        db.query(PosMerchandiseMap.department_id, PosMerchandiseMap.merchandise_code)
+        .filter(PosMerchandiseMap.store_id == store_id)
+        .all()
+    )
+    for dept_id, code in rows:
+        out.setdefault(int(dept_id), []).append(str(code))
+    for codes in out.values():
+        # Numbers in numeric order ("2" before "10"), then any others.
+        codes.sort(key=lambda c: (0, int(c), c) if c.isdigit() else (1, 0, c))
+    return out
+
+
+def _set_pos_codes(
+    db: Session, store_id: int, dept: Department, codes: list[str],
+) -> None:
+    """Make ``codes`` exactly this department's register numbers.
+
+    A number already tied to ANOTHER department is refused (409), never
+    moved silently: the register import books that number's sales to
+    whichever department holds it, so a quiet move would re-route money.
+    """
+    from api.Modules.PosImport.Models import PosMerchandiseMap
+
+    wanted: list[str] = []
+    for raw in codes:
+        code = str(raw).strip()
+        if code and code not in wanted:
+            wanted.append(code)
+    if wanted:
+        taken = (
+            db.query(PosMerchandiseMap.merchandise_code, Department.name)
+            .join(Department, Department.id == PosMerchandiseMap.department_id)
+            .filter(
+                PosMerchandiseMap.store_id == store_id,
+                PosMerchandiseMap.merchandise_code.in_(wanted),
+                PosMerchandiseMap.department_id != dept.id,
+            )
+            .first()
+        )
+        if taken is not None:
+            raise DayCloseStateError(
+                f"POS dept no {taken[0]} already belongs to {taken[1]!r}.",
+            )
+    mine = (
+        db.query(PosMerchandiseMap)
+        .filter_by(store_id=store_id, department_id=dept.id)
+        .all()
+    )
+    have = {m.merchandise_code for m in mine}
+    for m in mine:
+        if m.merchandise_code not in wanted:
+            db.delete(m)
+    for code in wanted:
+        if code not in have:
+            db.add(PosMerchandiseMap(
+                store_id=store_id, merchandise_code=code,
+                department_id=dept.id,
+            ))
+    db.flush()
+
+
 def create_department(
     db: Session, store_id: int, *, name: str, sort_order: int = 0,
     parent_id: int | None = None,
+    department_type: str = "merchandise",
+    is_taxable: bool = True,
+    min_age: int | None = None,
+    nacs_code: str = "",
+    pos_codes: list[str] | None = None,
 ) -> Department:
     if _department_name_taken(db, store_id, name):
         raise DayCloseStateError(
@@ -112,9 +195,15 @@ def create_department(
     dept = Department(
         store_id=store_id, name=name, sort_order=sort_order,
         parent_id=resolved_parent,
+        department_type=_check_department_type(department_type),
+        is_taxable=bool(is_taxable),
+        min_age=min_age or None,
+        nacs_code=(nacs_code or "").strip(),
     )
     db.add(dept)
     db.flush()
+    if pos_codes:
+        _set_pos_codes(db, store_id, dept, pos_codes)
     return dept
 
 
@@ -123,6 +212,11 @@ def update_department(
     name: str | None = None, sort_order: int | None = None,
     is_active: bool | None = None,
     parent_id: int | None = None,
+    department_type: str | None = None,
+    is_taxable: bool | None = None,
+    min_age: int | None = None,
+    nacs_code: str | None = None,
+    pos_codes: list[str] | None = None,
 ) -> Department:
     dept = db.get(Department, department_id)
     if dept is None or dept.store_id != store_id:
@@ -145,6 +239,17 @@ def update_department(
                 db, store_id, int(parent_id), child_id=dept.id,
             )
         )
+    if department_type is not None:
+        dept.department_type = _check_department_type(department_type)
+    if is_taxable is not None:
+        dept.is_taxable = bool(is_taxable)
+    # min_age: None = leave unchanged, 0 = clear.
+    if min_age is not None:
+        dept.min_age = int(min_age) or None
+    if nacs_code is not None:
+        dept.nacs_code = nacs_code.strip()
+    if pos_codes is not None:
+        _set_pos_codes(db, store_id, dept, pos_codes)
     db.flush()
     return dept
 
@@ -318,5 +423,5 @@ __all__ = [
     "DayCloseError", "DayCloseNotFoundError", "DayCloseStateError",
     "DayCloseSummary", "DepartmentDayTotal", "create_department",
     "day_summary", "delete_register_close", "list_departments",
-    "update_department", "upsert_register_close",
+    "pos_codes_by_department", "update_department", "upsert_register_close",
 ]

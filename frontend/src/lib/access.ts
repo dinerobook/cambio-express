@@ -124,6 +124,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/transactions/:id", perm: "day_close.read" },
   { path: "/lottery", perm: "lottery.read" },
   { path: "/price-book", perm: "catalog.read" },
+  { path: "/account/departments", perm: "day_close.read" },
   { path: "/purchase-invoices", perm: "catalog.read" },
   { path: "/purchase-invoices/new", perm: "catalog.update" },
   { path: "/purchase-invoices/:id", perm: "catalog.update" },

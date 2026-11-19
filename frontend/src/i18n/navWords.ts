@@ -47,6 +47,7 @@ export const NAV_WORDS_ES: Record<string, string> = {
   "Cross-store defaults": "Valores para todas las tiendas",
   "Cross-store reports": "Reportes de todas las tiendas",
   "Customers": "Clientes",
+  "Departments": "Departamentos",
   "Devices": "Dispositivos",
   "Discounts": "Descuentos",
   "Email log": "Registro de correos",

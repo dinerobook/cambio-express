@@ -4,7 +4,9 @@ Mounts at `/api/v2/dayclose/*`:
 
   GET    /departments              list departments (?include_inactive=1)
   POST   /departments              create department
-  PUT    /departments/{id}         rename / reorder / deactivate
+  PUT    /departments/{id}         rename / reorder / deactivate, and the
+                                   setup fields (type, taxable, min age,
+                                   NACS code, register numbers)
   GET    /day/{date}               day summary (closes + dept rollup)
   POST   /day/{date}/closes        upsert one register/shift close
                                    (replaces on the same register +
@@ -56,6 +58,7 @@ from api.Modules.DayClose.Services import (
     day_summary,
     delete_register_close,
     list_departments,
+    pos_codes_by_department,
     update_department,
     upsert_register_close,
 )
@@ -63,14 +66,23 @@ from api.Modules.DayClose.Services import (
 router = APIRouter(prefix="/dayclose", tags=["dayclose"])
 
 
-def _department_row(d: Department) -> DepartmentRow:
+def _department_row(d: Department, pos_codes: list[str]) -> DepartmentRow:
     return DepartmentRow(
         id=d.id, name=d.name or "",
         sort_order=int(d.sort_order or 0),
         is_active=bool(d.is_active),
         parent_id=d.parent_id,
         parent_name=(d.parent.name or "") if d.parent else "",
+        department_type=d.department_type or "merchandise",
+        is_taxable=bool(d.is_taxable),
+        min_age=int(d.min_age) if d.min_age else None,
+        nacs_code=d.nacs_code or "",
+        pos_codes=pos_codes,
     )
+
+
+def _one_department_row(db: Session, sid: int, d: Department) -> DepartmentRow:
+    return _department_row(d, pos_codes_by_department(db, sid).get(d.id, []))
 
 
 def _close_row(c: RegisterClose) -> RegisterCloseRow:
@@ -118,8 +130,9 @@ def list_departments_route(
 ) -> DepartmentListResponse:
     sid = resolve_store_scope(claims)
     require_permission(claims, "day_close", "read")
+    codes = pos_codes_by_department(db, sid)
     return DepartmentListResponse(
-        departments=[_department_row(d) for d in list_departments(
+        departments=[_department_row(d, codes.get(d.id, [])) for d in list_departments(
             db, sid, include_inactive=include_inactive,
         )],
     )
@@ -137,6 +150,11 @@ def create_department_route(
         dept = create_department(
             db, sid, name=body.name.strip(), sort_order=body.sort_order,
             parent_id=body.parent_id,
+            department_type=body.department_type,
+            is_taxable=body.is_taxable,
+            min_age=body.min_age,
+            nacs_code=body.nacs_code,
+            pos_codes=body.pos_codes,
         )
     except DayCloseNotFoundError:
         raise HTTPException(
@@ -144,13 +162,18 @@ def create_department_route(
         )
     except DayCloseStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    row = _one_department_row(db, sid, dept)
     audit_operator(
         db, claims, action="create_department",
         target_type="department", target_id=str(dept.id),
-        summary=f"department {dept.name}",
+        summary=(
+            f"department {dept.name} ({row.department_type}"
+            + (f", POS {', '.join(row.pos_codes)}" if row.pos_codes else "")
+            + ")"
+        ),
     )
     db.commit()
-    return DepartmentResponse(department=_department_row(dept))
+    return DepartmentResponse(department=row)
 
 
 @router.put("/departments/{department_id}", response_model=DepartmentResponse)
@@ -169,18 +192,24 @@ def update_department_route(
             sort_order=body.sort_order,
             is_active=body.is_active,
             parent_id=body.parent_id,
+            department_type=body.department_type,
+            is_taxable=body.is_taxable,
+            min_age=body.min_age,
+            nacs_code=body.nacs_code,
+            pos_codes=body.pos_codes,
         )
     except DayCloseNotFoundError:
         raise HTTPException(status_code=404, detail="Department not found")
     except DayCloseStateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    row = _one_department_row(db, sid, dept)
     audit_operator(
         db, claims, action="update_department",
         target_type="department", target_id=str(dept.id),
         summary=f"department {dept.name} updated",
     )
     db.commit()
-    return DepartmentResponse(department=_department_row(dept))
+    return DepartmentResponse(department=row)
 
 
 # ── Day close ──────────────────────────────────────────────

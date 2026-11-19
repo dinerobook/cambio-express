@@ -5,7 +5,29 @@ cents stay in the DB + Services (P0-3 convention). ``cash_counted``
 is nullable end-to-end: null means "drawer not counted", which is
 different from a counted $0.00.
 """
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+# Same values as ``DEPARTMENT_TYPES`` in the Models (a test keeps the
+# two in step); spelled out so the SPA gets a typed union.
+DepartmentType = Literal[
+    "merchandise",
+    "fuel",
+    "lottery_sell", "lottery_cash", "lotto_sell", "lotto_cash",
+    "money_order", "money_order_fee", "money_transfer",
+    "money_transfer_fee", "check_cash_fee", "service",
+    "misc",
+]
+
+# The register's department number ("POS Dept No"): digits as the
+# register sends them, kept as text so leading zeros survive.
+PosCode = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r"^[0-9A-Za-z]{1,20}$"),
+]
+NacsCode = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r"^[0-9A-Za-z]{0,10}$"),
+]
 
 
 class DepartmentWriteRequest(BaseModel):
@@ -14,6 +36,11 @@ class DepartmentWriteRequest(BaseModel):
     name:       str = Field(..., min_length=1, max_length=80)
     sort_order: int = Field(0, ge=0, le=10000)
     parent_id:  int | None = Field(None, ge=1)
+    department_type: DepartmentType = "merchandise"
+    is_taxable: bool = True
+    min_age:    int | None = Field(None, ge=1, le=99)
+    nacs_code:  NacsCode = ""
+    pos_codes:  list[PosCode] = Field(default_factory=list, max_length=20)
 
 
 class DepartmentUpdateRequest(BaseModel):
@@ -25,6 +52,14 @@ class DepartmentUpdateRequest(BaseModel):
     # 0 clears the parent link (None = leave unchanged — see the
     # PATCH-style semantics in update_department).
     parent_id:  int | None = Field(None, ge=0)
+    department_type: DepartmentType | None = None
+    is_taxable: bool | None = None
+    # 0 clears the age limit (None = leave unchanged).
+    min_age:    int | None = Field(None, ge=0, le=99)
+    nacs_code:  NacsCode | None = None
+    # The complete list of register numbers for this department
+    # (None = leave unchanged, [] = none).
+    pos_codes:  list[PosCode] | None = Field(None, max_length=20)
 
 
 class DepartmentRow(BaseModel):
@@ -36,6 +71,11 @@ class DepartmentRow(BaseModel):
     is_active: bool
     parent_id: int | None
     parent_name: str
+    department_type: DepartmentType
+    is_taxable: bool
+    min_age: int | None
+    nacs_code: str
+    pos_codes: list[str]
 
 
 class DepartmentListResponse(BaseModel):
