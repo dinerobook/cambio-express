@@ -20,7 +20,8 @@ files, whose hand-built fixtures break when an exported type changes.
 ## Files that belong to a money module
 Read that module's `INVARIANTS.md` before editing these:
 - DailyBook: `src/routes/EditDailyBook.tsx`, `src/api/dailybook.ts`
-- Transfers: `src/routes/NewTransfer.tsx`, `src/routes/EditTransfer.tsx`
+- Transfers: `src/routes/NewTransfer.tsx`, `src/routes/EditTransfer.tsx`,
+  `src/components/TransferForm.tsx`, `src/lib/transferForm.ts`
 - Monthly: `src/routes/EditMonthly.tsx`, `src/api/monthly.ts`
 - BankSync: `src/api/bankSync.ts`, `src/routes/BankTransactions.tsx`,
   `src/routes/BankRules.tsx`, `src/routes/BankMatching.tsx`,
@@ -168,7 +169,11 @@ Non-negotiables:
   use `register("field")`; custom components wrap in `<Controller>`;
   `useWatch({ control, name })` for fields the rest of the form
   shouldn't re-render against. Canonical example:
-  `src/routes/NewTransfer.tsx`.
+  `src/components/TransferForm.tsx` (schema in `src/lib/transferForm.ts`).
+  A page that both creates and edits one thing renders ONE shared form
+  component (New transfer and Edit transfer both render `TransferForm`);
+  the page keeps only its title, trail, where the values come from and
+  the save call.
 - **The UI never leaves a user stuck.** Nothing overflows its box at any
   window size; popups scroll; pickers are never cut off — a failure
   there is a bug in the shared component. On desktop, navigation

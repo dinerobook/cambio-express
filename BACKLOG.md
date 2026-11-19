@@ -380,7 +380,7 @@ impact ÷ effort. Numbers are an estimate.
        Standard stack across the SPA; one `useForm()` per page,
        schema co-located with the route.  Canonical example for
        the full layout-+-form pattern is
-       `frontend/src/routes/NewTransfer.tsx`.  See CLAUDE.md's
+       `frontend/src/components/TransferForm.tsx`.  See CLAUDE.md's
        "Forms" invariant.
 
 ### P3 — defer until traffic / scale
@@ -646,7 +646,7 @@ relationship.
       canonical list, so legacy free-text values don't break
       validation. Component:
       ``frontend/src/components/RecipientSuggestions.tsx``;
-      wired into both NewTransfer + EditTransfer. Backed by
+      wired into the shared TransferForm (New + Edit transfer). Backed by
       ``GET /api/v2/customers/{id}/recent-recipients``.
 - [x] **Announcement banner in the SPA chrome** — landed. New
       `GET /api/v2/announcements/active` returns the slim
