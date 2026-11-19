@@ -108,9 +108,13 @@ def _register_activity(
         return None
     target = latest[0]
 
+    # A fuel prepay deposit its completion superseded is the same
+    # ticket rung twice: the completion restates it in full, so
+    # counting both would double the receipt and its money.
     base = db.query(PosTransaction).filter(
         PosTransaction.store_id == store_id,
         PosTransaction.business_date == target,
+        PosTransaction.superseded.is_(False),
     )
     receipts = base.count()
     voided = base.filter(PosTransaction.has_voided_line.is_(True)).count()

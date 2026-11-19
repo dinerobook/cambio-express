@@ -32,13 +32,15 @@ def _headers(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _txn(store_id, *, source_file, no, cents, kind="sale", voided=False):
+def _txn(store_id, *, source_file, no, cents, kind="sale", voided=False,
+         superseded=False):
     txn = PosTransaction(
         store_id=store_id, business_date=DAY, source_file=source_file,
         kind=kind, register_id="1", cashier_id="3", transaction_no=no,
         receipt_at=datetime(2025, 12, 8, 13, 31, 38),
         gross_cents=cents, net_cents=cents, tax_cents=0,
         grand_total_cents=cents, has_voided_line=voided,
+        superseded=superseded,
     )
     db.session.add(txn)
     db.session.flush()
@@ -90,6 +92,23 @@ def test_counts_receipts_voids_and_refunds(client, test_store_id):
     assert reg["refunds"] == 1
     # 3.00 + 12.00 − 5.00
     assert reg["total_rung"] == pytest.approx(10.00)
+
+
+def test_superseded_prepay_deposit_is_not_a_second_receipt(
+    client, test_store_id,
+):
+    """A fuel prepay deposit and its completion are one ticket rung
+    twice; the completion restates it in full."""
+    _set_type(test_store_id)
+    with db_session():
+        _txn(test_store_id, source_file="A.xml", no="1475", cents=4216,
+             superseded=True)
+        _txn(test_store_id, source_file="B.xml", no="1481", cents=3216)
+        db.session.commit()
+
+    reg = _summary(client, test_store_id)["register"]
+    assert reg["receipts"] == 1
+    assert reg["total_rung"] == pytest.approx(32.16)
 
 
 def test_voided_fuel_line_does_not_move_gallons(client, test_store_id):

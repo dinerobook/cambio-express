@@ -17,6 +17,7 @@ const ticket = {
   receipt_at: null, register_id: "R1", cashier_id: "C7", item_count: 3,
   tax: 0.84, grand_total: 12.34, gross: 11.5, kind: "sale",
   has_voided_line: true, training_mode: false, offline: false, suspended: false,
+  superseded: false,
 };
 
 const list = (over: Record<string, unknown> = {}) => ({
@@ -37,6 +38,18 @@ describe("POS transactions", () => {
     expect(row).toHaveTextContent("voided item");
     expect(screen.getByText("$12.34").closest("td")).toHaveStyle({ textAlign: "right" });
     expect(screen.getByText("Showing 1–1 of 80")).toBeInTheDocument();
+  });
+
+  it("flags a fuel prepay deposit its completion superseded", async () => {
+    mockFetch({
+      "GET /api/v2/posimport/transactions": {
+        body: list({ rows: [{ ...ticket, has_voided_line: false, superseded: true }] }),
+      },
+    });
+    renderRoute(<Transactions />);
+    const row = (await screen.findByText("T-1001")).closest("tr")!;
+    expect(row).toHaveTextContent("superseded");
+    expect(row).not.toHaveTextContent("voided item");
   });
 
   it("opens a ticket from its row by keyboard", async () => {

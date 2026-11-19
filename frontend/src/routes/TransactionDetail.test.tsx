@@ -35,6 +35,11 @@ const detail = {
     tax: 0,
     grand_total: 12,
     has_voided_line: true,
+    superseded: false,
+    superseded_by_id: null,
+    linked_reason: "",
+    linked_transaction_no: "",
+    linked_id: null,
     lines: [
       {
         line_seq: 1,
@@ -146,6 +151,46 @@ describe("TransactionDetail", () => {
       .toEqual(expect.arrayContaining(["Artículo", "Código de barras", "Forma de pago"]));
     expect(screen.getByText("Cajón")).toBeInTheDocument();
     expect(englishLeftovers(document.body, ["posTx."])).toEqual([]);
+    detailOverride = {};
+  });
+
+  it("says a superseded prepay deposit is not counted", () => {
+    detailOverride = { superseded: true, superseded_by_id: 43 };
+    renderDetail();
+    expect(screen.getByText("superseded")).toBeInTheDocument();
+    expect(screen.getByText(/Part of a fuel prepay/)).toBeInTheDocument();
+    expect(screen.getByText(/not counted in any total/)).toBeInTheDocument();
+    detailOverride = {};
+  });
+
+  it("names the deposit a prepay completion restates", () => {
+    detailOverride = {
+      linked_reason: "fuelPrepay", linked_transaction_no: "1475", linked_id: 41,
+    };
+    renderDetail();
+    expect(screen.getByText(/Completes the fuel prepay rung on ticket/)).toBeInTheDocument();
+    expect(screen.getByText("1475")).toBeInTheDocument();
+    expect(screen.queryByText("superseded")).not.toBeInTheDocument();
+    detailOverride = {};
+  });
+
+  it("does not call a void completion the ticket that counts", () => {
+    detailOverride = {
+      kind: "void", linked_reason: "fuelPrepay", linked_transaction_no: "1475", linked_id: 41,
+    };
+    renderDetail();
+    expect(screen.queryByText(/Completes the fuel prepay/)).not.toBeInTheDocument();
+    detailOverride = {};
+  });
+
+  it("reads the prepay notes in Spanish", () => {
+    detailOverride = { superseded: true, superseded_by_id: 43 };
+    setLanguage("es");
+    renderDetail();
+    expect(screen.getByText("reemplazado")).toBeInTheDocument();
+    expect(screen.getByText(/Parte de un prepago de gasolina/)).toBeInTheDocument();
+    expect(englishLeftovers(document.body, ["posTx."])).toEqual([]);
+    setLanguage("en");
     detailOverride = {};
   });
 

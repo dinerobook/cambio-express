@@ -10,6 +10,11 @@ It is returned to the caller and flagged, because a voided item is
 precisely what a manager is looking for — but it is never summed.
 Every money figure here comes from the parent event's own totals,
 which the parser already computed with cancelled lines excluded.
+
+The same holds for a fuel prepay deposit its completion superseded
+(naxml module docstring): the ticket is listed, flagged, and points
+at its completion, but no total here adds it — the completion
+restates the whole ticket.
 """
 from __future__ import annotations
 
@@ -103,7 +108,7 @@ def list_transactions(
     )
     total = query.count()
     total_grand_cents = (
-        query.with_entities(
+        query.filter(PosTransaction.superseded.is_(False)).with_entities(
             func.coalesce(func.sum(PosTransaction.grand_total_cents), 0),
         ).scalar() or 0
     )
@@ -153,6 +158,7 @@ def list_transactions(
                 "training_mode": bool(t.training_mode),
                 "offline": bool(t.offline),
                 "suspended": bool(t.suspended),
+                "superseded": bool(t.superseded),
             }
             for t in rows
         ],
@@ -187,6 +193,32 @@ def transaction_detail(
     )
     if txn is None:
         return None
+    # The other half of a prepaid ticket, looked up by what is stable
+    # across day rebuilds (a file name, Passport's own keys) rather
+    # than a stored id. Either may be absent: not imported yet, or
+    # before the export started.
+    completion_id = None
+    if txn.superseded and txn.superseded_by_file:
+        completion_id = (
+            db.query(PosTransaction.id)
+            .filter_by(store_id=store_id, source_file=txn.superseded_by_file)
+            .scalar()
+        )
+    deposit_id = None
+    if txn.linked_reason and txn.linked_started_at is not None:
+        deposit_id = (
+            db.query(PosTransaction.id)
+            .filter(
+                PosTransaction.store_id == store_id,
+                PosTransaction.register_id == txn.linked_register_id,
+                PosTransaction.transaction_no == txn.linked_transaction_no,
+                PosTransaction.started_at == txn.linked_started_at,
+                PosTransaction.id != txn.id,
+            )
+            .order_by(PosTransaction.id)
+            .limit(1)
+            .scalar()
+        )
     return {
         "id": txn.id,
         "business_date": txn.business_date.isoformat(),
@@ -209,6 +241,11 @@ def transaction_detail(
         "tax": to_dollars(txn.tax_cents),
         "grand_total": to_dollars(txn.grand_total_cents),
         "has_voided_line": bool(txn.has_voided_line),
+        "superseded": bool(txn.superseded),
+        "superseded_by_id": completion_id,
+        "linked_reason": txn.linked_reason or "",
+        "linked_transaction_no": txn.linked_transaction_no or "",
+        "linked_id": deposit_id,
         "lines": [
             {
                 "line_seq": int(line.line_seq or 0),

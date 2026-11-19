@@ -17211,6 +17211,25 @@
             "title": "Lines",
             "type": "array"
           },
+          "linked_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Id"
+          },
+          "linked_reason": {
+            "title": "Linked Reason",
+            "type": "string"
+          },
+          "linked_transaction_no": {
+            "title": "Linked Transaction No",
+            "type": "string"
+          },
           "net": {
             "title": "Net",
             "type": "number"
@@ -17252,6 +17271,21 @@
               }
             ],
             "title": "Started At"
+          },
+          "superseded": {
+            "title": "Superseded",
+            "type": "boolean"
+          },
+          "superseded_by_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Id"
           },
           "suspended": {
             "title": "Suspended",
@@ -17303,6 +17337,11 @@
           "tax",
           "grand_total",
           "has_voided_line",
+          "superseded",
+          "superseded_by_id",
+          "linked_reason",
+          "linked_transaction_no",
+          "linked_id",
           "lines",
           "tenders"
         ],
@@ -17497,6 +17536,10 @@
             "title": "Register Id",
             "type": "string"
           },
+          "superseded": {
+            "title": "Superseded",
+            "type": "boolean"
+          },
           "suspended": {
             "title": "Suspended",
             "type": "boolean"
@@ -17529,7 +17572,8 @@
           "has_voided_line",
           "training_mode",
           "offline",
-          "suspended"
+          "suspended",
+          "superseded"
         ],
         "title": "PosTransactionRow",
         "type": "object"
@@ -47100,7 +47144,7 @@
     },
     "/posimport/agent/upload": {
       "post": {
-        "description": "Site-agent push: one journal file per call, authenticated by\nthe per-store agent key (opaque 401 on any failure \u2014 no\nenumeration hints). Idempotent per filename so retries are\nfree. Commits its own transaction: staging isn't an operator\nmutation, so there's no audit row to co-commit.",
+        "description": "Site-agent push: one journal file per call, authenticated by\nthe per-store agent key (opaque 401 on any failure \u2014 no\nenumeration hints). Idempotent per filename so retries are\nfree. Commits its own transaction: staging isn't an operator\nmutation, so there's no audit row to co-commit.\n\nThe key carries no JWT, so the store's gates are asked here\n(``agent_store_block``): a disabled store is 403, a frozen or\nlapsed one 402 with the subscription gate's ``reason``, and\nnothing is staged or booked. Checked after the key, so a\nstranger never learns a store's state.",
         "operationId": "agent_upload_route_posimport_agent_upload_post",
         "parameters": [
           {
