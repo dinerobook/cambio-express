@@ -17,7 +17,6 @@ import { fmtMoney2 } from "../lib/formatters";
 import { csvMoney } from "../lib/csv";
 import { hasPermission } from "../lib/permissions";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
-import DepartmentsManager from "../components/DepartmentsManager";
 import { ModisoftImportModal } from "./ModisoftImportModal";
 import {
   Alert, Button, Card, Checkbox, EmptyState, ErrorState,
@@ -39,18 +38,16 @@ const VENDOR_COLUMNS: MessageKey[] = [
 const PLU_PILL = "PLU";
 
 // /app/price-book — the item catalog + vendor directory (P2-2).
-// Three tabs on one page: Items (paginated live search over the
-// price book), Vendors (the supplier directory items link to), and
-// Departments (how sales are grouped, on items and on a register
-// close alike). Everything here is an operator-owned catalog
+// Two tabs on one page: Items (paginated live search over the
+// price book) and Vendors (the supplier directory items link to).
+// Departments are set up in one place only, Account → Departments
+// (owner, 2026-11-19); an item just picks one. Everything here is an operator-owned catalog
 // (HANDOFF.md §2 product principle) — cashiers can look items up
 // (catalog.read), managing rows needs catalog.update.
 
 export default function PriceBook() {
   useT(); // re-render on a language switch
-  const [tab, setTab] = useState<"items" | "vendors" | "departments">(
-    "items",
-  );
+  const [tab, setTab] = useState<"items" | "vendors">("items");
   return (
     <PageShell maxWidth="72rem">
       <PageCrumbs />
@@ -73,16 +70,9 @@ export default function PriceBook() {
         >
           {t("pb.tabVendors")}
         </TabsButton>
-        <TabsButton
-          active={tab === "departments"}
-          onClick={() => setTab("departments")}
-        >
-          {t("dept.title")}
-        </TabsButton>
       </TabsBar>
       {tab === "items" && <ItemsTab />}
       {tab === "vendors" && <VendorsTab />}
-      {tab === "departments" && <DepartmentsManager />}
     </PageShell>
   );
 }

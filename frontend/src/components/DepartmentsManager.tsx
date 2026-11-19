@@ -18,8 +18,8 @@ import {
 import styles from "./DepartmentsManager.module.css";
 import { t, tn, useT, type MessageKey } from "../i18n";
 
-// The store's department setup (Account → Departments; the same
-// component is the Price book's Departments tab). Modelled on
+// The store's department setup (Account → Departments, the one place
+// departments are set up; owner, 2026-11-19). Modelled on
 // Modisoft's Setup → Departments: each department has the register's
 // department number ("POS no"), a type (what kind of sales it holds —
 // the daily paperwork reads it), taxable, a minimum buyer age and a
@@ -119,12 +119,7 @@ function posSortValue(d: Department): number {
 
 type SortKey = "pos" | "name" | "type";
 
-export default function DepartmentsManager({
-  showTitle = true,
-}: {
-  /** The Account page carries the title in its own header. */
-  showTitle?: boolean;
-} = {}) {
+export default function DepartmentsManager() {
   useT(); // re-render on a language switch
   const [showInactive, setShowInactive] = useState(false);
   const departments = useDepartments(showInactive);
@@ -272,12 +267,6 @@ export default function DepartmentsManager({
 
   return (
     <Section
-      title={showTitle ? (
-        <>
-          {t("dept.title")}
-          <InfoTip text={t("dept.tip")} />
-        </>
-      ) : undefined}
       actions={
         <div className={styles.actions}>
           <Button
