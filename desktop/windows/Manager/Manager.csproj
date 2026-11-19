@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- DineroBook Manager: signs the computer in to its store, sets the
+       Passport folder, installs and controls the DineroBookProcessor
+       service, and shows what it is doing. Runs as the person who opened
+       it; asks Windows for administrator rights only for setup. Published
+       as one .exe by .github/workflows/dinerobook-processor.yml. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>DineroBookManager</AssemblyName>
+    <RootNamespace>DineroBook.Manager</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Product>DineroBook Manager</Product>
+    <Company>DineroBook</Company>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.1" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Processor.Core/Processor.Core.csproj" />
+  </ItemGroup>
+
+</Project>
