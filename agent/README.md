@@ -1,5 +1,11 @@
 # DineroBook site agent (Gilbarco)
 
+> **New installs: use DineroBook Processor instead**, a Windows service
+> with a setup window (sign in, pick the folder, Install) and no Python:
+> [`desktop/windows/Processor/README.md`](../desktop/windows/Processor/README.md).
+> This script stays for the stores already running it; that README says
+> how to move one over.
+
 A tiny watcher that runs on the store's back-office PC, watches
 the folder where Gilbarco Passport writes its NAXML journal files,
 and pushes each new file to DineroBook the moment it appears. The

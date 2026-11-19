@@ -15,6 +15,7 @@
 > | [`frontend/`](frontend/CLAUDE.md) | design system, UI standards, OpenAPI types, the SPA checks CI runs |
 > | [`alembic/`](alembic/CLAUDE.md) | migrations and table naming |
 > | [`desktop/windows/`](desktop/windows/README.md) | the Check Desk Windows app (check cashing window + Excella scanner) |
+> | [`desktop/windows/Processor/`](desktop/windows/Processor/README.md) | DineroBook Processor (Windows service sending Passport's BOOutbox files; replaces `agent/` for new installs) + DineroBook Manager; its server copy is `ServerContract.cs` |
 >
 > `tests/test_instruction_files.py` fails when a key rule disappears
 > from these files or a path they name stops existing. A new rule goes

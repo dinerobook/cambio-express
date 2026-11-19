@@ -1,5 +1,9 @@
 # DineroBook Check Desk (Windows)
 
+> This folder also holds **DineroBook Processor** and **DineroBook
+> Manager**, the Windows service that sends Gilbarco Passport's BOOutbox
+> files to DineroBook: see [Processor/README.md](Processor/README.md).
+
 The check cashing app in its own window, with the MagTek Excella
 scanner. Owner's direction (2026-11-10/11): the scanner is the default,
 like the counter programs cashiers know — the window opens on Cash a

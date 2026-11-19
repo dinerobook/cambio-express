@@ -1,0 +1,75 @@
+name: DineroBook Processor (Windows service + Manager)
+
+# Builds and tests DineroBook Processor (the Windows service that sends
+# Passport's BOOutbox files) and DineroBook Manager (its setup window),
+# desktop/windows/Processor*, Manager. Keeps both ready-to-run .exe files
+# as one download on the run's page (Artifacts → DineroBookProcessor).
+# Runs only when they change; the web app's CI is ci.yml.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "desktop/windows/Processor/**"
+      - "desktop/windows/Processor.Core/**"
+      - "desktop/windows/Processor.Tests/**"
+      - "desktop/windows/Manager/**"
+      - "desktop/windows/DineroBookProcessor.sln"
+      - ".github/workflows/dinerobook-processor.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "desktop/windows/Processor/**"
+      - "desktop/windows/Processor.Core/**"
+      - "desktop/windows/Processor.Tests/**"
+      - "desktop/windows/Manager/**"
+      - "desktop/windows/DineroBookProcessor.sln"
+      - ".github/workflows/dinerobook-processor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build + test DineroBook Processor
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build everything (warnings are errors)
+        run: dotnet build desktop/windows/DineroBookProcessor.sln -c Release -warnaserror
+
+      - name: Test
+        run: dotnet test desktop/windows/Processor.Tests/Processor.Tests.csproj -c Release --no-build
+
+      - name: Publish the service (one .exe, 64-bit)
+        run: >
+          dotnet publish desktop/windows/Processor/Processor.csproj -c Release
+          -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -o publish
+
+      - name: Publish the Manager (one .exe, 64-bit)
+        run: >
+          dotnet publish desktop/windows/Manager/Manager.csproj -c Release
+          -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -o publish
+
+      - name: Keep the two .exe files
+        uses: actions/upload-artifact@v4
+        with:
+          name: DineroBookProcessor
+          path: |
+            publish/DineroBookProcessor.exe
+            publish/DineroBookManager.exe
+          if-no-files-found: error
+          retention-days: 30
