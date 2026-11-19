@@ -13853,6 +13853,279 @@
         "title": "MonthsLoggedResponse",
         "type": "object"
       },
+      "MovementDayResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "departments": {
+            "items": {
+              "$ref": "#/components/schemas/MovementDepartmentRow"
+            },
+            "title": "Departments",
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/MovementFileRow"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "fuel": {
+            "items": {
+              "$ref": "#/components/schemas/MovementFuelRow"
+            },
+            "title": "Fuel",
+            "type": "array"
+          },
+          "item_amount": {
+            "title": "Item Amount",
+            "type": "number"
+          },
+          "item_quantity": {
+            "title": "Item Quantity",
+            "type": "number"
+          },
+          "item_rows": {
+            "title": "Item Rows",
+            "type": "integer"
+          },
+          "misc": {
+            "items": {
+              "$ref": "#/components/schemas/MovementMiscRow"
+            },
+            "title": "Misc",
+            "type": "array"
+          },
+          "tax_levels": {
+            "items": {
+              "$ref": "#/components/schemas/MovementTaxRow"
+            },
+            "title": "Tax Levels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "files",
+          "fuel",
+          "departments",
+          "tax_levels",
+          "misc",
+          "item_rows",
+          "item_quantity",
+          "item_amount"
+        ],
+        "title": "MovementDayResponse",
+        "type": "object"
+      },
+      "MovementDepartmentRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "merchandise_code": {
+            "title": "Merchandise Code",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          },
+          "refunds": {
+            "title": "Refunds",
+            "type": "number"
+          },
+          "transactions": {
+            "title": "Transactions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "merchandise_code",
+          "description",
+          "quantity",
+          "amount",
+          "refunds",
+          "transactions"
+        ],
+        "title": "MovementDepartmentRow",
+        "type": "object"
+      },
+      "MovementFileRow": {
+        "additionalProperties": false,
+        "properties": {
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "parse_error": {
+            "title": "Parse Error",
+            "type": "string"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          }
+        },
+        "required": [
+          "family",
+          "filename",
+          "received_at",
+          "parse_error"
+        ],
+        "title": "MovementFileRow",
+        "type": "object"
+      },
+      "MovementFuelRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "gallons": {
+            "title": "Gallons",
+            "type": "number"
+          },
+          "grade_id": {
+            "title": "Grade Id",
+            "type": "string"
+          },
+          "meter_amount": {
+            "title": "Meter Amount",
+            "type": "number"
+          },
+          "meter_gallons": {
+            "title": "Meter Gallons",
+            "type": "number"
+          },
+          "positions": {
+            "title": "Positions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "grade_id",
+          "gallons",
+          "amount",
+          "meter_gallons",
+          "meter_amount",
+          "positions"
+        ],
+        "title": "MovementFuelRow",
+        "type": "object"
+      },
+      "MovementMiscRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "number"
+          },
+          "modifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modifier"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "sub_code": {
+            "title": "Sub Code",
+            "type": "string"
+          },
+          "tender_code": {
+            "title": "Tender Code",
+            "type": "string"
+          },
+          "tender_sub_code": {
+            "title": "Tender Sub Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "sub_code",
+          "modifier",
+          "tender_code",
+          "tender_sub_code",
+          "amount",
+          "count",
+          "role"
+        ],
+        "title": "MovementMiscRow",
+        "type": "object"
+      },
+      "MovementTaxRow": {
+        "additionalProperties": false,
+        "properties": {
+          "tax_collected": {
+            "title": "Tax Collected",
+            "type": "number"
+          },
+          "tax_exempt_sales": {
+            "title": "Tax Exempt Sales",
+            "type": "number"
+          },
+          "tax_forgiven_sales": {
+            "title": "Tax Forgiven Sales",
+            "type": "number"
+          },
+          "tax_level_id": {
+            "title": "Tax Level Id",
+            "type": "string"
+          },
+          "taxable_sales": {
+            "title": "Taxable Sales",
+            "type": "number"
+          }
+        },
+        "required": [
+          "tax_level_id",
+          "taxable_sales",
+          "tax_collected",
+          "tax_exempt_sales",
+          "tax_forgiven_sales"
+        ],
+        "title": "MovementTaxRow",
+        "type": "object"
+      },
       "MyActivityResponse": {
         "additionalProperties": false,
         "description": "Page-shaped response for the activity feed.",
@@ -20635,13 +20908,18 @@
           "file_count": {
             "title": "File Count",
             "type": "integer"
+          },
+          "report_count": {
+            "title": "Report Count",
+            "type": "integer"
           }
         },
         "required": [
           "business_date",
           "file_count",
           "error_count",
-          "committed"
+          "committed",
+          "report_count"
         ],
         "title": "StagedDayRow",
         "type": "object"
@@ -47451,6 +47729,83 @@
           }
         },
         "summary": "Set Mapping Route",
+        "tags": [
+          "posimport"
+        ]
+      }
+    },
+    "/posimport/movement": {
+      "get": {
+        "description": "The register's own movement reports for one business day\n(G-7), read-only: fuel by grade, departments, tax levels and the\nmiscellaneous summary, plus the files received. Nothing here is\nbooked anywhere. Same permission as the staged-days list it sits\nbeside.",
+        "operationId": "movement_day_route_posimport_movement_get",
+        "parameters": [
+          {
+            "description": "YYYY-MM-DD business day",
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "description": "YYYY-MM-DD business day",
+              "title": "Day",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovementDayResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Movement Day Route",
         "tags": [
           "posimport"
         ]

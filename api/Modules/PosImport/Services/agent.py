@@ -17,6 +17,10 @@ and the server does everything else.
 * Commit: the operator books a staged business day through the
   same ``commit_business_day`` path as manual uploads — same
   mapping gate, same audit, same idempotent day replacement.
+* Movement reports (G-7): the same folder also holds Passport's
+  period reports. They are staged here too (``IS_JOURNAL`` keeps
+  every journal reader away from them) and stored by
+  ``movement_ingest``.
 """
 from __future__ import annotations
 
@@ -41,6 +45,14 @@ from api.Modules.PosImport.Services.ingest import (
     CommitDayResult,
     PosImportError,
 )
+from api.Modules.PosImport.Services.movement import (
+    MOVEMENT_KIND,
+    MovementParseError,
+    parse_movement_report,
+)
+from api.Modules.PosImport.Services.movement_ingest import (
+    ingest_movement_report,
+)
 from api.Modules.PosImport.Services.naxml import (
     PjrEvent,
     PosJournalParseError,
@@ -49,6 +61,11 @@ from api.Modules.PosImport.Services.naxml import (
 
 KEY_PREFIX = "pak_"
 MAX_AGENT_FILE_BYTES = 4 * 1024 * 1024
+
+# Staged files that are register events. Movement reports share the
+# staging table (raw kept, idempotent per filename) but are never a
+# journal: no day booking, error count or price-book harvest reads them.
+IS_JOURNAL = PosJournalFile.event_kind != MOVEMENT_KIND
 
 
 def _hash(raw_key: str) -> str:
@@ -218,16 +235,21 @@ def _bump_hourly(
 def stage_journal_file(
     db: Session, store_id: int, *, filename: str, content: bytes,
 ) -> StageResult:
-    """Store one pushed journal file. Idempotent on (store,
-    filename) — the agent can retry safely. Files that fail to
-    parse are staged anyway with the error recorded (a future
-    parser fix re-parses them at commit time).
+    """Store one pushed file. Idempotent on (store, filename) — the
+    agent can retry safely. Files that fail to parse are staged
+    anyway with the error recorded (a future parser fix re-parses
+    them at commit time).
 
     A prepaid fuel ticket arrives twice (deposit, then the
     completion that restates it — naxml module docstring). The live
     hourly preview counts it once whichever half lands first, and a
     completion whose deposit sits on an earlier, already-booked day
-    reports that day in ``rebook_day``."""
+    reports that day in ``rebook_day``.
+
+    A movement report (G-7) is staged the same way, marked
+    ``event_kind="movement"``, and its rows replace that report's
+    rows in the movement tables at once — a re-sent report under a
+    new filename never doubles them. It never feeds a day total."""
     filename = filename.strip().rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     if not filename:
         raise PosImportError("Filename is required.")
@@ -246,12 +268,31 @@ def stage_journal_file(
     event_kind = ""
     parse_error = ""
     event = None
+    # G-7: route by document. A movement report (FGM / ISM / MCM /
+    # MSM / TLM / TPM) is written to its own tables right away;
+    # anything else is a journal file, parsed exactly as before.
     try:
-        event = parse_pjr(content)
-        business_date = event.business_date
-        event_kind = event.kind
-    except PosJournalParseError as exc:
+        report = parse_movement_report(content)
+    except MovementParseError as exc:
+        # Unreadable movement report: staged with the error, under
+        # its day when the header could be read.
+        event_kind = MOVEMENT_KIND
+        business_date = exc.business_date
         parse_error = str(exc)[:255]
+    else:
+        if report is not None:
+            event_kind = MOVEMENT_KIND
+            business_date = report.header.business_date
+            ingest_movement_report(
+                db, store_id, report, source_file=filename,
+            )
+        else:
+            try:
+                event = parse_pjr(content)
+                business_date = event.business_date
+                event_kind = event.kind
+            except PosJournalParseError as exc:
+                parse_error = str(exc)[:255]
 
     prepay_key = event.prepay_key if event is not None else ""
     partners = (
@@ -333,6 +374,7 @@ class StagedDay:
     file_count: int
     error_count: int
     committed: bool
+    report_count: int = 0
 
 
 def staged_days(db: Session, store_id: int) -> list[StagedDay]:
@@ -347,6 +389,7 @@ def staged_days(db: Session, store_id: int) -> list[StagedDay]:
         .filter(
             PosJournalFile.store_id == store_id,
             PosJournalFile.business_date.isnot(None),
+            IS_JOURNAL,
         )
         .group_by(PosJournalFile.business_date)
         .order_by(PosJournalFile.business_date.desc())
@@ -358,10 +401,24 @@ def staged_days(db: Session, store_id: int) -> list[StagedDay]:
             PosJournalFile.store_id == store_id,
             PosJournalFile.parse_error != "",
             PosJournalFile.business_date.isnot(None),
+            IS_JOURNAL,
         )
         .distinct()
         .all()
     }
+    report_counts = dict(
+        db.query(
+            PosJournalFile.business_date,
+            func.count(PosJournalFile.id),
+        )
+        .filter(
+            PosJournalFile.store_id == store_id,
+            PosJournalFile.business_date.isnot(None),
+            PosJournalFile.event_kind == MOVEMENT_KIND,
+        )
+        .group_by(PosJournalFile.business_date)
+        .all()
+    )
     committed_days = {
         d for (d,) in db.query(RegisterClose.report_date)
         .filter(
@@ -380,7 +437,7 @@ def staged_days(db: Session, store_id: int) -> list[StagedDay]:
                 .filter_by(
                     store_id=store_id, business_date=day,
                 )
-                .filter(PosJournalFile.parse_error != "")
+                .filter(PosJournalFile.parse_error != "", IS_JOURNAL)
                 .scalar()
             ) or 0
         out.append(StagedDay(
@@ -388,6 +445,7 @@ def staged_days(db: Session, store_id: int) -> list[StagedDay]:
             file_count=int(count),
             error_count=int(errors),
             committed=day in committed_days,
+            report_count=int(report_counts.get(day, 0)),
         ))
     return out
 
@@ -433,6 +491,7 @@ def auto_commit_rolled_days(db: Session, store_id: int) -> list:
         .filter(
             PosJournalFile.store_id == store_id,
             PosJournalFile.business_date.isnot(None),
+            IS_JOURNAL,
         )
         .scalar()
     )
@@ -446,6 +505,7 @@ def auto_commit_rolled_days(db: Session, store_id: int) -> list:
             PosJournalFile.business_date.isnot(None),
             PosJournalFile.business_date < latest,
             PosJournalFile.business_date >= window_start,
+            IS_JOURNAL,
         )
         .distinct()
         .all()
@@ -467,6 +527,7 @@ def auto_commit_rolled_days(db: Session, store_id: int) -> list:
             PosJournalFile.store_id == store_id,
             PosJournalFile.business_date.in_(candidates),
             PosJournalFile.parse_error != "",
+            IS_JOURNAL,
         )
         .distinct()
         .all()
@@ -581,6 +642,7 @@ def staged_events_for_day(
     files = (
         db.query(PosJournalFile)
         .filter_by(store_id=store_id, business_date=day)
+        .filter(IS_JOURNAL)
         .all()
     )
     events: list[PjrEvent] = []
@@ -597,8 +659,8 @@ def staged_events_for_day(
 
 
 __all__ = [
-    "KEY_PREFIX", "MAX_AGENT_FILE_BYTES", "AgentStoreBlock", "StageResult",
-    "StagedDay", "agent_store_block",
+    "IS_JOURNAL", "KEY_PREFIX", "MAX_AGENT_FILE_BYTES", "AgentStoreBlock",
+    "StageResult", "StagedDay", "agent_store_block",
     "authenticate_agent", "issue_agent_key", "list_agent_keys",
     "rebook_for_late_completion", "revoke_agent_key",
     "stage_journal_file", "staged_days", "staged_events_for_day",

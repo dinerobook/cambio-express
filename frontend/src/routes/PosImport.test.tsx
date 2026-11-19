@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import PosImport from "./PosImport";
+import type { MovementDay, StagedDay } from "../api/posimport";
 import { ToastProvider } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { setLanguage } from "../i18n";
@@ -16,13 +17,20 @@ import { englishLeftovers } from "../test/i18n";
 // to fire on the first click.
 
 const revokeAgentKey = vi.fn();
+let stagedDays: StagedDay[] = [];
+let movementDay: MovementDay | undefined;
+const movementDayFor = vi.fn();
 
 vi.mock("../api/posimport", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/posimport")>();
   return {
     ...real,
     revokeAgentKey: (...a: unknown[]) => revokeAgentKey(...a),
-    useStagedDays: () => ({ data: { days: [] }, isLoading: false, isError: false }),
+    useStagedDays: () => ({ data: { days: stagedDays }, isLoading: false, isError: false }),
+    useMovementDay: (day: string) => {
+      movementDayFor(day);
+      return { data: movementDay, isLoading: false, isError: false };
+    },
     useAgentKeys: () => ({
       data: {
         keys: [
@@ -61,6 +69,8 @@ function renderPage() {
 describe("PosImport agent key revoke", () => {
   beforeEach(() => {
     revokeAgentKey.mockReset();
+    stagedDays = [];
+    movementDay = undefined;
   });
 
   it("offers Revoke only on active keys", () => {
@@ -116,5 +126,104 @@ describe("PosImport agent key revoke", () => {
     const dialog = await screen.findByRole("dialog", { name: "¿Anular esta clave del agente?" });
     expect(dialog).toHaveTextContent('¿Anular "Back office PC"?');
     expect(englishLeftovers(dialog, ["posImp."])).toEqual([]);
+  });
+});
+
+// Register reports (G-7): the movement reports staged for a day open
+// read-only below the staged list. MSM subtotals are marked and the
+// rows they add up are indented, so nobody adds both.
+
+const DAY: MovementDay = {
+  day: "2025-12-05",
+  files: [
+    { family: "FGM", filename: "FGM1.xml", received_at: "2025-12-06T05:00:00", parse_error: "" },
+    { family: "MSM", filename: "MSM1.xml", received_at: "2025-12-06T05:00:00", parse_error: "" },
+    { family: "ISM", filename: "ISM1.xml", received_at: "2025-12-06T05:00:00",
+      parse_error: "ISM: Bad money value 'x' in <SalesAmount>" },
+  ],
+  fuel: [{ grade_id: "001", gallons: 39.095, amount: 119.62,
+           meter_gallons: 42250.35, meter_amount: 101260.6, positions: 2 }],
+  departments: [{ merchandise_code: "10", description: "SODA", quantity: 4,
+                  amount: 8.46, refunds: 0, transactions: 3 }],
+  tax_levels: [{ tax_level_id: "99", taxable_sales: 1520.33, tax_collected: 125.43,
+                 tax_exempt_sales: 0, tax_forgiven_sales: 3.1 }],
+  misc: [
+    { code: "payouts", sub_code: "vendorPay", modifier: null, tender_code: "",
+      tender_sub_code: "", amount: -150, count: 3, role: "subtotal" },
+    { code: "payouts", sub_code: "vendorPay", modifier: "3", tender_code: "",
+      tender_sub_code: "", amount: -100, count: 0, role: "part" },
+    { code: "safeDrop", sub_code: "total", modifier: null, tender_code: "cash",
+      tender_sub_code: "generic", amount: 800, count: 4, role: "" },
+  ],
+  item_rows: 3, item_quantity: 10, item_amount: 10.56,
+};
+
+const STAGED: StagedDay = {
+  business_date: "2025-12-05", file_count: 412, error_count: 0,
+  committed: true, report_count: 6,
+};
+
+describe("PosImport register reports", () => {
+  beforeEach(() => {
+    stagedDays = [STAGED, { ...STAGED, business_date: "2025-12-04", report_count: 0 }];
+    movementDay = DAY;
+    movementDayFor.mockReset();
+    setLanguage("en");
+  });
+
+  it("opens a day's reports from its count and closes them again", async () => {
+    renderPage();
+    const rows = screen.getAllByRole("row");
+    const withReports = rows.find((r) => r.textContent?.includes("6 reports"));
+    expect(withReports).toBeDefined();
+    // A day with no reports has no control, just a dash.
+    expect(screen.getAllByRole("button", { name: /reports?$/ })).toHaveLength(1);
+    expect(screen.queryByText(/Register reports ·/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "6 reports" }));
+    expect(movementDayFor).toHaveBeenCalledWith("2025-12-05");
+    expect(screen.getByRole("heading", { name: /Register reports ·/ })).toBeInTheDocument();
+    // KPI card + the fuel table row.
+    expect(screen.getAllByText("$119.62")).toHaveLength(2);
+    expect(screen.getByText("SODA")).toBeInTheDocument();
+    expect(screen.getAllByText("$125.43")).toHaveLength(2);
+    expect(screen.getByText("cash / generic")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByText(/Register reports ·/)).not.toBeInTheDocument();
+  });
+
+  it("marks the subtotal and indents the rows it adds up", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "6 reports" }));
+    const subtotal = screen.getByText("subtotal").closest("tr");
+    expect(subtotal).toHaveTextContent("-150.00");
+    const part = screen.getByText("-100.00").closest("tr");
+    expect(part).not.toHaveTextContent("subtotal");
+    expect(within(part as HTMLElement).getByText("payouts").className).toMatch(/partIndent/);
+  });
+
+  it("lists the reports the server could not read", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "6 reports" }));
+    expect(screen.getByText("1 report could not be read:")).toBeInTheDocument();
+    expect(screen.getByText(/ISM1\.xml: ISM: Bad money value/)).toBeInTheDocument();
+  });
+
+  it("says so when the day has no reports", async () => {
+    movementDay = { ...DAY, files: [], fuel: [], departments: [], tax_levels: [], misc: [] };
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "6 reports" }));
+    expect(screen.getByText("No register reports for this day")).toBeInTheDocument();
+  });
+
+  it("reads in Spanish", async () => {
+    setLanguage("es");
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "6 reportes" }));
+    expect(screen.getByRole("heading", { name: /Reportes de la caja ·/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
+      .toEqual(expect.arrayContaining(["Grado", "Galones", "Forma de pago", "Nivel de impuesto"]));
+    expect(englishLeftovers(document.body, ["posImp."])).toEqual([]);
   });
 });

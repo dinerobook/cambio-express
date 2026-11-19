@@ -7,8 +7,12 @@
 > how to move one over.
 
 A tiny watcher that runs on the store's back-office PC, watches
-the folder where Gilbarco Passport writes its NAXML journal files,
-and pushes each new file to DineroBook the moment it appears. The
+the folder where Gilbarco Passport writes its NAXML files, and
+pushes each new file to DineroBook the moment it appears: the
+per-transaction journal (`PJR*.xml`) and the movement reports
+Passport writes at each day close (`FGM` fuel grades, `ISM` items,
+`MCM` departments, `MSM` payouts / drops / statistics, `TLM` tax
+levels, `TPM` tanks). The
 server parses everything — the agent never needs an update when
 parsing improves.
 
@@ -27,6 +31,10 @@ parsing improves.
    - `watch_dir` — Passport's XML outbox, typically
      `C:\Passport\XMLGateway\BOOutbox` (the same share other
      back-office systems read).
+   - `pattern` — which files to send, one or more patterns with
+     spaces or commas between them. Leave the example's value
+     (journal + every movement report); a missing `pattern` line
+     means the same.
 5. Test run in a console:
    `python dinerobook_agent.py --config agent.ini --verbose`
    — you should see files uploading, then "already on server" on
@@ -46,6 +54,17 @@ parsing improves.
   mapped (a one-time setup).
 - `uploaded.txt` (next to the script) remembers what's been sent.
   Deleting it is safe — the server ignores duplicates.
+- Movement reports are stored as the register wrote them and shown
+  under **staged days → Reports**; they do not change a booked day.
+  A report sent again replaces its earlier copy.
+
+## Upgrading an older install
+
+Agents installed before movement reports were supported have
+`pattern = PJR*.xml` in `agent.ini`, which sends the journal only.
+Replace that line with the one in `agent.ini.example` (or delete
+it) and restart the agent; the movement reports already in the
+folder are sent on the next poll.
 - Revoking the key in DineroBook stops the agent instantly; issue
   a new key and update `agent.ini` to resume.
 - While the store is disabled (403), frozen, or its trial or

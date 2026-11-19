@@ -527,43 +527,74 @@ impact ÷ effort. Numbers are an estimate.
       `api/Modules/Auth/Controllers/__init__.py::
       _set_last_store_slug_cookie`).
 
-## G-7 — the movement reports we still discard (BLOCKED on sample data)
+## G-7 — the movement reports (stored; not yet wired to any total)
 
 Passport writes seven NAXML document families to its back-office
-folder. We ingest exactly one of them — PJR (POSJournal), the
-per-transaction journal. The other six are parsed by nothing:
-`parse_pjr` rejects them outright, so every day a live site sends
-them they are staged and dropped.
+folder: PJR (POSJournal, one file per register event) and six
+movement reports, one file per family per period close. The site
+agent now sends all seven (default `pattern` in
+`agent/dinerobook_agent.py`); staging routes each file by its root
+element (`stage_journal_file`), and the five movement families with
+content land in their own tables, one row per detail, money in
+integer cents (`api/Modules/PosImport/Services/movement.py` parses,
+`movement_ingest.py` stores and summarises).
 
-| Family | Document | What we lose each day |
+| Family | Document | Table |
 |---|---|---|
-| FGM | FuelGradeMovement | gallons + dollars per grade, per period |
-| ISM | ItemSalesMovement | per-item movement independent of the journal |
-| MCM | MerchandiseCodeMovement | department totals straight from the register |
-| MSM | MiscellaneousSummaryMovement | payouts, safe drops, no-sales, refunds |
-| TLM | TaxLevelMovement | taxable vs non-taxable sales per tax level |
-| TPM | TenderPeriodMovement | header-only in the sample — nothing to ingest |
+| FGM | FuelGradeMovement | `retail_pos_fuel_grade_movement` — one row per grade × pump position × price tier |
+| ISM | ItemSalesMovement | `retail_pos_item_sales_movement` — one row per item × sell price |
+| MCM | MerchandiseCodeMovement | `retail_pos_merchandise_code_movement` — department totals |
+| MSM | MiscellaneousSummaryMovement | `retail_pos_misc_summary_movement` — payouts, pay-ins, drops, loans, statistics, totalizers |
+| TLM | TaxLevelMovement | `retail_pos_tax_level_movement` — taxable / exempt / forgiven sales and tax per level |
+| TPM | TankProductMovement | nothing — the file is accepted; the sample is header only |
 
-**Why this is not built yet.** Writing these five parsers requires
-the exact element names each document uses, and NAXML's movement
-schemas differ per family. Guessing them produces parsers that
-pass whatever synthetic fixture the author invented and match
-NOTHING against the real files — code that looks finished and
-silently ingests zero rows. The sample set (a live site's `Brew*`
-export) was analysed once but is not checked into the repo (it is
-real store data — see the standing rule against committing it),
-and the structural notes from that pass were never written down
-here. **To do G-7, re-attach the sample export first**, derive the
-element names from it, then build synthetic fixtures that mirror
-the real shape.
+Element names were taken from a live Passport 23.01 site's export
+(three business days, every family, `PrimaryReportPeriod` 2). That
+export is store data and is not in the repo; tests use synthetic
+fixtures of the same shape (`tests/Modules/PosImport/movement_fixtures.py`).
 
-**One open question before any of it is wired to a total.** The
-sample's MSM reports `payouts/total` as −$4,689.60 and
-`payouts/vendorPay` as −$9,379.20 — exactly 2×. One of them is
-double-counting, and which one is authoritative cannot be settled
-from a single store's data. Do not feed either into a P&L or
-daily-book line until a second site's export confirms the
-relationship.
+**What the data settled.**
+- **The MSM "2×" is a subtotal, not double counting.** An MSM row
+  with no `MiscellaneousSummarySubCodeModifier` is the subtotal of the
+  rows of the same code / sub code / tender that have one. On all
+  three days `payouts/total` = `payouts/vendorPay` (no modifier) = the
+  sum of the `payouts/vendorPay/3` rows; adding every vendorPay row
+  is what gave 2×. **Sum the leaves or use the subtotal, never both.**
+  Not every code works that way: `totalizer/sales` repeats an
+  identical leaf with no subtotal, so no MSM code can be summed
+  wholesale either. The day view marks rows `subtotal` / `part`
+  (`msm_roles`) and adds nothing up.
+- **FGM non-resettable totals belong to the pump position**, not the
+  price tier: the file states them once per position and each tier
+  row repeats them. They are lifetime meters — read one per (grade,
+  position), from the latest report of the day, never summed across
+  tiers (`summarise_fuel`).
+- **A re-sent report replaces its rows.** The replace key is (store,
+  family, business date, begin date + time, primary + secondary
+  report period). The periods are in the key so a shift report that
+  starts when the day starts can never overwrite the day report.
+- Columns that stayed empty on all three days at this site: FGM
+  discounts, dispenser discounts, pump tests, tax-exempt volume; ISM
+  `TransactionCount` and discounts; MCM discounts; TLM refunded,
+  exempt and forgiven-refunded amounts. Install the agent at 2–3 more
+  stores before deciding which of them to show or drop.
+
+**Still to do (not built — each needs the owner's go-ahead):**
+- [ ] Wire a movement figure into a day total, P&L or daily-entry
+      line (payouts, fuel gallons, tax). Read the MSM subtotal row,
+      never subtotal + parts. Only after a second site confirms the
+      shapes above.
+- [ ] Only business-day reports (`PrimaryReportPeriod` 2,
+      `DAY_REPORT_PERIOD`) are summarised; confirm what other
+      periods a site sends before using them.
+- [ ] The manual upload (`load_pjr_payload`, ZIP of a folder) still
+      reports movement files as "not a POSJournal" parse errors
+      instead of storing them; `with_staged_events` re-parses staged
+      movement files and skips them (harmless, wasted work) — filter
+      on `IS_JOURNAL` there.
+- [ ] Existing installs keep `pattern = PJR*.xml` in their
+      `agent.ini`; each store's agent needs that line replaced (see
+      `agent/README.md` → "Upgrading an older install").
 
 ## Nice to have (post-launch)
 - [ ] **Universal product catalog follow-ups (shipped 2026-11-19 with
