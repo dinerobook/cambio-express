@@ -8199,6 +8199,25 @@
       "DepartmentRow": {
         "additionalProperties": false,
         "properties": {
+          "department_type": {
+            "enum": [
+              "merchandise",
+              "fuel",
+              "lottery_sell",
+              "lottery_cash",
+              "lotto_sell",
+              "lotto_cash",
+              "money_order",
+              "money_order_fee",
+              "money_transfer",
+              "money_transfer_fee",
+              "check_cash_fee",
+              "service",
+              "misc"
+            ],
+            "title": "Department Type",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -8206,6 +8225,25 @@
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
+          },
+          "is_taxable": {
+            "title": "Is Taxable",
+            "type": "boolean"
+          },
+          "min_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Age"
+          },
+          "nacs_code": {
+            "title": "Nacs Code",
+            "type": "string"
           },
           "name": {
             "title": "Name",
@@ -8226,6 +8264,13 @@
             "title": "Parent Name",
             "type": "string"
           },
+          "pos_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pos Codes",
+            "type": "array"
+          },
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
@@ -8237,7 +8282,12 @@
           "sort_order",
           "is_active",
           "parent_id",
-          "parent_name"
+          "parent_name",
+          "department_type",
+          "is_taxable",
+          "min_age",
+          "nacs_code",
+          "pos_codes"
         ],
         "title": "DepartmentRow",
         "type": "object"
@@ -8314,6 +8364,32 @@
       "DepartmentUpdateRequest": {
         "additionalProperties": false,
         "properties": {
+          "department_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "merchandise",
+                  "fuel",
+                  "lottery_sell",
+                  "lottery_cash",
+                  "lotto_sell",
+                  "lotto_cash",
+                  "money_order",
+                  "money_order_fee",
+                  "money_transfer",
+                  "money_transfer_fee",
+                  "check_cash_fee",
+                  "service",
+                  "misc"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department Type"
+          },
           "is_active": {
             "anyOf": [
               {
@@ -8324,6 +8400,42 @@
               }
             ],
             "title": "Is Active"
+          },
+          "is_taxable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Taxable"
+          },
+          "min_age": {
+            "anyOf": [
+              {
+                "maximum": 99.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Age"
+          },
+          "nacs_code": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9A-Za-z]{0,10}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nacs Code"
           },
           "name": {
             "anyOf": [
@@ -8350,6 +8462,22 @@
             ],
             "title": "Parent Id"
           },
+          "pos_codes": {
+            "anyOf": [
+              {
+                "items": {
+                  "pattern": "^[0-9A-Za-z]{1,20}$",
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pos Codes"
+          },
           "sort_order": {
             "anyOf": [
               {
@@ -8370,6 +8498,50 @@
       "DepartmentWriteRequest": {
         "additionalProperties": false,
         "properties": {
+          "department_type": {
+            "default": "merchandise",
+            "enum": [
+              "merchandise",
+              "fuel",
+              "lottery_sell",
+              "lottery_cash",
+              "lotto_sell",
+              "lotto_cash",
+              "money_order",
+              "money_order_fee",
+              "money_transfer",
+              "money_transfer_fee",
+              "check_cash_fee",
+              "service",
+              "misc"
+            ],
+            "title": "Department Type",
+            "type": "string"
+          },
+          "is_taxable": {
+            "default": true,
+            "title": "Is Taxable",
+            "type": "boolean"
+          },
+          "min_age": {
+            "anyOf": [
+              {
+                "maximum": 99.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Age"
+          },
+          "nacs_code": {
+            "default": "",
+            "pattern": "^[0-9A-Za-z]{0,10}$",
+            "title": "Nacs Code",
+            "type": "string"
+          },
           "name": {
             "maxLength": 80,
             "minLength": 1,
@@ -8387,6 +8559,15 @@
               }
             ],
             "title": "Parent Id"
+          },
+          "pos_codes": {
+            "items": {
+              "pattern": "^[0-9A-Za-z]{1,20}$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Pos Codes",
+            "type": "array"
           },
           "sort_order": {
             "default": 0,

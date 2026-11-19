@@ -22,6 +22,7 @@ import NotFound from "./routes/NotFound";
 const AccountActivity = lazy(() => import("./routes/AccountActivity"));
 const AccountNotifications = lazy(() => import("./routes/AccountNotifications"));
 const AccountSessions = lazy(() => import("./routes/AccountSessions"));
+const Departments = lazy(() => import("./routes/Departments"));
 const AdminAuditLog = lazy(() => import("./routes/AdminAuditLog"));
 const Employees = lazy(() => import("./routes/Employees"));
 const EmployeeForm = lazy(() => import("./routes/EmployeeForm"));
@@ -436,6 +437,7 @@ export default function App() {
           <Route path="account/notifications" element={<Gate><AccountNotifications /></Gate>} />
           <Route path="account/activity"      element={<Gate><AccountActivity /></Gate>} />
           <Route path="account/sessions"      element={<Gate><AccountSessions /></Gate>} />
+          <Route path="account/departments"   element={<Gate><Departments /></Gate>} />
           <Route path="tv-display" element={<Gate><TVDisplayAdmin /></Gate>}>
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<Gate><TVDisplayOverview /></Gate>} />

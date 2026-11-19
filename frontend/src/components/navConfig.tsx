@@ -382,6 +382,15 @@ export const NAV: NavGroup[] = [
         icon: iconDevice(),
         desc: "Signed-in devices and sessions.",
       },
+      // The store's department setup (owner, 2026-11-19: "account ka
+      // tab … us k ander department"). Store-scoped: access.ts gates it
+      // on day_close.read, so only people who can see retail books get
+      // the link.
+      {
+        to: "/account/departments", label: "Departments",
+        icon: iconPriceBook(),
+        desc: "Register numbers, types, tax and age limits.",
+      },
     ],
   },
 ];

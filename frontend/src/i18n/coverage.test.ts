@@ -89,6 +89,7 @@ export const COVERED_FILES = [
   "routes/AccountNotifications.tsx",
   "routes/AccountSessions.tsx",
   "routes/AccountActivity.tsx",
+  "routes/Departments.tsx",
   "components/AuditFilterFields.tsx",
   "routes/AdminAuditLog.tsx",
   "components/AuditTable.tsx",
