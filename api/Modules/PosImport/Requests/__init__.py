@@ -6,15 +6,9 @@ one PJR XML file or a ZIP of many.
 """
 from pydantic import BaseModel, ConfigDict, Field
 
+from api.Core.Uploads import b64_len as _b64_len
 from api.Modules.PosImport.Services.agent import MAX_AGENT_FILE_BYTES
 from api.Modules.PosImport.Services.ingest import MAX_PAYLOAD_BYTES
-
-
-def _b64_len(decoded_bytes: int) -> int:
-    """Longest base64 text that decodes to ``decoded_bytes``. The
-    body is refused at this length before anything is decoded or
-    held in memory twice."""
-    return (decoded_bytes + 2) // 3 * 4
 
 
 class NaxmlUploadRequest(BaseModel):

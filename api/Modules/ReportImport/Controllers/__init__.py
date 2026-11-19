@@ -8,8 +8,6 @@ review. Nothing is stored: the bytes live only for the duration of the
 request. Committing the reviewed rows into the transfer log is a
 separate (later) endpoint.
 """
-import base64
-import binascii
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,6 +16,7 @@ from sqlalchemy.orm import Session
 from api.Core.Audit import audit_operator
 from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
+from api.Core.Uploads import decode_base64
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.DailyBook.Services.reports import DailyReportLockedError
@@ -46,12 +45,9 @@ router = APIRouter()
 def _decode_pdf(content_base64: str) -> bytes:
     """Base64-decode + size-guard an uploaded PDF. 422 on any problem —
     the same clean-error contract the parse route relies on."""
-    try:
-        data = base64.b64decode(content_base64, validate=True)
-    except (binascii.Error, ValueError):
-        raise HTTPException(
-            status_code=422, detail="Could not decode the uploaded file.",
-        )
+    data = decode_base64(
+        content_base64, detail="Could not decode the uploaded file.",
+    )
     if not data:
         raise HTTPException(status_code=422, detail="Empty file.")
     if len(data) > MAX_PDF_BYTES:

@@ -19,8 +19,6 @@ day_close.update (admin) — the same surface that owns the
 Department catalog. Every mutation records an operator-audit row
 (invariant #7).
 """
-import base64
-import binascii
 from datetime import datetime
 from typing import Any
 
@@ -34,6 +32,7 @@ from sqlalchemy.orm import Session
 from api.Core.Clock import parse_iso_day, utc_now
 from api.Core.Audit import audit_operator
 from api.Core.Database import get_db
+from api.Core.Uploads import decode_base64
 from api.Core.RateLimit import limiter as _rate_limiter
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import (
@@ -100,12 +99,9 @@ router = APIRouter(prefix="/posimport", tags=["posimport"])
 
 
 def _decode_payload(content_base64: str) -> bytes:
-    try:
-        return base64.b64decode(content_base64, validate=True)
-    except (binascii.Error, ValueError):
-        raise HTTPException(
-            status_code=422, detail="content_base64 is not valid base64.",
-        )
+    return decode_base64(
+        content_base64, detail="content_base64 is not valid base64.",
+    )
 
 
 def _load_or_422(data: bytes) -> LoadedPayload:

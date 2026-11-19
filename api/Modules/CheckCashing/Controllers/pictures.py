@@ -13,8 +13,6 @@ when the check is saved); an ID picture or the photo changes a profile
 and needs ``check_cashing.update``; looking needs ``check_cashing.read``.
 Rules: ``INVARIANTS.md`` ("Pictures").
 """
-import base64
-import binascii
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Response
@@ -22,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from api.Core.Audit import audit_operator
 from api.Core.Database import get_db
+from api.Core.Uploads import decode_base64
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.CheckCashing.Controllers import (
     _conflict, _not_found, _scope, require_check_device,
@@ -51,11 +50,7 @@ KIND_WORDS = {
 
 
 def _decode(content_base64: str) -> bytes:
-    text = content_base64.split(",", 1)[1] if content_base64.startswith("data:") else content_base64
-    try:
-        return base64.b64decode(text, validate=True)
-    except (binascii.Error, ValueError):
-        raise HTTPException(status_code=422, detail="The picture is not valid base64.")
+    return decode_base64(content_base64, detail="The picture is not valid base64.")
 
 
 @router.post("/pictures", response_model=CheckPictureResponse, status_code=201)

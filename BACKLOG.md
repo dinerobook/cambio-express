@@ -566,6 +566,14 @@ daily-book line until a second site's export confirms the
 relationship.
 
 ## Nice to have (post-launch)
+- [ ] **Universal product catalog follow-ups (shipped 2026-11-19 with
+      the Modisoft price book import).** Price-book items saved before
+      `retail_product` existed link only when they are edited or
+      re-imported: a one-off backfill (run on Render, owner's call)
+      would feed every live store's GTINs into the shared catalog at
+      once. Later: a superadmin screen to correct a shared name
+      (`is_verified`), brand and NACS category, and a vendor-file
+      source of verified names.
 - [ ] **Accountant follow-ups (D1 shipped 2026-11-04 as one login per
       store; the in-app store switch shipped 2026-11-05 as linked logins).**
       Not built, ask the owner first: a one-click "remove from all my stores" for the

@@ -2576,6 +2576,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/catalog/import/modisoft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Modisoft Route */
+        post: operations["import_modisoft_route_catalog_import_modisoft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/catalog/invoices": {
         parameters: {
             query?: never;
@@ -2641,6 +2658,23 @@ export interface paths {
         get?: never;
         /** Update Item Route */
         put: operations["update_item_route_catalog_items__item_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/catalog/products/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lookup Product Route */
+        get: operations["lookup_product_route_catalog_products_lookup_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -11829,6 +11863,22 @@ export interface components {
             /** Merchandise Code */
             merchandise_code: string;
         };
+        /** ImportIssueExample */
+        ImportIssueExample: {
+            /** Line */
+            line: number;
+            /** Scan Code */
+            scan_code: string;
+        };
+        /** ImportIssueRow */
+        ImportIssueRow: {
+            /** Code */
+            code: string;
+            /** Count */
+            count: number;
+            /** Examples */
+            examples: components["schemas"]["ImportIssueExample"][];
+        };
         /** ImportRegisterRow */
         ImportRegisterRow: {
             /** Business Date */
@@ -12232,6 +12282,8 @@ export interface components {
         ItemRow: {
             /** Case Cost */
             case_cost: number | null;
+            /** Case Discount */
+            case_discount: number | null;
             /** Case Size */
             case_size: number | null;
             /** Cost */
@@ -12258,6 +12310,8 @@ export interface components {
             pos_code_format: string;
             /** Price */
             price: number;
+            /** Product Id */
+            product_id: number | null;
             /** Size */
             size: string;
             /** Source */
@@ -12271,6 +12325,8 @@ export interface components {
         ItemUpdateRequest: {
             /** Case Cost */
             case_cost?: number | null;
+            /** Case Discount */
+            case_discount?: number | null;
             /** Case Size */
             case_size?: number | null;
             /** Cost */
@@ -12302,6 +12358,8 @@ export interface components {
         ItemWriteRequest: {
             /** Case Cost */
             case_cost?: number | null;
+            /** Case Discount */
+            case_discount?: number | null;
             /** Case Size */
             case_size?: number | null;
             /**
@@ -12916,6 +12974,52 @@ export interface components {
             id: number;
             /** Ticket Id */
             ticket_id: number;
+        };
+        /** ModisoftImportRequest */
+        ModisoftImportRequest: {
+            /**
+             * Apply
+             * @default false
+             */
+            apply: boolean;
+            /** Content Base64 */
+            content_base64: string;
+            /**
+             * Update Existing
+             * @default true
+             */
+            update_existing: boolean;
+        };
+        /** ModisoftImportResponse */
+        ModisoftImportResponse: {
+            /** Applied */
+            applied: boolean;
+            /** Columns Ignored */
+            columns_ignored: string[];
+            /** Columns Used */
+            columns_used: string[];
+            /** Departments New */
+            departments_new: string[];
+            /** Issues */
+            issues: components["schemas"]["ImportIssueRow"][];
+            /** Items New */
+            items_new: number;
+            /** Items Skipped */
+            items_skipped: number;
+            /** Items Unchanged */
+            items_unchanged: number;
+            /** Items Updated */
+            items_updated: number;
+            /** Matched Other Spelling */
+            matched_other_spelling: number;
+            /** Products Known */
+            products_known: number;
+            /** Products New */
+            products_new: number;
+            /** Rows Read */
+            rows_read: number;
+            /** Store Codes */
+            store_codes: number;
         };
         /**
          * MonthLogged
@@ -15988,6 +16092,22 @@ export interface components {
             /** Date */
             date: string;
         };
+        /** ScanLookupResponse */
+        ScanLookupResponse: {
+            /** Code */
+            code: string;
+            /** Gtin */
+            gtin: string | null;
+            item: components["schemas"]["ItemRow"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "gtin" | "store" | "invalid";
+            /** Note */
+            note: string;
+            product: components["schemas"]["UniversalProductRow"] | null;
+        };
         /** SectionTotalsResponse */
         SectionTotalsResponse: {
             /** Amount */
@@ -19028,6 +19148,26 @@ export interface components {
              * @enum {string}
              */
             tone: "neutral" | "warning" | "negative";
+        };
+        /**
+         * UniversalProductRow
+         * @description A shared product: only facts true at every store.
+         */
+        UniversalProductRow: {
+            /** Brand */
+            brand: string;
+            /** Gtin */
+            gtin: string;
+            /** Id */
+            id: number;
+            /** Is Verified */
+            is_verified: boolean;
+            /** Nacs Code */
+            nacs_code: string;
+            /** Name */
+            name: string;
+            /** Size */
+            size: string;
         };
         /**
          * UnreadCountResponse
@@ -23756,6 +23896,43 @@ export interface operations {
             };
         };
     };
+    import_modisoft_route_catalog_import_modisoft_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModisoftImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModisoftImportResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_invoices_route_catalog_invoices_get: {
         parameters: {
             query?: {
@@ -24054,6 +24231,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lookup_product_route_catalog_products_lookup_get: {
+        parameters: {
+            query: {
+                code: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanLookupResponse"];
                 };
             };
             /** @description Validation Error */
