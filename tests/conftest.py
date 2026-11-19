@@ -410,11 +410,16 @@ def test_admin_id():
         return db.session.query(User).filter_by(username="admin@test.com").first().id
 
 
-def make_employee_client(store_id, *, username_suffix="emp"):
+def make_employee_client(store_id, *, username_suffix="emp",
+                         permissions=None):
     """Return ``(client, jwt)`` for a fresh employee user at
     ``store_id``. Replaces the legacy Flask-session variant with a
     real JWT — tests using this pair the client with bearer-auth
-    headers when hitting /api/v2/*."""
+    headers when hitting /api/v2/*.
+
+    ``permissions`` is a per-person overlay (``set_user_permissions``
+    rows, e.g. ``{"day_close": {"read": False, ...}}``) written
+    before sign-in, for the deny half of a grant / deny test."""
     from api.Modules.Tenancy.Models import User
     with db_session():
         username = f"{username_suffix}_{store_id}_{os.urandom(2).hex()}@test.com"
@@ -425,6 +430,10 @@ def make_employee_client(store_id, *, username_suffix="emp"):
         emp.set_password("x")
         db.session.add(emp)
         db.session.commit()
+        user_id = emp.id
+    if permissions is not None:
+        from api.Core.Permissions import set_user_permissions
+        set_user_permissions(store_id, user_id, permissions)
     c = AsgiTestClient()
     jwt = login_employee(c, store_id, username)
     return c, jwt

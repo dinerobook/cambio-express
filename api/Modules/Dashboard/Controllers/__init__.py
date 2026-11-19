@@ -91,11 +91,21 @@ def _register_activity(
     Fuel gallons deliberately exclude cancelled lines, like every
     other total in this codebase: a voided pump sale did not move
     fuel.
+
+    Receipts, total rung, refunds and fuel count sales and refunds
+    only (``counts_toward_sales``). A void keeps the grand total of
+    a ticket nobody paid for, and Passport writes most of a void's
+    lines as normal, so filtering on line status alone lets it in;
+    register opens and financial events are not receipts. The
+    voided-tickets tile still looks at every ticket.
     """
     from sqlalchemy import func
 
     from api.Modules.PosImport.Models import (
         PosTransaction, PosTransactionLine,
+    )
+    from api.Modules.PosImport.Services.transactions import (
+        counts_toward_sales,
     )
 
     latest = (
@@ -116,11 +126,12 @@ def _register_activity(
         PosTransaction.business_date == target,
         PosTransaction.superseded.is_(False),
     )
-    receipts = base.count()
+    counted = base.filter(counts_toward_sales())
+    receipts = counted.count()
     voided = base.filter(PosTransaction.has_voided_line.is_(True)).count()
-    refunds = base.filter(PosTransaction.kind == "refund").count()
+    refunds = counted.filter(PosTransaction.kind == "refund").count()
     rung_cents = (
-        base.with_entities(
+        counted.with_entities(
             func.coalesce(func.sum(PosTransaction.grand_total_cents), 0),
         ).scalar() or 0
     )
@@ -130,7 +141,12 @@ def _register_activity(
             func.coalesce(func.sum(PosTransactionLine.gallons), 0.0),
             func.coalesce(func.sum(PosTransactionLine.amount_cents), 0),
         )
+        .join(
+            PosTransaction,
+            PosTransaction.id == PosTransactionLine.transaction_id,
+        )
         .filter(
+            counts_toward_sales(),
             PosTransactionLine.store_id == store_id,
             PosTransactionLine.business_date == target,
             PosTransactionLine.is_fuel.is_(True),
