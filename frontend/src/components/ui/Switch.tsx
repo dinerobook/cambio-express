@@ -54,7 +54,10 @@ export function Switch({
         ...style,
       }}
     >
-      <span style={trackStyle(!!isOn)}>
+      {/* `ds-switch__track` draws the keyboard focus ring (ui.css):
+          the real input is invisible (opacity 0), so its own outline
+          never showed and a tabbed-to switch looked unfocused. */}
+      <span className="ds-switch__track" style={trackStyle(!!isOn)}>
         <input
           type="checkbox"
           role="switch"

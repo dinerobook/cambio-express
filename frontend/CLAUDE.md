@@ -162,8 +162,10 @@ Non-negotiables:
   (page-specific layout) goes in a co-located `<Route>.module.css`, not
   `style={{ ... }}` constants. Canonical example:
   `src/routes/AdminUserForm.tsx` + `AdminUserForm.module.css`. Forms use
-  `<Field error=... hint=...>` for field-level validation and help;
-  server-level errors render through `<Alert tone="error">`.
+  `<Field error=... hint=... required>` for field-level validation, help
+  and the required mark (never a `*` typed into a label); server-level
+  errors render through `<Alert tone="error">`. The anatomy, the states
+  and why the hint sits outside the `<label>`: UI-STANDARDS §1 "Fields".
 - **Forms.** `react-hook-form` + `zod` is the standard stack. One
   `useForm()` per page, schema co-located with the route. Plain inputs
   use `register("field")`; custom components wrap in `<Controller>`;

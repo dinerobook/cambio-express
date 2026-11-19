@@ -8,7 +8,10 @@ export type ButtonTone = "primary" | "secondary" | "danger" | "ghost";
 
 const buttonSizing = {
   sm: { padding: "0.35rem 0.75rem", fontSize: fontSize.sm,   minHeight: "2rem"   },
-  md: { padding: "0.55rem 1rem",    fontSize: "0.9rem",      minHeight: "2.4rem" },
+  // 2.5rem = the height of an <Input> / <Select> (tokens.ts
+  // inputStyle), so a button beside a field ("Link store", "Detect
+  // from address") lines up with the box instead of stopping short.
+  md: { padding: "0.55rem 1rem",    fontSize: "0.9rem",      minHeight: "2.5rem" },
   lg: { padding: "0.75rem 1.4rem",  fontSize: fontSize.base, minHeight: "2.85rem"},
 } as const;
 
@@ -34,6 +37,9 @@ export function Button({
   if (perm && !canDo(perm)) return null;
   const dimmed = busy || rest.disabled;
   const cls = ["ds-btn", `ds-btn--${tone}`];
+  // `ds-btn--sm` lets ui.css raise a small button to a finger-sized
+  // target on touch screens (pointer: coarse).
+  if (size === "sm" && tone !== "ghost") cls.push("ds-btn--sm");
   if (className) cls.push(className);
   const sizing = buttonSizing[size];
   return (
@@ -111,6 +117,7 @@ export function ButtonLink({
   if (perm && !canDo(perm)) return null;
   const sizing = buttonSizing[size];
   const cls = ["ds-btn", `ds-btn--${tone}`];
+  if (size === "sm") cls.push("ds-btn--sm");
   if (className) cls.push(className);
   const sharedStyle: CSSProperties = {
     display: "inline-flex",

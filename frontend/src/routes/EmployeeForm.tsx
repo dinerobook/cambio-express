@@ -269,7 +269,7 @@ export default function EmployeeForm() {
         {tab === "profile" && (
           <Card>
             <Section title={t("employee.basicInfo")}>
-              <Field label={t("employee.fullName")} error={nameError}>
+              <Field label={t("employee.fullName")} error={nameError} required>
                 <Input
                   type="text" maxLength={120}
                   value={draft.name}

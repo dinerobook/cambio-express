@@ -95,21 +95,13 @@ export const fontSize = {
 //    directly (e.g. legacy code we haven't migrated). ─────────
 
 export const inputStyle: CSSProperties = {
-  background: tokens.surface,
-  border: `1px solid ${tokens.border}`,
-  // Slightly more vertical breathing room. Pre: 0.55rem felt
-  // cramped especially next to the heavier <Button> primitive
-  // (which has minHeight 2.4rem). Post: inputs match button
-  // visual weight in toolbars + forms.
-  borderRadius: "0.55rem",
-  padding: "0.65rem 0.85rem",
-  color: tokens.text,
-  fontFamily: tokens.fontBody,
-  // Font size lives in the `.ds-input` rule in ui.css, not here:
-  // iOS Safari zooms the whole page when a focused input is under
-  // 16px, and a CSS rule can lift it on phones while an inline
-  // style could not be overridden.
-  outline: "none",
+  // Colours, border, radius, padding, font and line height live in
+  // the `.ds-input` rule (ui.css), with its hover / focus / invalid /
+  // disabled / read-only states: an inline border here beat every one
+  // of those rules, so none of them ever showed. Only the sizing
+  // stays inline. (Font size is in the class too: iOS Safari zooms
+  // the page into a focused field under 16px, and the class lifts it
+  // on phones where an inline size could not be overridden.)
   width: "100%",
   boxSizing: "border-box",
 };

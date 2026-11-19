@@ -31,6 +31,41 @@ the kit first, then use it — never hand-roll one in a route.
 Radio-for-a-boolean is banned: a two-option radio group whose value is
 a single `true/false` is a `<Checkbox>` (form) or `<Switch>` (setting).
 
+### Fields — one anatomy, every state
+
+Every form control sits in a `<Field label hint error required>`
+(owner's "forms have usability problems" pass, 2026-11-19). The kit
+draws the rest, the same on every screen:
+
+- **Label above, then the control, then the hint, then the error.**
+  The hint and the error are outside the `<label>` and the kit
+  controls (`Input`, `Select`, `Textarea`, `MoneyInput`, `Checkbox`)
+  point at them with `aria-describedby` (`components/ui/fieldContext.ts`),
+  so a screen reader reads the label as the name and the help as the
+  description. Never put help text or an error inside `label=`.
+- **Required** is `<Field required>`: one quiet `*` after the label and
+  `aria-required` on the control. Never type `*` into a label string.
+  A form marks the smaller group: `required` when most fields are
+  optional (Add employee), "(optional)" in the label when most are
+  required (New returned check).
+- **Error** (`error=`, or `highlight` when the message is elsewhere):
+  red label, red box edge (kept while focused, with a red glow), an
+  alert icon before the message so the state never rests on colour,
+  and `aria-invalid` on the control.
+- **States come from the `.ds-input` rule** (`ui.css`): hover darkens
+  the edge, keyboard focus is the neon edge + glow, read-only boxes take
+  the card colour (they read as a value), disabled boxes dim to 60 %.
+  `inputStyle` (`tokens.ts`) holds sizing only — a colour, border or
+  padding written inline beats every state rule, so don't.
+- **One height.** Input, Select, the date box and a `md` Button are all
+  2.5rem, so a field and its button ("Link store") line up in a row.
+- **Every control shows keyboard focus**: the money box draws it on its
+  `$` + input frame (`.ds-money:focus-within`), a Switch on its track.
+- **A date box shows its calendar mark** (`DateInput`), so it reads as
+  a picker, not a text box.
+- A checkbox inside a `<Field>` in a row of boxes sits on the boxes'
+  text line (`.ds-field .ds-checkbox`).
+
 ## 2. Feedback
 
 | Event | Pattern |
@@ -43,7 +78,9 @@ a single `true/false` is a `<Checkbox>` (form) or `<Switch>` (setting).
 | Zero rows (whole region: table, tab pane, page section) | `<EmptyState title body>` — never an ad-hoc muted `<p>` |
 | Zero rows (small in-card sub-list) or permission/scope gate | `<Empty>` |
 | Destructive action | `<ConfirmDialog>` — never `window.confirm` / `alert()`. The title asks the question ("Delete this rule?", "Disconnect this bank?"), the confirm button repeats the verb ("Delete", "Disconnect"), and a destructive verb (Delete, Remove, Disconnect, Revoke, Deactivate, Unlink, Unpair) gets `confirmTone="danger"` (red) |
-| Buttons at the bottom of a popup | `<Modal actions={…}>`, or `<ModalActions>` as the last child when the body is a `<form>` (the submit button must sit inside it). Cancel first, the primary action last, right-aligned, wrapping on a phone. Never a page-local `.modalActions` class or an inline flex row |
+| Buttons at the bottom of a popup | `<Modal actions={…}>`, or `<ModalActions>` as the last child when the body is a `<form>` (the submit button must sit inside it). Cancel first, the primary action last, right-aligned, wrapping on a phone. The row stays pinned to the bottom of a long popup while the fields scroll behind it. Never a page-local `.modalActions` class or an inline flex row |
+| Leaving a popup | every `<Modal>` has the ✕ in its top-right corner ("Close window", disabled while `disabled`), besides Escape and the backdrop. It is last in the DOM, so the first field still takes focus on open. Never a second hand-made ✕ |
+| The round help button (bottom-right) | nothing the person needs sits under it: `PageShell` leaves 5.5rem at the bottom of every page and a pinned `<FormActions>` bar keeps its right end clear |
 | Form has edits that are not saved | the unsaved-changes guard — see "Unsaved changes" below |
 
 ### Unsaved changes — one guard on every form
@@ -361,6 +398,11 @@ needed if the kit had been checked first.
 - Kit primitives first; page-specific leftovers in a co-located
   `<Route>.module.css`. No bottom-of-file `CSSProperties` constants,
   no large inline `style={{…}}` blocks.
+- A link nobody styled is the accent (`:where(a)` in `styles.css`),
+  never the browser's blue / purple. Two cards in one form are spaced
+  by the form (`className="ds-form"`), two `<Section>`s in one card
+  get a hairline between them, and a `<SectionTitle>` that opens a
+  card has its own space under it — never a hand-added margin.
 - No colour literal anywhere in `frontend/src` — no hex, no `rgb()`,
   no `var(--db-x, #fallback)`. Every colour is a `--db-*` token from
   `static/design-tokens.css` (or `tokens.*` in TSX). A colour you

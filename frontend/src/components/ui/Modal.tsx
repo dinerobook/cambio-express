@@ -74,6 +74,7 @@ export function Modal({
    *  network round-trip. */
   disabled?: boolean;
 }) {
+  const t = useT();
   return (
     <Dialog.Root
       open={open}
@@ -104,6 +105,25 @@ export function Modal({
             </Dialog.Title>
             <div className={styles.body}>{children}</div>
             {actions && <ModalActions>{actions}</ModalActions>}
+            {/* The ✕ in the corner: a way out you can see (Escape and
+                the backdrop were the only ones). Last in the DOM so the
+                first field — not the ✕ — gets focus when the popup
+                opens; drawn top-right by CSS. Named "Close window", not
+                "Close", so it never clashes with a popup's own Close
+                button. Disabled with the popup while a save runs. */}
+            <Dialog.Close asChild>
+              <button
+                type="button"
+                className={styles.close}
+                aria-label={t("modal.close")}
+                disabled={disabled}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                </svg>
+              </button>
+            </Dialog.Close>
           </Dialog.Content>
         </Dialog.Overlay>
       </Dialog.Portal>

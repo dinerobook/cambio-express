@@ -237,7 +237,9 @@ function InvoiceForm({
         title={invoiceId == null ? t("invForm.newTitle") : t("invForm.editTitle")}
         subtitle={t("invForm.subtitle")}
       />
-      <form onSubmit={onSubmit}>
+      {/* `ds-form` stacks the invoice and line-item cards with the
+          kit's form gap; without it the two cards touched. */}
+      <form onSubmit={onSubmit} className="ds-form">
         <Card>
           <Section title={t("invForm.invoice")}>
             {error && <Alert tone="error">{error}</Alert>}

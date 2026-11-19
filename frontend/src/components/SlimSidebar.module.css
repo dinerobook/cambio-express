@@ -99,7 +99,9 @@
   flex-direction: column;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.55rem 0.25rem;
+  /* Thin side padding: the label gets the rail's full width, so
+     "Dashboard" fits on one line instead of breaking "Dashboar / d". */
+  padding: 0.55rem 0.1rem;
   border-radius: 0.55rem;
   cursor: pointer;
   /* Direct-link groups (Dashboard, Reports) render as <a>; keep
@@ -142,7 +144,7 @@
 .groupLabel {
   font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   line-height: 1;
   text-align: center;
   /* A long single word ("Configuración", "Administración") wider

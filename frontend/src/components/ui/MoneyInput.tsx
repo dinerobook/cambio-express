@@ -3,6 +3,7 @@ import {
   type CSSProperties, type ReactNode,
 } from "react";
 
+import { fieldAria, useFieldControl } from "./fieldContext";
 import { tokens } from "./tokens";
 
 /** Dollar / money input — kit primitive.
@@ -68,7 +69,20 @@ export function MoneyInput({
   "aria-label"?: string;
 }) {
   const id = useId();
-  const isErr = Boolean(error);
+  // Inside a <Field>, the Field owns the label, hint and error: this
+  // renders only the box (a <label> inside the Field's <label> is
+  // invalid HTML and doubled the accessible name), described by the
+  // Field's hint / error and invalid with it (fieldContext.ts).
+  const field = useFieldControl();
+  const isErr = Boolean(error) || Boolean(field?.invalid);
+  const ownHintId = hint && !error ? `${id}-hint` : undefined;
+  const ownErrorId = error ? `${id}-error` : undefined;
+  const aria = fieldAria(field, {
+    "aria-describedby": [ownHintId, ownErrorId].filter(Boolean).join(" ") || undefined,
+    "aria-invalid": isErr || undefined,
+    "aria-required": required || undefined,
+  });
+  const bare = field != null && !label && !hint && !error;
 
   // Local draft string so the input can hold "1." mid-type without
   // the controlled-prop re-render snapping it back to "1".  Two
@@ -96,36 +110,23 @@ export function MoneyInput({
     );
   }, [value]);
 
-  return (
-    <label
-      htmlFor={id}
-      style={{
-        display: "flex", flexDirection: "column", gap: "0.45rem",
-        ...style,
-      }}
-    >
-      {label && (
-        <span
-          style={{
-            fontSize: "0.8rem",
-            fontWeight: 600,
-            color: isErr ? tokens.negative : tokens.text,
-          }}
-        >
-          {label}
-        </span>
-      )}
+  const box = (
       <span
+        // `ds-money` draws the hover / keyboard-focus ring and the red
+        // invalid edge on the box (ui.css): the inner input has no
+        // border of its own, so without it a tabbed-to money field
+        // showed no focus at all.
+        className={[
+          "ds-money",
+          isErr ? "ds-money--invalid" : "",
+          disabled ? "ds-money--disabled" : "",
+        ].filter(Boolean).join(" ")}
         style={{
           display: fullWidth ? "flex" : "inline-flex",
           width: fullWidth ? "100%" : undefined,
           minWidth: 0,
           alignItems: "stretch",
-          background: tokens.surface,
-          border: `1px solid ${isErr ? tokens.negative : tokens.border}`,
-          borderRadius: "0.55rem",
-          overflow: "hidden",
-          opacity: disabled ? 0.6 : 1,
+          ...(bare ? style : undefined),
         }}
       >
         {prefix && (
@@ -155,7 +156,7 @@ export function MoneyInput({
           autoComplete="off"
           value={draft}
           aria-label={ariaLabel}
-          aria-invalid={isErr || undefined}
+          {...aria}
           placeholder={placeholder ?? (prefix ? "" : "0")}
           disabled={disabled}
           readOnly={readOnly}
@@ -187,21 +188,29 @@ export function MoneyInput({
             padding: "0.65rem 0.85rem",
             fontFamily: tokens.fontMono,
             fontSize: "0.95rem",
+            lineHeight: 1.25,
             textAlign: align,
           }}
         />
       </span>
+  );
+  if (bare) return box;
+  return (
+    <div
+      className={isErr ? "ds-field ds-field--invalid" : "ds-field"}
+      style={style}
+    >
+      <label htmlFor={id} className="ds-field__main">
+        {label && <span className="ds-field__label">{label}</span>}
+        {box}
+      </label>
       {hint && !error && (
-        <span style={{ fontSize: "0.78rem", color: tokens.textMuted }}>
-          {hint}
-        </span>
+        <span id={ownHintId} className="ds-field__hint">{hint}</span>
       )}
       {error && (
-        <span style={{ fontSize: "0.8rem", color: tokens.negative }}>
-          {error}
-        </span>
+        <span id={ownErrorId} className="ds-field__error">{error}</span>
       )}
-    </label>
+    </div>
   );
 }
 

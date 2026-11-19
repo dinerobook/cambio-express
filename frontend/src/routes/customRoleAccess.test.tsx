@@ -114,6 +114,6 @@ describe("pages open to a custom role holding the right", () => {
     customRole(["users.read", "users.create"]);
     wrap(<AdminUserForm />);
     expect(screen.queryByText(REFUSAL)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Add Login" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add login" })).toBeInTheDocument();
   });
 });

@@ -35,7 +35,7 @@ import {
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
 import {
-  Alert, type BreakdownPart, Button, Card, ConfirmDialog, EmptyState,
+  Alert, type BreakdownPart, Button, ButtonLink, Card, ConfirmDialog, EmptyState,
   ErrorState, Field, FormActions, InfoTip, Input, Loading, Modal,
   MoneyInput, PageHeader, PageShell, PeriodStepper, Pill, RowActions,
   TabsBar, TabsButton, Textarea,
@@ -417,6 +417,11 @@ export default function EditDailyBook() {
         <EmptyState
           title={t("daily.missingDate")}
           body={t("daily.missingDateHint")}
+          cta={
+            <ButtonLink to="/daily" tone="primary">
+              {t("daily.openCalendar")}
+            </ButtonLink>
+          }
         />
       </PageShell>
     );

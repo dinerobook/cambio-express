@@ -134,13 +134,23 @@
   opacity: 0.55;
 }
 
+/* Phone: two lines a day instead of five — the day and "Closed" on
+ * the first, opening — closing side by side on the second (one box
+ * per line made the week a long scroll). */
 @media (max-width: 38rem) {
   .hoursTable {
-    grid-template-columns: 1fr;
-    gap: 0.6rem;
+    grid-template-columns: minmax(0, 1fr) 1rem minmax(0, 1fr);
+    gap: 0.4rem 0.5rem;
   }
-  .hoursTable > * {
-    grid-column: 1 / -1;
+  .hoursTable > .hoursDay {
+    grid-column: 1 / 2;
+  }
+  .hoursTable > .hoursDay:not(:first-child) {
+    margin-top: 0.6rem;
+  }
+  .hoursTable > label {
+    grid-column: 2 / 4;
+    justify-self: end;
   }
 }
 

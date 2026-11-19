@@ -27,6 +27,16 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* A link nobody styled takes the brand accent (neon in dark, the
+   deeper green in light) instead of the browser's default blue /
+   purple, which is off-palette in both themes ("See Employee in
+   Roles & access" on Add login was lilac). `:where()` keeps this at
+   zero specificity, so any class or inline colour still wins. */
+:where(a) {
+  color: var(--db-accent);
+  text-underline-offset: 0.15em;
+}
+
 #root {
   min-height: 100vh;
   display: flex;

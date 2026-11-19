@@ -457,6 +457,7 @@ export default function AdminUserForm() {
 
           <Field
             label={t("userForm.accountType")}
+            required
             error={fieldErrors.role}
             hint={isSelf ? t("userForm.selfRole") : undefined}
           >
@@ -606,6 +607,7 @@ export default function AdminUserForm() {
                 ? t("userForm.passwordKeep")
                 : t("userForm.passwordRequired")
             }
+            required={!isEdit}
             error={fieldErrors.password}
           >
             <Input
