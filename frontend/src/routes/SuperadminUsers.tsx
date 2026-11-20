@@ -164,18 +164,17 @@ export default function SuperadminUsers() {
       <PageHeader
         title={navWord("Users")}
         subtitle={data ? tn("saUsers.users", data.total, fmtNumber) : "—"}
+        actions={(
+          <Button
+            tone="secondary"
+            onClick={() => setShowAddSupport((v) => !v)}
+          >
+            {showAddSupport ? t("common.cancel") : t("saUsers.addSupport")}
+          </Button>
+        )}
       />
 
       {error && <Alert tone="error">{error}</Alert>}
-
-      <div className={styles.addSupportRow}>
-        <Button
-          tone="secondary"
-          onClick={() => setShowAddSupport((v) => !v)}
-        >
-          {showAddSupport ? t("common.cancel") : t("saUsers.addSupport")}
-        </Button>
-      </div>
 
       {showAddSupport && (
         <AddSupportLoginCard

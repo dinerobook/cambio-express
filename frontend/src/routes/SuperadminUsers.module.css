@@ -35,12 +35,6 @@
   margin-bottom: 0.25rem;
 }
 
-.addSupportRow {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.75rem;
-}
-
 .addSupportLead {
   margin: 0 0 1rem;
   color: var(--db-text-muted);
