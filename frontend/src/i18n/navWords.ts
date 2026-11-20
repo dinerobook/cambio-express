@@ -25,6 +25,7 @@ export const NAV_WORDS_ES: Record<string, string> = {
   "Owner": "Dueño",
   "Platform": "Plataforma",
   "Account": "Cuenta",
+  "Developer": "Desarrollador",
   // Page labels
   "ACH batches": "Lotes ACH",
   "Bad checks": "Cheques rebotados",

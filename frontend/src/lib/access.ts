@@ -125,6 +125,12 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/lottery", perm: "lottery.read" },
   { path: "/price-book", perm: "catalog.read" },
   { path: "/account/departments", perm: "day_close.read" },
+  // Developer: store people's roles here, but the sidebar shows it
+  // only while a superadmin is signed in AS them (impersonation),
+  // the page sends anyone else home, and the server refuses its
+  // routes to everyone but that superadmin (api/Modules/Developer).
+  { path: "/developer/files", roles: ["admin", "employee"] },
+  { path: "/developer/files/:id", roles: ["admin", "employee"] },
   { path: "/purchase-invoices", perm: "catalog.read" },
   { path: "/purchase-invoices/new", perm: "catalog.update" },
   { path: "/purchase-invoices/:id", perm: "catalog.update" },

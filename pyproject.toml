@@ -195,6 +195,11 @@ files = [
     "api/Modules/Notifications/Requests/__init__.py",
     "api/Modules/Notifications/Controllers/__init__.py",
     "api/Modules/Notifications/Services/trial_reminders.py",
+    # ── api/Modules/Developer ────────────────────────────────
+    "api/Modules/Developer/__init__.py",
+    "api/Modules/Developer/Controllers/__init__.py",
+    "api/Modules/Developer/Requests/__init__.py",
+    "api/Modules/Developer/Services/__init__.py",
     # ── api/Modules/Owners ───────────────────────────────────
     "api/Modules/Owners/Services/bulk_users.py",
     "api/Modules/Owners/Services/cross_store.py",

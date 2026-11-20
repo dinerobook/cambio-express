@@ -209,6 +209,7 @@ Every domain owns four layers: `Models`, `Repositories`, `Services`,
 | `Billing` | Stripe checkout, subscriptions, add-ons, referrals, data retention |
 | `Customers` | `find_or_upsert_customer`, autocomplete search, `PHONE_COUNTRY_CODES` |
 | `DailyBook` | Daily report, line items, drops, deposits |
+| `Developer` | The store's Developer tab: its register's import files and raw XML, GET only, for an active superadmin on an impersonation token |
 | `Dashboard` | Per-role landing data |
 | `FeatureFlags` | Per-store overrides + global defaults |
 | `Monthly` | P&L with the bank-fed lines + the store's own names for its P&L lines |

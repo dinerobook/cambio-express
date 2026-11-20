@@ -39,6 +39,28 @@ describe("filterNavForRole → section-hub resolution", () => {
     });
   }
 
+  it("Developer shows only while a superadmin is signed in as the store", () => {
+    // Owner, 2026-11-20: a store tab, seen only on an impersonation.
+    const titles = (role: string, impersonating?: boolean) =>
+      filterNavForRole(role, [], undefined, "backoffice", impersonating)
+        .map((g) => g.title);
+    for (const role of ["admin", "employee", "owner", "superadmin", "accountant"]) {
+      expect(titles(role)).not.toContain("Developer");
+    }
+    const dev = filterNavForRole("admin", [], undefined, "backoffice", true)
+      .find((g) => g.title === "Developer");
+    expect(dev?.to).toBe("/developer/files");
+    expect(titles("employee", true)).toContain("Developer");
+    // An impersonated owner outside a store, or check cashing view: no.
+    expect(titles("owner", true)).not.toContain("Developer");
+    expect(filterNavForRole("admin", [], undefined, "checks", true).map((g) => g.title))
+      .not.toContain("Developer");
+    // Its trail reads "Developer / <file>" on the file page.
+    const trail = navTrail("/developer/files/7",
+      filterNavForRole("admin", [], undefined, "backoffice", true));
+    expect(trail.map((c) => c.label)).toEqual(["Developer"]);
+  });
+
   it("each business carries its own reports; an admin has no Reports menu", () => {
     // Owner, 2026-11-19: MSB reports sit in MSB, Store reports in
     // Retail (sidebar option 2). Reports is the accountant's menu.

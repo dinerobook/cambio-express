@@ -86,6 +86,10 @@ def _register_routers(app: FastAPI) -> None:
     from api.Modules.PosImport.Controllers import router as posimport_router
     app.include_router(posimport_router)
 
+    # A superadmin signed in as a store: its register's files (GET only).
+    from api.Modules.Developer.Controllers import router as developer_router
+    app.include_router(developer_router)
+
     from api.Modules.StoreBook.Controllers import router as storebook_router
     app.include_router(storebook_router)
 

@@ -42,6 +42,10 @@ export function PageCrumbs({
     identity?.permissions ?? [],
     undefined,
     checks ? "checks" : "backoffice",
+    // Like module flags, impersonation only hides a group; it never
+    // changes which group a URL sits under (Developer's pages are
+    // reachable only while impersonating anyway).
+    true,
   );
   // Sidebar crumbs read in the person's language like the sidebar
   // itself; `via` and `current` arrive already translated.

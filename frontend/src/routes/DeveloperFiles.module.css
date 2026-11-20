@@ -1,0 +1,9 @@
+/* The "Why not" cell: a reader's message can be long — wrap it in a
+   readable column instead of stretching the table. */
+.reason {
+  display: inline-block;
+  max-width: 28rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--db-text-muted);
+}

@@ -38,6 +38,10 @@ export interface NavGroup {
   /** Direct-link group only: highlight it on exactly `to`, not on
    *  every page under it (a home link above its own sub-pages). */
   end?: boolean;
+  /** Shown only while a superadmin is signed in AS this person
+   *  (`session-status.impersonation`) — the Developer tab. The
+   *  server refuses its routes to everyone else. */
+  impersonation?: boolean;
   /** Direct-link group only: module flag that must be ON for this
    *  store, like `NavItem.flag`. */
   flag?: string;
