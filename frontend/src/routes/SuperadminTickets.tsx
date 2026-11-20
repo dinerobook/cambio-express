@@ -63,45 +63,43 @@ export default function SuperadminTickets() {
             )
             : "—"
         }
-        actions={(
-          <div className={styles.filterRow}>
-            <Input
-              type="search"
-              aria-label={t("saTix.searchLabel")}
-              placeholder={t("saTix.search")}
-              value={filters.draft.q ?? filters.params.q}
-              onChange={(e) => filters.debounced("q", e.target.value)}
-              className={styles.searchInput}
-            />
-            <Select
-              aria-label={t("saTix.store")}
-              value={filters.params.store_id}
-              onChange={(e) => filters.setParam("store_id", e.target.value)}
-            >
-              <option value="">{t("saTix.allStores")}</option>
-              {(stores.data?.rows ?? []).map((s) => (
-                <option key={s.store_id} value={String(s.store_id)}>{s.name}</option>
-              ))}
-            </Select>
-            <Select
-              aria-label={t("common.status")}
-              value={filters.params.status}
-              onChange={(e) => filters.setParam("status", e.target.value)}
-            >
-              <option value="">{t("saTix.allStatuses")}</option>
-              {TICKET_STATUSES.map((s) => <option key={s.value} value={s.value}>{t(s.label)}</option>)}
-            </Select>
-            <Select
-              aria-label={t("support.colCategory")}
-              value={filters.params.category}
-              onChange={(e) => filters.setParam("category", e.target.value)}
-            >
-              <option value="">{t("saTix.allCategories")}</option>
-              {TICKET_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{t(c.label)}</option>)}
-            </Select>
-          </div>
-        )}
       />
+
+      <div className="ds-filter-bar">
+        <Input
+          type="search"
+          aria-label={t("saTix.searchLabel")}
+          placeholder={t("saTix.search")}
+          value={filters.draft.q ?? filters.params.q}
+          onChange={(e) => filters.debounced("q", e.target.value)}
+        />
+        <Select
+          aria-label={t("saTix.store")}
+          value={filters.params.store_id}
+          onChange={(e) => filters.setParam("store_id", e.target.value)}
+        >
+          <option value="">{t("saTix.allStores")}</option>
+          {(stores.data?.rows ?? []).map((s) => (
+            <option key={s.store_id} value={String(s.store_id)}>{s.name}</option>
+          ))}
+        </Select>
+        <Select
+          aria-label={t("common.status")}
+          value={filters.params.status}
+          onChange={(e) => filters.setParam("status", e.target.value)}
+        >
+          <option value="">{t("saTix.allStatuses")}</option>
+          {TICKET_STATUSES.map((s) => <option key={s.value} value={s.value}>{t(s.label)}</option>)}
+        </Select>
+        <Select
+          aria-label={t("support.colCategory")}
+          value={filters.params.category}
+          onChange={(e) => filters.setParam("category", e.target.value)}
+        >
+          <option value="">{t("saTix.allCategories")}</option>
+          {TICKET_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{t(c.label)}</option>)}
+        </Select>
+      </div>
 
       {tickets.isLoading && <Loading />}
       {tickets.isError && (

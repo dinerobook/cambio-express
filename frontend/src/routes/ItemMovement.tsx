@@ -73,7 +73,15 @@ export default function ItemMovement() {
         subtitle={t("move.subtitle")}
       />
 
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+      <div className="ds-filter-bar">
+        <Field label={t("posTx.search")}>
+          <Input
+            type="search"
+            placeholder={t("move.searchPlaceholder")}
+            value={filters.draft.q ?? filters.params.q}
+            onChange={(e) => filters.debounced("q", e.target.value)}
+          />
+        </Field>
         <Field label={t("posTx.from")}>
           <DateInput
             value={filters.params.start}
@@ -86,16 +94,6 @@ export default function ItemMovement() {
             onChange={(e) => filters.setParam("end", e.target.value)}
           />
         </Field>
-        <div style={{ flex: 1, minWidth: "14rem" }}>
-          <Field label={t("posTx.search")}>
-            <Input
-              type="search"
-              placeholder={t("move.searchPlaceholder")}
-              value={filters.draft.q ?? filters.params.q}
-              onChange={(e) => filters.debounced("q", e.target.value)}
-            />
-          </Field>
-        </div>
       </div>
 
       {data && (

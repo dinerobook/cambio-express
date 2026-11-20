@@ -80,18 +80,20 @@ export default function ReturnCheckBatches() {
       <ReturnChecksHeader
         subtitle={data ? tn("returnCheck.batchCount", data.total, fmtNumber) : "—"}
       />
-      <Card className="ds-filter-bar">
-        <Field label={t("transfer.search")}>
-          <Input
-            type="search"
-            value={filters.draft.q ?? filters.params.q}
-            onChange={(e) => filters.debounced("q", e.target.value)}
-            placeholder={t("returnCheck.batchSearchPlaceholder")}
-          />
-        </Field>
-      </Card>
       <Card>
         <DataTable
+          toolbar={(
+            <>
+              <Field label={t("transfer.search")}>
+                <Input
+                  type="search"
+                  value={filters.draft.q ?? filters.params.q}
+                  onChange={(e) => filters.debounced("q", e.target.value)}
+                  placeholder={t("returnCheck.batchSearchPlaceholder")}
+                />
+              </Field>
+            </>
+          )}
           columns={batchColumns(t)}
           rows={data?.rows}
           rowKey={(r) => r.id}

@@ -146,37 +146,57 @@ export interface DataTableProps<T> {
   footer?: ReactNode;
   /** Adds the "Export CSV" button above the table. */
   exportCsv?: DataTableExport<T>;
+  /** The list's search and filters (Fields, controls). They share ONE
+   *  row with Export CSV (`ds-filter-bar`, UI-STANDARDS §7) and stay
+   *  put while the list loads or comes back empty, so a search that
+   *  matched nothing can still be changed. */
+  toolbar?: ReactNode;
 }
 
 export function DataTable<T>({
   columns, rows, rowKey, onRowClick, rowLabel, rowClassName,
   isLoading = false, isError = false, error, onRetry,
   errorMessage, emptyTitle, emptyBody, page, sort, expandedRow, footer,
-  exportCsv,
+  exportCsv, toolbar,
 }: DataTableProps<T>) {
   const list = rows ?? [];
-  const states = (
-    <TableStates
-      isLoading={isLoading}
-      isError={isError}
-      error={error}
-      isEmpty={!isLoading && !isError && list.length === 0}
-      onRetry={onRetry ?? (() => {})}
-      errorMessage={errorMessage}
-      emptyTitle={emptyTitle}
-      emptyBody={emptyBody}
-      cols={Math.min(columns.length, 6)}
-    />
-  );
-  if (isLoading || isError || list.length === 0) return states;
-
-  return (
-    <div className={styles.root}>
-      {exportCsv && canDo(exportCsv.perm ?? EXPORT_PERM) && (
-        <div className={styles.toolbar}>
+  const showStates = isLoading || isError || list.length === 0;
+  const canExport = Boolean(exportCsv && canDo(exportCsv.perm ?? EXPORT_PERM)) && !showStates;
+  // The bar is always the first child, so the search box inside it is
+  // never remounted (no lost focus) when the list swaps for a state.
+  const bar = (toolbar || canExport) ? (
+    <div className={`ds-filter-bar ${styles.toolbar}`}>
+      {toolbar}
+      {canExport && exportCsv && (
+        <div className="ds-filter-bar__end">
           <ExportButton spec={exportCsv} columns={columns} rowKey={rowKey} />
         </div>
       )}
+    </div>
+  ) : null;
+  if (showStates) {
+    return (
+      <>
+        {bar}
+        <TableStates
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          isEmpty={!isLoading && !isError && list.length === 0}
+          onRetry={onRetry ?? (() => {})}
+          errorMessage={errorMessage}
+          emptyTitle={emptyTitle}
+          emptyBody={emptyBody}
+          cols={Math.min(columns.length, 6)}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+    {bar}
+    <div className={styles.root}>
       <Table>
         <thead>
           <tr>
@@ -252,6 +272,7 @@ export function DataTable<T>({
         />
       )}
     </div>
+    </>
   );
 }
 
@@ -292,8 +313,9 @@ function ExportButton<T>({
     }
   }
 
+  // Default size: the same height as the search and filters beside it.
   return (
-    <Button tone="secondary" size="sm" busy={busy} onClick={() => { void run(); }}>
+    <Button tone="secondary" busy={busy} onClick={() => { void run(); }}>
       {busy ? t("table.exporting") : t("table.exportCsv")}
     </Button>
   );

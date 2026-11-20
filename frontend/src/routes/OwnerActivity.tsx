@@ -49,19 +49,17 @@ export default function OwnerActivity() {
         subtitle={t("owner.activitySubtitle")}
       />
 
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <Input
-          type="search"
-          aria-label={t("owner.search")}
-          style={{ width: "20rem", maxWidth: "100%" }}
-          placeholder={t("owner.activitySearch")}
-          value={filters.draft.q ?? filters.params.q}
-          onChange={(e) => filters.debounced("q", e.target.value)}
-        />
-      </div>
-
       <Card>
         <AuditTable
+          toolbar={(
+            <Input
+              type="search"
+              aria-label={t("owner.search")}
+              placeholder={t("owner.activitySearch")}
+              value={filters.draft.q ?? filters.params.q}
+              onChange={(e) => filters.debounced("q", e.target.value)}
+            />
+          )}
           who="both"
           rows={data?.rows.map(toAuditTableRow)}
           isLoading={isLoading} isError={isError} error={error}

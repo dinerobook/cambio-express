@@ -56,19 +56,19 @@ export default function SuperadminAuditLog() {
             ? tn("saAudit.entriesMatching", data.total, fmtNumber, { action })
             : tn("saAudit.entries", data.total, fmtNumber))
           : "—"}
-        actions={(
-          <Input
-            type="search"
-            value={filters.draft.action ?? filters.params.action}
-            placeholder={t("saAudit.filter")}
-            onChange={(e) => filters.debounced("action", e.target.value)}
-            style={{ maxWidth: "20rem" }}
-          />
-        )}
       />
 
       <Card>
         <AuditTable
+          toolbar={(
+            <Input
+              type="search"
+              value={filters.draft.action ?? filters.params.action}
+              placeholder={t("saAudit.filter")}
+              aria-label={t("saAudit.filter")}
+              onChange={(e) => filters.debounced("action", e.target.value)}
+            />
+          )}
           rows={data?.rows.map(toAuditTableRow)}
           isLoading={isLoading} isError={isError} error={error}
           onRetry={() => { void refetch(); }}

@@ -174,41 +174,41 @@ export default function PurchaseInvoices() {
         }
       />
       <Section title={t("inv.invoices")}>
-        <div className={styles.filtersRow}>
-          <div className={styles.searchField}>
-            <Field label={t("posTx.search")}>
-              <Input
-                type="search"
-                placeholder={t("inv.searchPlaceholder")}
-                value={filters.draft.q ?? filters.params.q}
-                onChange={(e) => filters.debounced("q", e.target.value)}
-              />
-            </Field>
-          </div>
-          <Field label={t("inv.colVendor")}>
-            <Select
-              value={filters.params.vendor_id}
-              onChange={(e) => filters.setParam("vendor_id", e.target.value)}
-            >
-              <option value="">{t("inv.all")}</option>
-              {(vendors.data?.vendors ?? []).map((v) => (
-                <option key={v.id} value={v.id}>{v.name}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("common.status")}>
-            <Select
-              value={filters.params.status}
-              onChange={(e) => filters.setParam("status", e.target.value)}
-            >
-              <option value="">{t("inv.all")}</option>
-              <option value="open">{t("inv.open")}</option>
-              <option value="paid">{t("inv.paid")}</option>
-            </Select>
-          </Field>
-        </div>
         <Card>
           <DataTable
+            toolbar={(
+              <>
+                <Field label={t("posTx.search")}>
+                  <Input
+                    type="search"
+                    placeholder={t("inv.searchPlaceholder")}
+                    value={filters.draft.q ?? filters.params.q}
+                    onChange={(e) => filters.debounced("q", e.target.value)}
+                  />
+                </Field>
+                <Field label={t("inv.colVendor")}>
+                  <Select
+                    value={filters.params.vendor_id}
+                    onChange={(e) => filters.setParam("vendor_id", e.target.value)}
+                  >
+                    <option value="">{t("inv.all")}</option>
+                    {(vendors.data?.vendors ?? []).map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={t("common.status")}>
+                  <Select
+                    value={filters.params.status}
+                    onChange={(e) => filters.setParam("status", e.target.value)}
+                  >
+                    <option value="">{t("inv.all")}</option>
+                    <option value="open">{t("inv.open")}</option>
+                    <option value="paid">{t("inv.paid")}</option>
+                  </Select>
+                </Field>
+              </>
+            )}
             columns={columns}
             rows={data?.rows}
             rowKey={(inv) => inv.id}

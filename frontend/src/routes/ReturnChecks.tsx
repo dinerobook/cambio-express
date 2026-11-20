@@ -149,24 +149,6 @@ export default function ReturnChecks() {
           : "—"}
       />
 
-      <Card className="ds-filter-bar">
-        <Field label={t("transfer.search")}>
-          <Input
-            type="search"
-            value={filters.draft.q ?? q}
-            onChange={(e) => filters.debounced("q", e.target.value)}
-            placeholder={t("returnCheck.searchPlaceholder")}
-          />
-        </Field>
-        <Field label={t("transfer.status")}>
-          <Select value={status} onChange={(e) => filters.setParam("status", e.target.value)}>
-            {STATUSES.map((s) => (
-              <option key={s.slug} value={s.slug}>{t(s.label)}</option>
-            ))}
-          </Select>
-        </Field>
-      </Card>
-
       {party && (
         <div className={styles.partyFilter}>
           <Pill tone="info">{party.label}</Pill>
@@ -178,6 +160,25 @@ export default function ReturnChecks() {
 
       <Card>
         <DataTable
+          toolbar={(
+            <>
+              <Field label={t("transfer.search")}>
+                <Input
+                  type="search"
+                  value={filters.draft.q ?? q}
+                  onChange={(e) => filters.debounced("q", e.target.value)}
+                  placeholder={t("returnCheck.searchPlaceholder")}
+                />
+              </Field>
+              <Field label={t("transfer.status")}>
+                <Select value={status} onChange={(e) => filters.setParam("status", e.target.value)}>
+                  {STATUSES.map((s) => (
+                    <option key={s.slug} value={s.slug}>{t(s.label)}</option>
+                  ))}
+                </Select>
+              </Field>
+            </>
+          )}
           columns={columns}
           rows={data?.rows}
           rowKey={(r) => r.id}

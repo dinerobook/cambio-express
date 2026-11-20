@@ -124,7 +124,16 @@ export default function Transactions() {
         subtitle={t("posTx.subtitle")}
       />
 
-      <div className={styles.filters}>
+      {/* The kit filter bar: search first, then the filters, on one row. */}
+      <div className="ds-filter-bar">
+        <Field label={t("posTx.search")}>
+          <Input
+            type="search"
+            placeholder={t("posTx.searchPlaceholder")}
+            value={filters.draft.q ?? filters.params.q}
+            onChange={(e) => filters.debounced("q", e.target.value)}
+          />
+        </Field>
         <Field label={t("posTx.from")}>
           <DateInput
             value={filters.params.start}
@@ -147,16 +156,6 @@ export default function Transactions() {
             ))}
           </Select>
         </Field>
-        <div className={styles.searchField}>
-          <Field label={t("posTx.search")}>
-            <Input
-              type="search"
-              placeholder={t("posTx.searchPlaceholder")}
-              value={filters.draft.q ?? filters.params.q}
-              onChange={(e) => filters.debounced("q", e.target.value)}
-            />
-          </Field>
-        </div>
         <div className={styles.voidedToggle}>
           <Checkbox
             checked={filters.params.voided === "1"}

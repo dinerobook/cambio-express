@@ -148,20 +148,21 @@ export default function Transfers() {
         )}
       />
 
-      <FilterBar
-        q={draft.q ?? q}
-        onQChange={(v: string) => filters.debounced("q", v)}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        status={status}
-        service={service}
-        paidBy={paidBy}
-        onSet={setFilter}
-        busy={isFetching}
-      />
-
       <Card>
         <DataTable
+          toolbar={(
+            <TransferFilters
+              q={draft.q ?? q}
+              onQChange={(v: string) => filters.debounced("q", v)}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              status={status}
+              service={service}
+              paidBy={paidBy}
+              onSet={setFilter}
+              busy={isFetching}
+            />
+          )}
           columns={columns}
           rows={data?.rows}
           rowKey={(r) => r.id}
@@ -194,7 +195,7 @@ export default function Transfers() {
   );
 }
 
-interface FilterBarProps {
+interface TransferFiltersProps {
   q: string;
   onQChange: (q: string) => void;
   dateFrom: string;
@@ -206,13 +207,15 @@ interface FilterBarProps {
   busy: boolean;
 }
 
-function FilterBar({
+/** The list's search and filters, in the table's tool row beside
+ *  Export CSV (DataTable ``toolbar``, kit ``ds-filter-bar``). */
+function TransferFilters({
   q, onQChange, dateFrom, dateTo, status, service, paidBy, onSet, busy,
-}: FilterBarProps) {
+}: TransferFiltersProps) {
   const t = useT();
   const options = filterOptions(t);
   return (
-    <Card className="ds-filter-bar">
+    <>
       <Field label={t("transfer.search")}>
         <Input
           type="search"
@@ -264,8 +267,8 @@ function FilterBar({
         </Select>
       </Field>
       {/* Subtle in-flight indicator without shifting layout. */}
-      {busy && <span className={styles.filterBusy}>{t("transfer.updating")}</span>}
-    </Card>
+      {busy && <span className="ds-filter-bar__note">{t("transfer.updating")}</span>}
+    </>
   );
 }
 

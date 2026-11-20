@@ -120,31 +120,30 @@ export default function SuperadminEmailLog() {
       <PageHeader
         title={navWord("Email log")}
         subtitle={data ? tn("saEmail.events", data.total, fmtNumber) : "—"}
-        actions={(
-          <div className={styles.filterRow}>
-            <Input
-              type="search"
-              value={filters.draft.q ?? filters.params.q}
-              placeholder={t("saEmail.search")}
-              aria-label={t("saEmail.searchLabel")}
-              onChange={(e) => filters.debounced("q", e.target.value)}
-              className={styles.searchInput}
-            />
-            <Select
-              value={eventType}
-              aria-label={t("saEmail.colEvent")}
-              onChange={(e) => filters.setParam("event_type", e.target.value)}
-            >
-              {EVENT_TYPES.map((ev) => (
-                <option key={ev.value} value={ev.value}>{t(ev.label)}</option>
-              ))}
-            </Select>
-          </div>
-        )}
       />
 
       <Card>
         <DataTable
+          toolbar={(
+            <>
+              <Input
+                type="search"
+                value={filters.draft.q ?? filters.params.q}
+                placeholder={t("saEmail.search")}
+                aria-label={t("saEmail.searchLabel")}
+                onChange={(e) => filters.debounced("q", e.target.value)}
+              />
+              <Select
+                value={eventType}
+                aria-label={t("saEmail.colEvent")}
+                onChange={(e) => filters.setParam("event_type", e.target.value)}
+              >
+                {EVENT_TYPES.map((ev) => (
+                  <option key={ev.value} value={ev.value}>{t(ev.label)}</option>
+                ))}
+              </Select>
+            </>
+          )}
           columns={emailColumns()}
           rows={data?.rows}
           rowKey={(e) => e.id}

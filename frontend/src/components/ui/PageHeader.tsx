@@ -25,7 +25,10 @@ export function PageHeader({
         minHeight: "2.5rem",
       }}
     >
-      <div style={{ minWidth: 0 }}>
+      {/* The title takes the spare room and a long subtitle wraps
+          inside it, so the actions stay on the title's row until the
+          window is too narrow for both (UI-STANDARDS §7). */}
+      <div style={{ flex: "1 1 20rem", minWidth: 0 }}>
         <h1
           style={{
             fontFamily: tokens.fontDisplay,
@@ -56,8 +59,11 @@ export function PageHeader({
           style={{
             display: "inline-flex",
             alignItems: "center",
+            justifyContent: "flex-end",
             gap: "0.5rem",
             flexWrap: "wrap",
+            flex: "0 1 auto",
+            marginLeft: "auto",
           }}
         >
           {actions}

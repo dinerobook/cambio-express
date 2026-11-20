@@ -42,7 +42,7 @@ export function AuditTable({
 } & Pick<
   DataTableProps<AuditTableRow>,
   | "isLoading" | "isError" | "error" | "onRetry" | "errorMessage"
-  | "emptyTitle" | "emptyBody" | "page" | "exportCsv"
+  | "emptyTitle" | "emptyBody" | "page" | "exportCsv" | "toolbar"
 >) {
   useT(); // headings follow the language
   return (

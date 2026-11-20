@@ -103,16 +103,6 @@ export default function SuperadminStores() {
         subtitle={data
           ? tn(q.length >= 2 ? "saStores.matches" : "saStores.stores", data.total, fmtNumber)
           : "—"}
-        actions={(
-          <Input
-            type="search"
-            value={filters.draft.q ?? q}
-            placeholder={t("saStores.search")}
-            aria-label={t("saStores.searchLabel")}
-            onChange={(e) => filters.debounced("q", e.target.value)}
-            style={{ maxWidth: "22rem" }}
-          />
-        )}
       />
 
       {selected.length > 0 && (
@@ -144,6 +134,15 @@ export default function SuperadminStores() {
 
       <Card>
         <DataTable
+          toolbar={(
+            <Input
+              type="search"
+              value={filters.draft.q ?? q}
+              placeholder={t("saStores.search")}
+              aria-label={t("saStores.searchLabel")}
+              onChange={(e) => filters.debounced("q", e.target.value)}
+            />
+          )}
           columns={columns}
           rows={data?.rows}
           rowKey={(r) => r.store_id}
