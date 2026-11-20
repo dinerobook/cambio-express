@@ -9,6 +9,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from api.Core.Uploads import b64_len
+
 # Same values as ``DEPARTMENT_TYPES`` in the Models (a test keeps the
 # two in step); spelled out so the SPA gets a typed union.
 DepartmentType = Literal[
@@ -95,6 +97,106 @@ class DepartmentResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     department: DepartmentRow
+
+
+# ── Modisoft department import ─────────────────────────────
+
+# A Modisoft departments export is a few kilobytes; this leaves room.
+MAX_DEPARTMENT_IMPORT_BYTES = 2 * 1024 * 1024
+MAX_DEPARTMENT_IMPORT_ROWS = 2_000
+
+# DineroBook's type group for a Modisoft type ("" = blank or unknown).
+TypeGroup = Literal["merchandise", "fuel", "lottery", "services", "misc", ""]
+DepartmentName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80),
+]
+
+
+class DepartmentImportCheckRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    content_base64: str = Field(
+        ..., min_length=1, max_length=b64_len(MAX_DEPARTMENT_IMPORT_BYTES),
+    )
+
+
+class DepartmentImportCheckRow(BaseModel):
+    """One department of the file, planned against the store."""
+    model_config = ConfigDict(extra="forbid")
+
+    line: int
+    name: str
+    pos_code: str | None
+    modisoft_type: str
+    type_group: TypeGroup
+    # DineroBook's type: exact for Fuel / Merchandise / Misc, a guess
+    # from the name for Lottery / Services (type_sure false).
+    department_type: DepartmentType
+    type_sure: bool
+    is_taxable: bool | None
+    tax_rate: float | None
+    # 0 = no age limit, None = the cell was blank.
+    min_age: int | None
+    nacs_code: str | None
+    items: int | None
+    status: Literal["new", "update", "same", "skip"]
+    existing_id: int | None
+    existing_name: str
+    existing_type: DepartmentType | None
+    changes: list[Literal["name", "type", "tax", "age", "nacs", "pos"]]
+    problem: Literal["duplicate_name", "duplicate_pos", "pos_taken", "name_taken"] | None
+    problem_name: str
+    # Not on the register (Modisoft's -1) and no items: offered unticked.
+    unused: bool
+    include: bool
+
+
+class DepartmentImportIssue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: Literal["no_name", "bad_number", "bad_pos", "bad_nacs"]
+    count: int
+    lines: list[int]
+
+
+class DepartmentImportCheckResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[DepartmentImportCheckRow]
+    columns_used: list[str]
+    columns_ignored: list[str]
+    issues: list[DepartmentImportIssue]
+
+
+class DepartmentImportRow(BaseModel):
+    """A reviewed row: the file's values plus the type the person chose.
+    None leaves a matched department's value alone."""
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    name:       DepartmentName
+    pos_code:   PosCode | None = None
+    department_type: DepartmentType
+    is_taxable: bool | None = None
+    tax_rate:   float | None = Field(None, ge=0, le=1)
+    # 0 = no age limit.
+    min_age:    int | None = Field(None, ge=0, le=99)
+    nacs_code:  NacsCode | None = None
+
+
+class DepartmentImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    rows: list[DepartmentImportRow] = Field(
+        ..., min_length=1, max_length=MAX_DEPARTMENT_IMPORT_ROWS,
+    )
+
+
+class DepartmentImportResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    created: int
+    updated: int
+    unchanged: int
 
 
 class DepartmentSaleLine(BaseModel):

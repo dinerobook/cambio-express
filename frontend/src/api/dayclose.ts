@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { fileToBase64 } from "../lib/files";
 import type { components } from "./openapi";
 
 // Typed straight off the FastAPI OpenAPI spec (CLAUDE.md standard).
@@ -71,5 +72,29 @@ export async function deleteRegisterClose(
 ): Promise<DayCloseSummary> {
   return api<DayCloseSummary>(`/api/v2/dayclose/closes/${id}`, {
     method: "DELETE",
+  });
+}
+
+
+// ── Modisoft department import ─────────────────────────────
+// Check the export (writes nothing), then import the rows the person
+// kept with the type they chose. Rules: api/Modules/DayClose/Services/
+// modisoft_departments.py.
+export type DepartmentImportCheck = components["schemas"]["DepartmentImportCheckResponse"];
+export type DepartmentImportCheckRow = components["schemas"]["DepartmentImportCheckRow"];
+export type DepartmentImportRow = components["schemas"]["DepartmentImportRow"];
+export type DepartmentImportResult = components["schemas"]["DepartmentImportResponse"];
+
+export async function checkModisoftDepartments(file: File): Promise<DepartmentImportCheck> {
+  return api<DepartmentImportCheck>("/api/v2/dayclose/departments/import/modisoft/check", {
+    method: "POST", json: { content_base64: await fileToBase64(file) },
+  });
+}
+
+export async function importDepartments(
+  rows: DepartmentImportRow[],
+): Promise<DepartmentImportResult> {
+  return api<DepartmentImportResult>("/api/v2/dayclose/departments/import/modisoft", {
+    method: "POST", json: { rows },
   });
 }

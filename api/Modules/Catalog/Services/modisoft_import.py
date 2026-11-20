@@ -46,7 +46,7 @@ from api.Modules.Catalog.Services.barcodes import ScanCode, normalize_scan_code
 from api.Modules.Catalog.Services.products import (
     NAME_MAX, ProductSeed, ensure_products, products_by_gtin,
 )
-from api.Modules.Catalog.Services.xlsx import Cell, XlsxError, iter_first_sheet
+from api.Core.Xlsx import Cell, XlsxError, iter_first_sheet
 from api.Modules.DayClose.Models import Department
 
 SOURCE = "modisoft"

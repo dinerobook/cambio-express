@@ -7,6 +7,11 @@ Mounts at `/api/v2/dayclose/*`:
   PUT    /departments/{id}         rename / reorder / deactivate, and the
                                    setup fields (type, taxable, min age,
                                    NACS code, register numbers)
+  POST   /departments/import/modisoft/check
+                                   read a Modisoft departments export
+                                   and plan each row (writes nothing)
+  POST   /departments/import/modisoft
+                                   create / update the reviewed rows
   GET    /day/{date}               day summary (closes + dept rollup)
   POST   /day/{date}/closes        upsert one register/shift close
                                    (replaces on the same register +
@@ -29,6 +34,7 @@ from api.Core.Audit import audit_operator
 from api.Core.Clock import parse_iso_day
 from api.Core.Database import get_db
 from api.Core.Money import to_dollars
+from api.Core.Uploads import decode_base64
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services.principal import (
     require_permission,
@@ -37,6 +43,12 @@ from api.Modules.Auth.Services.principal import (
 from api.Modules.DayClose.Models import Department, RegisterClose
 from api.Modules.DayClose.Requests import (
     DayCloseSummaryResponse,
+    DepartmentImportCheckRequest,
+    DepartmentImportCheckResponse,
+    DepartmentImportCheckRow,
+    DepartmentImportIssue,
+    DepartmentImportRequest,
+    DepartmentImportResponse,
     DepartmentListResponse,
     DepartmentResponse,
     DepartmentRow,
@@ -61,6 +73,12 @@ from api.Modules.DayClose.Services import (
     pos_codes_by_department,
     update_department,
     upsert_register_close,
+)
+from api.Modules.DayClose.Services.modisoft_departments import (
+    ImportFileError,
+    PlannedRow,
+    apply_rows,
+    check_file,
 )
 
 router = APIRouter(prefix="/dayclose", tags=["dayclose"])
@@ -213,6 +231,99 @@ def update_department_route(
     )
     db.commit()
     return DepartmentResponse(department=row)
+
+
+# ── Modisoft department import ─────────────────────────────
+
+
+def _check_row(p: PlannedRow) -> DepartmentImportCheckRow:
+    r = p.row
+    return DepartmentImportCheckRow(
+        line=r.line, name=r.name, pos_code=r.pos_code,
+        modisoft_type=r.modisoft_type,
+        type_group=r.group,
+        department_type=p.department_type,
+        type_sure=p.type_sure,
+        is_taxable=r.is_taxable, tax_rate=r.tax_rate, min_age=r.min_age,
+        nacs_code=r.nacs_code, items=r.items,
+        status=p.status,
+        existing_id=p.existing_id, existing_name=p.existing_name,
+        existing_type=p.existing_type,
+        changes=p.changes,
+        problem=p.problem,
+        problem_name=p.problem_name,
+        unused=p.unused, include=p.include,
+    )
+
+
+@router.post(
+    "/departments/import/modisoft/check",
+    response_model=DepartmentImportCheckResponse,
+)
+def check_department_import_route(
+    body: DepartmentImportCheckRequest,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> DepartmentImportCheckResponse:
+    """Read a Modisoft departments export and plan every row against
+    the store's departments. Writes nothing."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "update")
+    data = decode_base64(
+        body.content_base64, detail="Could not read the uploaded file.",
+    )
+    try:
+        report = check_file(db, sid, data)
+    except ImportFileError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    finally:
+        db.rollback()
+    return DepartmentImportCheckResponse(
+        rows=[_check_row(p) for p in report.rows],
+        columns_used=report.columns_used,
+        columns_ignored=report.columns_ignored,
+        issues=[
+            DepartmentImportIssue(
+                code=code,
+                count=issue.count, lines=issue.lines,
+            )
+            for code, issue in report.issues.items()
+        ],
+    )
+
+
+@router.post(
+    "/departments/import/modisoft", response_model=DepartmentImportResponse,
+)
+def import_departments_route(
+    body: DepartmentImportRequest,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> DepartmentImportResponse:
+    """Create or update the rows the person kept after the check, each
+    with the type they chose. All or nothing: one refused row (a
+    register number another department holds, a name taken) is a 409
+    and nothing is saved."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "update")
+    try:
+        result = apply_rows(db, sid, [r.model_dump() for r in body.rows])
+    except DayCloseStateError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    audit_operator(
+        db, claims, action="import_departments",
+        target_type="department", target_id=str(sid),
+        summary=(
+            f"Modisoft departments: {result.created} new, "
+            f"{result.updated} updated, {result.unchanged} unchanged"
+        ),
+    )
+    db.commit()
+    return DepartmentImportResponse(
+        created=result.created, updated=result.updated,
+        unchanged=result.unchanged,
+    )
 
 
 # ── Day close ──────────────────────────────────────────────

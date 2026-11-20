@@ -15,14 +15,12 @@ Invariants under test:
 """
 import base64
 import importlib.util
-import io
-import zipfile
 from pathlib import Path
-from xml.sax.saxutils import escape
 
 import pytest
 
 from tests._app import db, db_session
+from tests._xlsx import make_xlsx
 from tests.conftest import login_admin, make_employee_client
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -43,61 +41,6 @@ def _headers(token):
 
 def _admin(client, store_id):
     return _headers(login_admin(client, store_id))
-
-
-def _col(i):
-    out = ""
-    i += 1
-    while i:
-        i, r = divmod(i - 1, 26)
-        out = chr(65 + r) + out
-    return out
-
-
-def make_xlsx(rows, *, numeric_codes=False, sheet_xml=None):
-    """A minimal .xlsx (one sheet). Text cells are inline strings;
-    ints/floats are number cells (scan codes too when numeric_codes)."""
-    def cell(ref, value, as_number):
-        if value is None or value == "":
-            return ""
-        if as_number:
-            return f'<c r="{ref}"><v>{value}</v></c>'
-        return f'<c r="{ref}" t="inlineStr"><is><t>{escape(str(value))}</t></is></c>'
-
-    body = []
-    for r, row in enumerate(rows, start=1):
-        cells = "".join(
-            cell(
-                f"{_col(c)}{r}", v,
-                isinstance(v, (int, float)) and not isinstance(v, bool)
-                and (c != 0 or numeric_codes),
-            )
-            for c, v in enumerate(row)
-        )
-        body.append(f'<row r="{r}">{cells}</row>')
-    sheet = sheet_xml or (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-        f'<sheetData>{"".join(body)}</sheetData></worksheet>'
-    )
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml", "<Types/>")
-        z.writestr(
-            "xl/workbook.xml",
-            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            '<sheets><sheet name="Price Book" sheetId="1" r:id="rId1"/></sheets></workbook>',
-        )
-        z.writestr(
-            "xl/_rels/workbook.xml.rels",
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            '<Relationship Id="rId1" Target="worksheets/sheet1.xml" '
-            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"/>'
-            '</Relationships>',
-        )
-        z.writestr("xl/worksheets/sheet1.xml", sheet)
-    return buf.getvalue()
 
 
 def _post_import(client, h, data, **body):
@@ -448,7 +391,7 @@ def test_update_existing_off_leaves_items_alone(client, test_store_id):
 
 def test_numeric_scan_codes_are_flagged(client, test_store_id):
     h = _admin(client, test_store_id)
-    data = make_xlsx([HEADER, _row(49000006346, "COKE", retail=2)], numeric_codes=True)
+    data = make_xlsx([HEADER, _row(49000006346, "COKE", retail=2)], numeric_first=True)
     r = _post_import(client, h, data).json()
     assert {i["code"] for i in r["issues"]} == {"numeric_code"}
 
@@ -504,7 +447,8 @@ def test_bad_base64_and_oversize_are_refused(client, test_store_id):
 
 
 def test_row_and_size_caps(client, test_store_id, monkeypatch):
-    from api.Modules.Catalog.Services import modisoft_import, xlsx
+    from api.Core import Xlsx as xlsx
+    from api.Modules.Catalog.Services import modisoft_import
     h = _admin(client, test_store_id)
     monkeypatch.setattr(modisoft_import, "MAX_ROWS", 2)
     data = make_xlsx([HEADER] + [_row(str(n), "X", retail=1) for n in range(20, 40)])
