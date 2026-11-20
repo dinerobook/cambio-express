@@ -13,8 +13,8 @@ import { getLanguage } from "./index";
 export const NAV_WORDS_ES: Record<string, string> = {
   // Group titles
   "Dashboard": "Panel",
-  "Daily": "Diario",
-  "Money services": "Servicios de dinero",
+  "MSB": "MSB",
+  "Retail": "Tienda",
   "Cash a check": "Cambiar un cheque",
   "Check cashing": "Cambio de cheques",
   "Finance": "Finanzas",

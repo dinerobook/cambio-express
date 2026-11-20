@@ -134,7 +134,7 @@ describe("daily book in Spanish", () => {
     expect(screen.getByText("Saldo inicial")).toBeInTheDocument();
     // The trail above the day reads like the sidebar.
     const trail = screen.getByRole("navigation", { name: "Ruta de navegación" });
-    expect(within(trail).getByText("Diario")).toBeInTheDocument();
+    expect(within(trail).getByText("MSB")).toBeInTheDocument();
     expect(within(trail).getByText("Libro diario MSB")).toBeInTheDocument();
     expect(screen.getAllByText("Entradas").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /^Guardar libro diario/ })).toBeInTheDocument();

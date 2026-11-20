@@ -36,25 +36,25 @@ describe("sidebar words", () => {
   });
 
   it("shows Spanish in the sidebar while hub links keep English slugs", () => {
-    const daily = NAV.find((g) => g.title === "Daily")!;
-    const items = daily.items.filter((i) => i.label === "MSB daily book");
+    const retail = NAV.find((g) => g.title === "Retail")!;
+    const items = retail.items.filter((i) => i.label === "Store daily book");
     setLanguage("es");
     render(
       <MemoryRouter>
         <SlimSidebar
-          groups={[{ ...daily, items }]}
+          groups={[{ ...retail, items }]}
           drawerOpen
           supportLink={SUPPORT_LINK}
         />
       </MemoryRouter>,
     );
     const nav = screen.getByRole("complementary", { name: "Navegación principal" });
-    expect(within(nav).getAllByText("Diario").length).toBeGreaterThan(0);
-    expect(within(nav).getByText("Libro diario MSB")).toBeInTheDocument();
+    expect(within(nav).getAllByText("Tienda").length).toBeGreaterThan(0);
+    expect(within(nav).getByText("Libro diario de la tienda")).toBeInTheDocument();
     expect(within(nav).getAllByText("Soporte").length).toBeGreaterThan(0);
     // The drawer's group title links to the English-slug hub URL.
-    const hubLink = within(nav).getAllByText("Diario")
+    const hubLink = within(nav).getAllByText("Tienda")
       .map((el) => el.closest("a")).find(Boolean);
-    expect(hubLink).toHaveAttribute("href", "/hub/daily");
+    expect(hubLink).toHaveAttribute("href", "/hub/retail");
   });
 });

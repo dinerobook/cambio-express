@@ -20,13 +20,15 @@ export function checksAvailable(
 
 /** This person can do something in the back office beyond the pages
  *  everyone signed in gets (the dashboard). Someone who may only cash
- *  checks never needs the switch: they always work in check cashing. */
+ *  checks never needs the switch: they always work in check cashing.
+ *  The MSB group's "Check cashing" link opens that app, so it is not
+ *  back office work. */
 export function hasBackOffice(
   role: string, permissions: string[], features: string[] | undefined,
 ): boolean {
   return filterNavForRole(role, permissions, features, "backoffice").some((g) =>
     [...(g.to ? [g.to] : []), ...g.items.map((i) => i.to)]
-      .some((to) => !findAccess(to)?.open));
+      .some((to) => !findAccess(to)?.open && workspaceForPath(to) !== "checks"));
 }
 
 const key = (userId: number) => `db.workspace.${userId}`;

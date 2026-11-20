@@ -205,7 +205,7 @@ saves the BSA ID back; direct filing later).
 - **Who**: an Admin or cashier with the read right sees their umbrella;
   an owner signed in without a store sees each of their stores with
   check cashing on. The back office link is "Check cashing report" in
-  Reports (admins, flag `check_desk`) and in the owner's Reports
+  the MSB group (admins, flag `check_desk`) and in the owner's Reports
   (flag `check_desk_report`, which session-status gives an owner once
   any of their stores has check cashing on; never the desk flag
   without a store).

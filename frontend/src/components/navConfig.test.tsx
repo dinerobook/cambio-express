@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 
-import { filterNavForRole, navTrail, sectionSlug } from "./navConfig";
+import {
+  CHECK_DESK_FLAG, CHECK_HOME, filterNavForRole, navTrail, sectionSlug,
+} from "./navConfig";
 import { TEST_ADMIN } from "../test/setup";
 
 describe("sectionSlug", () => {
@@ -37,20 +39,25 @@ describe("filterNavForRole → section-hub resolution", () => {
     });
   }
 
-  it("admin Reports is a fly-out with the two separate centers", () => {
+  it("each business carries its own reports; an admin has no Reports menu", () => {
+    // Owner, 2026-11-19: MSB reports sit in MSB, Store reports in
+    // Retail (sidebar option 2). Reports is the accountant's menu.
     const groups = filterNavForRole(
-      "admin", ["reports.read"], ["module_day_close"],
+      "admin", ["reports.read", "check_cashing.read"],
+      ["module_day_close", CHECK_DESK_FLAG],
     );
-    const reports = groups.find((g) => g.title === "Reports");
-    expect(reports).toBeDefined();
-    expect(reports!.to).toBeUndefined();
-    expect(reports!.items.map((i) => i.label))
-      .toEqual(["MSB reports", "Store reports"]);
-    // Store Reports is flag-gated — an MSB-profile store (no
+    const items = (title: string) =>
+      groups.find((g) => g.title === title)?.items.map((i) => i.label);
+    expect(items("MSB")).toEqual(
+      expect.arrayContaining(["MSB reports", "Check cashing report"]),
+    );
+    expect(items("Retail")).toContain("Store reports");
+    expect(groups.map((g) => g.title)).not.toContain("Reports");
+    // Store reports is flag-gated — an MSB-profile store (no
     // module_day_close) sees only the MSB center.
-    const msbOnly = filterNavForRole("admin", ["reports.read"], [])
-      .find((g) => g.title === "Reports");
-    expect(msbOnly!.items.map((i) => i.label)).toEqual(["MSB reports"]);
+    const msbOnly = filterNavForRole("admin", ["reports.read"], []);
+    expect(msbOnly.flatMap((g) => g.items.map((i) => i.label)))
+      .not.toContain("Store reports");
   });
 
   it("Finance links the rules page so it is reachable from the nav", () => {
@@ -60,11 +67,10 @@ describe("filterNavForRole → section-hub resolution", () => {
       .toEqual(["/bank", "/bank-transactions", "/bank/rules"]);
   });
 
-  it("Dashboard is its own direct-link entry above Daily", () => {
-    const groups = filterNavForRole("admin", ["daily_book.read"]);
+  it("Dashboard is its own direct-link entry above MSB and Retail", () => {
+    const groups = filterNavForRole("admin", ["daily_book.read", "day_close.read"]);
     const titles = groups.map((g) => g.title);
-    expect(titles.indexOf("Dashboard"))
-      .toBeLessThan(titles.indexOf("Daily"));
+    expect(titles.slice(0, 3)).toEqual(["Dashboard", "MSB", "Retail"]);
     const dash = groups.find((g) => g.title === "Dashboard");
     expect(dash!.to).toBe("/dashboard");
     const owner = filterNavForRole("owner", [])
@@ -72,29 +78,64 @@ describe("filterNavForRole → section-hub resolution", () => {
     expect(owner!.to).toBe("/owner/dashboard");
   });
 
-  it("admin can resolve the Daily hub to its destinations", () => {
+  it("splits the store's work into MSB and Retail hubs", () => {
     const perms = [
-      "transfers.read", "customers.read",
-      "daily_book.read", "return_checks.read",
+      "transfers.read", "customers.read", "daily_book.read",
+      "return_checks.read", "day_close.read", "lottery.read", "catalog.read",
     ];
     const groups = filterNavForRole("admin", perms);
-    const daily = groups.find((g) => sectionSlug(g.title) === "daily");
-    expect(daily).toBeDefined();
-    const labels = daily!.items.map((i) => i.label);
-    expect(labels).toContain("MSB daily book");
-    // Dashboard + Returned checks moved out of Daily (own entry /
-    // Money services respectively).
-    expect(labels).not.toContain("Dashboard");
-    expect(labels).not.toContain("Returned checks");
+    const msb = groups.find((g) => sectionSlug(g.title) === "msb");
+    const retail = groups.find((g) => sectionSlug(g.title) === "retail");
+    expect(msb!.items.map((i) => i.label)).toEqual(expect.arrayContaining([
+      "MSB daily book", "Transfers", "Customers", "Returned checks",
+    ]));
+    expect(retail!.items.map((i) => i.label)).toEqual(expect.arrayContaining([
+      "Store daily book", "Transactions", "Lottery", "Price book", "Purchases",
+    ]));
+    // The old groups are gone.
+    expect(groups.map((g) => g.title)).not.toContain("Daily");
+    expect(groups.map((g) => g.title)).not.toContain("Money services");
   });
 
-  it("Returned checks lives in Money services; TV display in Displays", () => {
+  it("a gas station sees MSB only for its check work; a money-services store no Retail", () => {
+    const perms = [
+      "transfers.read", "customers.read", "daily_book.read", "reports.read",
+      "return_checks.read", "day_close.read", "lottery.read", "catalog.read",
+    ];
+    // The business-type bundles (api/Modules/Billing/Services/feature_flags.py).
+    const gasStation = filterNavForRole("admin", perms, [
+      "module_lottery", "module_day_close", "module_check_cashing", "module_price_book",
+    ]);
+    const msb = gasStation.find((g) => g.title === "MSB")!;
+    expect(msb.items.map((i) => i.label))
+      .toEqual(["MSB daily book", "Returned checks", "MSB reports"]);
+    expect(gasStation.map((g) => g.title)).toContain("Retail");
+    const msbHybrid = filterNavForRole("admin", perms, [
+      "module_money_services", "module_check_cashing",
+    ]);
+    expect(msbHybrid.map((g) => g.title)).not.toContain("Retail");
+  });
+
+  it("MSB links the check cashing app where the store has it", () => {
+    const on = filterNavForRole("employee", ["check_cashing.read"], [CHECK_DESK_FLAG])
+      .find((g) => g.title === "MSB");
+    expect(on!.items.map((i) => i.to)).toContain(CHECK_HOME);
+    const off = filterNavForRole("employee", ["check_cashing.read"], [])
+      .flatMap((g) => g.items.map((i) => i.to));
+    expect(off).not.toContain(CHECK_HOME);
+    // No check rights → no link, even where the store has the app.
+    const noRights = filterNavForRole("employee", ["daily_book.read"], [CHECK_DESK_FLAG])
+      .flatMap((g) => g.items.map((i) => i.to));
+    expect(noRights).not.toContain(CHECK_HOME);
+  });
+
+  it("Returned checks lives in MSB; TV display in Displays", () => {
     // TV display's route needs settings.read; nav visibility comes
     // from the route table, so the permission has to be held here.
     const groups = filterNavForRole(
       "admin", ["return_checks.read", "settings.read"], ["module_check_cashing"],
     );
-    const ms = groups.find((g) => g.title === "Money services");
+    const ms = groups.find((g) => g.title === "MSB");
     expect(ms!.items.map((i) => i.label)).toContain("Returned checks");
     const displays = groups.find((g) => g.title === "Displays");
     expect(displays!.items.map((i) => i.label)).toEqual(["TV display"]);
@@ -104,11 +145,22 @@ describe("filterNavForRole → section-hub resolution", () => {
     const labels = filterNavForRole("superadmin", [])
       .flatMap((g) => g.items.map((i) => i.label));
     for (const storeOnly of [
-      "MSB daily book", "Store Daily book", "Transactions", "Lottery",
-      "Price book", "Purchases",
+      "MSB daily book", "Store daily book", "Transactions", "Lottery",
+      "Price book", "Purchases", "Check cashing", "MSB reports",
+      "Store reports", "Departments",
     ]) {
       expect(labels).not.toContain(storeOnly);
     }
+  });
+
+  it("Departments is for store people, never the superadmin", () => {
+    // Owner, 2026-11-19: superadmin passes every permission check but
+    // has no store, so a store page never belongs in their sidebar.
+    const account = (role: string) => filterNavForRole(role, ["day_close.read"])
+      .find((g) => g.title === "Account")!.items.map((i) => i.label);
+    expect(account("superadmin")).not.toContain("Departments");
+    expect(account("admin")).toContain("Departments");
+    expect(account("employee")).toContain("Departments");
   });
 
   it("Purchases follows the price-book flag, admin only", () => {
