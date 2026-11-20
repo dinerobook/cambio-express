@@ -507,7 +507,9 @@ needed if the kit had been checked first.
     Never a page's own toolbar CSS, a fixed-column grid, an inline
     width on the search box, or filters up in the page header. The
     page header keeps its actions on the title's row: the title
-    takes the spare room and a long subtitle wraps inside it.
+    takes the spare room and a long subtitle wraps inside it. A
+    page's own buttons ("Add support login", "+ New transfer") go in
+    `PageHeader actions`, never in a row of their own under it.
   - **Import.** A file from another system (a Modisoft price book
     or department list) takes two steps: a **check** that writes
     nothing and shows what would happen (new, updated, already up
