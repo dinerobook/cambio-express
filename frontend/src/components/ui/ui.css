@@ -41,11 +41,7 @@
  * panels with a primary CTA, etc.) get a border-color hover +
  * a barely-perceptible background lighten — same vocabulary
  * the slim sidebar uses for hover ≠ active.  No shadow, no
- * translate; persistent surfaces shouldn't float.
- *
- * Active (selected/current) state is set explicitly via the
- * `.is-active` class by the caller — same neon-tint + neon-text
- * language used everywhere else in the SPA. */
+ * translate; persistent surfaces shouldn't float. */
 .ds-card.ds-card--interactive {
   cursor: pointer;
 }

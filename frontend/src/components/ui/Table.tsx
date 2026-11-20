@@ -12,10 +12,7 @@ import styles from "./Table.module.css";
  *
  *  The wrapper applies a `tbody tr:hover` rule so rows respond
  *  visibly when the cursor passes over them — same vocabulary as
- *  the sidebar's hover rows (background tint only, no transform).
- *  Routes that want a row to feel "active" (e.g. a selected
- *  transfer) can add an `.is-active` class to the `<tr>` itself
- *  — see Table.module.css for the hook. */
+ *  the sidebar's hover rows (background tint only, no transform). */
 export function Table({
   children, style,
 }: {
