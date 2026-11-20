@@ -211,6 +211,13 @@ work is grouped by business: MSB (money services) and Retail
 exactly one group: add the link there and the route's access row in
 `src/lib/access.ts`. `filterNavForRole` hides items the person cannot
 open and groups left empty.
+**Developer** (a direct link after Account, `impersonation: true`) shows
+only while a superadmin is signed in AS the store
+(`session-status.impersonation`, passed to `filterNavForRole` by the
+shell): the register's files and their raw XML, for debugging. Its pages
+send anyone else home, and the server refuses its routes to everyone but
+an active superadmin on an impersonation token (`api/Modules/Developer`).
+Nothing in it writes, so it works on a read-only impersonation.
 **A separate app inside DineroBook** (today only check cashing) is not
 a group in `NAV`: it has its own table (`CHECK_NAV`) and the top-bar
 "Back office | Check cashing" switch (`WorkspaceSwitch`) swaps the

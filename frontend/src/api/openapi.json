@@ -9178,6 +9178,191 @@
         "title": "DepartmentWriteRequest",
         "type": "object"
       },
+      "DevFileDetailResponse": {
+        "properties": {
+          "encoding": {
+            "title": "Encoding",
+            "type": "string"
+          },
+          "file": {
+            "$ref": "#/components/schemas/DevFileRow"
+          },
+          "line_count": {
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "xml": {
+            "title": "Xml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "store_id",
+          "store_name",
+          "size_bytes",
+          "xml",
+          "encoding",
+          "truncated",
+          "line_count"
+        ],
+        "title": "DevFileDetailResponse",
+        "type": "object"
+      },
+      "DevFileListResponse": {
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DevFileRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "store_id": {
+            "title": "Store Id",
+            "type": "integer"
+          },
+          "store_name": {
+            "title": "Store Name",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/DevFileSummary"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages",
+          "summary",
+          "store_id",
+          "store_name"
+        ],
+        "title": "DevFileListResponse",
+        "type": "object"
+      },
+      "DevFileRow": {
+        "properties": {
+          "business_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Date"
+          },
+          "event_kind": {
+            "title": "Event Kind",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "imported": {
+            "title": "Imported",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "kind",
+          "event_kind",
+          "business_date",
+          "received_at",
+          "imported",
+          "reason"
+        ],
+        "title": "DevFileRow",
+        "type": "object"
+      },
+      "DevFileSummary": {
+        "description": "The store's files as a whole, whatever the filters.",
+        "properties": {
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "last_received_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Received At"
+          },
+          "not_imported": {
+            "title": "Not Imported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "files",
+          "not_imported",
+          "last_received_at"
+        ],
+        "title": "DevFileSummary",
+        "type": "object"
+      },
       "DiscountCodeListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -44469,6 +44654,328 @@
         "summary": "Update Department Route",
         "tags": [
           "dayclose"
+        ]
+      }
+    },
+    "/developer/files": {
+      "get": {
+        "description": "Every Passport file the store's register sent, newest first,\nwith why one did not import. ``status`` is ``not_imported`` /\n``imported`` / \"\" (all); ``kind`` is ``journal`` / ``movement``\n/ ``unknown`` / \"\" (all); the dates filter on business date.",
+        "operationId": "list_files_route_developer_files_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 120,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 20,
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 20,
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD",
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "YYYY-MM-DD",
+              "maxLength": 10,
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD",
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "YYYY-MM-DD",
+              "maxLength": 10,
+              "title": "End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "received",
+              "maxLength": 20,
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "maxLength": 4,
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevFileListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Files Route",
+        "tags": [
+          "developer"
+        ]
+      }
+    },
+    "/developer/files/{file_id}": {
+      "get": {
+        "description": "One file: what it is, why it did or did not import, and its\nXML as Passport wrote it (cut at 2 MB; the raw route has all).",
+        "operationId": "file_detail_route_developer_files__file_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "File Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevFileDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "File Detail Route",
+        "tags": [
+          "developer"
+        ]
+      }
+    },
+    "/developer/files/{file_id}/raw": {
+      "get": {
+        "description": "The file itself. Plain text in the browser (readable as is,\nnever rendered as XML); ``?download=1`` sends the exact bytes\nas an attachment under the file's own name.",
+        "operationId": "raw_file_route_developer_files__file_id__raw_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "File Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "download",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Download",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Raw File Route",
+        "tags": [
+          "developer"
         ]
       }
     },

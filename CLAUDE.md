@@ -92,6 +92,8 @@ is in the file named after the arrow.
    `frontend/src/components/navConfig.tsx`; a new page joins exactly
    one group and gets its access row in `frontend/src/lib/access.ts`.
    A store's work is grouped by business: MSB and Retail.
+   The Developer group shows only while a superadmin impersonates
+   the store (read-only tools; the server refuses everyone else).
    A separate app (check cashing) has its own table (`CHECK_NAV`)
    behind the top-bar "Back office | Check cashing" switch (plus one
    link in MSB); it is a desk program: every page a `DeskPage` (full

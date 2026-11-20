@@ -185,7 +185,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const groups = filterNavForRole(role, perms, features, workspace);
+  const groups = filterNavForRole(
+    role, perms, features, workspace, !!sessionStatus?.impersonation,
+  );
   const showSwitch = checks && backOffice;
   return (
     <div className={`app-shell${workspaceForPath(location.pathname) === "checks" ? " app-shell--desk" : ""}`}>

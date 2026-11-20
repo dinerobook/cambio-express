@@ -164,6 +164,10 @@ export const COVERED_FILES = [
   "components/RegisterCloses.tsx",
   "routes/Transactions.tsx",
   "routes/TransactionDetail.tsx",
+  // Developer tab (a superadmin signed in as the store)
+  "routes/DeveloperFiles.tsx",
+  "routes/DeveloperFile.tsx",
+  "api/developer.ts",
   "routes/ItemMovement.tsx",
   // Back office
   "routes/PurchaseInvoices.tsx",

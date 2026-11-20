@@ -154,6 +154,8 @@ const SuperadminSetupProgress = lazy(() => import("./routes/SuperadminSetupProgr
 const SuperadminUsers = lazy(() => import("./routes/SuperadminUsers"));
 const TimeClock = lazy(() => import("./routes/TimeClock"));
 const Transactions = lazy(() => import("./routes/Transactions"));
+const DeveloperFiles = lazy(() => import("./routes/DeveloperFiles"));
+const DeveloperFile = lazy(() => import("./routes/DeveloperFile"));
 const TransactionDetail = lazy(
   () => import("./routes/TransactionDetail"),
 );
@@ -438,6 +440,8 @@ export default function App() {
           <Route path="account/activity"      element={<Gate><AccountActivity /></Gate>} />
           <Route path="account/sessions"      element={<Gate><AccountSessions /></Gate>} />
           <Route path="account/departments"   element={<Gate><Departments /></Gate>} />
+          <Route path="developer/files"       element={<Gate><DeveloperFiles /></Gate>} />
+          <Route path="developer/files/:id"   element={<Gate><DeveloperFile /></Gate>} />
           <Route path="tv-display" element={<Gate><TVDisplayAdmin /></Gate>}>
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<Gate><TVDisplayOverview /></Gate>} />

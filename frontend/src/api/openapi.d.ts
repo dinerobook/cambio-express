@@ -3824,6 +3824,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/developer/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Files Route
+         * @description Every Passport file the store's register sent, newest first,
+         *     with why one did not import. ``status`` is ``not_imported`` /
+         *     ``imported`` / "" (all); ``kind`` is ``journal`` / ``movement``
+         *     / ``unknown`` / "" (all); the dates filter on business date.
+         */
+        get: operations["list_files_route_developer_files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/developer/files/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * File Detail Route
+         * @description One file: what it is, why it did or did not import, and its
+         *     XML as Passport wrote it (cut at 2 MB; the raw route has all).
+         */
+        get: operations["file_detail_route_developer_files__file_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/developer/files/{file_id}/raw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Raw File Route
+         * @description The file itself. Plain text in the browser (readable as is,
+         *     never rendered as XML); ``?download=1`` sends the exact bytes
+         *     as an attachment under the file's own name.
+         */
+        get: operations["raw_file_route_developer_files__file_id__raw_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feature-flags": {
         parameters: {
             query?: never;
@@ -11643,6 +11709,71 @@ export interface components {
             sort_order: number;
             /** Tax Rate */
             tax_rate?: number | null;
+        };
+        /** DevFileDetailResponse */
+        DevFileDetailResponse: {
+            /** Encoding */
+            encoding: string;
+            file: components["schemas"]["DevFileRow"];
+            /** Line Count */
+            line_count: number;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Store Id */
+            store_id: number;
+            /** Store Name */
+            store_name: string;
+            /** Truncated */
+            truncated: boolean;
+            /** Xml */
+            xml: string;
+        };
+        /** DevFileListResponse */
+        DevFileListResponse: {
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["DevFileRow"][];
+            /** Store Id */
+            store_id: number;
+            /** Store Name */
+            store_name: string;
+            summary: components["schemas"]["DevFileSummary"];
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** DevFileRow */
+        DevFileRow: {
+            /** Business Date */
+            business_date: string | null;
+            /** Event Kind */
+            event_kind: string;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: number;
+            /** Imported */
+            imported: boolean;
+            /** Kind */
+            kind: string;
+            /** Reason */
+            reason: string;
+            /** Received At */
+            received_at: string | null;
+        };
+        /**
+         * DevFileSummary
+         * @description The store's files as a whole, whatever the filters.
+         */
+        DevFileSummary: {
+            /** Files */
+            files: number;
+            /** Last Received At */
+            last_received_at: string | null;
+            /** Not Imported */
+            not_imported: number;
         };
         /** DiscountCodeListResponse */
         DiscountCodeListResponse: {
@@ -27250,6 +27381,121 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DepartmentResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_files_route_developer_files_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                status?: string;
+                kind?: string;
+                /** @description YYYY-MM-DD */
+                start?: string;
+                /** @description YYYY-MM-DD */
+                end?: string;
+                sort?: string;
+                direction?: string;
+                page?: number;
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DevFileListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    file_detail_route_developer_files__file_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                file_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DevFileDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    raw_file_route_developer_files__file_id__raw_get: {
+        parameters: {
+            query?: {
+                download?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                file_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

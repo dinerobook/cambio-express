@@ -637,6 +637,12 @@ This is enforced by the kit, not by per-page checks:
 - **Sidebar and section hubs** derive visibility from the same table
   (`filterNavForRole`). Nav items carry `roles` and `flag` only —
   never a duplicated `perm`.
+- **A group only for a superadmin inside a store** (owner, 2026-11-20):
+  **Developer** carries `impersonation: true` in `NAV` and shows only
+  while a superadmin is signed in AS the store (`session-status.
+  impersonation`). The store's own people never see it; its pages send
+  them home and the server refuses them (`api/Modules/Developer`). Such a
+  group is read only, so it works on a read-only impersonation.
 - **A store's work is grouped by business** (owner, 2026-11-19): **MSB**
   (money services: MSB daily book, transfers, customers, ACH batches,
   returned checks, the check cashing link, MSB reports, check cashing

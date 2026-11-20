@@ -1,0 +1,34 @@
+/* The file as the register wrote it: monospace, a line number in the
+   gutter (drawn by CSS so it is never copied with the text), and its
+   own scroll so a long or wide file never stretches the page. */
+.xml {
+  margin: 0;
+  max-height: 70vh;
+  overflow: auto;
+  font-family: var(--db-font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 2;
+  color: var(--db-text);
+  counter-reset: line;
+}
+
+.line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 3.5em;
+  margin-right: 1em;
+  text-align: right;
+  color: var(--db-text-muted);
+  user-select: none;
+}
+
+/* The reader's message after "Why it did not import". */
+.reason {
+  display: block;
+  margin-top: 0.25rem;
+  font-family: var(--db-font-mono);
+  overflow-wrap: anywhere;
+}

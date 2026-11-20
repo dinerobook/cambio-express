@@ -415,6 +415,20 @@ export const NAV: NavGroup[] = [
       },
     ],
   },
+  {
+    // Only while a superadmin is signed in AS this store (owner,
+    // 2026-11-20: "developer tab store k andar … tab hi dikhe jab
+    // super admin … impersonate ho k login kare"): every file the
+    // register sent and why one did not import, to debug the store
+    // from inside it. The store's own people never see it, and the
+    // server refuses its routes to them (api/Modules/Developer).
+    title: "Developer",
+    roles: ["admin", "employee"],
+    icon: iconCode(),
+    to: "/developer/files",
+    items: [],
+    impersonation: true,
+  },
 ];
 
 // ── Workspaces ───────────────────────────────────────────────
@@ -518,6 +532,11 @@ export function filterNavForRole(
   // Which app's sidebar: the back office (NAV) or check cashing
   // (CHECK_NAV). See "Workspaces" above.
   workspace: Workspace = "backoffice",
+  // A superadmin is signed in AS this person (`session-status.
+  // impersonation`): only then does a group marked `impersonation`
+  // (Developer) show. Off by default, so a caller that does not
+  // know never shows it.
+  impersonating = false,
 ): NavGroup[] {
   // Permission comes from the route table (lib/access.ts) — the same
   // answer the router guard and every link primitive give — so a
@@ -537,6 +556,7 @@ export function filterNavForRole(
     !!g.to && canAccessWith(identity, g.to) && (!g.flag || hasModule(g.flag));
   return (workspace === "checks" ? CHECK_NAV : NAV)
     .filter((g) => !g.roles || g.roles.includes(role))
+    .filter((g) => !g.impersonation || impersonating)
     .map((g) => ({ ...g, items: g.items.filter(visible) }))
     .filter((g) => g.items.length > 0 || linkVisible(g));
 }
@@ -792,6 +812,17 @@ function iconBilling() {
       <rect x="2" y="5" width="20" height="14" rx="2" />
       <path d="M2 10h20" />
       <path d="M6 15h4" />
+    </svg>
+  );
+}
+
+function iconCode() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      strokeLinejoin="round">
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
     </svg>
   );
 }
