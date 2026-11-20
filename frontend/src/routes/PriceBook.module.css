@@ -43,11 +43,12 @@
 }
 
 /* The department and vendor pickers beside the search: wide enough
- * to read a name ("All" alone squeezed them to a stub), and the full
- * row on a phone. */
+ * to read a name ("All" alone squeezed them to a stub). They grow to
+ * share a phone's row between them, capped so on a desktop the
+ * search keeps the room. */
 .filtersRow > :not(.searchField) {
-  flex: 0 1 12rem;
-  min-width: 9rem;
+  flex: 1 1 9rem;
+  max-width: 16rem;
 }
 
 /* Scan codes read as machine identifiers — JetBrains Mono per the
@@ -62,6 +63,14 @@
  * button sits beside the input, or beside the hint when one shows. */
 .moneyWithAction {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   align-items: flex-end;
+}
+
+/* The cost box takes the row; "Use case" drops under it when the
+ * column is too narrow for both, instead of squeezing the amount. */
+.moneyWithAction > :first-child {
+  flex: 1 1 7rem;
+  min-width: 0;
 }

@@ -180,6 +180,7 @@ def create_department(
     parent_id: int | None = None,
     department_type: str = "merchandise",
     is_taxable: bool = True,
+    tax_rate: float | None = None,
     min_age: int | None = None,
     nacs_code: str = "",
     pos_codes: list[str] | None = None,
@@ -197,6 +198,7 @@ def create_department(
         parent_id=resolved_parent,
         department_type=_check_department_type(department_type),
         is_taxable=bool(is_taxable),
+        tax_rate=float(tax_rate) if is_taxable and tax_rate else None,
         min_age=min_age or None,
         nacs_code=(nacs_code or "").strip(),
     )
@@ -214,6 +216,7 @@ def update_department(
     parent_id: int | None = None,
     department_type: str | None = None,
     is_taxable: bool | None = None,
+    tax_rate: float | None = None,
     min_age: int | None = None,
     nacs_code: str | None = None,
     pos_codes: list[str] | None = None,
@@ -243,6 +246,12 @@ def update_department(
         dept.department_type = _check_department_type(department_type)
     if is_taxable is not None:
         dept.is_taxable = bool(is_taxable)
+    # tax_rate: None = leave unchanged, 0 = clear. A department that is
+    # not taxable has no rate, whatever was sent.
+    if tax_rate is not None:
+        dept.tax_rate = float(tax_rate) or None
+    if not dept.is_taxable:
+        dept.tax_rate = None
     # min_age: None = leave unchanged, 0 = clear.
     if min_age is not None:
         dept.min_age = int(min_age) or None

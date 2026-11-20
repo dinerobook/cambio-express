@@ -247,6 +247,7 @@ Retail modules (`DayClose`, `StoreBook`, `Lottery`, `PosImport`,
 | `RateLimit` | slowapi singleton + `client_ip` |
 | `StoreScope` | `authorize_store_id(s)` — which stores a client-supplied id may reach (invariant 19). The token's own store is `resolve_store_scope(claims)`; never re-write that 403 inline |
 | `Uploads` | A file sent as base64 JSON: `b64_len(n)` for the request field's `max_length`, `decode_base64(text, detail=…)` for the bytes or a 422. Never call `b64decode` in a controller (`tests/Core/test_one_copy_helpers.py`) |
+| `Xlsx` | `iter_first_sheet(data, max_rows=…)` — the first sheet of an .xlsx upload as rows of `Cell(text, numeric)`, read with `defusedxml` and a byte cap per part (no zip bombs, no spreadsheet library). The Modisoft price book and department imports share it |
 
 Top-level files:
 

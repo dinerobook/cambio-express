@@ -10,7 +10,7 @@ import CheckCustomers from "./CheckCustomers";
 import type {
   CheckCompanyDetail, CheckCustomerDetail, CheckSettings,
 } from "../api/checkCashing";
-import { filterNavForRole } from "../components/navConfig";
+import { CHECK_HOME, filterNavForRole } from "../components/navConfig";
 import { setLanguage } from "../i18n";
 import { canAccess } from "../lib/access";
 import { ApiError } from "../lib/api";
@@ -172,11 +172,17 @@ describe("check cashing sidebar and route rights", () => {
     expect(checkNav("employee", [], ["check_desk"])).toEqual([]);
   });
 
-  it("leaves the back office sidebar without check cashing", () => {
-    const words = backOffice("admin", [...MANAGER, "return_checks.read"],
-      ["check_desk", "module_check_cashing"]);
-    expect(words).not.toContain("Check cashing");
-    expect(words).toContain("Returned checks");
+  it("gives the back office one link into check cashing and none of its pages", () => {
+    // Owner, 2026-11-19: the MSB group opens the app ("Check
+    // cashing"); the app's own pages stay in its own sidebar.
+    const perms = [...MANAGER, "return_checks.read"];
+    const flags = ["check_desk", "module_check_cashing"];
+    const intoTheApp = filterNavForRole("admin", perms, flags)
+      .flatMap((g) => g.items)
+      .filter((i) => i.to === CHECK_HOME || i.to.startsWith(`${CHECK_HOME}/`))
+      .map((i) => [i.label, i.to]);
+    expect(intoTheApp).toEqual([["Check cashing", CHECK_HOME]]);
+    expect(backOffice("admin", perms, flags)).toContain("Returned checks");
   });
 
   it("guards each route by its right", () => {

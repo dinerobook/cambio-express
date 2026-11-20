@@ -20,14 +20,14 @@ describe("PageCrumbs", () => {
 
   it("names a sidebar page by its section and sidebar label", () => {
     expect(trailAt("/transfers", <PageCrumbs />)).toEqual([
-      { text: "Money services", href: "/hub/money-services" },
+      { text: "MSB", href: "/hub/msb" },
       { text: "Transfers", href: null },
     ]);
   });
 
   it("links the sidebar page above a page under it", () => {
     expect(trailAt("/transfers/12", <PageCrumbs current="Transfer #12" />)).toEqual([
-      { text: "Money services", href: "/hub/money-services" },
+      { text: "MSB", href: "/hub/msb" },
       { text: "Transfers", href: "/transfers" },
       { text: "Transfer #12", href: null },
     ]);
@@ -52,7 +52,7 @@ describe("PageCrumbs", () => {
         <PageCrumbs under="/reports" via={[{ label: "Monthly P&L", to: "/monthly" }]} current="Categories" />,
       ),
     ).toEqual([
-      { text: "Reports", href: "/hub/reports" },
+      { text: "MSB", href: "/hub/msb" },
       { text: "MSB reports", href: "/reports" },
       { text: "Monthly P&L", href: "/monthly" },
       { text: "Categories", href: null },

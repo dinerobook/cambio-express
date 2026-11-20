@@ -8253,6 +8253,476 @@
         "title": "DaySummaryResponse",
         "type": "object"
       },
+      "DepartmentImportCheckRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content_base64": {
+            "maxLength": 2796204,
+            "minLength": 1,
+            "title": "Content Base64",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content_base64"
+        ],
+        "title": "DepartmentImportCheckRequest",
+        "type": "object"
+      },
+      "DepartmentImportCheckResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "columns_ignored": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns Ignored",
+            "type": "array"
+          },
+          "columns_used": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns Used",
+            "type": "array"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/DepartmentImportIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DepartmentImportCheckRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows",
+          "columns_used",
+          "columns_ignored",
+          "issues"
+        ],
+        "title": "DepartmentImportCheckResponse",
+        "type": "object"
+      },
+      "DepartmentImportCheckRow": {
+        "additionalProperties": false,
+        "description": "One department of the file, planned against the store.",
+        "properties": {
+          "changes": {
+            "items": {
+              "enum": [
+                "name",
+                "type",
+                "tax",
+                "age",
+                "nacs",
+                "pos"
+              ],
+              "type": "string"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "department_type": {
+            "enum": [
+              "merchandise",
+              "fuel",
+              "lottery_sell",
+              "lottery_cash",
+              "lotto_sell",
+              "lotto_cash",
+              "money_order",
+              "money_order_fee",
+              "money_transfer",
+              "money_transfer_fee",
+              "check_cash_fee",
+              "service",
+              "misc"
+            ],
+            "title": "Department Type",
+            "type": "string"
+          },
+          "existing_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Existing Id"
+          },
+          "existing_name": {
+            "title": "Existing Name",
+            "type": "string"
+          },
+          "existing_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "merchandise",
+                  "fuel",
+                  "lottery_sell",
+                  "lottery_cash",
+                  "lotto_sell",
+                  "lotto_cash",
+                  "money_order",
+                  "money_order_fee",
+                  "money_transfer",
+                  "money_transfer_fee",
+                  "check_cash_fee",
+                  "service",
+                  "misc"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Existing Type"
+          },
+          "include": {
+            "title": "Include",
+            "type": "boolean"
+          },
+          "is_taxable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Taxable"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          },
+          "min_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Age"
+          },
+          "modisoft_type": {
+            "title": "Modisoft Type",
+            "type": "string"
+          },
+          "nacs_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nacs Code"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pos_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pos Code"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "enum": [
+                  "duplicate_name",
+                  "duplicate_pos",
+                  "pos_taken",
+                  "name_taken"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "problem_name": {
+            "title": "Problem Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "new",
+              "update",
+              "same",
+              "skip"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
+          },
+          "type_group": {
+            "enum": [
+              "merchandise",
+              "fuel",
+              "lottery",
+              "services",
+              "misc",
+              ""
+            ],
+            "title": "Type Group",
+            "type": "string"
+          },
+          "type_sure": {
+            "title": "Type Sure",
+            "type": "boolean"
+          },
+          "unused": {
+            "title": "Unused",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "line",
+          "name",
+          "pos_code",
+          "modisoft_type",
+          "type_group",
+          "department_type",
+          "type_sure",
+          "is_taxable",
+          "tax_rate",
+          "min_age",
+          "nacs_code",
+          "items",
+          "status",
+          "existing_id",
+          "existing_name",
+          "existing_type",
+          "changes",
+          "problem",
+          "problem_name",
+          "unused",
+          "include"
+        ],
+        "title": "DepartmentImportCheckRow",
+        "type": "object"
+      },
+      "DepartmentImportIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "no_name",
+              "bad_number",
+              "bad_pos",
+              "bad_nacs"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "count",
+          "lines"
+        ],
+        "title": "DepartmentImportIssue",
+        "type": "object"
+      },
+      "DepartmentImportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DepartmentImportRow"
+            },
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "DepartmentImportRequest",
+        "type": "object"
+      },
+      "DepartmentImportResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "created",
+          "updated",
+          "unchanged"
+        ],
+        "title": "DepartmentImportResponse",
+        "type": "object"
+      },
+      "DepartmentImportRow": {
+        "additionalProperties": false,
+        "description": "A reviewed row: the file's values plus the type the person chose.\nNone leaves a matched department's value alone.",
+        "properties": {
+          "department_type": {
+            "enum": [
+              "merchandise",
+              "fuel",
+              "lottery_sell",
+              "lottery_cash",
+              "lotto_sell",
+              "lotto_cash",
+              "money_order",
+              "money_order_fee",
+              "money_transfer",
+              "money_transfer_fee",
+              "check_cash_fee",
+              "service",
+              "misc"
+            ],
+            "title": "Department Type",
+            "type": "string"
+          },
+          "is_taxable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Taxable"
+          },
+          "min_age": {
+            "anyOf": [
+              {
+                "maximum": 99.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Age"
+          },
+          "nacs_code": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9A-Za-z]{0,10}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nacs Code"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "pos_code": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9A-Za-z]{1,20}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pos Code"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
+          }
+        },
+        "required": [
+          "name",
+          "department_type"
+        ],
+        "title": "DepartmentImportRow",
+        "type": "object"
+      },
       "DepartmentListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -8361,6 +8831,17 @@
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
           }
         },
         "required": [
@@ -8372,6 +8853,7 @@
           "parent_name",
           "department_type",
           "is_taxable",
+          "tax_rate",
           "min_age",
           "nacs_code",
           "pos_codes"
@@ -8577,6 +9059,19 @@
               }
             ],
             "title": "Sort Order"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
           }
         },
         "title": "DepartmentUpdateRequest",
@@ -8662,6 +9157,19 @@
             "minimum": 0.0,
             "title": "Sort Order",
             "type": "integer"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
           }
         },
         "required": [
@@ -43722,6 +44230,158 @@
           }
         },
         "summary": "Create Department Route",
+        "tags": [
+          "dayclose"
+        ]
+      }
+    },
+    "/dayclose/departments/import/modisoft": {
+      "post": {
+        "description": "Create or update the rows the person kept after the check, each\nwith the type they chose. All or nothing: one refused row (a\nregister number another department holds, a name taken) is a 409\nand nothing is saved.",
+        "operationId": "import_departments_route_dayclose_departments_import_modisoft_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartmentImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Departments Route",
+        "tags": [
+          "dayclose"
+        ]
+      }
+    },
+    "/dayclose/departments/import/modisoft/check": {
+      "post": {
+        "description": "Read a Modisoft departments export and plan every row against\nthe store's departments. Writes nothing.",
+        "operationId": "check_department_import_route_dayclose_departments_import_modisoft_check_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartmentImportCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentImportCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Department Import Route",
         "tags": [
           "dayclose"
         ]

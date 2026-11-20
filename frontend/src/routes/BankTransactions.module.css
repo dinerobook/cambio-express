@@ -50,6 +50,9 @@
   margin: 0 0 1rem;
   color: var(--db-text-muted);
   line-height: 1.5;
+  /* A bank description is often one long token ("ACHDEPOSIT…"): let
+   * it break rather than push the popup sideways on a phone. */
+  overflow-wrap: anywhere;
 }
 
 .categoryCell {

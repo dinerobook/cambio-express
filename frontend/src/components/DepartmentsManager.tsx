@@ -16,6 +16,9 @@ import {
   type DataColumn,
 } from "./ui";
 import styles from "./DepartmentsManager.module.css";
+import { DepartmentImportModal } from "./DepartmentImportModal";
+import { DepartmentTypeOptions } from "./DepartmentTypeOptions";
+import { ratePercentText, TYPE_HINT, TYPE_LABEL } from "../lib/departmentTypes";
 import { t, tn, useT, type MessageKey } from "../i18n";
 
 // The store's department setup (Account → Departments, the one place
@@ -51,54 +54,6 @@ const STARTER_DEPARTMENTS: {
   { name: "dept.starter.other" },
 ];
 
-// The type picker, grouped the way Modisoft groups department types.
-const TYPE_GROUPS: { label: MessageKey; types: DepartmentType[] }[] = [
-  { label: "dept.group.merchandise", types: ["merchandise"] },
-  { label: "dept.group.fuel", types: ["fuel"] },
-  { label: "dept.group.lottery", types: ["lottery_sell", "lottery_cash", "lotto_sell", "lotto_cash"] },
-  {
-    label: "dept.group.services",
-    types: [
-      "money_order", "money_order_fee", "money_transfer",
-      "money_transfer_fee", "check_cash_fee", "service",
-    ],
-  },
-  { label: "dept.group.misc", types: ["misc"] },
-];
-
-const TYPE_LABEL: Record<DepartmentType, MessageKey> = {
-  merchandise: "dept.type.merchandise",
-  fuel: "dept.type.fuel",
-  lottery_sell: "dept.type.lottery_sell",
-  lottery_cash: "dept.type.lottery_cash",
-  lotto_sell: "dept.type.lotto_sell",
-  lotto_cash: "dept.type.lotto_cash",
-  money_order: "dept.type.money_order",
-  money_order_fee: "dept.type.money_order_fee",
-  money_transfer: "dept.type.money_transfer",
-  money_transfer_fee: "dept.type.money_transfer_fee",
-  check_cash_fee: "dept.type.check_cash_fee",
-  service: "dept.type.service",
-  misc: "dept.type.misc",
-};
-
-// One line under the picker: what a department of this type holds.
-const TYPE_HINT: Record<DepartmentType, MessageKey> = {
-  merchandise: "dept.typeHint.merchandise",
-  fuel: "dept.typeHint.fuel",
-  lottery_sell: "dept.typeHint.lottery_sell",
-  lottery_cash: "dept.typeHint.lottery_cash",
-  lotto_sell: "dept.typeHint.lotto_sell",
-  lotto_cash: "dept.typeHint.lotto_cash",
-  money_order: "dept.typeHint.money_order",
-  money_order_fee: "dept.typeHint.money_order_fee",
-  money_transfer: "dept.typeHint.money_transfer",
-  money_transfer_fee: "dept.typeHint.money_transfer_fee",
-  check_cash_fee: "dept.typeHint.check_cash_fee",
-  service: "dept.typeHint.service",
-  misc: "dept.typeHint.misc",
-};
-
 const POS_CODE = /^[0-9A-Za-z]{1,20}$/;
 const NACS_CODE = /^[0-9A-Za-z]{0,10}$/;
 
@@ -129,6 +84,7 @@ export default function DepartmentsManager() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Department | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"" | DepartmentType>("");
   const [sort, setSort] = useState<{ key: SortKey; direction: "asc" | "desc" }>(
@@ -217,7 +173,11 @@ export default function DepartmentsManager() {
     },
     {
       key: "tax", header: t("dept.colTax"), label: t("dept.colTax"),
-      render: (d) => (d.is_taxable ? t("dept.taxable") : t("dept.nonTaxable")),
+      render: (d) => (d.is_taxable
+        ? (d.tax_rate != null
+          ? t("dept.taxableAt", { rate: ratePercentText(d.tax_rate) })
+          : t("dept.taxable"))
+        : t("dept.nonTaxable")),
     },
     {
       key: "age", header: t("dept.colAge"), label: t("dept.colAge"),
@@ -275,6 +235,12 @@ export default function DepartmentsManager() {
           >
             {showInactive ? t("dept.hideInactive") : t("dept.showInactive")}
           </Button>
+          <Button
+            size="sm" tone="secondary" perm={EDIT_PERM}
+            onClick={() => setImporting(true)}
+          >
+            {t("deptImport.open")}
+          </Button>
           <Button size="sm" perm={EDIT_PERM} onClick={() => setAdding(true)}>
             {t("dept.add")}
           </Button>
@@ -293,11 +259,19 @@ export default function DepartmentsManager() {
           title={t("dept.empty")}
           body={t("dept.emptyBody")}
           cta={
-            <Button size="sm" perm={EDIT_PERM} busy={seeding} disabled={seeding}
-              onClick={() => { void addStarterSet(); }}
-            >
-              {t("dept.addStarter")}
-            </Button>
+            <div className={styles.actions}>
+              <Button size="sm" perm={EDIT_PERM} busy={seeding} disabled={seeding}
+                onClick={() => { void addStarterSet(); }}
+              >
+                {t("dept.addStarter")}
+              </Button>
+              <Button
+                size="sm" tone="secondary" perm={EDIT_PERM} disabled={seeding}
+                onClick={() => setImporting(true)}
+              >
+                {t("deptImport.open")}
+              </Button>
+            </div>
           }
         />
       )}
@@ -319,7 +293,7 @@ export default function DepartmentsManager() {
               onChange={(e) => setTypeFilter(e.target.value as "" | DepartmentType)}
             >
               <option value="">{t("dept.allTypes")}</option>
-              <TypeOptions />
+              <DepartmentTypeOptions />
             </Select>
             <span className={styles.count}>
               {tn("dept.count", rows?.length ?? 0, fmtNumber)}
@@ -348,22 +322,12 @@ export default function DepartmentsManager() {
         onClose={() => { setAdding(false); setEditing(null); }}
         onDone={() => { setAdding(false); setEditing(null); refresh(); }}
       />
+      <DepartmentImportModal
+        open={importing}
+        onClose={() => setImporting(false)}
+        onDone={() => { setImporting(false); refresh(); }}
+      />
     </Section>
-  );
-}
-
-function TypeOptions() {
-  useT();
-  return (
-    <>
-      {TYPE_GROUPS.map((g) => (
-        <optgroup key={g.label} label={t(g.label)}>
-          {g.types.map((ty) => (
-            <option key={ty} value={ty}>{t(TYPE_LABEL[ty])}</option>
-          ))}
-        </optgroup>
-      ))}
-    </>
   );
 }
 
@@ -400,6 +364,17 @@ function DepartmentModal({
 
 const AGE_CHOICES = ["", "18", "21"];
 
+/** The typed percent as a stored fraction; null when the box is empty,
+ *  NaN when it isn't a rate from 0 to 100. */
+function parseRatePercent(text: string): number | null {
+  const s = text.trim().replace(/%$/, "").trim();
+  if (s === "") return null;
+  if (!/^\d{1,3}(\.\d{1,4})?$|^\.\d{1,4}$/.test(s)) return Number.NaN;
+  const pct = Number(s);
+  if (!(pct >= 0 && pct <= 100)) return Number.NaN;
+  return Number((pct / 100).toFixed(6));
+}
+
 function DepartmentForm({
   existing, departments, onClose, onDone,
 }: {
@@ -416,6 +391,12 @@ function DepartmentForm({
   // A new department follows its type's usual tax setting until the
   // person ticks the box themselves; a saved one keeps what it has.
   const [taxTouched, setTaxTouched] = useState(existing != null);
+  // The department's own rate, typed as a percent. Empty by default
+  // (owner, 2026-11-20): only a department with its own rate fills it.
+  const [rateText, setRateText] = useState(
+    existing?.tax_rate != null ? ratePercentText(existing.tax_rate) : "",
+  );
+  const [rateError, setRateError] = useState<string | null>(null);
   const [minAge, setMinAge] = useState(existing?.min_age ? String(existing.min_age) : "");
   const [nacs, setNacs] = useState(existing?.nacs_code ?? "");
   const [sortOrder, setSortOrder] = useState(String(existing?.sort_order ?? 0));
@@ -458,9 +439,12 @@ function DepartmentForm({
     e.preventDefault();
     const pErr = checkPos(posText);
     const nErr = NACS_CODE.test(nacs.trim()) ? null : t("dept.nacsInvalid");
+    const rate = taxable ? parseRatePercent(rateText) : null;
+    const rErr = rate != null && Number.isNaN(rate) ? t("dept.taxRateInvalid") : null;
     setPosError(pErr);
     setNacsError(nErr);
-    if (pErr || nErr) return;
+    setRateError(rErr);
+    if (pErr || nErr || rErr) return;
     setBusy(true);
     setError(null);
     const common = {
@@ -475,15 +459,18 @@ function DepartmentForm({
       if (existing) {
         await updateDepartment(existing.id, {
           ...common,
-          // 0 clears the parent link / the age limit (PATCH semantics).
+          // 0 clears the parent link / the age limit / the tax rate
+          // (PATCH semantics).
           parent_id: parentId === "" ? 0 : Number(parentId),
           min_age: minAge === "" ? 0 : Number(minAge),
+          tax_rate: rate ?? 0,
         });
       } else {
         await createDepartment({
           ...common,
           parent_id: parentId === "" ? null : Number(parentId),
           min_age: minAge === "" ? null : Number(minAge),
+          tax_rate: rate,
         });
       }
       onDone();
@@ -535,19 +522,44 @@ function DepartmentForm({
             value={type}
             onChange={(e) => onTypeChange(e.target.value as DepartmentType)}
           >
-            <TypeOptions />
+            <DepartmentTypeOptions />
           </Select>
         </Field>
 
         <p className={styles.groupTitle}>{t("dept.salesRules")}</p>
-        <div className={styles.full}>
+        {/* Taxable and its rate share one row, so ticking the box shows
+            the rate beside it without moving the fields below. */}
+        <div className={styles.taxCheck}>
           <Checkbox
             checked={taxable}
-            onChange={(next) => { setTaxable(next); setTaxTouched(true); }}
+            onChange={(next) => {
+              setTaxable(next);
+              setTaxTouched(true);
+              if (!next) setRateError(null);
+            }}
           >
             {t("dept.taxableLabel")}
           </Checkbox>
         </div>
+        {taxable ? (
+          <Field
+            label={t("dept.taxRate")}
+            hint={rateError ? undefined : t("dept.taxRateHint")}
+            error={rateError}
+          >
+            <Input
+              type="text" inputMode="decimal" value={rateText} maxLength={8}
+              className={styles.code}
+              onChange={(e) => { setRateText(e.target.value); setRateError(null); }}
+              onBlur={() => {
+                const r = parseRatePercent(rateText);
+                setRateError(r != null && Number.isNaN(r) ? t("dept.taxRateInvalid") : null);
+              }}
+            />
+          </Field>
+        ) : (
+          <span aria-hidden="true" />
+        )}
         <Field label={t("dept.minAge")}>
           <Select value={minAge} onChange={(e) => setMinAge(e.target.value)}>
             {ageChoices.map((a) => (

@@ -336,6 +336,9 @@ function SeedModal({
     <Modal
       open={open}
       onClose={onClose}
+      // lg: the five-column list of scan codes, names and the
+      // "already added" pill didn't fit a md popup and scrolled sideways.
+      size="lg"
       title={
         <>
           {t("pb.seedTitle")}

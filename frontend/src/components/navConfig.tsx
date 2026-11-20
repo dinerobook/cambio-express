@@ -9,20 +9,26 @@ import type { NavGroup, NavItem } from "./SlimSidebar";
 // Role-by-role nav so each persona only sees the surfaces they
 // can actually use:
 //
-//   employee  — Daily only (Dashboard, Transfers, Customers,
-//               Daily book, Return checks, Time clock).
-//   admin     — Daily + Finance + Account.
-//   owner     — Daily (Owner Dashboard) + Owner umbrella +
-//               Account. No Finance — those are per-store
-//               surfaces the owner reaches via the per-store
-//               drill-down inside the Owner section.
+//   employee  — Dashboard + MSB + Retail + Time clock, as far as
+//               the store runs each business.
+//   admin     — the same + Team, Finance, Displays and Account.
+//   owner     — Owner Dashboard + Owner umbrella + Account. No
+//               Finance — those are per-store surfaces the owner
+//               reaches via the per-store drill-down inside the
+//               Owner section.
 //   superadmin — Platform + every other surface for support.
 //
-// Within Daily, the Dashboard target depends on role: store users
-// land on /dashboard, owners on /owner/dashboard, superadmin on
-// /superadmin/stores (their list view IS their landing page).
-// Each variant is its own NavItem with a `roles` filter so the
-// sidebar shows exactly one Dashboard link per role.
+// A store's own work is split by business (owner, 2026-11-19): MSB
+// (money services: the MSB daily book, transfers, returned checks,
+// check cashing, their reports) and Retail (convenience store / gas
+// station: the store daily book, register tickets, lottery, price
+// book, purchases, store reports). Each group shows only what the
+// store has switched on, and vanishes when nothing in it is.
+//
+// The Dashboard target depends on role: store users land on
+// /dashboard, owners on /owner/dashboard, superadmin on
+// /superadmin/dashboard. Each variant is its own group with a
+// `roles` filter so the sidebar shows exactly one Dashboard per role.
 
 // Slug used for the section-hub route (/hub/:key). Titles are
 // unique within a single role's filtered nav, so slugifying the
@@ -38,6 +44,8 @@ export function sectionSlug(title: string): string {
 // only: the desk needs a store). See "Workspaces" below.
 export const CHECK_DESK_FLAG = "check_desk";
 export const OWNER_CHECK_REPORT_FLAG = "check_desk_report";
+// The check cashing app's home: every page under it is that app.
+export const CHECK_HOME = "/check-cashing";
 
 export const NAV: NavGroup[] = [
   {
@@ -59,12 +67,16 @@ export const NAV: NavGroup[] = [
     items: [],
   },
   {
-    // Daily operations. The store-level retail modules (Store
-    // daily book / Lottery / Price book) carry roles: superadmin is the platform
-    // operator, not a store — store modules stay off their nav
-    // (they can still reach any route directly for support).
-    title: "Daily",
-    icon: iconDaily(),
+    // MSB — everything the store does as a money services business:
+    // the MSB daily book, money transfers (module_money_services:
+    // transfers, the sender directory, ACH batches), returned checks
+    // and check cashing (their own switches: plenty of c-stores cash
+    // checks without sending transfers), and the MSB reports.
+    // Store items carry roles: superadmin is the platform operator,
+    // not a store, so store modules stay off their nav (they can
+    // still reach any route directly for support).
+    title: "MSB",
+    icon: iconTransfers(),
     items: [
       {
         to: "/daily", label: "MSB daily book",
@@ -72,6 +84,72 @@ export const NAV: NavGroup[] = [
         icon: iconDaily(),
         desc: "MSB cash ledger and daily close-out.",
       },
+      {
+        to: "/transfers", label: "Transfers",
+        flag: "module_money_services",
+        roles: ["admin", "employee"],
+        icon: iconTransfers(),
+        desc: "Log and review money transfers.",
+      },
+      {
+        to: "/customers", label: "Customers",
+        flag: "module_money_services",
+        roles: ["admin", "employee"],
+        icon: iconCustomers(),
+        desc: "Sender and recipient records.",
+      },
+      {
+        to: "/batches", label: "ACH batches",
+        flag: "module_money_services",
+        roles: ["admin"],
+        icon: iconBatches(),
+        desc: "Group transfers into ACH runs.",
+      },
+      {
+        to: "/return-checks", label: "Returned checks",
+        flag: "module_check_cashing",
+        roles: ["admin", "employee"],
+        icon: iconReturnChecks(),
+        desc: "Track bounced checks and recovery.",
+      },
+      {
+        // The door into the check cashing app (owner, 2026-11-19:
+        // "MSB group mein us ka link"). The app itself stays separate
+        // — its pages live in CHECK_NAV, never here; this one link
+        // opens it, like the top-bar switch (see "Workspaces").
+        to: CHECK_HOME, label: "Check cashing",
+        flag: CHECK_DESK_FLAG,
+        roles: ["admin", "employee"],
+        icon: iconCheckCashing(),
+        desc: "Open the check cashing app.",
+      },
+      {
+        // Each business carries its own reports (owner, 2026-11-19).
+        // The accountant sees this one too: it is their landing page.
+        to: "/reports", label: "MSB reports",
+        roles: ["admin", "accountant"],
+        icon: iconReports(),
+        desc: "Money-services analytics and exports.",
+      },
+      {
+        // The check cashing counter, view only and on any device (the
+        // desk itself is the separate app above).
+        to: "/reports/check-cashing", label: "Check cashing report",
+        flag: CHECK_DESK_FLAG,
+        roles: ["admin"],
+        icon: iconCheckCashing(),
+        desc: "Checks cashed, fees and bad checks.",
+      },
+    ],
+  },
+  {
+    // Retail — the convenience store / gas station back office:
+    // register closes, tickets, lottery, the price book and vendor
+    // invoices, and the store reports. Every item rides a retail
+    // module switch, so a pure money-services store never sees it.
+    title: "Retail",
+    icon: iconRegister(),
+    items: [
       {
         to: "/store-book", label: "Store daily book",
         roles: ["admin", "employee"],
@@ -110,48 +188,12 @@ export const NAV: NavGroup[] = [
         icon: iconInvoice(),
         desc: "Vendor invoices and costs.",
       },
-    ],
-  },
-  {
-    // Money services — the MSB module as its own nav section
-    // (P1-11): transfers + sender directory + ACH batches live
-    // together, and the whole group vanishes when
-    // module_money_services is off (filterNavForRole drops groups
-    // whose every item filters out), keeping Daily retail-focused.
-    title: "Money services",
-    icon: iconTransfers(),
-    items: [
       {
-        to: "/transfers", label: "Transfers",
-        flag: "module_money_services",
-        roles: ["admin", "employee"],
-        icon: iconTransfers(),
-        desc: "Log and review money transfers.",
-      },
-      {
-        to: "/customers", label: "Customers",
-        flag: "module_money_services",
-        roles: ["admin", "employee"],
-        icon: iconCustomers(),
-        desc: "Sender and recipient records.",
-      },
-      {
-        to: "/batches", label: "ACH batches",
-        flag: "module_money_services",
-        roles: ["admin"],
-        icon: iconBatches(),
-        desc: "Group transfers into ACH runs.",
-      },
-      {
-        // Check cashing is a money service — grouped here (owner
-        // directive) but on its own flag: plenty of c-stores cash
-        // checks without running transfers, so the group survives
-        // on this item alone when module_money_services is off.
-        to: "/return-checks", label: "Returned checks",
-        flag: "module_check_cashing",
-        roles: ["admin", "employee"],
-        icon: iconReturnChecks(),
-        desc: "Track bounced checks and recovery.",
+        to: "/store-reports", label: "Store reports",
+        roles: ["admin", "accountant"],
+        flag: "module_day_close",
+        icon: iconReports(),
+        desc: "Back-office reports for the storefront.",
       },
     ],
   },
@@ -204,22 +246,14 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    // Reports — a fly-out with the two report centers, kept fully
-    // separate (owner directive: MSB and back-office must not
-    // blur). Each center lists its own categories; the store
-    // center is flag-gated so MSB-profile stores never see it.
+    // Reports — the accountant's own menu. The MSB and store report
+    // centers sit in their business's group (MSB / Retail); the
+    // accountant has no dashboard (where admins open the monthly
+    // P&L), so this menu carries it and the tax pack directly.
     title: "Reports",
-    roles: ["admin", "accountant"],
+    roles: ["accountant"],
     icon: iconReports(),
     items: [
-      {
-        to: "/reports", label: "MSB reports",
-        icon: iconTransfers(),
-        desc: "Money-services analytics and exports.",
-      },
-      // The accountant has no dashboard (where admins open the
-      // monthly P&L), so their Reports menu carries it and the tax
-      // pack directly.
       {
         to: "/monthly", label: "Monthly P&L",
         roles: ["accountant"],
@@ -231,21 +265,6 @@ export const NAV: NavGroup[] = [
         roles: ["accountant"],
         icon: iconAudit(),
         desc: "Year-end tax pack and CSV downloads.",
-      },
-      // The check cashing counter, view only and on any device (the
-      // desk itself is the separate app behind the top-bar switch).
-      {
-        to: "/reports/check-cashing", label: "Check cashing report",
-        flag: CHECK_DESK_FLAG,
-        roles: ["admin"],
-        icon: iconCheckCashing(),
-        desc: "Checks cashed, fees and bad checks.",
-      },
-      {
-        to: "/store-reports", label: "Store reports",
-        flag: "module_day_close",
-        icon: iconRegister(),
-        desc: "Back-office reports for the storefront.",
       },
     ],
   },
@@ -385,9 +404,12 @@ export const NAV: NavGroup[] = [
       // The store's department setup (owner, 2026-11-19: "account ka
       // tab … us k ander department"). Store-scoped: access.ts gates it
       // on day_close.read, so only people who can see retail books get
-      // the link.
+      // the link — and only store people: superadmin passes every
+      // permission check but has no store (owner, 2026-11-19: "super
+      // admin k account mein q banaya ha?").
       {
         to: "/account/departments", label: "Departments",
+        roles: ["admin", "employee"],
         icon: iconPriceBook(),
         desc: "Register numbers, types, tax and age limits.",
       },
@@ -403,10 +425,10 @@ export const NAV: NavGroup[] = [
 // view: every page under /check-cashing is check cashing; the
 // person's own pages (profile, sessions, support) keep whichever
 // view they came from. Shown only where the store's `check_desk`
-// switch is on (api/Modules/CheckCashing).
+// switch is on (api/Modules/CheckCashing). The back office's MSB
+// group carries ONE link into it ("Check cashing", owner
+// 2026-11-19); none of the app's own pages ever join NAV.
 export type Workspace = "backoffice" | "checks";
-
-export const CHECK_HOME = "/check-cashing";
 
 export const CHECK_NAV: NavGroup[] = [
   {

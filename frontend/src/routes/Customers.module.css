@@ -84,6 +84,10 @@
   border: 1px solid var(--db-border);
   border-radius: 0.55rem;
   padding: 0.85rem 1rem;
+  /* A long unbroken address or email can't widen its column past the
+   * popup; it breaks inside the box instead. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .mergeColKept {

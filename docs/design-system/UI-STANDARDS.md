@@ -80,6 +80,12 @@ draws the rest, the same on every screen:
 | Destructive action | `<ConfirmDialog>` — never `window.confirm` / `alert()`. The title asks the question ("Delete this rule?", "Disconnect this bank?"), the confirm button repeats the verb ("Delete", "Disconnect"), and a destructive verb (Delete, Remove, Disconnect, Revoke, Deactivate, Unlink, Unpair) gets `confirmTone="danger"` (red) |
 | Buttons at the bottom of a popup | `<Modal actions={…}>`, or `<ModalActions>` as the last child when the body is a `<form>` (the submit button must sit inside it). Cancel first, the primary action last, right-aligned, wrapping on a phone. The row stays pinned to the bottom of a long popup while the fields scroll behind it. Never a page-local `.modalActions` class or an inline flex row |
 | Leaving a popup | every `<Modal>` has the ✕ in its top-right corner ("Close window", disabled while `disabled`), besides Escape and the backdrop. It is last in the DOM, so the first field still takes focus on open. Never a second hand-made ✕ |
+| A popup's size | the card never grows past the window: its max height is the whole card (`box-sizing: border-box`; before 2026-11-19 a long popup was ~3rem taller than the screen and lost its title and Save off the edges). Widths: `sm` / `md` / `lg` for confirms, short forms, long forms; `xl` for a wide grid of inputs (the daily book's Services table). Nothing inside a popup scrolls sideways except a table in its own wrapper |
+| A popup taller than the window | three parts: the header (title + ✕) and the button row stay put and only the body between them scrolls, with a scrollbar you can see. While more is below, the content fades into the button row and the row's edge darkens; once scrolled, a line runs under the header. Tab scrolls a field clear of a pinned row (`scroll-padding`). Never a popup whose last fields sit behind Save with nothing saying it scrolls (Add a department, owner's report 2026-11-19) |
+| A popup on a phone (≤480px) | a sheet from the bottom edge, full width, rounded on top, as tall as the screen allows — the same shape as the row-actions sheet |
+| Where focus lands in a popup | on the first field — not on a label's (i) button (its tip then covered the box) and not on a date box (its calendar then covered the buttons). No field: the first button; only a date box: the card. The kit does this; never set focus by hand |
+| Every button row in a popup | is `<ModalActions>` — a form shown only in popups (`BankRuleForm`, the daily book's box editors) uses it too, never `<FormActions>` or a page-local save row, so Save stays pinned. Passing `<ModalActions>` to `actions=` draws one row, not a row in a row |
+| Tabs inside a popup or a box | `<TabsBar wrap>`: they wrap onto a second line instead of hiding the last tab behind a 4px scrollbar (daily book `BoxTabs`) |
 | The round help button (bottom-right) | nothing the person needs sits under it: `PageShell` leaves 5.5rem at the bottom of every page and a pinned `<FormActions>` bar keeps its right end clear |
 | Form has edits that are not saved | the unsaved-changes guard — see "Unsaved changes" below |
 
@@ -417,7 +423,10 @@ needed if the kit had been checked first.
   no light value, or a stylesheet under `static/` that no page
   links.
 - Tables: kit `<Table>`; the permission matrix uses the shared
-  matrix component, not a per-route copy.
+  matrix component, not a per-route copy. A `<Table>` cell left bare
+  still gets the kit padding, edge and header type (`:where()` rules
+  in `Table.module.css`), so `thStyle` / `tdStyle` are for overriding,
+  not for making a table readable.
 - **Lists.** Every list page is a `<DataTable>`, so every list in
   the app behaves the same:
   - **Row count, always.** `page={{ page, totalPages, total, onPage,
@@ -477,6 +486,19 @@ needed if the kit had been checked first.
     customer directory (its own server export, `customers.update`)
     have none. Server CSVs defuse formulas the same way
     (`api/Core/Csv.py` `safe_cell`).
+  - **Import.** A file from another system (a Modisoft price book
+    or department list) takes two steps: a **check** that writes
+    nothing and shows what would happen (new, updated, already up
+    to date, skipped and why, the lines it could not read), then
+    **Import**. The server reads an .xlsx through `api/Core/Xlsx.py`
+    and finds columns by name, never by position, so a store's
+    re-ordered export still works; a re-import never doubles a row.
+    A value that needs a person's decision (a Modisoft Lottery or
+    Services department's exact type, owner 2026-11-19) is marked in
+    the check's review table and decided there, before anything is
+    saved — never stored as a guess to fix afterwards. Examples:
+    `routes/ModisoftImportModal.tsx`,
+    `components/DepartmentImportModal.tsx`.
   - **Every list is a DataTable**, including a short one inside a
     settings page (referrals, sign-in sessions, invite codes) or
     one table per group (Payroll's per-person shifts, with the
@@ -591,6 +613,17 @@ This is enforced by the kit, not by per-page checks:
 - **Sidebar and section hubs** derive visibility from the same table
   (`filterNavForRole`). Nav items carry `roles` and `flag` only —
   never a duplicated `perm`.
+- **A store's work is grouped by business** (owner, 2026-11-19): **MSB**
+  (money services: MSB daily book, transfers, customers, ACH batches,
+  returned checks, the check cashing link, MSB reports, check cashing
+  report) and **Retail** (convenience store / gas station: store daily
+  book, transactions, lottery, price book, purchases, store reports).
+  Each business carries its own report center; the **Reports** group
+  is the accountant's menu (Monthly P&L, Data export). A group shows
+  only what the store's module switches turn on, so a pure
+  money-services store never sees Retail and a gas station's MSB holds
+  only its check work. A renamed group keeps its old `/hub/<slug>`
+  link working (`RENAMED_SECTIONS` in `routes/SectionHub.tsx`).
 - **A module still being built** sits behind an opt-in store switch
   (`OPT_IN_NAV_FLAG_KEYS`, e.g. check cashing's `check_desk`): no
   store sees it until a superadmin turns it on, and no other page
@@ -602,6 +635,11 @@ This is enforced by the kit, not by per-page checks:
   sidebar for the app's own (`CHECK_NAV`) and opens on the app's main
   job (check cashing: Cash a check), never on a hub of tiles: the
   first sidebar entry is that page.
+  The back office's MSB group carries ONE link into the app ("Check
+  cashing", owner 2026-11-19), which opens it like the switch. The
+  app's own pages never join `NAV`; that link is not back office work
+  (`hasBackOffice`) and the command palette lists it once, with the
+  app's pages.
   The URL decides the view; personal pages (profile, sessions,
   support) keep the last one. The switch shows only where the store
   has the app AND the person has back office rights too; someone with
@@ -661,7 +699,7 @@ This is enforced by the kit, not by per-page checks:
   separate app on one computer; what owners and Admins read about it
   elsewhere is the back office "Check cashing report"
   (`routes/CashedChecksReport.tsx`, a normal `PageShell` page in the
-  Reports menu, phone friendly, view only). A period's totals are ONE
+  MSB group, phone friendly, view only). A period's totals are ONE
   component, `CheckTotalsGrid` (`components/CheckTotals.tsx`), on that
   report and on the desk's Checks page.
 - **A bad check is one popup everywhere** (`components/BadCheck.tsx`).

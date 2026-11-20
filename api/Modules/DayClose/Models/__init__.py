@@ -30,8 +30,8 @@ columns in this module, ever.
 from __future__ import annotations
 
 from sqlalchemy import (
-    BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer,
-    String, UniqueConstraint, true,
+    BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey,
+    Integer, String, UniqueConstraint, true,
 )
 from sqlalchemy.orm import relationship
 
@@ -70,6 +70,10 @@ class Department(Base):
         server_default="merchandise",
     )
     is_taxable = Column(Boolean, nullable=False, default=True, server_default=true())
+    # The department's own sales tax rate when it is taxable, as a
+    # fraction (0.0825 = 8.25 %), like ``Store.sales_tax_rate``. NULL =
+    # no rate set; always NULL for a non-taxable department.
+    tax_rate   = Column(Float, nullable=True)
     # Minimum buyer age (18 lottery, 21 beer / tobacco). NULL = none.
     min_age    = Column(Integer, nullable=True)
     # NACS product category code (400 general, 411 cigarettes…).

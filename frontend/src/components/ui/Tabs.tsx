@@ -31,9 +31,17 @@ import styles from "./Tabs.module.css";
  *  `:focus-visible` adds the 2px neon outline.  Horizontal scroll
  *  on overflow so 6+ tabs on a narrow phone don't wrap.
  */
-export function TabsBar({ children }: { children: ReactNode }) {
+export function TabsBar({
+  children, wrap = false,
+}: {
+  children: ReactNode;
+  /** Let the tabs wrap onto a second line instead of scrolling
+   *  sideways — for a strip inside a popup or box, where a hidden
+   *  last tab ("Money orders") was reachable only by a 4px scrollbar. */
+  wrap?: boolean;
+}) {
   return (
-    <nav className={styles.bar} role="tablist">
+    <nav className={wrap ? `${styles.bar} ${styles.barWrap}` : styles.bar} role="tablist">
       {children}
     </nav>
   );

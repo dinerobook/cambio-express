@@ -14,6 +14,28 @@
  * row hover doesn't cause layout shift on long lists.
  */
 
+/* Cells a caller left bare (no thStyle / tdStyle) still get the
+ * kit's padding, edge and header type — the CTR popup's checks table
+ * had the browser's 1px padding, money columns ran together and the
+ * first header sat centred. `:where()` keeps these at zero
+ * specificity, so a cell's own style (inline thStyle, a class) wins. */
+:where(.wrap > table > thead > tr > th) {
+  text-align: left;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--db-border);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--db-text-muted);
+}
+
+:where(.wrap > table > tbody > tr > td) {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--db-border-subtle);
+  font-size: 0.82rem;
+}
+
 .wrap > table > tbody > tr {
   transition: background 120ms ease;
 }

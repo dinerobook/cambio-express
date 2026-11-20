@@ -17,7 +17,7 @@ import {
 } from "../lib/bankRules";
 import { BankCategoryOptions } from "./BankCategoryOptions";
 import {
-  Alert, Button, Checkbox, Field, FormActions, Input, MoneyInput, Select,
+  Alert, Button, Checkbox, Field, Input, ModalActions, MoneyInput, Select,
 } from "./ui";
 import styles from "./BankRuleForm.module.css";
 import { useT } from "../i18n";
@@ -243,7 +243,12 @@ export function BankRuleForm({
         )}
       </div>
 
-      <FormActions>
+      {/* The form only ever renders inside a <Modal> (Bank rules, the
+          transactions page's "Make a rule", rule templates), so its
+          buttons are the popup's row — pinned to the bottom of the
+          card — not a page save bar that scrolled away under the long
+          IF / THEN form. */}
+      <ModalActions>
         {onCancel && (
           <Button type="button" tone="secondary" onClick={onCancel} disabled={busy}>
             {t("ruleForm.cancel")}
@@ -263,7 +268,7 @@ export function BankRuleForm({
               : (busy ? t("ruleForm.creating") : t("ruleForm.createRule"))}
           </Button>
         )}
-      </FormActions>
+      </ModalActions>
     </form>
   );
 }

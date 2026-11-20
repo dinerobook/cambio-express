@@ -70,7 +70,7 @@ export default function Settings() {
       <TabsBar>
         <TabsLink to="/settings/profile">{t("settings.tabProfile")}</TabsLink>
         <TabsLink to="/settings/general">{t("settings.tabGeneral")}</TabsLink>
-        <TabsLink to="/settings/money-services">{navWord("Money services")}</TabsLink>
+        <TabsLink to="/settings/money-services">{t("settings.tabMoneyServices")}</TabsLink>
         <TabsLink to="/settings/billing">{navWord("Billing")}</TabsLink>
         <TabsLink to="/settings/referrals">{t("settings.tabReferrals")}</TabsLink>
         <TabsLink to="/settings/security">{t("settings.tabSecurity")}</TabsLink>

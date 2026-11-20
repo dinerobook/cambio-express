@@ -4,7 +4,7 @@ import { Command } from "cmdk";
 
 import { useSessionStatus } from "../api/account";
 import { getCurrentIdentity } from "../lib/auth";
-import { CHECK_HOME, filterNavForRole } from "./navConfig";
+import { CHECK_HOME, filterNavForRole, workspaceForPath } from "./navConfig";
 import { checksAvailable } from "../lib/workspace";
 import styles from "./CommandPalette.module.css";
 import { useT } from "../i18n";
@@ -53,6 +53,9 @@ function buildItems(
       });
     }
     for (const item of g.items) {
+      // The MSB group's "Check cashing" link: already listed above,
+      // with the rest of that app.
+      if (workspaceForPath(item.to) === "checks") continue;
       items.push({
         label: navWord(item.label),
         to: item.to,
