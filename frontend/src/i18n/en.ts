@@ -1486,6 +1486,7 @@ export const en = {
   // ── Settings ────────────────────────────────────────────────
   "settings.tabProfile": "Profile",
   "settings.tabGeneral": "General",
+  "settings.tabMoneyServices": "Money services",
   "settings.tabReferrals": "Referrals",
   "settings.tabSecurity": "Security",
   "settings.exportFailed": "Could not download your data.",
