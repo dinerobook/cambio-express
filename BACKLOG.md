@@ -596,6 +596,37 @@ fixtures of the same shape (`tests/Modules/PosImport/movement_fixtures.py`).
       `agent.ini`; each store's agent needs that line replaced (see
       `agent/README.md` → "Upgrading an older install").
 
+## Fuel prepay — left open by the 2026-11-20 audit
+
+Every file of two stores' real exports (105,171 files) was run
+through the readers and the day books. All read, every day's
+tenders match what was due, nothing is counted twice. The fix that
+shipped with this entry pairs a prepay CANCEL ticket, and the
+suspended middle ticket of a three-ticket chain, with the deposit
+they replace (`_supersede_unlinked` in
+`api/Modules/PosImport/Services/naxml.py`). Still open (each needs
+the owner's go-ahead):
+- [ ] **Voided completion** (7 deposits): the deposit stays a sale
+      by design (`test_void_completion_keeps_the_deposit`), but its
+      fuel never reaches the department lines.
+- [ ] **Deposit with nothing after it** (10): the completion file is
+      missing or the customer never pumped; the files can't tell.
+- [ ] **3 tickets right after an already-completed deposit** may
+      repeat that deposit's store items (small amounts).
+- [ ] **Across business days**: a cancel or chain ticket on another
+      day than its deposit is not paired (the staged lookup is keyed
+      on `prepay_key`); the live hourly chart counts the deposit
+      until the day is committed.
+- [ ] **Days booked before the fix** keep their old figures until
+      re-booked.
+- [ ] Check a day against Passport's own MSM day report once a store
+      has both the MSM and that day's PJR files on the server.
+- [ ] In the files, shown nowhere: safe drop amount, register
+      alerts, refund / void reasons, price overrides, promotion
+      amounts, loyalty, kiosk order number, food stamps in the
+      drawer, tax per tax level. (Card holder and age-check ID data
+      stay unsaved on purpose.)
+
 ## Nice to have (post-launch)
 - [ ] **Universal product catalog follow-ups (shipped 2026-11-19 with
       the Modisoft price book import).** Price-book items saved before
