@@ -319,19 +319,6 @@
   text-align: center;
 }
 
-.footerRow {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-
-.footerItem {
-  font-size: 11.5px;
-  color: var(--db-gray-6);
-}
-
 .copyright {
   font-size: 11px;
   color: var(--db-gray-5);

@@ -99,12 +99,6 @@
   color: var(--db-accent);
 }
 
-.itemMeta {
-  font-size: 0.78rem;
-  color: var(--db-text-muted);
-  margin-left: auto;
-}
-
 .empty {
   text-align: center;
   padding: 2rem 1rem;

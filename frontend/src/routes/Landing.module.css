@@ -208,7 +208,6 @@
   margin-bottom: 16px;
 }
 
-
 .sectionLead {
   font-size: 15px;
   color: var(--db-gray-7);
@@ -285,13 +284,6 @@
   color: var(--db-gray-9);
   margin-bottom: 10px;
   letter-spacing: -0.02em;
-}
-
-.featureBody {
-  font-size: 14px;
-  color: var(--db-gray-7);
-  line-height: 1.6;
-  margin-bottom: 14px;
 }
 
 .featureList {

@@ -20,11 +20,6 @@ import { clearAccessToken, refreshToken, setAccessToken } from "./auth";
 /** Where the superadmin lands after stepping back out. */
 export const IMPERSONATION_RETURN_PATH = "/app/superadmin/users";
 
-/** The server's reason code on the 403 a read-only session gets
- *  for any write; `api()` already surfaces the message as the
- *  thrown error's text, so pages need no special handling. */
-export const READ_ONLY_REASON = "read_only_impersonation";
-
 /**
  * `mode` "full" acts as the person; "read_only" only looks (every
  * write is refused server-side, so a support agent can walk through

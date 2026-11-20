@@ -22,10 +22,6 @@
  *     keyboard nav doesn't fall back to the browser default.
  */
 
-.shell {
-  display: contents;   /* let the parent grid place us */
-}
-
 /* ── Slim icon column ─────────────────────────────────── */
 
 .iconCol {
@@ -86,16 +82,6 @@
   font-family: var(--db-font-display);
   font-weight: 700;
   font-size: 1.2rem;
-}
-
-/* Mobile drawer wordmark — full name fits when the column is
-   no longer 4.75rem wide.  Falls back to the muted-uppercase
-   treatment used elsewhere in the chrome. */
-.brandName {
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--db-text-muted);
 }
 
 .groupBtn {

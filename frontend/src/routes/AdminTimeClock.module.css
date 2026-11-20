@@ -7,19 +7,6 @@
   align-items: flex-end;
 }
 
-.summaryRow {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  margin: 0 0 0.85rem;
-}
-
-.totalNumber {
-  font-family: var(--db-font-mono);
-  font-size: 1.4rem;
-  color: var(--db-accent);
-}
-
 .subtle {
   color: var(--db-text-muted);
   font-size: 0.85rem;
@@ -33,14 +20,6 @@
 .openTag {
   color: var(--db-text-muted);
   font-style: italic;
-}
-
-.headerRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
 }
 
 .rowActions {
@@ -109,7 +88,6 @@
     grid-template-columns: 1fr;
   }
 }
-
 
 /* ── Per-employee group header ─────────────────────────── */
 

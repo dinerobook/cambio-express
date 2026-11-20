@@ -28,8 +28,6 @@ Three rules follow from that, and every caller depends on them:
 """
 from __future__ import annotations
 
-from typing import Any
-
 from sqlalchemy.orm import Session
 
 from api.Core.Clock import utc_now

@@ -1,11 +1,5 @@
 /* Page-specific styles for Customers.tsx. */
 
-.searching {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  color: var(--db-text-muted);
-}
-
 .phone {
   font-family: var(--db-font-mono);
   font-size: 0.9rem;
@@ -20,7 +14,6 @@
 .muted {
   color: var(--db-text-muted);
 }
-
 
 /* ── Merge mode ─────────────────────────────────────────── */
 
@@ -53,7 +46,6 @@
   color: var(--db-accent);
   font-weight: 500;
 }
-
 
 /* ── Merge confirmation modal ───────────────────────────── */
 

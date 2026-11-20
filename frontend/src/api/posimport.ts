@@ -15,13 +15,11 @@ export function ticketKindLabel(kind: string): string {
   return Object.hasOwn(KIND_PILLS, kind) ? t(KIND_PILLS[kind]) : kind;
 }
 
-
 // Typed straight off the FastAPI OpenAPI spec (CLAUDE.md standard).
 export type NaxmlPreview = components["schemas"]["NaxmlPreviewResponse"];
 export type ImportRegisterRow = components["schemas"]["ImportRegisterRow"];
 export type MappingRow = components["schemas"]["MappingRow"];
 export type NaxmlCommitResult = components["schemas"]["NaxmlCommitResponse"];
-export type AgentKey = components["schemas"]["AgentKeyRow"];
 export type StagedDay = components["schemas"]["StagedDayRow"];
 
 type MappingListResponse = components["schemas"]["MappingListResponse"];
@@ -115,7 +113,6 @@ export async function commitStagedDay(
   });
 }
 
-
 // ── Price-book warm start (P2-3) ─────────────────────────────
 
 export type PriceBookHarvest =
@@ -163,15 +160,9 @@ export function useItemMovement(params: ItemMovementQuery) {
   });
 }
 
-
 // ── Transactions (G-6) ──────────────────────────────────────
 
 export type PosTransactionRow = components["schemas"]["PosTransactionRow"];
-export type PosTransaction = components["schemas"]["PosTransactionDetail"];
-export type PosTransactionLine =
-  components["schemas"]["PosTransactionLineRow"];
-export type PosTransactionTender =
-  components["schemas"]["PosTransactionTenderRow"];
 
 type PosTransactionListResponse =
   components["schemas"]["PosTransactionListResponse"];

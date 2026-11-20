@@ -274,12 +274,6 @@
   min-width: 0;
 }
 
-.subText {
-  margin: 0 0 1rem;
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-}
-
 .inputGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
@@ -516,22 +510,6 @@
   border-top: 1px solid var(--db-border);
 }
 
-.mtPanelHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.4rem;
-}
-
-.mtPanelHeaderActions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 .mtSaveRowLeft {
   color: var(--db-text-muted);
   font-size: 0.85rem;
@@ -567,31 +545,6 @@
 .mtCompany {
   white-space: nowrap;
 }
-
-.mtResetBtn {
-  margin-left: 0.55rem;
-  background: transparent;
-  border: 1px solid var(--db-border);
-  color: var(--db-text-muted);
-  font-size: 0.7rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 0.4rem;
-  cursor: pointer;
-}
-
-.mtRowHint {
-  display: inline-block;
-  margin-left: 0.6rem;
-  font-family: var(--db-font-mono);
-  font-size: 0.7rem;
-  color: var(--db-text-muted);
-  font-weight: 500;
-}
-
-.scrollX {
-  overflow-x: auto;
-}
-
 
 /* ── Forward balance override (M-1) ───────────────────────── */
 

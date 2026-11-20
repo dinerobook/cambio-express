@@ -11,7 +11,6 @@
 /* .page class retired — TVDisplayAdmin now uses <PageShell>
  * for consistent max-width + padding with the rest of the SPA. */
 
-
 .muted {
   color: var(--db-text-muted);
   font-size: 14px;
@@ -155,8 +154,6 @@
   color: var(--db-text);
 }
 
-
-
 .activePairing {
   margin-top: 14px;
   padding: 14px 18px;
@@ -197,32 +194,6 @@
   }
 }
 
-.card {
-  background: var(--db-surface);
-  border: 1px solid var(--db-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.cardHead {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--db-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.cardTitle {
-  font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--db-text);
-}
-
-.cardBody {
-  padding: 18px;
-}
-
 .fieldGrid {
   display: grid;
   grid-template-columns: 1fr;
@@ -233,30 +204,6 @@
   .fieldGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.fieldLabel {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--db-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.input {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--db-border);
-  background: var(--db-surface-2);
-  color: var(--db-text);
-  font-size: 13px;
-  font-family: "Inter", sans-serif;
 }
 
 .sectionTitle {

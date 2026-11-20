@@ -15,7 +15,7 @@ Rules: ``INVARIANTS.md`` ("Pictures").
 """
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Response
+from fastapi import APIRouter, Depends, Path, Response
 from sqlalchemy.orm import Session
 
 from api.Core.Audit import audit_operator

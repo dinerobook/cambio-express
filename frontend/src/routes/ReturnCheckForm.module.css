@@ -113,8 +113,3 @@
   gap: 0.75rem;
 }
 
-.batchHint {
-  margin: 0;
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-}
