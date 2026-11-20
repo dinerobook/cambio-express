@@ -18,7 +18,7 @@ vi.mock("../api/dayclose", async (importOriginal) => ({
     data: {
       departments: [{
         id: 1, name: "BEER", parent_id: null, parent_name: "", sort_order: 0,
-        is_active: true, department_type: "merchandise", is_taxable: true,
+        is_active: true, department_type: "merchandise", is_taxable: true, tax_rate: null,
         min_age: 21, nacs_code: "481", pos_codes: ["4"],
       }],
     },

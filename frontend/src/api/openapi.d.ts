@@ -11302,6 +11302,8 @@ export interface components {
             pos_codes: string[];
             /** Sort Order */
             sort_order: number;
+            /** Tax Rate */
+            tax_rate: number | null;
         };
         /** DepartmentSaleLine */
         DepartmentSaleLine: {
@@ -11348,6 +11350,8 @@ export interface components {
             pos_codes?: string[] | null;
             /** Sort Order */
             sort_order?: number | null;
+            /** Tax Rate */
+            tax_rate?: number | null;
         };
         /** DepartmentWriteRequest */
         DepartmentWriteRequest: {
@@ -11380,6 +11384,8 @@ export interface components {
              * @default 0
              */
             sort_order: number;
+            /** Tax Rate */
+            tax_rate?: number | null;
         };
         /** DiscountCodeListResponse */
         DiscountCodeListResponse: {
