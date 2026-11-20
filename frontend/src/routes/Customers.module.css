@@ -49,14 +49,6 @@
 
 /* ── Merge confirmation modal ───────────────────────────── */
 
-/* `.modalBackdrop` + `.modalCard` + `.modalTitle` + `.modalActions`
- * retired — modal chrome now comes from the kit <Modal> in
- * components/ui/Modal.tsx (which also wires the title heading
- * via the `title` prop, so .modalTitle has no remaining caller).
- * `.modalLead` + `.modalGrid` + `.mergeColKept` / `.mergeColDropped`
- * stay because they describe the merge-modal body content,
- * not the chrome itself. */
-
 .modalLead {
   margin: 0 0 1.25rem;
   font-size: 0.9rem;

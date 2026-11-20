@@ -621,17 +621,6 @@
   transition: color var(--ds-dur-base) var(--ds-ease);
 }
 
-/* ── Status pill: subtle pulse for warning/critical ────────── */
-
-@keyframes ds-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.55; }
-}
-
-.ds-pill--pulse {
-  animation: ds-pulse 2s ease-in-out infinite;
-}
-
 /* ── Popovers / dropdowns: fade-scale in ───────────────────── */
 
 @keyframes ds-popover-in {

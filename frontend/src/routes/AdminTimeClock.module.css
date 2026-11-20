@@ -68,12 +68,6 @@
   color: var(--db-text);
 }
 
-/* `.modalBackdrop` + `.modalCard` retired — chrome now comes
- * from the kit <Modal> primitive in components/ui/Modal.tsx.
- * `.modalGrid` stays because it describes the body layout (a
- * 2-column form grid); the submit row is the kit's
- * <ModalActions>. */
-
 .modalGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;

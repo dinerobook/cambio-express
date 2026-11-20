@@ -16,6 +16,3 @@
 
 /* Row styles live in components/AuditTable.module.css. */
 
-/* `.actionBadge` retired — ActionBadge now uses the kit `<Pill>`
- * primitive directly, which carries its own styling via the
- * shared `--db-tone-*` tokens. */

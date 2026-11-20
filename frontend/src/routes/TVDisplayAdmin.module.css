@@ -8,9 +8,6 @@
  * specific), so the module holds them.
  */
 
-/* .page class retired — TVDisplayAdmin now uses <PageShell>
- * for consistent max-width + padding with the rest of the SPA. */
-
 .muted {
   color: var(--db-text-muted);
   font-size: 14px;
@@ -81,10 +78,6 @@
   font-size: 13px;
   color: var(--db-text-muted);
 }
-
-/* `.primaryButton` + `.dangerOutlineButton` retired — every
- * caller now uses the kit `<Button>` / `<ButtonLink>` primitives
- * which carry hover / focus-visible / busy semantics for free. */
 
 /* The public-URL bar is the kit `<CopyField>` now. */
 
@@ -306,11 +299,6 @@
   font-size: 18px;
   line-height: 1;
 }
-
-/* `.countryDeleteButton` retired — visual treatment now comes
- * from the kit `<IconButton>` primitive (round, outlined, neon
- * focus ring).  The absolute positioning lives in an inline
- * `style` at the call site. */
 
 .addCountry {
   display: block;

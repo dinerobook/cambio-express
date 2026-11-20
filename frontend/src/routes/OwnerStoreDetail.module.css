@@ -8,9 +8,6 @@
   margin-bottom: 0.5rem;
 }
 
-/* `.tabBar` / `.tab` / `.tabActive` retired — the period
- * switcher now uses kit `<TabsBar>` + `<TabsButton>`. */
-
 .chartHost {
   height: 280px;
 }

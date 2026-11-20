@@ -36,11 +36,6 @@
   font-size: 0.85rem;
 }
 
-/* `.planPill` retired — PlanPill now uses the kit `<Pill>`
- * primitive directly, which carries its own styling via the
- * shared `--db-tone-*` tokens.  Capitalisation lives in TS
- * land (`plan.charAt(0).toUpperCase()`). */
-
 .bulkBar {
   display: flex;
   align-items: center;

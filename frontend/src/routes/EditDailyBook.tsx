@@ -706,10 +706,10 @@ function UnlockIcon() {
 
 // ── Panels ───────────────────────────────────────────────────
 //
-// `TabBar` component retired — the daily book renders all three
-// columns side-by-side on desktop (see the render() above). Each
-// column's total (In / Out / Over Short) surfaces in its own
-// sticky `<ColumnHeader>` that the column body scrolls behind.
+// The daily book renders all three columns side-by-side on desktop
+// (see the render() above). Each column's total (In / Out / Over
+// Short) surfaces in its own sticky `<ColumnHeader>` that the column
+// body scrolls behind.
 
 interface PanelProps {
   form: FormState;
@@ -2714,8 +2714,6 @@ function buildInitialForm(r: DailyReportRow | null | undefined): FormState {
   };
 }
 
-// `fmtMoney` retired alongside the TabBar — was only used for the
-// fmtMoney2 imported from lib/formatters (was local, consolidated).
 
 // The lock stamp is a UTC timestamp: shown on the store's clock.
 function formatLockedAt(iso: string | undefined): string {
