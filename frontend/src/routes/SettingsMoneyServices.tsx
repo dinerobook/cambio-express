@@ -15,7 +15,6 @@ import {
 } from "../components/ui";
 import styles from "./SettingsMoneyServices.module.css";
 import { useT } from "../i18n";
-import { navWord } from "../i18n/navWords";
 
 // Settings → Money services (/settings/money-services). Everything
 // the money-transfer counter is set up with, apart from the store's
@@ -92,7 +91,7 @@ export default function SettingsMoneyServices() {
   if (identity?.store_id == null) {
     return (
       <Card>
-        <SectionTitle>{navWord("Money services")}</SectionTitle>
+        <SectionTitle>{t("settings.tabMoneyServices")}</SectionTitle>
         <p className={styles.muted}>
           {t("money.signIn")}
         </p>
@@ -100,12 +99,12 @@ export default function SettingsMoneyServices() {
     );
   }
   if (isLoading) {
-    return <Card><SectionTitle>{navWord("Money services")}</SectionTitle><Loading /></Card>;
+    return <Card><SectionTitle>{t("settings.tabMoneyServices")}</SectionTitle><Loading /></Card>;
   }
   if (isError || !data) {
     return (
       <Card>
-        <SectionTitle>{navWord("Money services")}</SectionTitle>
+        <SectionTitle>{t("settings.tabMoneyServices")}</SectionTitle>
         <ErrorState
           message={t("money.loadFailed")}
           onRetry={() => { void refetch(); }}

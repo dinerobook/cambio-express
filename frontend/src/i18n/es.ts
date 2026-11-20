@@ -1490,6 +1490,7 @@ export const es: Record<MessageKey, string> = {
   // ── Settings ────────────────────────────────────────────────
   "settings.tabProfile": "Perfil",
   "settings.tabGeneral": "General",
+  "settings.tabMoneyServices": "Servicios de dinero",
   "settings.tabReferrals": "Referidos",
   "settings.tabSecurity": "Seguridad",
   "settings.exportFailed": "No se pudieron descargar sus datos.",

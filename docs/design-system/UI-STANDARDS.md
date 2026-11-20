@@ -612,6 +612,17 @@ This is enforced by the kit, not by per-page checks:
 - **Sidebar and section hubs** derive visibility from the same table
   (`filterNavForRole`). Nav items carry `roles` and `flag` only —
   never a duplicated `perm`.
+- **A store's work is grouped by business** (owner, 2026-11-19): **MSB**
+  (money services: MSB daily book, transfers, customers, ACH batches,
+  returned checks, the check cashing link, MSB reports, check cashing
+  report) and **Retail** (convenience store / gas station: store daily
+  book, transactions, lottery, price book, purchases, store reports).
+  Each business carries its own report center; the **Reports** group
+  is the accountant's menu (Monthly P&L, Data export). A group shows
+  only what the store's module switches turn on, so a pure
+  money-services store never sees Retail and a gas station's MSB holds
+  only its check work. A renamed group keeps its old `/hub/<slug>`
+  link working (`RENAMED_SECTIONS` in `routes/SectionHub.tsx`).
 - **A module still being built** sits behind an opt-in store switch
   (`OPT_IN_NAV_FLAG_KEYS`, e.g. check cashing's `check_desk`): no
   store sees it until a superadmin turns it on, and no other page
@@ -623,6 +634,11 @@ This is enforced by the kit, not by per-page checks:
   sidebar for the app's own (`CHECK_NAV`) and opens on the app's main
   job (check cashing: Cash a check), never on a hub of tiles: the
   first sidebar entry is that page.
+  The back office's MSB group carries ONE link into the app ("Check
+  cashing", owner 2026-11-19), which opens it like the switch. The
+  app's own pages never join `NAV`; that link is not back office work
+  (`hasBackOffice`) and the command palette lists it once, with the
+  app's pages.
   The URL decides the view; personal pages (profile, sessions,
   support) keep the last one. The switch shows only where the store
   has the app AND the person has back office rights too; someone with
@@ -682,7 +698,7 @@ This is enforced by the kit, not by per-page checks:
   separate app on one computer; what owners and Admins read about it
   elsewhere is the back office "Check cashing report"
   (`routes/CashedChecksReport.tsx`, a normal `PageShell` page in the
-  Reports menu, phone friendly, view only). A period's totals are ONE
+  MSB group, phone friendly, view only). A period's totals are ONE
   component, `CheckTotalsGrid` (`components/CheckTotals.tsx`), on that
   report and on the desk's Checks page.
 - **A bad check is one popup everywhere** (`components/BadCheck.tsx`).
