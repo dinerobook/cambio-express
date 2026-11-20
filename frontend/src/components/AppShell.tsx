@@ -5,6 +5,7 @@ import { useProfile, useSessionStatus, useStoreInfo } from "../api/account";
 import { useTicketsUnread } from "../api/support";
 import { ACCOUNTANT_ROLE, canAccess } from "../lib/access";
 import { getCurrentIdentity, syncPermissions } from "../lib/auth";
+import { useSessionWatch } from "../lib/useSessionWatch";
 import { useSignOut } from "../lib/useSignOut";
 import StoreGate from "./StoreGate";
 import { DisplayTimezone } from "./DisplayTimezone";
@@ -117,6 +118,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // status query is loading we render the normal shell to avoid a
   // gate flash on every navigation.
   const { data: sessionStatus } = useSessionStatus();
+  // A tab left open learns when its session ends and goes to sign-in.
+  useSessionWatch();
   // The permission list cached at login goes stale when an admin
   // changes this person's access mid-session: the API refuses live,
   // but the nav and the route guard read the cached list, so a page

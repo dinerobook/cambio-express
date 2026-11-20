@@ -37,12 +37,13 @@ const ok = {
   store_id: 3, permissions: ["transfers.read"], access_token: "jwt",
 };
 
-function renderPage() {
+function renderPage(at = "/login") {
   return render(
-    <MemoryRouter initialEntries={["/login"]}>
+    <MemoryRouter initialEntries={[at]}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<p>dashboard page</p>} />
+        <Route path="/transfers" element={<p>transfers page</p>} />
         <Route path="/owner/dashboard" element={<p>owner overview</p>} />
         <Route path="/login/2fa/enroll" element={<p>enroll page</p>} />
       </Routes>
@@ -82,6 +83,31 @@ describe("Login", () => {
       method: "POST", json: { username: "ana", password: "secret" },
     });
     expect(getCurrentIdentity()).toMatchObject({ user_id: 9, role: "admin", store_id: 3 });
+  });
+
+  it("says the session ended and returns the person to the page they were on", async () => {
+    // api() sends an ended session here (owner, 2026-11-20: every role).
+    api.mockResolvedValue(ok);
+    renderPage("/login?expired=1&next=%2Ftransfers%3Fpage%3D2");
+    expect(screen.getByText("Your session has ended. Sign in again to continue."))
+      .toBeInTheDocument();
+    await signIn();
+    expect(await screen.findByText("transfers page")).toBeInTheDocument();
+  });
+
+  it.each(["//evil.example/x", "https://evil.example", "/login?expired=1"])(
+    "ignores a return path that is not a page in the app (%s)",
+    async (next) => {
+      api.mockResolvedValue(ok);
+      renderPage(`/login?expired=1&next=${encodeURIComponent(next)}`);
+      await signIn();
+      expect(await screen.findByText("dashboard page")).toBeInTheDocument();
+    },
+  );
+
+  it("shows no session notice on a plain visit", () => {
+    renderPage();
+    expect(screen.queryByText(/session has ended/)).not.toBeInTheDocument();
   });
 
   it("shows the server's refusal and stays on the form", async () => {

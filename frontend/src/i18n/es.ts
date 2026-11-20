@@ -47,6 +47,7 @@ export const es: Record<MessageKey, string> = {
   // ── Sign-in (Login, LoginStore) ──────────────────────────────
   "login.title": "Iniciar sesión",
   "login.subtitle": "Bienvenido de nuevo. Continúe donde lo dejó.",
+  "login.sessionEnded": "Su sesión terminó. Inicie sesión de nuevo para continuar.",
   "login.username": "Correo o teléfono",
   "login.usernamePlaceholder": "usted@tienda.com o (555) 123-4567",
   "login.password": "Contraseña",

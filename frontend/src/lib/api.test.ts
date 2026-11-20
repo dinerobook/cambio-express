@@ -30,7 +30,7 @@ const calls = () => fetchMock.mock.calls.map(([p]) => String(p));
 beforeEach(() => {
   Object.defineProperty(window, "location", {
     configurable: true,
-    value: { ...window.location, assign, pathname: "/app/time-clock" },
+    value: { ...window.location, assign, pathname: "/app/time-clock", search: "" },
   });
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockReset();
@@ -59,8 +59,22 @@ describe("api() on 401 — ordinary endpoint", () => {
       .mockResolvedValueOnce(json(401, { detail: "expired" }))
       .mockResolvedValueOnce(json(401, { detail: "refresh revoked" }));
     await expect(api("/api/v2/transfers")).rejects.toBeInstanceOf(ApiError);
-    expect(assign).toHaveBeenCalledWith("/app/login");
+    expect(assign).toHaveBeenCalledWith("/app/login?expired=1&next=%2Ftime-clock");
     expect(getCurrentIdentity()).toBeNull();
+  });
+
+  it("brings the person back to the page they were on after signing in", async () => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, assign, pathname: "/app/transfers", search: "?page=2" },
+    });
+    fetchMock
+      .mockResolvedValueOnce(json(401, { detail: "expired" }))
+      .mockResolvedValueOnce(json(401, { detail: "refresh revoked" }));
+    await api("/api/v2/transfers").catch(() => undefined);
+    expect(assign).toHaveBeenCalledWith(
+      "/app/login?expired=1&next=%2Ftransfers%3Fpage%3D2",
+    );
   });
 });
 
@@ -90,7 +104,7 @@ describe("api() on 401 — sign-in steps", () => {
       .mockResolvedValueOnce(json(401, { detail: "dead" }));
     await api("/api/v2/auth/logins-report").catch(() => undefined);
     expect(calls()).toContain("/api/v2/auth/refresh");
-    expect(assign).toHaveBeenCalledWith("/app/login");
+    expect(assign).toHaveBeenCalledWith("/app/login?expired=1&next=%2Ftime-clock");
   });
 });
 
@@ -120,6 +134,6 @@ describe("api() on 401 — time-clock punches", () => {
       .mockResolvedValueOnce(json(401, { detail: "refresh revoked" }));
     await api("/api/v2/timeclock/clock-in", { method: "POST", json: {} })
       .catch(() => undefined);
-    expect(assign).toHaveBeenCalledWith("/app/login");
+    expect(assign).toHaveBeenCalledWith("/app/login?expired=1&next=%2Ftime-clock");
   });
 });
