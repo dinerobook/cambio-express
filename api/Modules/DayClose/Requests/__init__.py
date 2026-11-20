@@ -31,20 +31,23 @@ NacsCode = Annotated[
 
 
 class DepartmentWriteRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:       str = Field(..., min_length=1, max_length=80)
     sort_order: int = Field(0, ge=0, le=10000)
     parent_id:  int | None = Field(None, ge=1)
     department_type: DepartmentType = "merchandise"
     is_taxable: bool = True
+    # The department's own tax rate as a fraction (0.0825 = 8.25 %);
+    # None = not set. Ignored (stored as none) when not taxable.
+    tax_rate:   float | None = Field(None, ge=0, le=1)
     min_age:    int | None = Field(None, ge=1, le=99)
     nacs_code:  NacsCode = ""
     pos_codes:  list[PosCode] = Field(default_factory=list, max_length=20)
 
 
 class DepartmentUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     name:       str | None = Field(None, min_length=1, max_length=80)
     sort_order: int | None = Field(None, ge=0, le=10000)
@@ -54,6 +57,9 @@ class DepartmentUpdateRequest(BaseModel):
     parent_id:  int | None = Field(None, ge=0)
     department_type: DepartmentType | None = None
     is_taxable: bool | None = None
+    # A fraction (0.0825 = 8.25 %). 0 clears it, None = leave
+    # unchanged. Turning taxable off clears it too.
+    tax_rate:   float | None = Field(None, ge=0, le=1)
     # 0 clears the age limit (None = leave unchanged).
     min_age:    int | None = Field(None, ge=0, le=99)
     nacs_code:  NacsCode | None = None
@@ -73,6 +79,7 @@ class DepartmentRow(BaseModel):
     parent_name: str
     department_type: DepartmentType
     is_taxable: bool
+    tax_rate: float | None
     min_age: int | None
     nacs_code: str
     pos_codes: list[str]

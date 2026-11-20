@@ -72,6 +72,16 @@
   grid-column: 1 / -1;
 }
 
+/* "Taxable" beside its "Tax rate (%)" box: the tick sits on the box's
+ * line (under the box's label), so the two read as one row and the
+ * fields below never move when the box appears. */
+.taxCheck {
+  align-self: start;
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+}
+
 .groupTitle {
   grid-column: 1 / -1;
   margin: 0.5rem 0 0;
@@ -85,5 +95,10 @@
 @media (min-width: 36rem) {
   .formGrid {
     grid-template-columns: 1fr 1fr;
+  }
+  /* Two columns: drop the tick to the rate box's line, past the box's
+   * label (0.8rem × 1.3 line + the 0.45rem label gap). */
+  .taxCheck {
+    margin-top: calc(0.8rem * 1.3 + 0.45rem);
   }
 }

@@ -8274,6 +8274,17 @@
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
           }
         },
         "required": [
@@ -8285,6 +8296,7 @@
           "parent_name",
           "department_type",
           "is_taxable",
+          "tax_rate",
           "min_age",
           "nacs_code",
           "pos_codes"
@@ -8490,6 +8502,19 @@
               }
             ],
             "title": "Sort Order"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
           }
         },
         "title": "DepartmentUpdateRequest",
@@ -8575,6 +8600,19 @@
             "minimum": 0.0,
             "title": "Sort Order",
             "type": "integer"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
           }
         },
         "required": [

@@ -32,7 +32,8 @@ vi.mock("../api/dayclose", async (importOriginal) => ({
 
 const BASE = {
   parent_id: null, parent_name: "", sort_order: 10, is_active: true,
-  department_type: "merchandise", is_taxable: true, min_age: null,
+  department_type: "merchandise", is_taxable: true, tax_rate: null as number | null,
+  min_age: null,
   nacs_code: "", pos_codes: [] as string[],
 };
 const TOBACCO = { ...BASE, id: 4, name: "Tobacco", min_age: 21, nacs_code: "400", pos_codes: ["9"] };
@@ -140,7 +141,7 @@ describe("<DepartmentsManager>", () => {
     await waitFor(() => expect(createDepartment).toHaveBeenCalledWith({
       name: "LOTTO", sort_order: 0, department_type: "lotto_sell",
       is_taxable: false, nacs_code: "510", pos_codes: ["13"],
-      parent_id: null, min_age: 18,
+      parent_id: null, min_age: 18, tax_rate: null,
     }));
   });
 
@@ -184,8 +185,55 @@ describe("<DepartmentsManager>", () => {
     await waitFor(() => expect(updateDepartment).toHaveBeenCalledWith(4, {
       name: "Tobacco", sort_order: 10, department_type: "merchandise",
       is_taxable: true, nacs_code: "400", pos_codes: ["9", "27"],
-      parent_id: 0, min_age: 0,
+      parent_id: 0, min_age: 0, tax_rate: 0,
     }));
+  });
+
+  // Owner, 2026-11-20: ticking Taxable shows an empty "Tax rate (%)"
+  // box for the department's own rate; the rate travels as a fraction.
+  it("shows an empty tax rate box for a taxable department and saves it", async () => {
+    renderManager();
+    const dialog = await openAdd();
+    const rate = within(dialog).getByRole("textbox", { name: "Tax rate (%)" });
+    expect(rate).toHaveValue("");
+    await userEvent.type(within(dialog).getByLabelText("Name"), "Grocery");
+    await userEvent.type(rate, "8.25");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add department" }));
+    await waitFor(() => expect(createDepartment).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Grocery", is_taxable: true, tax_rate: 0.0825 }),
+    ));
+  });
+
+  it("hides the rate box when the department is not taxable", async () => {
+    renderManager();
+    const dialog = await openAdd();
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: "Taxable (sales tax applies)" }));
+    expect(within(dialog).queryByRole("textbox", { name: "Tax rate (%)" })).not.toBeInTheDocument();
+  });
+
+  it("refuses a rate that isn't 0 to 100", async () => {
+    renderManager();
+    const dialog = await openAdd();
+    await userEvent.type(within(dialog).getByLabelText("Name"), "Deli");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Tax rate (%)" }), "125");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add department" }));
+    expect(await within(dialog).findByText("Enter a rate from 0 to 100, like 8.25.")).toBeInTheDocument();
+    expect(createDepartment).not.toHaveBeenCalled();
+  });
+
+  it("shows a saved rate in the list and the form, and clears it when emptied", async () => {
+    departments = [{ ...TOBACCO, tax_rate: 0.0825 }];
+    renderManager();
+    expect(screen.getByText("Taxable · 8.25%")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit Tobacco" });
+    const rate = within(dialog).getByRole("textbox", { name: "Tax rate (%)" });
+    expect(rate).toHaveValue("8.25");
+    await userEvent.clear(rate);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(updateDepartment).toHaveBeenCalledWith(
+      4, expect.objectContaining({ tax_rate: 0 }),
+    ));
   });
 
   it("reads in Spanish, and creates the starter set in Spanish", async () => {

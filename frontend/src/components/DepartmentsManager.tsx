@@ -217,7 +217,11 @@ export default function DepartmentsManager() {
     },
     {
       key: "tax", header: t("dept.colTax"), label: t("dept.colTax"),
-      render: (d) => (d.is_taxable ? t("dept.taxable") : t("dept.nonTaxable")),
+      render: (d) => (d.is_taxable
+        ? (d.tax_rate != null
+          ? t("dept.taxableAt", { rate: ratePercentText(d.tax_rate) })
+          : t("dept.taxable"))
+        : t("dept.nonTaxable")),
     },
     {
       key: "age", header: t("dept.colAge"), label: t("dept.colAge"),
@@ -400,6 +404,23 @@ function DepartmentModal({
 
 const AGE_CHOICES = ["", "18", "21"];
 
+/** A stored rate (a fraction, 0.0825) as the percent a person types
+ *  and reads ("8.25"): up to four decimals, no trailing zeros. */
+function ratePercentText(rate: number): string {
+  return String(Number((rate * 100).toFixed(4)));
+}
+
+/** The typed percent as a stored fraction; null when the box is empty,
+ *  NaN when it isn't a rate from 0 to 100. */
+function parseRatePercent(text: string): number | null {
+  const s = text.trim().replace(/%$/, "").trim();
+  if (s === "") return null;
+  if (!/^\d{1,3}(\.\d{1,4})?$|^\.\d{1,4}$/.test(s)) return Number.NaN;
+  const pct = Number(s);
+  if (!(pct >= 0 && pct <= 100)) return Number.NaN;
+  return Number((pct / 100).toFixed(6));
+}
+
 function DepartmentForm({
   existing, departments, onClose, onDone,
 }: {
@@ -416,6 +437,12 @@ function DepartmentForm({
   // A new department follows its type's usual tax setting until the
   // person ticks the box themselves; a saved one keeps what it has.
   const [taxTouched, setTaxTouched] = useState(existing != null);
+  // The department's own rate, typed as a percent. Empty by default
+  // (owner, 2026-11-20): only a department with its own rate fills it.
+  const [rateText, setRateText] = useState(
+    existing?.tax_rate != null ? ratePercentText(existing.tax_rate) : "",
+  );
+  const [rateError, setRateError] = useState<string | null>(null);
   const [minAge, setMinAge] = useState(existing?.min_age ? String(existing.min_age) : "");
   const [nacs, setNacs] = useState(existing?.nacs_code ?? "");
   const [sortOrder, setSortOrder] = useState(String(existing?.sort_order ?? 0));
@@ -458,9 +485,12 @@ function DepartmentForm({
     e.preventDefault();
     const pErr = checkPos(posText);
     const nErr = NACS_CODE.test(nacs.trim()) ? null : t("dept.nacsInvalid");
+    const rate = taxable ? parseRatePercent(rateText) : null;
+    const rErr = rate != null && Number.isNaN(rate) ? t("dept.taxRateInvalid") : null;
     setPosError(pErr);
     setNacsError(nErr);
-    if (pErr || nErr) return;
+    setRateError(rErr);
+    if (pErr || nErr || rErr) return;
     setBusy(true);
     setError(null);
     const common = {
@@ -475,15 +505,18 @@ function DepartmentForm({
       if (existing) {
         await updateDepartment(existing.id, {
           ...common,
-          // 0 clears the parent link / the age limit (PATCH semantics).
+          // 0 clears the parent link / the age limit / the tax rate
+          // (PATCH semantics).
           parent_id: parentId === "" ? 0 : Number(parentId),
           min_age: minAge === "" ? 0 : Number(minAge),
+          tax_rate: rate ?? 0,
         });
       } else {
         await createDepartment({
           ...common,
           parent_id: parentId === "" ? null : Number(parentId),
           min_age: minAge === "" ? null : Number(minAge),
+          tax_rate: rate,
         });
       }
       onDone();
@@ -540,14 +573,39 @@ function DepartmentForm({
         </Field>
 
         <p className={styles.groupTitle}>{t("dept.salesRules")}</p>
-        <div className={styles.full}>
+        {/* Taxable and its rate share one row, so ticking the box shows
+            the rate beside it without moving the fields below. */}
+        <div className={styles.taxCheck}>
           <Checkbox
             checked={taxable}
-            onChange={(next) => { setTaxable(next); setTaxTouched(true); }}
+            onChange={(next) => {
+              setTaxable(next);
+              setTaxTouched(true);
+              if (!next) setRateError(null);
+            }}
           >
             {t("dept.taxableLabel")}
           </Checkbox>
         </div>
+        {taxable ? (
+          <Field
+            label={t("dept.taxRate")}
+            hint={rateError ? undefined : t("dept.taxRateHint")}
+            error={rateError}
+          >
+            <Input
+              type="text" inputMode="decimal" value={rateText} maxLength={8}
+              className={styles.code}
+              onChange={(e) => { setRateText(e.target.value); setRateError(null); }}
+              onBlur={() => {
+                const r = parseRatePercent(rateText);
+                setRateError(r != null && Number.isNaN(r) ? t("dept.taxRateInvalid") : null);
+              }}
+            />
+          </Field>
+        ) : (
+          <span aria-hidden="true" />
+        )}
         <Field label={t("dept.minAge")}>
           <Select value={minAge} onChange={(e) => setMinAge(e.target.value)}>
             {ageChoices.map((a) => (
