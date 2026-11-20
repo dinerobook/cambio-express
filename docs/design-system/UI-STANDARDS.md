@@ -485,6 +485,19 @@ needed if the kit had been checked first.
     customer directory (its own server export, `customers.update`)
     have none. Server CSVs defuse formulas the same way
     (`api/Core/Csv.py` `safe_cell`).
+  - **Import.** A file from another system (a Modisoft price book
+    or department list) takes two steps: a **check** that writes
+    nothing and shows what would happen (new, updated, already up
+    to date, skipped and why, the lines it could not read), then
+    **Import**. The server reads an .xlsx through `api/Core/Xlsx.py`
+    and finds columns by name, never by position, so a store's
+    re-ordered export still works; a re-import never doubles a row.
+    A value that needs a person's decision (a Modisoft Lottery or
+    Services department's exact type, owner 2026-11-19) is marked in
+    the check's review table and decided there, before anything is
+    saved — never stored as a guess to fix afterwards. Examples:
+    `routes/ModisoftImportModal.tsx`,
+    `components/DepartmentImportModal.tsx`.
   - **Every list is a DataTable**, including a short one inside a
     settings page (referrals, sign-in sessions, invite codes) or
     one table per group (Payroll's per-person shifts, with the

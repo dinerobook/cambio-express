@@ -170,6 +170,8 @@ export const COVERED_FILES = [
   "routes/PurchaseInvoiceForm.tsx",
   "routes/PosImport.tsx",
   "components/DepartmentsManager.tsx",
+  "components/DepartmentImportModal.tsx",
+  "components/DepartmentTypeOptions.tsx",
   "routes/Lottery.tsx",
   "routes/PriceBook.tsx",
   "routes/ModisoftImportModal.tsx",

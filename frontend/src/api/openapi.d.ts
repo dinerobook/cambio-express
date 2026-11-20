@@ -3763,6 +3763,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dayclose/departments/import/modisoft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Departments Route
+         * @description Create or update the rows the person kept after the check, each
+         *     with the type they chose. All or nothing: one refused row (a
+         *     register number another department holds, a name taken) is a 409
+         *     and nothing is saved.
+         */
+        post: operations["import_departments_route_dayclose_departments_import_modisoft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dayclose/departments/import/modisoft/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Department Import Route
+         * @description Read a Modisoft departments export and plan every row against
+         *     the store's departments. Writes nothing.
+         */
+        post: operations["check_department_import_route_dayclose_departments_import_modisoft_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dayclose/departments/{department_id}": {
         parameters: {
             query?: never;
@@ -11265,6 +11309,129 @@ export interface components {
             total_value: number;
             /** Uncounted Active Packs */
             uncounted_active_packs: number;
+        };
+        /** DepartmentImportCheckRequest */
+        DepartmentImportCheckRequest: {
+            /** Content Base64 */
+            content_base64: string;
+        };
+        /** DepartmentImportCheckResponse */
+        DepartmentImportCheckResponse: {
+            /** Columns Ignored */
+            columns_ignored: string[];
+            /** Columns Used */
+            columns_used: string[];
+            /** Issues */
+            issues: components["schemas"]["DepartmentImportIssue"][];
+            /** Rows */
+            rows: components["schemas"]["DepartmentImportCheckRow"][];
+        };
+        /**
+         * DepartmentImportCheckRow
+         * @description One department of the file, planned against the store.
+         */
+        DepartmentImportCheckRow: {
+            /** Changes */
+            changes: ("name" | "type" | "tax" | "age" | "nacs" | "pos")[];
+            /**
+             * Department Type
+             * @enum {string}
+             */
+            department_type: "merchandise" | "fuel" | "lottery_sell" | "lottery_cash" | "lotto_sell" | "lotto_cash" | "money_order" | "money_order_fee" | "money_transfer" | "money_transfer_fee" | "check_cash_fee" | "service" | "misc";
+            /** Existing Id */
+            existing_id: number | null;
+            /** Existing Name */
+            existing_name: string;
+            /** Existing Type */
+            existing_type: ("merchandise" | "fuel" | "lottery_sell" | "lottery_cash" | "lotto_sell" | "lotto_cash" | "money_order" | "money_order_fee" | "money_transfer" | "money_transfer_fee" | "check_cash_fee" | "service" | "misc") | null;
+            /** Include */
+            include: boolean;
+            /** Is Taxable */
+            is_taxable: boolean | null;
+            /** Items */
+            items: number | null;
+            /** Line */
+            line: number;
+            /** Min Age */
+            min_age: number | null;
+            /** Modisoft Type */
+            modisoft_type: string;
+            /** Nacs Code */
+            nacs_code: string | null;
+            /** Name */
+            name: string;
+            /** Pos Code */
+            pos_code: string | null;
+            /** Problem */
+            problem: ("duplicate_name" | "duplicate_pos" | "pos_taken" | "name_taken") | null;
+            /** Problem Name */
+            problem_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "new" | "update" | "same" | "skip";
+            /** Tax Rate */
+            tax_rate: number | null;
+            /**
+             * Type Group
+             * @enum {string}
+             */
+            type_group: "merchandise" | "fuel" | "lottery" | "services" | "misc" | "";
+            /** Type Sure */
+            type_sure: boolean;
+            /** Unused */
+            unused: boolean;
+        };
+        /** DepartmentImportIssue */
+        DepartmentImportIssue: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "no_name" | "bad_number" | "bad_pos" | "bad_nacs";
+            /** Count */
+            count: number;
+            /** Lines */
+            lines: number[];
+        };
+        /** DepartmentImportRequest */
+        DepartmentImportRequest: {
+            /** Rows */
+            rows: components["schemas"]["DepartmentImportRow"][];
+        };
+        /** DepartmentImportResponse */
+        DepartmentImportResponse: {
+            /** Created */
+            created: number;
+            /** Unchanged */
+            unchanged: number;
+            /** Updated */
+            updated: number;
+        };
+        /**
+         * DepartmentImportRow
+         * @description A reviewed row: the file's values plus the type the person chose.
+         *     None leaves a matched department's value alone.
+         */
+        DepartmentImportRow: {
+            /**
+             * Department Type
+             * @enum {string}
+             */
+            department_type: "merchandise" | "fuel" | "lottery_sell" | "lottery_cash" | "lotto_sell" | "lotto_cash" | "money_order" | "money_order_fee" | "money_transfer" | "money_transfer_fee" | "check_cash_fee" | "service" | "misc";
+            /** Is Taxable */
+            is_taxable?: boolean | null;
+            /** Min Age */
+            min_age?: number | null;
+            /** Nacs Code */
+            nacs_code?: string | null;
+            /** Name */
+            name: string;
+            /** Pos Code */
+            pos_code?: string | null;
+            /** Tax Rate */
+            tax_rate?: number | null;
         };
         /** DepartmentListResponse */
         DepartmentListResponse: {
@@ -26879,6 +27046,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DepartmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_departments_route_dayclose_departments_import_modisoft_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DepartmentImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentImportResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_department_import_route_dayclose_departments_import_modisoft_check_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DepartmentImportCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentImportCheckResponse"];
                 };
             };
             /** @description Validation Error */

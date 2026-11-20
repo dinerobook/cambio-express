@@ -16,6 +16,9 @@ import {
   type DataColumn,
 } from "./ui";
 import styles from "./DepartmentsManager.module.css";
+import { DepartmentImportModal } from "./DepartmentImportModal";
+import { DepartmentTypeOptions } from "./DepartmentTypeOptions";
+import { ratePercentText, TYPE_HINT, TYPE_LABEL } from "../lib/departmentTypes";
 import { t, tn, useT, type MessageKey } from "../i18n";
 
 // The store's department setup (Account → Departments, the one place
@@ -51,54 +54,6 @@ const STARTER_DEPARTMENTS: {
   { name: "dept.starter.other" },
 ];
 
-// The type picker, grouped the way Modisoft groups department types.
-const TYPE_GROUPS: { label: MessageKey; types: DepartmentType[] }[] = [
-  { label: "dept.group.merchandise", types: ["merchandise"] },
-  { label: "dept.group.fuel", types: ["fuel"] },
-  { label: "dept.group.lottery", types: ["lottery_sell", "lottery_cash", "lotto_sell", "lotto_cash"] },
-  {
-    label: "dept.group.services",
-    types: [
-      "money_order", "money_order_fee", "money_transfer",
-      "money_transfer_fee", "check_cash_fee", "service",
-    ],
-  },
-  { label: "dept.group.misc", types: ["misc"] },
-];
-
-const TYPE_LABEL: Record<DepartmentType, MessageKey> = {
-  merchandise: "dept.type.merchandise",
-  fuel: "dept.type.fuel",
-  lottery_sell: "dept.type.lottery_sell",
-  lottery_cash: "dept.type.lottery_cash",
-  lotto_sell: "dept.type.lotto_sell",
-  lotto_cash: "dept.type.lotto_cash",
-  money_order: "dept.type.money_order",
-  money_order_fee: "dept.type.money_order_fee",
-  money_transfer: "dept.type.money_transfer",
-  money_transfer_fee: "dept.type.money_transfer_fee",
-  check_cash_fee: "dept.type.check_cash_fee",
-  service: "dept.type.service",
-  misc: "dept.type.misc",
-};
-
-// One line under the picker: what a department of this type holds.
-const TYPE_HINT: Record<DepartmentType, MessageKey> = {
-  merchandise: "dept.typeHint.merchandise",
-  fuel: "dept.typeHint.fuel",
-  lottery_sell: "dept.typeHint.lottery_sell",
-  lottery_cash: "dept.typeHint.lottery_cash",
-  lotto_sell: "dept.typeHint.lotto_sell",
-  lotto_cash: "dept.typeHint.lotto_cash",
-  money_order: "dept.typeHint.money_order",
-  money_order_fee: "dept.typeHint.money_order_fee",
-  money_transfer: "dept.typeHint.money_transfer",
-  money_transfer_fee: "dept.typeHint.money_transfer_fee",
-  check_cash_fee: "dept.typeHint.check_cash_fee",
-  service: "dept.typeHint.service",
-  misc: "dept.typeHint.misc",
-};
-
 const POS_CODE = /^[0-9A-Za-z]{1,20}$/;
 const NACS_CODE = /^[0-9A-Za-z]{0,10}$/;
 
@@ -129,6 +84,7 @@ export default function DepartmentsManager() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Department | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"" | DepartmentType>("");
   const [sort, setSort] = useState<{ key: SortKey; direction: "asc" | "desc" }>(
@@ -279,6 +235,12 @@ export default function DepartmentsManager() {
           >
             {showInactive ? t("dept.hideInactive") : t("dept.showInactive")}
           </Button>
+          <Button
+            size="sm" tone="secondary" perm={EDIT_PERM}
+            onClick={() => setImporting(true)}
+          >
+            {t("deptImport.open")}
+          </Button>
           <Button size="sm" perm={EDIT_PERM} onClick={() => setAdding(true)}>
             {t("dept.add")}
           </Button>
@@ -297,11 +259,19 @@ export default function DepartmentsManager() {
           title={t("dept.empty")}
           body={t("dept.emptyBody")}
           cta={
-            <Button size="sm" perm={EDIT_PERM} busy={seeding} disabled={seeding}
-              onClick={() => { void addStarterSet(); }}
-            >
-              {t("dept.addStarter")}
-            </Button>
+            <div className={styles.actions}>
+              <Button size="sm" perm={EDIT_PERM} busy={seeding} disabled={seeding}
+                onClick={() => { void addStarterSet(); }}
+              >
+                {t("dept.addStarter")}
+              </Button>
+              <Button
+                size="sm" tone="secondary" perm={EDIT_PERM} disabled={seeding}
+                onClick={() => setImporting(true)}
+              >
+                {t("deptImport.open")}
+              </Button>
+            </div>
           }
         />
       )}
@@ -323,7 +293,7 @@ export default function DepartmentsManager() {
               onChange={(e) => setTypeFilter(e.target.value as "" | DepartmentType)}
             >
               <option value="">{t("dept.allTypes")}</option>
-              <TypeOptions />
+              <DepartmentTypeOptions />
             </Select>
             <span className={styles.count}>
               {tn("dept.count", rows?.length ?? 0, fmtNumber)}
@@ -352,22 +322,12 @@ export default function DepartmentsManager() {
         onClose={() => { setAdding(false); setEditing(null); }}
         onDone={() => { setAdding(false); setEditing(null); refresh(); }}
       />
+      <DepartmentImportModal
+        open={importing}
+        onClose={() => setImporting(false)}
+        onDone={() => { setImporting(false); refresh(); }}
+      />
     </Section>
-  );
-}
-
-function TypeOptions() {
-  useT();
-  return (
-    <>
-      {TYPE_GROUPS.map((g) => (
-        <optgroup key={g.label} label={t(g.label)}>
-          {g.types.map((ty) => (
-            <option key={ty} value={ty}>{t(TYPE_LABEL[ty])}</option>
-          ))}
-        </optgroup>
-      ))}
-    </>
   );
 }
 
@@ -403,12 +363,6 @@ function DepartmentModal({
 }
 
 const AGE_CHOICES = ["", "18", "21"];
-
-/** A stored rate (a fraction, 0.0825) as the percent a person types
- *  and reads ("8.25"): up to four decimals, no trailing zeros. */
-function ratePercentText(rate: number): string {
-  return String(Number((rate * 100).toFixed(4)));
-}
 
 /** The typed percent as a stored fraction; null when the box is empty,
  *  NaN when it isn't a rate from 0 to 100. */
@@ -568,7 +522,7 @@ function DepartmentForm({
             value={type}
             onChange={(e) => onTypeChange(e.target.value as DepartmentType)}
           >
-            <TypeOptions />
+            <DepartmentTypeOptions />
           </Select>
         </Field>
 
