@@ -4664,6 +4664,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/posimport/agent-pairing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue Agent Pairing Route
+         * @description A connect code for DineroBook Manager: the person at the store
+         *     scans or types it, and the Manager gets the store's agent key
+         *     without anyone typing a name or a password. A newer code ends an
+         *     earlier unused one.
+         */
+        post: operations["issue_agent_pairing_route_posimport_agent_pairing_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/posimport/agent/pair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Agent Pair Route
+         * @description DineroBook Manager trades a connect code for the store's agent
+         *     key. Public (the code is the credential), rate limited per
+         *     address, one opaque 401 for a code that is wrong, used or
+         *     expired. ``X-Agent-Key``, when sent, is the computer's previous
+         *     key: it is revoked if it belongs to the same store. A closed
+         *     store gets the upload route's own answer and no key.
+         */
+        post: operations["agent_pair_route_posimport_agent_pair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/posimport/agent/upload": {
         parameters: {
             query?: never;
@@ -8030,6 +8078,48 @@ export interface components {
             last_used_at: string | null;
             /** Revoked */
             revoked: boolean;
+        };
+        /**
+         * AgentPairRequest
+         * @description DineroBook Manager sends the connect code (scanned or typed;
+         *     spaces and dashes are ignored) and the label its key gets.
+         */
+        AgentPairRequest: {
+            /** Code */
+            code: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+        };
+        /** AgentPairResponse */
+        AgentPairResponse: {
+            /** Connected By */
+            connected_by: string;
+            /** Id */
+            id: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Store Id */
+            store_id: number;
+            /** Store Name */
+            store_name: string;
+        };
+        /**
+         * AgentPairingResponse
+         * @description A new connect code for DineroBook Manager: shown once, good for
+         *     ``minutes`` and one use.
+         */
+        AgentPairingResponse: {
+            /** Code */
+            code: string;
+            /** Expires At */
+            expires_at: string;
+            /** Minutes */
+            minutes: number;
         };
         /** AgentUploadRequest */
         AgentUploadRequest: {
@@ -28868,6 +28958,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentKeyListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_agent_pairing_route_posimport_agent_pairing_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPairingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_pair_route_posimport_agent_pair_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-agent-key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentPairRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPairResponse"];
                 };
             };
             /** @description Validation Error */

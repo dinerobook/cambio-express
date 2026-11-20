@@ -3,20 +3,20 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useDepartments } from "../api/dayclose";
 import {
-  commitNaxml, commitStagedDay, issueAgentKey,
+  commitNaxml, commitStagedDay, createAgentPairing, issueAgentKey,
   previewNaxml, revokeAgentKey, saveMappings, useAgentKeys,
   useMovementDay, useStagedDays,
-  type ImportRegisterRow, type MovementDay, type NaxmlPreview,
+  type AgentPairing, type ImportRegisterRow, type MovementDay, type NaxmlPreview,
 } from "../api/posimport";
 import { apiErrorMessage } from "../lib/api";
 import { fileToBase64 } from "../lib/files";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  formatDate, formatDateTime,
+  formatDate, formatDateTime, formatTime,
 } from "../lib/datetime";
 import { AppLink,
-  Alert, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field,
+  Alert, Barcode, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field,
   InfoTip, Input, KpiCard, KpiGrid, Loading, PageHeader, PageShell, Pill,
   Section, Select, Table, tdStyle, thStyle, useToast,
 } from "../components/ui";
@@ -395,6 +395,9 @@ function AgentSection() {
   // The staged day whose register reports are open below the list.
   const [reportDay, setReportDay] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
+  // The connect code on screen for DineroBook Manager (10 minutes, one use).
+  const [pairing, setPairing] = useState<AgentPairing | null>(null);
+  const [pairBusy, setPairBusy] = useState(false);
   // The key a revoke is waiting on confirmation for. A revoked key
   // stops the site agent uploading at once, so it is never one click.
   const [revoking, setRevoking] = useState<{ id: number; label: string } | null>(null);
@@ -428,6 +431,17 @@ function AgentSection() {
       toastApiError(err, t("posImp.keyFailed"));
     } finally {
       setKeyBusy(false);
+    }
+  }
+
+  async function onConnect() {
+    setPairBusy(true);
+    try {
+      setPairing(await createAgentPairing());
+    } catch (err) {
+      toastApiError(err, t("posImp.connectFailed"));
+    } finally {
+      setPairBusy(false);
     }
   }
 
@@ -509,6 +523,33 @@ function AgentSection() {
           body={t("posImp.noUploadsBody")}
         />
       )}
+
+      <Card>
+        <div className={styles.connectRow}>
+          <div>
+            <strong>{t("posImp.connectTitle")}</strong>
+            <p className={styles.connectHint}>{t("posImp.connectBody")}</p>
+          </div>
+          <Button
+            size="sm" busy={pairBusy} disabled={pairBusy}
+            onClick={() => { void onConnect(); }}
+          >
+            {pairing ? t("posImp.connectAgain") : t("posImp.connectPc")}
+          </Button>
+        </div>
+        {pairing && (
+          <div className={styles.connectCode}>
+            <Barcode
+              value={pairing.code.replace(/-/g, "")}
+              label={t("posImp.connectBarcode", { code: pairing.code })}
+            />
+            <code className={styles.connectText}>{pairing.code}</code>
+            <span className={styles.connectHint}>
+              {t("posImp.connectUntil", { time: formatTime(pairing.expires_at) })}
+            </span>
+          </div>
+        )}
+      </Card>
 
       {freshKey && (
         <Alert tone="success">

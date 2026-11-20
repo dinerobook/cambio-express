@@ -9,57 +9,18 @@ using Microsoft.Win32;
 
 namespace DineroBook.Manager;
 
-/// <summary>The account the service runs as. Not a record: the password
-/// must never reach a generated ToString.</summary>
-internal sealed class ServiceAccount
-{
-    public const string LocalServiceName = @"NT AUTHORITY\LocalService";
-
-    private ServiceAccount(string name, string? password)
-    {
-        Name = name;
-        Password = password;
-    }
-
-    /// <summary>For the Service Control Manager: NT AUTHORITY\LocalService,
-    /// DOMAIN\user or .\user.</summary>
-    public string Name { get; }
-
-    /// <summary>Handed to Windows when the service is set up, then dropped.
-    /// Never stored by us.</summary>
-    public string? Password { get; }
-
-    public bool IsLocalService => string.Equals(Name, LocalServiceName, StringComparison.OrdinalIgnoreCase)
-                                  || string.Equals(Name, "LocalService", StringComparison.OrdinalIgnoreCase);
-
-    public static ServiceAccount LocalService { get; } = new(LocalServiceName, null);
-
-    /// <summary>A Windows account typed in the Manager: DOMAIN\user,
-    /// COMPUTER\user, .\user, user (this computer) or user@domain.</summary>
-    public static ServiceAccount Windows(string name, string password)
-    {
-        var n = name.Trim();
-        if (n.Length == 0) throw new ArgumentException("Type the Windows account, like .\\dinerobook or STORE\\dinerobook.");
-        if (!n.Contains('\\') && !n.Contains('@')) n = ".\\" + n;
-        return new ServiceAccount(n, password);
-    }
-
-    public SecurityIdentifier Sid()
-    {
-        if (IsLocalService) return DataFolderSecurity.LocalService;
-        var lookup = Name.StartsWith(@".\", StringComparison.Ordinal) ? Environment.MachineName + Name[1..] : Name;
-        return (SecurityIdentifier)new NTAccount(lookup).Translate(typeof(SecurityIdentifier));
-    }
-
-    public override string ToString() => Name;
-}
-
 /// <summary>
 /// Installs, configures and controls the DineroBookProcessor service.
 /// Every change needs administrator rights. The program file is copied to
 /// Program Files first (a service must never run from a folder ordinary
-/// users can write to), and the account password goes to Windows through
-/// ChangeServiceConfig, never on a command line.
+/// users can write to).
+/// <para>
+/// It always runs as NetworkService, like the owner's LdPosService: that
+/// account reaches the BOOutbox network share as this computer, so nobody
+/// types a Windows account name or password. An older install that ran as
+/// LocalService or a typed-in account moves to NetworkService on
+/// Install / Update.
+/// </para>
 /// </summary>
 [SupportedOSPlatform("windows")]
 internal static class ServiceControl
@@ -70,6 +31,11 @@ internal static class ServiceControl
         "Sends Gilbarco Passport's register files (BOOutbox) to DineroBook. Read only: it never moves, changes or deletes Passport's files.";
     public const string ProcessorExe = "DineroBookProcessor.exe";
     public const string ManagerExe = "DineroBookManager.exe";
+
+    /// <summary>The one account the service runs as. It has no password
+    /// (Windows takes an empty one) and may already log on as a service.</summary>
+    public const string Account = @"NT AUTHORITY\NetworkService";
+
     private static readonly TimeSpan WaitFor = TimeSpan.FromSeconds(30);
 
     public static string InstallFolder => Path.Combine(
@@ -90,7 +56,16 @@ internal static class ServiceControl
                 null => "Installed",
                 var s => s.ToString()!,
             };
+
+        /// <summary>Installed by an older Manager under another account:
+        /// Install / Update moves it to NetworkService.</summary>
+        public bool NeedsNewAccount => Installed && Account.Length > 0 && !IsNetworkService(Account);
     }
+
+    /// <summary>The Service Control Manager may write the account either way.</summary>
+    public static bool IsNetworkService(string account) =>
+        string.Equals(account, Account, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(account, @"NT AUTHORITY\NETWORK SERVICE", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Works without administrator rights.</summary>
     public static Info Query()
@@ -109,17 +84,6 @@ internal static class ServiceControl
         return new Info(true, status, key?.GetValue("ObjectName") as string ?? "", key?.GetValue("ImagePath") as string ?? "");
     }
 
-    /// <summary>The configured account, or LocalService when not installed.</summary>
-    public static ServiceAccount CurrentAccount()
-    {
-        var info = Query();
-        if (!info.Installed || info.Account.Length == 0) return ServiceAccount.LocalService;
-        return string.Equals(info.Account, ServiceAccount.LocalServiceName, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(info.Account, "LocalService", StringComparison.OrdinalIgnoreCase)
-            ? ServiceAccount.LocalService
-            : ServiceAccount.Windows(info.Account, "");
-    }
-
     /// <summary>The service's own SID (NT SERVICE\DineroBookProcessor), once
     /// the service exists.</summary>
     public static SecurityIdentifier? ServiceSid()
@@ -135,9 +99,9 @@ internal static class ServiceControl
     }
 
     /// <summary>Copies the program to Program Files, creates the service or
-    /// points it at the new copy, and leaves it stopped. <paramref name="account"/>
-    /// null keeps the account it has (LocalService for a new install).</summary>
-    public static void InstallOrUpdate(string sourceExe, ServiceAccount? account)
+    /// points it at the new copy (as NetworkService either way), and leaves
+    /// it stopped.</summary>
+    public static void InstallOrUpdate(string sourceExe)
     {
         if (!File.Exists(sourceExe))
         {
@@ -168,10 +132,8 @@ internal static class ServiceControl
         {
             if (!before.Installed)
             {
-                var acct = account ?? ServiceAccount.LocalService;
                 var svc = CreateService(scm, Name, DisplayName, SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
-                    SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, imagePath, null, IntPtr.Zero, null,
-                    acct.Name, acct.IsLocalService ? "" : acct.Password);
+                    SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, imagePath, null, IntPtr.Zero, null, Account, "");
                 if (svc == IntPtr.Zero) throw Win32("create the service");
                 CloseServiceHandle(svc);
             }
@@ -182,8 +144,7 @@ internal static class ServiceControl
                 try
                 {
                     if (!ChangeServiceConfig(svc, SERVICE_NO_CHANGE, SERVICE_AUTO_START, SERVICE_NO_CHANGE, imagePath,
-                            null, IntPtr.Zero, null, account?.Name, account is null ? null : account.IsLocalService ? "" : account.Password,
-                            DisplayName))
+                            null, IntPtr.Zero, null, Account, "", DisplayName))
                     {
                         throw Win32("update the service");
                     }
@@ -207,15 +168,16 @@ internal static class ServiceControl
         Sc("failureflag", Name, "1");
         // Gives the service its own SID, so its files can name it alone.
         Sc("sidtype", Name, "unrestricted");
-
-        var effective = account ?? CurrentAccount();
-        if (!effective.IsLocalService) GrantLogOnAsService(effective.Sid());
         RegisterEventSource();
 
         var after = Query();
         if (!string.Equals(after.ImagePath, imagePath, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException($"The service points at {after.ImagePath}, not {imagePath}.");
+        }
+        if (!IsNetworkService(after.Account))
+        {
+            throw new InvalidOperationException($"The service runs as {after.Account}, not {Account}.");
         }
     }
 
@@ -326,38 +288,6 @@ internal static class ServiceControl
         }
     }
 
-    // ── "Log on as a service" for a Windows account ──
-
-    private static void GrantLogOnAsService(SecurityIdentifier sid)
-    {
-        var attributes = new LSA_OBJECT_ATTRIBUTES { Length = Marshal.SizeOf<LSA_OBJECT_ATTRIBUTES>() };
-        var status = LsaOpenPolicy(IntPtr.Zero, ref attributes, POLICY_CREATE_ACCOUNT | POLICY_LOOKUP_NAMES, out var policy);
-        if (status != 0) throw new Win32Exception(LsaNtStatusToWinError(status), "Could not open the local security policy");
-        var right = "SeServiceLogonRight";
-        var buffer = Marshal.StringToHGlobalUni(right);
-        try
-        {
-            var rights = new[]
-            {
-                new LSA_UNICODE_STRING
-                {
-                    Buffer = buffer,
-                    Length = (ushort)(right.Length * 2),
-                    MaximumLength = (ushort)((right.Length + 1) * 2),
-                },
-            };
-            var bytes = new byte[sid.BinaryLength];
-            sid.GetBinaryForm(bytes, 0);
-            status = LsaAddAccountRights(policy, bytes, rights, 1);
-            if (status != 0) throw new Win32Exception(LsaNtStatusToWinError(status), "Could not let the account log on as a service");
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(buffer);
-            LsaClose(policy);
-        }
-    }
-
     private static Win32Exception Win32(string action)
     {
         var code = Marshal.GetLastWin32Error();
@@ -377,27 +307,6 @@ internal static class ServiceControl
     private const uint SERVICE_ERROR_NORMAL = 0x00000001;
     private const uint SERVICE_NO_CHANGE = 0xFFFFFFFF;
     private const int ERROR_SERVICE_MARKED_FOR_DELETE = 1072;
-    private const uint POLICY_CREATE_ACCOUNT = 0x00000010;
-    private const uint POLICY_LOOKUP_NAMES = 0x00000800;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct LSA_UNICODE_STRING
-    {
-        public ushort Length;
-        public ushort MaximumLength;
-        public IntPtr Buffer;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct LSA_OBJECT_ATTRIBUTES
-    {
-        public int Length;
-        public IntPtr RootDirectory;
-        public IntPtr ObjectName;
-        public uint Attributes;
-        public IntPtr SecurityDescriptor;
-        public IntPtr SecurityQualityOfService;
-    }
 
     [DllImport("advapi32.dll", EntryPoint = "OpenSCManagerW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern IntPtr OpenSCManager(string? machineName, string? databaseName, uint desiredAccess);
@@ -423,16 +332,4 @@ internal static class ServiceControl
     [DllImport("advapi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CloseServiceHandle(IntPtr handle);
-
-    [DllImport("advapi32.dll")]
-    private static extern uint LsaOpenPolicy(IntPtr systemName, ref LSA_OBJECT_ATTRIBUTES objectAttributes, uint desiredAccess, out IntPtr policyHandle);
-
-    [DllImport("advapi32.dll")]
-    private static extern uint LsaAddAccountRights(IntPtr policyHandle, byte[] accountSid, LSA_UNICODE_STRING[] userRights, uint countOfRights);
-
-    [DllImport("advapi32.dll")]
-    private static extern uint LsaClose(IntPtr policyHandle);
-
-    [DllImport("advapi32.dll")]
-    private static extern int LsaNtStatusToWinError(uint status);
 }

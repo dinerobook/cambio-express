@@ -3,13 +3,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.ServiceProcess;
 using DineroBook.Processor;
-using DineroBook.Processor.SignIn;
+using DineroBook.Processor.Connect;
 
 namespace DineroBook.Manager;
 
 /// <summary>
 /// DineroBook Manager's window: Status (what the service is doing), Setup
-/// (sign in, Passport folder, the service) and Log. Status and Log work for
+/// (connect, Passport folder, the service) and Log. Status and Log work for
 /// anyone; Setup asks Windows for administrator rights.
 /// </summary>
 internal sealed class MainForm : Form
@@ -33,7 +33,7 @@ internal sealed class MainForm : Form
 
     // Setup
     private readonly Label _account = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
-    private readonly Button _signIn = new() { Text = "Sign in…", AutoSize = true };
+    private readonly Button _connect = new() { Text = "Connect…", AutoSize = true };
     private readonly Button _test = new() { Text = "Test connection", AutoSize = true };
     private readonly Label _testResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
     private readonly TextBox _folder = new() { Width = 430, AccessibleName = "Passport folder" };
@@ -43,10 +43,6 @@ internal sealed class MainForm : Form
     private readonly TextBox _api = new() { Width = 300, AccessibleName = "DineroBook address" };
     private readonly Button _save = new() { Text = "Save settings", AutoSize = true };
     private readonly Label _serviceState = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
-    private readonly RadioButton _runLocal = new() { AutoSize = true, Text = "Local Service — the Passport folder is on this computer", Checked = true };
-    private readonly RadioButton _runAccount = new() { AutoSize = true, Text = "A Windows account that can open the network share:" };
-    private readonly TextBox _accountName = new() { Width = 220, PlaceholderText = @".\dinerobook or STORE\dinerobook", AccessibleName = "Windows account" };
-    private readonly TextBox _accountPassword = new() { Width = 180, UseSystemPasswordChar = true, PlaceholderText = "its Windows password", AccessibleName = "Windows account password" };
     private readonly Button _install = new() { Text = "Install / Update", AutoSize = true };
     private readonly Button _start = new() { Text = "Start", AutoSize = true };
     private readonly Button _stop = new() { Text = "Stop", AutoSize = true };
@@ -107,8 +103,8 @@ internal sealed class MainForm : Form
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             Text = _paths.IsCustom
-                ? "Test folder: sign-in and settings are saved there. The service needs administrator rights."
-                : "Viewing only. Signing in, settings and the service need administrator rights.",
+                ? "Test folder: the key and settings are saved there. The service needs administrator rights."
+                : "Viewing only. Connecting, settings and the service need administrator rights.",
         };
         _banner.Controls.Add(text);
         _banner.Controls.Add(_elevate);
@@ -170,11 +166,11 @@ internal sealed class MainForm : Form
 
         var account = Column();
         account.Controls.Add(_account);
-        account.Controls.Add(Row(_signIn, _test));
+        account.Controls.Add(Row(_connect, _test));
         account.Controls.Add(_testResult);
 
         var folder = Column();
-        folder.Controls.Add(new Label { AutoSize = true, Text = "The folder Passport writes its XML files to (BOOutbox):" });
+        folder.Controls.Add(new Label { AutoSize = true, Text = "Passport's BOOutbox network share (a mapped drive letter is saved as its network path):" });
         folder.Controls.Add(Row(_folder, _browse, _check));
         folder.Controls.Add(_folderResult);
         folder.Controls.Add(Row(new Label { AutoSize = true, Text = "DineroBook address:", Margin = new Padding(3, 7, 3, 0) }, _api));
@@ -182,19 +178,22 @@ internal sealed class MainForm : Form
 
         var service = Column();
         service.Controls.Add(_serviceState);
-        service.Controls.Add(new Label { AutoSize = true, Text = "Run the service as:", Margin = new Padding(3, 8, 3, 0) });
-        service.Controls.Add(_runLocal);
-        service.Controls.Add(_runAccount);
-        service.Controls.Add(Row(_accountName, _accountPassword));
+        service.Controls.Add(new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(620, 0),
+            Margin = new Padding(3, 8, 3, 4),
+            Text = "It runs as NetworkService and reads the BOOutbox share as this computer, like LdPosService: no Windows account or password to type.",
+        });
         service.Controls.Add(Row(_install, _start, _stop, _restart, _uninstall));
         service.Controls.Add(_serviceResult);
 
         // Added bottom-up: Dock=Top stacks the last one added on top.
         page.Controls.Add(Group("3. Windows service", service));
         page.Controls.Add(Group("2. Passport folder", folder));
-        page.Controls.Add(Group("1. DineroBook account", account));
+        page.Controls.Add(Group("1. Connect to DineroBook", account));
 
-        _signIn.Click += async (_, _) => await SignInAsync();
+        _connect.Click += async (_, _) => await ConnectAsync();
         _test.Click += async (_, _) => await TestConnectionAsync();
         _browse.Click += async (_, _) =>
         {
@@ -208,7 +207,6 @@ internal sealed class MainForm : Form
         _stop.Click += async (_, _) => await ServiceActionAsync("Stopping…", ServiceControl.Stop, "Stopped.");
         _restart.Click += async (_, _) => await ServiceActionAsync("Restarting…", ServiceControl.Restart, "Restarted.");
         _uninstall.Click += async (_, _) => await UninstallAsync();
-        _runLocal.CheckedChanged += (_, _) => UpdateEnabled();
         return page;
     }
 
@@ -238,10 +236,6 @@ internal sealed class MainForm : Form
         var settings = _setup.LoadSettings();
         _folder.Text = settings.WatchFolder;
         _api.Text = settings.ApiUrl;
-        var account = ServiceControl.CurrentAccount();
-        _runLocal.Checked = account.IsLocalService;
-        _runAccount.Checked = !account.IsLocalService;
-        if (!account.IsLocalService) _accountName.Text = account.Name;
         UpdateEnabled();
     }
 
@@ -265,9 +259,9 @@ internal sealed class MainForm : Form
             : "Not installed — Setup → Install / Update");
         Set("Store", settings.StoreName.Length > 0
             ? settings.StoreName + (settings.ConnectedBy.Length > 0
-                ? $" — signed in by {settings.ConnectedBy}" + (settings.ConnectedAt is { } at ? $" on {at.LocalDateTime:d}" : "")
+                ? $" — connected with a code from {settings.ConnectedBy}" + (settings.ConnectedAt is { } at ? $" on {at.LocalDateTime:d}" : "")
                 : "")
-            : "Not signed in — Setup → Sign in");
+            : "Not connected — Setup → Connect");
         Set("Passport folder", settings.WatchFolder);
         Set("DineroBook", settings.ApiUrl);
 
@@ -305,11 +299,12 @@ internal sealed class MainForm : Form
         _account.Text = settings.StoreName.Length > 0
             ? $"This computer sends {settings.StoreName}'s register files" +
               (settings.KeyLabel.Length > 0 ? $" (key “{settings.KeyLabel}”)." : ".")
-            : "Not signed in yet. Sign in with the store's DineroBook admin or owner login.";
-        _signIn.Text = settings.StoreName.Length > 0 ? "Sign in again…" : "Sign in…";
-        _serviceState.Text = service.Installed
-            ? $"{service.Describe()}. Runs as {service.Account}. Program: {service.ImagePath}"
-            : "Not installed on this computer.";
+            : "Not connected yet. On DineroBook, open Register import → Automatic uploads → Connect a computer, then choose Connect here and scan the code.";
+        _connect.Text = settings.StoreName.Length > 0 ? "Connect again…" : "Connect…";
+        _serviceState.Text = !service.Installed
+            ? "Not installed on this computer."
+            : $"{service.Describe()}. Runs as {service.Account}. Program: {service.ImagePath}" +
+              (service.NeedsNewAccount ? $"\nInstalled by an older DineroBook Manager: choose Install / Update to run it as {ServiceControl.Account}." : "");
         UpdateEnabled(service);
     }
 
@@ -320,11 +315,9 @@ internal sealed class MainForm : Form
         info ??= SafeQuery();
         var admin = Elevation.IsElevated;
         var canWrite = _setup.CanWrite;
-        _signIn.Enabled = canWrite && !_busy;
+        _connect.Enabled = canWrite && !_busy;
         _save.Enabled = canWrite && !_busy;
         _test.Enabled = !_busy;
-        _accountName.Enabled = _runAccount.Checked;
-        _accountPassword.Enabled = _runAccount.Checked;
         _install.Enabled = admin && !_busy;
         _start.Enabled = admin && !_busy && info.Installed && info.Status != ServiceControllerStatus.Running;
         _stop.Enabled = admin && !_busy && info.Installed && info.Status == ServiceControllerStatus.Running;
@@ -369,7 +362,7 @@ internal sealed class MainForm : Form
     // screen reader's UI Automation call, and the window would stop
     // answering it until the dialog closed.
 
-    private async Task SignInAsync()
+    private async Task ConnectAsync()
     {
         await Task.Yield();
         var settings = _setup.LoadSettings();
@@ -383,19 +376,26 @@ internal sealed class MainForm : Form
             MessageBox.Show(this, "Save the settings first, so the key is made for the address shown.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        var previous = settings.KeyId is { } id ? new PreviousKey(id, settings.StoreId) : null;
+        // Sent along so DineroBook revokes the key this computer had.
+        string? previous = null;
+        try
+        {
+            previous = _setup.LoadKey();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {
+        }
         await Busy(async () =>
         {
-            using var dialog = new SignInForm(api, _setup, previous);
+            using var dialog = new ConnectForm(api, _setup, previous);
             if (dialog.ShowDialog(this) == DialogResult.OK && dialog.Result is { Ok: true } result)
             {
-                var notes = result.Notes.Count > 0 ? "\n\n" + string.Join("\n", result.Notes) : "";
                 var service = SafeQuery();
                 var next = service.Installed
                     ? "\n\nThe service picks up the new key within a few seconds."
                     : "\n\nNext: Install / Update the service below.";
                 _testResult.Text = "";
-                MessageBox.Show(this, result.Message + notes + next, Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, result.Message + next, Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             await Task.CompletedTask;
         });
@@ -430,11 +430,11 @@ internal sealed class MainForm : Form
                     }
                     catch (Exception ex)
                     {
-                        lines.Add("✖ The saved key cannot be read: " + ex.Message + " Sign in again.");
+                        lines.Add("✖ The saved key cannot be read: " + ex.Message + " Connect again.");
                     }
                     if (key is null && lines.Count == 1)
                     {
-                        lines.Add("Not signed in yet.");
+                        lines.Add("Not connected yet.");
                     }
                     else if (key is not null)
                     {
@@ -456,17 +456,27 @@ internal sealed class MainForm : Form
             ShowNewFolderButton = false,
         };
         if (Directory.Exists(_folder.Text)) dialog.InitialDirectory = _folder.Text;
-        if (dialog.ShowDialog(this) == DialogResult.OK) _folder.Text = dialog.SelectedPath;
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        var chosen = ServiceFolder.Resolve(dialog.SelectedPath, new WindowsDriveMap());
+        _folder.Text = chosen.Path;
+        _folderResult.Text = chosen.Ok ? chosen.Note : "✖ " + chosen.Problem;
     }
 
     private async Task<FolderCheck.Result> CheckFolderAsync()
     {
-        var path = _folder.Text;
+        var chosen = ServiceFolder.Resolve(_folder.Text, new WindowsDriveMap());
+        if (!chosen.Ok)
+        {
+            _folderResult.Text = "✖ " + chosen.Problem;
+            return new FolderCheck.Result(false, chosen.Problem, 0);
+        }
+        _folder.Text = chosen.Path;
         _folderResult.Text = "Checking…";
-        var result = await Task.Run(() => FolderCheck.Check(path));
+        var result = await Task.Run(() => FolderCheck.Check(chosen.Path));
         _folderResult.Text = (result.Ok ? "✔ " : "✖ ") + result.Message +
-                             (path.StartsWith(@"\\", StringComparison.Ordinal)
-                                 ? "\nThis checks with your Windows login. The service reads the share with its own account (Setup → Windows service)."
+                             (chosen.Note.Length > 0 ? "\n" + chosen.Note : "") +
+                             (ServiceFolder.IsShare(chosen.Path)
+                                 ? "\nThis checks with your Windows login; the service reads the share as this computer (NetworkService)."
                                  : "");
         return result;
     }
@@ -481,6 +491,12 @@ internal sealed class MainForm : Form
         }
         await Busy(async () =>
         {
+            var chosen = ServiceFolder.Resolve(_folder.Text, new WindowsDriveMap());
+            if (!chosen.Ok)
+            {
+                MessageBox.Show(this, chosen.Problem, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             var check = await CheckFolderAsync();
             if (!check.Ok && MessageBox.Show(this, check.Message + "\n\nSave this folder anyway?", Text,
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
@@ -498,7 +514,7 @@ internal sealed class MainForm : Form
                 _api.Text = apiText;
                 MessageBox.Show(this,
                     "Saved. The service uses the new settings within a few seconds." +
-                    (apiChanged && settings.StoreId is not null ? "\n\nThe DineroBook address changed: sign in again so the key matches it." : ""),
+                    (apiChanged && settings.StoreId is not null ? "\n\nThe DineroBook address changed: connect again so the key matches it." : ""),
                     Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -508,39 +524,8 @@ internal sealed class MainForm : Form
         });
     }
 
-    /// <summary>The account chosen on the form, or null to keep the
-    /// service's current one.</summary>
-    private ServiceAccount? ChosenAccount(out string problem)
-    {
-        problem = "";
-        if (_runLocal.Checked) return ServiceAccount.LocalService;
-        var name = _accountName.Text.Trim();
-        if (name.Length == 0)
-        {
-            problem = @"Type the Windows account, like .\dinerobook or STORE\dinerobook.";
-            return null;
-        }
-        var current = ServiceControl.CurrentAccount();
-        if (_accountPassword.Text.Length == 0)
-        {
-            if (!current.IsLocalService && string.Equals(ServiceAccount.Windows(name, "").Name, current.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                return null; // unchanged
-            }
-            problem = "Type the account's Windows password (it goes to Windows only; DineroBook Manager does not keep it).";
-            return null;
-        }
-        return ServiceAccount.Windows(name, _accountPassword.Text);
-    }
-
     private async Task InstallAsync()
     {
-        var account = ChosenAccount(out var problem);
-        if (problem.Length > 0)
-        {
-            _serviceResult.Text = problem;
-            return;
-        }
         var source = Path.Combine(AppContext.BaseDirectory, ServiceControl.ProcessorExe);
         await Busy(async () =>
         {
@@ -549,12 +534,11 @@ internal sealed class MainForm : Form
             {
                 await Task.Run(() =>
                 {
-                    ServiceControl.InstallOrUpdate(source, account);
+                    ServiceControl.InstallOrUpdate(source);
                     _setup.SecureFolder();
                     ServiceControl.Start();
                 });
-                _accountPassword.Text = "";
-                _serviceResult.Text = "Installed and started. It starts by itself with Windows.";
+                _serviceResult.Text = $"Installed and started as {ServiceControl.Account}. It starts by itself with Windows.";
             }
             catch (Exception ex)
             {
@@ -611,7 +595,7 @@ internal sealed class MainForm : Form
     {
         // ERROR_SERVICE_LOGON_FAILED
         InvalidOperationException { InnerException: Win32Exception { NativeErrorCode: 1069 } } =>
-            "Windows could not log the service on: check the account's password.",
+            $"Windows could not start the service as {ServiceControl.Account}.",
         System.ServiceProcess.TimeoutException =>
             "The service did not answer in time. Look at the Log tab and the Windows Event Log (Application).",
         _ => ex.Message + (ex.InnerException is { } inner ? " " + inner.Message : ""),

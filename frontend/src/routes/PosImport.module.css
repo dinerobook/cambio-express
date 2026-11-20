@@ -74,3 +74,34 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* "Connect a computer": the code DineroBook Manager scans. */
+.connectRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.connectHint {
+  margin: 4px 0 0;
+  color: var(--db-text-muted);
+  font-size: 13px;
+  max-width: 60ch;
+}
+
+.connectCode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.connectText {
+  font-family: var(--db-font-mono);
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  color: var(--db-text);
+}

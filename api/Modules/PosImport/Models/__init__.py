@@ -57,6 +57,28 @@ class PosAgentCredential(Base):
     last_used_at = Column(DateTime, nullable=True)
 
 
+class PosAgentPairing(Base):
+    """A one-time connect code for DineroBook Manager on a store PC
+    (owner, 2026-11-19: nobody at the store types a name or a
+    password). Someone with ``day_close.update`` makes it on the
+    Register import page; the Manager sends it once and gets the
+    store's agent key back. Stored as sha256 only, good for
+    ``PAIRING_TTL`` and one use; ``credential_id`` is the key it
+    became. ``created_by`` / ``created_by_name`` say who made it (the
+    name kept as written, like the audit log)."""
+
+    __tablename__ = "retail_pos_agent_pairing"
+    id              = Column(Integer, primary_key=True)
+    store_id        = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    code_hash       = Column(String(64), unique=True, nullable=False)
+    created_by      = Column(Integer, nullable=True)
+    created_by_name = Column(String(120), nullable=False, default="")
+    created_at      = Column(DateTime, default=utc_now)
+    expires_at      = Column(DateTime, nullable=False)
+    used_at         = Column(DateTime, nullable=True)
+    credential_id   = Column(Integer, ForeignKey("retail_pos_agent_credential.id"), nullable=True)
+
+
 class PosJournalFile(Base):
     """One journal file pushed by a site agent, staged until the
     business day is committed. ``filename`` is unique per store so

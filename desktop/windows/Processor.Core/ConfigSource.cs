@@ -28,7 +28,7 @@ public interface IConfigSource
 
 /// <summary>
 /// settings.json and agent-key.bin, read again whenever either file changes,
-/// so "Sign in again" or a new Passport folder takes effect within one poll
+/// so "Connect again" or a new Passport folder takes effect within one poll
 /// without restarting the service.
 /// </summary>
 public sealed class FileConfigSource(DataPaths paths) : IConfigSource
@@ -86,7 +86,7 @@ public sealed class FileConfigSource(DataPaths paths) : IConfigSource
         catch (CryptographicException)
         {
             return new EngineConfig(settings, apiBase, null, ProcessorState.KeyUnreadable,
-                "The saved agent key cannot be read on this computer. Open DineroBook Manager and sign in again.");
+                "The saved agent key cannot be read on this computer. Open DineroBook Manager and choose Connect again.");
         }
         catch (UnauthorizedAccessException)
         {
@@ -100,7 +100,7 @@ public sealed class FileConfigSource(DataPaths paths) : IConfigSource
         if (key is null)
         {
             return new EngineConfig(settings, apiBase, null, ProcessorState.NotSignedIn,
-                "Not signed in. Open DineroBook Manager and sign in to connect this computer to its store.");
+                "Not connected yet. Open DineroBook Manager and choose Connect, with a connect code from DineroBook (Register import → Automatic uploads).");
         }
         return new EngineConfig(settings, apiBase, key, "", settingsProblem);
     }

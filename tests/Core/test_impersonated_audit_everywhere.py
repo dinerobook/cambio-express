@@ -236,12 +236,13 @@ def test_no_controller_writes_operator_audit_around_the_helper():
     """Only ``api/Core/Audit.py`` calls the raw recorder, plus two
     known exceptions: TimeClock (its punch rows name an explicit
     user and use ``operator_display_name``) and the POS site agent
-    (a system actor with no claims)."""
+    with its connect code (a system actor with no claims)."""
     root = Path(__file__).resolve().parents[2] / "api"
     allowed = {
         "Core/Audit.py",
         "Modules/TimeClock/Controllers/__init__.py",
         "Modules/PosImport/Services/agent.py",
+        "Modules/PosImport/Services/pairing.py",
         "Modules/Audit/Services/__init__.py",
         "Modules/Audit/Services/recorder.py",
     }

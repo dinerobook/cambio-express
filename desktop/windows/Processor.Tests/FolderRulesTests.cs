@@ -3,53 +3,147 @@ using Xunit;
 
 namespace Processor.Tests;
 
-public class FilePatternsTests
+public class FileNamesTests
 {
-    private static readonly FilePatterns Default = new(ProcessorSettings.DefaultPatterns);
-
     [Theory]
     [InlineData("PJR340251209133226277559.xml")]
-    [InlineData("FGM340251209133226277559.xml")]
-    [InlineData("ISM1.xml")]
-    [InlineData("MCM1.xml")]
-    [InlineData("MSM1.xml")]
-    [InlineData("TLM1.xml")]
-    [InlineData("TPM1.xml")]
-    [InlineData("pjr1.XML")]
-    [InlineData("PJR.xml")]
-    public void Sends_the_journal_and_every_movement_report(string name)
+    [InlineData("FGM1.xml")]
+    [InlineData("PJR1.zip")]
+    [InlineData("TransXML.zip")]
+    [InlineData("notes.txt")]
+    [InlineData("anything")]
+    public void Every_file_goes(string name)
     {
-        Assert.True(Default.Matches(name));
+        // Owner, 2026-11-18: "sari file bhejne gay" — no name or extension filter.
+        Assert.True(FileNames.Sendable(name));
     }
 
     [Theory]
-    [InlineData("PJR1.zip")]
-    [InlineData("TransXML.zip")]
-    [InlineData("PJR1.xml.tmp")]
-    [InlineData("PJR1.xmlold")]
-    [InlineData("XPJR1.xml")]
-    [InlineData("ABC1.xml")]
     [InlineData("")]
     [InlineData("PJR\t1.xml")]
-    public void Leaves_everything_else(string name)
+    [InlineData("PJR\n1.xml")]
+    public void Only_a_name_the_ledger_cannot_hold_is_left(string name)
     {
-        Assert.False(Default.Matches(name));
+        Assert.False(FileNames.Sendable(name));
+    }
+}
+
+public class ServiceFolderTests
+{
+    private sealed class Drives(Dictionary<string, string?> network) : IDriveMap
+    {
+        public bool IsNetworkDrive(string drive) => network.ContainsKey(drive);
+        public string? ShareOf(string drive) => network.GetValueOrDefault(drive);
+    }
+
+    private static readonly Drives Z = new(new() { ["Z:"] = @"\\10.5.48.2\XMLGateway", ["Y:"] = null });
+
+    [Fact]
+    public void A_network_path_stays_as_it_is()
+    {
+        var r = ServiceFolder.Resolve(@" \\10.5.48.2\XMLGateway\BOOutBox ", Z);
+        Assert.True(r.Ok);
+        Assert.Equal(@"\\10.5.48.2\XMLGateway\BOOutBox", r.Path);
+        Assert.Equal("", r.Note);
+    }
+
+    [Theory]
+    [InlineData(@"Z:\BOOutBox", @"\\10.5.48.2\XMLGateway\BOOutBox")]
+    [InlineData(@"z:\BOOutBox", @"\\10.5.48.2\XMLGateway\BOOutBox")]
+    [InlineData(@"Z:\", @"\\10.5.48.2\XMLGateway")]
+    [InlineData(@"Z:", @"\\10.5.48.2\XMLGateway")]
+    public void A_mapped_drive_is_saved_as_its_network_path(string chosen, string saved)
+    {
+        // The service never sees the person's Z: (LdPosService review point 18).
+        var r = ServiceFolder.Resolve(chosen, Z);
+        Assert.True(r.Ok);
+        Assert.Equal(saved, r.Path);
+        Assert.Contains("network drive", r.Note);
     }
 
     [Fact]
-    public void The_default_list_is_the_python_agents()
+    public void A_mapped_drive_whose_share_is_unknown_is_refused()
     {
-        Assert.Equal(
-            ["PJR*.xml", "FGM*.xml", "ISM*.xml", "MCM*.xml", "MSM*.xml", "TLM*.xml", "TPM*.xml"],
-            ProcessorSettings.DefaultPatterns);
+        var r = ServiceFolder.Resolve(@"Y:\BOOutBox", Z);
+        Assert.False(r.Ok);
+        Assert.Contains(@"\\10.5.48.2\XMLGateway\BOOutBox", r.Problem);
     }
 
     [Fact]
-    public void A_question_mark_is_one_character()
+    public void A_folder_on_this_computer_is_kept_with_a_note()
     {
-        var p = new FilePatterns(["PJR?.xml"]);
-        Assert.True(p.Matches("PJR1.xml"));
-        Assert.False(p.Matches("PJR12.xml"));
+        var r = ServiceFolder.Resolve(@"C:\Passport\XMLGateway\BOOutbox", Z);
+        Assert.True(r.Ok);
+        Assert.Equal(@"C:\Passport\XMLGateway\BOOutbox", r.Path);
+        Assert.Contains("network share", r.Note);
+    }
+}
+
+public class ShareTimeoutTests
+{
+    [Fact]
+    public void A_call_that_does_not_answer_in_time_is_a_folder_timeout()
+    {
+        var never = new TaskCompletionSource<int>().Task;
+        var ex = Assert.Throws<FolderTimeoutException>(() => PassportFolder.Wait(never, TimeSpan.FromMilliseconds(50), "The folder X"));
+        Assert.Contains("The folder X did not answer", ex.Message);
+        Assert.IsAssignableFrom<IOException>(ex);
+    }
+
+    [Fact]
+    public void The_calls_own_error_comes_through_as_it_is()
+    {
+        var failed = Task.FromException<int>(new DirectoryNotFoundException("gone"));
+        Assert.Throws<DirectoryNotFoundException>(() => PassportFolder.Wait(failed, TimeSpan.FromSeconds(5), "x"));
+    }
+
+    [Fact]
+    public void An_answer_in_time_is_returned()
+    {
+        Assert.Equal(7, PassportFolder.Wait(Task.FromResult(7), TimeSpan.FromSeconds(5), "x"));
+    }
+
+    [Fact]
+    public async Task A_file_read_that_does_not_answer_in_time_is_a_folder_timeout()
+    {
+        using var dir = new TempDir();
+        File.WriteAllText(dir.File("PJR1.xml"), "<a/>");
+        var folder = new PassportFolder(fileTimeout: TimeSpan.Zero);
+        var file = folder.List(dir.Path).Single();
+        // A zero time limit runs out before any read can finish.
+        await Assert.ThrowsAnyAsync<IOException>(() => folder.ReadAsync(file, CancellationToken.None));
+    }
+}
+
+public class FolderCheckTests
+{
+    [Fact]
+    public void A_relative_path_asks_for_the_network_path()
+    {
+        var r = FolderCheck.Check("BOOutbox");
+        Assert.False(r.Ok);
+        Assert.Contains(@"\\10.5.48.2\XMLGateway\BOOutBox", r.Message);
+    }
+
+    [Fact]
+    public void Counts_every_file_and_names_the_newest()
+    {
+        using var dir = new TempDir();
+        File.WriteAllText(dir.File("PJR1.xml"), "<a/>");
+        File.WriteAllText(dir.File("notes.txt"), "x");
+        File.SetLastWriteTimeUtc(dir.File("notes.txt"), DateTime.UtcNow.AddMinutes(1));
+        var r = FolderCheck.Check(dir.Path);
+        Assert.True(r.Ok, r.Message);
+        Assert.Equal(2, r.Files);
+        Assert.Contains("notes.txt", r.Message);
+    }
+
+    [Fact]
+    public void A_missing_folder_says_so()
+    {
+        var r = FolderCheck.Check(@"C:\no\such\folder\" + Guid.NewGuid());
+        Assert.False(r.Ok);
+        Assert.Contains("does not exist", r.Message);
     }
 }
 

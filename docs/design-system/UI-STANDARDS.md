@@ -381,6 +381,7 @@ Known shared components, and what they own:
 | `Modal`, `Tooltip`, `Switch`, `Checkbox`, `Pill` | hand-rolled equivalents |
 | `KpiCard` / `KpiGrid` (`colorValue` to paint a signal figure in its tone) | a page-local stat tile, `StatRow`, or `.kpi*` / `.summaryTile` CSS |
 | `CopyField` / `CopyButton` | a read-only `<input>` + Copy button with its own `navigator.clipboard.writeText` (it owns the execCommand fallback, the "Copied" flash and the failure toast) |
+| `Barcode` (kit; encoder `lib/code128`) | a page-drawn barcode, or an image from a barcode service, for a code someone scans into another program (DineroBook Manager's connect code) — Code 128, dark on `--db-paper` in both themes, with its quiet zone |
 | `AuditTable` (`who="store"` for one person's cross-store feed) | a per-page audit `<table>` of When / Actor / Action / Target / Details |
 | `BreakdownPills` | a "Cash $X · Check $Y" line, or per-card part chips |
 | `DailyBookTile` / `BoxTabs` (daily book) | a hand-built box button or a tab strip with its own "Label · $X" + tip row |

@@ -27,6 +27,7 @@ export type StagedDay = components["schemas"]["StagedDayRow"];
 type MappingListResponse = components["schemas"]["MappingListResponse"];
 type AgentKeyListResponse = components["schemas"]["AgentKeyListResponse"];
 type AgentKeyIssueResponse = components["schemas"]["AgentKeyIssueResponse"];
+export type AgentPairing = components["schemas"]["AgentPairingResponse"];
 type StagedDaysResponse = components["schemas"]["StagedDaysResponse"];
 
 export async function previewNaxml(
@@ -66,6 +67,13 @@ export async function issueAgentKey(
   return api<AgentKeyIssueResponse>("/api/v2/posimport/agent-keys", {
     method: "POST", json: { label },
   });
+}
+
+/** A one-time connect code for DineroBook Manager on a store PC
+ * (10 minutes, one use): the person there scans it, nobody types a
+ * name or a password. */
+export async function createAgentPairing(): Promise<AgentPairing> {
+  return api<AgentPairing>("/api/v2/posimport/agent-pairing", { method: "POST" });
 }
 
 export async function revokeAgentKey(

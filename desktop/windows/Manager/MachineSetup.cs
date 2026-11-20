@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Runtime.Versioning;
 using System.Security.Principal;
 using DineroBook.Processor;
-using DineroBook.Processor.SignIn;
+using DineroBook.Processor.Connect;
 
 namespace DineroBook.Manager;
 
@@ -56,22 +56,14 @@ internal sealed class MachineSetup(DataPaths paths)
 {
     public DataPaths Paths => paths;
 
-    /// <summary>Sign-in and settings may be saved from here.</summary>
+    /// <summary>Connecting and settings may be saved from here.</summary>
     public bool CanWrite => paths.IsCustom || Elevation.IsElevated;
 
     /// <summary>Who besides SYSTEM and Administrators reads the key: the
-    /// service's account and its own service SID.</summary>
+    /// service's account (NetworkService) and its own service SID.</summary>
     public IReadOnlyList<SecurityIdentifier> ServiceIdentities()
     {
-        var list = new List<SecurityIdentifier>();
-        try
-        {
-            list.Add(ServiceControl.CurrentAccount().Sid());
-        }
-        catch (Exception ex) when (ex is IdentityNotMappedException or SystemException)
-        {
-            // An account that no longer exists: SYSTEM / Administrators only.
-        }
+        var list = new List<SecurityIdentifier> { DataFolderSecurity.NetworkService };
         if (ServiceControl.ServiceSid() is { } service) list.Add(service);
         if (paths.IsCustom && WindowsIdentity.GetCurrent().User is { } me) list.Add(me);
         return list.Distinct().ToList();
@@ -148,7 +140,7 @@ internal sealed class MachineSetup(DataPaths paths)
         if (!Elevation.IsElevated) throw new UnauthorizedAccessException("This needs administrator rights: choose Restart as administrator.");
     }
 
-    /// <summary>The adapter the sign-in flow saves through.</summary>
+    /// <summary>The adapter the connect call saves through.</summary>
     public IKeySink Sink() => new KeySink(this);
 
     private sealed class KeySink(MachineSetup setup) : IKeySink

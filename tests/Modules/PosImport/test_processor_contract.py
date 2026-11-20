@@ -5,18 +5,18 @@ The Windows programs copy parts of the server by hand, in
 that file and fail when the two sides drift apart:
 
   * the limits it mirrors (file size, filename and label length, key
-    prefix, the upload and sign-in rate limits);
+    prefix, connect-code length, the upload and connect rate limits);
   * every path it calls is a live route with that method;
   * its business-day reader knows the journal event kinds, in the
     server's order (``BusinessDateReader.cs``);
   * the answer fields it reads still exist;
   * "Test connection" checks a key with content that is not base64: the
     key is checked first (401) and the content is refused (422, that
-    exact sentence) before anything is stored;
-  * the Manager ends a sign-in with POST /auth/logout carrying only the
-    refresh cookie named by the login answer's ``refresh_jti``.
+    exact sentence) before anything is stored.
 
-No server behaviour changes here.
+The Manager connects with a one-time connect code
+(``POST /posimport/agent/pair``), never a name or a password; the
+route itself is tested in ``test_agent_pairing.py``.
 """
 from __future__ import annotations
 
@@ -24,7 +24,6 @@ import re
 from pathlib import Path
 
 from tests.Modules.PosImport.test_agent import _admin, _issue_key
-from tests.Modules.Auth.test_employee_login import _make_store, _make_user
 from tests._app import db_session
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -43,8 +42,8 @@ def _source() -> str:
     return CONTRACT.read_text(encoding="utf-8")
 
 
-def _int(name: str) -> int:
-    m = re.search(rf"public const int {name} = (\d+);", _source())
+def _int(name: str, source: str | None = None) -> int:
+    m = re.search(rf"public const int {name} = (\d+);", source or _source())
     assert m, f"{name} missing from ServerContract.cs"
     return int(m.group(1))
 
@@ -64,18 +63,23 @@ def _limit_on(controller: str, func: str) -> str:
 
 def test_mirrored_limits_match_the_server():
     from api.Modules.PosImport.Requests import (
-        AgentKeyIssueRequest, AgentUploadRequest,
+        AgentKeyIssueRequest, AgentPairRequest, AgentUploadRequest,
     )
     from api.Modules.PosImport.Services.agent import (
         KEY_PREFIX, MAX_AGENT_FILE_BYTES,
     )
+    from api.Modules.PosImport.Services.pairing import PAIRING_LENGTH
     upload = AgentUploadRequest.model_json_schema()["properties"]
+    pair = AgentPairRequest.model_json_schema()["properties"]
     label = AgentKeyIssueRequest.model_json_schema()["properties"]["label"]
     assert _int("MaxFileBytes") == MAX_AGENT_FILE_BYTES
     assert _int("MaxFilenameLength") == upload["filename"]["maxLength"]
-    assert _int("MaxKeyLabelLength") == label["maxLength"]
+    assert _int("MaxKeyLabelLength") == pair["label"]["maxLength"] == label["maxLength"]
     assert _str("AgentKeyPrefix") == KEY_PREFIX
     assert set(upload) == {"filename", "content_base64"}
+    assert set(pair) == {"code", "label"}
+    connect = (CONTRACT.parent / "Connect" / "ConnectClient.cs").read_text(encoding="utf-8")
+    assert _int("Length", connect) == PAIRING_LENGTH
 
 
 def test_the_business_day_reader_knows_the_servers_event_kinds_in_order():
@@ -96,10 +100,8 @@ def test_mirrored_rate_limits_match_the_routes():
     assert upload == (
         f"{_int('UploadLimitPerMinute')}/minute;{_int('UploadLimitPerHour')}/hour"
     )
-    for route in ("login_route", "login_cross_store_route",
-                  "login_totp_route", "login_recovery_route"):
-        limit = _limit_on("api/Modules/Auth/Controllers/__init__.py", route)
-        assert limit.startswith(f"{_int('SignInLimitPerMinute')}/minute"), route
+    pair = _limit_on("api/Modules/PosImport/Controllers/__init__.py", "agent_pair_route")
+    assert pair.startswith(f"{_int('PairLimitPerMinute')}/minute")
 
 
 def test_every_path_the_windows_app_calls_is_a_live_route():
@@ -109,43 +111,23 @@ def test_every_path_the_windows_app_calls_is_a_live_route():
         (m, r.path) for r in api_app.routes if isinstance(r, APIRoute)
         for m in r.methods or ()
     }
-    calls = {
-        "UploadPath": "POST", "AgentKeysPath": "POST",
-        "LoginCrossStorePath": "POST", "LoginPath": "POST",
-        "LoginTotpPath": "POST", "LoginRecoveryPath": "POST",
-        "LogoutPath": "POST", "MyStoresPath": "GET",
-        "SwitchStorePath": "POST", "SessionStatusPath": "GET",
-        "HealthPath": "GET",
-    }
+    calls = {"UploadPath": "POST", "PairPath": "POST", "HealthPath": "GET"}
     for name, method in calls.items():
         path = _str(name)
         assert path.startswith(PREFIX), name
         assert (method, path[len(PREFIX):]) in live, f"{method} {path}"
-    revoke = _str("AgentKeyRevokePathFormat").replace("{0}", "{key_id}")
-    assert ("POST", revoke[len(PREFIX):]) in live
 
 
 def test_answer_fields_the_windows_app_reads_still_exist():
-    from api.Modules.Auth.Requests.login import LoginResponse
-    from api.Modules.Auth.Requests.session import SessionStatusResponse
-    from api.Modules.Auth.Requests.switch_store import (
-        SwitchStoreResponse, SwitchableStoreRow,
-    )
     from api.Modules.PosImport.Requests import (
-        AgentKeyIssueResponse, AgentUploadResponse,
+        AgentPairResponse, AgentUploadResponse,
     )
     assert set(AgentUploadResponse.model_fields) == {
         "staged", "duplicate", "business_date", "parse_error",
     }
-    assert set(AgentKeyIssueResponse.model_fields) == {"id", "label", "key"}
-    assert {
-        "access_token", "refresh_jti", "user_id", "username", "full_name",
-        "role", "store_id", "permissions", "requires_totp", "pending_token",
-        "has_recovery_codes", "enroll_required",
-    } <= set(LoginResponse.model_fields)
-    assert {"store_id", "name", "address", "is_home"} <= set(SwitchableStoreRow.model_fields)
-    assert {"access_token", "store_id", "store_name"} <= set(SwitchStoreResponse.model_fields)
-    assert {"store_name", "permissions"} <= set(SessionStatusResponse.model_fields)
+    assert set(AgentPairResponse.model_fields) == {
+        "id", "label", "key", "store_id", "store_name", "connected_by",
+    }
 
 
 def test_the_key_check_is_refused_before_anything_is_stored(client, test_store_id):
@@ -168,29 +150,3 @@ def test_the_key_check_is_refused_before_anything_is_stored(client, test_store_i
         assert db.session.query(PosJournalFile).filter_by(
             filename=probe["filename"],
         ).count() == 0
-
-
-def test_logout_with_only_the_refresh_cookie_ends_the_sign_in(client):
-    with db_session():
-        sid = _make_store("proc-contract", "Processor Contract")
-        _make_user(sid, "proc-admin", "procpw1234!", role="admin")
-    login = client.post("/api/v2/auth/login-cross-store",
-                        json={"username": "proc-admin", "password": "procpw1234!"})
-    assert login.status_code == 200, login.text
-    body = login.json()
-    assert body["refresh_jti"]
-    token = body["access_token"]
-    # The Manager keeps no cookies: it sends the token as a header...
-    _clear_cookies()
-    assert client.get("/api/v2/auth/session-status",
-                      headers={"Authorization": f"Bearer {token}"}).status_code == 200
-    # ...and signs out with the refresh_jti as the one cookie.
-    out = client.post(
-        "/api/v2/auth/logout",
-        headers={"Cookie": f"{_str('RefreshCookieName')}={body['refresh_jti']}"},
-    )
-    assert out.status_code == 204
-    _clear_cookies()
-    after = client.get("/api/v2/auth/session-status",
-                       headers={"Authorization": f"Bearer {token}"})
-    assert after.status_code == 401

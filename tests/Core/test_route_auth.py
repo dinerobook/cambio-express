@@ -38,6 +38,9 @@ PUBLIC: dict[str, set[str]] = {
     "/auth/store-by-slug/{slug}": {"GET"},
     "/webhooks/stripe": {"POST"},
     "/webhooks/resend": {"POST"},
+    # DineroBook Manager trades a one-time connect code for the store's
+    # agent key (rate limited; the code is the credential).
+    "/posimport/agent/pair": {"POST"},
 }
 
 # Signed in by something other than a person's session: the POS

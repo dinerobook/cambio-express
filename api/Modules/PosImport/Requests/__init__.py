@@ -146,6 +146,40 @@ class AgentKeyIssueResponse(BaseModel):
     key: str
 
 
+class AgentPairingResponse(BaseModel):
+    """A new connect code for DineroBook Manager: shown once, good for
+    ``minutes`` and one use."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    expires_at: str
+    minutes: int
+
+
+class AgentPairRequest(BaseModel):
+    """DineroBook Manager sends the connect code (scanned or typed;
+    spaces and dashes are ignored) and the label its key gets."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(..., min_length=1, max_length=40)
+    label: str = Field("", max_length=80)
+
+
+class AgentPairResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    label: str
+    # The raw key — returned exactly once, never retrievable again.
+    key: str
+    store_id: int
+    store_name: str
+    # Who made the connect code (as the audit log names them).
+    connected_by: str
+
+
 class AgentKeyRow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

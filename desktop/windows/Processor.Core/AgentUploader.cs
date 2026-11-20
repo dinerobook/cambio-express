@@ -168,7 +168,7 @@ public static class ConnectionCheck
             UploadVerdict.RejectedForGood when r.Detail == ServerContract.NotBase64Detail =>
                 new Result(true, "The agent key works."),
             UploadVerdict.KeyRejected =>
-                new Result(false, "The agent key was refused. Sign in again to get a new one."),
+                new Result(false, "The agent key was refused. Choose Connect again to get a new one."),
             UploadVerdict.StoreClosed => new Result(false, r.Detail),
             UploadVerdict.RateLimited => new Result(false, "DineroBook is busy (too many uploads). Try again in a minute."),
             _ => new Result(false, "Unexpected answer from DineroBook: " + r.Detail),

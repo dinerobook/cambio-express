@@ -15,6 +15,11 @@ Mounts at `/api/v2/posimport/*`:
                         while any code in the data is unmapped.
   GET  /movement        the register's movement reports for one
                         business day (G-7), read-only.
+  POST /agent-pairing   a one-time connect code for DineroBook
+                        Manager on a store PC (10 minutes, one use).
+  POST /agent/pair      PUBLIC, rate limited: DineroBook Manager
+                        trades a connect code for the store's agent
+                        key, so nobody at the store types a password.
 
 Imports write day-close data, so every route requires
 day_close.update (admin) — the same surface that owns the
@@ -32,7 +37,7 @@ from fastapi.responses import JSONResponse, Response as PlainResponse
 from sqlalchemy.orm import Session
 
 from api.Core.Clock import parse_iso_day, utc_now
-from api.Core.Audit import audit_operator
+from api.Core.Audit import audit_operator, operator_display_name
 from api.Core.Database import get_db
 from api.Core.Uploads import decode_base64
 from api.Core.RateLimit import limiter as _rate_limiter
@@ -46,6 +51,9 @@ from api.Modules.PosImport.Requests import (
     AgentKeyIssueResponse,
     AgentKeyListResponse,
     AgentKeyRow,
+    AgentPairingResponse,
+    AgentPairRequest,
+    AgentPairResponse,
     AgentUploadRequest,
     AgentUploadResponse,
     FuelGradeRow,
@@ -78,6 +86,11 @@ from api.Modules.PosImport.Requests import (
 )
 from api.Modules.PosImport.Services.movement import MOVEMENT_KIND
 from api.Modules.PosImport.Services.movement_ingest import movement_day
+from api.Modules.PosImport.Services.pairing import (
+    PAIRING_TTL,
+    issue_pairing_code,
+    redeem_pairing_code,
+)
 from api.Modules.PosImport.Services.transactions import (
     TransactionQueryError,
     list_transactions,
@@ -343,6 +356,85 @@ def revoke_agent_key_route(
     db.commit()
     return AgentKeyListResponse(
         keys=[_key_row(c) for c in list_agent_keys(db, sid)],
+    )
+
+
+@router.post(
+    "/agent-pairing", response_model=AgentPairingResponse, status_code=201,
+)
+def issue_agent_pairing_route(
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> AgentPairingResponse:
+    """A connect code for DineroBook Manager: the person at the store
+    scans or types it, and the Manager gets the store's agent key
+    without anyone typing a name or a password. A newer code ends an
+    earlier unused one."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "update")
+    sub = claims.get("sub")
+    row, code = issue_pairing_code(
+        db, sid,
+        created_by=int(sub) if sub else None,
+        created_by_name=operator_display_name(claims),
+    )
+    audit_operator(
+        db, claims, action="issue_pos_agent_pairing",
+        target_type="pos_agent_pairing", target_id=str(row.id),
+        summary="connect code made for a store computer (10 minutes, one use)",
+    )
+    db.commit()
+    return AgentPairingResponse(
+        code=code, expires_at=row.expires_at.isoformat(),
+        minutes=int(PAIRING_TTL.total_seconds() // 60),
+    )
+
+
+@router.post("/agent/pair", response_model=AgentPairResponse)
+@_rate_limiter.limit("10/minute;50/hour")
+def agent_pair_route(
+    request: Request,
+    body: AgentPairRequest,
+    x_agent_key: str = Header(""),
+    db: Session = Depends(get_db),
+) -> AgentPairResponse | JSONResponse:
+    """DineroBook Manager trades a connect code for the store's agent
+    key. Public (the code is the credential), rate limited per
+    address, one opaque 401 for a code that is wrong, used or
+    expired. ``X-Agent-Key``, when sent, is the computer's previous
+    key: it is revoked if it belongs to the same store. A closed
+    store gets the upload route's own answer and no key."""
+    from api.Modules.Tenancy.Models import Store
+
+    paired = redeem_pairing_code(
+        db, body.code, label=body.label.strip(), replaces_key=x_agent_key,
+    )
+    if paired is None:
+        db.rollback()
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "This connect code does not work: it was mistyped, "
+                "already used, or is older than 10 minutes. Make a new "
+                "one in DineroBook: Register import → Automatic uploads."
+            ),
+        )
+    store_id = int(paired.pairing.store_id)
+    blocked = agent_store_block(db, store_id)
+    if blocked is not None:
+        db.rollback()
+        return JSONResponse(
+            status_code=blocked.status_code,
+            content={"detail": blocked.detail, "reason": blocked.reason},
+        )
+    db.commit()
+    store = db.get(Store, store_id)
+    # The raw key crosses the wire exactly once, here.
+    return AgentPairResponse(
+        id=paired.credential.id, label=paired.credential.label or "",
+        key=paired.raw_key, store_id=store_id,
+        store_name=(store.name if store is not None else "") or "",
+        connected_by=paired.connected_by,
     )
 
 
