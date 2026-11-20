@@ -214,9 +214,13 @@ export type SessionStatus = components["schemas"]["SessionStatusResponse"];
 
 export type TrialBanner = components["schemas"]["TrialBanner"];
 
+/** The live session check's query key: the shell re-runs it to learn
+ *  the session is still alive (`useSessionWatch`). */
+export const SESSION_STATUS_KEY = ["account", "session-status"] as const;
+
 export function useSessionStatus() {
   return useQuery<SessionStatus>({
-    queryKey: ["account", "session-status"],
+    queryKey: SESSION_STATUS_KEY,
     queryFn: () => api<SessionStatus>("/api/v2/auth/session-status"),
   });
 }

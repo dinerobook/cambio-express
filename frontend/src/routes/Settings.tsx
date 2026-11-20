@@ -13,6 +13,7 @@ import {
   useStoreInfo,
   type ProfileUpdateBody,
   type StoreHourEntry,
+  SESSION_STATUS_KEY,
 } from "../api/account";
 import { redeemConnectCode } from "../api/owner";
 import { ApiError, apiErrorMessage, downloadFile } from "../lib/api";
@@ -699,7 +700,7 @@ function StoreInfoCard() {
       });
       // session-status carries the zone every page renders in.
       await queryClient.invalidateQueries({
-        queryKey: ["account", "session-status"],
+        queryKey: SESSION_STATUS_KEY,
       });
       // Edits are now the saved state — clear the dirty flag.
       setBaseline(snapshot(hours, enforceHours));

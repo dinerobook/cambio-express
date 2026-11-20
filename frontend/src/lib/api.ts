@@ -156,11 +156,19 @@ const SIGN_IN_PATH = /^\/api\/v2\/auth\/login(?:-cross-store)?(?:[/?]|$)/;
 const PUNCH_PATH =
   /^\/api\/v2\/timeclock\/(?:clock-in|clock-out|break\/start|break\/stop|passkey\/challenge)(?:[/?]|$)/;
 
+/** The session is dead (expired, signed out elsewhere, deactivated):
+ *  forget it and open the sign-in page, for every role alike (owner,
+ *  2026-11-20). `expired=1` lets the page say why; `next` brings the
+ *  person back to the page they were on once they sign in again. */
 function _bounceToLogin(): void {
   clearAccessToken();
   clearRefreshFallback();
-  const onLogin = window.location.pathname === "/app/login";
-  if (!onLogin) window.location.assign("/app/login");
+  const { pathname, search } = window.location;
+  if (pathname === "/app/login") return;
+  const qs = new URLSearchParams({ expired: "1" });
+  const here = pathname.startsWith("/app/") ? pathname.slice("/app".length) + search : "";
+  if (here && here !== "/") qs.set("next", here);
+  window.location.assign(`/app/login?${qs.toString()}`);
 }
 
 /** A fresh key for the ``Idempotency-Key`` header. A form makes one

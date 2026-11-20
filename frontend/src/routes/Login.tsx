@@ -44,7 +44,13 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const t = useT();
-  const stateDest = (location.state as LocationState | null)?.from;
+  // Where to go after signing in: the page a guard sent the person
+  // from, else the page an ended session was on (`?next=`, set by
+  // `api()` when it sends a dead session here; only an in-app path).
+  const params = new URLSearchParams(location.search);
+  const stateDest = (location.state as LocationState | null)?.from
+    ?? inAppPath(params.get("next"));
+  const sessionEnded = params.get("expired") === "1";
 
   async function finishLogin(result: LoginResponse) {
     persistLoginResponse({
@@ -160,6 +166,7 @@ export default function Login() {
           username={username} setUsername={setUsername}
           password={password} setPassword={setPassword}
           error={error}
+          notice={sessionEnded && !error ? t("login.sessionEnded") : null}
           busy={busy}
           onSubmit={onSubmit}
         />
@@ -170,14 +177,25 @@ export default function Login() {
 }
 
 
+/** `next` when it is a path inside the app ("/transfers?page=2");
+ *  anything else (another site, "//host", a sign-in page) is ignored. */
+function inAppPath(next: string | null): string | undefined {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
+    return undefined;
+  }
+  return next.startsWith("/login") ? undefined : next;
+}
+
 function PrimaryForm({
-  username, setUsername, password, setPassword, error, busy, onSubmit,
+  username, setUsername, password, setPassword, error, notice, busy, onSubmit,
 }: {
   username: string;
   setUsername: (v: string) => void;
   password: string;
   setPassword: (v: string) => void;
   error: string | null;
+  /** Why the person is here ("your session has ended"). */
+  notice: string | null;
   busy: boolean;
   onSubmit: (e: FormEvent) => void;
 }) {
@@ -187,6 +205,7 @@ function PrimaryForm({
       <h2 className={chrome.cardTitle} style={{ margin: 0 }}>{t("login.title")}</h2>
       <p className={chrome.cardSub} style={{ margin: 0 }}>{t("login.subtitle")}</p>
 
+      {notice && <Alert tone="info">{notice}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
 
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>

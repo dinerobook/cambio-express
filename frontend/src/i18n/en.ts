@@ -43,6 +43,7 @@ export const en = {
   // ── Sign-in (Login, LoginStore) ──────────────────────────────
   "login.title": "Sign in",
   "login.subtitle": "Welcome back. Pick up where you left off.",
+  "login.sessionEnded": "Your session has ended. Sign in again to continue.",
   "login.username": "Email or phone",
   "login.usernamePlaceholder": "you@store.com or (555) 123-4567",
   "login.password": "Password",

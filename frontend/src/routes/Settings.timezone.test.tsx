@@ -17,7 +17,8 @@ import { englishLeftovers } from "../test/i18n";
 const useStoreInfo = vi.fn();
 const updateStoreInfo = vi.fn();
 
-vi.mock("../api/account", () => ({
+vi.mock("../api/account", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/account")>()),
   useStoreInfo: () => useStoreInfo(),
   updateStoreInfo: (...a: unknown[]) => updateStoreInfo(...a),
 }));
