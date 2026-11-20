@@ -52,7 +52,7 @@ export default function AccountActivity() {
             {data ? tn("audit.events", data.total, fmtNumber) : "—"}
           </span>
         </div>
-        <div className={styles.filtersRow}>
+        <div className="ds-filter-bar">
           <AuditFilterFields
             target={target} action={action}
             onTarget={(v) => setParam("target", v)}

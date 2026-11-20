@@ -127,20 +127,20 @@ export default function AdminTimeClock() {
       <KpiRow data={data.data} />
 
       <Card>
-        <div className={styles.filterRow}>
-          <Field label={t("payroll.from")} style={{ minWidth: "10rem" }}>
+        <div className="ds-filter-bar">
+          <Field label={t("payroll.from")}>
             <DateInput
               value={from}
               onChange={(e) => setFrom(e.target.value)}
             />
           </Field>
-          <Field label={t("payroll.toExclusive")} style={{ minWidth: "10rem" }}>
+          <Field label={t("payroll.toExclusive")}>
             <DateInput
               value={to}
               onChange={(e) => setTo(e.target.value)}
             />
           </Field>
-          <Field label={t("payroll.employee")} style={{ minWidth: "12rem" }}>
+          <Field label={t("payroll.employee")}>
             <Select
               value={empFilter === "" ? "" : String(empFilter)}
               onChange={(e) => {

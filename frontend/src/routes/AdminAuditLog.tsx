@@ -57,13 +57,13 @@ export default function AdminAuditLog() {
             {data ? tn("audit.events", data.total, fmtNumber) : "—"}
           </span>
         </div>
-        <div className={styles.filtersRow}>
+        <div className="ds-filter-bar">
           <AuditFilterFields
             target={target} action={action}
             onTarget={(v) => setParam("target", v)}
             onAction={(v) => setParam("action", v)}
           />
-          <Field label={t("audit.user")} style={{ minWidth: "10rem" }}>
+          <Field label={t("audit.user")}>
             <Select
               value={user}
               onChange={(e) => setParam("user", e.target.value)}

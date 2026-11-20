@@ -164,38 +164,6 @@ export default function SuperadminUsers() {
       <PageHeader
         title={navWord("Users")}
         subtitle={data ? tn("saUsers.users", data.total, fmtNumber) : "—"}
-        actions={(
-          <div className={styles.filterRow}>
-            <Input
-              type="search"
-              value={filters.draft.q ?? filters.params.q}
-              placeholder={t("saUsers.search")}
-              aria-label={t("saUsers.searchLabel")}
-              onChange={(e) => filters.debounced("q", e.target.value)}
-              className={styles.searchInput}
-            />
-            <Select
-              value={role}
-              aria-label={t("saUsers.role")}
-              onChange={(e) => filters.setParam("role", e.target.value)}
-            >
-              <option value="">{t("saUsers.allRoles")}</option>
-              {ROLES.map((r) => (
-                <option key={r} value={r}>{roleLabel(r)}</option>
-              ))}
-            </Select>
-            <Select
-              value={filters.params.store_id}
-              aria-label={t("saUsers.colStore")}
-              onChange={(e) => filters.setParam("store_id", e.target.value)}
-            >
-              <option value="">{t("saTix.allStores")}</option>
-              {(stores.data?.rows ?? []).map((s) => (
-                <option key={s.store_id} value={s.store_id}>{s.name}</option>
-              ))}
-            </Select>
-          </div>
-        )}
       />
 
       {error && <Alert tone="error">{error}</Alert>}
@@ -229,6 +197,37 @@ export default function SuperadminUsers() {
 
       <Card>
         <DataTable
+          toolbar={(
+            <>
+              <Input
+                type="search"
+                value={filters.draft.q ?? filters.params.q}
+                placeholder={t("saUsers.search")}
+                aria-label={t("saUsers.searchLabel")}
+                onChange={(e) => filters.debounced("q", e.target.value)}
+              />
+              <Select
+                value={role}
+                aria-label={t("saUsers.role")}
+                onChange={(e) => filters.setParam("role", e.target.value)}
+              >
+                <option value="">{t("saUsers.allRoles")}</option>
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>{roleLabel(r)}</option>
+                ))}
+              </Select>
+              <Select
+                value={filters.params.store_id}
+                aria-label={t("saUsers.colStore")}
+                onChange={(e) => filters.setParam("store_id", e.target.value)}
+              >
+                <option value="">{t("saTix.allStores")}</option>
+                {(stores.data?.rows ?? []).map((s) => (
+                  <option key={s.store_id} value={s.store_id}>{s.name}</option>
+                ))}
+              </Select>
+            </>
+          )}
           columns={userColumns({
             busyId,
             onAction: (u, action) =>

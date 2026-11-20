@@ -1018,7 +1018,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
   return (
     <Section title={t("saDrill.activity")}>
       <Card>
-        <div className={styles.activityFilters}>
+        <div className="ds-filter-bar">
           <AuditFilterFields
             target={target} action={action}
             onTarget={(v) => filters.setParam("activity_target", v)}
@@ -1026,7 +1026,7 @@ function StoreActivitySection({ storeId }: { storeId: number }) {
             targetAria={t("saDrill.activityTarget")}
             actionAria={t("saDrill.activityAction")}
           />
-          <span className={styles.activityCount}>
+          <span className="ds-filter-bar__end">
             {log.data ? tn("saEmail.events", log.data.total, fmtNumber) : ""}
           </span>
         </div>

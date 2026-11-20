@@ -396,3 +396,50 @@ describe("exportTable", () => {
     });
   });
 });
+
+describe("<DataTable toolbar>", () => {
+  // The list's search and filters share ONE row with Export CSV
+  // (kit `ds-filter-bar`, UI-STANDARDS §7), and stay while the list
+  // loads or comes back empty so a search that matched nothing can
+  // still be changed.
+  const search = <input type="search" aria-label="Search" />;
+
+  it("puts the filters and Export CSV in one bar, export at the end", () => {
+    signIn("admin", ["reports.read"]);
+    renderExport({ exportCsv: { filename: "t", allRows: txns }, toolbar: search });
+    const box = screen.getByRole("searchbox", { name: "Search" });
+    const bar = box.closest(".ds-filter-bar") as HTMLElement;
+    expect(bar).not.toBeNull();
+    const exportBtn = within(bar).getByRole("button", { name: "Export CSV" });
+    expect(exportBtn.closest(".ds-filter-bar__end")).not.toBeNull();
+  });
+
+  it("keeps the filters, without Export CSV, while the list is empty or loading", () => {
+    signIn("admin", ["reports.read"]);
+    const { rerender } = render(
+      <ToastProvider>
+        <DataTable {...base} rows={[]} toolbar={search}
+          exportCsv={{ filename: "t", allRows: [] }} />
+      </ToastProvider>,
+    );
+    const box = screen.getByRole("searchbox", { name: "Search" });
+    expect(screen.getByText("No rows yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
+    box.focus();
+    rerender(
+      <ToastProvider>
+        <DataTable {...base} rows={rows} toolbar={search}
+          exportCsv={{ filename: "t", allRows: [] }} />
+      </ToastProvider>,
+    );
+    // The same box, still focused: typing never loses the cursor.
+    expect(screen.getByRole("searchbox", { name: "Search" })).toBe(box);
+    expect(box).toHaveFocus();
+    rerender(
+      <ToastProvider>
+        <DataTable {...base} rows={undefined} isLoading toolbar={search} />
+      </ToastProvider>,
+    );
+    expect(screen.getByRole("searchbox", { name: "Search" })).toBe(box);
+  });
+});

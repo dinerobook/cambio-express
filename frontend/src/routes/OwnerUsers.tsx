@@ -76,19 +76,17 @@ export default function OwnerUsers() {
         subtitle={t("owner.usersSubtitle")}
       />
 
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <Input
-          type="search"
-          aria-label={t("owner.search")}
-          style={{ width: "16rem", maxWidth: "100%" }}
-          placeholder={t("owner.usersSearch")}
-          value={filters.draft.q ?? filters.params.q}
-          onChange={(e) => filters.debounced("q", e.target.value)}
-        />
-      </div>
-
       <Card>
         <DataTable
+          toolbar={(
+            <Input
+              type="search"
+              aria-label={t("owner.search")}
+              placeholder={t("owner.usersSearch")}
+              value={filters.draft.q ?? filters.params.q}
+              onChange={(e) => filters.debounced("q", e.target.value)}
+            />
+          )}
           columns={columns()}
           rows={data?.rows}
           rowKey={(u) => u.id}

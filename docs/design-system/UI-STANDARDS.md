@@ -485,6 +485,28 @@ needed if the kit had been checked first.
     customer directory (its own server export, `customers.update`)
     have none. Server CSVs defuse formulas the same way
     (`api/Core/Csv.py` `safe_cell`).
+  - **Filter bar — one row of list tools.** A list's search,
+    filters and the table's own actions sit on ONE row, the way
+    premium dashboards do it (researched live, 2026-11-20: Vuexy's
+    user list, shadcn-admin's tasks): search first, then the
+    filters, then the actions on the right. The kit class is
+    `ds-filter-bar` (`components/ui/ui.css`): flex, wraps only when
+    the window is too narrow, the search takes the spare room up to
+    a readable 26rem, every other control keeps a compact 10rem,
+    `ds-filter-bar__end` sits on the right (a count, Export CSV) and
+    `ds-filter-bar__note` is a short status ("Updating…"); on a
+    phone the search takes the row and the filters pair up. A list
+    with a `<DataTable>` passes its controls as `toolbar` — the
+    table renders them in that row beside Export CSV and keeps them
+    while the list loads or comes back empty, so a search that
+    matched nothing can be changed. A bar that scopes KPIs above
+    the table (Transactions, Item movement) stays a plain
+    `<div className="ds-filter-bar">` over them, and a list without
+    a table uses the div or `<Card className="ds-filter-bar">`.
+    Never a page's own toolbar CSS, a fixed-column grid, an inline
+    width on the search box, or filters up in the page header. The
+    page header keeps its actions on the title's row: the title
+    takes the spare room and a long subtitle wraps inside it.
   - **Import.** A file from another system (a Modisoft price book
     or department list) takes two steps: a **check** that writes
     nothing and shows what would happen (new, updated, already up

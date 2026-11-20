@@ -277,9 +277,8 @@ export default function DepartmentsManager() {
       )}
       {all != null && !empty && (
         <>
-          <div className={styles.toolbar}>
+          <div className="ds-filter-bar">
             <Input
-              className={styles.search}
               type="search"
               value={query}
               aria-label={t("dept.search")}
@@ -287,7 +286,6 @@ export default function DepartmentsManager() {
               onChange={(e) => setQuery(e.target.value)}
             />
             <Select
-              className={styles.typeFilter}
               aria-label={t("dept.typeFilter")}
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as "" | DepartmentType)}
@@ -295,7 +293,7 @@ export default function DepartmentsManager() {
               <option value="">{t("dept.allTypes")}</option>
               <DepartmentTypeOptions />
             </Select>
-            <span className={styles.count}>
+            <span className={`ds-filter-bar__end ${styles.count}`}>
               {tn("dept.count", rows?.length ?? 0, fmtNumber)}
             </span>
           </div>

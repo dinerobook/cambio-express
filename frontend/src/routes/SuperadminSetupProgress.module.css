@@ -1,16 +1,5 @@
 /* Page-specific styles for SuperadminSetupProgress.tsx. */
 
-.filterRow {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.searchInput {
-  max-width: 22rem;
-}
-
 .store {
   min-width: 0;
 }

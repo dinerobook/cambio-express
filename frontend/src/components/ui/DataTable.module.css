@@ -134,12 +134,9 @@
   }
 }
 
-/* The row of list tools above the table (``exportCsv``). Right
- * aligned and always the same height, so nothing below it moves. */
+/* The row of list tools above the table: the page's search and
+ * filters (``toolbar``) and Export CSV (``exportCsv``), laid out by
+ * the kit's ``ds-filter-bar``; this only spaces it from the table. */
 .toolbar {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 0.5rem;
   margin-bottom: 0.75rem;
 }

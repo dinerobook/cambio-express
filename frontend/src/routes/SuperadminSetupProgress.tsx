@@ -153,31 +153,30 @@ export default function SuperadminSetupProgress() {
       <PageHeader
         title={navWord("Setup progress")}
         subtitle={data ? tn("saSetup.stores", data.total, fmtNumber) : "—"}
-        actions={(
-          <div className={styles.filterRow}>
-            <Input
-              type="search"
-              value={filters.draft.q ?? filters.params.q}
-              placeholder={t("saSetup.search")}
-              aria-label={t("saSetup.searchLabel")}
-              onChange={(e) => filters.debounced("q", e.target.value)}
-              className={styles.searchInput}
-            />
-            <Select
-              value={status}
-              aria-label={t("saSetup.filterLabel")}
-              onChange={(e) => filters.setParam("status", e.target.value)}
-            >
-              {STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>{t(s.label)}</option>
-              ))}
-            </Select>
-          </div>
-        )}
       />
 
       <Card>
         <DataTable
+          toolbar={(
+            <>
+              <Input
+                type="search"
+                value={filters.draft.q ?? filters.params.q}
+                placeholder={t("saSetup.search")}
+                aria-label={t("saSetup.searchLabel")}
+                onChange={(e) => filters.debounced("q", e.target.value)}
+              />
+              <Select
+                value={status}
+                aria-label={t("saSetup.filterLabel")}
+                onChange={(e) => filters.setParam("status", e.target.value)}
+              >
+                {STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>{t(s.label)}</option>
+                ))}
+              </Select>
+            </>
+          )}
           columns={setupColumns()}
           rows={data?.rows}
           rowKey={(r) => r.store_id}

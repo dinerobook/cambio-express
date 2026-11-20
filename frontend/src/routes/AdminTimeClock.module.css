@@ -1,12 +1,5 @@
 /* Page-specific styles for AdminTimeClock.tsx. */
 
-.filterRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.85rem;
-  align-items: flex-end;
-}
-
 .lateRuleRow {
   display: flex;
   flex-wrap: wrap;
@@ -145,13 +138,4 @@
   font-family: var(--db-font-mono);
   font-weight: 600;
   color: var(--db-accent);
-}
-
-/* Narrow-viewport stack for the filter toolbar. The per-row
- * action collapse is owned by the shared ``<RowActions>`` kit
- * primitive — see frontend/src/components/ui/RowActions.tsx.
- */
-@media (max-width: 36rem) {
-  .filterRow     { flex-direction: column; align-items: stretch; }
-  .filterRow > * { width: 100%; }
 }

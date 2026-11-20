@@ -206,7 +206,7 @@ export default function Customers() {
         />
       )}
 
-      <Card style={{ marginBottom: space.lg }}>
+      <Card className="ds-filter-bar" style={{ marginBottom: space.lg }}>
         <Field label={t("transfer.search")}>
           <Input
             type="search"
@@ -215,7 +215,7 @@ export default function Customers() {
             placeholder={t("customer.searchPlaceholder")}
           />
         </Field>
-        {isFetching && <Loading />}
+        {isFetching && <span className="ds-filter-bar__note"><Loading /></span>}
       </Card>
 
       {isError && (

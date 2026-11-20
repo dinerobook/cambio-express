@@ -100,26 +100,28 @@ export default function ReturnCheckParties({ by }: { by: PartyKind }) {
               data.total, fmtNumber)
           : "—"}
       />
-      <Card className="ds-filter-bar">
-        <Field label={t("transfer.search")}>
-          <Input
-            type="search"
-            value={filters.draft.q ?? q}
-            onChange={(e) => filters.debounced("q", e.target.value)}
-            placeholder={by === "company"
-              ? t("returnCheck.companySearchPlaceholder")
-              : t("returnCheck.customerSearchPlaceholder")}
-          />
-        </Field>
-        <Field label={t("returnCheck.returnedFrom")}>
-          <DateInput value={from} onChange={(e) => filters.setParam("from", e.target.value)} />
-        </Field>
-        <Field label={t("returnCheck.returnedTo")}>
-          <DateInput value={to} onChange={(e) => filters.setParam("to", e.target.value)} />
-        </Field>
-      </Card>
       <Card>
         <DataTable
+          toolbar={(
+            <>
+              <Field label={t("transfer.search")}>
+                <Input
+                  type="search"
+                  value={filters.draft.q ?? q}
+                  onChange={(e) => filters.debounced("q", e.target.value)}
+                  placeholder={by === "company"
+                    ? t("returnCheck.companySearchPlaceholder")
+                    : t("returnCheck.customerSearchPlaceholder")}
+                />
+              </Field>
+              <Field label={t("returnCheck.returnedFrom")}>
+                <DateInput value={from} onChange={(e) => filters.setParam("from", e.target.value)} />
+              </Field>
+              <Field label={t("returnCheck.returnedTo")}>
+                <DateInput value={to} onChange={(e) => filters.setParam("to", e.target.value)} />
+              </Field>
+            </>
+          )}
           columns={partyColumns(t, by)}
           rows={data?.rows}
           rowKey={(r) => r.key}
