@@ -15,7 +15,7 @@ spelled out here (a migration never imports application code);
 the model. Idempotent both ways.
 
 Revision ID: e2f8a4c6b1d3
-Revises: b9e5c3a7d1f4
+Revises: c2f7a4e9b1d6
 Create Date: 2026-11-19 16:00:00.000000
 
 """
@@ -27,7 +27,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'e2f8a4c6b1d3'
-down_revision: Union[str, None] = 'b9e5c3a7d1f4'
+down_revision: Union[str, None] = 'c2f7a4e9b1d6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
