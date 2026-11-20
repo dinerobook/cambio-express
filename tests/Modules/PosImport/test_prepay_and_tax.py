@@ -57,9 +57,10 @@ def _doc(event_xml: str, begin_time: str) -> str:
 
 
 def _event(tag, *, txn, start, business_date, lines, gross, net, tax,
-           register="1", link=None):
+           register="1", link=None, suspended=False):
     day, clock = start.split(" ")
     link_xml = ""
+    suspend_xml = f'<SuspendFlag value="{"yes" if suspended else "no"}"/>'
     if link is not None:
         l_register, l_txn, l_start = link
         l_day, l_clock = l_start.split(" ")
@@ -82,6 +83,7 @@ def _event(tag, *, txn, start, business_date, lines, gross, net, tax,
     <EventStartDate>{day}</EventStartDate>
     <EventStartTime>{clock}</EventStartTime>
     <BusinessDate>{business_date}</BusinessDate>
+    {suspend_xml}
     {link_xml}
     <TransactionDetailGroup>{lines}</TransactionDetailGroup>
     <TransactionSummary>
@@ -106,9 +108,9 @@ def _item(amount, *, status="normal", code="049000000443", merch="10"):
     </ItemLine></TransactionLine>"""
 
 
-def _prepay(amount, *, status="normal"):
+def _prepay(amount, *, status="normal", pump="8"):
     return f"""<TransactionLine status="{status}"><FuelPrepayLine>
-     <FuelPositionID>8</FuelPositionID><SalesAmount>{amount}</SalesAmount>
+     <FuelPositionID>{pump}</FuelPositionID><SalesAmount>{amount}</SalesAmount>
     </FuelPrepayLine></TransactionLine>"""
 
 
@@ -474,6 +476,310 @@ def test_supersede_is_idempotent():
     assert supersede_prepaid_deposits([deposit, completion]) == 1
     assert supersede_prepaid_deposits([deposit, completion]) == 0
     assert deposit.superseded is True
+
+
+# ── Prepaid fuel: tickets that restate a deposit with no link ──
+#
+# Found in two stores' real exports (owner, 2026-11-20: book the
+# real figure). Passport writes the deposit SUSPENDED; the ticket
+# that cancels the prepay names no deposit at all, and the middle
+# ticket of a three-ticket chain names it by its own start time.
+
+
+def _cash_prepay(txn, start, *, pump="4", amount="30", status="normal",
+                 suspended=True, extra="", tendered=None, change=None):
+    """A prepay ticket paid cash: the prepay line (normal = the
+    deposit, cancel = the cancelling ticket), optional items, the
+    cash handed over and any change back."""
+    money = tendered or amount
+    lines = _prepay(amount, status=status, pump=pump) + extra + _tender(money)
+    if change:
+        lines += _tender(change, change=True)
+    net = f"{float(money) + float(change or 0):.2f}"
+    return _event(
+        "SaleEvent", txn=txn, start=start, business_date=D,
+        lines=lines, gross=net, net=net, tax="0", suspended=suspended,
+    )
+
+
+def test_cancelled_prepay_replaces_its_deposit():
+    """$30 prepaid on pump 4, cancelled ($30 back), prepaid again and
+    pumped: one $30 sale and $30 cash — not $60."""
+    first = _parse(_cash_prepay("9913", f"{D} 11:35:52"), "PJR-1.xml")
+    cancel = _parse(_cash_prepay(
+        "9914", f"{D} 11:36:23", status="cancel", suspended=False,
+        change="-30.00",
+    ), "PJR-2.xml")
+    again = _parse(_cash_prepay("9915", f"{D} 11:36:35"), "PJR-3.xml")
+    pumped = _parse(_event(
+        "SaleEvent", txn="9919", start=f"{D} 11:40:36", business_date=D,
+        link=("1", "9915", f"{D} 11:36:35"),
+        lines=_prepay("30", status="cancel", pump="4")
+        + _fuel("30", "10.718") + _tender("30"),
+        gross="30", net="30", tax="0",
+    ), "PJR-4.xml")
+    assert cancel.cancels_prepay is True
+    assert first.cancels_prepay is False and pumped.cancels_prepay is False
+
+    events = [first, cancel, again, pumped]
+    [agg] = aggregate_events(events)
+    assert [e.superseded for e in events] == [True, False, True, False]
+    assert first.superseded_by_file == "PJR-2.xml"
+    assert agg.net_sales_cents == 3000
+    assert agg.cash_cents == 3000
+    assert agg.departments == {"1024": 3000}
+
+
+def test_cancelled_prepay_keeps_the_other_items_once():
+    """$40 prepay plus a $2 cola; the prepay is cancelled and the $40
+    handed back. The cola is the sale — once, in sales and in its
+    department."""
+    cola = _item("2.00")
+    deposit = _parse(_cash_prepay(
+        "1763", f"{D} 07:05:37", amount="40", extra=cola, tendered="42.00",
+    ), "PJR-dep.xml")
+    cancel = _parse(_cash_prepay(
+        "1766", f"{D} 07:08:23", amount="40", status="cancel",
+        suspended=False, extra=cola, tendered="42.00", change="-40.00",
+    ), "PJR-cancel.xml")
+    [agg] = aggregate_events([deposit, cancel])
+    assert deposit.superseded is True
+    assert agg.sale_count == 1
+    assert agg.net_sales_cents == 200
+    assert agg.cash_cents == 200
+    assert agg.departments == {"10": 200}
+
+
+def test_cancel_written_as_a_refund_replaces_its_deposit():
+    """$14 prepay with a $5 lottery cash on the ticket ($9 paid). The
+    prepay is cancelled; the ticket now nets negative, so Passport
+    writes the cancel as a REFUND: $9 tendered, $14 back. The real
+    ticket is the $5 lottery cash, once."""
+    deposit = _parse(_event(
+        "SaleEvent", txn="3059", start=f"{D} 12:26:43", business_date=D,
+        suspended=True,
+        lines=_prepay("14", pump="1") + _lotto_cash("-5.00") + _tender("9"),
+        gross="9", net="9", tax="0",
+    ), "PJR-dep.xml")
+    cancel = _parse(_event(
+        "RefundEvent", txn="3062", start=f"{D} 12:28:50", business_date=D,
+        lines=_prepay("14", status="cancel", pump="1") + _lotto_cash("-5.00")
+        + _tender("9") + _tender("-14.00", change=True),
+        gross="-5", net="-5", tax="0",
+    ), "PJR-cancel.xml")
+    assert cancel.kind == "refund" and cancel.cancels_prepay is True
+    [agg] = aggregate_events([deposit, cancel])
+    assert deposit.superseded is True
+    assert agg.net_sales_cents == -500
+    assert agg.cash_cents == -500
+    assert agg.departments == {"40": -500}
+
+
+@pytest.mark.parametrize("why, cancel_kwargs, cancel_txn_start", [
+    ("another pump", {"pump": "5"}, f"{D} 11:36:23"),
+    ("another amount", {"amount": "20"}, f"{D} 11:36:23"),
+    ("other money", {"tendered": "50"}, f"{D} 11:36:23"),
+    ("more than an hour later", {}, f"{D} 12:40:00"),
+    ("before the deposit", {}, f"{D} 11:30:00"),
+])
+def test_cancel_that_does_not_restate_the_deposit_leaves_it(
+    why, cancel_kwargs, cancel_txn_start,
+):
+    """Only a ticket that restates the deposit — same register, pump,
+    amount and money, within the hour after it — replaces it."""
+    deposit = _parse(_cash_prepay("9913", f"{D} 11:35:52"), "PJR-1.xml")
+    kwargs = {"status": "cancel", "suspended": False, **cancel_kwargs}
+    kwargs.setdefault("change", f"-{kwargs.get('tendered', kwargs.get('amount', '30'))}")
+    cancel = _parse(_cash_prepay("9914", cancel_txn_start, **kwargs), "PJR-2.xml")
+    supersede_prepaid_deposits([deposit, cancel])
+    assert deposit.superseded is False, why
+
+
+def test_cancel_on_another_register_leaves_the_deposit():
+    deposit = _parse(_cash_prepay("9913", f"{D} 11:35:52"), "PJR-1.xml")
+    cancel = _parse(_event(
+        "SaleEvent", txn="9914", start=f"{D} 11:36:23", business_date=D,
+        register="2",
+        lines=_prepay("30", status="cancel", pump="4") + _tender("30")
+        + _tender("-30.00", change=True),
+        gross="0", net="0", tax="0",
+    ), "PJR-2.xml")
+    assert supersede_prepaid_deposits([deposit, cancel]) == 0
+
+
+def test_a_deposit_that_is_not_suspended_is_not_paired_by_a_cancel():
+    """Passport writes every deposit suspended; anything else is left
+    as it was."""
+    deposit = _parse(_cash_prepay("9913", f"{D} 11:35:52", suspended=False), "PJR-1.xml")
+    cancel = _parse(_cash_prepay(
+        "9914", f"{D} 11:36:23", status="cancel", suspended=False,
+        change="-30.00",
+    ), "PJR-2.xml")
+    assert supersede_prepaid_deposits([deposit, cancel]) == 0
+
+
+def test_one_cancel_replaces_only_the_latest_matching_deposit():
+    """Two identical $30 prepays on pump 4, one cancel: it replaces
+    the one just before it, the other still counts."""
+    older = _parse(_cash_prepay("9910", f"{D} 11:20:00"), "PJR-0.xml")
+    newer = _parse(_cash_prepay("9913", f"{D} 11:35:52"), "PJR-1.xml")
+    cancel = _parse(_cash_prepay(
+        "9914", f"{D} 11:36:23", status="cancel", suspended=False,
+        change="-30.00",
+    ), "PJR-2.xml")
+    events = [older, newer, cancel]
+    assert supersede_prepaid_deposits(events) == 1
+    assert (older.superseded, newer.superseded) == (False, True)
+    # A day's commit runs the matching three times: the cancel must
+    # not move on to the older deposit once its own is replaced.
+    assert supersede_prepaid_deposits(events) == 0
+    assert supersede_prepaid_deposits(events) == 0
+    assert (older.superseded, newer.superseded) == (False, True)
+    [agg] = aggregate_events(events)
+    assert agg.net_sales_cents == 3000  # the older $30 still counts
+
+
+def test_chain_pairing_is_idempotent_too():
+    """The own-time completion replaces one deposit, however often
+    the matching runs, even with a second ticket of the same number
+    within the hour."""
+    twin = _parse(_event(
+        "SaleEvent", txn="6844", start=f"{D} 15:20:00", business_date=D,
+        suspended=True, lines=_prepay("100") + _tender("100"),
+        gross="100", net="100", tax="0",
+    ), "PJR-twin.xml")
+    deposit = _parse(_event(
+        "SaleEvent", txn="6844", start=f"{D} 15:57:39", business_date=D,
+        suspended=True, lines=_prepay("100") + _tender("100"),
+        gross="100", net="100", tax="0",
+    ), "PJR-dep.xml")
+    middle = _parse(_chain_middle(link_start=f"{D} 16:01:22"), "PJR-mid.xml")
+    events = [twin, deposit, middle]
+    assert supersede_prepaid_deposits(events) == 1
+    assert supersede_prepaid_deposits(events) == 0
+    assert (twin.superseded, deposit.superseded) == (False, True)
+
+
+def _chain_middle(*, link_start):
+    """The pump stopped at $27.34 on a $100 cash prepay; Passport
+    wrote this completion suspended (change not yet handed back),
+    naming the deposit with ``link_start`` as its start time."""
+    return _event(
+        "SaleEvent", txn="6846", start=f"{D} 16:01:22", business_date=D,
+        link=("1", "6844", link_start), suspended=True,
+        lines=_prepay("100", status="cancel") + _fuel("27.34", "10.685")
+        + _tender("100"),
+        gross="27.34", net="27.34", tax="0",
+    )
+
+
+def _chain_last():
+    return _event(
+        "SaleEvent", txn="6848", start=f"{D} 16:03:03", business_date=D,
+        link=("1", "6846", f"{D} 16:01:22"),
+        lines=_prepay("100", status="cancel") + _fuel("27.34", "10.685")
+        + _tender("100") + _tender("-72.66", change=True),
+        gross="27.34", net="27.34", tax="0",
+    )
+
+
+def test_chain_naming_the_deposit_by_its_own_time_counts_once():
+    """$100 cash prepay, pumped $27.34, change given on a third
+    ticket. The middle one names the deposit by its OWN start time;
+    the sale is still $27.34 once, cash $27.34."""
+    deposit = _parse(_event(
+        "SaleEvent", txn="6844", start=f"{D} 15:57:39", business_date=D,
+        suspended=True, lines=_prepay("100") + _tender("100"),
+        gross="100", net="100", tax="0",
+    ), "PJR-dep.xml")
+    middle = _parse(_chain_middle(link_start=f"{D} 16:01:22"), "PJR-mid.xml")
+    last = _parse(_chain_last(), "PJR-last.xml")
+    events = [deposit, middle, last]
+    [agg] = aggregate_events(events)
+    assert [e.superseded for e in events] == [True, True, False]
+    assert deposit.superseded_by_file == "PJR-mid.xml"
+    assert agg.sale_count == 1
+    assert agg.net_sales_cents == 2734
+    assert agg.cash_cents == 2734
+
+
+def test_own_time_link_never_reaches_a_reused_ticket_number():
+    """Ticket 6844 from hours earlier is another sale: a completion
+    naming 6844 by its own start time pairs only within the hour."""
+    old = _parse(_event(
+        "SaleEvent", txn="6844", start=f"{D} 09:00:00", business_date=D,
+        suspended=True, lines=_prepay("100") + _tender("100"),
+        gross="100", net="100", tax="0",
+    ), "PJR-old.xml")
+    middle = _parse(_chain_middle(link_start=f"{D} 16:01:22"), "PJR-mid.xml")
+    assert supersede_prepaid_deposits([old, middle]) == 0
+    assert old.superseded is False
+
+
+def test_cancelled_prepay_is_booked_once_through_the_commit():
+    """Staged files, booked day: the close, hourly chart and stored
+    tickets all count the real $30, and the cancelled deposit is
+    kept, marked, pointing at the ticket that replaced it."""
+    from api.Modules.PosImport.Models import PosTransaction
+    with db_session():
+        sid = _store("prepay-cancel")
+        _map_all(sid, "1024")
+        _stage(sid, "PJR-1.xml", _cash_prepay("9913", f"{D} 11:35:52"))
+        _stage(sid, "PJR-2.xml", _cash_prepay(
+            "9914", f"{D} 11:36:23", status="cancel", suspended=False,
+            change="-30.00",
+        ))
+        _stage(sid, "PJR-3.xml", _cash_prepay("9915", f"{D} 11:36:35"))
+        _stage(sid, "PJR-4.xml", _event(
+            "SaleEvent", txn="9919", start=f"{D} 11:40:36", business_date=D,
+            link=("1", "9915", f"{D} 11:36:35"),
+            lines=_prepay("30", status="cancel", pump="4")
+            + _fuel("30", "10.718") + _tender("30"),
+            gross="30", net="30", tax="0",
+        ))
+        commit_business_day(
+            db.session, sid, DAY,
+            events=staged_events_for_day(db.session, sid, DAY),
+            created_by=None,
+        )
+        db.session.commit()
+
+        close = _close(sid, DAY)
+        assert close.gross_sales_cents == 3000
+        assert close.cash_total_cents == 3000
+        assert close.tender_variance_cents == 0
+        assert _hourly(sid, DAY) == {11: 3000}
+        rows = {
+            t.source_file: t
+            for t in db.session.query(PosTransaction).filter_by(store_id=sid)
+        }
+        assert rows["PJR-1.xml"].superseded is True
+        assert rows["PJR-1.xml"].superseded_by_file == "PJR-2.xml"
+        assert rows["PJR-2.xml"].superseded is False
+
+
+def test_commit_lets_one_cancel_replace_only_one_deposit():
+    """Through the commit (which runs the matching three times): an
+    earlier identical $30 prepay that nothing cancelled stays a
+    sale."""
+    with db_session():
+        sid = _store("prepay-cancel-once")
+        _map_all(sid, "1024")
+        _stage(sid, "PJR-0.xml", _cash_prepay("9910", f"{D} 11:20:00"))
+        _stage(sid, "PJR-1.xml", _cash_prepay("9913", f"{D} 11:35:52"))
+        _stage(sid, "PJR-2.xml", _cash_prepay(
+            "9914", f"{D} 11:36:23", status="cancel", suspended=False,
+            change="-30.00",
+        ))
+        commit_business_day(
+            db.session, sid, DAY,
+            events=staged_events_for_day(db.session, sid, DAY),
+            created_by=None,
+        )
+        db.session.commit()
+        close = _close(sid, DAY)
+        assert close.gross_sales_cents == 3000
+        assert close.cash_total_cents == 3000
 
 
 # ── 2. Prepaid fuel: across business days ──────────────────

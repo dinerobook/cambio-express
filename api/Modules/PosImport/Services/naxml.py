@@ -75,6 +75,27 @@ Ground truth from a real Passport 22.01 site (23 business days,
   earlier one, which is superseded the same way. On a real export
   of 105,152 files: 4,661 links, no event restated twice, three
   pairs on different business dates.
+* **Two tickets restate a deposit with no usable link** (found in
+  the same export, two stores; owner, 2026-11-20: book the real
+  figure). Both replace their deposit only when they restate it
+  (the deposit's tenders and items are on them) within an hour on
+  the same register (``_supersede_unlinked``):
+
+  - **A cancelled or moved prepay.** The cashier cancels the
+    prepay (or moves it to another pump) and Passport writes a
+    new, UNLINKED sale (a refund when the ticket nets negative):
+    the deposit's whole ticket again, its prepay line cancelled,
+    the prepaid money handed back as change. It names no deposit,
+    so it is paired with the suspended deposit on the same register
+    and business day that holds the cancelled pump and amount. 45
+    such deposits were counted on top of the real sale ($1,701.71).
+  - **The middle ticket of a three-ticket chain** names the
+    deposit by its OWN start time, so its key matches nothing; it
+    is paired by register and transaction number instead (2
+    deposits, $149.67).
+
+  A deposit completed only by a void, or followed by nothing,
+  still counts, as before.
 * Change back to the customer appears as a negative cash tender
   with ``ChangeFlag="yes"`` — summing tenders as-is yields net
   cash taken in.
@@ -90,10 +111,10 @@ is just reported and skipped.
 """
 from __future__ import annotations
 
+from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from itertools import chain
+from datetime import date, datetime, timedelta
 
 from defusedxml import ElementTree as SafeET
 
@@ -179,6 +200,18 @@ class PjrTender:
     status: str = LINE_STATUS_NORMAL
 
 
+@dataclass
+class PjrPrepayLine:
+    """One FuelPrepayLine: the pump and the amount prepaid on it.
+    Never money on its own (no MerchandiseCode; the completion's
+    FuelLine is the sale). Kept so a later ticket that cancels it can
+    be paired with its deposit (``supersede_prepaid_deposits``)."""
+
+    fuel_position: str
+    amount_cents: int
+    status: str = LINE_STATUS_NORMAL
+
+
 # Aggregation key + display label for pay-at-pump activity. All
 # outside (OutsideSalesFlag="yes") events collapse into one
 # virtual register per day: pump registers carry synthetic IDs
@@ -227,6 +260,8 @@ class PjrEvent:
     # normal-status FuelPrepayLine; a completion carries the link to
     # the deposit it restates.
     has_fuel_prepay: bool = False
+    # Every FuelPrepayLine on the ticket, cancelled ones included.
+    prepay_lines: list[PjrPrepayLine] = field(default_factory=list)
     link_reason: str = ""
     linked_register_id: str = ""
     linked_transaction_id: str = ""
@@ -236,6 +271,11 @@ class PjrEvent:
     # longer counts toward any money total.
     superseded: bool = False
     superseded_by_file: str = ""
+    # Set by ``supersede_prepaid_deposits`` on a ticket that replaced
+    # a deposit without naming it (``_supersede_unlinked``), so it
+    # replaces exactly one however often the matching runs (a day's
+    # commit runs it three times).
+    replaced_unlinked: bool = False
 
     @property
     def sales_cents(self) -> int:
@@ -307,6 +347,22 @@ class PjrEvent:
                 or self.link_reason == LINK_REASON_FUEL_PREPAY
             )
             and bool(self.identity_key)
+        )
+
+    @property
+    def cancels_prepay(self) -> bool:
+        """A sale or refund with no link that cancels a prepay line:
+        what Passport writes when the cashier cancels a prepay or
+        moves it to another pump. It restates the deposit's ticket
+        and hands the prepaid money back, but names no deposit
+        (module docstring). A refund when the ticket nets negative
+        (a lottery cash on it)."""
+        return (
+            self.kind in SALES_KINDS
+            and not self.link_reason
+            and any(
+                p.status == LINE_STATUS_CANCEL for p in self.prepay_lines
+            )
         )
 
 
@@ -568,10 +624,14 @@ def parse_pjr(data: bytes | str) -> PjrEvent:
         event.items.extend(
             _parse_item_line(line, status=status, line_seq=seq),
         )
-        if status == LINE_STATUS_NORMAL and line.find(
-            ".//FuelPrepayLine",
-        ) is not None:
-            event.has_fuel_prepay = True
+        for prepay in line.findall(".//FuelPrepayLine"):
+            event.prepay_lines.append(PjrPrepayLine(
+                fuel_position=_text(prepay, "FuelPositionID"),
+                amount_cents=_cents(prepay, "SalesAmount"),
+                status=status,
+            ))
+            if status == LINE_STATUS_NORMAL:
+                event.has_fuel_prepay = True
         for tender in line.findall(".//TenderInfo"):
             change_el = tender.find(".//ChangeFlag")
             event.tenders.append(PjrTender(
@@ -605,15 +665,16 @@ def supersede_prepaid_deposits(
     """Mark every prepay deposit in ``events`` whose completion is in
     ``events`` or ``completions`` (the module docstring has the
     rule). ``completions`` is for completions that live outside the
-    list being booked — staged on a later business day. Marking only
-    ever adds, so calling this twice is harmless. Returns how many
-    deposits it newly marked."""
+    list being booked — staged on a later business day. Then pair
+    the two kinds of ticket that restate a deposit without a usable
+    link (``_supersede_unlinked``). Marking only ever adds, so
+    calling this twice is harmless. Returns how many deposits it
+    newly marked."""
+    pool = [*events, *completions]
     by_key: dict[str, PjrEvent] = {}
-    for ev in chain(events, completions):
+    for ev in pool:
         if ev.completes_prepay:
             by_key.setdefault(ev.prepay_key, ev)
-    if not by_key:
-        return 0
     marked = 0
     for ev in events:
         if ev.superseded or not ev.can_be_superseded:
@@ -624,6 +685,131 @@ def supersede_prepaid_deposits(
         ev.superseded = True
         ev.superseded_by_file = completion.source_file
         marked += 1
+    return marked + _supersede_unlinked(events, pool)
+
+
+# How long after a deposit Passport writes a ticket that restates it
+# without a usable link. On both real exports the longest gap was 44
+# minutes (a $100 prepay cancelled after the customer waited); an
+# hour leaves room and still keeps a reused transaction number
+# (Passport wraps them) far out of reach.
+UNLINKED_RESTATE_WINDOW = timedelta(hours=1)
+
+
+def _restates(later: PjrEvent, earlier: PjrEvent) -> bool:
+    """True when ``later`` repeats ``earlier``'s ticket: every tender
+    the customer handed over on ``earlier`` and every item rung on it
+    are on ``later`` too. A completion and a cancelling ticket always
+    do (they restate the whole ticket); an unrelated sale practically
+    never carries the same money and the same items."""
+    def handed_over(e: PjrEvent) -> Counter[tuple[str, int]]:
+        return Counter(
+            (t.code, t.amount_cents) for t in e.tenders
+            if t.status == LINE_STATUS_NORMAL and not t.is_change
+        )
+
+    def rung(e: PjrEvent) -> Counter[tuple[str, str, int]]:
+        return Counter(
+            (i.pos_code, i.merchandise_code, i.amount_cents)
+            for i in e.items if i.status == LINE_STATUS_NORMAL
+        )
+
+    return (
+        not (handed_over(earlier) - handed_over(later))
+        and not (rung(earlier) - rung(later))
+    )
+
+
+def _latest_before(
+    later: PjrEvent, candidates: Iterable[PjrEvent],
+) -> PjrEvent | None:
+    """The candidate that started last within the window before
+    ``later`` started, or None."""
+    if later.started_at is None:
+        return None
+    best: tuple[datetime, PjrEvent] | None = None
+    for e in candidates:
+        if e.started_at is None or e is later:
+            continue
+        if not (e.started_at < later.started_at
+                <= e.started_at + UNLINKED_RESTATE_WINDOW):
+            continue
+        if best is None or e.started_at > best[0]:
+            best = (e.started_at, e)
+    return best[1] if best is not None else None
+
+
+def _supersede_unlinked(
+    events: list[PjrEvent], pool: list[PjrEvent],
+) -> int:
+    """The two tickets that restate a deposit with no usable link
+    (module docstring, "no usable link"). Each pairs with the latest
+    open deposit before it on the same register, within
+    ``UNLINKED_RESTATE_WINDOW``, that it restates (``_restates``).
+    Anything that does not fit stays as it is: the deposit keeps
+    counting, as before."""
+    by_register: dict[str, list[PjrEvent]] = defaultdict(list)
+    for e in events:
+        by_register[e.register_id].append(e)
+    identities = {e.identity_key for e in pool if e.identity_key}
+    marked = 0
+
+    # 1. A completion that names its deposit by its OWN start time
+    #    (the suspended middle ticket of a three-ticket chain): the
+    #    key it carries matches nothing, so pair it by register and
+    #    transaction number instead.
+    for c in pool:
+        if not (
+            c.completes_prepay
+            and not c.replaced_unlinked
+            and c.linked_started_at is not None
+            and c.linked_started_at == c.started_at
+            and c.prepay_key not in identities
+        ):
+            continue
+        target = _latest_before(c, (
+            e for e in by_register.get(c.linked_register_id, [])
+            if not e.superseded and e.can_be_superseded
+            and e.transaction_id == c.linked_transaction_id
+            and _restates(c, e)
+        ))
+        if target is not None:
+            target.superseded = True
+            target.superseded_by_file = c.source_file
+            c.replaced_unlinked = True
+            marked += 1
+
+    # 2. A sale that cancels a prepay line and names nothing (the
+    #    prepay was cancelled or moved): it replaces the suspended
+    #    deposit holding that same pump and amount.
+    restating = sorted(
+        (
+            e for e in events
+            if e.cancels_prepay and not e.replaced_unlinked
+            and e.started_at is not None
+        ),
+        key=lambda e: e.started_at or datetime.min,
+    )
+    for r in restating:
+        cancelled = {
+            (p.fuel_position, p.amount_cents) for p in r.prepay_lines
+            if p.status == LINE_STATUS_CANCEL
+        }
+        target = _latest_before(r, (
+            e for e in by_register.get(r.register_id, [])
+            if not e.superseded and e.is_prepay_deposit and e.suspended
+            and e.business_date == r.business_date
+            and any(
+                (p.fuel_position, p.amount_cents) in cancelled
+                for p in e.prepay_lines if p.status == LINE_STATUS_NORMAL
+            )
+            and _restates(r, e)
+        ))
+        if target is not None:
+            target.superseded = True
+            target.superseded_by_file = r.source_file
+            r.replaced_unlinked = True
+            marked += 1
     return marked
 
 
@@ -752,7 +938,8 @@ __all__ = [
     "LINE_STATUS_CANCEL", "LINE_STATUS_NORMAL", "FuelGradeAggregate",
     "LINK_REASON_FUEL_PREPAY", "OUTSIDE_REGISTER_KEY",
     "OUTSIDE_REGISTER_LABEL", "SALES_KINDS",
-    "PjrEvent", "PjrItemLine", "PjrTender", "PosJournalParseError",
-    "RegisterDayAggregate", "aggregate_events", "parse_pjr",
+    "PjrEvent", "PjrItemLine", "PjrPrepayLine", "PjrTender",
+    "PosJournalParseError", "RegisterDayAggregate",
+    "UNLINKED_RESTATE_WINDOW", "aggregate_events", "parse_pjr",
     "prepay_link_key", "supersede_prepaid_deposits",
 ]
