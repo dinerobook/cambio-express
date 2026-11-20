@@ -281,20 +281,21 @@ export default function SuperadminStoreForm() {
 
   return (
     <PageShell maxWidth="44rem">
-      <div className={styles.headerRow}>
+      <PageCrumbs
+        via={isEdit && storeId
+          ? [{ label: name || t("saForm.storeNo", { id: storeId }), to: `/superadmin/stores/${storeId}/drill` }]
+          : []}
+        current={isEdit ? t("saForm.crumbEdit") : t("saForm.crumbNew")}
+      />
 
-        <PageCrumbs
-          via={isEdit && storeId
-            ? [{ label: name || t("saForm.storeNo", { id: storeId }), to: `/superadmin/stores/${storeId}/drill` }]
-            : []}
-          current={isEdit ? t("saForm.crumbEdit") : t("saForm.crumbNew")}
-        />
-
-        <PageHeader title={heading} />
-        <Button type="button" tone="secondary" onClick={leaveToStores}>
-          {t("saForm.back")}
-        </Button>
-      </div>
+      <PageHeader
+        title={heading}
+        actions={(
+          <Button type="button" tone="secondary" onClick={leaveToStores}>
+            {t("saForm.back")}
+          </Button>
+        )}
+      />
 
       <Card padding="1.5rem">
         <SectionTitle>{cardTitle}</SectionTitle>
