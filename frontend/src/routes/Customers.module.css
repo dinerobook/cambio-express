@@ -1,11 +1,5 @@
 /* Page-specific styles for Customers.tsx. */
 
-.searching {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  color: var(--db-text-muted);
-}
-
 .phone {
   font-family: var(--db-font-mono);
   font-size: 0.9rem;
@@ -20,7 +14,6 @@
 .muted {
   color: var(--db-text-muted);
 }
-
 
 /* ── Merge mode ─────────────────────────────────────────── */
 
@@ -54,16 +47,7 @@
   font-weight: 500;
 }
 
-
 /* ── Merge confirmation modal ───────────────────────────── */
-
-/* `.modalBackdrop` + `.modalCard` + `.modalTitle` + `.modalActions`
- * retired — modal chrome now comes from the kit <Modal> in
- * components/ui/Modal.tsx (which also wires the title heading
- * via the `title` prop, so .modalTitle has no remaining caller).
- * `.modalLead` + `.modalGrid` + `.mergeColKept` / `.mergeColDropped`
- * stay because they describe the merge-modal body content,
- * not the chrome itself. */
 
 .modalLead {
   margin: 0 0 1.25rem;

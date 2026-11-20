@@ -1,7 +1,4 @@
-/* Page-specific styles for OwnerDashboard.tsx.
- *
- * `.tabBar` / `.tab` / `.tabActive` retired — the period
- * switcher now uses kit `<TabsBar>` + `<TabsButton>`. */
+/* Page-specific styles for OwnerDashboard.tsx. */
 
 .chartHost {
   height: 280px;
@@ -39,7 +36,3 @@
   color: var(--db-text-muted);
 }
 
-.muted {
-  color: var(--db-text-muted);
-  margin: 0;
-}

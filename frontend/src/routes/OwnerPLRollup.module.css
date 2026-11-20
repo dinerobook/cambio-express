@@ -18,10 +18,6 @@
   font-weight: 600;
 }
 
-.mono {
-  font-family: var(--db-font-mono);
-}
-
 .moneyDefault {
   color: var(--db-text);
 }

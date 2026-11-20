@@ -14,9 +14,6 @@ export type StoreBookMonth =
   components["schemas"]["StoreBookMonthResponse"];
 export type StoreBookMonthRow =
   components["schemas"]["StoreBookMonthRow"];
-export type StoreBookColumn = components["schemas"]["StoreBookColumnSpec"];
-export type StoreBookSection =
-  components["schemas"]["StoreBookSectionSpec"];
 export type StoreBookField = components["schemas"]["StoreBookFieldSpec"];
 export type StoreBookTotals = components["schemas"]["StoreBookTotals"];
 export type StoreBookUpdateBody =

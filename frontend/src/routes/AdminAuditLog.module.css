@@ -14,16 +14,5 @@
   font-weight: 400;
 }
 
-
 /* Row styles live in components/AuditTable.module.css. */
 
-.fine {
-  margin-top: 1rem;
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-  line-height: 1.55;
-}
-
-/* `.actionBadge` retired — ActionBadge now uses the kit `<Pill>`
- * primitive directly, which carries its own styling via the
- * shared `--db-tone-*` tokens. */

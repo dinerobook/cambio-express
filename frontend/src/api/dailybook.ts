@@ -246,7 +246,6 @@ export function useDailyReport(date: string | undefined) {
   });
 }
 
-
 // Range summary used by the calendar landing page. Returns one
 // DailyReportRow per day with a report on it inside the [from, to]
 // window plus the totals. Days that have no report are simply
@@ -261,17 +260,6 @@ export interface PeriodSummary {
 }
 
 // ── Money-transfer auto-fill ─────────────────────────────────
-
-export interface TransferCompanyTotals {
-  company: string;
-  count: number;
-  amount: number;
-  fees: number;
-  federal_tax: number;
-  commission: number;
-  total: number;
-}
-
 
 // ── Editable per-company MT breakdown ────────────────────────
 
@@ -360,7 +348,6 @@ export async function replaceMTBreakdown(
     { method: "PUT", json: services === undefined ? { rows } : { rows, services } },
   );
 }
-
 
 export function useDailyPeriod(from: string, to: string) {
   const identity = getCurrentIdentity();

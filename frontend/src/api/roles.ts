@@ -52,8 +52,6 @@ export type PermMatrix = Record<string, Record<string, boolean>>;
 export type AccessRole = Schemas["AccessRoleRow"]
   & Partial<Pick<Schemas["AccessRoleUpdateResponse"], "affected_members">>;
 
-export type RoleMember = Schemas["AccessRoleMember"];
-
 export type RoleListResponse = Schemas["AccessRoleListResponse"];
 
 export function useAccessRoles() {

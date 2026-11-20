@@ -6,11 +6,6 @@
   align-items: center;
 }
 
-.cellLink {
-  color: inherit;
-  text-decoration: none;
-}
-
 .mono {
   font-family: var(--db-font-mono);
 }

@@ -37,7 +37,6 @@ export function useOwnerLocations(period: OwnerPeriod = "month", q = "") {
   });
 }
 
-
 export type OwnerPLRollupRow = components["schemas"]["OwnerPLRollupRow"];
 
 export type OwnerPLRollupTotals = components["schemas"]["OwnerPLRollupTotals"];
@@ -76,7 +75,6 @@ export async function revokeOwnerConnectCode(
   return r.code;
 }
 
-
 export function useOwnerPLRollup(year?: number, month?: number) {
   const identity = getCurrentIdentity();
   const enabled =
@@ -97,7 +95,6 @@ export function useOwnerPLRollup(year?: number, month?: number) {
   });
 }
 
-
 // ── Owner dashboard + store detail (PR for /app/owner/dashboard) ──
 
 export type OwnerStoreCard = components["schemas"]["OwnerStoreCard"];
@@ -113,7 +110,6 @@ export function useOwnerDashboard(period: "today" | "month" | "year") {
   });
 }
 
-export type OwnerStoreDetailRow = components["schemas"]["OwnerRecentTransfer"];
 export type OwnerStoreDetailPayload = components["schemas"]["OwnerStoreDetailResponse"];
 
 export function useOwnerStoreDetail(
@@ -128,7 +124,6 @@ export function useOwnerStoreDetail(
     enabled: storeId > 0,
   });
 }
-
 
 // ── Bulk add user ───────────────────────────────────────────
 
@@ -156,7 +151,6 @@ export async function bulkAddUser(
     json: body,
   });
 }
-
 
 // ── Cross-store defaults ────────────────────────────────────
 
@@ -207,7 +201,6 @@ export async function redeemConnectCode(code: string): Promise<{ owner_name: str
     json: { code },
   });
 }
-
 
 // ── Billing rollup (B-1) ─────────────────────────────────────
 // Subscriptions are per-store, so this is the one place an owner

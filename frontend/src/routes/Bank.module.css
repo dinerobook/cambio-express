@@ -93,10 +93,3 @@
   gap: 0.5rem;
 }
 
-.amountPos {
-  color: var(--db-accent);
-}
-
-.amountNeg {
-  color: var(--db-negative);
-}

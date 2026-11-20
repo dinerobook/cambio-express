@@ -81,11 +81,6 @@
   font-weight: 500;
 }
 
-.emptyNote {
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-}
-
 .emptyLink {
   color: var(--db-accent);
 }

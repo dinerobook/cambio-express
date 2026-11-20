@@ -101,7 +101,6 @@ export function useSuperadminStoresPage(opts: SuperadminStoresQuery) {
   });
 }
 
-
 export type SuperadminSetupProgressRow = components["schemas"]["SuperadminSetupProgressRow"];
 export type SuperadminSetupProgressResponse = components["schemas"]["SuperadminSetupProgressResponse"];
 
@@ -132,7 +131,6 @@ export function useSuperadminSetupProgress(opts: SuperadminSetupProgressQuery) {
     placeholderData: (prev) => prev,
   });
 }
-
 
 export type SuperadminAuditRow = components["schemas"]["SuperadminAuditRow"];
 
@@ -174,7 +172,6 @@ export async function updateSuperadminStore(
   );
 }
 
-
 /** One page of the platform audit log — the request the page and
  *  its CSV export both make. */
 export function fetchSuperadminAuditLog(
@@ -201,7 +198,6 @@ export function useSuperadminAuditLog(
   });
 }
 
-
 // ── Report center ───────────────────────────────────────────
 
 export type SuperadminReportRow = components["schemas"]["SuperadminReportRow"];
@@ -220,12 +216,9 @@ export function useSuperadminReports() {
   });
 }
 
-
 type Schemas = components["schemas"];
 
-export type PlanDistEntry = Schemas["SuperadminPlanCount"];
 export type VolumeByCompany = Schemas["SuperadminCompanyVolume"];
-export type TopReferrer = Schemas["SuperadminTopReferrer"];
 export type ActivityEntry = Schemas["SuperadminActivityRow"];
 export type SuperadminDashboardData = Schemas["SuperadminDashboardResponse"];
 
@@ -238,7 +231,6 @@ export function useSuperadminDashboard() {
       api<SuperadminDashboardData>("/api/v2/superadmin/dashboard"),
   });
 }
-
 
 export type SuperadminUserRow = Schemas["SuperadminUserRow"];
 type SuperadminUserListResponse = Schemas["SuperadminUserListResponse"];
@@ -461,7 +453,6 @@ export function useStoreFeatures(storeId: number | undefined) {
   });
 }
 
-export type RetentionDryRunStoreRow = Schemas["SuperadminRetentionStore"];
 export type RetentionDryRunResponse = Schemas["SuperadminRetentionDryRunResponse"];
 
 export async function retentionDryRun() {
@@ -545,7 +536,6 @@ export async function bulkStoreAction(
     { method: "POST", json: { store_ids, action, days } },
   );
 }
-
 
 // ── Owner links (U-5b concierge onboarding) ────────────────
 

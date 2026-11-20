@@ -4,12 +4,6 @@
  * filter-row + table chrome.
  */
 
-.backLink {
-  color: var(--db-text-muted);
-  font-size: 0.85rem;
-  text-decoration: none;
-}
-
 .actionRow {
   display: flex;
   flex-wrap: wrap;
@@ -23,12 +17,6 @@
 .actionRow > button {
   /* Optical alignment against the taller date inputs. */
   margin-bottom: 0.1rem;
-}
-
-.dateForm {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
 }
 
 .inputLabel {
@@ -50,9 +38,6 @@
   font-size: 0.85rem;
   font-family: inherit;
 }
-
-/* `.btnOutline` retired — toolbar buttons now use the kit
- * `<Button tone="secondary" size="sm">` primitive directly. */
 
 .filterRow {
   display: flex;
@@ -81,6 +66,3 @@
   font-size: 0.9rem;
 }
 
-.mono {
-  font-family: var(--db-font-mono);
-}

@@ -32,7 +32,6 @@ const BASE = "/api/v2/check-cashing";
 // ── Stored values → words ────────────────────────────────────
 
 export const PARTY_STATUSES = ["normal", "trusted", "blocked"] as const;
-export type PartyStatus = (typeof PARTY_STATUSES)[number];
 
 /** Status → Pill tone (UI-STANDARDS §3): trusted is good, blocked a
  *  stop, normal nothing special. */
@@ -56,7 +55,6 @@ export function partyStatusLabel(value: string | null | undefined): string {
 export const ID_TYPES = [
   "drivers_license", "state_id", "passport", "matricula", "military_id", "other",
 ] as const;
-export type IdType = (typeof ID_TYPES)[number];
 
 const ID_TYPE_KEYS: Record<string, MessageKey> = {
   drivers_license: "checkCashing.idDriversLicense",
@@ -600,7 +598,6 @@ export function switchOffCheckDevice(): Promise<CheckDevice> {
 
 export type CheckPictureBody = components["schemas"]["CheckPictureBody"];
 export type CheckPicture = components["schemas"]["CheckPictureResponse"];
-export type PictureKind = CheckPictureBody["kind"];
 
 /** Save a picture (base64). The server cleans it and answers its id. */
 export function uploadCheckPicture(body: CheckPictureBody): Promise<CheckPicture> {

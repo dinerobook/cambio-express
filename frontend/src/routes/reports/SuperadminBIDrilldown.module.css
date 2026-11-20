@@ -33,9 +33,6 @@
   font-family: inherit;
 }
 
-/* `.btnOutline` retired — toolbar buttons now use the kit
- * `<Button tone="secondary" size="sm">` primitive directly. */
-
 .filterRow {
   display: flex;
   justify-content: space-between;

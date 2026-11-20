@@ -23,9 +23,6 @@ import { isValidPhoneNumber, type CountryCode } from "libphonenumber-js";
 export const zRequiredString = (label = "This field") =>
   z.string().trim().min(1, `${label} is required`);
 
-/** Trimmed, optional (empty string allowed). */
-export const zOptionalString = z.string().trim();
-
 // Pragmatic email shape — one @, a dot in the domain, no spaces. We
 // deliberately don't chase the full RFC 5322 grammar; the real
 // deliverability check is the server + the confirmation email.
@@ -66,13 +63,7 @@ export const zPositiveInt = z.coerce
   .int("Must be a whole number")
   .positive("Must be greater than 0");
 
-/** Coerced number ≥ 0. */
-export const zNonNegativeNumber = z.coerce
-  .number()
-  .min(0, "Must be 0 or more");
-
-/** Money amount — coerced number ≥ 0. Use `zMoneyPositive` when 0 is invalid. */
-export const zMoney = z.coerce.number().min(0, "Must be 0 or more");
+/** Money amount — coerced number > 0. */
 export const zMoneyPositive = z.coerce
   .number()
   .positive("Must be greater than 0");
@@ -87,10 +78,6 @@ export const zFraction = z.coerce
 
 /** A dropdown that must be chosen (non-empty value). */
 export const zRequiredSelect = (label = "Selection") =>
-  z.string().min(1, `${label} is required`);
-
-/** A required date string (a `<DateInput>` value, "YYYY-MM-DD"). */
-export const zRequiredDate = (label = "Date") =>
   z.string().min(1, `${label} is required`);
 
 // ── Phone ──────────────────────────────────────────────────
