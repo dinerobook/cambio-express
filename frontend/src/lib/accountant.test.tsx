@@ -48,7 +48,7 @@ describe("accountant page access", () => {
 
   it("is refused everything else, open pages included", () => {
     for (const to of [
-      "/dashboard", "/hub/daily", "/daily", "/daily/edit", "/monthly/edit",
+      "/dashboard", "/hub/msb", "/daily", "/daily/edit", "/monthly/edit",
       "/monthly/categories", "/transfers", "/customers", "/batches",
       "/bank-transactions", "/employees", "/team/roles", "/timeclock",
       "/settings/general", "/settings/money-services", "/settings/billing",
@@ -113,20 +113,25 @@ describe("Gate for an accountant", () => {
 });
 
 describe("accountant sidebar", () => {
-  it("shows Reports (with the P&L and tax pack) and Account only", () => {
+  it("shows MSB reports, Reports (with the P&L and tax pack) and Account only", () => {
+    // MSB reports sits in the MSB group (owner, 2026-11-19); the rest
+    // of the accountant's pages keep their own Reports menu.
     const groups = filterNavForRole("accountant", accountant.permissions, []);
-    expect(groups.map((g) => g.title)).toEqual(["Reports", "Account"]);
-    const reports = groups[0].items.map((i) => i.to);
-    expect(reports).toEqual(["/reports", "/monthly", "/admin/data-export"]);
-    const account = groups[1].items.map((i) => i.to);
+    expect(groups.map((g) => g.title)).toEqual(["MSB", "Reports", "Account"]);
+    expect(groups[0].items.map((i) => i.to)).toEqual(["/reports"]);
+    const reports = groups[1].items.map((i) => i.to);
+    expect(reports).toEqual(["/monthly", "/admin/data-export"]);
+    const account = groups[2].items.map((i) => i.to);
     expect(account).toEqual(["/settings", "/account/activity", "/account/sessions"]);
     expect(canAccessWith(accountant, SUPPORT_LINK.to)).toBe(false);
   });
 
-  it("an admin's Reports menu is unchanged", () => {
+  it("an admin finds each report center in its business's group", () => {
     const groups = filterNavForRole("admin", TEST_ADMIN.permissions, ["module_day_close"]);
-    const reports = groups.find((g) => g.title === "Reports");
-    expect(reports?.items.map((i) => i.to)).toEqual(["/reports", "/store-reports"]);
+    const to = (title: string) => groups.find((g) => g.title === title)?.items.map((i) => i.to);
+    expect(to("MSB")).toContain("/reports");
+    expect(to("Retail")).toContain("/store-reports");
+    expect(groups.map((g) => g.title)).not.toContain("Reports");
   });
 
   it("names the role Accountant on team lists", () => {

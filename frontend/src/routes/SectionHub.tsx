@@ -19,12 +19,24 @@ import { getCurrentIdentity } from "../lib/auth";
 // direct /hub/:key navigation.  `key` is the per-role section slug
 // from `sectionSlug(group.title)`.
 
+// Old slug → new slug for a section that was renamed, so a saved
+// link still opens it. "Money services" became "MSB" (owner,
+// 2026-11-19); "Daily" was split between MSB and Retail, so its old
+// link falls through to the landing page like any unknown slug.
+const RENAMED_SECTIONS: Record<string, string> = {
+  "money-services": "msb",
+};
+
 export default function SectionHub() {
   const { key = "" } = useParams<{ key: string }>();
   const identity = getCurrentIdentity();
   const role = identity?.role ?? "";
   const perms = identity?.permissions ?? [];
   const { data: sessionStatus } = useSessionStatus();
+
+  // A renamed section keeps its old link working.
+  const renamed = RENAMED_SECTIONS[key];
+  if (renamed) return <Navigate to={`/hub/${renamed}`} replace />;
 
   const groups = filterNavForRole(role, perms, sessionStatus?.features);
   const group = groups.find((g) => sectionSlug(g.title) === key);

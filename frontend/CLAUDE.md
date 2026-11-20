@@ -203,8 +203,11 @@ Non-negotiables:
 
 ## Sidebar (root invariant 2)
 The nav is ONE table, `NAV` in `src/components/navConfig.tsx` (store:
-Dashboard · Daily · Money services · Team · Reports · Finance · Displays
-· Owner · Account; superadmin adds **Platform**). A new page belongs to
+Dashboard · MSB · Retail · Team · Finance · Displays · Owner · Account,
+plus the accountant's Reports; superadmin adds **Platform**). A store's
+work is grouped by business: MSB (money services) and Retail
+(convenience store / gas station), each with its own reports
+(UI-STANDARDS §8). A new page belongs to
 exactly one group: add the link there and the route's access row in
 `src/lib/access.ts`. `filterNavForRole` hides items the person cannot
 open and groups left empty.
@@ -217,9 +220,10 @@ shows only where the store has the app and the person also has back
 office rights (`lib/workspace.ts`), and someone with only check rights
 always lands in it. Its pages are titled by their `CHECK_NAV` title
 and their trail starts with the app's name. Never put a separate
-app's pages back into `NAV`.
+app's pages back into `NAV`: the MSB group carries ONE link that opens
+the app ("Check cashing"), and nothing else of it.
 The view-only **Accountant** sees only the pages in `ACCOUNTANT_PAGES`
-(`src/lib/access.ts`), lands on Reports (`homePathFor`), and its
+(`src/lib/access.ts`), lands on MSB reports (`homePathFor`), and its
 Reports menu carries Monthly P&L and Data export (it has no
 dashboard). A page for accountants needs a line there AND on the
 server's list (`api/Core/Permissions/accountant.py`). Moving between
