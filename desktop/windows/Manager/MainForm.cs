@@ -148,6 +148,12 @@ internal sealed class MainForm : Form
         _elevate.Click += async (_, _) =>
         {
             await Task.Yield(); // Windows' prompt waits for an answer
+            // Installed with the no-prompt task: no prompt at all.
+            if (!_paths.IsCustom && Program.IsInstalledCopy && NoPromptLaunch.TryStart())
+            {
+                Close();
+                return;
+            }
             if (Elevation.RestartElevated(_args)) Close();
         };
     }
@@ -663,19 +669,39 @@ internal sealed class MainForm : Form
             _serviceResult.Text = "Installing…";
             try
             {
-                await Task.Run(() =>
+                var shortcut = await Task.Run(() =>
                 {
                     ServiceControl.InstallOrUpdate(source);
                     _setup.SecureFolder();
                     ServiceControl.Start();
+                    return RegisterNoPrompt();
                 });
-                _serviceResult.Text = $"Installed and started as {ServiceControl.Account}. It starts by itself with Windows.";
+                _serviceResult.Text = $"Installed and started as {ServiceControl.Account}. It starts by itself with Windows. " + shortcut;
             }
             catch (Exception ex)
             {
                 _serviceResult.Text = "✖ " + Explain(ex);
             }
         });
+    }
+
+    /// <summary>The no-prompt task and its desktop shortcut, for the Manager's
+    /// copy in Program Files (the owner's LdPosService way). A failure here
+    /// is only reported: the service is installed either way.</summary>
+    private static string RegisterNoPrompt()
+    {
+        var manager = ServiceControl.InstalledManagerExe;
+        if (!File.Exists(manager)) return "";
+        try
+        {
+            NoPromptLaunch.Register(manager);
+            return "Open this window from the \"DineroBook Manager\" shortcut on the desktop: no Windows prompt.";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or IOException
+                                       or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            return "(The no-prompt desktop shortcut could not be made: " + ex.Message + ")";
+        }
     }
 
     private async Task ServiceActionAsync(string doing, Action action, string done)
@@ -711,7 +737,11 @@ internal sealed class MainForm : Form
             _serviceResult.Text = "Removing…";
             try
             {
-                await Task.Run(ServiceControl.Uninstall);
+                await Task.Run(() =>
+                {
+                    ServiceControl.Uninstall();
+                    NoPromptLaunch.Remove();
+                });
                 if (forgetKey) _setup.ForgetKey();
                 _serviceResult.Text = "Removed. The data folder (" + _paths.Root + ") was left in place.";
             }

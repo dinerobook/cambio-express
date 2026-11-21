@@ -206,6 +206,26 @@ BOOutbox share, `\\10.5.48.2\XMLGateway\BOOutBox` at Gilbarco sites
    NetworkService, starts, and starts with Windows from then on
    (delayed start; Windows restarts it after 1 minute, again after 1,
    then every 5 if it stops).
+
+   Install / Update also puts a **DineroBook Manager** shortcut on the
+   desktop. From then on, open the Manager from that shortcut: it
+   opens with administrator rights and without the Windows prompt, so
+   "Restart as administrator" is needed only the first time. This is
+   the owner's LdPosService way (`Disable-RunExeAsAdmin.bat`), built in
+   (`NoPromptLaunch`):
+   - a scheduled task `DineroBook\Manager` starts
+     `C:\Program Files\DineroBook\Processor\DineroBookManager.exe
+     --from-task` "with highest privileges";
+   - the task only runs from the shortcut (`schtasks /Run`), never by
+     itself, and only for the Windows user who clicked Install;
+   - opening that Program Files copy directly goes through the task
+     too. UAC itself is not changed.
+
+   The task starts the copy in **Program Files**, never one in
+   ProgramData or Downloads. Only administrators can change Program
+   Files. Every user may add files to ProgramData, and a file planted
+   beside a program that starts with administrator rights would run
+   with them too. Uninstall removes the task and the shortcut.
 7. **Status** shows the store, the last upload, today's count and what
    is waiting. **Test connection** checks the address and the key
    without sending a file.
