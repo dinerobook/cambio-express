@@ -21,10 +21,10 @@ namespace DineroBook.Processor;
 /// ticked "Delete files from XMLGateway");</item>
 /// <item>a file goes up once its size and time held still across two
 /// polls;</item>
-/// <item>business days in order (<see cref="UploadScheduler"/>): a day's
-/// files go in parallel, and no file of a later day goes while a file of an
-/// earlier day is still on its way — the server books day D as soon as a
-/// file of a later day arrives;</item>
+/// <item>from the service's inbox every file goes the moment it is listed,
+/// in the order the files arrived, many at once (owner, 2026-11-20). Without
+/// an inbox (tests, a folder read directly) business days go in order
+/// (<see cref="UploadScheduler"/>);</item>
 /// <item>a slow or failing file never holds up files of its own day; it is
 /// retried with backoff;</item>
 /// <item>nothing is ever dropped: every answer but "accepted" and "refused
@@ -77,7 +77,7 @@ public sealed class ProcessorEngine
     private readonly Action<string, ProcessorSettings>? _onFinished;
     private readonly Func<SourceInfo>? _source;
     private volatile bool _nudged;
-    private readonly UploadScheduler _schedule = new();
+    private readonly UploadScheduler _schedule;
     private readonly UploadPacer _pacer = new();
     private readonly List<InFlight> _inFlight = new();
     private readonly ProcessorStatus _status;
@@ -137,6 +137,9 @@ public sealed class ProcessorEngine
         _inbox = inbox;
         _onFinished = onFinished;
         _source = source;
+        // From the inbox every file is whole and goes at once, as it came
+        // (owner, 2026-11-20): no business-day order, no settling.
+        _schedule = new UploadScheduler(inOrder: inbox is null);
         _paths = paths;
         _config = config;
         _folder = folder;
@@ -405,9 +408,13 @@ public sealed class ProcessorEngine
             }
             if (content is null) return new Attempt(AttemptKind.NotReady);
 
-            // The bytes about to go decide the day, not an earlier look.
-            var actual = BusinessDateReader.Read(content, complete: true);
-            if (actual != day) return new Attempt(AttemptKind.DayChanged, Day: actual);
+            // The bytes about to go decide the day, not an earlier look
+            // (only when files go in business-day order).
+            if (_schedule.InOrder)
+            {
+                var actual = BusinessDateReader.Read(content, complete: true);
+                if (actual != day) return new Attempt(AttemptKind.DayChanged, Day: actual);
+            }
 
             var result = await uploader.UploadAsync(file.Name, content, ct).ConfigureAwait(false);
             return new Attempt(AttemptKind.Uploaded, result);

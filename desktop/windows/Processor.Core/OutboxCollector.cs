@@ -22,8 +22,14 @@ namespace DineroBook.Processor;
 /// again every <see cref="RetryBusyEvery"/>). Other programs may still read
 /// it and delete it while it is open.</item>
 /// <item>The copy is written beside the inbox and moved in whole, then the
-/// name goes in <c>collected.txt</c>, so a file is never copied twice — not
-/// after a restart, and not when it stays in BOOutbox.</item>
+/// name goes in that day's <c>state\collected\YYYY-MM-DD.txt</c>
+/// (<see cref="DailyLedger"/>), so a file is never copied twice — not after
+/// a restart, and not when it stays in BOOutbox.</item>
+/// <item>The watcher is checked on every pass and made again, at most every
+/// <see cref="WatcherRetryEvery"/> (30 s), when it failed, when the share
+/// came back after being unreachable (a watcher on a dropped share is dead
+/// even when it says nothing), or when a listing finds a file it should
+/// have reported. Store PCs are often on Wi-Fi: the network drops.</item>
 /// <item>Only with "Delete files from XMLGateway" ticked
 /// (<see cref="ProcessorSettings.DeleteFromOutbox"/>) is the original deleted,
 /// after the copy is safe. A delete that fails is reported, never fatal.</item>
@@ -40,7 +46,14 @@ public sealed class OutboxCollector : IDisposable
     public static readonly TimeSpan BusyGiveUpAfter = TimeSpan.FromMinutes(2);
     public static readonly TimeSpan CopyTimeout = TimeSpan.FromSeconds(30);
     public static readonly TimeSpan DeleteTimeout = TimeSpan.FromSeconds(15);
+    /// <summary>A watcher is made again at most this often (owner: retry
+    /// every 30 seconds).</summary>
     public static readonly TimeSpan WatcherRetryEvery = TimeSpan.FromSeconds(30);
+    /// <summary>A file a listing found that the watcher still has not
+    /// reported this long after (by this computer's clock, never the file's
+    /// time: Passport's clock may be off) means the watcher died without a
+    /// word.</summary>
+    public static readonly TimeSpan WatcherGrace = TimeSpan.FromSeconds(2);
     public static readonly TimeSpan RecheckEvery = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan RepeatProblemLogEvery = TimeSpan.FromMinutes(30);
 
@@ -54,9 +67,19 @@ public sealed class OutboxCollector : IDisposable
     private readonly TimeSpan _copyTimeout;
 
     private readonly Dictionary<string, Candidate> _candidates = new(StringComparer.OrdinalIgnoreCase);
-    private FileLedger? _collected;
+    private DailyLedger? _collected;
     private IOutboxWatcher? _watcher;
     private string _watching = "";
+    private readonly HashSet<string> _watcherSaw = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Files a listing found that the watcher had not reported, and
+    /// when: the watcher has <see cref="WatcherGrace"/> to report them.</summary>
+    private readonly Dictionary<string, DateTimeOffset> _unreported = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>The first listing after a watcher starts only shows what was
+    /// already there; files in it never count against the watcher.</summary>
+    private bool _watcherListed;
+    /// <summary>Names in the last listing: a file is new only the first time
+    /// a listing shows it (one left for later, busy or hidden, is not).</summary>
+    private HashSet<string> _listedBefore = new(StringComparer.OrdinalIgnoreCase);
     private DateTimeOffset _nextWatcherTry = DateTimeOffset.MinValue;
     private DateTimeOffset _nextScanAt = DateTimeOffset.MinValue;
     private string _source = "";
@@ -128,6 +151,7 @@ public sealed class OutboxCollector : IDisposable
         {
             _source = settings.WatchFolder;
             _candidates.Clear();
+            _listedBefore.Clear();
             _nextScanAt = DateTimeOffset.MinValue;
             StopWatcher();
         }
@@ -135,11 +159,17 @@ public sealed class OutboxCollector : IDisposable
         var poll = TimeSpan.FromSeconds(settings.EffectivePollSeconds);
         var now = Now;
 
-        EnsureWatcher(now);
         if (_watcher is not null)
         {
-            foreach (var name in _watcher.TakeNames()) Notice(name, now);
+            foreach (var name in _watcher.TakeNames())
+            {
+                _watcherSaw.Add(name);
+                _unreported.Remove(name);
+                Notice(name, now);
+            }
+            CheckWatcher(now);
         }
+        EnsureWatcher(now);
         if (now >= _nextScanAt)
         {
             Scan(now);
@@ -192,11 +222,40 @@ public sealed class OutboxCollector : IDisposable
         if (Problem.StartsWith("Cannot open the Passport folder", StringComparison.Ordinal))
         {
             Clear($"The Passport folder {_source} can be read again.");
+            // A watcher on a share that dropped is dead even when it said
+            // nothing: make a new one.
+            if (_watcher is not null) StopWatcher();
         }
+        var watching = _watcher is { Alive: true };
+        var listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var f in listing)
         {
-            if (f.Length > 0) Notice(f.Name, now);
+            listed.Add(f.Name);
+            if (f.Length == 0) continue;
+            // New since the last listing, which itself came after this
+            // watcher started, and the watcher has not said a word about it.
+            if (watching && _watcherListed && !_listedBefore.Contains(f.Name) && !_watcherSaw.Contains(f.Name)
+                && !_candidates.ContainsKey(f.Name) && !Known(f.Name))
+            {
+                _unreported.TryAdd(f.Name, now);
+            }
+            Notice(f.Name, now);
         }
+        _listedBefore = listed;
+        if (watching) _watcherListed = true;
+    }
+
+    /// <summary>A file a listing found and the watcher has still not reported
+    /// after <see cref="WatcherGrace"/>: the watcher has died without a word
+    /// (a Passport reboot, a stale share session, Wi-Fi dropping). The file is
+    /// already copied; a new watcher is made (at most every
+    /// <see cref="WatcherRetryEvery"/>).</summary>
+    private void CheckWatcher(DateTimeOffset now)
+    {
+        var missed = _unreported.FirstOrDefault(kv => now - kv.Value >= WatcherGrace).Key;
+        if (missed is null) return;
+        _log.LogWarning("The watcher on {Folder} did not report {File}; making a new one.", _watching, missed);
+        StopWatcher();
     }
 
     private void Collect(string name)
@@ -348,11 +407,16 @@ public sealed class OutboxCollector : IDisposable
             _nextScanAt = DateTimeOffset.MinValue;
         }
         if (now < _nextWatcherTry) return;
+        _nextWatcherTry = now + WatcherRetryEvery;
         _watcher = _watcherFor(_source);
         _watching = _source;
+        _watcherSaw.Clear();
+        _unreported.Clear();
+        _watcherListed = false;
+        // List at once: that listing is what was there before this watcher.
+        _nextScanAt = DateTimeOffset.MinValue;
         if (_watcher is null)
         {
-            _nextWatcherTry = now + WatcherRetryEvery;
             _log.LogWarning("Could not watch {Folder} just now; listing it every poll and trying the watcher again in {Seconds} seconds.",
                 _source, WatcherRetryEvery.TotalSeconds);
         }
@@ -375,7 +439,7 @@ public sealed class OutboxCollector : IDisposable
         try
         {
             Directory.CreateDirectory(_paths.Inbox);
-            _collected = FileLedger.Open(_paths.CollectedLedger, _time.LocalTimeZone);
+            _collected = DailyLedger.Open(_paths.CollectedLedgers, _time.LocalTimeZone);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

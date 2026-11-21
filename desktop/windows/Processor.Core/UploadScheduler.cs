@@ -57,10 +57,27 @@ public sealed class TrackedFile
 /// file goes (it might be the older day), for at most
 /// <see cref="UnknownHoldLimit"/>.</item>
 /// </list>
+/// Those rules hold only with <c>inOrder: true</c> (a folder read directly).
+/// From the service's inbox (<c>inOrder: false</c>) every file is whole when
+/// it lands, so each goes at once in the order it came, with no day order and
+/// no waiting on another file (owner, 2026-11-20): the server works out a day
+/// from the events' own start and end times.
 /// Pure bookkeeping: the engine does the reading and sending.
+/// <para>
+/// The service runs it with <c>inOrder: false</c> (owner, 2026-11-20): it
+/// sends from its own inbox, where every file is already whole, so a file
+/// is ready the moment it is listed and goes at once, in the order the
+/// files arrived — no business-day order, no waiting on another file. The
+/// server puts each file in its tables as it comes and works out a day from
+/// the events' own start and end times.
+/// </para>
 /// </summary>
-public sealed class UploadScheduler
+public sealed class UploadScheduler(bool inOrder = true)
 {
+    /// <summary>False: every file goes as soon as it is listed (the
+    /// service's inbox).</summary>
+    public bool InOrder { get; } = inOrder;
+
     /// <summary>How long a file still being written, whose day cannot be
     /// read yet, holds dated files back.</summary>
     public static readonly TimeSpan UnknownHoldLimit = TimeSpan.FromMinutes(2);
@@ -86,7 +103,10 @@ public sealed class UploadScheduler
             present.Add(snap.Name);
             if (!_files.TryGetValue(snap.Name, out var f))
             {
-                _files[snap.Name] = new TrackedFile(snap, now);
+                var added = new TrackedFile(snap, now);
+                // A whole file in the inbox: ready at once.
+                if (!InOrder && snap.Length > 0) added.Stage = FileStage.Ready;
+                _files[snap.Name] = added;
                 continue;
             }
             if (f.Stage == FileStage.InFlight) continue;
@@ -113,7 +133,7 @@ public sealed class UploadScheduler
 
     /// <summary>Files whose day should be read now: ready ones without a
     /// final day first (oldest first), then settling ones still unknown.</summary>
-    public IReadOnlyList<TrackedFile> NeedDay(int max) =>
+    public IReadOnlyList<TrackedFile> NeedDay(int max) => !InOrder ? [] :
         _files.Values
             .Where(f => f.Snapshot.Length > 0
                         && ((f.Stage is FileStage.Ready or FileStage.Retrying && !f.DayFinal)
@@ -159,6 +179,15 @@ public sealed class UploadScheduler
     {
         if (slots <= 0) return [];
         bool Due(TrackedFile f) => f.Stage == FileStage.Ready || (f.Stage == FileStage.Retrying && f.NextTryAt <= now);
+        if (!InOrder)
+        {
+            // As they came: the oldest file first, every one due now.
+            return _files.Values.Where(Due)
+                .OrderBy(f => f.Snapshot.LastWriteUtc)
+                .ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+                .Take(slots)
+                .ToList();
+        }
 
         var list = new List<TrackedFile>();
         var oldest = OldestDay;
@@ -184,6 +213,7 @@ public sealed class UploadScheduler
     /// a later day is waiting.</summary>
     public (TrackedFile File, string Why)? HeldBy(DateTimeOffset now)
     {
+        if (!InOrder) return null;
         var oldest = OldestDay;
         var later = oldest is { } d && _files.Values.Any(f => f.Day.Kind == DayKind.Dated && f.Day.Date > d && f.Stage != FileStage.InFlight);
         if (UnknownHolder(now) is { } u && (later || oldest is not null))

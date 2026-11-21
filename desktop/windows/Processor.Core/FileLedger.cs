@@ -51,6 +51,9 @@ public sealed class FileLedger
 
     public bool Contains(string name) => _names.Contains(name);
 
+    /// <summary>Every name in the ledger.</summary>
+    public IEnumerable<string> Names => _names;
+
     /// <summary>How many entries were added on this local day.</summary>
     public int CountOn(DateOnly localDay) => _perDay.GetValueOrDefault(localDay);
 

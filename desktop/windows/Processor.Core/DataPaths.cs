@@ -10,7 +10,8 @@ namespace DineroBook.Processor;
 ///                      sent from here and deleted once the server has it
 /// state\archive\       sent files kept on this PC (only with "Delete files
 ///                      from the temp folder" unticked), one folder a day
-/// state\collected.txt  files copied from the Passport folder (never copied twice)
+/// state\collected\     files copied from the Passport folder, one file a day
+///                      (2026-11-20.txt): never copied twice
 /// state\sent.txt       files the server accepted (the ledger)
 /// state\skipped.txt    files the server refused for good (422)
 /// state\status.json    what the service is doing, for the Manager
@@ -66,7 +67,8 @@ public sealed class DataPaths
     /// <summary>Where a copy is written before it is moved into the inbox
     /// whole, so the sender never sees half a file.</summary>
     public string Incoming => Path.Combine(Inbox, ".incoming");
-    public string CollectedLedger => Path.Combine(State, "collected.txt");
+    /// <summary>One ledger file per local day (<see cref="DailyLedger"/>).</summary>
+    public string CollectedLedgers => Path.Combine(State, "collected");
     public string Archive => Path.Combine(State, "archive");
     public string SentLedger => Path.Combine(State, "sent.txt");
     public string SkippedLedger => Path.Combine(State, "skipped.txt");

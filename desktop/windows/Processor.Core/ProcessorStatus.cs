@@ -58,8 +58,9 @@ public sealed class ProcessorStatus
     /// <summary>Files being sent right now.</summary>
     public int Uploading { get; set; }
 
-    /// <summary>When files of later business days are held back: the file
-    /// of the older day they wait for, and why ("" when none).</summary>
+    /// <summary>When files of later business days are held back (only when
+    /// a folder is read directly, never from the inbox): the file of the
+    /// older day they wait for, and why ("" when none).</summary>
     public string WaitingOn { get; set; } = "";
 
     public string LastError { get; set; } = "";

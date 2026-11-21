@@ -84,6 +84,21 @@ public class EngineInboxTests
     }
 
     [Fact]
+    public async Task Every_file_goes_at_once_as_it_came_whatever_its_business_day()
+    {
+        using var rig = new Rig();
+        // A later business day written first, then an earlier one: no
+        // order by day, no wait for a file to settle (owner, 2026-11-20).
+        rig.Folder.Put("PJR-later-day.xml", Naxml.Sale("2026-11-18"), W0);
+        rig.Folder.Put("PJR-earlier-day.xml", Naxml.Sale(D), W0.AddSeconds(1));
+
+        await rig.Engine.RunCycleAsync(CancellationToken.None); // one pass
+
+        Assert.Equal(["PJR-later-day.xml", "PJR-earlier-day.xml"], rig.Server.Uploads);
+        Assert.Equal("", rig.Engine.Status.WaitingOn);
+    }
+
+    [Fact]
     public async Task A_file_refused_for_good_leaves_the_inbox_too()
     {
         using var rig = new Rig();

@@ -39,6 +39,9 @@ public class CollectorTests
         public readonly FixedConfig Config;
         public readonly DataPaths Paths;
         public FakeWatcher? Watcher;
+        public int WatchersMade;
+        public bool WatcherFails;
+        private readonly bool _watch;
         public int Copied;
         public OutboxCollector Collector;
 
@@ -46,7 +49,7 @@ public class CollectorTests
         {
             Paths = new DataPaths(Data.Path, isCustom: true);
             Config = new FixedConfig(Settings(folder ?? Share.Path, delete));
-            if (watch) Watcher = new FakeWatcher();
+            _watch = watch;
             Collector = New();
         }
 
@@ -55,8 +58,19 @@ public class CollectorTests
                 new Uri("https://dinerobook.com"), EngineTests.Key, "", "");
 
         public OutboxCollector New() => new(Paths, Config, new PassportFolder(), Clock, Log,
-            watcherFor: Watcher is null ? null : _ => Watcher,
+            watcherFor: _watch ? _ => NewWatcher() : null,
             onCopied: () => Copied++);
+
+        private FakeWatcher? NewWatcher()
+        {
+            WatchersMade++;
+            if (WatcherFails) return null;
+            Watcher = new FakeWatcher();
+            return Watcher;
+        }
+
+        public string CollectedToday =>
+            Path.Combine(Paths.CollectedLedgers, Clock.GetUtcNow().ToString("yyyy-MM-dd") + ".txt");
 
         public string Put(string name, string? xml = null)
         {
@@ -97,7 +111,8 @@ public class CollectorTests
         Assert.Equal(0, rig.Collector.Pending);
         // Moved in whole: nothing half-written is left beside the inbox.
         Assert.Empty(Directory.EnumerateFiles(rig.Paths.Incoming));
-        Assert.Contains("PJR001.xml", File.ReadAllText(rig.Paths.CollectedLedger));
+        // One ledger file per day.
+        Assert.Contains("PJR001.xml", File.ReadAllText(rig.CollectedToday));
     }
 
     [Fact]
@@ -255,5 +270,125 @@ public class CollectorTests
         rig.Pass();
 
         Assert.False(Directory.Exists(rig.Paths.Inbox) && File.Exists(rig.InInbox("PJR008.xml")));
+    }
+
+    [Fact]
+    public void A_watcher_that_stops_reporting_without_a_word_is_made_again()
+    {
+        using var rig = new Rig(watch: true);
+        rig.Pass();
+        Assert.Equal(1, rig.WatchersMade);
+        rig.Put("PJR009.xml"); // the watcher stays silent
+        rig.Clock.Advance(TimeSpan.FromSeconds(31));
+
+        rig.Pass();
+        Assert.True(File.Exists(rig.InInbox("PJR009.xml")), "the 5-second listing still brings it in");
+        Assert.DoesNotContain("did not report", rig.Log.All); // it has 2 seconds to report it
+
+        rig.Clock.Advance(OutboxCollector.WatcherGrace);
+        rig.Pass();
+
+        Assert.Contains("did not report PJR009.xml; making a new one", rig.Log.All);
+        Assert.Equal(2, rig.WatchersMade);
+    }
+
+    [Fact]
+    public void A_watcher_a_moment_behind_the_listing_does_not_count_as_dead()
+    {
+        using var rig = new Rig(watch: true);
+        rig.Pass();
+        rig.Put("PJR011.xml");
+        rig.Clock.Advance(TimeSpan.FromSeconds(5));
+        rig.Pass(); // the listing finds it first
+
+        rig.Watcher!.Names.Add("PJR011.xml"); // the watcher's word arrives
+        rig.Clock.Advance(TimeSpan.FromSeconds(1));
+        rig.Pass();
+        rig.Clock.Advance(TimeSpan.FromSeconds(10));
+        rig.Pass();
+
+        Assert.DoesNotContain("did not report", rig.Log.All);
+        Assert.Equal(1, rig.WatchersMade);
+        Assert.Equal(1, rig.Collector.CopiedCount);
+    }
+
+    [Fact]
+    public void Files_already_there_when_the_watcher_starts_do_not_count_against_it()
+    {
+        using var rig = new Rig(watch: true);
+        rig.Put("PJR010.xml");
+        rig.Clock.Advance(TimeSpan.FromSeconds(10));
+
+        rig.Pass();
+        rig.Clock.Advance(TimeSpan.FromSeconds(10));
+        rig.Pass();
+
+        Assert.True(File.Exists(rig.InInbox("PJR010.xml")));
+        Assert.DoesNotContain("did not report", rig.Log.All);
+        Assert.Equal(1, rig.WatchersMade);
+    }
+
+    [Fact]
+    public void A_watcher_that_cannot_be_made_is_tried_again_every_30_seconds()
+    {
+        using var rig = new Rig(watch: true) { WatcherFails = true };
+        rig.Pass();
+        rig.Clock.Advance(TimeSpan.FromSeconds(29));
+        rig.Pass();
+        Assert.Equal(1, rig.WatchersMade);
+
+        rig.Clock.Advance(TimeSpan.FromSeconds(1));
+        rig.WatcherFails = false;
+        rig.Pass();
+
+        Assert.Equal(2, rig.WatchersMade);
+        Assert.Contains("trying the watcher again in 30 seconds", rig.Log.All);
+    }
+
+    [Fact]
+    public void When_the_share_comes_back_the_watcher_is_made_again()
+    {
+        var share = new TempDir();
+        var path = share.Path;
+        share.Dispose(); // the share is down
+        using var rig = new Rig(watch: true, folder: path);
+        rig.Pass();
+        Assert.StartsWith("Cannot open the Passport folder", rig.Collector.Problem);
+        var before = rig.WatchersMade;
+
+        Directory.CreateDirectory(path); // back again
+        try
+        {
+            rig.Clock.Advance(TimeSpan.FromSeconds(31));
+            rig.Pass();
+            rig.Pass();
+
+            Assert.Equal("", rig.Collector.Problem);
+            Assert.True(rig.WatchersMade > before, "a new watcher after the share came back");
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void The_collected_ledger_is_one_file_a_day_and_remembers_every_day()
+    {
+        using var dir = new TempDir();
+        var folder = Path.Combine(dir.Path, "collected");
+        var day1 = new DateTimeOffset(2026, 11, 20, 15, 0, 0, TimeSpan.Zero);
+        var ledger = DailyLedger.Open(folder, TimeZoneInfo.Utc);
+        ledger.Add("PJR-A.xml", day1, "copied");
+        ledger.Add("PJR-B.xml", day1.AddDays(1), "copied");
+
+        Assert.True(File.Exists(Path.Combine(folder, "2026-11-20.txt")));
+        Assert.True(File.Exists(Path.Combine(folder, "2026-11-21.txt")));
+        Assert.DoesNotContain("PJR-B.xml", File.ReadAllText(Path.Combine(folder, "2026-11-20.txt")));
+
+        var reopened = DailyLedger.Open(folder, TimeZoneInfo.Utc);
+        Assert.True(reopened.Contains("PJR-A.xml"));
+        Assert.True(reopened.Contains("PJR-B.xml"));
+        Assert.Equal(2, reopened.Count);
     }
 }
