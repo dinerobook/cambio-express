@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useSessionStatus } from "../api/account";
 import {
@@ -8,19 +7,18 @@ import {
 } from "../api/posimport";
 import { csvMoney } from "../lib/csv";
 import {
-  AppLink, Button, Card, DataTable, DateInput, Field, InfoTip,
-  Input, KpiCard, KpiGrid, PageHeader, PageShell, Pill,
+  AppLink, Card, DataTable, DateInput, Field,
+  Input, KpiCard, KpiGrid, PageShell, Pill,
   TabsBar, TabsButton, tokens, type DataColumn,
 } from "../components/ui";
-import { CashierNamesModal } from "../components/CashierNamesModal";
-import { ReceiptPanel } from "../components/ReceiptPanel";
+import { ReceiptSplit } from "../components/ReceiptPanel";
+import { useOpenReceipt } from "../lib/useOpenReceipt";
+import { TransactionsHeader } from "../components/TransactionsHeader";
 import { useUrlFilterState } from "../lib/useUrlFilterState";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import { csvTimestamp, daysAgoIso, formatTimestamp } from "../lib/datetime";
 import styles from "./Transactions.module.css";
-import { PageCrumbs } from "../components/PageCrumbs";
 import { t, useT, type MessageKey } from "../i18n";
-import { navWord } from "../i18n/navWords";
 
 // /app/transactions (G-6) — every register ticket, as receipts.
 //
@@ -52,15 +50,6 @@ const TABS: {
   { key: "voided", label: "posTx.tabVoidedItems", count: "voided_items", kind: "", voided: true },
   { key: "no_sale", label: "posTx.tabNoSales", count: "no_sale", kind: "no_sale", voided: false },
 ];
-
-// The receipt opens beside the list from this width; narrower, a
-// row opens the ticket's own page.
-const SIDE_PANEL_MIN_WIDTH = 1100;
-
-function roomForPanel(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return true;
-  return window.matchMedia(`(min-width: ${SIDE_PANEL_MIN_WIDTH}px)`).matches;
-}
 
 const MONO = { fontFamily: tokens.fontMono };
 
@@ -124,24 +113,12 @@ const columns = (): DataColumn<PosTransactionRow>[] => [
 
 export default function Transactions() {
   useT(); // re-render on a language switch
-  const navigate = useNavigate();
   const storeName = useSessionStatus().data?.store_name;
-  const [namesOpen, setNamesOpen] = useState(false);
+  const receipt = useOpenReceipt();
   const [defaults] = useState(() => ({ start: daysAgoIso(6), end: daysAgoIso(0) }));
   const filters = useUrlFilterState({
     q: "", tab: "", start: defaults.start, end: defaults.end,
   }, { pageSizeKey: "pos-transactions" });
-  // The open receipt rides in the URL beside the filters, but choosing
-  // one keeps the page the list is on (setParam would reset it).
-  const [sp, setSP] = useSearchParams();
-  const selected = Number(sp.get("ticket")) || null;
-  const select = (id: number | null) => {
-    const next = new URLSearchParams(sp);
-    if (id) next.set("ticket", String(id));
-    else next.delete("ticket");
-    setSP(next, { replace: true });
-  };
-
   const tab = TABS.find((x) => x.key === filters.params.tab) ?? TABS[0];
   const listQuery = {
     start: filters.params.start,
@@ -158,21 +135,7 @@ export default function Transactions() {
 
   return (
     <PageShell maxWidth="92rem">
-      <PageCrumbs />
-      <PageHeader
-        title={
-          <>
-            {navWord("Transactions")}
-            <InfoTip text={t("posTx.tip")} />
-          </>
-        }
-        subtitle={t("posTx.subtitle")}
-        actions={
-          <Button tone="secondary" perm="day_close.update" onClick={() => setNamesOpen(true)}>
-            {t("posTx.cashierNames")}
-          </Button>
-        }
-      />
+      <TransactionsHeader start={filters.params.start} end={filters.params.end} />
 
       {/* The kit filter bar: search first, then the range, on one row. */}
       <div className="ds-filter-bar">
@@ -237,15 +200,14 @@ export default function Transactions() {
           ))}
         </TabsBar>
 
-        <div className={selected ? `${styles.split} ${styles.withPanel}` : styles.split}>
-          <div className={styles.list}>
+        <ReceiptSplit selected={receipt.selected} storeName={storeName} onClose={receipt.close}>
             <DataTable
               columns={columns()}
               rows={data?.rows}
               rowKey={(r) => r.id}
-              onRowClick={(r) => (roomForPanel() ? select(r.id) : navigate(`/transactions/${r.id}`))}
+              onRowClick={(r) => receipt.open(r.id)}
               rowLabel={(r) => t("posTx.openTicket", { ticket: r.transaction_no || r.id })}
-              rowClassName={(r) => (r.id === selected ? styles.selectedRow : undefined)}
+              rowClassName={(r) => receipt.rowClass(r.id)}
               isLoading={list.isLoading} isError={list.isError} error={list.error}
               onRetry={() => { void list.refetch(); }}
               errorMessage={t("posTx.loadFailed")}
@@ -261,16 +223,8 @@ export default function Transactions() {
                 fetchPage: (page, perPage) => fetchPosTransactionsPage({ ...listQuery, page, perPage }),
               }}
             />
-          </div>
-          {selected && (
-            <aside className={styles.panel} aria-label={t("posTx.receiptLabel")}>
-              <ReceiptPanel id={selected} storeName={storeName} onClose={() => select(null)} />
-            </aside>
-          )}
-        </div>
+        </ReceiptSplit>
       </Card>
-
-      <CashierNamesModal open={namesOpen} onClose={() => setNamesOpen(false)} />
     </PageShell>
   );
 }

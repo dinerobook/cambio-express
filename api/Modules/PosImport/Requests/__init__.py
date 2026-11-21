@@ -407,6 +407,71 @@ class PosTransactionDetailResponse(BaseModel):
     transaction: PosTransactionDetail
 
 
+# ── Items view: every line sold ────────────────────────────
+
+
+class PosLineRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    transaction_id: int
+    transaction_no: str
+    business_date: str
+    # When the ticket rang (its receipt time, else its start), UTC.
+    at: str | None
+    kind: str
+    register_id: str
+    cashier_id: str
+    cashier_name: str
+    status: str
+    pos_code: str
+    description: str
+    merchandise_code: str
+    department_name: str
+    quantity: float
+    amount: float
+    # The unit it sold at: amount / quantity (Passport's
+    # ActualSalesPrice is the whole line's amount). A voided line's is
+    # its regular price.
+    unit_price: float
+    # One unit's shelf price at the register.
+    regular_price: float
+    below_regular: bool
+    is_fuel: bool
+    gallons: float
+    # Cost × quantity from the store's price book, and the margin on
+    # the line — null when the price book has no cost for the code.
+    cost: float | None
+    margin_pct: float | None
+
+
+class PosLineDepartment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    name: str
+
+
+class PosLineListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[PosLineRow]
+    total: int
+    page: int
+    total_pages: int
+    # Over the WHOLE filtered set, not this page. Units of items, and
+    # fuel's gallons apart.
+    total_quantity: float
+    total_gallons: float
+    total_amount: float
+    # Cost of the lines whose cost the price book knows, and what
+    # those same lines sold for — the margin is over these only.
+    total_cost: float
+    costed_amount: float
+    # The department filter's choices: every mapped department number.
+    departments: list[PosLineDepartment]
+
+
 # ── Cashier names ──────────────────────────────────────────
 
 

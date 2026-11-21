@@ -284,3 +284,53 @@ export function saveCashierNames(
     method: "PUT", json: { cashiers },
   });
 }
+
+// ── Items view: every line sold ─────────────────────────────
+
+export type PosLineRow = components["schemas"]["PosLineRow"];
+type PosLineListResponse = components["schemas"]["PosLineListResponse"];
+
+export interface PosLineQuery {
+  start: string;
+  end: string;
+  q?: string;
+  department?: string;
+  show?: string;
+  sort?: string;
+  dir?: string;
+  page?: number;
+  perPage?: number;
+}
+
+function posLinesQs(params: PosLineQuery): string {
+  const qs = new URLSearchParams({
+    start: params.start,
+    end: params.end,
+    page: String(params.page ?? 1),
+    per_page: String(params.perPage ?? 50),
+  });
+  if (params.q) qs.set("q", params.q);
+  if (params.department) qs.set("department", params.department);
+  if (params.show) qs.set("show", params.show);
+  if (params.sort) qs.set("sort", params.sort);
+  if (params.dir) qs.set("dir", params.dir);
+  return qs.toString();
+}
+
+/** One page of item lines — the request the Items view and its CSV
+ *  export both make. */
+export function fetchPosLinesPage(params: PosLineQuery): Promise<PosLineListResponse> {
+  return api<PosLineListResponse>(
+    `/api/v2/posimport/transaction-lines?${posLinesQs(params)}`,
+  );
+}
+
+export function useTransactionLines(params: PosLineQuery) {
+  const qs = posLinesQs(params);
+  return useQuery<PosLineListResponse>({
+    enabled: params.start.length === 10 && params.end.length === 10,
+    queryKey: ["posimport", "transaction-lines", qs],
+    queryFn: () => fetchPosLinesPage(params),
+    placeholderData: (prev) => prev,
+  });
+}

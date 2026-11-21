@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { type PosTransactionDetail, useTransaction } from "../api/posimport";
 import {
   Alert, AppLink, ErrorState, IconButton, Loading,
@@ -6,9 +8,31 @@ import { Receipt } from "./Receipt";
 import { tNodes, useT } from "../i18n";
 import styles from "./ReceiptPanel.module.css";
 
-/** The chosen ticket's receipt beside the Transactions list, with
- *  the notes a manager needs to read it right and the way to its own
- *  page. */
+/** A list with the open ticket's receipt beside it (which ticket:
+ *  `useOpenReceipt`, lib/useOpenReceipt.ts). */
+export function ReceiptSplit({
+  selected, storeName, onClose, children,
+}: {
+  selected: number | null;
+  storeName?: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const t = useT();
+  return (
+    <div className={selected ? `${styles.split} ${styles.withPanel}` : styles.split}>
+      <div className={styles.list}>{children}</div>
+      {selected && (
+        <aside className={styles.aside} aria-label={t("posTx.receiptLabel")}>
+          <ReceiptPanel id={selected} storeName={storeName} onClose={onClose} />
+        </aside>
+      )}
+    </div>
+  );
+}
+
+/** The chosen ticket's receipt, with the notes a manager needs to read
+ *  it right and the way to its own page. */
 export function ReceiptPanel({
   id, storeName, onClose,
 }: {

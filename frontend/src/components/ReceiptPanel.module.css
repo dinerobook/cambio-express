@@ -1,4 +1,51 @@
-/* The receipt beside the Transactions list (ReceiptPanel.tsx). */
+/* A Transactions list with the open ticket's receipt beside it
+   (ReceiptPanel.tsx; UI-STANDARDS §7 "Register receipts"). The
+   receipt column keeps a till slip's width; the list takes the rest. */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: start;
+}
+
+.withPanel {
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
+}
+
+.list {
+  min-width: 0;
+}
+
+/* Stays in view while the list scrolls under it. */
+.aside {
+  position: sticky;
+  top: calc(var(--db-topbar-h) + 1rem);
+  max-height: calc(100vh - var(--db-topbar-h) - 2rem);
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* The rows of the ticket whose receipt is open. */
+.selectedRow,
+.selectedRow:hover {
+  background: var(--db-neon-glow-8);
+  box-shadow: inset 3px 0 0 0 var(--db-accent);
+}
+
+/* Narrower than the receipt needs (SIDE_PANEL_MIN_WIDTH, 1100px): a
+   row opens the ticket's own page instead, so a receipt left open
+   from a wider window steps aside. */
+@media (max-width: 68.74rem) {
+  .withPanel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    display: none;
+  }
+}
 
 .panel {
   display: flex;

@@ -541,11 +541,13 @@ needed if the kit had been checked first.
     `--db-paper-void` at the price they rang and never added, then
     the totals and how it was paid (`tenderLabel`). A no-sale or a
     register open / close prints what happened instead of lines.
-    The Transactions list opens it BESIDE the list
-    (`ReceiptPanel`, the chosen row marked, its id in the URL as
-    `ticket` so the list keeps its page and a link reopens it); on
-    a window narrower than 1100px a row opens the ticket's own page,
-    which draws the same receipt with its register facts beside it.
+    Both Transactions views (Receipts, and Items — every line sold,
+    Modisoft's item report) open it BESIDE the list: `<ReceiptSplit>`
+    with `useOpenReceipt()` (`lib/useOpenReceipt.ts`) — the chosen
+    ticket's rows marked, its id in the URL as `ticket` so the list
+    keeps its page and a link reopens it; on a window narrower than
+    1100px a row opens the ticket's own page, which draws the same
+    receipt with its register facts beside it.
     The kinds a manager hunts for (refunds, voided tickets, tickets
     with a voided item, drawer opens with no sale) are tabs with
     their counts over the list, the bank page's pattern. Never a

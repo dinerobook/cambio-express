@@ -154,6 +154,7 @@ const SuperadminSetupProgress = lazy(() => import("./routes/SuperadminSetupProgr
 const SuperadminUsers = lazy(() => import("./routes/SuperadminUsers"));
 const TimeClock = lazy(() => import("./routes/TimeClock"));
 const Transactions = lazy(() => import("./routes/Transactions"));
+const TransactionItems = lazy(() => import("./routes/TransactionItems"));
 const DeveloperFiles = lazy(() => import("./routes/DeveloperFiles"));
 const DeveloperFile = lazy(() => import("./routes/DeveloperFile"));
 const TransactionDetail = lazy(
@@ -343,6 +344,7 @@ export default function App() {
           {/* Reading a ticket is a reporting act — day_close.read,
               not the update right that books a day. */}
           <Route path="transactions"           element={<Gate><Transactions /></Gate>} />
+          <Route path="transactions/items"     element={<Gate><TransactionItems /></Gate>} />
           <Route path="transactions/:id"       element={<Gate><TransactionDetail /></Gate>} />
           <Route path="price-book"             element={<Gate><PriceBook /></Gate>} />
           <Route path="purchase-invoices"      element={<Gate><PurchaseInvoices /></Gate>} />
