@@ -143,7 +143,7 @@ public sealed class OutboxCollector : IDisposable
     public TimeSpan RunOnce()
     {
         var cfg = _config.Current(out _);
-        if (!cfg.CanRun) return RecheckEvery;
+        if (!cfg.CanCollect) return RecheckEvery;
         if (!OpenLedger()) return RecheckEvery;
 
         var settings = cfg.Settings;

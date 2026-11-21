@@ -99,6 +99,56 @@ public class EngineInboxTests
     }
 
     [Fact]
+    public async Task With_sending_off_files_are_only_collected_and_go_once_it_is_on_again()
+    {
+        using var rig = new Rig();
+        var off = FixedConfig.Running();
+        off.Settings.SendToDineroBook = false;
+        rig.Config.Set(off);
+        rig.Folder.Put("PJR-A.xml", Naxml.Sale(D), W0);
+        rig.Folder.Put("ItemMaintenance.xml", "<x/>", W0); // any file, BOInBox too
+
+        await rig.Engine.RunCycleAsync(CancellationToken.None);
+        rig.Clock.Advance(TimeSpan.FromMinutes(1));
+        await rig.Engine.RunCycleAsync(CancellationToken.None);
+
+        Assert.Empty(rig.Server.Uploads);
+        Assert.Empty(rig.Finished);
+        Assert.Equal(ProcessorState.CollectOnly, rig.Engine.Status.State);
+        Assert.Equal(2, rig.Engine.Status.Waiting);
+        Assert.Contains("2 file(s) collected", rig.Engine.Status.Message);
+        Assert.Contains("Sending to DineroBook is off", rig.Log.All);
+
+        rig.Config.Set(FixedConfig.Running());
+        await rig.Until(() => rig.Finished.Count == 2);
+
+        Assert.Contains("PJR-A.xml", rig.Server.Uploads);
+        Assert.Contains("Sending to DineroBook is on again", rig.Log.All);
+    }
+
+    [Fact]
+    public async Task With_sending_off_nothing_needs_a_connection()
+    {
+        using var rig = new Rig();
+        rig.Config.Set(new EngineConfig(new ProcessorSettings { SendToDineroBook = false }, null, null,
+            ProcessorState.NotSignedIn, "Not connected."));
+        rig.Folder.Put("PJR-B.xml", Naxml.Sale(D), W0);
+
+        await rig.Engine.RunCycleAsync(CancellationToken.None);
+
+        Assert.Equal(ProcessorState.CollectOnly, rig.Engine.Status.State);
+        Assert.Empty(rig.Server.Uploads);
+    }
+
+    [Theory]
+    [InlineData("{}", true)]
+    [InlineData("{\"sendToDineroBook\": false}", false)]
+    public void Sending_is_on_unless_the_switch_says_off(string json, bool expected)
+    {
+        Assert.Equal(expected, ProcessorSettings.Parse(json, out _).SendToDineroBook);
+    }
+
+    [Fact]
     public async Task A_file_refused_for_good_leaves_the_inbox_too()
     {
         using var rig = new Rig();

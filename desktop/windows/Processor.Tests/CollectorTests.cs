@@ -273,6 +273,21 @@ public class CollectorTests
     }
 
     [Fact]
+    public void With_sending_off_files_are_collected_even_without_a_connection()
+    {
+        using var rig = new Rig();
+        rig.Config.Set(new EngineConfig(new ProcessorSettings { WatchFolder = rig.Share.Path, SendToDineroBook = false },
+            null, null, ProcessorState.NotSignedIn, "Not connected."));
+        rig.Put("PJR012.xml");
+        rig.Put("ItemMaintenance0001.xml", "<ItemMaintenance/>"); // BOInBox files too
+
+        rig.Pass();
+
+        Assert.True(File.Exists(rig.InInbox("PJR012.xml")));
+        Assert.True(File.Exists(rig.InInbox("ItemMaintenance0001.xml")));
+    }
+
+    [Fact]
     public void A_watcher_that_stops_reporting_without_a_word_is_made_again()
     {
         using var rig = new Rig(watch: true);

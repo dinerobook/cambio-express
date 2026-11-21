@@ -118,6 +118,16 @@ field there no longer matches the server.
   in the inbox and is retried on its own (5 s, 15 s, 1 min, 5 min, …).
   (`patterns` and `maxConcurrentUploads` left in an older settings.json
   are ignored.)
+- **Send to DineroBook can be off: collect only** (owner, 2026-11-20).
+  The **Send** switch beside the DineroBook address (`sendToDineroBook`,
+  on by default). Off, files are still copied into the temp folder
+  (`state\inbox`) the moment they are complete, but nothing goes to the
+  server and no connection is needed. The Status tab says how many files
+  are collected, and **Open temp folder** shows them. The owner uses this
+  to gather files from any Passport folder, BOInBox too (every file is
+  copied, whatever its name). Turned on again, the files waiting in the
+  temp folder are sent; the Manager asks first when there are any, so
+  files that are not register files can be moved out before.
 - **What "5 seconds" is.** `pollSeconds` in settings.json (default 5,
   allowed 2–300): how often the collector lists BOOutbox as the
   watcher's safety net, and how often the sender looks at the inbox when
@@ -236,7 +246,7 @@ All under `%ProgramData%\DineroBook\Processor\`, set up by Install:
 | `state\status.json` | What the service is doing, for the Manager | the service |
 | `state\logs\processor-YYYYMMDD.log` | One log a day, 14 days kept | the service |
 
-The two settings in Setup → 2 are on/off switches (`ToggleSwitch`, a
+The three settings in Setup → 2 (Send, and the two deletes) are on/off switches (`ToggleSwitch`, a
 `CheckBox` drawn as a switch, owner 2026-11-20).
 
 **Clear cache** (Setup → 3, `StateCache`). The three lists —

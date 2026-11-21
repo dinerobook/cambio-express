@@ -16,6 +16,11 @@ public sealed class EngineConfig(ProcessorSettings settings, Uri? apiBase, strin
 
     public bool CanRun => State.Length == 0 && ApiBase is not null && AgentKey is not null;
 
+    /// <summary>Whether files are copied out of Passport's folder: when the
+    /// service can send them, or when "Send to DineroBook" is off and they
+    /// are only being collected (no key or address needed for that).</summary>
+    public bool CanCollect => CanRun || !Settings.SendToDineroBook;
+
     public override string ToString() => $"EngineConfig({State}, {ApiBase}, key {(AgentKey is null ? "missing" : "present")})";
 }
 

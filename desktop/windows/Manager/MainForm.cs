@@ -41,6 +41,24 @@ internal sealed class MainForm : Form
     private readonly Button _check = new() { Text = "Check", AutoSize = true };
     private readonly Label _folderResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
     private readonly TextBox _api = new() { Width = 300, AccessibleName = "DineroBook address" };
+    /// <summary>"Send to DineroBook": off, files are only collected in the
+    /// temp folder (owner, 2026-11-20).</summary>
+    private readonly ToggleSwitch _send = new()
+    {
+        AutoSize = true,
+        Text = "Send",
+        AccessibleName = "Send to DineroBook",
+        Margin = new Padding(12, 5, 3, 0),
+    };
+    private readonly Button _openTemp = new() { Text = "Open temp folder", AutoSize = true };
+    private readonly Label _sendOffHint = new()
+    {
+        AutoSize = true,
+        Margin = new Padding(3, 0, 3, 4),
+        ForeColor = SystemColors.GrayText,
+        Text = "Send is off: files are only collected in the temp folder.",
+        Visible = false,
+    };
     private readonly ToggleSwitch _deleteFromOutbox = new()
     {
         AutoSize = true,
@@ -209,16 +227,35 @@ internal sealed class MainForm : Form
         // One short line under each setting; the details are in its tooltip
         // (owner, 2026-11-20: no walls of text, no empty space).
         var folder = Column();
-        folder.Controls.Add(new Label { AutoSize = true, Text = "Passport BOOutbox folder (network share):" });
+        folder.Controls.Add(new Label { AutoSize = true, Text = "Passport folder (network share, usually BOOutbox):" });
         folder.Controls.Add(Row(_folder, _browse, _check));
         folder.Controls.Add(_folderResult);
-        folder.Controls.Add(Row(new Label { AutoSize = true, Text = "DineroBook address:", Margin = new Padding(3, 7, 3, 0) }, _api));
+        folder.Controls.Add(Row(new Label { AutoSize = true, Text = "DineroBook address:", Margin = new Padding(3, 7, 3, 0) }, _api, _send));
+        folder.Controls.Add(_sendOffHint);
         folder.Controls.Add(_deleteFromOutbox);
         folder.Controls.Add(Hint("Keep off while Modisoft reads the same folder."));
         folder.Controls.Add(_deleteFromInbox);
         folder.Controls.Add(Hint("Off: sent files are kept in the archive folder."));
-        folder.Controls.Add(_save);
+        folder.Controls.Add(Row(_save, _openTemp));
         _tips.SetToolTip(_folder, "A mapped drive letter is saved as its network path: the service does not see drive letters.");
+        _tips.SetToolTip(_send,
+            "On: every file is sent to DineroBook.\n"
+            + "Off: files are only collected in the temp folder (" + _paths.Inbox + ").\n"
+            + "Nothing is sent and no connection is needed. Turned on again, the files waiting there are sent.");
+        _tips.SetToolTip(_openTemp, _paths.Inbox);
+        _send.CheckedChanged += (_, _) => ShowSendState();
+        _openTemp.Click += (_, _) =>
+        {
+            try
+            {
+                Directory.CreateDirectory(_paths.Inbox);
+                Process.Start(new ProcessStartInfo("explorer.exe") { ArgumentList = { _paths.Inbox }, UseShellExecute = false });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
+            {
+                MessageBox.Show(this, "Cannot open " + _paths.Inbox + ": " + ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        };
         _tips.SetToolTip(_deleteFromOutbox,
             "Every file is copied to this computer the moment Passport finishes it, and sent from there.\n"
             + "On: the original is deleted from BOOutbox once the copy is safe, the way Modisoft's service works.\n"
@@ -292,7 +329,29 @@ internal sealed class MainForm : Form
         _api.Text = settings.ApiUrl;
         _deleteFromOutbox.Checked = settings.DeleteFromOutbox;
         _deleteFromInbox.Checked = settings.DeleteFromInbox;
+        _send.Checked = settings.SendToDineroBook;
+        ShowSendState();
         UpdateEnabled();
+    }
+
+    /// <summary>With Send off the address is not used: grey it and say so.</summary>
+    private void ShowSendState()
+    {
+        _sendOffHint.Visible = !_send.Checked;
+        _api.ReadOnly = !_send.Checked;
+    }
+
+    /// <summary>Files waiting in the temp folder (not the half-copied ones).</summary>
+    private int InboxCount()
+    {
+        try
+        {
+            return Directory.Exists(_paths.Inbox) ? Directory.EnumerateFiles(_paths.Inbox).Count() : 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
     }
 
     private void RefreshStatus()
@@ -380,6 +439,7 @@ internal sealed class MainForm : Form
         _save.Enabled = canWrite && !_busy;
         _deleteFromOutbox.Enabled = canWrite && !_busy;
         _deleteFromInbox.Enabled = canWrite && !_busy;
+        _send.Enabled = canWrite && !_busy;
         _test.Enabled = !_busy;
         _install.Enabled = admin && !_busy;
         _start.Enabled = admin && !_busy && info.Installed && info.Status != ServiceControllerStatus.Running;
@@ -586,6 +646,19 @@ internal sealed class MainForm : Form
             settings.ApiUrl = apiText;
             settings.DeleteFromOutbox = _deleteFromOutbox.Checked;
             settings.DeleteFromInbox = _deleteFromInbox.Checked;
+            if (_send.Checked && !settings.SendToDineroBook)
+            {
+                var waiting = InboxCount();
+                if (waiting > 0 && MessageBox.Show(this,
+                        $"{waiting:N0} file(s) are waiting in the temp folder ({_paths.Inbox}). They will be sent to DineroBook now.\n\n"
+                        + "If they are not register files (from BOInBox, say), move them out of that folder first.\n\nSend them?",
+                        Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                {
+                    _send.Checked = false;
+                    return;
+                }
+            }
+            settings.SendToDineroBook = _send.Checked;
             try
             {
                 _setup.SaveSettings(settings);

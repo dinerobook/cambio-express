@@ -40,6 +40,14 @@ public sealed class ProcessorSettings
     /// (one folder per day) and kept on this computer. On by default.</summary>
     public bool DeleteFromInbox { get; set; } = true;
 
+    /// <summary>"Send to DineroBook", the switch beside the DineroBook
+    /// address. Off: files are only collected in the temp folder
+    /// (<see cref="DataPaths.Inbox"/>) for someone to take away by hand —
+    /// nothing goes to the server, and no connection is needed. The owner
+    /// uses it to gather files from any Passport folder (BOInBox too).
+    /// Turned on again, the files waiting there are sent. On by default.</summary>
+    public bool SendToDineroBook { get; set; } = true;
+
     // Which store the saved key belongs to (written by the Manager on connect).
     public int? StoreId { get; set; }
     public string StoreName { get; set; } = "";

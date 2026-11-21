@@ -18,6 +18,7 @@ public static class ProcessorState
     public const string SettingsInvalid = "settings_invalid";
     public const string FolderUnavailable = "folder_unavailable";
     public const string RetryLater = "retry_later";        // 5xx / network / 429
+    public const string CollectOnly = "collect_only";      // "Send to DineroBook" off: files only collected
     public const string Stopped = "stopped";
 }
 

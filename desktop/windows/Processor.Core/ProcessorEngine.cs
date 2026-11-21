@@ -96,6 +96,8 @@ public sealed class ProcessorEngine
 
     private DateTimeOffset _pausedUntil;
     private int _failureStreak;
+    /// <summary>"Send to DineroBook" is off: files are only collected.</summary>
+    private bool _collectingOnly;
 
     private DateOnly _today;
     private int _todayCount;
@@ -209,6 +211,19 @@ public sealed class ProcessorEngine
         var cfg = _config.Current(out var changed);
         if (changed || _cfg is null) Apply(cfg);
         var poll = TimeSpan.FromSeconds(cfg.Settings.EffectivePollSeconds);
+
+        if (!cfg.Settings.SendToDineroBook)
+        {
+            CollectOnly();
+            FlushStatus(force: true);
+            return poll;
+        }
+        if (_collectingOnly)
+        {
+            _collectingOnly = false;
+            _nextSweepAt = DateTimeOffset.MinValue;
+            _log.LogInformation("Sending to DineroBook is on again: the files waiting in the temp folder go now.");
+        }
 
         if (!cfg.CanRun)
         {
@@ -682,7 +697,8 @@ public sealed class ProcessorEngine
             _pausedUntil = DateTimeOffset.MinValue;
             _failureStreak = 0;
             _status.NextTryAt = null;
-            if (cfg.CanRun)
+            // With Send off the engine only collects, and says so itself.
+            if (cfg.CanRun && cfg.Settings.SendToDineroBook)
             {
                 _log.LogInformation("Sending every file in {Folder} to {Api} for {Store}, as many at once as DineroBook's rate limit allows.",
                     _inbox is null ? _watchFolder : $"{cfg.Settings.WatchFolder} (from its copies in {_inbox})", _status.ApiUrl,
@@ -727,6 +743,40 @@ public sealed class ProcessorEngine
         _lastLoggedProblem = null;
         _status.NextTryAt = null;
         SetState(ProcessorState.Idle, message);
+    }
+
+    /// <summary>"Send to DineroBook" is off (owner, 2026-11-20): files are only
+    /// collected in the temp folder, to be taken away by hand. Nothing goes to
+    /// the server; an upload already on its way finishes.</summary>
+    private void CollectOnly()
+    {
+        var where = _inbox ?? _watchFolder;
+        if (!_collectingOnly)
+        {
+            _collectingOnly = true;
+            _log.LogInformation("Sending to DineroBook is off: files are only collected in {Folder}.", where);
+        }
+        var collected = 0;
+        if (_inbox is not null)
+        {
+            try
+            {
+                collected = _folder.List(_inbox).Count;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                // Shown again on the next pass.
+            }
+        }
+        var source = _source?.Invoke() ?? default;
+        _status.MissedTotal = source.Missed;
+        _status.Uploading = _inFlight.Count;
+        _status.Waiting = collected;
+        _status.WaitingOn = "";
+        _status.NextTryAt = null;
+        SetState(ProcessorState.CollectOnly,
+            $"Sending to DineroBook is off: {collected:N0} file(s) collected in {where}."
+            + (string.IsNullOrEmpty(source.Problem) ? "" : " " + source.Problem));
     }
 
     /// <summary>The status after a pass (a pause keeps its own message).</summary>
