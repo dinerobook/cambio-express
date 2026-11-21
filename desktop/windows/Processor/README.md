@@ -17,6 +17,20 @@ store's barcode scanner.
 The server does all the parsing and keeps every file raw, so the
 Processor needs no update when parsing improves.
 
+```mermaid
+flowchart TD
+  P[Gilbarco Passport writes a file] --> B[BOOutbox network share]
+  B -. also read by .-> M[Modisoft / LdPosService]
+  B --> W[Collector: watcher + a listing every 5 s]
+  W -->|"nobody is writing it any more"| I[Copy to this PC's inbox<br/>state\inbox]
+  W -. "only if 'Delete files from XMLGateway' is ticked" .-> D[Delete the original from BOOutbox]
+  I --> E[Engine: business days in order,<br/>a day's files in parallel]
+  E --> S[(dinerobook.com<br/>POST /posimport/agent/upload)]
+  S -->|200 accepted / duplicate| OK[sent.txt, inbox copy deleted]
+  S -->|5xx, network, 429| R[Waits, tried again]
+  S -->|422 with a message| X[skipped.txt, inbox copy deleted]
+```
+
 ## Parts
 
 | Folder | What |
@@ -39,12 +53,41 @@ field there no longer matches the server.
   (owner, 2026-11-18); the server keeps each file raw and reads what it
   knows. Only hidden / system files (half-written temp files) and
   subfolders are left out.
-- **Read only.** It never moves, renames, deletes, changes or locks a
-  Passport file: it lists the folder and opens each file for reading
-  with ReadWrite + Delete sharing, so Passport and the other
-  back-office programs reading the same folder are never in the way.
-- **A file goes once its size and time held still across two polls**
-  (every 5 seconds). Empty files are never sent.
+- **Copies each file to this PC the moment it is complete, and sends
+  from there** (`OutboxCollector`, owner, 2026-11-20). Modisoft's
+  service, which stores run beside DineroBook while the two are
+  compared, copies every file away and deletes it from BOOutbox within
+  moments; the owner's LdPosService copies at once and runs beside it at
+  50+ stores. So:
+  - a **watcher** (`OutboxWatcher`, a FileSystemWatcher on the share)
+    reports each new file the moment it appears, and the folder is still
+    **listed every poll** (5 s) in case the watcher missed one or died
+    silently (a Passport reboot, a stale share session); a dead watcher
+    is replaced, and a listing follows;
+  - a file is copied once **nobody is writing it**: it is opened for
+    reading while refusing other writers, so "Passport still has it
+    open" fails and is tried again every 250 ms (for 2 minutes, then
+    the next listing). Readers and deleters (Modisoft) are never in the
+    way. Empty and hidden files wait;
+  - the copy is written beside the inbox (`state\inbox\.incoming`) and
+    moved in whole, then the name goes in `state\collected.txt`: a file
+    is never copied twice, not after a restart and not when it stays in
+    BOOutbox;
+  - a file that leaves BOOutbox before it could be copied (another
+    program took it first) is logged and counted as **Missed** on the
+    Status tab.
+- **BOOutbox is not changed unless the store says so.** With
+  **Delete files from XMLGateway** unticked (the default), Passport's
+  files are only read. Ticked (Setup → 2, after a warning), each
+  original is deleted once its copy is safe — the way Modisoft's
+  service works — for a store where DineroBook is the only program
+  reading the folder. A delete that fails (the share does not let this
+  PC change files) is reported on the Status tab; the copy is sent
+  anyway and the original stays.
+- **Sends from the inbox.** A file goes once its size and time held
+  still across two polls (every 5 seconds); empty files are never sent.
+  Its inbox copy is deleted once DineroBook accepted it (or refused it
+  for good); the sent ledger keeps it from going twice.
 - **No fixed number at once.** A store with 2–4 registers writes
   several files at the same moment, and they all go together; the
   server's rate limit (the pacer below) is the only limit (owner,
@@ -68,8 +111,9 @@ field there no longer matches the server.
      report) in file name order, with no barrier.
   The date is read with DTDs prohibited and a size cap, and checked
   again on the exact bytes about to be sent.
-- **Polls; no FileSystemWatcher.** A watcher holds the folder open and
-  drops events on network shares; a poll never misses a file.
+- **Two loops side by side** (`Worker`): collecting and sending each
+  run on their own, so a share that hangs never holds up files already
+  copied, and a slow upload never holds up copying.
 - **Never hangs on a dead share.** A call to a network share that went
   away does not fail, it waits — the owner's LdPosService logs showed
   12–16 minutes. So every call has a time limit: listing the folder
@@ -167,6 +211,8 @@ All under `%ProgramData%\DineroBook\Processor\`, set up by Install:
 |---|---|---|
 | `settings.json` | Passport folder, DineroBook address, which store and key (not the key itself) | Administrators |
 | `agent-key.bin` | The store's upload key, DPAPI-encrypted for this PC; readable only by SYSTEM, Administrators and the service | Administrators |
+| `state\inbox\` | Each Passport file, copied the moment it is complete; deleted once DineroBook has it. A copy waiting here is sent after a restart | the service |
+| `state\collected.txt` | Files copied from BOOutbox (name, time). Never copied again while listed here | the service |
 | `state\sent.txt` | Files DineroBook accepted (name, time, outcome). Safe to delete: the server keeps one copy per file name, so a resend comes back `duplicate` | the service |
 | `state\skipped.txt` | Files refused for good, with why | the service |
 | `state\status.json` | What the service is doing, for the Manager | the service |
@@ -209,7 +255,12 @@ dotnet publish desktop/windows/Manager/Manager.csproj -c Release -r win-x64 --se
 
 ## Rules for changes
 
-- Passport's files are read only: list, open shared, read, close.
+- Passport's files are read only (list, open, read, close) unless the
+  store ticked **Delete files from XMLGateway**; then only the
+  collector deletes, and only after the copy is in the inbox and in
+  `collected.txt`. The engine never touches BOOutbox.
+- Copy a file the moment it is complete (watcher + listing): another
+  back office may take it away within seconds.
 - Never drop a file; the only "never again" is a 422 with a message from
   the route itself.
 - Never send a file of a later business day while one of an earlier day

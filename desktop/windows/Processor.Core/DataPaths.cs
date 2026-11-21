@@ -6,6 +6,9 @@ namespace DineroBook.Processor;
 /// <code>
 /// settings.json        what the Manager set: server, Passport folder, store
 /// agent-key.bin        the store's agent key, DPAPI (LocalMachine) encrypted
+/// state\inbox\         each Passport file, copied the moment it appears;
+///                      sent from here and deleted once the server has it
+/// state\collected.txt  files copied from the Passport folder (never copied twice)
 /// state\sent.txt       files the server accepted (the ledger)
 /// state\skipped.txt    files the server refused for good (422)
 /// state\status.json    what the service is doing, for the Manager
@@ -57,6 +60,11 @@ public sealed class DataPaths
     public string Settings => Path.Combine(Root, "settings.json");
     public string AgentKey => Path.Combine(Root, "agent-key.bin");
     public string State => Path.Combine(Root, "state");
+    public string Inbox => Path.Combine(State, "inbox");
+    /// <summary>Where a copy is written before it is moved into the inbox
+    /// whole, so the sender never sees half a file.</summary>
+    public string Incoming => Path.Combine(Inbox, ".incoming");
+    public string CollectedLedger => Path.Combine(State, "collected.txt");
     public string SentLedger => Path.Combine(State, "sent.txt");
     public string SkippedLedger => Path.Combine(State, "skipped.txt");
     public string Status => Path.Combine(State, "status.json");

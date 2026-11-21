@@ -26,6 +26,13 @@ public sealed class ProcessorSettings
 
     public int PollSeconds { get; set; } = DefaultPollSeconds;
 
+    /// <summary>"Delete files from XMLGateway" in DineroBook Manager: once a
+    /// file is safely copied to this computer, delete it from Passport's
+    /// folder (the way Modisoft's service works). Off by default: while
+    /// Modisoft or another back office reads the same folder it must stay
+    /// off, or they would never see the files (owner, 2026-11-20).</summary>
+    public bool DeleteFromOutbox { get; set; }
+
     // Which store the saved key belongs to (written by the Manager on connect).
     public int? StoreId { get; set; }
     public string StoreName { get; set; } = "";

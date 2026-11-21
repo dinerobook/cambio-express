@@ -47,6 +47,10 @@ public sealed class ProcessorStatus
     public int SentTotal { get; set; }
     public int SkippedTotal { get; set; }
 
+    /// <summary>Files that left Passport's folder before they could be
+    /// copied (another program took them first), since the service started.</summary>
+    public int MissedTotal { get; set; }
+
     /// <summary>Matching files not sent yet (including ones still being
     /// written and ones being sent).</summary>
     public int Waiting { get; set; }

@@ -27,7 +27,7 @@ internal sealed class MainForm : Form
     private readonly Dictionary<string, Label> _values = new();
     private static readonly string[] StatusRows =
     [
-        "Service", "Store", "Now", "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Last problem",
+        "Service", "Store", "Now", "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Missed", "Last problem",
         "Passport folder", "DineroBook", "Updated",
     ];
 
@@ -41,6 +41,12 @@ internal sealed class MainForm : Form
     private readonly Button _check = new() { Text = "Check", AutoSize = true };
     private readonly Label _folderResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
     private readonly TextBox _api = new() { Width = 300, AccessibleName = "DineroBook address" };
+    private readonly CheckBox _deleteFromOutbox = new()
+    {
+        AutoSize = true,
+        Text = "Delete files from XMLGateway once they are copied to this computer",
+        Margin = new Padding(3, 8, 3, 0),
+    };
     private readonly Button _save = new() { Text = "Save settings", AutoSize = true };
     private readonly Label _serviceState = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
     private readonly Button _install = new() { Text = "Install / Update", AutoSize = true };
@@ -174,6 +180,17 @@ internal sealed class MainForm : Form
         folder.Controls.Add(Row(_folder, _browse, _check));
         folder.Controls.Add(_folderResult);
         folder.Controls.Add(Row(new Label { AutoSize = true, Text = "DineroBook address:", Margin = new Padding(3, 7, 3, 0) }, _api));
+        folder.Controls.Add(_deleteFromOutbox);
+        folder.Controls.Add(new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(620, 0),
+            Margin = new Padding(20, 0, 3, 6),
+            ForeColor = SystemColors.GrayText,
+            Text = "Every file is copied to this computer the moment Passport finishes it, and sent from there. "
+                   + "Leave this unticked while Modisoft or another back office reads the same folder: "
+                   + "they would never see the files. Tick it once DineroBook is the only program reading them.",
+        });
         folder.Controls.Add(_save);
 
         var service = Column();
@@ -236,6 +253,7 @@ internal sealed class MainForm : Form
         var settings = _setup.LoadSettings();
         _folder.Text = settings.WatchFolder;
         _api.Text = settings.ApiUrl;
+        _deleteFromOutbox.Checked = settings.DeleteFromOutbox;
         UpdateEnabled();
     }
 
@@ -262,13 +280,15 @@ internal sealed class MainForm : Form
                 ? $" — connected with a code from {settings.ConnectedBy}" + (settings.ConnectedAt is { } at ? $" on {at.LocalDateTime:d}" : "")
                 : "")
             : "Not connected — Setup → Connect");
-        Set("Passport folder", settings.WatchFolder);
+        Set("Passport folder", settings.WatchFolder + (settings.DeleteFromOutbox
+            ? " — each file is deleted there once it is copied"
+            : " — files are copied, never changed there"));
         Set("DineroBook", settings.ApiUrl);
 
         if (status is null)
         {
             Set("Now", running ? "Starting…" : "—");
-            foreach (var k in new[] { "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Last problem", "Updated" }) Set(k, "—");
+            foreach (var k in new[] { "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Missed", "Last problem", "Updated" }) Set(k, "—");
         }
         else
         {
@@ -289,6 +309,9 @@ internal sealed class MainForm : Form
             Set("Skipped", status.SkippedTotal == 0
                 ? "0"
                 : $"{status.SkippedTotal:N0} refused for good by DineroBook (see the Log)");
+            Set("Missed", status.MissedTotal == 0
+                ? "0"
+                : $"{status.MissedTotal:N0} left the Passport folder before they could be copied (another program took them first)");
             Set("Last problem", status.LastError.Length > 0
                 ? $"{status.LastError} ({status.LastErrorAt?.LocalDateTime:g})"
                 : "None");
@@ -317,6 +340,7 @@ internal sealed class MainForm : Form
         var canWrite = _setup.CanWrite;
         _connect.Enabled = canWrite && !_busy;
         _save.Enabled = canWrite && !_busy;
+        _deleteFromOutbox.Enabled = canWrite && !_busy;
         _test.Enabled = !_busy;
         _install.Enabled = admin && !_busy;
         _start.Enabled = admin && !_busy && info.Installed && info.Status != ServiceControllerStatus.Running;
@@ -506,8 +530,19 @@ internal sealed class MainForm : Form
             var settings = _setup.LoadSettings();
             var apiText = api.ToString().TrimEnd('/');
             var apiChanged = !string.Equals(settings.ApiUrl.TrimEnd('/'), apiText, StringComparison.OrdinalIgnoreCase);
+            if (_deleteFromOutbox.Checked && !settings.DeleteFromOutbox
+                && MessageBox.Show(this,
+                    "Each file will be deleted from the Passport folder once it is copied to this computer.\n\n"
+                    + "Modisoft or any other back office reading the same folder will stop seeing the files. "
+                    + "Only do this when DineroBook is the only program reading them.\n\nDelete files from XMLGateway?",
+                    Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            {
+                _deleteFromOutbox.Checked = false;
+                return;
+            }
             settings.WatchFolder = _folder.Text.Trim();
             settings.ApiUrl = apiText;
+            settings.DeleteFromOutbox = _deleteFromOutbox.Checked;
             try
             {
                 _setup.SaveSettings(settings);
