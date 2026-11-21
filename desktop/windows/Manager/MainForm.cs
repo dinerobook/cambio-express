@@ -47,6 +47,12 @@ internal sealed class MainForm : Form
         Text = "Delete files from XMLGateway once they are copied to this computer",
         Margin = new Padding(3, 8, 3, 0),
     };
+    private readonly CheckBox _deleteFromInbox = new()
+    {
+        AutoSize = true,
+        Text = "Delete files from the temp folder once DineroBook has them",
+        Margin = new Padding(3, 4, 3, 0),
+    };
     private readonly Button _save = new() { Text = "Save settings", AutoSize = true };
     private readonly Label _serviceState = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
     private readonly Button _install = new() { Text = "Install / Update", AutoSize = true };
@@ -191,6 +197,17 @@ internal sealed class MainForm : Form
                    + "Leave this unticked while Modisoft or another back office reads the same folder: "
                    + "they would never see the files. Tick it once DineroBook is the only program reading them.",
         });
+        folder.Controls.Add(_deleteFromInbox);
+        folder.Controls.Add(new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(620, 0),
+            Margin = new Padding(20, 0, 3, 6),
+            ForeColor = SystemColors.GrayText,
+            Text = "The temp folder is this computer's own copy of each file (" + _paths.Inbox + "). "
+                   + "Ticked: a copy is deleted as soon as DineroBook has the file. "
+                   + "Unticked: it is kept in " + _paths.Archive + ", one folder a day.",
+        });
         folder.Controls.Add(_save);
 
         var service = Column();
@@ -254,6 +271,7 @@ internal sealed class MainForm : Form
         _folder.Text = settings.WatchFolder;
         _api.Text = settings.ApiUrl;
         _deleteFromOutbox.Checked = settings.DeleteFromOutbox;
+        _deleteFromInbox.Checked = settings.DeleteFromInbox;
         UpdateEnabled();
     }
 
@@ -341,6 +359,7 @@ internal sealed class MainForm : Form
         _connect.Enabled = canWrite && !_busy;
         _save.Enabled = canWrite && !_busy;
         _deleteFromOutbox.Enabled = canWrite && !_busy;
+        _deleteFromInbox.Enabled = canWrite && !_busy;
         _test.Enabled = !_busy;
         _install.Enabled = admin && !_busy;
         _start.Enabled = admin && !_busy && info.Installed && info.Status != ServiceControllerStatus.Running;
@@ -543,6 +562,7 @@ internal sealed class MainForm : Form
             settings.WatchFolder = _folder.Text.Trim();
             settings.ApiUrl = apiText;
             settings.DeleteFromOutbox = _deleteFromOutbox.Checked;
+            settings.DeleteFromInbox = _deleteFromInbox.Checked;
             try
             {
                 _setup.SaveSettings(settings);

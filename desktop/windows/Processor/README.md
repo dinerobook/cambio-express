@@ -26,9 +26,13 @@ flowchart TD
   W -. "only if 'Delete files from XMLGateway' is ticked" .-> D[Delete the original from BOOutbox]
   I --> E[Engine: business days in order,<br/>a day's files in parallel]
   E --> S[(dinerobook.com<br/>POST /posimport/agent/upload)]
-  S -->|200 accepted / duplicate| OK[sent.txt, inbox copy deleted]
-  S -->|5xx, network, 429| R[Waits, tried again]
-  S -->|422 with a message| X[skipped.txt, inbox copy deleted]
+  S -->|200 accepted / duplicate| OK[sent.txt]
+  S -->|5xx, network, 429| R[Waits in the inbox, tried again]
+  S -->|422 with a message| X[skipped.txt]
+  OK --> F{"'Delete files from the temp folder'?"}
+  X --> F
+  F -->|ticked, the default| DEL[Inbox copy deleted]
+  F -->|unticked| ARC[Kept in state\archive\YYYY-MM-DD]
 ```
 
 ## Parts
@@ -86,8 +90,13 @@ field there no longer matches the server.
   anyway and the original stays.
 - **Sends from the inbox.** A file goes once its size and time held
   still across two polls (every 5 seconds); empty files are never sent.
-  Its inbox copy is deleted once DineroBook accepted it (or refused it
-  for good); the sent ledger keeps it from going twice.
+  Once DineroBook accepted it (or refused it for good), its inbox copy
+  is dealt with as **Delete files from the temp folder** says (Setup →
+  2, `deleteFromInbox`, `InboxFiles`): ticked (the default) it is
+  deleted; unticked it is moved to `state\archive\YYYY-MM-DD\` (the
+  PC's local day) and kept there as a backup. Moved, not left in the
+  inbox, so the inbox only holds files still to send. The sent ledger,
+  not the copy, keeps a file from going twice.
 - **No fixed number at once.** A store with 2–4 registers writes
   several files at the same moment, and they all go together; the
   server's rate limit (the pacer below) is the only limit (owner,
@@ -213,6 +222,7 @@ All under `%ProgramData%\DineroBook\Processor\`, set up by Install:
 | `agent-key.bin` | The store's upload key, DPAPI-encrypted for this PC; readable only by SYSTEM, Administrators and the service | Administrators |
 | `state\inbox\` | Each Passport file, copied the moment it is complete; deleted once DineroBook has it. A copy waiting here is sent after a restart | the service |
 | `state\collected.txt` | Files copied from BOOutbox (name, time). Never copied again while listed here | the service |
+| `state\archive\YYYY-MM-DD\` | Sent files kept on this PC, only with **Delete files from the temp folder** unticked. Nothing clears it: delete old days by hand when the disk needs room | the service |
 | `state\sent.txt` | Files DineroBook accepted (name, time, outcome). Safe to delete: the server keeps one copy per file name, so a resend comes back `duplicate` | the service |
 | `state\skipped.txt` | Files refused for good, with why | the service |
 | `state\status.json` | What the service is doing, for the Manager | the service |

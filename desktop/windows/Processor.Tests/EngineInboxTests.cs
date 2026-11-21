@@ -24,6 +24,7 @@ public class EngineInboxTests
         public readonly FixedConfig Config = new(FixedConfig.Running());
         public readonly List<string> Finished = new();
         public readonly List<string> Listed = new();
+        public bool KeptCopies;
         public ProcessorEngine.SourceInfo Source;
         public readonly ProcessorEngine Engine;
 
@@ -31,9 +32,10 @@ public class EngineInboxTests
         {
             var paths = new DataPaths(Dir.Path, isCustom: true);
             Engine = new ProcessorEngine(paths, Config, new ListingSpy(Folder, Listed), Server.For, Clock, Log, "0.1.0",
-                _ => { }, inbox: Inbox, onFinished: name =>
+                _ => { }, inbox: Inbox, onFinished: (name, settings) =>
                 {
                     Finished.Add(name);
+                    KeptCopies = !settings.DeleteFromInbox;
                     Folder.Files.Remove(name);
                 }, source: () => Source);
         }
@@ -75,6 +77,7 @@ public class EngineInboxTests
 
         Assert.Equal(["PJR001.xml"], rig.Server.Uploads);
         Assert.Equal(["PJR001.xml"], rig.Finished);
+        Assert.False(rig.KeptCopies, "the settings say delete by default");
         Assert.All(rig.Listed, f => Assert.Equal(Inbox, f));
         // The status page still names Passport's folder, not the inbox.
         Assert.Equal(@"\\10.5.48.2\XMLGateway\BOOutBox", rig.Engine.Status.WatchFolder);

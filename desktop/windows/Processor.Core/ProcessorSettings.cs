@@ -33,6 +33,13 @@ public sealed class ProcessorSettings
     /// off, or they would never see the files (owner, 2026-11-20).</summary>
     public bool DeleteFromOutbox { get; set; }
 
+    /// <summary>"Delete files from the temp folder" in DineroBook Manager:
+    /// once DineroBook has a file (or refused it for good), delete its copy
+    /// from this computer's temp folder (<see cref="DataPaths.Inbox"/>).
+    /// Unticked, the copy is moved to <see cref="DataPaths.Archive"/>
+    /// (one folder per day) and kept on this computer. On by default.</summary>
+    public bool DeleteFromInbox { get; set; } = true;
+
     // Which store the saved key belongs to (written by the Manager on connect).
     public int? StoreId { get; set; }
     public string StoreName { get; set; } = "";

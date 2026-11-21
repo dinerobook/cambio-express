@@ -74,7 +74,7 @@ public sealed class ProcessorEngine
     private readonly Action<ProcessorStatus> _writeStatus;
 
     private readonly string? _inbox;
-    private readonly Action<string>? _onFinished;
+    private readonly Action<string, ProcessorSettings>? _onFinished;
     private readonly Func<SourceInfo>? _source;
     private volatile bool _nudged;
     private readonly UploadScheduler _schedule = new();
@@ -126,12 +126,13 @@ public sealed class ProcessorEngine
         Action<ProcessorStatus>? writeStatus = null,
         int? maxInFlight = null,
         string? inbox = null,
-        Action<string>? onFinished = null,
+        Action<string, ProcessorSettings>? onFinished = null,
         Func<SourceInfo>? source = null)
     {
         // inbox: send from this local folder instead of the Passport folder
         // (the service); onFinished: a file is done with (accepted, or
-        // refused for good) — the service deletes its inbox copy; source:
+        // refused for good) — the service deletes or archives its inbox
+        // copy, as the settings say (InboxFiles.Finish); source:
         // how the collector is doing.
         _inbox = inbox;
         _onFinished = onFinished;
@@ -582,15 +583,17 @@ public sealed class ProcessorEngine
         _log.LogWarning("{File}: not sent, and will not be tried again ({Why}).", name, why);
     }
 
-    /// <summary>The file is done with; the service deletes its inbox copy.
+    /// <summary>The file is done with; the service deletes its inbox copy
+    /// (or keeps it in the archive when "Delete files from the temp folder"
+    /// is unticked).
     /// A failure there is only logged: the ledger already keeps it from
     /// going again.</summary>
     private void Finished(string name)
     {
-        if (_onFinished is null) return;
+        if (_onFinished is null || _cfg is null) return;
         try
         {
-            _onFinished(name);
+            _onFinished(name, _cfg.Settings);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

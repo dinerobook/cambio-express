@@ -15,7 +15,7 @@
 > | [`frontend/`](frontend/CLAUDE.md) | design system, UI standards, OpenAPI types, the SPA checks CI runs |
 > | [`alembic/`](alembic/CLAUDE.md) | migrations and table naming |
 > | [`desktop/windows/`](desktop/windows/README.md) | the Check Desk Windows app (check cashing window + Excella scanner) |
-> | [`desktop/windows/Processor/`](desktop/windows/Processor/README.md) | DineroBook Processor (Windows service sending Passport's BOOutbox files; replaces `agent/` for new installs) + DineroBook Manager: network share, NetworkService, connect code, never a typed name or password; copies each file to its own inbox the moment it is complete (Modisoft runs beside it) and deletes from BOOutbox only when "Delete files from XMLGateway" is ticked; its server copy is `ServerContract.cs` |
+> | [`desktop/windows/Processor/`](desktop/windows/Processor/README.md) | DineroBook Processor (Windows service sending Passport's BOOutbox files; replaces `agent/` for new installs) + DineroBook Manager: network share, NetworkService, connect code, never a typed name or password; copies each file to its own inbox the moment it is complete (Modisoft runs beside it) and deletes from BOOutbox only when "Delete files from XMLGateway" is ticked (its temp copy goes once sent unless "Delete files from the temp folder" is unticked); its server copy is `ServerContract.cs` |
 >
 > `tests/test_instruction_files.py` fails when a key rule disappears
 > from these files or a path they name stops existing. A new rule goes

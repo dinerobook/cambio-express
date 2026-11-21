@@ -7,8 +7,9 @@ namespace DineroBook.Processor.Service;
 /// BOOutbox share into this computer's inbox the moment it is complete
 /// (and deletes the original only when "Delete files from XMLGateway" is
 /// ticked);</item>
-/// <item><see cref="ProcessorEngine"/> sends the inbox to DineroBook and
-/// deletes each inbox copy once the server has it.</item>
+/// <item><see cref="ProcessorEngine"/> sends the inbox to DineroBook; once
+/// the server has a file its inbox copy is deleted ("Delete files from the
+/// temp folder", the default) or kept in the archive.</item>
 /// </list>
 /// Nothing that goes wrong in a pass stops either loop.
 /// </summary>
@@ -42,7 +43,8 @@ internal sealed class Worker(DataPaths paths, ILogger<Worker> log) : BackgroundS
             log,
             version,
             inbox: paths.Inbox,
-            onFinished: name => File.Delete(Path.Combine(paths.Inbox, name)),
+            onFinished: (name, settings) => InboxFiles.Finish(
+                paths, name, settings.DeleteFromInbox, DateTimeOffset.UtcNow, TimeZoneInfo.Local),
             source: () => new ProcessorEngine.SourceInfo(collector.Problem, collector.MissedCount));
 
         log.LogInformation("DineroBook Processor {Version} started; its files are in {Folder}.", version, paths.Root);
