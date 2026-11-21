@@ -283,3 +283,17 @@ def test_without_day_close_read_there_is_no_register_block(
 
     body = _employee_summary(test_store_id, permissions=NO_DAY_CLOSE_READ)
     assert body["register"] is None
+
+
+def test_recent_receipts_send_register_times_as_utc(client, test_store_id):
+    """Same rule as the Transactions page: the register's wall clock,
+    read in the store's zone, leaves as UTC."""
+    from api.Modules.Tenancy.Models import Store
+    _set_type(test_store_id)
+    with db_session():
+        db.session.get(Store, test_store_id).timezone = "America/Chicago"
+        _txn(test_store_id, source_file="A.xml", no="1", cents=300)
+        db.session.commit()
+
+    receipts = _summary(client, test_store_id)["recent_receipts"]
+    assert receipts[0]["receipt_at"] == "2025-12-08T19:31:38"

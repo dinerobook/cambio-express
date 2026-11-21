@@ -169,6 +169,22 @@ def local_day_start_utc(day: date, timezone: str | None) -> datetime:
     return local_midnight.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
 
 
+def local_to_utc(value: datetime | None, timezone: str | None) -> datetime | None:
+    """A wall-clock time read in ``timezone`` (naive) as naive UTC —
+    the form every API timestamp leaves in, which the SPA renders in
+    the store's zone.
+
+    For times a device at the store wrote in its own clock, with no
+    zone: the register's journal (``PosTransaction.started_at`` and
+    friends) says 14:02 for a sale at 2:02 PM in Texas. Sent as-is,
+    the SPA reads 14:02 as UTC and shows 09:02. Blank or unknown
+    zones read UTC, so the value comes back unchanged."""
+    if value is None:
+        return None
+    local = value.replace(tzinfo=_zone(timezone))
+    return local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+
 def display_timezone(store: Any, user: Any) -> str:
     """The zone the SPA renders every date and time in: the store's
     (Settings → General), else the person's own (store-less

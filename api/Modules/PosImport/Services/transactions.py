@@ -29,6 +29,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, and_, func, or_
 from sqlalchemy.orm import Session, selectinload
 
+from api.Core.Clock import local_to_utc
 from api.Core.Money import to_dollars
 from api.Modules.PosImport.Models import (
     PosTransaction, PosTransactionLine,
@@ -58,8 +59,24 @@ def counts_toward_sales() -> ColumnElement[bool]:
     )
 
 
-def _stamp(value: Any) -> str | None:
-    return value.isoformat() if value is not None else None
+def register_stamp(value: Any, timezone: str | None) -> str | None:
+    """A register time as the API sends every timestamp: naive UTC.
+
+    The journal's times are the register's own wall clock (14:02 for
+    a sale at 2:02 PM at the store), stored as written. Read in the
+    store's zone and turned into UTC here, the SPA shows them back in
+    store time like every other timestamp, rather than five or six
+    hours early. A store with no zone set gets the time unchanged."""
+    utc = local_to_utc(value, timezone)
+    return utc.isoformat() if utc is not None else None
+
+
+def store_timezone(db: Session, store_id: int) -> str:
+    """The store's IANA zone, "" when it has none."""
+    from api.Modules.Tenancy.Models import Store
+
+    store = db.get(Store, store_id)
+    return str(getattr(store, "timezone", "") or "")
 
 
 def _base_query(
@@ -149,6 +166,7 @@ def list_transactions(
         .limit(per_page)
         .all()
     )
+    tz = store_timezone(db, store_id)
     # One grouped count for the page rather than N per-row queries.
     counts = dict(
         db.query(
@@ -169,7 +187,7 @@ def list_transactions(
                 "register_id": t.register_id or "",
                 "cashier_id": t.cashier_id or "",
                 "transaction_no": t.transaction_no or "",
-                "receipt_at": _stamp(t.receipt_at),
+                "receipt_at": register_stamp(t.receipt_at, tz),
                 "item_count": int(counts.get(t.id, 0)),
                 "gross": to_dollars(t.gross_cents),
                 "tax": to_dollars(t.tax_cents),
@@ -239,6 +257,7 @@ def transaction_detail(
             .limit(1)
             .scalar()
         )
+    tz = store_timezone(db, store_id)
     return {
         "id": txn.id,
         "business_date": txn.business_date.isoformat(),
@@ -249,9 +268,9 @@ def transaction_detail(
         "till_id": txn.till_id or "",
         "transaction_no": txn.transaction_no or "",
         "event_sequence_id": txn.event_sequence_id or "",
-        "started_at": _stamp(txn.started_at),
-        "ended_at": _stamp(txn.ended_at),
-        "receipt_at": _stamp(txn.receipt_at),
+        "started_at": register_stamp(txn.started_at, tz),
+        "ended_at": register_stamp(txn.ended_at, tz),
+        "receipt_at": register_stamp(txn.receipt_at, tz),
         "outside": bool(txn.outside),
         "training_mode": bool(txn.training_mode),
         "offline": bool(txn.offline),
@@ -300,5 +319,6 @@ def transaction_detail(
 
 __all__ = [
     "MAX_PER_PAGE", "MAX_RANGE_DAYS", "TransactionQueryError",
-    "counts_toward_sales", "list_transactions", "transaction_detail",
+    "counts_toward_sales", "list_transactions", "register_stamp",
+    "store_timezone", "transaction_detail",
 ]
