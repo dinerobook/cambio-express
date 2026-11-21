@@ -36,7 +36,12 @@ internal sealed class MainForm : Form
     private readonly Button _connect = new() { Text = "Connect…", AutoSize = true };
     private readonly Button _test = new() { Text = "Test connection", AutoSize = true };
     private readonly Label _testResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
-    private readonly TextBox _folder = new() { Width = 430, AccessibleName = "Passport folder" };
+    private readonly TextBox _folder = new()
+    {
+        Width = 430,
+        AccessibleName = "Passport folder",
+        PlaceholderText = ProcessorSettings.DefaultWatchFolder,
+    };
     private readonly Button _browse = new() { Text = "Browse…", AutoSize = true };
     private readonly Button _check = new() { Text = "Check", AutoSize = true };
     private readonly Label _folderResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
@@ -331,7 +336,10 @@ internal sealed class MainForm : Form
     private void LoadSettingsIntoForm()
     {
         var settings = _setup.LoadSettings();
-        _folder.Text = settings.WatchFolder;
+        // Gilbarco's BOOutbox share unless the store saved another folder.
+        _folder.Text = string.IsNullOrWhiteSpace(settings.WatchFolder)
+            ? ProcessorSettings.DefaultWatchFolder
+            : settings.WatchFolder;
         _api.Text = settings.ApiUrl;
         _deleteFromOutbox.Checked = settings.DeleteFromOutbox;
         _deleteFromInbox.Checked = settings.DeleteFromInbox;
