@@ -27,7 +27,7 @@ internal sealed class MainForm : Form
     private readonly Dictionary<string, Label> _values = new();
     private static readonly string[] StatusRows =
     [
-        "Service", "Store", "Now", "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Last problem",
+        "Service", "Store", "Now", "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Missed", "Last problem",
         "Passport folder", "DineroBook", "Updated",
     ];
 
@@ -36,11 +36,46 @@ internal sealed class MainForm : Form
     private readonly Button _connect = new() { Text = "Connect…", AutoSize = true };
     private readonly Button _test = new() { Text = "Test connection", AutoSize = true };
     private readonly Label _testResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
-    private readonly TextBox _folder = new() { Width = 430, AccessibleName = "Passport folder" };
+    private readonly TextBox _folder = new()
+    {
+        Width = 430,
+        AccessibleName = "Passport folder",
+        PlaceholderText = ProcessorSettings.DefaultWatchFolder,
+    };
     private readonly Button _browse = new() { Text = "Browse…", AutoSize = true };
     private readonly Button _check = new() { Text = "Check", AutoSize = true };
     private readonly Label _folderResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
     private readonly TextBox _api = new() { Width = 300, AccessibleName = "DineroBook address" };
+    /// <summary>"Send to DineroBook": off, files are only collected in the
+    /// temp folder (owner, 2026-11-20).</summary>
+    private readonly ToggleSwitch _send = new()
+    {
+        AutoSize = true,
+        Text = "Send",
+        AccessibleName = "Send to DineroBook",
+        Margin = new Padding(12, 5, 3, 0),
+    };
+    private readonly Button _openTemp = new() { Text = "Open temp folder", AutoSize = true };
+    private readonly Label _sendOffHint = new()
+    {
+        AutoSize = true,
+        Margin = new Padding(3, 0, 3, 4),
+        ForeColor = SystemColors.GrayText,
+        Text = "Send is off: files are only collected in the temp folder.",
+        Visible = false,
+    };
+    private readonly ToggleSwitch _deleteFromOutbox = new()
+    {
+        AutoSize = true,
+        Text = "Delete files from XMLGateway once copied",
+        Margin = new Padding(3, 8, 3, 0),
+    };
+    private readonly ToggleSwitch _deleteFromInbox = new()
+    {
+        AutoSize = true,
+        Text = "Delete files from the temp folder once sent",
+        Margin = new Padding(3, 4, 3, 0),
+    };
     private readonly Button _save = new() { Text = "Save settings", AutoSize = true };
     private readonly Label _serviceState = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
     private readonly Button _install = new() { Text = "Install / Update", AutoSize = true };
@@ -49,6 +84,10 @@ internal sealed class MainForm : Form
     private readonly Button _restart = new() { Text = "Restart", AutoSize = true };
     private readonly Button _uninstall = new() { Text = "Uninstall", AutoSize = true };
     private readonly Label _serviceResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
+    private readonly Button _clearCache = new() { Text = "Clear cache", AutoSize = true };
+    private readonly Label _cacheSize = new() { AutoSize = true, Margin = new Padding(3, 8, 3, 0) };
+    private readonly Label _cacheResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
+    private readonly ToolTip _tips = new() { AutoPopDelay = 20000 };
 
     // Log
     private readonly ComboBox _logFiles = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
@@ -67,7 +106,7 @@ internal sealed class MainForm : Form
         _setup = new MachineSetup(paths);
 
         Text = "DineroBook Manager" + (paths.IsCustom ? $" — test folder {paths.Root}" : "");
-        ClientSize = new Size(720, 560);
+        ClientSize = new Size(720, 600);
         MinimumSize = new Size(640, 480);
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
@@ -84,11 +123,13 @@ internal sealed class MainForm : Form
         _timer.Tick += (_, _) => RefreshStatus();
         tabs.SelectedIndexChanged += (_, _) =>
         {
+            if (tabs.SelectedIndex == 1) ShowCacheSize();
             if (tabs.SelectedIndex == 2) LoadLogList();
         };
         Load += (_, _) =>
         {
             LoadSettingsIntoForm();
+            ShowCacheSize();
             RefreshStatus();
             _timer.Start();
         };
@@ -102,16 +143,29 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
+            // Says the next step: the one prompt before Install, or the
+            // no-prompt shortcut Install made.
             Text = _paths.IsCustom
                 ? "Test folder: the key and settings are saved there. The service needs administrator rights."
-                : "Viewing only. Connecting, settings and the service need administrator rights.",
+                : File.Exists(NoPromptLaunch.DesktopShortcut)
+                    ? "Viewing only. Open the DineroBook Manager shortcut on the desktop."
+                    : "Viewing only. Restart as administrator once, then Install / Update.",
         };
+        _tips.SetToolTip(text,
+            "Install / Update puts a DineroBook Manager shortcut on the desktop.\n"
+            + "That shortcut opens this window with administrator rights, without the Windows prompt.");
         _banner.Controls.Add(text);
         _banner.Controls.Add(_elevate);
         _banner.Visible = !Elevation.IsElevated;
         _elevate.Click += async (_, _) =>
         {
             await Task.Yield(); // Windows' prompt waits for an answer
+            // Installed with the no-prompt task: no prompt at all.
+            if (!_paths.IsCustom && Program.IsInstalledCopy && NoPromptLaunch.TryStart())
+            {
+                Close();
+                return;
+            }
             if (Elevation.RestartElevated(_args)) Close();
         };
     }
@@ -153,6 +207,25 @@ internal sealed class MainForm : Form
         Dock = DockStyle.Fill,
     };
 
+    /// <summary>A short grey line under a switch, lined up with its text.</summary>
+    private static Label Hint(string text) => new()
+    {
+        AutoSize = true,
+        Margin = new Padding(47, 0, 3, 6),
+        ForeColor = SystemColors.GrayText,
+        Text = text,
+    };
+
+    /// <summary>Result lines take no room until they have something to say.</summary>
+    private static void HideWhenEmpty(params Label[] labels)
+    {
+        foreach (var label in labels)
+        {
+            label.Visible = label.Text.Length > 0;
+            label.TextChanged += (_, _) => label.Visible = label.Text.Length > 0;
+        }
+    }
+
     private static FlowLayoutPanel Row(params Control[] controls)
     {
         var row = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = false, Margin = new Padding(0) };
@@ -169,24 +242,59 @@ internal sealed class MainForm : Form
         account.Controls.Add(Row(_connect, _test));
         account.Controls.Add(_testResult);
 
+        // One short line under each setting; the details are in its tooltip
+        // (owner, 2026-11-20: no walls of text, no empty space).
         var folder = Column();
-        folder.Controls.Add(new Label { AutoSize = true, Text = "Passport's BOOutbox network share (a mapped drive letter is saved as its network path):" });
+        folder.Controls.Add(new Label { AutoSize = true, Text = "Passport folder (network share, usually BOOutbox):" });
         folder.Controls.Add(Row(_folder, _browse, _check));
         folder.Controls.Add(_folderResult);
-        folder.Controls.Add(Row(new Label { AutoSize = true, Text = "DineroBook address:", Margin = new Padding(3, 7, 3, 0) }, _api));
-        folder.Controls.Add(_save);
+        folder.Controls.Add(Row(new Label { AutoSize = true, Text = "DineroBook address:", Margin = new Padding(3, 7, 3, 0) }, _api, _send));
+        folder.Controls.Add(_sendOffHint);
+        folder.Controls.Add(_deleteFromOutbox);
+        folder.Controls.Add(Hint("Keep off while Modisoft reads the same folder."));
+        folder.Controls.Add(_deleteFromInbox);
+        folder.Controls.Add(Hint("Off: sent files are kept in the archive folder."));
+        folder.Controls.Add(Row(_save, _openTemp));
+        _tips.SetToolTip(_folder, "A mapped drive letter is saved as its network path: the service does not see drive letters.");
+        _tips.SetToolTip(_send,
+            "On: every file is sent to DineroBook.\n"
+            + "Off: files are only collected in the temp folder (" + _paths.Inbox + ").\n"
+            + "Nothing is sent and no connection is needed. Turned on again, the files waiting there are sent.");
+        _tips.SetToolTip(_openTemp, _paths.Inbox);
+        _send.CheckedChanged += (_, _) => ShowSendState();
+        _openTemp.Click += (_, _) =>
+        {
+            try
+            {
+                Directory.CreateDirectory(_paths.Inbox);
+                Process.Start(new ProcessStartInfo("explorer.exe") { ArgumentList = { _paths.Inbox }, UseShellExecute = false });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
+            {
+                MessageBox.Show(this, "Cannot open " + _paths.Inbox + ": " + ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        };
+        _tips.SetToolTip(_deleteFromOutbox,
+            "Every file is copied to this computer the moment Passport finishes it, and sent from there.\n"
+            + "On: the original is deleted from BOOutbox once the copy is safe, the way Modisoft's service works.\n"
+            + "Off: BOOutbox is only read. Keep it off while Modisoft or another back office reads the same folder.");
+        _tips.SetToolTip(_deleteFromInbox,
+            "Temp folder: " + _paths.Inbox + "\n"
+            + "On: a copy is deleted as soon as DineroBook has the file.\n"
+            + "Off: it is kept in " + _paths.Archive + ", one folder a day.");
 
         var service = Column();
         service.Controls.Add(_serviceState);
-        service.Controls.Add(new Label
-        {
-            AutoSize = true,
-            MaximumSize = new Size(620, 0),
-            Margin = new Padding(3, 8, 3, 4),
-            Text = "It runs as NetworkService and reads the BOOutbox share as this computer, like LdPosService: no Windows account or password to type.",
-        });
         service.Controls.Add(Row(_install, _start, _stop, _restart, _uninstall));
         service.Controls.Add(_serviceResult);
+        service.Controls.Add(Row(_clearCache, _cacheSize));
+        service.Controls.Add(_cacheResult);
+        _tips.SetToolTip(_install, "Runs as NetworkService and reads the BOOutbox share as this computer: no Windows password to type.");
+        _tips.SetToolTip(_clearCache,
+            "Deletes the lists of files already copied and sent (sent.txt, skipped.txt, collected\\*.txt).\n"
+            + "The service is stopped meanwhile and started again.\n"
+            + "Settings, the key, the logs, files still to send and the archive stay.");
+        HideWhenEmpty(_testResult, _folderResult, _serviceResult, _cacheResult);
 
         // Added bottom-up: Dock=Top stacks the last one added on top.
         page.Controls.Add(Group("3. Windows service", service));
@@ -207,6 +315,7 @@ internal sealed class MainForm : Form
         _stop.Click += async (_, _) => await ServiceActionAsync("Stopping…", ServiceControl.Stop, "Stopped.");
         _restart.Click += async (_, _) => await ServiceActionAsync("Restarting…", ServiceControl.Restart, "Restarted.");
         _uninstall.Click += async (_, _) => await UninstallAsync();
+        _clearCache.Click += async (_, _) => await ClearCacheAsync();
         return page;
     }
 
@@ -234,10 +343,25 @@ internal sealed class MainForm : Form
     private void LoadSettingsIntoForm()
     {
         var settings = _setup.LoadSettings();
-        _folder.Text = settings.WatchFolder;
+        // Gilbarco's BOOutbox share unless the store saved another folder.
+        _folder.Text = string.IsNullOrWhiteSpace(settings.WatchFolder)
+            ? ProcessorSettings.DefaultWatchFolder
+            : settings.WatchFolder;
         _api.Text = settings.ApiUrl;
+        _deleteFromOutbox.Checked = settings.DeleteFromOutbox;
+        _deleteFromInbox.Checked = settings.DeleteFromInbox;
+        _send.Checked = settings.SendToDineroBook;
+        ShowSendState();
         UpdateEnabled();
     }
+
+    /// <summary>With Send off the address is not used: grey it and say so.</summary>
+    private void ShowSendState()
+    {
+        _sendOffHint.Visible = !_send.Checked;
+        _api.ReadOnly = !_send.Checked;
+    }
+
 
     private void RefreshStatus()
     {
@@ -262,13 +386,15 @@ internal sealed class MainForm : Form
                 ? $" — connected with a code from {settings.ConnectedBy}" + (settings.ConnectedAt is { } at ? $" on {at.LocalDateTime:d}" : "")
                 : "")
             : "Not connected — Setup → Connect");
-        Set("Passport folder", settings.WatchFolder);
+        Set("Passport folder", settings.WatchFolder + (settings.DeleteFromOutbox
+            ? " — each file is deleted there once it is copied"
+            : " — files are copied, never changed there"));
         Set("DineroBook", settings.ApiUrl);
 
         if (status is null)
         {
             Set("Now", running ? "Starting…" : "—");
-            foreach (var k in new[] { "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Last problem", "Updated" }) Set(k, "—");
+            foreach (var k in new[] { "Last upload", "Sent today", "Waiting", "Waiting on", "Skipped", "Missed", "Last problem", "Updated" }) Set(k, "—");
         }
         else
         {
@@ -289,6 +415,9 @@ internal sealed class MainForm : Form
             Set("Skipped", status.SkippedTotal == 0
                 ? "0"
                 : $"{status.SkippedTotal:N0} refused for good by DineroBook (see the Log)");
+            Set("Missed", status.MissedTotal == 0
+                ? "0"
+                : $"{status.MissedTotal:N0} left the Passport folder before they could be copied (another program took them first)");
             Set("Last problem", status.LastError.Length > 0
                 ? $"{status.LastError} ({status.LastErrorAt?.LocalDateTime:g})"
                 : "None");
@@ -317,12 +446,18 @@ internal sealed class MainForm : Form
         var canWrite = _setup.CanWrite;
         _connect.Enabled = canWrite && !_busy;
         _save.Enabled = canWrite && !_busy;
+        _deleteFromOutbox.Enabled = canWrite && !_busy;
+        _deleteFromInbox.Enabled = canWrite && !_busy;
+        _send.Enabled = canWrite && !_busy;
         _test.Enabled = !_busy;
         _install.Enabled = admin && !_busy;
         _start.Enabled = admin && !_busy && info.Installed && info.Status != ServiceControllerStatus.Running;
         _stop.Enabled = admin && !_busy && info.Installed && info.Status == ServiceControllerStatus.Running;
         _restart.Enabled = admin && !_busy && info.Installed;
         _uninstall.Enabled = admin && !_busy && info.Installed;
+        // The machine's own lists sit beside a running service: only an
+        // administrator may stop it to clear them. A test folder needs no service.
+        _clearCache.Enabled = (_paths.IsCustom || admin) && !_busy;
     }
 
     private static ServiceControl.Info SafeQuery()
@@ -506,8 +641,25 @@ internal sealed class MainForm : Form
             var settings = _setup.LoadSettings();
             var apiText = api.ToString().TrimEnd('/');
             var apiChanged = !string.Equals(settings.ApiUrl.TrimEnd('/'), apiText, StringComparison.OrdinalIgnoreCase);
+            if (_deleteFromOutbox.Checked && !settings.DeleteFromOutbox
+                && MessageBox.Show(this,
+                    "Each file will be deleted from the Passport folder once it is copied to this computer.\n\n"
+                    + "Modisoft or any other back office reading the same folder will stop seeing the files. "
+                    + "Only do this when DineroBook is the only program reading them.\n\nDelete files from XMLGateway?",
+                    Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            {
+                _deleteFromOutbox.Checked = false;
+                return;
+            }
             settings.WatchFolder = _folder.Text.Trim();
             settings.ApiUrl = apiText;
+            settings.DeleteFromOutbox = _deleteFromOutbox.Checked;
+            settings.DeleteFromInbox = _deleteFromInbox.Checked;
+            // Turned on again, whatever waits in the temp folder simply goes
+            // (owner, 2026-11-21): BOOutbox itself can hold files that are not
+            // register files, and DineroBook keeps those aside (Developer tab)
+            // without putting anything in its tables.
+            settings.SendToDineroBook = _send.Checked;
             try
             {
                 _setup.SaveSettings(settings);
@@ -532,19 +684,39 @@ internal sealed class MainForm : Form
             _serviceResult.Text = "Installing…";
             try
             {
-                await Task.Run(() =>
+                var shortcut = await Task.Run(() =>
                 {
                     ServiceControl.InstallOrUpdate(source);
                     _setup.SecureFolder();
                     ServiceControl.Start();
+                    return RegisterNoPrompt();
                 });
-                _serviceResult.Text = $"Installed and started as {ServiceControl.Account}. It starts by itself with Windows.";
+                _serviceResult.Text = $"Installed and started as {ServiceControl.Account}. It starts by itself with Windows. " + shortcut;
             }
             catch (Exception ex)
             {
                 _serviceResult.Text = "✖ " + Explain(ex);
             }
         });
+    }
+
+    /// <summary>The no-prompt task and its desktop shortcut, for the Manager's
+    /// copy in Program Files (the owner's LdPosService way). A failure here
+    /// is only reported: the service is installed either way.</summary>
+    private static string RegisterNoPrompt()
+    {
+        var manager = ServiceControl.InstalledManagerExe;
+        if (!File.Exists(manager)) return "";
+        try
+        {
+            NoPromptLaunch.Register(manager);
+            return "Open this window from the \"DineroBook Manager\" shortcut on the desktop: no Windows prompt.";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or IOException
+                                       or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            return "(The no-prompt desktop shortcut could not be made: " + ex.Message + ")";
+        }
     }
 
     private async Task ServiceActionAsync(string doing, Action action, string done)
@@ -580,7 +752,11 @@ internal sealed class MainForm : Form
             _serviceResult.Text = "Removing…";
             try
             {
-                await Task.Run(ServiceControl.Uninstall);
+                await Task.Run(() =>
+                {
+                    ServiceControl.Uninstall();
+                    NoPromptLaunch.Remove();
+                });
                 if (forgetKey) _setup.ForgetKey();
                 _serviceResult.Text = "Removed. The data folder (" + _paths.Root + ") was left in place.";
             }
@@ -588,6 +764,63 @@ internal sealed class MainForm : Form
             {
                 _serviceResult.Text = "✖ " + Explain(ex);
             }
+        });
+    }
+
+    private void ShowCacheSize()
+    {
+        try
+        {
+            _cacheSize.Text = "Sent-file lists: " + StateCache.Measure(_paths).Describe();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _cacheSize.Text = "";
+        }
+    }
+
+    private async Task ClearCacheAsync()
+    {
+        await Task.Yield();
+        if (MessageBox.Show(this,
+                "Clear the cache?\n\n"
+                + "The lists of files already copied and sent are deleted"
+                + (_paths.IsCustom ? "" : " (the service is stopped meanwhile and started again)") + ". "
+                + "A file still in the Passport folder or the temp folder is sent once more; "
+                + "DineroBook answers \"duplicate\" for the ones it already has, so nothing is counted twice.",
+                Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+        {
+            return;
+        }
+        await Busy(async () =>
+        {
+            _cacheResult.Text = "Clearing…";
+            try
+            {
+                var cleared = await Task.Run(() =>
+                {
+                    // A test folder has no service of its own.
+                    var info = _paths.IsCustom ? new ServiceControl.Info(false, null, "", "") : ServiceControl.Query();
+                    var wasRunning = info.Installed && info.Status is ServiceControllerStatus.Running or ServiceControllerStatus.StartPending;
+                    if (info.Installed) ServiceControl.Stop();
+                    try
+                    {
+                        return StateCache.Clear(_paths);
+                    }
+                    finally
+                    {
+                        if (wasRunning) ServiceControl.Start();
+                    }
+                });
+                _cacheResult.Text = cleared.Files == 0
+                    ? "The cache was already empty."
+                    : $"Cleared {cleared.Describe()}.";
+            }
+            catch (Exception ex)
+            {
+                _cacheResult.Text = "✖ " + Explain(ex);
+            }
+            ShowCacheSize();
         });
     }
 

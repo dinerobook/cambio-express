@@ -25,9 +25,8 @@ public static class RetryPolicy
     public static readonly TimeSpan BlockedPause = TimeSpan.FromMinutes(5);
 
     /// <summary>The same file failing this many times in a row is reported
-    /// as an error ("stuck"), not a warning. It is still never skipped: the
-    /// server books a business day as soon as a later day's file arrives,
-    /// so letting the next file overtake it could book its day without it.</summary>
+    /// as an error ("stuck"), not a warning. It is still never skipped: it
+    /// stays in the inbox and is tried again, while the other files go on.</summary>
     public const int StuckAfter = 3;
 
     public static TimeSpan AfterFailures(int consecutiveFailures)

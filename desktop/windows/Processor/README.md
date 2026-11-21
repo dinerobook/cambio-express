@@ -17,6 +17,24 @@ store's barcode scanner.
 The server does all the parsing and keeps every file raw, so the
 Processor needs no update when parsing improves.
 
+```mermaid
+flowchart TD
+  P[Gilbarco Passport writes a file] --> B[BOOutbox network share]
+  B -. also read by .-> M[Modisoft / LdPosService]
+  B --> W[Collector: watcher + a listing every 5 s]
+  W -->|"nobody is writing it any more"| I[Copy to this PC's inbox<br/>state\inbox]
+  W -. "only if 'Delete files from XMLGateway' is on" .-> D[Delete the original from BOOutbox]
+  I --> E[Engine: each file goes at once,<br/>as it came, many at a time]
+  E --> S[(dinerobook.com<br/>POST /posimport/agent/upload)]
+  S -->|200 accepted / duplicate| OK[sent.txt]
+  S -->|5xx, network, 429| R[Waits in the inbox, tried again]
+  S -->|422 with a message| X[skipped.txt]
+  OK --> F{"'Delete files from the temp folder'?"}
+  X --> F
+  F -->|on, the default| DEL[Inbox copy deleted]
+  F -->|off| ARC[Kept in state\archive\YYYY-MM-DD]
+```
+
 ## Parts
 
 | Folder | What |
@@ -39,37 +57,92 @@ field there no longer matches the server.
   (owner, 2026-11-18); the server keeps each file raw and reads what it
   knows. Only hidden / system files (half-written temp files) and
   subfolders are left out.
-- **Read only.** It never moves, renames, deletes, changes or locks a
-  Passport file: it lists the folder and opens each file for reading
-  with ReadWrite + Delete sharing, so Passport and the other
-  back-office programs reading the same folder are never in the way.
-- **A file goes once its size and time held still across two polls**
-  (every 5 seconds). Empty files are never sent.
+- **Copies each file to this PC the moment it is complete, and sends
+  from there** (`OutboxCollector`, owner, 2026-11-20). Modisoft's
+  service, which stores run beside DineroBook while the two are
+  compared, copies every file away and deletes it from BOOutbox within
+  moments; the owner's LdPosService copies at once and runs beside it at
+  50+ stores. So:
+  - a **watcher** (`OutboxWatcher`, a FileSystemWatcher on the share)
+    reports each new file the moment it appears, and the folder is still
+    **listed every poll** (5 s, `pollSeconds`) in case the watcher
+    missed one;
+  - the watcher is checked on every pass and **made again, at most
+    every 30 seconds**, when it failed, when the share came back after
+    being unreachable (a watcher on a dropped share is dead even when it
+    says nothing), or when a listing finds a new file the watcher still
+    has not reported 2 seconds later (timed by this computer's clock,
+    never the file's time: Passport's clock may be off). Store PCs are
+    often on Wi-Fi, where the
+    network drops; nothing is lost meanwhile, because the listing goes
+    on every 5 seconds;
+  - a file is copied once **nobody is writing it**: it is opened for
+    reading while refusing other writers, so "Passport still has it
+    open" fails and is tried again every 250 ms (for 2 minutes, then
+    the next listing). Readers and deleters (Modisoft) are never in the
+    way. Empty and hidden files wait;
+  - the copy is written beside the inbox (`state\inbox\.incoming`) and
+    moved in whole, then the name goes in that day's
+    `state\collected\YYYY-MM-DD.txt` (`DailyLedger`, one file a day so
+    none grows forever): a file is never copied twice, not after a
+    restart and not when it stays in BOOutbox;
+  - a file that leaves BOOutbox before it could be copied (another
+    program took it first) is logged and counted as **Missed** on the
+    Status tab.
+- **BOOutbox is not changed unless the store says so.** With
+  **Delete files from XMLGateway** off (the default), Passport's
+  files are only read. On (Setup → 2, after a warning), each
+  original is deleted once its copy is safe — the way Modisoft's
+  service works — for a store where DineroBook is the only program
+  reading the folder. A delete that fails (the share does not let this
+  PC change files) is reported on the Status tab; the copy is sent
+  anyway and the original stays.
+- **Sends from the inbox at once, as files came** (owner, 2026-11-20).
+  An inbox file is whole, so it goes the moment it lands (the collector
+  wakes the sender): no business-day order, no waiting on another file,
+  no settling. DineroBook puts each file in its tables as it comes and
+  works out a day from the events' own start and end times. Many go at
+  once; the only limit is the server's (the pacer below), so a burst of
+  10 files reaches the server within about 3 seconds.
+  Once DineroBook accepted it (or refused it for good), its inbox copy
+  is dealt with as **Delete files from the temp folder** says (Setup →
+  2, `deleteFromInbox`, `InboxFiles`): on (the default) it is
+  deleted; off, it is moved to `state\archive\YYYY-MM-DD\` (the
+  PC's local day) and kept there as a backup. Moved, not left in the
+  inbox, so the inbox only holds files still to send. The sent ledger,
+  not the copy, keeps a file from going twice.
 - **No fixed number at once.** A store with 2–4 registers writes
   several files at the same moment, and they all go together; the
   server's rate limit (the pacer below) is the only limit (owner,
-  2026-11-18). A slow or failing file never holds up the others of its
-  day; it is retried on its own. (`patterns` and `maxConcurrentUploads`
-  left in an older settings.json are ignored.)
-- **Business days in order.** The server books day D as soon as any
-  file of a later business day arrives (`auto_commit_rolled_days`), and
-  a file arriving after its day was booked is not added. At day close
-  register 1's last sale of day D and register 2's first sale of day
-  D+1 are written at the same moment, so the Processor reads each file's
-  `BusinessDate` (the journal event's, or the movement report's
-  `MovementHeader`, exactly as the server reads it) and:
-  1. sends older business days first;
-  2. sends files of the same day in parallel;
-  3. sends nothing of a later day while any file of an earlier day is
-     still being written, waiting, being sent or being retried. A file
-     that keeps failing holds later days back, and the Status page
-     names it ("Waiting on …");
-  4. sends a file with no readable business day (not a journal or
-     report) in file name order, with no barrier.
-  The date is read with DTDs prohibited and a size cap, and checked
-  again on the exact bytes about to be sent.
-- **Polls; no FileSystemWatcher.** A watcher holds the folder open and
-  drops events on network shares; a poll never misses a file.
+  2026-11-18). A slow or failing file never holds up any other; it waits
+  in the inbox and is retried on its own (5 s, 15 s, 1 min, 5 min, …).
+  (`patterns` and `maxConcurrentUploads` left in an older settings.json
+  are ignored.)
+- **Send to DineroBook can be off: collect only** (owner, 2026-11-20).
+  The **Send** switch beside the DineroBook address (`sendToDineroBook`,
+  on by default). Off, files are still copied into the temp folder
+  (`state\inbox`) the moment they are complete, but nothing goes to the
+  server and no connection is needed. The Status tab says how many files
+  are collected, and **Open temp folder** shows them. The owner uses this
+  to gather files from any Passport folder, BOInBox too (every file is
+  copied, whatever its name). Turned on again, the files waiting in the
+  temp folder are sent, with no question asked (owner, 2026-11-21).
+  BOOutbox itself can hold files that are not register files: DineroBook
+  keeps such a file with its error (Developer tab) and puts nothing in
+  its tables, so it does no harm.
+- **What "5 seconds" is.** `pollSeconds` in settings.json (default 5,
+  allowed 2–300): how often the collector lists BOOutbox as the
+  watcher's safety net, and how often the sender looks at the inbox when
+  nothing woke it sooner. It is not a wait before sending: a file the
+  watcher reports is copied at once and sent at once.
+- **Business-day order is only for a folder read directly** (tests).
+  `UploadScheduler` with `inOrder: true` sends older business days
+  first and holds later days while an earlier one is on its way, for a
+  server that booked day D as soon as a later day's file arrived. The
+  service never runs that way any more.
+- **Two loops side by side** (`Worker`): collecting and sending each
+  run on their own, so a share that hangs never holds up files already
+  copied, and a slow upload never holds up copying.
 - **Never hangs on a dead share.** A call to a network share that went
   away does not fail, it waits — the owner's LdPosService logs showed
   12–16 minutes. So every call has a time limit: listing the folder
@@ -94,7 +167,7 @@ Each answer of `POST /api/v2/posimport/agent/upload`:
 | 422 with a message | That file can never go (too large, no name): recorded in `skipped.txt`, never tried again. |
 | 422 from the request check | The server no longer takes this version's upload format. Nothing is skipped; the status asks for an update. |
 | 429 | Too many requests: everything pauses a minute. |
-| 5xx, network, anything else | That file is tried again: 5 s, 15 s, 1 min, then every 5 min; the others of its day go on. Never dropped. After 3 failures of the same file it is an Error in the Event Log ("Stuck on …"). Two uploads colliding on the server come back as a 5xx too; the retry then finds the file staged (`duplicate`), which counts as sent. When every try fails (DineroBook or the network is down) it sends one file at a time on the same ladder until one goes through. |
+| 5xx, network, anything else | That file is tried again: 5 s, 15 s, 1 min, then every 5 min; the other files go on. Never dropped. After 3 failures of the same file it is an Error in the Event Log ("Stuck on …"). Two uploads colliding on the server come back as a 5xx too; the retry then finds the file staged (`duplicate`), which counts as sent. When every try fails (DineroBook or the network is down) it sends one file at a time on the same ladder until one goes through. |
 
 Files over the server's 4 MB, or with names over 120 characters, are
 skipped without sending (logged).
@@ -133,6 +206,26 @@ BOOutbox share, `\\10.5.48.2\XMLGateway\BOOutBox` at Gilbarco sites
    NetworkService, starts, and starts with Windows from then on
    (delayed start; Windows restarts it after 1 minute, again after 1,
    then every 5 if it stops).
+
+   Install / Update also puts a **DineroBook Manager** shortcut on the
+   desktop. From then on, open the Manager from that shortcut: it
+   opens with administrator rights and without the Windows prompt, so
+   "Restart as administrator" is needed only the first time. This is
+   the owner's LdPosService way (`Disable-RunExeAsAdmin.bat`), built in
+   (`NoPromptLaunch`):
+   - a scheduled task `DineroBook\Manager` starts
+     `C:\Program Files\DineroBook\Processor\DineroBookManager.exe
+     --from-task` "with highest privileges";
+   - the task only runs from the shortcut (`schtasks /Run`), never by
+     itself, and only for the Windows user who clicked Install;
+   - opening that Program Files copy directly goes through the task
+     too. UAC itself is not changed.
+
+   The task starts the copy in **Program Files**, never one in
+   ProgramData or Downloads. Only administrators can change Program
+   Files. Every user may add files to ProgramData, and a file planted
+   beside a program that starts with administrator rights would run
+   with them too. Uninstall removes the task and the shortcut.
 7. **Status** shows the store, the last upload, today's count and what
    is waiting. **Test connection** checks the address and the key
    without sending a file.
@@ -167,10 +260,30 @@ All under `%ProgramData%\DineroBook\Processor\`, set up by Install:
 |---|---|---|
 | `settings.json` | Passport folder, DineroBook address, which store and key (not the key itself) | Administrators |
 | `agent-key.bin` | The store's upload key, DPAPI-encrypted for this PC; readable only by SYSTEM, Administrators and the service | Administrators |
+| `state\inbox\` | Each Passport file, copied the moment it is complete; deleted once DineroBook has it. A copy waiting here is sent after a restart | the service |
+| `state\collected\YYYY-MM-DD.txt` | Files copied from BOOutbox that day (name, time), one file a day. A name in any of them is never copied again. Old days may be deleted by hand: a file named there and still in BOOutbox would be copied again and come back "duplicate" | the service |
+| `state\archive\YYYY-MM-DD\` | Sent files kept on this PC, only with **Delete files from the temp folder** off. Nothing clears it: delete old days by hand when the disk needs room | the service |
 | `state\sent.txt` | Files DineroBook accepted (name, time, outcome). Safe to delete: the server keeps one copy per file name, so a resend comes back `duplicate` | the service |
 | `state\skipped.txt` | Files refused for good, with why | the service |
 | `state\status.json` | What the service is doing, for the Manager | the service |
-| `state\logs\processor-YYYYMMDD.log` | One log a day, 14 days kept | the service |
+| `state\logs\processor-YYYYMMDD.log` | Today's log only: the first line of a new day deletes the older files (owner, 2026-11-21). Errors also go to the Windows Event Log | the service |
+
+The three settings in Setup → 2 (Send, and the two deletes) are on/off switches (`ToggleSwitch`, a
+`CheckBox` drawn as a switch, owner 2026-11-20).
+
+**Clear cache** (Setup → 3, `StateCache`). The three lists —
+`sent.txt`, `skipped.txt` and `collected\*.txt` — only grow, and the
+service reads them all into memory when it starts. A line is about 60
+bytes (Passport names are 29 characters). A store writing 2,000 files a
+day adds about 120 KB a day to each list: about 44 MB a year, and about
+440 MB in ten years. With `sent.txt` and `collected` together that is
+about 880 MB on disk, and the service would hold about 1.6 GB in memory.
+
+The button stops the service, deletes those lists and starts it again.
+Settings, the key, the logs, the inbox (files still to send) and the
+archive stay. A file still in BOOutbox or the inbox goes once more, and
+DineroBook answers `duplicate` for the ones it already has, so nothing
+is counted twice. "Sent today" on the Status tab starts again from 0.
 
 Errors also go to the Windows Event Log (Application, source
 "DineroBook Processor"). No password and no sign-in token is ever kept,
@@ -209,13 +322,21 @@ dotnet publish desktop/windows/Manager/Manager.csproj -c Release -r win-x64 --se
 
 ## Rules for changes
 
-- Passport's files are read only: list, open shared, read, close.
+- Passport's files are read only (list, open, read, close) unless the
+  store turned on **Delete files from XMLGateway**; then only the
+  collector deletes, and only after the copy is in the inbox and in
+  the day's collected ledger. The engine never touches BOOutbox.
+- Copy a file the moment it is complete (watcher + listing): another
+  back office may take it away within seconds.
 - Never drop a file; the only "never again" is a 422 with a message from
   the route itself.
-- Never send a file of a later business day while one of an earlier day
-  is still on its way (`UploadScheduler`); the business day is read the
-  way the server reads it (`BusinessDateReader`, whose event kinds the
-  contract test compares with the server's).
+- From the inbox, every file goes at once as it came — no business-day
+  order and no waiting (owner, 2026-11-20). `BusinessDateReader`
+  (whose event kinds the contract test compares with the server's)
+  only orders a folder read directly.
+- A watcher alone is never trusted: the folder is listed every poll,
+  and the watcher is made again (at most every 30 s) when it failed,
+  when the share came back, or when it missed a file.
 - A server value used here goes in `ServerContract.cs` and its check in
   `test_processor_contract.py`.
 - The key never reaches a log, the status, a message or a generated
