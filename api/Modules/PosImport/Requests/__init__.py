@@ -292,8 +292,17 @@ class PosTransactionRow(BaseModel):
     kind: str
     register_id: str
     cashier_id: str
+    # The name the store gave this cashier number ("" until named).
+    cashier_name: str
     transaction_no: str
     receipt_at: str | None
+    # The event's own start and end (EventStart/EventEnd). The list
+    # shows and sorts by the end, else the start.
+    started_at: str | None
+    ended_at: str | None
+    # A non-sale event's type as Passport names it ("NoSale", "open",
+    # "close"); "" on sales, refunds and voids.
+    detail_type: str
     item_count: int
     gross: float
     tax: float
@@ -316,6 +325,8 @@ class PosTransactionLineRow(BaseModel):
     description: str
     entry_method: str
     merchandise_code: str
+    # The store's department mapped to that number ("" when unmapped).
+    department_name: str
     quantity: float
     amount: float
     actual_price: float
@@ -345,6 +356,8 @@ class PosTransactionDetail(BaseModel):
     kind: str
     register_id: str
     cashier_id: str
+    cashier_name: str
+    detail_type: str
     till_id: str
     transaction_no: str
     event_sequence_id: str
@@ -384,12 +397,112 @@ class PosTransactionListResponse(BaseModel):
     # it and read as a bug.
     total_grand: float
     voided_count: int
+    # How many tickets each tab holds over the same range and search:
+    # all, sale, refund, void, voided_items, no_sale.
+    kind_counts: dict[str, int]
 
 
 class PosTransactionDetailResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     transaction: PosTransactionDetail
+
+
+# ── Items view: every line sold ────────────────────────────
+
+
+class PosLineRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    transaction_id: int
+    transaction_no: str
+    business_date: str
+    # When the ticket rang: its own end time, else its start (UTC).
+    at: str | None
+    kind: str
+    register_id: str
+    cashier_id: str
+    cashier_name: str
+    status: str
+    pos_code: str
+    description: str
+    merchandise_code: str
+    department_name: str
+    quantity: float
+    amount: float
+    # The unit it sold at: amount / quantity (Passport's
+    # ActualSalesPrice is the whole line's amount). A voided line's is
+    # its regular price.
+    unit_price: float
+    # One unit's shelf price at the register.
+    regular_price: float
+    below_regular: bool
+    is_fuel: bool
+    gallons: float
+    # Cost × quantity from the store's price book, and the margin on
+    # the line — null when the price book has no cost for the code.
+    cost: float | None
+    margin_pct: float | None
+
+
+class PosLineDepartment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    name: str
+
+
+class PosLineListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[PosLineRow]
+    total: int
+    page: int
+    total_pages: int
+    # Over the WHOLE filtered set, not this page. Units of items, and
+    # fuel's gallons apart.
+    total_quantity: float
+    total_gallons: float
+    total_amount: float
+    # Cost of the lines whose cost the price book knows, and what
+    # those same lines sold for — the margin is over these only.
+    total_cost: float
+    costed_amount: float
+    # The department filter's choices: every mapped department number.
+    departments: list[PosLineDepartment]
+
+
+# ── Cashier names ──────────────────────────────────────────
+
+
+class PosCashierRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cashier_id: str
+    name: str
+    ticket_count: int
+    last_seen: str | None
+
+
+class PosCashierListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[PosCashierRow]
+
+
+class PosCashierName(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cashier_id: str = Field(..., min_length=1, max_length=20)
+    # Blank forgets the name.
+    name: str = Field("", max_length=80)
+
+
+class PosCashierWriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cashiers: list[PosCashierName] = Field(..., max_length=200)
 
 
 # ── Movement reports (G-7, read-only) ──────────────────────

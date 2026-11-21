@@ -1,0 +1,33 @@
+/* Transactions → Items — page-specific treatments only. */
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* The item's name, with what the line was (refund, voided, below
+   regular) under it. */
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.flags {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+/* Sold under its regular price (Modisoft marks the cell): the unit
+   price in the warning tone, with its pill beside the row. */
+.below {
+  color: var(--db-warning);
+  font-weight: 600;
+}
+
+/* A line the cashier voided: struck through, never summed. */
+.voided {
+  color: var(--db-text-muted);
+  text-decoration: line-through;
+}

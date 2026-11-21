@@ -529,6 +529,29 @@ needed if the kit had been checked first.
     change log as `expandedRow`). Only a table that is part of a
     form or a report layout (daily book boxes, P&L lines, the
     permission grid, receipts) keeps the bare `<Table>`.
+  - **Register receipts — one renderer, beside the list.** A register
+    ticket is drawn by ONE component, `components/Receipt.tsx`
+    (researched 2026-11-20 against the owner's other back offices,
+    Cronysoft's receipts and Modisoft's item report): ink on white
+    in both themes (`--db-paper-*`), like the till slip — the store,
+    the time, ticket, register and cashier (by the name the store
+    gave the number, `cashierLabel`), every line with its scan code
+    and department, the regular price in `--db-paper-flag` when the
+    register sold below it, voided lines struck through in
+    `--db-paper-void` at the price they rang and never added, then
+    the totals and how it was paid (`tenderLabel`). A no-sale or a
+    register open / close prints what happened instead of lines.
+    Both Transactions views (Receipts, and Items — every line sold,
+    Modisoft's item report) open it BESIDE the list: `<ReceiptSplit>`
+    with `useOpenReceipt()` (`lib/useOpenReceipt.ts`) — the chosen
+    ticket's rows marked, its id in the URL as `ticket` so the list
+    keeps its page and a link reopens it; on a window narrower than
+    1100px a row opens the ticket's own page, which draws the same
+    receipt with its register facts beside it.
+    The kinds a manager hunts for (refunds, voided tickets, tickets
+    with a voided item, drawer opens with no sale) are tabs with
+    their counts over the list, the bank page's pattern. Never a
+    second receipt layout or a page's own receipt table.
 - A permission that is one on/off switch rather than an area (e.g.
   "Lock / unlock days") is a single-switch resource: listed in
   `RESOURCE_ACTIONS` (`lib/permissions.ts`) and the server's

@@ -26,21 +26,28 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from sqlalchemy import ColumnElement, and_, func, or_
+from sqlalchemy import ColumnElement, and_, case, func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from api.Core.Clock import local_to_utc
 from api.Core.Money import to_dollars
 from api.Modules.PosImport.Models import (
-    PosTransaction, PosTransactionLine,
+    PosCashier, PosMerchandiseMap, PosTransaction, PosTransactionLine,
 )
-from api.Modules.PosImport.Services.naxml import SALES_KINDS
+from api.Modules.PosImport.Services.naxml import NO_SALE_DETAIL, SALES_KINDS
 
 # Guard rails on the list query. A c-store runs a few thousand
 # tickets a day, so an unbounded range would page through months of
 # rows to render one screen.
 MAX_RANGE_DAYS = 92
 MAX_PER_PAGE = 200
+
+# The list's ``kind`` filter: the register's own event kinds, plus
+# "no_sale" — an OtherEvent whose alert says the drawer opened with
+# nothing sold (``detail_type == NO_SALE_DETAIL``).
+KIND_NO_SALE = "no_sale"
+KINDS = ("sale", "refund", "void", "financial", "other", KIND_NO_SALE)
+CASHIER_NAME_MAX = 80
 
 
 class TransactionQueryError(Exception):
@@ -79,41 +86,111 @@ def store_timezone(db: Session, store_id: int) -> str:
     return str(getattr(store, "timezone", "") or "")
 
 
-def _base_query(
+def _event_time() -> ColumnElement[Any]:
+    """When the event happened: its own end time (EventEndDate +
+    EventEndTime), else its start — the owner's rule for every time a
+    ticket shows or sorts by (2026-11-20). Never ReceiptTime, though it
+    equals the end on every ticket in both sample stores."""
+    return func.coalesce(PosTransaction.ended_at, PosTransaction.started_at)
+
+
+def _is_no_sale() -> ColumnElement[bool]:
+    return and_(
+        PosTransaction.kind == "other",
+        PosTransaction.detail_type == NO_SALE_DETAIL,
+    )
+
+
+def _scope_query(
     db: Session, store_id: int, start: date, end: date, *,
-    q: str = "", kind: str = "", register_id: str = "",
-    voided_only: bool = False,
+    q: str = "", register_id: str = "",
 ) -> Any:
+    """The range, register and search every view of the list shares —
+    everything but the kind tab, so the tabs can count it."""
     query = db.query(PosTransaction).filter(
         PosTransaction.store_id == store_id,
         PosTransaction.business_date >= start,
         PosTransaction.business_date <= end,
     )
-    if kind:
-        query = query.filter(PosTransaction.kind == kind)
     if register_id:
         query = query.filter(PosTransaction.register_id == register_id)
-    if voided_only:
-        query = query.filter(PosTransaction.has_voided_line.is_(True))
     needle = q.strip()
     if needle:
         # Ticket number and cashier are what an operator actually has
-        # in hand (off a receipt or a shift report); item description
+        # in hand (off a receipt or a shift report) — the cashier by
+        # number or by the name the store gave it; item description
         # is the "what did they buy" case, so it searches the lines.
+        # Only the range's lines: a store's whole history is hundreds
+        # of thousands of them, and a search across all of it took
+        # seconds for the week on screen.
         line_hits = (
             db.query(PosTransactionLine.transaction_id)
             .filter(
                 PosTransactionLine.store_id == store_id,
+                PosTransactionLine.business_date >= start,
+                PosTransactionLine.business_date <= end,
                 func.lower(PosTransactionLine.description)
                 .contains(needle.lower()),
+            )
+        )
+        named = (
+            db.query(PosCashier.cashier_id)
+            .filter(
+                PosCashier.store_id == store_id,
+                func.lower(PosCashier.name).contains(needle.lower()),
             )
         )
         query = query.filter(or_(
             PosTransaction.transaction_no.contains(needle),
             PosTransaction.cashier_id.contains(needle),
+            PosTransaction.cashier_id.in_(named),
             PosTransaction.id.in_(line_hits),
         ))
     return query
+
+
+def _base_query(
+    db: Session, store_id: int, start: date, end: date, *,
+    q: str = "", kind: str = "", register_id: str = "",
+    voided_only: bool = False,
+) -> Any:
+    query = _scope_query(
+        db, store_id, start, end, q=q, register_id=register_id,
+    )
+    if kind == KIND_NO_SALE:
+        query = query.filter(_is_no_sale())
+    elif kind:
+        query = query.filter(PosTransaction.kind == kind)
+    if voided_only:
+        query = query.filter(PosTransaction.has_voided_line.is_(True))
+    return query
+
+
+def kind_counts(scope: Any) -> dict[str, int]:
+    """How many tickets each tab of the list holds, in one query over
+    the shared range and search (``_scope_query``)."""
+    def tally(cond: ColumnElement[bool]) -> Any:
+        return func.coalesce(func.sum(case((cond, 1), else_=0)), 0)
+
+    row = scope.with_entities(
+        func.count(PosTransaction.id),
+        tally(PosTransaction.kind == "sale"),
+        tally(PosTransaction.kind == "refund"),
+        tally(PosTransaction.kind == "void"),
+        tally(PosTransaction.has_voided_line.is_(True)),
+        tally(_is_no_sale()),
+    ).one()
+    keys = ("all", "sale", "refund", "void", "voided_items", KIND_NO_SALE)
+    return {k: int(v or 0) for k, v in zip(keys, row)}
+
+
+def cashier_names(db: Session, store_id: int) -> dict[str, str]:
+    """Cashier number → the name the store gave it (named ones only)."""
+    return {
+        str(c.cashier_id): str(c.name)
+        for c in db.query(PosCashier).filter(PosCashier.store_id == store_id)
+        if c.name
+    }
 
 
 def list_transactions(
@@ -130,6 +207,8 @@ def list_transactions(
     """
     if end < start:
         raise TransactionQueryError("end must not be before start.")
+    if kind and kind not in KINDS:
+        raise TransactionQueryError(f"Unknown kind: {kind}.")
     if (end - start).days > MAX_RANGE_DAYS:
         raise TransactionQueryError(
             f"Range is limited to {MAX_RANGE_DAYS} days.",
@@ -159,13 +238,17 @@ def list_transactions(
         query
         .order_by(
             PosTransaction.business_date.desc(),
-            PosTransaction.receipt_at.desc(),
+            _event_time().desc(),
             PosTransaction.id.desc(),
         )
         .offset((page - 1) * per_page)
         .limit(per_page)
         .all()
     )
+    counts_by_kind = kind_counts(_scope_query(
+        db, store_id, start, end, q=q, register_id=register_id,
+    ))
+    names = cashier_names(db, store_id)
     tz = store_timezone(db, store_id)
     # One grouped count for the page rather than N per-row queries.
     counts = dict(
@@ -186,8 +269,12 @@ def list_transactions(
                 "kind": t.kind or "",
                 "register_id": t.register_id or "",
                 "cashier_id": t.cashier_id or "",
+                "cashier_name": names.get(t.cashier_id or "", ""),
                 "transaction_no": t.transaction_no or "",
                 "receipt_at": register_stamp(t.receipt_at, tz),
+                "started_at": register_stamp(t.started_at, tz),
+                "ended_at": register_stamp(t.ended_at, tz),
+                "detail_type": t.detail_type or "",
                 "item_count": int(counts.get(t.id, 0)),
                 "gross": to_dollars(t.gross_cents),
                 "tax": to_dollars(t.tax_cents),
@@ -205,6 +292,7 @@ def list_transactions(
         "total_pages": max(1, (total + per_page - 1) // per_page),
         "total_grand": to_dollars(int(total_grand_cents)),
         "voided_count": voided_count,
+        "kind_counts": counts_by_kind,
     }
 
 
@@ -258,6 +346,7 @@ def transaction_detail(
             .scalar()
         )
     tz = store_timezone(db, store_id)
+    departments = department_names(db, store_id)
     return {
         "id": txn.id,
         "business_date": txn.business_date.isoformat(),
@@ -265,6 +354,8 @@ def transaction_detail(
         "kind": txn.kind or "",
         "register_id": txn.register_id or "",
         "cashier_id": txn.cashier_id or "",
+        "cashier_name": cashier_names(db, store_id).get(txn.cashier_id or "", ""),
+        "detail_type": txn.detail_type or "",
         "till_id": txn.till_id or "",
         "transaction_no": txn.transaction_no or "",
         "event_sequence_id": txn.event_sequence_id or "",
@@ -293,6 +384,7 @@ def transaction_detail(
                 "description": line.description or "",
                 "entry_method": line.entry_method or "",
                 "merchandise_code": line.merchandise_code or "",
+                "department_name": departments.get(line.merchandise_code or "", ""),
                 "quantity": float(line.quantity or 0.0),
                 "amount": to_dollars(line.amount_cents),
                 "actual_price": to_dollars(line.actual_price_cents),
@@ -317,8 +409,97 @@ def transaction_detail(
     }
 
 
+def department_names(db: Session, store_id: int) -> dict[str, str]:
+    """Register department number → the store's department name, for
+    every number mapped on the import page."""
+    return {
+        str(m.merchandise_code): str(m.department.name or "")
+        for m in (
+            db.query(PosMerchandiseMap)
+            .options(selectinload(PosMerchandiseMap.department))
+            .filter(PosMerchandiseMap.store_id == store_id)
+        )
+        if m.department is not None
+    }
+
+
+def list_cashiers(db: Session, store_id: int) -> list[dict[str, Any]]:
+    """Every cashier number the register has sent, with the name the
+    store gave it ("" until named), how many tickets it rang and the
+    last business day it worked — plus any named number with no
+    ticket yet. Busiest first."""
+    seen = (
+        db.query(
+            PosTransaction.cashier_id,
+            func.count(PosTransaction.id),
+            func.max(PosTransaction.business_date),
+        )
+        .filter(
+            PosTransaction.store_id == store_id,
+            PosTransaction.cashier_id != "",
+        )
+        .group_by(PosTransaction.cashier_id)
+        .all()
+    )
+    names = {
+        str(c.cashier_id): str(c.name or "")
+        for c in db.query(PosCashier).filter(PosCashier.store_id == store_id)
+    }
+    rows: dict[str, dict[str, Any]] = {
+        str(cid): {
+            "cashier_id": str(cid),
+            "name": names.get(str(cid), ""),
+            "ticket_count": int(count or 0),
+            "last_seen": last.isoformat() if last is not None else None,
+        }
+        for cid, count, last in seen
+    }
+    for cid, name in names.items():
+        rows.setdefault(cid, {
+            "cashier_id": cid, "name": name,
+            "ticket_count": 0, "last_seen": None,
+        })
+    return sorted(
+        rows.values(),
+        key=lambda r: (-int(r["ticket_count"]), str(r["cashier_id"])),
+    )
+
+
+def set_cashier_names(
+    db: Session, store_id: int, names: dict[str, str],
+) -> int:
+    """Name cashier numbers; a blank name forgets one. Returns how many
+    rows changed. Caller commits (and audits)."""
+    existing = {
+        str(c.cashier_id): c
+        for c in db.query(PosCashier).filter(PosCashier.store_id == store_id)
+    }
+    changed = 0
+    for raw_id, raw_name in names.items():
+        cid = raw_id.strip()[:20]
+        name = " ".join(raw_name.split())[:CASHIER_NAME_MAX]
+        if not cid:
+            continue
+        row = existing.get(cid)
+        if not name:
+            if row is not None:
+                db.delete(row)
+                changed += 1
+            continue
+        if row is None:
+            db.add(PosCashier(store_id=store_id, cashier_id=cid, name=name))
+            changed += 1
+        elif row.name != name:
+            row.name = name
+            changed += 1
+    db.flush()
+    return changed
+
+
 __all__ = [
-    "MAX_PER_PAGE", "MAX_RANGE_DAYS", "TransactionQueryError",
-    "counts_toward_sales", "list_transactions", "register_stamp",
-    "store_timezone", "transaction_detail",
+    "CASHIER_NAME_MAX", "KINDS", "KIND_NO_SALE", "MAX_PER_PAGE",
+    "MAX_RANGE_DAYS", "TransactionQueryError", "cashier_names",
+    "counts_toward_sales", "department_names", "kind_counts",
+    "list_cashiers", "list_transactions", "register_stamp",
+    "set_cashier_names", "store_timezone", "transaction_detail",
 ]

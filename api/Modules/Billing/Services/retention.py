@@ -72,6 +72,8 @@ STORE_OWNED_MODELS: list[str] = [
     # A connect code names the key it became: purge it first.
     "PosAgentPairing",
     "PosAgentCredential", "PosItemDaySale", "PosJournalFile",
+    # Cashier names the store typed (no FKs).
+    "PosCashier",
     # POS movement reports (G-7): no FKs between them.
     "PosFuelGradeMovement", "PosItemSalesMovement",
     "PosMerchandiseCodeMovement", "PosMiscSummaryMovement",
@@ -152,7 +154,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
         Department, DepartmentSale, HourlySale, RegisterClose,
     )
     from api.Modules.PosImport.Models import (
-        PosAgentCredential, PosAgentPairing, PosFuelGradeMovement,
+        PosAgentCredential, PosAgentPairing, PosCashier, PosFuelGradeMovement,
         PosItemDaySale, PosItemSalesMovement, PosJournalFile, PosMerchandiseCodeMovement,
         PosMerchandiseMap, PosMiscSummaryMovement, PosTaxLevelMovement,
         PosTransaction, PosTransactionLine, PosTransactionTender,
@@ -226,6 +228,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
         (PosAgentCredential, "store_id"),
         (PosItemDaySale, "store_id"),
         (PosJournalFile, "store_id"),
+        (PosCashier, "store_id"),
         (PosFuelGradeMovement, "store_id"),
         (PosItemSalesMovement, "store_id"),
         (PosMerchandiseCodeMovement, "store_id"),

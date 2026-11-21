@@ -187,6 +187,11 @@
   --db-paper-faint:     #9ca3af;
   --db-paper-rule:      #e5e7eb;
   --db-paper-rule-soft: #f3f4f6;
+  /* Ink for a struck-out (voided) line and a price that changed at
+     the register, on the register-receipt preview (Transactions):
+     red and amber dark enough to read on white. */
+  --db-paper-void:      #b91c1c;
+  --db-paper-flag:      #92400e;
 
   /* App-shell topbar height — shared by `.app-topbar`, the slim
      sidebar's brand block, and the slim-sidebar fly-out panel so

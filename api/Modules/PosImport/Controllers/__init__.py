@@ -37,6 +37,7 @@ from fastapi.responses import JSONResponse, Response as PlainResponse
 from sqlalchemy.orm import Session
 
 from api.Core.Clock import parse_iso_day, utc_now
+from api.Core.Sorting import SORT_DIR_PATTERN
 from api.Core.Audit import audit_operator, operator_display_name
 from api.Core.Database import get_db
 from api.Core.Uploads import decode_base64
@@ -74,6 +75,10 @@ from api.Modules.PosImport.Requests import (
     NaxmlCommitResponse,
     NaxmlPreviewResponse,
     NaxmlUploadRequest,
+    PosCashierListResponse,
+    PosCashierRow,
+    PosCashierWriteRequest,
+    PosLineListResponse,
     PosTransactionDetail,
     PosTransactionDetailResponse,
     PosTransactionListResponse,
@@ -91,9 +96,14 @@ from api.Modules.PosImport.Services.pairing import (
     issue_pairing_code,
     redeem_pairing_code,
 )
+from api.Modules.PosImport.Services.transaction_lines import (
+    list_transaction_lines,
+)
 from api.Modules.PosImport.Services.transactions import (
     TransactionQueryError,
+    list_cashiers,
     list_transactions,
+    set_cashier_names,
     transaction_detail,
 )
 from api.Modules.PosImport.Services import (
@@ -901,3 +911,79 @@ def transaction_detail_route(
     return PosTransactionDetailResponse(
         transaction=PosTransactionDetail(**detail),
     )
+
+
+# ── Items view: every line sold ─────────────────────────────
+
+
+@router.get("/transaction-lines", response_model=PosLineListResponse)
+def list_transaction_lines_route(
+    start: str = FQuery(..., description="YYYY-MM-DD"),
+    end: str = FQuery(..., description="YYYY-MM-DD"),
+    q: str = FQuery("", max_length=80),
+    department: str = FQuery("", max_length=20),
+    show: str = FQuery("", max_length=20),
+    sort: str = FQuery("", max_length=20),
+    dir: str = FQuery("desc", pattern=SORT_DIR_PATTERN),
+    page: int = FQuery(1, ge=1),
+    per_page: int = FQuery(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PosLineListResponse:
+    """Every item the register sold over a range, one row per line —
+    the Transactions page's Items view. Read like the tickets:
+    ``day_close.read``."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "read")
+    start_d = parse_iso_day(start, field="start")
+    end_d = parse_iso_day(end, field="end")
+    try:
+        result = list_transaction_lines(
+            db, sid, start_d, end_d, q=q, department=department, show=show,
+            sort=sort, direction=dir, page=page, per_page=per_page,
+        )
+    except TransactionQueryError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return PosLineListResponse(**result)
+
+
+# ── Cashier names ───────────────────────────────────────────
+
+
+def _cashier_list(db: Session, store_id: int) -> PosCashierListResponse:
+    return PosCashierListResponse(rows=[
+        PosCashierRow(**row) for row in list_cashiers(db, store_id)
+    ])
+
+
+@router.get("/cashiers", response_model=PosCashierListResponse)
+def list_cashiers_route(
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PosCashierListResponse:
+    """Every cashier number on the store's tickets, with the name the
+    store gave it. Read like the tickets themselves: ``day_close.read``."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "read")
+    return _cashier_list(db, sid)
+
+
+@router.put("/cashiers", response_model=PosCashierListResponse)
+def set_cashiers_route(
+    body: PosCashierWriteRequest,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PosCashierListResponse:
+    """Name the register's cashier numbers (a blank name forgets one).
+    Store setup, like mapping department numbers: ``day_close.update``."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "update")
+    names = {row.cashier_id: row.name for row in body.cashiers}
+    changed = set_cashier_names(db, sid, names)
+    audit_operator(
+        db, claims, action="set_pos_cashier_names",
+        target_type="pos_cashier", target_id=str(sid),
+        summary=f"{changed} cashier name(s) changed",
+    )
+    db.commit()
+    return _cashier_list(db, sid)

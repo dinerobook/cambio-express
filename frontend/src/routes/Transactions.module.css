@@ -1,10 +1,10 @@
-/* Transactions list — page-specific layout only; everything else
-   is a kit primitive (CLAUDE.md inline-styles-vs-modules). */
+/* Transactions — page-specific layout only; everything else is a kit
+   primitive (CLAUDE.md inline-styles-vs-modules). */
 
-.voidedToggle {
-  /* Sits on the control baseline next to the inputs, not against
-     their labels. */
-  padding-bottom: 0.4rem;
+/* A ticket's time stays on one line (the table scrolls inside its
+   box before it breaks "Mar 8, 2026, 14:03 CDT" in four). */
+.nowrap {
+  white-space: nowrap;
 }
 
 /* Status pills wrap instead of stretching the row. */

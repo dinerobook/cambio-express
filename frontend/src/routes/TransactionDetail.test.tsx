@@ -20,6 +20,8 @@ const detail = {
     kind: "sale",
     register_id: "1",
     cashier_id: "3",
+    cashier_name: "",
+    detail_type: "",
     till_id: "0318",
     transaction_no: "8946",
     event_sequence_id: "7",
@@ -48,6 +50,7 @@ const detail = {
         description: "VOIDED PREMIUM ITEM",
         entry_method: "scan",
         merchandise_code: "10",
+        department_name: "Grocery",
         quantity: 1,
         amount: 500,
         actual_price: 500,
@@ -64,6 +67,7 @@ const detail = {
         description: "COFFEE LARGE",
         entry_method: "scan",
         merchandise_code: "10",
+        department_name: "Grocery",
         quantity: 1,
         amount: 12,
         actual_price: 12,
@@ -109,9 +113,47 @@ describe("TransactionDetail", () => {
   it("shows the voided line rather than hiding it", () => {
     renderDetail();
     expect(screen.getByText("VOIDED PREMIUM ITEM")).toBeInTheDocument();
-    // Price and amount columns both carry it.
-    expect(screen.getAllByText("$500.00").length).toBe(2);
-    expect(screen.getByText("voided")).toBeInTheDocument();
+    // Struck out at the price it rang at, once.
+    expect(screen.getAllByText("$500.00").length).toBe(1);
+    expect(screen.getByText("Void")).toBeInTheDocument();
+    expect(screen.getByText("Voided qty")).toBeInTheDocument();
+  });
+
+  it("names each line's scan code and department, and how it was paid", () => {
+    renderDetail();
+    expect(screen.getByText("222222222222")).toBeInTheDocument();
+    expect(screen.getAllByText(/Grocery/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Cash")).toBeInTheDocument();
+  });
+
+  it("flags an item sold below its regular price", () => {
+    detailOverride = {
+      lines: [{
+        ...detail.transaction.lines[1], actual_price: 10, amount: 10, regular_price: 12,
+      }],
+    };
+    renderDetail();
+    expect(screen.getByText("Regular $12.00")).toBeInTheDocument();
+    detailOverride = {};
+  });
+
+  it("shows a cashier by name and a drawer opened with no sale", () => {
+    detailOverride = {
+      kind: "other", detail_type: "NoSale", cashier_name: "Noel",
+      lines: [], tenders: [], has_voided_line: false, grand_total: 0,
+    };
+    renderDetail();
+    expect(screen.getAllByText("No sale").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Noel (#3)").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Subtotal")).not.toBeInTheDocument();
+    detailOverride = {};
+  });
+
+  it("says a whole voided ticket is not counted", () => {
+    detailOverride = { kind: "void", has_voided_line: false };
+    renderDetail();
+    expect(screen.getByText(/The whole ticket was voided/)).toBeInTheDocument();
+    detailOverride = {};
   });
 
   it("keeps the voided amount out of every total", () => {
@@ -144,11 +186,13 @@ describe("TransactionDetail", () => {
     setLanguage("es");
     renderDetail();
     expect(screen.getByRole("heading", { name: "Ticket 8946" })).toBeInTheDocument();
-    expect(screen.getByText("devolución")).toBeInTheDocument();
+    // The pill in the header and the stamp on the receipt.
+    expect(screen.getAllByText("devolución")).toHaveLength(2);
     expect(screen.getByText("pago en la bomba")).toBeInTheDocument();
     expect(screen.getByText(/Se anuló un artículo en este ticket/)).toBeInTheDocument();
-    expect(screen.getAllByRole("columnheader").map((h) => h.textContent))
-      .toEqual(expect.arrayContaining(["Artículo", "Código de barras", "Forma de pago"]));
+    expect(screen.getByText("Efectivo")).toBeInTheDocument();
+    expect(screen.getByText("Cant. vendida")).toBeInTheDocument();
+    expect(screen.getByText("Anulado")).toBeInTheDocument();
     expect(screen.getByText("Cajón")).toBeInTheDocument();
     expect(englishLeftovers(document.body, ["posTx."])).toEqual([]);
     detailOverride = {};
@@ -197,7 +241,7 @@ describe("TransactionDetail", () => {
   it("shows a ticket kind it does not know as sent", () => {
     detailOverride = { kind: "layaway" };
     renderDetail();
-    expect(screen.getByText("layaway")).toBeInTheDocument();
+    expect(screen.getAllByText("layaway").length).toBeGreaterThanOrEqual(1);
     detailOverride = {};
   });
 });

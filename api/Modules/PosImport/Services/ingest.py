@@ -497,6 +497,7 @@ def rebuild_transactions(
             linked_started_at=e.linked_started_at,
             superseded=e.superseded,
             superseded_by_file=(e.superseded_by_file or "")[:120],
+            detail_type=(e.detail_type or "")[:40],
         )
         db.add(txn)
         db.flush()  # need txn.id for the children

@@ -103,6 +103,7 @@ class ReceiptRow(_Strict):
     register_id: str
     cashier_id: str
     receipt_at: str | None
+    ended_at: str | None
     business_date: str
     total: float
     has_voided_line: bool
