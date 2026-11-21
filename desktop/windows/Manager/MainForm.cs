@@ -41,13 +41,13 @@ internal sealed class MainForm : Form
     private readonly Button _check = new() { Text = "Check", AutoSize = true };
     private readonly Label _folderResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
     private readonly TextBox _api = new() { Width = 300, AccessibleName = "DineroBook address" };
-    private readonly CheckBox _deleteFromOutbox = new()
+    private readonly ToggleSwitch _deleteFromOutbox = new()
     {
         AutoSize = true,
         Text = "Delete files from XMLGateway once they are copied to this computer",
         Margin = new Padding(3, 8, 3, 0),
     };
-    private readonly CheckBox _deleteFromInbox = new()
+    private readonly ToggleSwitch _deleteFromInbox = new()
     {
         AutoSize = true,
         Text = "Delete files from the temp folder once DineroBook has them",
@@ -61,6 +61,9 @@ internal sealed class MainForm : Form
     private readonly Button _restart = new() { Text = "Restart", AutoSize = true };
     private readonly Button _uninstall = new() { Text = "Uninstall", AutoSize = true };
     private readonly Label _serviceResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
+    private readonly Button _clearCache = new() { Text = "Clear cache", AutoSize = true };
+    private readonly Label _cacheSize = new() { AutoSize = true, Margin = new Padding(3, 8, 3, 0) };
+    private readonly Label _cacheResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
 
     // Log
     private readonly ComboBox _logFiles = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
@@ -96,11 +99,13 @@ internal sealed class MainForm : Form
         _timer.Tick += (_, _) => RefreshStatus();
         tabs.SelectedIndexChanged += (_, _) =>
         {
+            if (tabs.SelectedIndex == 1) ShowCacheSize();
             if (tabs.SelectedIndex == 2) LoadLogList();
         };
         Load += (_, _) =>
         {
             LoadSettingsIntoForm();
+            ShowCacheSize();
             RefreshStatus();
             _timer.Start();
         };
@@ -194,8 +199,8 @@ internal sealed class MainForm : Form
             Margin = new Padding(20, 0, 3, 6),
             ForeColor = SystemColors.GrayText,
             Text = "Every file is copied to this computer the moment Passport finishes it, and sent from there. "
-                   + "Leave this unticked while Modisoft or another back office reads the same folder: "
-                   + "they would never see the files. Tick it once DineroBook is the only program reading them.",
+                   + "Leave this off while Modisoft or another back office reads the same folder: "
+                   + "they would never see the files. Turn it on once DineroBook is the only program reading them.",
         });
         folder.Controls.Add(_deleteFromInbox);
         folder.Controls.Add(new Label
@@ -205,8 +210,8 @@ internal sealed class MainForm : Form
             Margin = new Padding(20, 0, 3, 6),
             ForeColor = SystemColors.GrayText,
             Text = "The temp folder is this computer's own copy of each file (" + _paths.Inbox + "). "
-                   + "Ticked: a copy is deleted as soon as DineroBook has the file. "
-                   + "Unticked: it is kept in " + _paths.Archive + ", one folder a day.",
+                   + "On: a copy is deleted as soon as DineroBook has the file. "
+                   + "Off: it is kept in " + _paths.Archive + ", one folder a day.",
         });
         folder.Controls.Add(_save);
 
@@ -221,6 +226,17 @@ internal sealed class MainForm : Form
         });
         service.Controls.Add(Row(_install, _start, _stop, _restart, _uninstall));
         service.Controls.Add(_serviceResult);
+        service.Controls.Add(new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(620, 0),
+            Margin = new Padding(3, 12, 3, 4),
+            Text = "Cache: the lists of files already copied and sent (sent.txt, skipped.txt, collected\\*.txt). "
+                   + "They grow every day. Clearing them stops the service, deletes the lists and starts it again. "
+                   + "Settings, the key, the logs, files still to send and the archive stay.",
+        });
+        service.Controls.Add(Row(_clearCache, _cacheSize));
+        service.Controls.Add(_cacheResult);
 
         // Added bottom-up: Dock=Top stacks the last one added on top.
         page.Controls.Add(Group("3. Windows service", service));
@@ -241,6 +257,7 @@ internal sealed class MainForm : Form
         _stop.Click += async (_, _) => await ServiceActionAsync("Stopping…", ServiceControl.Stop, "Stopped.");
         _restart.Click += async (_, _) => await ServiceActionAsync("Restarting…", ServiceControl.Restart, "Restarted.");
         _uninstall.Click += async (_, _) => await UninstallAsync();
+        _clearCache.Click += async (_, _) => await ClearCacheAsync();
         return page;
     }
 
@@ -366,6 +383,9 @@ internal sealed class MainForm : Form
         _stop.Enabled = admin && !_busy && info.Installed && info.Status == ServiceControllerStatus.Running;
         _restart.Enabled = admin && !_busy && info.Installed;
         _uninstall.Enabled = admin && !_busy && info.Installed;
+        // The machine's own lists sit beside a running service: only an
+        // administrator may stop it to clear them. A test folder needs no service.
+        _clearCache.Enabled = (_paths.IsCustom || admin) && !_busy;
     }
 
     private static ServiceControl.Info SafeQuery()
@@ -643,6 +663,63 @@ internal sealed class MainForm : Form
             {
                 _serviceResult.Text = "✖ " + Explain(ex);
             }
+        });
+    }
+
+    private void ShowCacheSize()
+    {
+        try
+        {
+            _cacheSize.Text = "Now: " + StateCache.Measure(_paths).Describe();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _cacheSize.Text = "";
+        }
+    }
+
+    private async Task ClearCacheAsync()
+    {
+        await Task.Yield();
+        if (MessageBox.Show(this,
+                "Clear the cache?\n\n"
+                + "The lists of files already copied and sent are deleted"
+                + (_paths.IsCustom ? "" : " (the service is stopped meanwhile and started again)") + ". "
+                + "A file still in the Passport folder or the temp folder is sent once more; "
+                + "DineroBook answers \"duplicate\" for the ones it already has, so nothing is counted twice.",
+                Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+        {
+            return;
+        }
+        await Busy(async () =>
+        {
+            _cacheResult.Text = "Clearing…";
+            try
+            {
+                var cleared = await Task.Run(() =>
+                {
+                    // A test folder has no service of its own.
+                    var info = _paths.IsCustom ? new ServiceControl.Info(false, null, "", "") : ServiceControl.Query();
+                    var wasRunning = info.Installed && info.Status is ServiceControllerStatus.Running or ServiceControllerStatus.StartPending;
+                    if (info.Installed) ServiceControl.Stop();
+                    try
+                    {
+                        return StateCache.Clear(_paths);
+                    }
+                    finally
+                    {
+                        if (wasRunning) ServiceControl.Start();
+                    }
+                });
+                _cacheResult.Text = cleared.Files == 0
+                    ? "The cache was already empty."
+                    : $"Cleared {cleared.Describe()}.";
+            }
+            catch (Exception ex)
+            {
+                _cacheResult.Text = "✖ " + Explain(ex);
+            }
+            ShowCacheSize();
         });
     }
 

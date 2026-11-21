@@ -23,7 +23,7 @@ flowchart TD
   B -. also read by .-> M[Modisoft / LdPosService]
   B --> W[Collector: watcher + a listing every 5 s]
   W -->|"nobody is writing it any more"| I[Copy to this PC's inbox<br/>state\inbox]
-  W -. "only if 'Delete files from XMLGateway' is ticked" .-> D[Delete the original from BOOutbox]
+  W -. "only if 'Delete files from XMLGateway' is on" .-> D[Delete the original from BOOutbox]
   I --> E[Engine: each file goes at once,<br/>as it came, many at a time]
   E --> S[(dinerobook.com<br/>POST /posimport/agent/upload)]
   S -->|200 accepted / duplicate| OK[sent.txt]
@@ -31,8 +31,8 @@ flowchart TD
   S -->|422 with a message| X[skipped.txt]
   OK --> F{"'Delete files from the temp folder'?"}
   X --> F
-  F -->|ticked, the default| DEL[Inbox copy deleted]
-  F -->|unticked| ARC[Kept in state\archive\YYYY-MM-DD]
+  F -->|on, the default| DEL[Inbox copy deleted]
+  F -->|off| ARC[Kept in state\archive\YYYY-MM-DD]
 ```
 
 ## Parts
@@ -90,8 +90,8 @@ field there no longer matches the server.
     program took it first) is logged and counted as **Missed** on the
     Status tab.
 - **BOOutbox is not changed unless the store says so.** With
-  **Delete files from XMLGateway** unticked (the default), Passport's
-  files are only read. Ticked (Setup → 2, after a warning), each
+  **Delete files from XMLGateway** off (the default), Passport's
+  files are only read. On (Setup → 2, after a warning), each
   original is deleted once its copy is safe — the way Modisoft's
   service works — for a store where DineroBook is the only program
   reading the folder. A delete that fails (the share does not let this
@@ -106,8 +106,8 @@ field there no longer matches the server.
   10 files reaches the server within about 3 seconds.
   Once DineroBook accepted it (or refused it for good), its inbox copy
   is dealt with as **Delete files from the temp folder** says (Setup →
-  2, `deleteFromInbox`, `InboxFiles`): ticked (the default) it is
-  deleted; unticked it is moved to `state\archive\YYYY-MM-DD\` (the
+  2, `deleteFromInbox`, `InboxFiles`): on (the default) it is
+  deleted; off, it is moved to `state\archive\YYYY-MM-DD\` (the
   PC's local day) and kept there as a backup. Moved, not left in the
   inbox, so the inbox only holds files still to send. The sent ledger,
   not the copy, keeps a file from going twice.
@@ -230,11 +230,28 @@ All under `%ProgramData%\DineroBook\Processor\`, set up by Install:
 | `agent-key.bin` | The store's upload key, DPAPI-encrypted for this PC; readable only by SYSTEM, Administrators and the service | Administrators |
 | `state\inbox\` | Each Passport file, copied the moment it is complete; deleted once DineroBook has it. A copy waiting here is sent after a restart | the service |
 | `state\collected\YYYY-MM-DD.txt` | Files copied from BOOutbox that day (name, time), one file a day. A name in any of them is never copied again. Old days may be deleted by hand: a file named there and still in BOOutbox would be copied again and come back "duplicate" | the service |
-| `state\archive\YYYY-MM-DD\` | Sent files kept on this PC, only with **Delete files from the temp folder** unticked. Nothing clears it: delete old days by hand when the disk needs room | the service |
+| `state\archive\YYYY-MM-DD\` | Sent files kept on this PC, only with **Delete files from the temp folder** off. Nothing clears it: delete old days by hand when the disk needs room | the service |
 | `state\sent.txt` | Files DineroBook accepted (name, time, outcome). Safe to delete: the server keeps one copy per file name, so a resend comes back `duplicate` | the service |
 | `state\skipped.txt` | Files refused for good, with why | the service |
 | `state\status.json` | What the service is doing, for the Manager | the service |
 | `state\logs\processor-YYYYMMDD.log` | One log a day, 14 days kept | the service |
+
+The two settings in Setup → 2 are on/off switches (`ToggleSwitch`, a
+`CheckBox` drawn as a switch, owner 2026-11-20).
+
+**Clear cache** (Setup → 3, `StateCache`). The three lists —
+`sent.txt`, `skipped.txt` and `collected\*.txt` — only grow, and the
+service reads them all into memory when it starts. A line is about 60
+bytes (Passport names are 29 characters). A store writing 2,000 files a
+day adds about 120 KB a day to each list: about 44 MB a year, and about
+440 MB in ten years. With `sent.txt` and `collected` together that is
+about 880 MB on disk, and the service would hold about 1.6 GB in memory.
+
+The button stops the service, deletes those lists and starts it again.
+Settings, the key, the logs, the inbox (files still to send) and the
+archive stay. A file still in BOOutbox or the inbox goes once more, and
+DineroBook answers `duplicate` for the ones it already has, so nothing
+is counted twice. "Sent today" on the Status tab starts again from 0.
 
 Errors also go to the Windows Event Log (Application, source
 "DineroBook Processor"). No password and no sign-in token is ever kept,
@@ -274,7 +291,7 @@ dotnet publish desktop/windows/Manager/Manager.csproj -c Release -r win-x64 --se
 ## Rules for changes
 
 - Passport's files are read only (list, open, read, close) unless the
-  store ticked **Delete files from XMLGateway**; then only the
+  store turned on **Delete files from XMLGateway**; then only the
   collector deletes, and only after the copy is in the inbox and in
   the day's collected ledger. The engine never touches BOOutbox.
 - Copy a file the moment it is complete (watcher + listing): another
