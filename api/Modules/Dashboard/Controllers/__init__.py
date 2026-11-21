@@ -172,7 +172,11 @@ def _recent_receipts(
 ) -> list[dict[str, Any]]:
     """The last few tickets, for the receipts panel. Newest first."""
     from api.Modules.PosImport.Models import PosTransaction
+    from api.Modules.PosImport.Services.transactions import (
+        register_stamp, store_timezone,
+    )
 
+    tz = store_timezone(db, store_id)
     rows = (
         db.query(PosTransaction)
         .filter(PosTransaction.store_id == store_id)
@@ -190,9 +194,7 @@ def _recent_receipts(
             "transaction_no": t.transaction_no or "",
             "register_id": t.register_id or "",
             "cashier_id": t.cashier_id or "",
-            "receipt_at": (
-                t.receipt_at.isoformat() if t.receipt_at is not None else None
-            ),
+            "receipt_at": register_stamp(t.receipt_at, tz),
             "business_date": t.business_date.isoformat(),
             "total": int(t.grand_total_cents or 0) / 100.0,
             "has_voided_line": bool(t.has_voided_line),

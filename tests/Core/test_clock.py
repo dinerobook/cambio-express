@@ -66,3 +66,28 @@ def test_display_timezone_skips_unknown_names():
     assert clock.display_timezone(_row("Mars/Base"), _row("")) == ""
     assert clock.display_timezone(_row("Mars/Base"), _row("UTC")) == "UTC"
     assert clock.display_timezone(None, None) == ""
+
+
+# ── local_to_utc: a store device's wall clock as naive UTC ──
+
+
+def test_local_to_utc_reads_the_wall_clock_in_the_zone():
+    # 2:02 PM in Texas on the day clocks spring forward is CDT (UTC-5);
+    # in January it is CST (UTC-6).
+    assert clock.local_to_utc(
+        datetime(2026, 3, 8, 14, 2, 3), "America/Chicago",
+    ) == datetime(2026, 3, 8, 19, 2, 3)
+    assert clock.local_to_utc(
+        datetime(2026, 1, 15, 14, 2, 3), "America/Chicago",
+    ) == datetime(2026, 1, 15, 20, 2, 3)
+
+
+@pytest.mark.parametrize("tz", ["", None, "Mars/Base"])
+def test_local_to_utc_leaves_the_time_alone_without_a_zone(tz):
+    assert clock.local_to_utc(datetime(2026, 3, 8, 14, 2, 3), tz) == datetime(
+        2026, 3, 8, 14, 2, 3,
+    )
+
+
+def test_local_to_utc_passes_none_through():
+    assert clock.local_to_utc(None, "America/Chicago") is None

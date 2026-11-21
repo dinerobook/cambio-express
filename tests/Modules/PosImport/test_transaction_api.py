@@ -384,3 +384,46 @@ def test_without_day_close_read_the_tickets_are_refused(
         test_store_id, permissions=NO_DAY_CLOSE_READ,
     )
     assert _list(emp_client, _headers(token)).status_code == 403
+
+
+# ── Register times: the store's clock, sent as UTC ──────────
+
+
+def _set_timezone(store_id, tz):
+    from api.Modules.Tenancy.Models import Store
+    with db_session():
+        db.session.get(Store, store_id).timezone = tz
+        db.session.commit()
+
+
+def test_register_times_leave_as_utc_in_the_stores_zone(
+    client, test_store_id, seeded,
+):
+    """The register writes its own wall clock (13:31 for a sale at
+    1:31 PM in Texas). Sent as-is the page read it as UTC and showed
+    07:31 — so the server turns it into UTC from the store's zone."""
+    _set_timezone(test_store_id, "America/Chicago")
+    h = _admin(client, test_store_id)
+    rows = client.get(
+        "/api/v2/posimport/transactions"
+        f"?start={DAY.isoformat()}&end={DAY.isoformat()}",
+        headers=h,
+    ).json()["rows"]
+    # Dec 8 is CST, UTC-6.
+    assert {r["receipt_at"] for r in rows} == {"2025-12-08T19:31:38"}
+
+    txn = client.get(
+        f"/api/v2/posimport/transactions/{seeded['plain']}", headers=h,
+    ).json()["transaction"]
+    assert txn["receipt_at"] == "2025-12-08T19:31:38"
+
+
+def test_register_times_are_unchanged_for_a_store_without_a_zone(
+    client, test_store_id, seeded,
+):
+    _set_timezone(test_store_id, "")
+    txn = client.get(
+        f"/api/v2/posimport/transactions/{seeded['plain']}",
+        headers=_admin(client, test_store_id),
+    ).json()["transaction"]
+    assert txn["receipt_at"] == "2025-12-08T13:31:38"

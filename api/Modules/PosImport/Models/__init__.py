@@ -151,6 +151,14 @@ class PosTransaction(Base):
     ``source_file`` is what makes that idempotent — one event per
     file, so re-parsing replaces rather than duplicates.
 
+    ``started_at`` / ``ended_at`` / ``receipt_at`` (and
+    ``linked_started_at``) are the register's own wall clock, stored
+    exactly as the journal wrote them — NOT naive UTC like every other
+    timestamp in the database. Matching a prepay completion to its
+    deposit compares them as written; anything that sends them out
+    goes through ``register_stamp`` (Services/transactions.py), which
+    turns them into UTC from the store's zone.
+
     Deliberately NOT stored: ``TransmissionHeader``
     (StoreLocationID / VendorName / VendorModelVersion) and the
     report-period header fields. Verified constant across every
