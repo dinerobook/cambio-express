@@ -44,13 +44,13 @@ internal sealed class MainForm : Form
     private readonly ToggleSwitch _deleteFromOutbox = new()
     {
         AutoSize = true,
-        Text = "Delete files from XMLGateway once they are copied to this computer",
+        Text = "Delete files from XMLGateway once copied",
         Margin = new Padding(3, 8, 3, 0),
     };
     private readonly ToggleSwitch _deleteFromInbox = new()
     {
         AutoSize = true,
-        Text = "Delete files from the temp folder once DineroBook has them",
+        Text = "Delete files from the temp folder once sent",
         Margin = new Padding(3, 4, 3, 0),
     };
     private readonly Button _save = new() { Text = "Save settings", AutoSize = true };
@@ -64,6 +64,7 @@ internal sealed class MainForm : Form
     private readonly Button _clearCache = new() { Text = "Clear cache", AutoSize = true };
     private readonly Label _cacheSize = new() { AutoSize = true, Margin = new Padding(3, 8, 3, 0) };
     private readonly Label _cacheResult = new() { AutoSize = true, MaximumSize = new Size(620, 0) };
+    private readonly ToolTip _tips = new() { AutoPopDelay = 20000 };
 
     // Log
     private readonly ComboBox _logFiles = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
@@ -82,7 +83,7 @@ internal sealed class MainForm : Form
         _setup = new MachineSetup(paths);
 
         Text = "DineroBook Manager" + (paths.IsCustom ? $" — test folder {paths.Root}" : "");
-        ClientSize = new Size(720, 560);
+        ClientSize = new Size(720, 600);
         MinimumSize = new Size(640, 480);
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
@@ -170,6 +171,25 @@ internal sealed class MainForm : Form
         Dock = DockStyle.Fill,
     };
 
+    /// <summary>A short grey line under a switch, lined up with its text.</summary>
+    private static Label Hint(string text) => new()
+    {
+        AutoSize = true,
+        Margin = new Padding(47, 0, 3, 6),
+        ForeColor = SystemColors.GrayText,
+        Text = text,
+    };
+
+    /// <summary>Result lines take no room until they have something to say.</summary>
+    private static void HideWhenEmpty(params Label[] labels)
+    {
+        foreach (var label in labels)
+        {
+            label.Visible = label.Text.Length > 0;
+            label.TextChanged += (_, _) => label.Visible = label.Text.Length > 0;
+        }
+    }
+
     private static FlowLayoutPanel Row(params Control[] controls)
     {
         var row = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = false, Margin = new Padding(0) };
@@ -186,57 +206,40 @@ internal sealed class MainForm : Form
         account.Controls.Add(Row(_connect, _test));
         account.Controls.Add(_testResult);
 
+        // One short line under each setting; the details are in its tooltip
+        // (owner, 2026-11-20: no walls of text, no empty space).
         var folder = Column();
-        folder.Controls.Add(new Label { AutoSize = true, Text = "Passport's BOOutbox network share (a mapped drive letter is saved as its network path):" });
+        folder.Controls.Add(new Label { AutoSize = true, Text = "Passport BOOutbox folder (network share):" });
         folder.Controls.Add(Row(_folder, _browse, _check));
         folder.Controls.Add(_folderResult);
         folder.Controls.Add(Row(new Label { AutoSize = true, Text = "DineroBook address:", Margin = new Padding(3, 7, 3, 0) }, _api));
         folder.Controls.Add(_deleteFromOutbox);
-        folder.Controls.Add(new Label
-        {
-            AutoSize = true,
-            MaximumSize = new Size(620, 0),
-            Margin = new Padding(20, 0, 3, 6),
-            ForeColor = SystemColors.GrayText,
-            Text = "Every file is copied to this computer the moment Passport finishes it, and sent from there. "
-                   + "Leave this off while Modisoft or another back office reads the same folder: "
-                   + "they would never see the files. Turn it on once DineroBook is the only program reading them.",
-        });
+        folder.Controls.Add(Hint("Keep off while Modisoft reads the same folder."));
         folder.Controls.Add(_deleteFromInbox);
-        folder.Controls.Add(new Label
-        {
-            AutoSize = true,
-            MaximumSize = new Size(620, 0),
-            Margin = new Padding(20, 0, 3, 6),
-            ForeColor = SystemColors.GrayText,
-            Text = "The temp folder is this computer's own copy of each file (" + _paths.Inbox + "). "
-                   + "On: a copy is deleted as soon as DineroBook has the file. "
-                   + "Off: it is kept in " + _paths.Archive + ", one folder a day.",
-        });
+        folder.Controls.Add(Hint("Off: sent files are kept in the archive folder."));
         folder.Controls.Add(_save);
+        _tips.SetToolTip(_folder, "A mapped drive letter is saved as its network path: the service does not see drive letters.");
+        _tips.SetToolTip(_deleteFromOutbox,
+            "Every file is copied to this computer the moment Passport finishes it, and sent from there.\n"
+            + "On: the original is deleted from BOOutbox once the copy is safe, the way Modisoft's service works.\n"
+            + "Off: BOOutbox is only read. Keep it off while Modisoft or another back office reads the same folder.");
+        _tips.SetToolTip(_deleteFromInbox,
+            "Temp folder: " + _paths.Inbox + "\n"
+            + "On: a copy is deleted as soon as DineroBook has the file.\n"
+            + "Off: it is kept in " + _paths.Archive + ", one folder a day.");
 
         var service = Column();
         service.Controls.Add(_serviceState);
-        service.Controls.Add(new Label
-        {
-            AutoSize = true,
-            MaximumSize = new Size(620, 0),
-            Margin = new Padding(3, 8, 3, 4),
-            Text = "It runs as NetworkService and reads the BOOutbox share as this computer, like LdPosService: no Windows account or password to type.",
-        });
         service.Controls.Add(Row(_install, _start, _stop, _restart, _uninstall));
         service.Controls.Add(_serviceResult);
-        service.Controls.Add(new Label
-        {
-            AutoSize = true,
-            MaximumSize = new Size(620, 0),
-            Margin = new Padding(3, 12, 3, 4),
-            Text = "Cache: the lists of files already copied and sent (sent.txt, skipped.txt, collected\\*.txt). "
-                   + "They grow every day. Clearing them stops the service, deletes the lists and starts it again. "
-                   + "Settings, the key, the logs, files still to send and the archive stay.",
-        });
         service.Controls.Add(Row(_clearCache, _cacheSize));
         service.Controls.Add(_cacheResult);
+        _tips.SetToolTip(_install, "Runs as NetworkService and reads the BOOutbox share as this computer: no Windows password to type.");
+        _tips.SetToolTip(_clearCache,
+            "Deletes the lists of files already copied and sent (sent.txt, skipped.txt, collected\\*.txt).\n"
+            + "The service is stopped meanwhile and started again.\n"
+            + "Settings, the key, the logs, files still to send and the archive stay.");
+        HideWhenEmpty(_testResult, _folderResult, _serviceResult, _cacheResult);
 
         // Added bottom-up: Dock=Top stacks the last one added on top.
         page.Controls.Add(Group("3. Windows service", service));
@@ -670,7 +673,7 @@ internal sealed class MainForm : Form
     {
         try
         {
-            _cacheSize.Text = "Now: " + StateCache.Measure(_paths).Describe();
+            _cacheSize.Text = "Sent-file lists: " + StateCache.Measure(_paths).Describe();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
