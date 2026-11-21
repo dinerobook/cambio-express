@@ -18211,6 +18211,99 @@
         "title": "PlatformUserCreateRequest",
         "type": "object"
       },
+      "PosCashierListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PosCashierRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "PosCashierListResponse",
+        "type": "object"
+      },
+      "PosCashierName": {
+        "additionalProperties": false,
+        "properties": {
+          "cashier_id": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Cashier Id",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cashier_id"
+        ],
+        "title": "PosCashierName",
+        "type": "object"
+      },
+      "PosCashierRow": {
+        "additionalProperties": false,
+        "properties": {
+          "cashier_id": {
+            "title": "Cashier Id",
+            "type": "string"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ticket_count": {
+            "title": "Ticket Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cashier_id",
+          "name",
+          "ticket_count",
+          "last_seen"
+        ],
+        "title": "PosCashierRow",
+        "type": "object"
+      },
+      "PosCashierWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "cashiers": {
+            "items": {
+              "$ref": "#/components/schemas/PosCashierName"
+            },
+            "maxItems": 200,
+            "title": "Cashiers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cashiers"
+        ],
+        "title": "PosCashierWriteRequest",
+        "type": "object"
+      },
       "PosTransactionDetail": {
         "additionalProperties": false,
         "properties": {
@@ -18220,6 +18313,14 @@
           },
           "cashier_id": {
             "title": "Cashier Id",
+            "type": "string"
+          },
+          "cashier_name": {
+            "title": "Cashier Name",
+            "type": "string"
+          },
+          "detail_type": {
+            "title": "Detail Type",
             "type": "string"
           },
           "ended_at": {
@@ -18375,6 +18476,8 @@
           "kind",
           "register_id",
           "cashier_id",
+          "cashier_name",
+          "detail_type",
           "till_id",
           "transaction_no",
           "event_sequence_id",
@@ -18424,6 +18527,10 @@
           "amount": {
             "title": "Amount",
             "type": "number"
+          },
+          "department_name": {
+            "title": "Department Name",
+            "type": "string"
           },
           "description": {
             "title": "Description",
@@ -18481,6 +18588,7 @@
           "description",
           "entry_method",
           "merchandise_code",
+          "department_name",
           "quantity",
           "amount",
           "actual_price",
@@ -18496,6 +18604,13 @@
       "PosTransactionListResponse": {
         "additionalProperties": false,
         "properties": {
+          "kind_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Kind Counts",
+            "type": "object"
+          },
           "page": {
             "title": "Page",
             "type": "integer"
@@ -18530,7 +18645,8 @@
           "page",
           "total_pages",
           "total_grand",
-          "voided_count"
+          "voided_count",
+          "kind_counts"
         ],
         "title": "PosTransactionListResponse",
         "type": "object"
@@ -18544,6 +18660,14 @@
           },
           "cashier_id": {
             "title": "Cashier Id",
+            "type": "string"
+          },
+          "cashier_name": {
+            "title": "Cashier Name",
+            "type": "string"
+          },
+          "detail_type": {
+            "title": "Detail Type",
             "type": "string"
           },
           "grand_total": {
@@ -18589,6 +18713,17 @@
             "title": "Register Id",
             "type": "string"
           },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
           "superseded": {
             "title": "Superseded",
             "type": "boolean"
@@ -18616,8 +18751,11 @@
           "kind",
           "register_id",
           "cashier_id",
+          "cashier_name",
           "transaction_no",
           "receipt_at",
+          "started_at",
+          "detail_type",
           "item_count",
           "gross",
           "tax",
@@ -48843,6 +48981,146 @@
           }
         },
         "summary": "Agent Upload Route",
+        "tags": [
+          "posimport"
+        ]
+      }
+    },
+    "/posimport/cashiers": {
+      "get": {
+        "description": "Every cashier number on the store's tickets, with the name the\nstore gave it. Read like the tickets themselves: ``day_close.read``.",
+        "operationId": "list_cashiers_route_posimport_cashiers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PosCashierListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Cashiers Route",
+        "tags": [
+          "posimport"
+        ]
+      },
+      "put": {
+        "description": "Name the register's cashier numbers (a blank name forgets one).\nStore setup, like mapping department numbers: ``day_close.update``.",
+        "operationId": "set_cashiers_route_posimport_cashiers_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PosCashierWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PosCashierListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Cashiers Route",
         "tags": [
           "posimport"
         ]

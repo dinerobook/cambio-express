@@ -4808,6 +4808,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/posimport/cashiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cashiers Route
+         * @description Every cashier number on the store's tickets, with the name the
+         *     store gave it. Read like the tickets themselves: ``day_close.read``.
+         */
+        get: operations["list_cashiers_route_posimport_cashiers_get"];
+        /**
+         * Set Cashiers Route
+         * @description Name the register's cashier numbers (a blank name forgets one).
+         *     Store setup, like mapping department numbers: ``day_close.update``.
+         */
+        put: operations["set_cashiers_route_posimport_cashiers_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/posimport/item-movement": {
         parameters: {
             query?: never;
@@ -15322,12 +15348,47 @@ export interface components {
             /** Username */
             username: string;
         };
+        /** PosCashierListResponse */
+        PosCashierListResponse: {
+            /** Rows */
+            rows: components["schemas"]["PosCashierRow"][];
+        };
+        /** PosCashierName */
+        PosCashierName: {
+            /** Cashier Id */
+            cashier_id: string;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+        };
+        /** PosCashierRow */
+        PosCashierRow: {
+            /** Cashier Id */
+            cashier_id: string;
+            /** Last Seen */
+            last_seen: string | null;
+            /** Name */
+            name: string;
+            /** Ticket Count */
+            ticket_count: number;
+        };
+        /** PosCashierWriteRequest */
+        PosCashierWriteRequest: {
+            /** Cashiers */
+            cashiers: components["schemas"]["PosCashierName"][];
+        };
         /** PosTransactionDetail */
         PosTransactionDetail: {
             /** Business Date */
             business_date: string;
             /** Cashier Id */
             cashier_id: string;
+            /** Cashier Name */
+            cashier_name: string;
+            /** Detail Type */
+            detail_type: string;
             /** Ended At */
             ended_at: string | null;
             /** Event Sequence Id */
@@ -15391,6 +15452,8 @@ export interface components {
             actual_price: number;
             /** Amount */
             amount: number;
+            /** Department Name */
+            department_name: string;
             /** Description */
             description: string;
             /** Entry Method */
@@ -15418,6 +15481,10 @@ export interface components {
         };
         /** PosTransactionListResponse */
         PosTransactionListResponse: {
+            /** Kind Counts */
+            kind_counts: {
+                [key: string]: number;
+            };
             /** Page */
             page: number;
             /** Rows */
@@ -15437,6 +15504,10 @@ export interface components {
             business_date: string;
             /** Cashier Id */
             cashier_id: string;
+            /** Cashier Name */
+            cashier_name: string;
+            /** Detail Type */
+            detail_type: string;
             /** Grand Total */
             grand_total: number;
             /** Gross */
@@ -15455,6 +15526,8 @@ export interface components {
             receipt_at: string | null;
             /** Register Id */
             register_id: string;
+            /** Started At */
+            started_at: string | null;
             /** Superseded */
             superseded: boolean;
             /** Suspended */
@@ -29307,6 +29380,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentUploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_cashiers_route_posimport_cashiers_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PosCashierListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_cashiers_route_posimport_cashiers_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PosCashierWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PosCashierListResponse"];
                 };
             };
             /** @description Validation Error */

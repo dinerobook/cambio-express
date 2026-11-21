@@ -173,11 +173,13 @@ describe("Transactions (register journal)", () => {
   const LIST = {
     rows: [{
       id: 77, transaction_no: "T-1001", business_date: "2026-10-09", receipt_at: "2026-10-09T15:00:00",
-      register_id: "R1", cashier_id: "C9", item_count: 3, tax: 0.82, grand_total: 12.5,
+      register_id: "R1", cashier_id: "C9", cashier_name: "", started_at: null, detail_type: "",
+      item_count: 3, tax: 0.82, grand_total: 12.5,
       kind: "refund", has_voided_line: true, training_mode: false, offline: false, suspended: false,
       superseded: false,
     }],
     total: 1, page: 1, total_pages: 1, total_grand: 12.5, voided_count: 1,
+    kind_counts: { all: 1, sale: 0, refund: 1, void: 0, voided_items: 1, no_sale: 0 },
   };
 
   it("lists tickets with their flags and links", async () => {
@@ -189,11 +191,11 @@ describe("Transactions (register journal)", () => {
     expect(screen.getAllByText("$12.50").length).toBeGreaterThan(0);
   });
 
-  it("asks the server for voided tickets only when ticked", async () => {
+  it("asks the server for voided tickets only on the Voided items tab", async () => {
     const calls = mockFetch({ "GET /api/v2/posimport/transactions": { body: LIST } });
     renderRoute(<Transactions />, { path: "/transactions" });
     await screen.findByRole("link", { name: "T-1001" });
-    await userEvent.click(screen.getByRole("checkbox", { name: "Voided items only" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Voided items (1)" }));
     await vi.waitFor(() => expect(
       calls.some((c) => c.url.searchParams.get("voided_only") === "true"),
     ).toBe(true));

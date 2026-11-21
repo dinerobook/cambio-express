@@ -150,6 +150,9 @@ LINE_STATUS_CANCEL = "cancel"
 
 # LinkedTransactionInfo/TransactionLinkReason of a prepay completion.
 LINK_REASON_FUEL_PREPAY = "fuelPrepay"
+# An OtherEvent alert's Description when a cashier opened the drawer
+# with nothing sold (PjrEvent.detail_type).
+NO_SALE_DETAIL = "NoSale"
 
 # The event kinds that carry money. Voids, register opens and
 # financial events never reach a sales total.
@@ -271,6 +274,9 @@ class PjrEvent:
     # longer counts toward any money total.
     superseded: bool = False
     superseded_by_file: str = ""
+    # A non-sale event's own type (OtherEvent): the alert description
+    # ("NoSale") or the register detail type ("open" / "close").
+    detail_type: str = ""
     # Set by ``supersede_prepaid_deposits`` on a ticket that replaced
     # a deposit without naming it (``_supersede_unlinked``), so it
     # replaces exactly one however often the matching runs (a day's
@@ -609,6 +615,15 @@ def parse_pjr(data: bytes | str) -> PjrEvent:
     detail = event_el.find(".//RegisterDetail")
     if detail is not None and detail.get("detailType") == "open":
         event.opening_cash_cents = _cents(detail, "CashInDrawer")
+    # What a non-sale event was: an alert says so in its Description
+    # ("NoSale" — the drawer opened with nothing sold), a register
+    # detail in its detailType ("open" / "close").
+    if kind == "other":
+        alert = event_el.find(".//AlertDetail")
+        if alert is not None:
+            event.detail_type = _text(alert, "Description")[:40]
+        elif detail is not None:
+            event.detail_type = (detail.get("detailType") or "")[:40]
 
     for seq, line in enumerate(event_el.findall(".//TransactionLine"), 1):
         # Cancelled lines are corrections the register already
@@ -936,7 +951,7 @@ def aggregate_events(
 __all__ = [
     "CARD_TENDER_CODES", "CASH_TENDER_CODES",
     "LINE_STATUS_CANCEL", "LINE_STATUS_NORMAL", "FuelGradeAggregate",
-    "LINK_REASON_FUEL_PREPAY", "OUTSIDE_REGISTER_KEY",
+    "LINK_REASON_FUEL_PREPAY", "NO_SALE_DETAIL", "OUTSIDE_REGISTER_KEY",
     "OUTSIDE_REGISTER_LABEL", "SALES_KINDS",
     "PjrEvent", "PjrItemLine", "PjrPrepayLine", "PjrTender",
     "PosJournalParseError", "RegisterDayAggregate",

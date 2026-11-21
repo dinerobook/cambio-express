@@ -206,6 +206,12 @@ class PosTransaction(Base):
     linked_started_at     = Column(DateTime, nullable=True)
     superseded            = Column(Boolean, nullable=False, default=False)
     superseded_by_file    = Column(String(120), nullable=False, default="")
+    # What a non-sale register event was (an OtherEvent), as Passport
+    # names it: an alert's own description ("NoSale" — the drawer
+    # opened with nothing sold) or a register detail's type ("open",
+    # "close"). "" on every sale, refund and void. The Transactions
+    # page's "No sales" view filters on it (NO_SALE_DETAIL).
+    detail_type           = Column(String(40), nullable=False, default="")
     __table_args__ = (
         UniqueConstraint("store_id", "source_file"),
     )
@@ -217,6 +223,30 @@ class PosTransaction(Base):
     tenders = relationship(
         "PosTransactionTender", back_populates="transaction",
         cascade="all, delete-orphan",
+    )
+
+
+class PosCashier(Base):
+    """The name a store gives one of its register's cashier numbers.
+
+    Passport's journal names a cashier only by number (``CashierID``
+    "91"); who that is lives in Passport's own setup, which never
+    reaches us. The store types the names once (Transactions →
+    Cashier names) and every ticket shows them. A number with no row
+    here shows as the number. Authored by people, never rebuilt from
+    the files: a re-commit of a day leaves it alone.
+    """
+
+    __tablename__ = "retail_pos_cashier"
+    id         = Column(Integer, primary_key=True)
+    store_id   = Column(Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True)
+    cashier_id = Column(String(20), nullable=False)
+    name       = Column(String(80), nullable=False, default="")
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+    __table_args__ = (
+        UniqueConstraint(
+            "store_id", "cashier_id", name="uq_retail_pos_cashier_store_cashier",
+        ),
     )
 
 

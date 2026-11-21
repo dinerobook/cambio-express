@@ -292,8 +292,16 @@ class PosTransactionRow(BaseModel):
     kind: str
     register_id: str
     cashier_id: str
+    # The name the store gave this cashier number ("" until named).
+    cashier_name: str
     transaction_no: str
     receipt_at: str | None
+    # When the event began: the time a no-sale or register open shows,
+    # since neither prints a receipt.
+    started_at: str | None
+    # A non-sale event's type as Passport names it ("NoSale", "open",
+    # "close"); "" on sales, refunds and voids.
+    detail_type: str
     item_count: int
     gross: float
     tax: float
@@ -316,6 +324,8 @@ class PosTransactionLineRow(BaseModel):
     description: str
     entry_method: str
     merchandise_code: str
+    # The store's department mapped to that number ("" when unmapped).
+    department_name: str
     quantity: float
     amount: float
     actual_price: float
@@ -345,6 +355,8 @@ class PosTransactionDetail(BaseModel):
     kind: str
     register_id: str
     cashier_id: str
+    cashier_name: str
+    detail_type: str
     till_id: str
     transaction_no: str
     event_sequence_id: str
@@ -384,12 +396,47 @@ class PosTransactionListResponse(BaseModel):
     # it and read as a bug.
     total_grand: float
     voided_count: int
+    # How many tickets each tab holds over the same range and search:
+    # all, sale, refund, void, voided_items, no_sale.
+    kind_counts: dict[str, int]
 
 
 class PosTransactionDetailResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     transaction: PosTransactionDetail
+
+
+# ── Cashier names ──────────────────────────────────────────
+
+
+class PosCashierRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cashier_id: str
+    name: str
+    ticket_count: int
+    last_seen: str | None
+
+
+class PosCashierListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[PosCashierRow]
+
+
+class PosCashierName(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cashier_id: str = Field(..., min_length=1, max_length=20)
+    # Blank forgets the name.
+    name: str = Field("", max_length=80)
+
+
+class PosCashierWriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cashiers: list[PosCashierName] = Field(..., max_length=200)
 
 
 # ── Movement reports (G-7, read-only) ──────────────────────

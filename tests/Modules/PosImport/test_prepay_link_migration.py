@@ -24,8 +24,11 @@ def test_migration_matches_the_models():
     for model in (PosJournalFile, PosTransaction):
         table = model.__table__
         added = list(m.ADDED_COLUMNS[table.name])
-        # The new columns are the model's last ones, in model order.
-        assert [c.name for c in table.columns][-len(added):] == added
+        # The new columns sit together in model order (later revisions
+        # may add columns after them).
+        names = [c.name for c in table.columns]
+        first = names.index(added[0])
+        assert names[first:first + len(added)] == added
         for name, type_, default in m.ADDED[table.name]:
             column = table.columns[name]
             assert type(column.type) is type(type_), name

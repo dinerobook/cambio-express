@@ -123,6 +123,11 @@ export const thStyle: CSSProperties = {
   background: tokens.surface,
   position: "sticky",
   top: 0,
+  // Above the rows it pins over: a link in a cell is positioned
+  // (`.ds-link`, for its underline) and painted over a header with
+  // no stacking order of its own — a ticket number showed through
+  // the header as the list scrolled.
+  zIndex: 1,
 };
 
 export const tdStyle: CSSProperties = {

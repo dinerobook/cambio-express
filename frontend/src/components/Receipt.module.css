@@ -1,0 +1,211 @@
+/* The register receipt (Receipt.tsx): ink on white in both themes,
+   like a printed transfer receipt — the --db-paper-* tokens. A
+   till slip's rhythm: centred header, dashed rules, items with the
+   amount flush right in mono, totals, then how it was paid. */
+
+.receipt {
+  background: var(--db-paper);
+  color: var(--db-paper-ink);
+  border-radius: var(--db-radius-md);
+  box-shadow: var(--db-shadow-card);
+  padding: 1.25rem 1.25rem 1.5rem;
+  font-family: var(--db-font-body);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+.head {
+  text-align: center;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px dashed var(--db-paper-faint);
+}
+
+.store {
+  font-family: var(--db-font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.when {
+  color: var(--db-paper-text);
+  margin-top: 0.125rem;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 1rem;
+  margin: 0.625rem 0 0;
+}
+
+.fact {
+  display: flex;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.fact dt {
+  color: var(--db-paper-muted);
+}
+
+.fact dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* "Refund" / "Void" across the top, like a stamped slip. */
+.stamp {
+  display: inline-block;
+  margin-top: 0.625rem;
+  padding: 0.1rem 0.6rem;
+  border: 1.5px solid var(--db-paper-void);
+  border-radius: var(--db-radius-sm);
+  color: var(--db-paper-void);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.event {
+  margin: 1.25rem 0 0.25rem;
+  text-align: center;
+  font-weight: 600;
+  color: var(--db-paper-text);
+}
+
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem 0;
+  border-bottom: 1px dashed var(--db-paper-faint);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.qty,
+.amount,
+.mono {
+  font-family: var(--db-font-mono);
+}
+
+.qty {
+  color: var(--db-paper-text);
+}
+
+.amount {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.desc {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.at {
+  font-weight: 400;
+  color: var(--db-paper-text);
+  white-space: nowrap;
+}
+
+.sub {
+  color: var(--db-paper-muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+/* Sold below the price the register has on file (an override or a
+   promotion) — amber ink, still readable on white. */
+.flag {
+  color: var(--db-paper-flag);
+  font-weight: 600;
+}
+
+/* A voided line: struck through in red, never added up. */
+.voided .name,
+.voided .amount,
+.voided .qty {
+  color: var(--db-paper-void);
+  text-decoration: line-through;
+}
+
+.voidTag {
+  color: var(--db-paper-void);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.totals,
+.tenders {
+  margin: 0;
+  padding: 0.75rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tenders {
+  margin-top: 0.75rem;
+  border-top: 1px dashed var(--db-paper-faint);
+}
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.total dt {
+  color: var(--db-paper-text);
+}
+
+.total dd {
+  margin: 0;
+  font-family: var(--db-font-mono);
+  white-space: nowrap;
+}
+
+.grand {
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--db-paper-rule);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.grand dt {
+  color: var(--db-paper-ink);
+}
+
+.voidText dt,
+.voidText dd {
+  color: var(--db-paper-void);
+}
+
+/* What the customer saved on deals: a footnote to the total. */
+.mutedText dt,
+.mutedText dd {
+  color: var(--db-paper-muted);
+  font-size: 0.8rem;
+}

@@ -15,6 +15,41 @@ export function ticketKindLabel(kind: string): string {
   return Object.hasOwn(KIND_PILLS, kind) ? t(KIND_PILLS[kind]) : kind;
 }
 
+// What a non-sale register event was (``detail_type``), as Passport
+// names it. An unknown type shows as sent.
+const DETAIL_LABELS: Record<string, MessageKey> = {
+  NoSale: "posTx.detail.noSale",
+  open: "posTx.detail.open",
+  close: "posTx.detail.close",
+};
+export function eventDetailLabel(detailType: string): string {
+  return Object.hasOwn(DETAIL_LABELS, detailType)
+    ? t(DETAIL_LABELS[detailType]) : detailType;
+}
+
+// A tender's name on a receipt, from Passport's TenderCode. An unknown
+// code shows as sent.
+const TENDER_LABELS: Record<string, MessageKey> = {
+  cash: "posTx.tender.cash",
+  creditCards: "posTx.tender.creditCards",
+  debitCards: "posTx.tender.debitCards",
+  outsideCredit: "posTx.tender.outsideCredit",
+  outsideDebit: "posTx.tender.outsideDebit",
+  outsideMobileCredit: "posTx.tender.outsideMobileCredit",
+  loyaltyOffer: "posTx.tender.loyaltyOffer",
+  check: "posTx.tender.check",
+};
+export function tenderLabel(code: string): string {
+  return Object.hasOwn(TENDER_LABELS, code) ? t(TENDER_LABELS[code]) : code;
+}
+
+/** "Noel (#91)" once the store named the number, else "#91"; "—"
+ *  when the register sent none. */
+export function cashierLabel(id: string, name: string): string {
+  if (!id) return "—";
+  return name ? t("posTx.cashierNamed", { name, id }) : `#${id}`;
+}
+
 // Typed straight off the FastAPI OpenAPI spec (CLAUDE.md standard).
 export type NaxmlPreview = components["schemas"]["NaxmlPreviewResponse"];
 export type ImportRegisterRow = components["schemas"]["ImportRegisterRow"];
@@ -163,6 +198,10 @@ export function useItemMovement(params: ItemMovementQuery) {
 // ── Transactions (G-6) ──────────────────────────────────────
 
 export type PosTransactionRow = components["schemas"]["PosTransactionRow"];
+export type PosTransactionDetail =
+  components["schemas"]["PosTransactionDetail"];
+export type PosCashierRow = components["schemas"]["PosCashierRow"];
+type PosCashierListResponse = components["schemas"]["PosCashierListResponse"];
 
 type PosTransactionListResponse =
   components["schemas"]["PosTransactionListResponse"];
@@ -222,5 +261,26 @@ export function useTransaction(id: number | null) {
     queryFn: () => api<PosTransactionDetailResponse>(
       `/api/v2/posimport/transactions/${id}`,
     ),
+  });
+}
+
+// ── Cashier names ───────────────────────────────────────────
+
+export const CASHIERS_KEY = ["posimport", "cashiers"] as const;
+
+export function useCashiers(enabled = true) {
+  return useQuery<PosCashierListResponse>({
+    enabled,
+    queryKey: CASHIERS_KEY,
+    queryFn: () => api<PosCashierListResponse>("/api/v2/posimport/cashiers"),
+  });
+}
+
+/** Name the register's cashier numbers; a blank name forgets one. */
+export function saveCashierNames(
+  cashiers: Array<{ cashier_id: string; name: string }>,
+): Promise<PosCashierListResponse> {
+  return api<PosCashierListResponse>("/api/v2/posimport/cashiers", {
+    method: "PUT", json: { cashiers },
   });
 }

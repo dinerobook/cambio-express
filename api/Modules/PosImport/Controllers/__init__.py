@@ -74,6 +74,9 @@ from api.Modules.PosImport.Requests import (
     NaxmlCommitResponse,
     NaxmlPreviewResponse,
     NaxmlUploadRequest,
+    PosCashierListResponse,
+    PosCashierRow,
+    PosCashierWriteRequest,
     PosTransactionDetail,
     PosTransactionDetailResponse,
     PosTransactionListResponse,
@@ -93,7 +96,9 @@ from api.Modules.PosImport.Services.pairing import (
 )
 from api.Modules.PosImport.Services.transactions import (
     TransactionQueryError,
+    list_cashiers,
     list_transactions,
+    set_cashier_names,
     transaction_detail,
 )
 from api.Modules.PosImport.Services import (
@@ -901,3 +906,45 @@ def transaction_detail_route(
     return PosTransactionDetailResponse(
         transaction=PosTransactionDetail(**detail),
     )
+
+
+# ── Cashier names ───────────────────────────────────────────
+
+
+def _cashier_list(db: Session, store_id: int) -> PosCashierListResponse:
+    return PosCashierListResponse(rows=[
+        PosCashierRow(**row) for row in list_cashiers(db, store_id)
+    ])
+
+
+@router.get("/cashiers", response_model=PosCashierListResponse)
+def list_cashiers_route(
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PosCashierListResponse:
+    """Every cashier number on the store's tickets, with the name the
+    store gave it. Read like the tickets themselves: ``day_close.read``."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "read")
+    return _cashier_list(db, sid)
+
+
+@router.put("/cashiers", response_model=PosCashierListResponse)
+def set_cashiers_route(
+    body: PosCashierWriteRequest,
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PosCashierListResponse:
+    """Name the register's cashier numbers (a blank name forgets one).
+    Store setup, like mapping department numbers: ``day_close.update``."""
+    sid = resolve_store_scope(claims)
+    require_permission(claims, "day_close", "update")
+    names = {row.cashier_id: row.name for row in body.cashiers}
+    changed = set_cashier_names(db, sid, names)
+    audit_operator(
+        db, claims, action="set_pos_cashier_names",
+        target_type="pos_cashier", target_id=str(sid),
+        summary=f"{changed} cashier name(s) changed",
+    )
+    db.commit()
+    return _cashier_list(db, sid)
