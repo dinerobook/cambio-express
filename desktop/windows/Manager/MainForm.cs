@@ -143,10 +143,17 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
+            // Says the next step: the one prompt before Install, or the
+            // no-prompt shortcut Install made.
             Text = _paths.IsCustom
                 ? "Test folder: the key and settings are saved there. The service needs administrator rights."
-                : "Viewing only. Connecting, settings and the service need administrator rights.",
+                : File.Exists(NoPromptLaunch.DesktopShortcut)
+                    ? "Viewing only. Open the DineroBook Manager shortcut on the desktop."
+                    : "Viewing only. Restart as administrator once, then Install / Update.",
         };
+        _tips.SetToolTip(text,
+            "Install / Update puts a DineroBook Manager shortcut on the desktop.\n"
+            + "That shortcut opens this window with administrator rights, without the Windows prompt.");
         _banner.Controls.Add(text);
         _banner.Controls.Add(_elevate);
         _banner.Visible = !Elevation.IsElevated;
