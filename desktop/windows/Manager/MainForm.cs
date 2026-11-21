@@ -341,18 +341,6 @@ internal sealed class MainForm : Form
         _api.ReadOnly = !_send.Checked;
     }
 
-    /// <summary>Files waiting in the temp folder (not the half-copied ones).</summary>
-    private int InboxCount()
-    {
-        try
-        {
-            return Directory.Exists(_paths.Inbox) ? Directory.EnumerateFiles(_paths.Inbox).Count() : 0;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return 0;
-        }
-    }
 
     private void RefreshStatus()
     {
@@ -646,18 +634,10 @@ internal sealed class MainForm : Form
             settings.ApiUrl = apiText;
             settings.DeleteFromOutbox = _deleteFromOutbox.Checked;
             settings.DeleteFromInbox = _deleteFromInbox.Checked;
-            if (_send.Checked && !settings.SendToDineroBook)
-            {
-                var waiting = InboxCount();
-                if (waiting > 0 && MessageBox.Show(this,
-                        $"{waiting:N0} file(s) are waiting in the temp folder ({_paths.Inbox}). They will be sent to DineroBook now.\n\n"
-                        + "If they are not register files (from BOInBox, say), move them out of that folder first.\n\nSend them?",
-                        Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
-                {
-                    _send.Checked = false;
-                    return;
-                }
-            }
+            // Turned on again, whatever waits in the temp folder simply goes
+            // (owner, 2026-11-21): BOOutbox itself can hold files that are not
+            // register files, and DineroBook keeps those aside (Developer tab)
+            // without putting anything in its tables.
             settings.SendToDineroBook = _send.Checked;
             try
             {

@@ -126,8 +126,10 @@ field there no longer matches the server.
   are collected, and **Open temp folder** shows them. The owner uses this
   to gather files from any Passport folder, BOInBox too (every file is
   copied, whatever its name). Turned on again, the files waiting in the
-  temp folder are sent; the Manager asks first when there are any, so
-  files that are not register files can be moved out before.
+  temp folder are sent, with no question asked (owner, 2026-11-21).
+  BOOutbox itself can hold files that are not register files: DineroBook
+  keeps such a file with its error (Developer tab) and puts nothing in
+  its tables, so it does no harm.
 - **What "5 seconds" is.** `pollSeconds` in settings.json (default 5,
   allowed 2–300): how often the collector lists BOOutbox as the
   watcher's safety net, and how often the sender looks at the inbox when
@@ -244,7 +246,7 @@ All under `%ProgramData%\DineroBook\Processor\`, set up by Install:
 | `state\sent.txt` | Files DineroBook accepted (name, time, outcome). Safe to delete: the server keeps one copy per file name, so a resend comes back `duplicate` | the service |
 | `state\skipped.txt` | Files refused for good, with why | the service |
 | `state\status.json` | What the service is doing, for the Manager | the service |
-| `state\logs\processor-YYYYMMDD.log` | One log a day, 14 days kept | the service |
+| `state\logs\processor-YYYYMMDD.log` | Today's log only: the first line of a new day deletes the older files (owner, 2026-11-21). Errors also go to the Windows Event Log | the service |
 
 The three settings in Setup → 2 (Send, and the two deletes) are on/off switches (`ToggleSwitch`, a
 `CheckBox` drawn as a switch, owner 2026-11-20).
