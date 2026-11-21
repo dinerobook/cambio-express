@@ -171,6 +171,8 @@ def _recent_receipts(
     db: Session, store_id: int, limit: int = 6,
 ) -> list[dict[str, Any]]:
     """The last few tickets, for the receipts panel. Newest first."""
+    from sqlalchemy import func
+
     from api.Modules.PosImport.Models import PosTransaction
     from api.Modules.PosImport.Services.transactions import (
         register_stamp, store_timezone,
@@ -182,7 +184,9 @@ def _recent_receipts(
         .filter(PosTransaction.store_id == store_id)
         .order_by(
             PosTransaction.business_date.desc(),
-            PosTransaction.receipt_at.desc(),
+            func.coalesce(
+                PosTransaction.ended_at, PosTransaction.started_at,
+            ).desc(),
             PosTransaction.id.desc(),
         )
         .limit(limit)
@@ -195,6 +199,9 @@ def _recent_receipts(
             "register_id": t.register_id or "",
             "cashier_id": t.cashier_id or "",
             "receipt_at": register_stamp(t.receipt_at, tz),
+            # What the panel shows: the event's own end time, else its
+            # start (the Transactions page's rule).
+            "ended_at": register_stamp(t.ended_at or t.started_at, tz),
             "business_date": t.business_date.isoformat(),
             "total": int(t.grand_total_cents or 0) / 100.0,
             "has_voided_line": bool(t.has_voided_line),

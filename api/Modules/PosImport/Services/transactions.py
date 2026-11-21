@@ -87,9 +87,11 @@ def store_timezone(db: Session, store_id: int) -> str:
 
 
 def _event_time() -> ColumnElement[Any]:
-    """When the event happened: its receipt time, else its start
-    (a no-sale or register open prints no receipt)."""
-    return func.coalesce(PosTransaction.receipt_at, PosTransaction.started_at)
+    """When the event happened: its own end time (EventEndDate +
+    EventEndTime), else its start — the owner's rule for every time a
+    ticket shows or sorts by (2026-11-20). Never ReceiptTime, though it
+    equals the end on every ticket in both sample stores."""
+    return func.coalesce(PosTransaction.ended_at, PosTransaction.started_at)
 
 
 def _is_no_sale() -> ColumnElement[bool]:
@@ -271,6 +273,7 @@ def list_transactions(
                 "transaction_no": t.transaction_no or "",
                 "receipt_at": register_stamp(t.receipt_at, tz),
                 "started_at": register_stamp(t.started_at, tz),
+                "ended_at": register_stamp(t.ended_at, tz),
                 "detail_type": t.detail_type or "",
                 "item_count": int(counts.get(t.id, 0)),
                 "gross": to_dollars(t.gross_cents),

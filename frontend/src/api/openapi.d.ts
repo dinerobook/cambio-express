@@ -15609,6 +15609,8 @@ export interface components {
             cashier_name: string;
             /** Detail Type */
             detail_type: string;
+            /** Ended At */
+            ended_at: string | null;
             /** Grand Total */
             grand_total: number;
             /** Gross */
@@ -15890,6 +15892,8 @@ export interface components {
             business_date: string;
             /** Cashier Id */
             cashier_id: string;
+            /** Ended At */
+            ended_at: string | null;
             /** Has Voided Line */
             has_voided_line: boolean;
             /** Id */

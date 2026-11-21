@@ -57,7 +57,7 @@ export default function TransactionDetail() {
   }
 
   const tx = query.data.transaction;
-  const at = tx.receipt_at ?? tx.started_at;
+  const at = tx.ended_at ?? tx.started_at;
 
   return (
     <PageShell maxWidth="60rem">

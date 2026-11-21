@@ -472,3 +472,22 @@ def test_migration_runs_up_and_down_twice_and_keeps_old_rows(tmp_path, monkeypat
         )).scalar() == 1
 
     command.upgrade(cfg, m.revision)
+
+
+# ── Times: the event's own end, never ReceiptTime ──────────
+
+
+def test_the_list_shows_and_sorts_by_the_events_end_time(client, test_store_id):
+    with db_session():
+        early = _ticket(test_store_id, source_file="E1.xml", no="200", hour=9)
+        late = _ticket(test_store_id, source_file="E2.xml", no="201", hour=10)
+        a = db.session.get(PosTransaction, early)
+        b = db.session.get(PosTransaction, late)
+        # The receipt times say the opposite order on purpose.
+        a.ended_at, a.receipt_at = datetime(2025, 12, 8, 9, 0, 30), datetime(2025, 12, 8, 23, 0, 0)
+        b.ended_at, b.receipt_at = datetime(2025, 12, 8, 10, 0, 30), datetime(2025, 12, 8, 1, 0, 0)
+        db.session.commit()
+    rows = _list(client, _admin(client, test_store_id)).json()["rows"]
+    assert [(r["transaction_no"], r["ended_at"]) for r in rows] == [
+        ("201", "2025-12-08T10:00:30"), ("200", "2025-12-08T09:00:30"),
+    ]

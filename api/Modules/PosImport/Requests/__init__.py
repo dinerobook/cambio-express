@@ -296,9 +296,10 @@ class PosTransactionRow(BaseModel):
     cashier_name: str
     transaction_no: str
     receipt_at: str | None
-    # When the event began: the time a no-sale or register open shows,
-    # since neither prints a receipt.
+    # The event's own start and end (EventStart/EventEnd). The list
+    # shows and sorts by the end, else the start.
     started_at: str | None
+    ended_at: str | None
     # A non-sale event's type as Passport names it ("NoSale", "open",
     # "close"); "" on sales, refunds and voids.
     detail_type: str
@@ -417,7 +418,7 @@ class PosLineRow(BaseModel):
     transaction_id: int
     transaction_no: str
     business_date: str
-    # When the ticket rang (its receipt time, else its start), UTC.
+    # When the ticket rang: its own end time, else its start (UTC).
     at: str | None
     kind: str
     register_id: str

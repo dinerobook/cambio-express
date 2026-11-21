@@ -53,7 +53,8 @@ const TABS: {
 
 const MONO = { fontFamily: tokens.fontMono };
 
-const at = (r: PosTransactionRow) => r.receipt_at ?? r.started_at;
+// The event's own end time, else its start (never ReceiptTime).
+const at = (r: PosTransactionRow) => r.ended_at ?? r.started_at;
 
 // Built during render so the headings follow a language switch.
 const columns = (): DataColumn<PosTransactionRow>[] => [

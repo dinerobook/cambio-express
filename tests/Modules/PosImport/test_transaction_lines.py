@@ -43,7 +43,9 @@ def _ticket(store_id, *, no, kind="sale", hour=12, superseded=False, lines=()):
         kind=kind, register_id="1", cashier_id="91", till_id="7",
         transaction_no=no, event_sequence_id="1",
         started_at=datetime(2025, 12, 8, hour, 0, 0),
-        receipt_at=datetime(2025, 12, 8, hour, 0, 5),
+        ended_at=datetime(2025, 12, 8, hour, 0, 5),
+        # Never shown: the event's own end time is (owner, 2026-11-20).
+        receipt_at=datetime(2025, 12, 8, hour, 59, 59),
         superseded=superseded,
     )
     db.session.add(txn)

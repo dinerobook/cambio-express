@@ -38,6 +38,7 @@ def _txn(store_id, *, source_file, no, cents, kind="sale", voided=False,
         store_id=store_id, business_date=DAY, source_file=source_file,
         kind=kind, register_id="1", cashier_id="3", transaction_no=no,
         receipt_at=datetime(2025, 12, 8, 13, 31, 38),
+        ended_at=datetime(2025, 12, 8, 13, 31, 38),
         gross_cents=cents, net_cents=cents, tax_cents=0,
         grand_total_cents=cents, has_voided_line=voided,
         superseded=superseded,
@@ -297,3 +298,4 @@ def test_recent_receipts_send_register_times_as_utc(client, test_store_id):
 
     receipts = _summary(client, test_store_id)["recent_receipts"]
     assert receipts[0]["receipt_at"] == "2025-12-08T19:31:38"
+    assert receipts[0]["ended_at"] == "2025-12-08T19:31:38"

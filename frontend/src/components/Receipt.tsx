@@ -29,7 +29,8 @@ export function Receipt({
   storeName?: string;
 }) {
   const t = useT();
-  const at = tx.receipt_at ?? tx.started_at;
+  // The event's own end time, else its start (never ReceiptTime).
+  const at = tx.ended_at ?? tx.started_at;
   const sold = tx.lines.filter((l) => l.status !== "cancel");
   const voided = tx.lines.filter((l) => l.status === "cancel");
   const isOther = tx.kind === "other" || tx.kind === "financial";

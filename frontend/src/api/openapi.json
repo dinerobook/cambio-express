@@ -18899,6 +18899,17 @@
             "title": "Detail Type",
             "type": "string"
           },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
           "grand_total": {
             "title": "Grand Total",
             "type": "number"
@@ -18984,6 +18995,7 @@
           "transaction_no",
           "receipt_at",
           "started_at",
+          "ended_at",
           "detail_type",
           "item_count",
           "gross",
@@ -19573,6 +19585,17 @@
             "title": "Cashier Id",
             "type": "string"
           },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
           "has_voided_line": {
             "title": "Has Voided Line",
             "type": "boolean"
@@ -19611,6 +19634,7 @@
           "register_id",
           "cashier_id",
           "receipt_at",
+          "ended_at",
           "business_date",
           "total",
           "has_voided_line"

@@ -56,7 +56,8 @@ _HALF_CENT = 0.5
 
 
 def _event_time() -> Any:
-    return func.coalesce(PosTransaction.receipt_at, PosTransaction.started_at)
+    """The ticket's own end time, else its start (transactions.py)."""
+    return func.coalesce(PosTransaction.ended_at, PosTransaction.started_at)
 
 
 def _below_regular() -> Any:
@@ -216,7 +217,7 @@ def _row(
         "transaction_id": txn.id,
         "transaction_no": txn.transaction_no or "",
         "business_date": line.business_date.isoformat(),
-        "at": register_stamp(txn.receipt_at or txn.started_at, tz),
+        "at": register_stamp(txn.ended_at or txn.started_at, tz),
         "kind": txn.kind or "",
         "register_id": txn.register_id or "",
         "cashier_id": txn.cashier_id or "",

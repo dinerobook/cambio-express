@@ -126,6 +126,23 @@ describe("POS transactions", () => {
     expect(row).not.toHaveTextContent("2026-10-03");
   });
 
+  it("shows a ticket at the event's own end time, never its receipt time", async () => {
+    mockFetch({
+      "GET /api/v2/posimport/transactions": {
+        body: list({ rows: [{
+          ...ticket, started_at: "2026-10-03T19:01:00", ended_at: "2026-10-03T19:02:30",
+          receipt_at: "2026-10-03T23:59:00",
+        }] }),
+      },
+    });
+    renderRoute(<Transactions />);
+    const row = (await screen.findByText("T-1001")).closest("tr")!;
+    // The tests render in the store's zone (US Central): 19:02 UTC is
+    // 14:02 CDT; the receipt time would read 18:59.
+    expect(row).toHaveTextContent("14:02");
+    expect(row).not.toHaveTextContent("18:59");
+  });
+
   it("flags a fuel prepay deposit its completion superseded", async () => {
     mockFetch({
       "GET /api/v2/posimport/transactions": {
