@@ -121,6 +121,7 @@ export const ROUTE_ACCESS: RouteAccess[] = [
   { path: "/store-book/day", perm: "day_close.read" },
   { path: "/pos-import", perm: "day_close.update" },
   { path: "/transactions", perm: "day_close.read" },
+  { path: "/transactions/items", perm: "day_close.read" },
   { path: "/transactions/:id", perm: "day_close.read" },
   { path: "/lottery", perm: "lottery.read" },
   { path: "/price-book", perm: "catalog.read" },

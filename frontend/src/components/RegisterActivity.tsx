@@ -127,8 +127,8 @@ export function RecentReceipts({ receipts }: { receipts: ReceiptRow[] }) {
                 </div>
               </dl>
               <div className={styles.receiptFoot}>
-                {r.receipt_at
-                  ? formatTimestamp(r.receipt_at)
+                {r.ended_at
+                  ? formatTimestamp(r.ended_at)
                   : r.business_date}
               </div>
             </Card>

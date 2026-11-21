@@ -174,6 +174,7 @@ _THEME_FIXED_TOKENS = {
     # Paper: printed receipts and paystubs are ink on white.
     "--db-paper", "--db-paper-ink", "--db-paper-text", "--db-paper-muted",
     "--db-paper-faint", "--db-paper-rule", "--db-paper-rule-soft",
+    "--db-paper-void", "--db-paper-flag",
 }
 
 

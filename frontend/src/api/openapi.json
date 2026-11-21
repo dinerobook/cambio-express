@@ -18211,6 +18211,328 @@
         "title": "PlatformUserCreateRequest",
         "type": "object"
       },
+      "PosCashierListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PosCashierRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "PosCashierListResponse",
+        "type": "object"
+      },
+      "PosCashierName": {
+        "additionalProperties": false,
+        "properties": {
+          "cashier_id": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Cashier Id",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cashier_id"
+        ],
+        "title": "PosCashierName",
+        "type": "object"
+      },
+      "PosCashierRow": {
+        "additionalProperties": false,
+        "properties": {
+          "cashier_id": {
+            "title": "Cashier Id",
+            "type": "string"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ticket_count": {
+            "title": "Ticket Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cashier_id",
+          "name",
+          "ticket_count",
+          "last_seen"
+        ],
+        "title": "PosCashierRow",
+        "type": "object"
+      },
+      "PosCashierWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "cashiers": {
+            "items": {
+              "$ref": "#/components/schemas/PosCashierName"
+            },
+            "maxItems": 200,
+            "title": "Cashiers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cashiers"
+        ],
+        "title": "PosCashierWriteRequest",
+        "type": "object"
+      },
+      "PosLineDepartment": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "PosLineDepartment",
+        "type": "object"
+      },
+      "PosLineListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "costed_amount": {
+            "title": "Costed Amount",
+            "type": "number"
+          },
+          "departments": {
+            "items": {
+              "$ref": "#/components/schemas/PosLineDepartment"
+            },
+            "title": "Departments",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PosLineRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_amount": {
+            "title": "Total Amount",
+            "type": "number"
+          },
+          "total_cost": {
+            "title": "Total Cost",
+            "type": "number"
+          },
+          "total_gallons": {
+            "title": "Total Gallons",
+            "type": "number"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          },
+          "total_quantity": {
+            "title": "Total Quantity",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages",
+          "total_quantity",
+          "total_gallons",
+          "total_amount",
+          "total_cost",
+          "costed_amount",
+          "departments"
+        ],
+        "title": "PosLineListResponse",
+        "type": "object"
+      },
+      "PosLineRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "below_regular": {
+            "title": "Below Regular",
+            "type": "boolean"
+          },
+          "business_date": {
+            "title": "Business Date",
+            "type": "string"
+          },
+          "cashier_id": {
+            "title": "Cashier Id",
+            "type": "string"
+          },
+          "cashier_name": {
+            "title": "Cashier Name",
+            "type": "string"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "department_name": {
+            "title": "Department Name",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "gallons": {
+            "title": "Gallons",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_fuel": {
+            "title": "Is Fuel",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "margin_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Pct"
+          },
+          "merchandise_code": {
+            "title": "Merchandise Code",
+            "type": "string"
+          },
+          "pos_code": {
+            "title": "Pos Code",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          },
+          "register_id": {
+            "title": "Register Id",
+            "type": "string"
+          },
+          "regular_price": {
+            "title": "Regular Price",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "transaction_id": {
+            "title": "Transaction Id",
+            "type": "integer"
+          },
+          "transaction_no": {
+            "title": "Transaction No",
+            "type": "string"
+          },
+          "unit_price": {
+            "title": "Unit Price",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "transaction_id",
+          "transaction_no",
+          "business_date",
+          "at",
+          "kind",
+          "register_id",
+          "cashier_id",
+          "cashier_name",
+          "status",
+          "pos_code",
+          "description",
+          "merchandise_code",
+          "department_name",
+          "quantity",
+          "amount",
+          "unit_price",
+          "regular_price",
+          "below_regular",
+          "is_fuel",
+          "gallons",
+          "cost",
+          "margin_pct"
+        ],
+        "title": "PosLineRow",
+        "type": "object"
+      },
       "PosTransactionDetail": {
         "additionalProperties": false,
         "properties": {
@@ -18220,6 +18542,14 @@
           },
           "cashier_id": {
             "title": "Cashier Id",
+            "type": "string"
+          },
+          "cashier_name": {
+            "title": "Cashier Name",
+            "type": "string"
+          },
+          "detail_type": {
+            "title": "Detail Type",
             "type": "string"
           },
           "ended_at": {
@@ -18375,6 +18705,8 @@
           "kind",
           "register_id",
           "cashier_id",
+          "cashier_name",
+          "detail_type",
           "till_id",
           "transaction_no",
           "event_sequence_id",
@@ -18424,6 +18756,10 @@
           "amount": {
             "title": "Amount",
             "type": "number"
+          },
+          "department_name": {
+            "title": "Department Name",
+            "type": "string"
           },
           "description": {
             "title": "Description",
@@ -18481,6 +18817,7 @@
           "description",
           "entry_method",
           "merchandise_code",
+          "department_name",
           "quantity",
           "amount",
           "actual_price",
@@ -18496,6 +18833,13 @@
       "PosTransactionListResponse": {
         "additionalProperties": false,
         "properties": {
+          "kind_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Kind Counts",
+            "type": "object"
+          },
           "page": {
             "title": "Page",
             "type": "integer"
@@ -18530,7 +18874,8 @@
           "page",
           "total_pages",
           "total_grand",
-          "voided_count"
+          "voided_count",
+          "kind_counts"
         ],
         "title": "PosTransactionListResponse",
         "type": "object"
@@ -18545,6 +18890,25 @@
           "cashier_id": {
             "title": "Cashier Id",
             "type": "string"
+          },
+          "cashier_name": {
+            "title": "Cashier Name",
+            "type": "string"
+          },
+          "detail_type": {
+            "title": "Detail Type",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
           },
           "grand_total": {
             "title": "Grand Total",
@@ -18589,6 +18953,17 @@
             "title": "Register Id",
             "type": "string"
           },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
           "superseded": {
             "title": "Superseded",
             "type": "boolean"
@@ -18616,8 +18991,12 @@
           "kind",
           "register_id",
           "cashier_id",
+          "cashier_name",
           "transaction_no",
           "receipt_at",
+          "started_at",
+          "ended_at",
+          "detail_type",
           "item_count",
           "gross",
           "tax",
@@ -19206,6 +19585,17 @@
             "title": "Cashier Id",
             "type": "string"
           },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
           "has_voided_line": {
             "title": "Has Voided Line",
             "type": "boolean"
@@ -19244,6 +19634,7 @@
           "register_id",
           "cashier_id",
           "receipt_at",
+          "ended_at",
           "business_date",
           "total",
           "has_voided_line"
@@ -48848,6 +49239,146 @@
         ]
       }
     },
+    "/posimport/cashiers": {
+      "get": {
+        "description": "Every cashier number on the store's tickets, with the name the\nstore gave it. Read like the tickets themselves: ``day_close.read``.",
+        "operationId": "list_cashiers_route_posimport_cashiers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PosCashierListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Cashiers Route",
+        "tags": [
+          "posimport"
+        ]
+      },
+      "put": {
+        "description": "Name the register's cashier numbers (a blank name forgets one).\nStore setup, like mapping department numbers: ``day_close.update``.",
+        "operationId": "set_cashiers_route_posimport_cashiers_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PosCashierWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PosCashierListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Cashiers Route",
+        "tags": [
+          "posimport"
+        ]
+      }
+    },
     "/posimport/item-movement": {
       "get": {
         "description": "Item movement (G-2): per-item net quantity + dollars over a\ndate range, from the booked journal data. Sorted by dollars\ndescending \u2014 the top-sellers view. ``q`` matches description\nsubstring or scan-code prefix, mirroring the price-book\nsearch.",
@@ -49672,6 +50203,172 @@
           }
         },
         "summary": "Commit Staged Route",
+        "tags": [
+          "posimport"
+        ]
+      }
+    },
+    "/posimport/transaction-lines": {
+      "get": {
+        "description": "Every item the register sold over a range, one row per line \u2014\nthe Transactions page's Items view. Read like the tickets:\n``day_close.read``.",
+        "operationId": "list_transaction_lines_route_posimport_transaction_lines_get",
+        "parameters": [
+          {
+            "description": "YYYY-MM-DD",
+            "in": "query",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "description": "YYYY-MM-DD",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD",
+            "in": "query",
+            "name": "end",
+            "required": true,
+            "schema": {
+              "description": "YYYY-MM-DD",
+              "title": "End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 80,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "department",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 20,
+              "title": "Department",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "show",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 20,
+              "title": "Show",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 20,
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dir",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "pattern": "^(asc|desc)$",
+              "title": "Dir",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PosLineListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Transaction Lines Route",
         "tags": [
           "posimport"
         ]

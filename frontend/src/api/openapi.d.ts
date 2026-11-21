@@ -4808,6 +4808,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/posimport/cashiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cashiers Route
+         * @description Every cashier number on the store's tickets, with the name the
+         *     store gave it. Read like the tickets themselves: ``day_close.read``.
+         */
+        get: operations["list_cashiers_route_posimport_cashiers_get"];
+        /**
+         * Set Cashiers Route
+         * @description Name the register's cashier numbers (a blank name forgets one).
+         *     Store setup, like mapping department numbers: ``day_close.update``.
+         */
+        put: operations["set_cashiers_route_posimport_cashiers_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/posimport/item-movement": {
         parameters: {
             query?: never;
@@ -5001,6 +5027,28 @@ export interface paths {
         put?: never;
         /** Commit Staged Route */
         post: operations["commit_staged_route_posimport_staged_commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/posimport/transaction-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Transaction Lines Route
+         * @description Every item the register sold over a range, one row per line —
+         *     the Transactions page's Items view. Read like the tickets:
+         *     ``day_close.read``.
+         */
+        get: operations["list_transaction_lines_route_posimport_transaction_lines_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -15322,12 +15370,126 @@ export interface components {
             /** Username */
             username: string;
         };
+        /** PosCashierListResponse */
+        PosCashierListResponse: {
+            /** Rows */
+            rows: components["schemas"]["PosCashierRow"][];
+        };
+        /** PosCashierName */
+        PosCashierName: {
+            /** Cashier Id */
+            cashier_id: string;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+        };
+        /** PosCashierRow */
+        PosCashierRow: {
+            /** Cashier Id */
+            cashier_id: string;
+            /** Last Seen */
+            last_seen: string | null;
+            /** Name */
+            name: string;
+            /** Ticket Count */
+            ticket_count: number;
+        };
+        /** PosCashierWriteRequest */
+        PosCashierWriteRequest: {
+            /** Cashiers */
+            cashiers: components["schemas"]["PosCashierName"][];
+        };
+        /** PosLineDepartment */
+        PosLineDepartment: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
+        /** PosLineListResponse */
+        PosLineListResponse: {
+            /** Costed Amount */
+            costed_amount: number;
+            /** Departments */
+            departments: components["schemas"]["PosLineDepartment"][];
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["PosLineRow"][];
+            /** Total */
+            total: number;
+            /** Total Amount */
+            total_amount: number;
+            /** Total Cost */
+            total_cost: number;
+            /** Total Gallons */
+            total_gallons: number;
+            /** Total Pages */
+            total_pages: number;
+            /** Total Quantity */
+            total_quantity: number;
+        };
+        /** PosLineRow */
+        PosLineRow: {
+            /** Amount */
+            amount: number;
+            /** At */
+            at: string | null;
+            /** Below Regular */
+            below_regular: boolean;
+            /** Business Date */
+            business_date: string;
+            /** Cashier Id */
+            cashier_id: string;
+            /** Cashier Name */
+            cashier_name: string;
+            /** Cost */
+            cost: number | null;
+            /** Department Name */
+            department_name: string;
+            /** Description */
+            description: string;
+            /** Gallons */
+            gallons: number;
+            /** Id */
+            id: number;
+            /** Is Fuel */
+            is_fuel: boolean;
+            /** Kind */
+            kind: string;
+            /** Margin Pct */
+            margin_pct: number | null;
+            /** Merchandise Code */
+            merchandise_code: string;
+            /** Pos Code */
+            pos_code: string;
+            /** Quantity */
+            quantity: number;
+            /** Register Id */
+            register_id: string;
+            /** Regular Price */
+            regular_price: number;
+            /** Status */
+            status: string;
+            /** Transaction Id */
+            transaction_id: number;
+            /** Transaction No */
+            transaction_no: string;
+            /** Unit Price */
+            unit_price: number;
+        };
         /** PosTransactionDetail */
         PosTransactionDetail: {
             /** Business Date */
             business_date: string;
             /** Cashier Id */
             cashier_id: string;
+            /** Cashier Name */
+            cashier_name: string;
+            /** Detail Type */
+            detail_type: string;
             /** Ended At */
             ended_at: string | null;
             /** Event Sequence Id */
@@ -15391,6 +15553,8 @@ export interface components {
             actual_price: number;
             /** Amount */
             amount: number;
+            /** Department Name */
+            department_name: string;
             /** Description */
             description: string;
             /** Entry Method */
@@ -15418,6 +15582,10 @@ export interface components {
         };
         /** PosTransactionListResponse */
         PosTransactionListResponse: {
+            /** Kind Counts */
+            kind_counts: {
+                [key: string]: number;
+            };
             /** Page */
             page: number;
             /** Rows */
@@ -15437,6 +15605,12 @@ export interface components {
             business_date: string;
             /** Cashier Id */
             cashier_id: string;
+            /** Cashier Name */
+            cashier_name: string;
+            /** Detail Type */
+            detail_type: string;
+            /** Ended At */
+            ended_at: string | null;
             /** Grand Total */
             grand_total: number;
             /** Gross */
@@ -15455,6 +15629,8 @@ export interface components {
             receipt_at: string | null;
             /** Register Id */
             register_id: string;
+            /** Started At */
+            started_at: string | null;
             /** Superseded */
             superseded: boolean;
             /** Suspended */
@@ -15716,6 +15892,8 @@ export interface components {
             business_date: string;
             /** Cashier Id */
             cashier_id: string;
+            /** Ended At */
+            ended_at: string | null;
             /** Has Voided Line */
             has_voided_line: boolean;
             /** Id */
@@ -29320,6 +29498,76 @@ export interface operations {
             };
         };
     };
+    list_cashiers_route_posimport_cashiers_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PosCashierListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_cashiers_route_posimport_cashiers_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PosCashierWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PosCashierListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     item_movement_route_posimport_item_movement_get: {
         parameters: {
             query: {
@@ -29698,6 +29946,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NaxmlCommitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_transaction_lines_route_posimport_transaction_lines_get: {
+        parameters: {
+            query: {
+                /** @description YYYY-MM-DD */
+                start: string;
+                /** @description YYYY-MM-DD */
+                end: string;
+                q?: string;
+                department?: string;
+                show?: string;
+                sort?: string;
+                dir?: string;
+                page?: number;
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PosLineListResponse"];
                 };
             };
             /** @description Validation Error */
