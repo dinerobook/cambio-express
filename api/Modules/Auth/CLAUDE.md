@@ -22,17 +22,32 @@ truth:
 - Password sign-in for a user `needs_totp(user)` is True for returns a
   **pending** token (`LoginPendingResult`, `purpose: "totp-pending"`),
   never an access token; the SPA goes on to enrol or enter a code.
-- Only the 2FA finalize step (`finalize_2fa_with_totp` /
-  `finalize_2fa_with_recovery_code` in `Services/login.py`) may turn a
-  pending sign-in into full access. **No other code path may issue full
-  access for a role `needs_totp` is True for.**
+- Only the 2FA finalize steps (`finalize_2fa_with_totp` /
+  `finalize_2fa_with_recovery_code` /
+  `finalize_2fa_with_remembered_browser` in `Services/login.py`) may
+  turn a pending sign-in into full access. **No other code path may
+  issue full access for a role `needs_totp` is True for.**
+- **Remembered browser (owner, 2026-11-21).** Ticking "Remember this
+  browser for 30 days" on the 2FA step stores a `TrustedBrowser` row
+  (sha256 of a random secret) and puts the secret in the httpOnly,
+  `SameSite=Strict` `db_trusted_browser` cookie (path `/api/v2/auth`).
+  At the next sign-in on that browser, AFTER the password checked out,
+  `finalize_2fa_with_remembered_browser` turns the pending token into
+  full access without the code. Never without the password, never for
+  someone who still has to enrol, only for the person it was
+  remembered for, 30 days from the code (use does not extend it). The
+  row's `stamp` fingerprints the password hash and 2FA secret, so a
+  password change or a 2FA reset forgets every remembered browser.
+  Signing out does not. `Services/remembered_browser.py`; tests:
+  `tests/Modules/Auth/test_remembered_browser.py`.
 - **Passkey carve-out (FORWARD INVARIANT — not yet implemented).**
   Passkey *registration* exists; a passkey *login* does not. When it
   lands, the passkey finish route may grant full access directly after
   verifying a WebAuthn assertion, even when `needs_totp(user)` is True:
   a passkey is phishing-resistant MFA (device-bound, user-presence-
-  proven, RP-ID-bound). Full access requires a TOTP factor OR a
-  verified passkey assertion; nothing else.
+  proven, RP-ID-bound). Full access requires a TOTP factor (typed now,
+  or typed on this browser within the last 30 days and remembered) OR
+  a verified passkey assertion; nothing else.
 - Recovery codes: 10 per user, sha256-hashed, single-use
   (`RecoveryCode.used_at`), shown in plaintext exactly once.
 - `User.totp_secret` is base32 plaintext in the DB — the DB is the trust

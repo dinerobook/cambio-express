@@ -1,6 +1,8 @@
 """Auth — Models.
 
-Five classes own the auth state that isn't on ``User`` itself:
+Six classes own the auth state that isn't on ``User`` itself
+(``TrustedBrowser``, a browser remembered at the 2FA step, is the
+sixth — see its docstring):
 
 * ``PasswordResetToken`` — short-lived single-use sha256-hashed
                            token for the /forgot-password flow.
@@ -183,6 +185,32 @@ class RefreshToken(Base):
     )
 
 
+class TrustedBrowser(Base):
+    """A browser where someone ticked "Remember this browser" on the
+    2FA step (``Services/remembered_browser.py``). For
+    ``REMEMBER_DAYS`` that browser skips the code AFTER the password;
+    it is never a way in without the password.
+
+    The browser holds the raw secret in the httpOnly
+    ``db_trusted_browser`` cookie; only its sha256 is stored here.
+    ``stamp`` fingerprints the person's password and 2FA secret at the
+    moment it was remembered: changing the password or resetting 2FA
+    changes the fingerprint, which forgets every remembered browser
+    without touching this table.
+    """
+
+    __tablename__ = "auth_trusted_browser"
+    id           = Column(Integer, primary_key=True)
+    user_id      = Column(Integer, ForeignKey("tenancy_user.id"),
+                           nullable=False, index=True)
+    secret_hash  = Column(String(64), unique=True, nullable=False)
+    stamp        = Column(String(64), nullable=False)
+    user_agent   = Column(String(255), nullable=True)
+    created_at   = Column(DateTime, default=utc_now, nullable=False)
+    expires_at   = Column(DateTime, nullable=False)
+    last_used_at = Column(DateTime, nullable=True)
+
+
 # Re-export Tenancy models so existing
 # ``from api.Modules.Auth.Models import Store`` etc. keep working.
 from api.Modules.Tenancy.Models import (  # noqa: E402
@@ -193,5 +221,5 @@ from api.Modules.Tenancy.Models import (  # noqa: E402
 __all__ = [
     "LoginEvent", "Passkey", "PasswordResetToken", "RecoveryCode",
     "RefreshToken", "Store",
-    "StoreOwnerLink", "User",
+    "StoreOwnerLink", "TrustedBrowser", "User",
 ]

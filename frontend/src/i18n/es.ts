@@ -67,6 +67,7 @@ export const es: Record<MessageKey, string> = {
   "login.twoFactorTitle": "Verifique su identidad",
   "login.twoFactorTotpHint": "Escriba el código de 6 dígitos de su app de autenticación.",
   "login.twoFactorRecoveryHint": "Escriba uno de sus códigos de recuperación de un solo uso.",
+  "login.rememberBrowser": "Recordar este navegador por 30 días",
   "login.verificationCode": "Código de verificación",
   "login.recoveryCode": "Código de recuperación",
   "login.verify": "Verificar →",

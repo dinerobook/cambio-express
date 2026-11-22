@@ -63,6 +63,7 @@ export const en = {
   "login.twoFactorTitle": "Verify your identity",
   "login.twoFactorTotpHint": "Enter the 6-digit code from your authenticator app.",
   "login.twoFactorRecoveryHint": "Enter one of your single-use recovery codes.",
+  "login.rememberBrowser": "Remember this browser for 30 days",
   "login.verificationCode": "Verification code",
   "login.recoveryCode": "Recovery code",
   "login.verify": "Verify →",

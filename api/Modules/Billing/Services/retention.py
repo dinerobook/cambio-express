@@ -309,7 +309,8 @@ def _purge_user_scoped_rows(db: Session, store_id: int) -> None:
 
     Two strategies:
       * hard-delete the auth/session rows (RecoveryCode,
-        PasswordResetToken, RefreshToken, Passkey, LoginEvent) and
+        PasswordResetToken, RefreshToken, Passkey, LoginEvent,
+        TrustedBrowser) and
         the push subscriptions — they're worthless once the user is
         gone and their FKs are NOT NULL, so nulling isn't an option;
       * null the nullable EmailEvent.user_id so the delivery history
@@ -320,6 +321,7 @@ def _purge_user_scoped_rows(db: Session, store_id: int) -> None:
     from api.Modules.Announcements.Models import PushSubscription
     from api.Modules.Auth.Models import (
         LoginEvent, Passkey, PasswordResetToken, RecoveryCode, RefreshToken,
+        TrustedBrowser,
     )
     from api.Modules.Tenancy.Models import OwnerConnectCode, User
     from api.Modules.Webhooks.Models import EmailEvent
@@ -348,7 +350,7 @@ def _purge_user_scoped_rows(db: Session, store_id: int) -> None:
     # checks at statement end).
     for model in (
         RecoveryCode, PasswordResetToken, RefreshToken, Passkey,
-        LoginEvent, PushSubscription,
+        LoginEvent, PushSubscription, TrustedBrowser,
     ):
         # getattr keeps the loop generic without tripping mypy's
         # "type[Base] has no attribute user_id" on the union type.

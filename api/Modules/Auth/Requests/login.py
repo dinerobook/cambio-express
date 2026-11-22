@@ -161,6 +161,8 @@ class TotpLoginRequest(BaseModel):
 
     pending_token: str = Field(..., min_length=1)
     code:          str = Field(..., min_length=1, max_length=10)
+    # "Remember this browser for 30 days" (Services/remembered_browser.py).
+    remember_browser: bool = False
 
 
 class RecoveryLoginRequest(BaseModel):
@@ -172,6 +174,8 @@ class RecoveryLoginRequest(BaseModel):
 
     pending_token: str = Field(..., min_length=1)
     code:          str = Field(..., min_length=1, max_length=40)
+    # "Remember this browser for 30 days" (Services/remembered_browser.py).
+    remember_browser: bool = False
 
 
 class TotpEnrollStartRequest(BaseModel):
