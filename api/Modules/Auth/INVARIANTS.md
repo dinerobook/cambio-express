@@ -47,6 +47,7 @@ columns; we treat the rest of the stack as untrusted input.
 | `auth_passkey` | `(user_id, credential_id, public_key, sign_count, aaguid, name)`. `credential_id` is unique across the table. |
 | `auth_password_reset_token` | `token_hash` = sha256(raw token), 1-hour expiry, single-use (`used_at` set after consumption). |
 | `auth_login_event` | Audit row per login attempt: timestamp, user_id (when known), username (raw input), succeeded, ip, user_agent. |
+| `auth_trusted_browser` | A browser remembered on the 2FA step: `user_id`, `secret_hash` = sha256 of the cookie's secret, `stamp` (password + 2FA fingerprint), `expires_at` (30 days), `last_used_at`. |
 
 
 ## The role / permissions matrix
@@ -725,6 +726,29 @@ For roles where `needs_totp(user)` is True:
 **Subsequent logins**: pending token → `/auth/login/totp` with
 the 6-digit code → real access token.
 
+**Remembered browser** (owner, 2026-11-21: signing out and in again
+asked for the code every time). `/auth/login/totp` and
+`/auth/login/recovery` take `remember_browser`; when it is true and the
+code checks out, `Services/remembered_browser.py` stores a
+`TrustedBrowser` row and sets the `db_trusted_browser` cookie
+(httpOnly, `SameSite=Strict`, path `/api/v2/auth`, 30 days). The next
+`/auth/login` or `/auth/login-cross-store` from that browser, once the
+password has checked out and a pending token was minted, goes through
+`finalize_2fa_with_remembered_browser` (`Services/login.py`) and
+answers with full access instead of `requires_totp`. The rules, pinned
+by `tests/Modules/Auth/test_remembered_browser.py`:
+
+- the password is always asked; the browser only stands in for the
+  code ("something you have");
+- only the browser holding the secret (the DB keeps its sha256), only
+  for the person it was remembered for;
+- never for a pending token minted for enrolment (`enroll` claim);
+- `REMEMBER_DAYS` (30) from the code; use does not extend it;
+- `stamp` = sha256 of the password hash and the 2FA secret: a password
+  change or a 2FA reset (`--reset-2fa`, re-enrolment) forgets every
+  remembered browser; a stale row is deleted when it is presented;
+- signing out does not forget the browser — that is the point.
+
 **Lost the codes**: `/auth/login/recovery` with one of the 10
 codes. The code is consumed (`used_at` set) on success — they
 are single-use.
@@ -821,9 +845,12 @@ MUST follow these rules:
    passkey adds friction without adding security.
 2. The single rule: **full-auth promotion (issuing an access
    token) requires EITHER a TOTP factor verified OR a passkey
-   assertion verified.** No third condition. No alternative
-   path that sets `user_id` (or its JWT equivalent) without
-   one of these.
+   assertion verified.** A remembered browser counts as the TOTP
+   factor: a code typed on that browser within the last 30 days,
+   with the password and 2FA secret unchanged since (see
+   "Remembered browser" above). No third condition. No
+   alternative path that sets `user_id` (or its JWT equivalent)
+   without one of these.
 3. `sign_count` from the authenticator must be greater than or
    equal to the stored value. Equal accepts clones poorly;
    strictly greater is the textbook rule. We deliberately

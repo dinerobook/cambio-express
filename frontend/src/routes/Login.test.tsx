@@ -144,7 +144,8 @@ describe("Login", () => {
     await userEvent.click(screen.getByRole("button", { name: "Verify →" }));
     expect(await screen.findByText("dashboard page")).toBeInTheDocument();
     expect(api).toHaveBeenLastCalledWith("/api/v2/auth/login/totp", {
-      method: "POST", json: { pending_token: "pend", code: "123456" },
+      method: "POST",
+      json: { pending_token: "pend", code: "123456", remember_browser: false },
     });
     expect(getCurrentIdentity()?.role).toBe("superadmin");
   });

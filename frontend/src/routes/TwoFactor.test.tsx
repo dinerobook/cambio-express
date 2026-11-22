@@ -78,9 +78,23 @@ describe("TwoFactorVerify", () => {
     await userEvent.click(screen.getByRole("button", { name: "Verify →" }));
     expect(await screen.findByText("dashboard page")).toBeInTheDocument();
     expect(api).toHaveBeenCalledWith("/api/v2/auth/login/totp", {
-      method: "POST", json: { pending_token: "pend-1", code: "123 456" },
+      method: "POST",
+      json: { pending_token: "pend-1", code: "123 456", remember_browser: false },
     });
     expect(setAccessToken).toHaveBeenCalledWith("jwt-1");
+  });
+
+  it("remembers this browser when the box is ticked", async () => {
+    api.mockResolvedValue({ access_token: "jwt-1" });
+    renderAt("/login/2fa");
+    await userEvent.type(screen.getByLabelText("Authentication code"), "123456");
+    await userEvent.click(screen.getByLabelText("Remember this browser for 30 days"));
+    await userEvent.click(screen.getByRole("button", { name: "Verify →" }));
+    expect(await screen.findByText("dashboard page")).toBeInTheDocument();
+    expect(api).toHaveBeenCalledWith("/api/v2/auth/login/totp", {
+      method: "POST",
+      json: { pending_token: "pend-1", code: "123456", remember_browser: true },
+    });
   });
 
   it("shows the refusal and does not sign in", async () => {
@@ -115,7 +129,8 @@ describe("TwoFactorRecover", () => {
     await userEvent.click(screen.getByRole("button", { name: "Use code →" }));
     expect(await screen.findByText("dashboard page")).toBeInTheDocument();
     expect(api).toHaveBeenCalledWith("/api/v2/auth/login/recovery", {
-      method: "POST", json: { pending_token: "pend-1", code: "ABCD-EFGH" },
+      method: "POST",
+      json: { pending_token: "pend-1", code: "ABCD-EFGH", remember_browser: false },
     });
   });
 });

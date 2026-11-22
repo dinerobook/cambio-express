@@ -81,6 +81,7 @@ from api.Modules.Auth.Services import (
     create_store_and_owner,
     decode_access_token,
     finalize_2fa_with_recovery_code,
+    finalize_2fa_with_remembered_browser,
     finalize_2fa_with_totp,
     finish_totp_enrollment,
     get_notifications_payload,
@@ -222,6 +223,59 @@ def _clear_access_token_cookie(response: Response) -> None:
         samesite="lax",
         secure=_is_https_prod(),
     )
+
+
+def _set_trusted_browser_cookie(response: Response, raw: str) -> None:
+    """"Remember this browser" (``Services/remembered_browser.py``):
+    the secret that lets this browser skip the 2FA code after the
+    password. httpOnly, ``SameSite=Strict`` (only our own sign-in page
+    ever sends it) and scoped to ``/api/v2/auth`` like the refresh
+    cookie, so it never rides along with other API calls."""
+    from api.Modules.Auth.Services.remembered_browser import (
+        COOKIE_NAME, REMEMBER_DAYS,
+    )
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=raw,
+        max_age=REMEMBER_DAYS * 24 * 60 * 60,
+        httponly=True,
+        samesite="strict",
+        secure=_is_https_prod(),
+        path=_REFRESH_COOKIE_PATH,
+    )
+
+
+def _remember_this_browser(
+    db: Session, request: Request, response: Response, user_id: int,
+) -> None:
+    """The 2FA step's "Remember this browser for 30 days" box, after a
+    code or recovery code checked out. The caller commits."""
+    from api.Modules.Auth.Services.remembered_browser import remember
+    user = db.get(User, user_id)
+    if user is None:
+        return
+    raw = remember(db, user, user_agent=_client_user_agent(request))
+    _set_trusted_browser_cookie(response, raw)
+
+
+def _try_remembered_browser(
+    db: Session,
+    result: LoginResult | LoginPendingResult,
+    browser_secret: str | None,
+) -> LoginResult | LoginPendingResult:
+    """A password sign-in that needs the 2FA code goes straight in when
+    this browser was remembered on the 2FA step; otherwise the pending
+    sign-in stands. Never skips enrolment."""
+    if (
+        not browser_secret
+        or not isinstance(result, LoginPendingResult)
+        or result.enroll_required
+    ):
+        return result
+    remembered = finalize_2fa_with_remembered_browser(
+        db, pending_token=result.pending_token, browser_secret=browser_secret,
+    )
+    return remembered if remembered is not None else result
 
 
 # Public names for the two cookie writers another controller needs:
@@ -549,6 +603,7 @@ def login_route(
     body: LoginRequest,
     response: Response,
     db: Session = Depends(get_db),
+    db_trusted_browser: str | None = Cookie(default=None),
 ) -> LoginResponse:
     try:
         result = authenticate_password(
@@ -557,6 +612,9 @@ def login_route(
             username=body.username,
             password=body.password,
         )
+        # After the password: a browser remembered on the 2FA step
+        # skips the code (Services/remembered_browser.py).
+        result = _try_remembered_browser(db, result, db_trusted_browser)
     except StoreDisabledError:
         raise _store_disabled_http()
     except AuthenticationError:
@@ -634,6 +692,7 @@ def login_cross_store_route(
     body: LoginCrossStoreRequest,
     response: Response,
     db: Session = Depends(get_db),
+    db_trusted_browser: str | None = Cookie(default=None),
 ) -> LoginResponse:
     """Cross-store JWT login for the SPA's sign-in page. Same
     response shape as `/auth/login`, but takes username +
@@ -652,6 +711,9 @@ def login_cross_store_route(
         result = authenticate_password_cross_store(
             db, username=body.username, password=body.password,
         )
+        # After the password: a browser remembered on the 2FA step
+        # skips the code (Services/remembered_browser.py).
+        result = _try_remembered_browser(db, result, db_trusted_browser)
     except StoreDisabledError:
         raise _store_disabled_http()
     except AuthenticationError as exc:
@@ -702,7 +764,9 @@ def login_totp_route(
         raise HTTPException(
             status_code=401, detail=str(exc) or "Invalid verification code",
         )
-    db.commit()  # no-op for TOTP, but keep call shape symmetric with /recovery
+    if body.remember_browser:
+        _remember_this_browser(db, request, response, result.user_id)
+    db.commit()
     return _to_login_response(result, response, db, request)
 
 
@@ -726,6 +790,8 @@ def login_recovery_route(
         raise HTTPException(
             status_code=401, detail=str(exc) or "Invalid recovery code",
         )
+    if body.remember_browser:
+        _remember_this_browser(db, request, response, result.user_id)
     db.commit()
     return _to_login_response(result, response, db, request)
 

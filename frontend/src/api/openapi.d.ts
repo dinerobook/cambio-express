@@ -16048,6 +16048,11 @@ export interface components {
             code: string;
             /** Pending Token */
             pending_token: string;
+            /**
+             * Remember Browser
+             * @default false
+             */
+            remember_browser: boolean;
         };
         /** RedeemConnectCodeResponse */
         RedeemConnectCodeResponse: {
@@ -19573,6 +19578,11 @@ export interface components {
             code: string;
             /** Pending Token */
             pending_token: string;
+            /**
+             * Remember Browser
+             * @default false
+             */
+            remember_browser: boolean;
         };
         /**
          * TransferChoicesResponse
@@ -22252,7 +22262,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                db_trusted_browser?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -22285,7 +22297,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                db_trusted_browser?: string | null;
+            };
         };
         requestBody: {
             content: {

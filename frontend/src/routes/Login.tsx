@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { AuthChrome } from "../components/AuthChrome";
 import { LoginShowcase } from "../components/LoginShowcase";
-import { Alert, Button, Field, Input, Pill } from "../components/ui";
+import { Alert, Button, Checkbox, Field, Input, Pill } from "../components/ui";
 import { api, apiErrorMessage } from "../lib/api";
 import { persistLoginResponse } from "../lib/auth";
 import { autoEnterOwnerStore } from "../api/switchStore";
@@ -341,6 +341,7 @@ function SecondFactor({
   const t = useT();
   const [mode, setMode]   = useState<"totp" | "recovery">("totp");
   const [code, setCode]   = useState("");
+  const [remember, setRemember] = useState(false);
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -354,7 +355,11 @@ function SecondFactor({
     try {
       const result = await api<LoginResponse>(url, {
         method: "POST",
-        json: { pending_token: state.pending_token, code: code.trim() },
+        json: {
+          pending_token: state.pending_token,
+          code: code.trim(),
+          remember_browser: remember,
+        },
       });
       if (result.access_token) {
         await onSuccess(result);
@@ -399,6 +404,9 @@ function SecondFactor({
             }}
           />
         </Field>
+        <Checkbox checked={remember} onChange={setRemember} disabled={busy}>
+          {t("login.rememberBrowser")}
+        </Checkbox>
         <Button
           type="submit"
           tone="primary"

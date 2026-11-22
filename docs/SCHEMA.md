@@ -43,6 +43,7 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | `auth_password_reset_token` | `PasswordResetToken` | `Auth` | user | `tenancy_user.id` | [INVARIANTS](../api/Modules/Auth/INVARIANTS.md) |
 | `auth_recovery_code` | `RecoveryCode` | `Auth` | user | `tenancy_user.id` | [INVARIANTS](../api/Modules/Auth/INVARIANTS.md) |
 | `auth_refresh_token` | `RefreshToken` | `Auth` | user | `auth_refresh_token.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/Auth/INVARIANTS.md) |
+| `auth_trusted_browser` | `TrustedBrowser` | `Auth` | user | `tenancy_user.id` | [INVARIANTS](../api/Modules/Auth/INVARIANTS.md) |
 
 ## `billing_`
 

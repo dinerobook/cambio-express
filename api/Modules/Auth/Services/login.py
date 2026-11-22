@@ -343,6 +343,38 @@ def finalize_2fa_with_totp(
     return _issue_full_login(user, db)
 
 
+def finalize_2fa_with_remembered_browser(
+    db: Session, *, pending_token: str, browser_secret: str | None,
+) -> LoginResult | None:
+    """Exchange a 2FA-pending token for full access when THIS browser
+    was remembered on the 2FA step (``Services/remembered_browser.py``,
+    owner 2026-11-21). The pending token proves the password; the
+    browser's secret stands in for the code. ``None`` when the browser
+    is not (or no longer) remembered: the caller answers with the
+    pending sign-in as usual.
+
+    Only for an ENROLLED person: a pending token minted for enrolment
+    (``enroll`` claim) never skips the code."""
+    import jwt as _jwt
+    from api.Modules.Auth.Services.jwt_issuer import decode_pending_2fa_token
+    from api.Modules.Auth.Services.remembered_browser import recognised
+
+    if not browser_secret:
+        return None
+    try:
+        claims = decode_pending_2fa_token(pending_token)
+    except _jwt.InvalidTokenError:
+        return None
+    if claims.get("enroll") is True:
+        return None
+    user = db.get(User, int(claims["sub"]))
+    if user is None or not user.is_active or not is_enrolled(user):
+        return None
+    if not recognised(db, user, browser_secret):
+        return None
+    return _issue_full_login(user, db)
+
+
 def _user_for_pending(db: Session, pending_token: str) -> User:
     """Resolve a pending-2FA token to its User. Raises
     `AuthenticationError` on bad/expired tokens or missing/disabled

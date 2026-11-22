@@ -297,6 +297,7 @@ function VerifyForm({
   const t = useT();
   const navigate = useNavigate();
   const [code, setCode] = useState("");
+  const [remember, setRemember] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -306,7 +307,11 @@ function VerifyForm({
     try {
       const r = await api<{ access_token: string }>(endpoint, {
         method: "POST",
-        json: { pending_token: pending.pending_token, code: code.trim() },
+        json: {
+          pending_token: pending.pending_token,
+          code: code.trim(),
+          remember_browser: remember,
+        },
       });
       if (r.access_token) {
         setAccessToken(r.access_token);
@@ -345,6 +350,9 @@ function VerifyForm({
             }}
           />
         </Field>
+        <Checkbox checked={remember} onChange={setRemember} disabled={busy}>
+          {t("login.rememberBrowser")}
+        </Checkbox>
         <Button
           type="submit" tone="primary" size="lg"
           busy={busy}

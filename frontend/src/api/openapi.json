@@ -19909,6 +19909,11 @@
             "minLength": 1,
             "title": "Pending Token",
             "type": "string"
+          },
+          "remember_browser": {
+            "default": false,
+            "title": "Remember Browser",
+            "type": "boolean"
           }
         },
         "required": [
@@ -27949,6 +27954,11 @@
             "minLength": 1,
             "title": "Pending Token",
             "type": "string"
+          },
+          "remember_browser": {
+            "default": false,
+            "title": "Remember Browser",
+            "type": "boolean"
           }
         },
         "required": [
@@ -33527,6 +33537,24 @@
     "/auth/login": {
       "post": {
         "operationId": "login_route_auth_login_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "db_trusted_browser",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Trusted Browser"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -33569,6 +33597,24 @@
       "post": {
         "description": "Cross-store JWT login for the SPA's sign-in page. Same\nresponse shape as `/auth/login`, but takes username +\npassword only \u2014 the store is resolved from the credentials.\n\n**Every role signs in here, employees included.** The old\nemployee rejection (\"use your store's sign-in page\") predates\nthe unified sign-in page and left employee logins unusable.\n\nReturns 409 with `{code: \"store_ambiguous\", stores: [...]}`\nwhen the same credentials are valid at more than one store;\nthe client re-submits to `/auth/login` with the chosen\n`store_id`.",
         "operationId": "login_cross_store_route_auth_login_cross_store_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "db_trusted_browser",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Trusted Browser"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

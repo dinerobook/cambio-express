@@ -130,9 +130,11 @@ is in the file named after the arrow.
 12. **Referrals** — one `ReferralCode` per store, credits applied once
     in the `checkout.session.completed` webhook. → `api/CLAUDE.md`
 13. **2FA (TOTP) is mandatory for superadmin** — only the 2FA finalize
-    step may turn a pending sign-in into full access; `needs_totp()`
+    steps may turn a pending sign-in into full access; `needs_totp()`
     (`api/Modules/Auth/Services/totp.py`) is the single role gate; a
-    passkey login (not built yet) is the one future carve-out.
+    browser remembered on the 2FA step skips the code for 30 days,
+    after the password, never instead of it; a passkey login (not
+    built yet) is the one future carve-out.
     → `api/Modules/Auth/CLAUDE.md`
 14. **Every paginated table live-searches** through
     `useUrlFilterState` (300 ms, 2-char minimum, filters in the URL)
