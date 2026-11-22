@@ -5,15 +5,16 @@ using Microsoft.Extensions.Logging;
 namespace DineroBook.Processor;
 
 /// <summary>
-/// One log file per day (<c>processor-yyyyMMdd.log</c>), kept for
-/// <see cref="KeepDays"/> days. A day's file stops taking routine lines at
+/// One log file per day (<c>processor-yyyyMMdd.log</c>). Only today's is
+/// kept (owner, 2026-11-21): the day's first line deletes every older file.
+/// Errors also go to the Windows Event Log, which keeps its own history.
+/// A day's file stops taking routine lines at
 /// <see cref="MaxBytesPerDay"/> (warnings and errors still go in), so a
 /// backlog of thousands of files cannot fill the disk. Readers (the
 /// Manager's log page) can open the file while it is being written.
 /// </summary>
 public sealed class RollingFileLoggerProvider : ILoggerProvider
 {
-    public const int KeepDays = 14;
     public const long MaxBytesPerDay = 50L * 1024 * 1024;
 
     private readonly string _folder;
@@ -91,12 +92,11 @@ public sealed class RollingFileLoggerProvider : ILoggerProvider
     {
         try
         {
-            var oldest = today.AddDays(-KeepDays);
             foreach (var file in Directory.EnumerateFiles(_folder, _prefix + "-*.log"))
             {
                 var stamp = Path.GetFileNameWithoutExtension(file)[(_prefix.Length + 1)..];
                 if (DateOnly.TryParseExact(stamp, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
-                    && d < oldest)
+                    && d < today)
                 {
                     File.Delete(file);
                 }

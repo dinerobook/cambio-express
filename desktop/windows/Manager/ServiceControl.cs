@@ -43,6 +43,10 @@ internal static class ServiceControl
 
     public static string InstalledExe => Path.Combine(InstallFolder, ProcessorExe);
 
+    /// <summary>The Manager's copy beside the service: the one the no-prompt
+    /// shortcut starts (<see cref="NoPromptLaunch"/>).</summary>
+    public static string InstalledManagerExe => Path.Combine(InstallFolder, ManagerExe);
+
     public sealed record Info(bool Installed, ServiceControllerStatus? Status, string Account, string ImagePath)
     {
         public string Describe() => !Installed

@@ -18,6 +18,7 @@ public static class ProcessorState
     public const string SettingsInvalid = "settings_invalid";
     public const string FolderUnavailable = "folder_unavailable";
     public const string RetryLater = "retry_later";        // 5xx / network / 429
+    public const string CollectOnly = "collect_only";      // "Send to DineroBook" off: files only collected
     public const string Stopped = "stopped";
 }
 
@@ -47,6 +48,10 @@ public sealed class ProcessorStatus
     public int SentTotal { get; set; }
     public int SkippedTotal { get; set; }
 
+    /// <summary>Files that left Passport's folder before they could be
+    /// copied (another program took them first), since the service started.</summary>
+    public int MissedTotal { get; set; }
+
     /// <summary>Matching files not sent yet (including ones still being
     /// written and ones being sent).</summary>
     public int Waiting { get; set; }
@@ -54,8 +59,9 @@ public sealed class ProcessorStatus
     /// <summary>Files being sent right now.</summary>
     public int Uploading { get; set; }
 
-    /// <summary>When files of later business days are held back: the file
-    /// of the older day they wait for, and why ("" when none).</summary>
+    /// <summary>When files of later business days are held back (only when
+    /// a folder is read directly, never from the inbox): the file of the
+    /// older day they wait for, and why ("" when none).</summary>
     public string WaitingOn { get; set; } = "";
 
     public string LastError { get; set; } = "";

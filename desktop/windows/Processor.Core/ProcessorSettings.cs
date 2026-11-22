@@ -26,6 +26,28 @@ public sealed class ProcessorSettings
 
     public int PollSeconds { get; set; } = DefaultPollSeconds;
 
+    /// <summary>"Delete files from XMLGateway" in DineroBook Manager: once a
+    /// file is safely copied to this computer, delete it from Passport's
+    /// folder (the way Modisoft's service works). Off by default: while
+    /// Modisoft or another back office reads the same folder it must stay
+    /// off, or they would never see the files (owner, 2026-11-20).</summary>
+    public bool DeleteFromOutbox { get; set; }
+
+    /// <summary>"Delete files from the temp folder" in DineroBook Manager:
+    /// once DineroBook has a file (or refused it for good), delete its copy
+    /// from this computer's temp folder (<see cref="DataPaths.Inbox"/>).
+    /// Unticked, the copy is moved to <see cref="DataPaths.Archive"/>
+    /// (one folder per day) and kept on this computer. On by default.</summary>
+    public bool DeleteFromInbox { get; set; } = true;
+
+    /// <summary>"Send to DineroBook", the switch beside the DineroBook
+    /// address. Off: files are only collected in the temp folder
+    /// (<see cref="DataPaths.Inbox"/>) for someone to take away by hand —
+    /// nothing goes to the server, and no connection is needed. The owner
+    /// uses it to gather files from any Passport folder (BOInBox too).
+    /// Turned on again, the files waiting there are sent. On by default.</summary>
+    public bool SendToDineroBook { get; set; } = true;
+
     // Which store the saved key belongs to (written by the Manager on connect).
     public int? StoreId { get; set; }
     public string StoreName { get; set; } = "";

@@ -4,22 +4,27 @@ using Microsoft.Extensions.Logging;
 namespace DineroBook.Processor;
 
 /// <summary>
-/// The Processor's pipeline: list Passport's folder → wait until each file
-/// held still → read its business day → send, several at a time → ledger.
+/// The Processor's pipeline: list the folder → wait until each file held
+/// still → read its business day → send, several at a time → ledger. In the
+/// service the folder is the local inbox: <see cref="OutboxCollector"/> copies
+/// each file there from Passport's BOOutbox the moment it is complete, and a
+/// file's inbox copy is deleted once the server has it (or refused it for
+/// good).
 /// The service calls <see cref="RunCycleAsync"/>, then
 /// <see cref="WaitAsync"/> for the time it returns (or until an upload
 /// finishes), in a loop.
 /// <para>
 /// The rules it keeps:
 /// <list type="bullet">
-/// <item>read only — Passport's files are never moved, renamed, deleted or
-/// locked;</item>
+/// <item>read only — the engine never moves, renames, deletes or locks a
+/// Passport file (only the collector may delete one, and only when the store
+/// ticked "Delete files from XMLGateway");</item>
 /// <item>a file goes up once its size and time held still across two
 /// polls;</item>
-/// <item>business days in order (<see cref="UploadScheduler"/>): a day's
-/// files go in parallel, and no file of a later day goes while a file of an
-/// earlier day is still on its way — the server books day D as soon as a
-/// file of a later day arrives;</item>
+/// <item>from the service's inbox every file goes the moment it is listed,
+/// in the order the files arrived, many at once (owner, 2026-11-20). Without
+/// an inbox (tests, a folder read directly) business days go in order
+/// (<see cref="UploadScheduler"/>);</item>
 /// <item>a slow or failing file never holds up files of its own day; it is
 /// retried with backoff;</item>
 /// <item>nothing is ever dropped: every answer but "accepted" and "refused
@@ -68,7 +73,11 @@ public sealed class ProcessorEngine
     private readonly ILogger _log;
     private readonly Action<ProcessorStatus> _writeStatus;
 
-    private readonly UploadScheduler _schedule = new();
+    private readonly string? _inbox;
+    private readonly Action<string, ProcessorSettings>? _onFinished;
+    private readonly Func<SourceInfo>? _source;
+    private volatile bool _nudged;
+    private readonly UploadScheduler _schedule;
     private readonly UploadPacer _pacer = new();
     private readonly List<InFlight> _inFlight = new();
     private readonly ProcessorStatus _status;
@@ -87,6 +96,8 @@ public sealed class ProcessorEngine
 
     private DateTimeOffset _pausedUntil;
     private int _failureStreak;
+    /// <summary>"Send to DineroBook" is off: files are only collected.</summary>
+    private bool _collectingOnly;
 
     private DateOnly _today;
     private int _todayCount;
@@ -97,6 +108,10 @@ public sealed class ProcessorEngine
     private bool _statusWriteFailed;
 
     private sealed record InFlight(TrackedFile File, BusinessDay Day, int Generation, Task<Attempt> Task);
+
+    /// <summary>How collecting from Passport's folder is going
+    /// (<see cref="OutboxCollector"/>), for the status page.</summary>
+    public readonly record struct SourceInfo(string Problem, int Missed);
 
     private enum AttemptKind { Uploaded, NotReady, Gone, DayChanged, ReadFailed, Cancelled }
 
@@ -111,8 +126,22 @@ public sealed class ProcessorEngine
         ILogger log,
         string version,
         Action<ProcessorStatus>? writeStatus = null,
-        int? maxInFlight = null)
+        int? maxInFlight = null,
+        string? inbox = null,
+        Action<string, ProcessorSettings>? onFinished = null,
+        Func<SourceInfo>? source = null)
     {
+        // inbox: send from this local folder instead of the Passport folder
+        // (the service); onFinished: a file is done with (accepted, or
+        // refused for good) — the service deletes or archives its inbox
+        // copy, as the settings say (InboxFiles.Finish); source:
+        // how the collector is doing.
+        _inbox = inbox;
+        _onFinished = onFinished;
+        _source = source;
+        // From the inbox every file is whole and goes at once, as it came
+        // (owner, 2026-11-20): no business-day order, no settling.
+        _schedule = new UploadScheduler(inOrder: inbox is null);
         _paths = paths;
         _config = config;
         _folder = folder;
@@ -140,6 +169,14 @@ public sealed class ProcessorEngine
     private void Signal()
     {
         lock (_signalGate) _activity.TrySetResult();
+    }
+
+    /// <summary>A file just arrived in the inbox: list it on the next pass
+    /// instead of at the next poll. Safe from any thread.</summary>
+    public void Nudge()
+    {
+        _nudged = true;
+        Signal();
     }
 
     /// <summary>Waits <paramref name="wait"/>, or less when an upload
@@ -175,6 +212,19 @@ public sealed class ProcessorEngine
         if (changed || _cfg is null) Apply(cfg);
         var poll = TimeSpan.FromSeconds(cfg.Settings.EffectivePollSeconds);
 
+        if (!cfg.Settings.SendToDineroBook)
+        {
+            CollectOnly();
+            FlushStatus(force: true);
+            return poll;
+        }
+        if (_collectingOnly)
+        {
+            _collectingOnly = false;
+            _nextSweepAt = DateTimeOffset.MinValue;
+            _log.LogInformation("Sending to DineroBook is on again: the files waiting in the temp folder go now.");
+        }
+
         if (!cfg.CanRun)
         {
             Problem(cfg.State, cfg.Problem,
@@ -184,6 +234,11 @@ public sealed class ProcessorEngine
         }
 
         var now = Now;
+        if (_nudged)
+        {
+            _nudged = false;
+            _nextSweepAt = DateTimeOffset.MinValue;
+        }
         if (now >= _nextSweepAt) Sweep(now, poll);
         var moreDays = _folderOk && ReadDays();
 
@@ -228,7 +283,17 @@ public sealed class ProcessorEngine
         List<FileSnapshot> pending;
         try
         {
-            pending = _folder.List(_watchFolder)
+            var listed = _folder.List(_watchFolder);
+            if (_inbox is not null)
+            {
+                // An inbox copy of a file already dealt with (the service
+                // stopped between the answer and the delete): tidy it away.
+                foreach (var f in listed.Where(f => _sent!.Contains(f.Name) || _skipped!.Contains(f.Name)))
+                {
+                    Finished(f.Name);
+                }
+            }
+            pending = listed
                 .Where(f => FileNames.Sendable(f.Name) && !_sent!.Contains(f.Name) && !_skipped!.Contains(f.Name))
                 .ToList();
         }
@@ -252,6 +317,11 @@ public sealed class ProcessorEngine
     private void FolderDown(string error)
     {
         _folderOk = false;
+        if (_inbox is not null)
+        {
+            Problem(ProcessorState.FolderUnavailable, $"Cannot read this computer's inbox {_watchFolder}: {error}", LogLevel.Error);
+            return;
+        }
         // A mapped drive letter (Z:) is the signed-in person's; the service never sees it.
         var hint = MissingDrive(_watchFolder)
             ? " The service does not see mapped drive letters: choose the folder again in DineroBook Manager, which saves its network path."
@@ -353,9 +423,13 @@ public sealed class ProcessorEngine
             }
             if (content is null) return new Attempt(AttemptKind.NotReady);
 
-            // The bytes about to go decide the day, not an earlier look.
-            var actual = BusinessDateReader.Read(content, complete: true);
-            if (actual != day) return new Attempt(AttemptKind.DayChanged, Day: actual);
+            // The bytes about to go decide the day, not an earlier look
+            // (only when files go in business-day order).
+            if (_schedule.InOrder)
+            {
+                var actual = BusinessDateReader.Read(content, complete: true);
+                if (actual != day) return new Attempt(AttemptKind.DayChanged, Day: actual);
+            }
 
             var result = await uploader.UploadAsync(file.Name, content, ct).ConfigureAwait(false);
             return new Attempt(AttemptKind.Uploaded, result);
@@ -478,6 +552,7 @@ public sealed class ProcessorEngine
         }
         _schedule.Done(name);
         _failureStreak = 0;
+        Finished(name);
 
         var today = Today(at);
         if (today != _today)
@@ -525,8 +600,27 @@ public sealed class ProcessorEngine
             _log.LogError("Could not write {Ledger}: {Error}", _paths.SkippedLedger, ex.Message);
         }
         _schedule.Done(name);
+        Finished(name);
         _status.SkippedTotal = _skipped!.Count;
         _log.LogWarning("{File}: not sent, and will not be tried again ({Why}).", name, why);
+    }
+
+    /// <summary>The file is done with; the service deletes its inbox copy
+    /// (or keeps it in the archive when "Delete files from the temp folder"
+    /// is unticked).
+    /// A failure there is only logged: the ledger already keeps it from
+    /// going again.</summary>
+    private void Finished(string name)
+    {
+        if (_onFinished is null || _cfg is null) return;
+        try
+        {
+            _onFinished(name, _cfg.Settings);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _log.LogWarning("Could not delete the inbox copy of {File}: {Error}", name, ex.Message);
+        }
     }
 
     /// <summary>A try that did not work (5xx, network, odd answer, a read
@@ -590,7 +684,7 @@ public sealed class ProcessorEngine
         var folderChanged = !string.Equals(_cfg?.Settings.WatchFolder, cfg.Settings.WatchFolder,
             StringComparison.OrdinalIgnoreCase);
         _cfg = cfg;
-        _watchFolder = cfg.Settings.WatchFolder;
+        _watchFolder = _inbox ?? cfg.Settings.WatchFolder;
         _status.ApiUrl = cfg.ApiBase?.ToString().TrimEnd('/') ?? cfg.Settings.ApiUrl;
         _status.WatchFolder = cfg.Settings.WatchFolder;
         _status.StoreName = cfg.Settings.StoreName;
@@ -603,15 +697,16 @@ public sealed class ProcessorEngine
             _pausedUntil = DateTimeOffset.MinValue;
             _failureStreak = 0;
             _status.NextTryAt = null;
-            if (cfg.CanRun)
+            // With Send off the engine only collects, and says so itself.
+            if (cfg.CanRun && cfg.Settings.SendToDineroBook)
             {
                 _log.LogInformation("Sending every file in {Folder} to {Api} for {Store}, as many at once as DineroBook's rate limit allows.",
-                    _watchFolder, _status.ApiUrl,
+                    _inbox is null ? _watchFolder : $"{cfg.Settings.WatchFolder} (from its copies in {_inbox})", _status.ApiUrl,
                     cfg.Settings.StoreName.Length > 0 ? cfg.Settings.StoreName : "this store");
                 ClearProblem("Ready to send.");
             }
         }
-        if (folderChanged && _inFlight.Count == 0)
+        if (folderChanged && _inFlight.Count == 0 && _inbox is null)
         {
             _schedule.Reset();
             _nextSweepAt = DateTimeOffset.MinValue;
@@ -650,6 +745,40 @@ public sealed class ProcessorEngine
         SetState(ProcessorState.Idle, message);
     }
 
+    /// <summary>"Send to DineroBook" is off (owner, 2026-11-20): files are only
+    /// collected in the temp folder, to be taken away by hand. Nothing goes to
+    /// the server; an upload already on its way finishes.</summary>
+    private void CollectOnly()
+    {
+        var where = _inbox ?? _watchFolder;
+        if (!_collectingOnly)
+        {
+            _collectingOnly = true;
+            _log.LogInformation("Sending to DineroBook is off: files are only collected in {Folder}.", where);
+        }
+        var collected = 0;
+        if (_inbox is not null)
+        {
+            try
+            {
+                collected = _folder.List(_inbox).Count;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                // Shown again on the next pass.
+            }
+        }
+        var source = _source?.Invoke() ?? default;
+        _status.MissedTotal = source.Missed;
+        _status.Uploading = _inFlight.Count;
+        _status.Waiting = collected;
+        _status.WaitingOn = "";
+        _status.NextTryAt = null;
+        SetState(ProcessorState.CollectOnly,
+            $"Sending to DineroBook is off: {collected:N0} file(s) collected in {where}."
+            + (string.IsNullOrEmpty(source.Problem) ? "" : " " + source.Problem));
+    }
+
     /// <summary>The status after a pass (a pause keeps its own message).</summary>
     private void Summarize()
     {
@@ -661,7 +790,19 @@ public sealed class ProcessorEngine
             ? $"{h.File.Name}" + (h.File.Day.Kind == DayKind.Dated ? $" (business day {h.File.Day})" : "") + $": {h.Why}"
             : "";
 
+        var source = _source?.Invoke() ?? default;
+        _status.MissedTotal = source.Missed;
         if (_pausedUntil > now || !_folderOk) return;
+        if (!string.IsNullOrEmpty(source.Problem))
+        {
+            // Passport's folder cannot be read (or a delete failed): say so,
+            // and keep sending what is already in the inbox.
+            _status.LastError = source.Problem;
+            _status.LastErrorAt ??= now;
+            SetState(ProcessorState.FolderUnavailable, source.Problem
+                + (_status.Waiting > 0 ? $" {_status.Waiting:N0} file(s) already copied are still being sent." : ""));
+            return;
+        }
         var heldNote = _status.WaitingOn.Length > 0 ? $" Later business days wait on {_status.WaitingOn}." : "";
         if (_inFlight.Count > 0 || _schedule.Files.Any(f => f.Stage == FileStage.Ready))
         {
