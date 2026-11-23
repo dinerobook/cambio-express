@@ -25,6 +25,22 @@ minus sales. Money is integer cents.
   counts the sales twice. The register never fills it.
 - A locked day refuses every edit a person makes (409).
 
+## No Registers section on the day
+The day page used to end with a "Registers" section: one row per
+register (from booked tickets or keyed by hand), with the counted
+drawer cash and that drawer's over/short. The owner had it removed
+(2026-11-23), and the dashboard's "Drawer over / short" tile with it,
+since nobody can count a drawer any more.
+
+- Booking a day's tickets still writes `retail_register_close` rows
+  (`commit_business_day`): the dashboard's sales, the department
+  reports and the accountant's journal export read them. Only the
+  screen is gone.
+- The one link to the register import page (`/pos-import`) is on the
+  month page's header.
+- `GET /dayclose/day/{day}`, `POST /dayclose/day/{day}/closes` and
+  `DELETE /dayclose/closes/{id}` have no SPA caller now (`BACKLOG.md`).
+
 ## The register's day close on the sheet
 `api/Modules/StoreBook/Services/register_day.py`. Opt-in per store:
 flag `register_day_book`, off by default. Read the module's docstring

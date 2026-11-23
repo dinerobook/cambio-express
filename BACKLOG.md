@@ -587,6 +587,16 @@ fixtures of the same shape (`tests/Modules/PosImport/movement_fixtures.py`).
       and payouts. Opt-in per store (`register_day_book`), shown under
       each line as the register's figure, never over a typed number
       (`api/Modules/StoreBook/CLAUDE.md`). Nothing reaches a P&L line.
+- [ ] The day's "Registers" section and the dashboard's drawer
+      over/short tile were removed (owner, 2026-11-23). Left behind
+      on purpose, to remove in their own PR once nothing else needs
+      them: the routes `GET /dayclose/day/{day}`, `POST
+      /dayclose/day/{day}/closes`, `DELETE /dayclose/closes/{id}` (no
+      SPA caller), `cash_counted` on a register close, and
+      `over_short` / `uncounted_drawers` in the dashboard's day-close
+      snapshot. Booking tickets still writes register closes; the
+      dashboard sales, department reports and journal export read
+      them.
 - [ ] Before switching `register_day_book` on beyond the first store:
       check a second site against its current back office. Open
       points: payment types come as numbers (3 and 4 are taken as the

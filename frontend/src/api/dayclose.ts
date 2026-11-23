@@ -6,10 +6,6 @@ import type { components } from "./openapi";
 
 // Typed straight off the FastAPI OpenAPI spec (CLAUDE.md standard).
 export type Department = components["schemas"]["DepartmentRow"];
-export type RegisterClose = components["schemas"]["RegisterCloseRow"];
-export type DayCloseSummary = components["schemas"]["DayCloseSummaryResponse"];
-export type RegisterCloseWrite =
-  components["schemas"]["RegisterCloseWriteRequest"];
 
 export type DepartmentType = Department["department_type"];
 // The server fills every field but the name with its default, so a
@@ -32,14 +28,6 @@ export function useDepartments(includeInactive = false) {
   });
 }
 
-export function useDayClose(day: string) {
-  return useQuery<DayCloseSummary>({
-    enabled: day.length === 10,
-    queryKey: ["dayclose", "day", day],
-    queryFn: () => api<DayCloseSummary>(`/api/v2/dayclose/day/${day}`),
-  });
-}
-
 export async function createDepartment(
   body: DepartmentWrite,
 ): Promise<DepartmentResponse> {
@@ -56,22 +44,6 @@ export async function updateDepartment(
 ): Promise<DepartmentResponse> {
   return api<DepartmentResponse>(`/api/v2/dayclose/departments/${id}`, {
     method: "PUT", json: body,
-  });
-}
-
-export async function upsertRegisterClose(
-  day: string, body: RegisterCloseWrite,
-): Promise<DayCloseSummary> {
-  return api<DayCloseSummary>(`/api/v2/dayclose/day/${day}/closes`, {
-    method: "POST", json: body,
-  });
-}
-
-export async function deleteRegisterClose(
-  id: number,
-): Promise<DayCloseSummary> {
-  return api<DayCloseSummary>(`/api/v2/dayclose/closes/${id}`, {
-    method: "DELETE",
   });
 }
 

@@ -208,7 +208,10 @@ describe("step 4a screens in Spanish", () => {
     renderAt("/dashboard", "/dashboard", <Dashboard />);
     expect(screen.getByRole("heading", { name: "Panel" })).toBeInTheDocument();
     expect(screen.getByText("Ventas de hoy")).toBeInTheDocument();
-    expect(screen.getByText("1 caja sin contar")).toBeInTheDocument();
+    // The drawer over/short tile went with the day's Registers
+    // section (owner, 2026-11-23): nobody can count a drawer any more,
+    // so the dashboard must not nag about an uncounted one.
+    expect(screen.queryByText(/cajas? sin contar/)).not.toBeInTheDocument();
     expect(screen.getByText("12 boletos vendidos")).toBeInTheDocument();
     expect(screen.getByText("Ventas (nov hasta hoy)")).toBeInTheDocument();
     // Stored statuses read in Spanish; names stay as typed.

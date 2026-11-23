@@ -14,11 +14,11 @@ export interface ProductFeature {
 
 export const PRODUCT_FEATURES: ProductFeature[] = [
   {
-    eye: "STORE DAILY BOOK",
+    eye: "DAILY BOOK",
     title: "Close the day from the register.",
     points: [
       "Import Gilbarco Passport journals — tickets, tenders, departments",
-      "Register closes, over/short and deposits on one sheet",
+      "Sales, tenders, deposits and the day's over/short on one sheet",
       "Lock a day when it's done; every edit after is logged",
     ],
   },

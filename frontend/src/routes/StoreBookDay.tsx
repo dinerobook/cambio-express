@@ -17,7 +17,6 @@ import {
   ColumnHeader, DayStepLabel, DayToolbar, LockButton, OverShortReadout,
   type ColumnTone,
 } from "../components/DayBookChrome";
-import RegisterCloses from "../components/RegisterCloses";
 import { canDo } from "../lib/access";
 import { apiErrorMessage } from "../lib/api";
 import { useApiErrorToast } from "../lib/useApiErrorToast";
@@ -429,11 +428,6 @@ export default function StoreBookDay() {
               </div>
             ))}
           </div>
-
-          {/* Per-register Z-report detail for the same day. The sheet
-              above is what the store banked; this is which drawer it
-              came out of — one screen, one day. */}
-          <RegisterCloses day={day} canEdit={!locked} />
 
           <Card>
             <Field label={t("sbDay.notes")}>

@@ -39,7 +39,6 @@ vi.mock("../api/storebook", async (importOriginal) => ({
   restoreStoreBookField: (...a: unknown[]) => restoreStoreBookField(...a),
 }));
 
-vi.mock("../components/RegisterCloses", () => ({ default: () => null }));
 
 const LAYOUT = [
   {
@@ -181,6 +180,18 @@ describe("Store daily book: taking the register's day close", () => {
     await user.click(await screen.findByRole("button", { name: "Refresh" }));
     await waitFor(() => expect(pullStoreBookRegister).toHaveBeenCalledWith(DAY));
     expect(await screen.findByText("Register numbers updated.")).toBeInTheDocument();
+  });
+
+  // The per-register "Registers" section was taken off the day
+  // (owner, 2026-11-23): the page ends with the sheet and the notes.
+  it("has no Registers section", async () => {
+    fetchDay.mockResolvedValue(TAKEN);
+    renderPage();
+    await screen.findByLabelText("Lottery sales");
+    expect(screen.queryByRole("heading", { name: /Registers/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Add close" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Import from register" }))
+      .not.toBeInTheDocument();
   });
 
   it("shows nothing about the register for a store without the feed", async () => {

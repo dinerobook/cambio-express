@@ -28,7 +28,6 @@ vi.mock("../api/storebook", async (importOriginal) => ({
   setStoreBookLock: (...a: unknown[]) => setStoreBookLock(...a),
 }));
 
-vi.mock("../components/RegisterCloses", () => ({ default: () => null }));
 
 const sheet = (is_locked: boolean) => ({
   store_id: 1, entry_date: DAY, values: {}, counts: {}, originals: {},

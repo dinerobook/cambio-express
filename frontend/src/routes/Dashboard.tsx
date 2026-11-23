@@ -195,26 +195,6 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
             />
           </>
         )}
-        {d.day_close && (
-          <KpiCard
-            label={t("dash.drawerOverShort")}
-            value={
-              d.day_close.over_short == null
-                ? "—"
-                : fmtMoney2(d.day_close.over_short)
-            }
-            sub={
-              d.day_close.uncounted_drawers > 0
-                ? tn("dash.drawersUncounted", d.day_close.uncounted_drawers, fmtNumber)
-                : t("dash.allDrawersCounted")
-            }
-            tone={
-              d.day_close.uncounted_drawers > 0
-              || (d.day_close.over_short ?? 0) !== 0
-                ? "warning" : "positive"
-            }
-          />
-        )}
         {d.lottery && (
           <KpiCard
             label={t("dash.lotteryOn", { date: formatShortDate(d.lottery.date) })}
