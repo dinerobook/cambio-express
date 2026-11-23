@@ -5,10 +5,11 @@ import {
   deleteRegisterClose, upsertRegisterClose, useDayClose, useDepartments,
   type Department, type RegisterClose,
 } from "../api/dayclose";
+import { canDo } from "../lib/access";
 import { apiErrorMessage } from "../lib/api";
 import { fmtMoney2 } from "../lib/formatters";
 import {
-  Alert, Button, ButtonLink, Card, ConfirmDialog, EmptyState, ErrorState,
+  Alert, Button, ButtonLink, Card, ConfirmDialog, ErrorState,
   Field,
   InfoTip, Input, KpiCard, KpiGrid, Loading, Modal, MoneyInput, RowActions, Section,
   Table, Textarea, tdStyle, thStyle, useToast,
@@ -31,6 +32,13 @@ const CLOSE_COLUMNS: MessageKey[] = [
 //
 // `canEdit` follows the day's lock: a locked sheet shows its register
 // detail read-only, exactly like every money field above it.
+//
+// A day with no closes shows no "nothing here" block (owner,
+// 2026-11-23: "agar faltu ha toh hata do"): the section is then just
+// its one-line header, kept because its two buttons are the only way
+// to key a close or to reach the register import page. With nothing
+// to show and nothing the person may do (a locked day, or no rights)
+// the section is not there at all.
 
 export default function RegisterCloses({
   day, canEdit = true,
@@ -72,6 +80,12 @@ export default function RegisterCloses({
   }
 
   const data = summary.data;
+  const empty = data != null && data.closes.length === 0;
+  // "Import from register" opens a page that needs Edit; "+ Add
+  // close" needs Create.
+  const canAct = canEdit
+    && (canDo("day_close.create") || canDo("day_close.update"));
+  if (empty && !canAct) return null;
   return (
     <Section
       title={
@@ -98,12 +112,6 @@ export default function RegisterCloses({
         <ErrorState
           message={t("rc.loadFailed")}
           onRetry={() => { void summary.refetch(); }}
-        />
-      )}
-      {data && data.closes.length === 0 && (
-        <EmptyState
-          title={t("rc.empty")}
-          body={canEdit ? t("rc.emptyEdit") : t("rc.emptyView")}
         />
       )}
       {data && data.closes.length > 0 && (

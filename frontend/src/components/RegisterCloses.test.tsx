@@ -7,7 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import RegisterCloses from "./RegisterCloses";
 import { ToastProvider } from "./ui";
 import { setLanguage } from "../i18n";
+import { setCurrentIdentity } from "../lib/auth";
 import { englishLeftovers } from "../test/i18n";
+import { TEST_ADMIN } from "../test/setup";
 
 // The section reads through the dayclose hooks; stub them so the
 // test is about what the section renders, not about fetching.
@@ -48,8 +50,15 @@ const upsertRegisterClose = vi.fn();
 const deleteRegisterClose = vi.fn();
 let departments: Array<{ id: number; name: string }> = [];
 
+// The day the section is showing; a test may swap in an empty one.
+let day: typeof summary = summary;
+const EMPTY_DAY: typeof summary = {
+  ...summary, closes: [], department_totals: [], gross_sales: 0,
+  sales_tax: 0, cash_total: 0, card_total: 0, over_short: 0,
+};
+
 vi.mock("../api/dayclose", () => ({
-  useDayClose: () => ({ data: summary, isLoading: false, isError: false }),
+  useDayClose: () => ({ data: day, isLoading: false, isError: false }),
   useDepartments: () => ({ data: { departments } }),
   upsertRegisterClose: (...a: unknown[]) => upsertRegisterClose(...a),
   deleteRegisterClose: (...a: unknown[]) => deleteRegisterClose(...a),
@@ -69,6 +78,56 @@ function renderSection(canEdit: boolean) {
     </MemoryRouter>,
   );
 }
+
+beforeEach(() => {
+  day = summary;
+});
+
+// A day with no closes used to show a big "No register closes for
+// this day" block. It says nothing a person can use (owner,
+// 2026-11-23), so the section is then only its one-line header: the
+// two buttons are the one way to key a close and to reach the
+// register import page. With nothing to show and nothing to do, the
+// section is not there at all.
+describe("RegisterCloses on a day with no closes", () => {
+  beforeEach(() => {
+    day = EMPTY_DAY;
+  });
+
+  it("shows only its header and buttons, no empty-state block", () => {
+    renderSection(true);
+    expect(screen.getByRole("heading", { name: /Registers/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Import from register" }))
+      .toHaveAttribute("href", "/pos-import");
+    expect(screen.getByRole("button", { name: "+ Add close" })).toBeInTheDocument();
+    expect(screen.queryByText(/No register closes/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("is not there at all on a locked day", () => {
+    const { container } = renderSection(false);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("is not there at all for someone who can only look", () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee", permissions: ["day_close.read"],
+    });
+    const { container } = renderSection(true);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("stays for someone who may key a close but not import", () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee",
+      permissions: ["day_close.read", "day_close.create"],
+    });
+    renderSection(true);
+    expect(screen.getByRole("button", { name: "+ Add close" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Import from register" }))
+      .not.toBeInTheDocument();
+  });
+});
 
 describe("RegisterCloses", () => {
   it("renders the day's closes and the department rollup", () => {
