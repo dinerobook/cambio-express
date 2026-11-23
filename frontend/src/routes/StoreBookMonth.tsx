@@ -46,7 +46,7 @@ export default function StoreBookMonth() {
     <PageShell>
       <PageCrumbs />
       <PageHeader
-        title={navWord("Store daily book")}
+        title={navWord("Daily book")}
         subtitle={formatMonthYear(year, month)}
         actions={
           <PeriodStepper

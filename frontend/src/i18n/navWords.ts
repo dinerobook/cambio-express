@@ -77,7 +77,7 @@ export const NAV_WORDS_ES: Record<string, string> = {
   "Setup progress": "Avance de la configuración",
   "Schedule": "Horario",
   "Settings": "Configuración",
-  "Store daily book": "Libro diario de la tienda",
+  "Daily book": "Libro diario",
   "Store reports": "Reportes de la tienda",
   "Stores": "Tiendas",
   "Support": "Soporte",

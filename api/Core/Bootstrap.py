@@ -125,8 +125,8 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
     # store's current back office. Resolved with
     # ``opt_in_flag_enabled`` — never fails open.
     # api/Modules/StoreBook/Services/register_day.py.
-    ("register_day_book", "Store daily book: register day close",
-     "Fill the store daily book from the register's day close and "
+    ("register_day_book", "Daily book: register day close",
+     "Fill the Retail daily book from the register's day close and "
      "show the register's figure under each line. Needs the store's "
      "departments set up with their types (Account → Departments).",
      False),
@@ -144,8 +144,9 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
      "add a per-store override to turn it on for one store.", True),
     ("module_lottery", "Module: Lottery",
      "Games, packs and day-close counts.", True),
-    ("module_day_close", "Module: Store daily book",
-     "Register / shift close totals and department sales.", True),
+    ("module_day_close", "Module: Daily book",
+     "The Retail daily book: register / shift close totals and "
+     "department sales.", True),
     ("module_check_cashing", "Module: Check cashing",
      "Returned-checks pages and the check-cashing entries in the "
      "daily book.", True),

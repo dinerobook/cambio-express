@@ -5,6 +5,11 @@
 > `frontend/src/routes/StoreBookMonth.tsx` and
 > `frontend/src/api/storebook.ts`.
 
+On screen the page is named **Daily book** (owner, 2026-11-23: "store
+hata do, sirf daily book"); the MSB group's book stays "MSB daily
+book", so the two never share a name. In code, comments and these
+notes "store daily book" still means this Retail page.
+
 One row per store per day (`retail_store_daily_entry`), three columns
 that balance: Sales, Tenders, Deposit & balance. Over/short is tenders
 minus sales. Money is integer cents.

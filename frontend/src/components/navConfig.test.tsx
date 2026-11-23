@@ -112,7 +112,7 @@ describe("filterNavForRole → section-hub resolution", () => {
       "MSB daily book", "Transfers", "Customers", "Returned checks",
     ]));
     expect(retail!.items.map((i) => i.label)).toEqual(expect.arrayContaining([
-      "Store daily book", "Transactions", "Lottery", "Price book", "Purchases",
+      "Daily book", "Transactions", "Lottery", "Price book", "Purchases",
     ]));
     // The old groups are gone.
     expect(groups.map((g) => g.title)).not.toContain("Daily");
@@ -167,7 +167,7 @@ describe("filterNavForRole → section-hub resolution", () => {
     const labels = filterNavForRole("superadmin", [])
       .flatMap((g) => g.items.map((i) => i.label));
     for (const storeOnly of [
-      "MSB daily book", "Store daily book", "Transactions", "Lottery",
+      "MSB daily book", "Daily book", "Transactions", "Lottery",
       "Price book", "Purchases", "Check cashing", "MSB reports",
       "Store reports", "Departments",
     ]) {

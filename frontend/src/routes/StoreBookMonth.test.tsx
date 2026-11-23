@@ -103,7 +103,7 @@ describe("StoreBookMonth", () => {
   it("reads in Spanish", () => {
     setLanguage("es");
     renderPage();
-    expect(screen.getByRole("heading", { name: /Libro diario de la tienda|diciembre/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Libro diario" })).toBeInTheDocument();
     expect(screen.getByText("diciembre de 2026")).toBeInTheDocument();
     expect(screen.getByText("Ventas totales")).toBeInTheDocument();
     expect(screen.getByLabelText("Mes")).toHaveDisplayValue("diciembre");
