@@ -5833,6 +5833,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/storebook/{day}/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Storebook Register Route
+         * @description Take the register's day close onto the sheet: empty boxes are
+         *     filled, a box somebody typed in keeps its number and shows the
+         *     register's beside it. The page calls this when it opens a day
+         *     whose register figures it has not taken (``register_day.pending``),
+         *     and from its Refresh button. A person asked, so a locked day is
+         *     refused like any other edit.
+         */
+        post: operations["storebook_register_route_storebook__day__register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/storebook/{day}/restore": {
         parameters: {
             query?: never;
@@ -17149,7 +17174,8 @@ export interface components {
          *
          *     `values` and `counts` are keyed by field key; `originals` holds
          *     only the fields an import supplied, so the SPA renders the
-         *     "Orig. Val" caption exactly where there is one.
+         *     register's figure exactly where there is one. `register_day` is null
+         *     for a store without the register feed.
          */
         StoreBookDayResponse: {
             /** Counts */
@@ -17170,6 +17196,7 @@ export interface components {
             originals: {
                 [key: string]: number;
             };
+            register_day: components["schemas"]["StoreBookRegisterDay"] | null;
             /** Store Id */
             store_id: number;
             totals: components["schemas"]["StoreBookTotals"];
@@ -17232,6 +17259,56 @@ export interface components {
             sales_cents: number;
             /** Tenders Cents */
             tenders_cents: number;
+        };
+        /**
+         * StoreBookRegisterDay
+         * @description The register's day close for this day, for a store that has
+         *     the register feed switched on.
+         *
+         *     `pending` means the register holds figures this sheet has not
+         *     taken yet; the page takes them (POST …/register) when the person
+         *     may edit and the day is open. Times are naive UTC like every API
+         *     timestamp; `period_*` are the register's own clock read in the
+         *     store's zone.
+         */
+        StoreBookRegisterDay: {
+            /** Has Data */
+            has_data: boolean;
+            /** Pending */
+            pending: boolean;
+            /** Period End */
+            period_end: string | null;
+            /** Period Start */
+            period_start: string | null;
+            /** Problem */
+            problem: string;
+            /** Ready */
+            ready: boolean;
+            /** Received At */
+            received_at: string | null;
+            /** Unmapped */
+            unmapped: components["schemas"]["StoreBookRegisterItem"][];
+            /** Unplaced */
+            unplaced: components["schemas"]["StoreBookRegisterItem"][];
+        };
+        /**
+         * StoreBookRegisterItem
+         * @description Something the register reported that sits on no line: a
+         *     department number the store has not set up, a department whose
+         *     type has no line, or a payment type the book does not know.
+         */
+        StoreBookRegisterItem: {
+            /** Amount Cents */
+            amount_cents: number;
+            /** Code */
+            code: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "department" | "payment_type";
+            /** Name */
+            name: string;
         };
         /**
          * StoreBookRestoreRequest
@@ -31866,6 +31943,41 @@ export interface operations {
                 "application/json": components["schemas"]["StoreBookLockRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreBookDayResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    storebook_register_route_storebook__day__register_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                day: string;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

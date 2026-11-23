@@ -5,6 +5,7 @@
   PATCH /storebook/{day}                partial operator edit
   POST  /storebook/{day}/lock           lock / unlock
   POST  /storebook/{day}/restore        take back an imported value
+  POST  /storebook/{day}/register       take the register's day close
 
 Gated on the ``day_close`` resource — the Store Daily Book is the
 same operator responsibility the Day close page carried, so the
@@ -25,21 +26,63 @@ from api.Modules.Auth.Services.principal import (
     require_permission, resolve_store_scope,
 )
 from api.Modules.StoreBook.Models import FIELD_GROUPS, StoreDailyEntry
+from api.Modules.PosImport.Services.transactions import (
+    register_stamp, store_timezone,
+)
 from api.Modules.StoreBook.Requests import (
     StoreBookDayResponse, StoreBookLockRequest, StoreBookMonthResponse,
-    StoreBookMonthRow, StoreBookRestoreRequest, StoreBookTotals,
-    StoreBookUpdateRequest,
+    StoreBookMonthRow, StoreBookRegisterDay, StoreBookRegisterItem,
+    StoreBookRestoreRequest, StoreBookTotals, StoreBookUpdateRequest,
 )
 from api.Modules.StoreBook.Services import (
     COUNT_FIELDS, DayLockedError, StoreBookError, column_totals,
     get_or_create_entry, month_summary, originals_for, over_short_cents,
     restore_original, set_lock, update_entry,
 )
+from api.Modules.StoreBook.Services.register_day import (
+    RegisterDayNotReady, RegisterItem, is_pending, pull_register_day,
+    register_day, register_day_enabled,
+)
 
 router = APIRouter(prefix="/storebook", tags=["storebook"])
 
 
-def _day_payload(entry: StoreDailyEntry) -> StoreBookDayResponse:
+def _register_items(items: list[RegisterItem]) -> list[StoreBookRegisterItem]:
+    return [
+        StoreBookRegisterItem(
+            kind=i.kind, code=i.code, name=i.name,
+            amount_cents=i.amount_cents,
+        )
+        for i in items
+    ]
+
+
+def _register_payload(
+    db: Session, entry: StoreDailyEntry,
+) -> StoreBookRegisterDay | None:
+    """The register's day close beside the sheet, or None for a store
+    without the register feed. Reads only."""
+    store_id = int(entry.store_id)
+    if not register_day_enabled(db, store_id):
+        return None
+    figures = register_day(db, store_id, entry.entry_date)
+    zone = store_timezone(db, store_id)
+    return StoreBookRegisterDay(
+        has_data=figures.has_data,
+        ready=figures.ready,
+        pending=is_pending(entry, figures),
+        problem=figures.problem,
+        period_start=register_stamp(figures.period_start, zone),
+        period_end=register_stamp(figures.period_end, zone),
+        received_at=(
+            figures.received_at.isoformat() if figures.received_at else None
+        ),
+        unmapped=_register_items(figures.unmapped),
+        unplaced=_register_items(figures.unplaced),
+    )
+
+
+def _day_payload(db: Session, entry: StoreDailyEntry) -> StoreBookDayResponse:
     totals = column_totals(entry)
     return StoreBookDayResponse(
         entry_date=entry.entry_date.isoformat(),
@@ -71,6 +114,7 @@ def _day_payload(entry: StoreDailyEntry) -> StoreBookDayResponse:
             entry.updated_at.isoformat() if entry.updated_at else None
         ),
         layout=FIELD_GROUPS,  # type: ignore[arg-type]
+        register_day=_register_payload(db, entry),
     )
 
 
@@ -125,7 +169,7 @@ def storebook_day_route(
     store_id = resolve_store_scope(claims)
     entry = get_or_create_entry(db, store_id, parse_iso_day(day, field="day"))
     db.commit()
-    return _day_payload(entry)
+    return _day_payload(db, entry)
 
 
 @router.patch("/{day}", response_model=StoreBookDayResponse)
@@ -158,7 +202,7 @@ def storebook_update_route(
         summary=f"updated the daily book for {entry.entry_date}",
     )
     db.commit()
-    return _day_payload(entry)
+    return _day_payload(db, entry)
 
 
 @router.post("/{day}/lock", response_model=StoreBookDayResponse)
@@ -186,7 +230,7 @@ def storebook_lock_route(
         ),
     )
     db.commit()
-    return _day_payload(entry)
+    return _day_payload(db, entry)
 
 
 @router.post("/{day}/restore", response_model=StoreBookDayResponse)
@@ -215,7 +259,43 @@ def storebook_restore_route(
         ),
     )
     db.commit()
-    return _day_payload(entry)
+    return _day_payload(db, entry)
+
+
+@router.post("/{day}/register", response_model=StoreBookDayResponse)
+def storebook_register_route(
+    day: str = Path(...),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> StoreBookDayResponse:
+    """Take the register's day close onto the sheet: empty boxes are
+    filled, a box somebody typed in keeps its number and shows the
+    register's beside it. The page calls this when it opens a day
+    whose register figures it has not taken (``register_day.pending``),
+    and from its Refresh button. A person asked, so a locked day is
+    refused like any other edit."""
+    require_permission(claims, "day_close", "update")
+    store_id = resolve_store_scope(claims)
+    if not register_day_enabled(db, store_id):
+        raise HTTPException(
+            status_code=404,
+            detail="The register feed is not switched on for this store.",
+        )
+    entry = get_or_create_entry(db, store_id, parse_iso_day(day, field="day"))
+    try:
+        pull_register_day(db, entry)
+    except (DayLockedError, RegisterDayNotReady) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    audit_operator(
+        db, claims, target_type="store_daily_entry", action="update",
+        target_id=entry.entry_date.isoformat(),
+        summary=(
+            f"took the register's day close onto the daily book "
+            f"for {entry.entry_date}"
+        ),
+    )
+    db.commit()
+    return _day_payload(db, entry)
 
 
 __all__ = ["router"]

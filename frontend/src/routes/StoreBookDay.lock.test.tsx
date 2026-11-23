@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import StoreBookDay from "./StoreBookDay";
-import styles from "./StoreBookDay.module.css";
+import chrome from "../components/DayBookChrome.module.css";
 import { ToastProvider } from "../components/ui";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
@@ -111,34 +111,47 @@ describe("Store daily book lock button", () => {
   });
 });
 
-// The header's actions sit flush right, so the day stepper's place is
-// set by the lock button after it. "Lock day" and "Unlock" differ in
-// width; the button keeps one width for both so locking or unlocking
-// never slides the arrows sideways.
+// The page wears the shared day-book frame (DayBookChrome): the day
+// stepper is the middle of three tracks, so "Lock day" turning into
+// "Unlock", or a Saved / Locked pill appearing, never slides the
+// arrows sideways under the cursor. The grid itself is pinned on the
+// stylesheet in EditDailyBook.lock.test.tsx.
 describe("Store daily book day stepper position", () => {
-  it("gives Lock day and Unlock the same fixed width", () => {
-    useStoreBookDay.mockReturnValue(OPEN);
-    const { unmount } = renderPage();
-    const lock = screen.getByRole("button", { name: "Lock day" });
-    expect(lock).toHaveClass(styles.lockBtn);
-    expect(getComputedStyle(lock).minWidth).toBe("6.5rem");
-    unmount();
+  function expectCentred() {
+    const stepper = screen.getByRole("button", { name: "Previous day" }).parentElement!;
+    const toolbar = stepper.parentElement!;
+    const parts = Array.from(toolbar.children);
+    expect(toolbar).toHaveClass(chrome.toolbar);
+    expect(parts).toHaveLength(3);
+    expect(parts[0]).toHaveClass(chrome.toolbarLead);
+    expect(parts[1]).toBe(stepper);
+    expect(parts[2]).toHaveClass(chrome.toolbarTrail);
+    return parts[2] as HTMLElement;
+  }
 
-    useStoreBookDay.mockReturnValue(LOCKED);
+  it("keeps the stepper in the middle track on an open day", () => {
+    useStoreBookDay.mockReturnValue(OPEN);
     renderPage();
-    const unlock = screen.getByRole("button", { name: "Unlock" });
-    expect(unlock).toHaveClass(styles.lockBtn);
-    expect(getComputedStyle(unlock).minWidth).toBe("6.5rem");
+    expect(expectCentred()).toContainElement(
+      screen.getByRole("button", { name: "Lock day" }),
+    );
   });
 
-  it("keeps the stepper before the lock button", () => {
+  it("keeps it there on a locked day", () => {
     useStoreBookDay.mockReturnValue(LOCKED);
     renderPage();
-    const stepper = screen.getByRole("button", { name: "Previous day" }).parentElement!;
-    const unlock = screen.getByRole("button", { name: "Unlock" });
-    expect(stepper.parentElement).toHaveClass(styles.dayNav);
-    expect(stepper.compareDocumentPosition(unlock) & Node.DOCUMENT_POSITION_FOLLOWING)
-      .toBeTruthy();
+    const trail = expectCentred();
+    expect(trail).toContainElement(screen.getByRole("button", { name: "Unlock" }));
+    expect(trail).toHaveTextContent(/Locked ·/);
+  });
+
+  it("keeps the toolbar on screen while a day loads", () => {
+    useStoreBookDay.mockReturnValue({
+      data: undefined, isLoading: true, isError: false, refetch: vi.fn(),
+    });
+    renderPage();
+    expectCentred();
+    expect(screen.queryByRole("button", { name: "Lock day" })).not.toBeInTheDocument();
   });
 
   it("reads in Spanish: shipped sheet words translate, a renamed one shows as sent", () => {
@@ -163,14 +176,15 @@ describe("Store daily book day stepper position", () => {
     });
     setCurrentIdentity(TEST_ADMIN);
     renderPage();
-    expect(screen.getByRole("heading", { name: "Libro diario" })).toBeInTheDocument();
     expect(screen.getByText(/Este día está cerrado/)).toBeInTheDocument();
-    expect(screen.getAllByText("Ventas").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Ventas")).toBeInTheDocument();
+    expect(screen.getByText("Sobrante / Faltante")).toBeInTheDocument();
     expect(screen.getByLabelText("Cantidad de Giro postal")).toBeInTheDocument();
     expect(screen.getByText("Ventas de combustible")).toBeInTheDocument();
     expect(screen.getByText("Fuel take")).toBeInTheDocument();
     expect(screen.getByLabelText("Galones")).toBeInTheDocument();
-    expect(screen.getByText("Valor orig.: $15.00")).toBeInTheDocument();
+    expect(screen.getByText("Caja $15.00")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Distinto de la caja." })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reabrir" })).toBeInTheDocument();
     expect(englishLeftovers(document.body, ["sbDay.", "sb."])).toEqual([]);
   });

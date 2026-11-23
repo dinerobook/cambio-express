@@ -40,6 +40,9 @@ import {
   ModalActions, MoneyInput, PageHeader, PageShell, PeriodStepper, Pill, RowActions,
   TabsBar, TabsButton, Textarea,
 } from "../components/ui";
+import {
+  ColumnHeader, DayStepLabel, DayToolbar, LockButton, OverShortReadout,
+} from "../components/DayBookChrome";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { computeTotals, type FormState } from "./editDailyBook.totals";
 import styles from "./EditDailyBook.module.css";
@@ -454,12 +457,37 @@ export default function EditDailyBook() {
           Over/Short readout + lock control (right). Sticky so day-nav,
           the reconciliation, and lock stay reachable as the form
           scrolls. The column summary headers below pin just under it —
-          see `.toolbar` / `.colHeader` offsets in the module CSS. */}
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarLead}>
-          <PageCrumbs current={formatDayLabel(date)} />
-        </div>
-
+          see `.toolbar` / `.colHeader` in DayBookChrome.module.css, the
+          frame this page shares with the store daily book. */}
+      <DayToolbar
+        lead={<PageCrumbs current={formatDayLabel(date)} />}
+        trail={
+          <>
+            <OverShortReadout
+              label={t("daily.overShort")}
+              tip={t("daily.overShortTip")}
+              value={totals.overShort}
+              negative={overShortNeg}
+            />
+            {locked ? (
+              <Pill tone="warning" dot>
+                {t("daily.lockedAt", { at: formatLockedAt(report?.locked_at) })}
+              </Pill>
+            ) : savedAt ? (
+              <Pill tone="accent">{t("daily.savedAt", { time: formatTime(savedAt) })}</Pill>
+            ) : null}
+            {/* Red padlock "Lock" while editable; a green open padlock
+                "Unlock" once the day is locked. Locking saves first
+                (`onLockToggle`) so no stale snapshot is frozen. Hidden
+                without the "Lock / unlock days" switch (the page itself
+                already needs daily_book.update). */}
+            <LockButton
+              locked={locked} busy={busy} onToggle={onLockToggle}
+              lockLabel={t("daily.lock")} unlockLabel={t("daily.unlock")}
+            />
+          </>
+        }
+      >
         {/* Prev / next day + calendar shortcut. ← / → step too, but
             only when the user isn't typing in a field (PeriodStepper
             owns that rule), so the caret still moves inside inputs. */}
@@ -471,21 +499,9 @@ export default function EditDailyBook() {
           onNext={() => goToDay(1)}
           onCalendar={onBackToCalendar}
         >
-          <span className={styles.stepDate}>{formatDayLabel(date)}</span>
+          <DayStepLabel>{formatDayLabel(date)}</DayStepLabel>
         </PeriodStepper>
-
-        <div className={styles.toolbarTrail}>
-          <OverShortReadout value={totals.overShort} negative={overShortNeg} />
-          {locked ? (
-            <Pill tone="warning" dot>
-              {t("daily.lockedAt", { at: formatLockedAt(report?.locked_at) })}
-            </Pill>
-          ) : savedAt ? (
-            <Pill tone="accent">{t("daily.savedAt", { time: formatTime(savedAt) })}</Pill>
-          ) : null}
-          <LockButton locked={locked} busy={busy} onToggle={onLockToggle} />
-        </div>
-      </div>
+      </DayToolbar>
 
       {/* Mobile-only tab strip. CSS hides it at ≥60rem viewports (see
           `.mobileTabs`) so the desktop grid renders both columns at
@@ -582,125 +598,6 @@ export default function EditDailyBook() {
         </FormActions>
       </form>
     </PageShell>
-  );
-}
-
-// ── Toolbar · day stepper · lock · sticky column headers ─────
-
-/** Top-right lock control. Red padlock "Lock" while editable; flips to
- *  a green open-padlock "Unlock" once the day is locked. Locking saves
- *  first (handled by the parent's `onLockToggle`) so no stale snapshot
- *  is frozen. Hidden without the "Lock / unlock days" switch (the page
- *  itself already needs daily_book.update). */
-function LockButton({
-  locked, busy, onToggle,
-}: {
-  locked: boolean;
-  busy: boolean;
-  onToggle: () => void;
-}) {
-  const t = useT();
-  return (
-    <Button
-      type="button"
-      tone={locked ? "primary" : "danger"}
-      size="md"
-      busy={busy}
-      disabled={busy}
-      perm="day_lock.update"
-      onClick={onToggle}
-    >
-      <span className={styles.lockBtnInner}>
-        {locked ? <UnlockIcon /> : <LockIcon />}
-        {locked ? t("daily.unlock") : t("daily.lock")}
-      </span>
-    </Button>
-  );
-}
-
-/** Sticky per-column summary header (In / Out / Over Short). Subtle,
- *  design-system-safe: dark surface, a single accent stripe on top,
- *  the total in mono. It pins to the top of its own column so the
- *  column body scrolls behind it instead of behind a detached page
- *  bar. `tone` only swaps the accent + value color. */
-function ColumnHeader({
-  label, value, tone, sub,
-}: {
-  label: string;
-  value: number;
-  tone: "accent" | "negative";
-  sub?: string;
-}) {
-  const accent =
-    tone === "accent" ? "var(--db-accent)" : "var(--db-negative)";
-  const valueColor =
-    tone === "negative" ? "var(--db-negative)" : "var(--db-text)";
-  return (
-    <div className={styles.colHeader} style={{ borderTopColor: accent }}>
-      <div className={styles.colHeaderRow}>
-        <span className={styles.totalsLabel}>{label}</span>
-        <span className={styles.colHeaderValue} style={{ color: valueColor }}>
-          {fmtMoney2(value)}
-        </span>
-      </div>
-      {sub && <div className={styles.totalHint}>{sub}</div>}
-    </div>
-  );
-}
-
-/** Read-only Over/Short reconciliation, shown in the toolbar. The
- *  operator never types this — it's derived from the day's entries
- *  (see computeTotals / DailyReport.computed_over_short). Green when
- *  over/zero (healthy surplus), red when short (a miscount or
- *  data-entry error to chase down). */
-function OverShortReadout({
-  value, negative,
-}: {
-  value: number;
-  negative: boolean;
-}) {
-  const t = useT();
-  return (
-    <div className={styles.osReadout}>
-      <span className={styles.osReadoutLabel}>
-        {t("daily.overShort")}
-        <InfoTip text={t("daily.overShortTip")} />
-      </span>
-      <span
-        className={styles.osReadoutValue}
-        style={{
-          color: negative
-            ? "var(--db-negative)"
-            : "var(--db-accent)",
-        }}
-      >
-        {fmtMoney2(value)}
-      </span>
-    </div>
-  );
-}
-
-// Inline stroke SVGs (design system: no emoji in controls;
-// stroke-width 2, round caps, currentColor, fill none).
-function LockIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-      strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="11" width="18" height="11" rx="2" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-
-function UnlockIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-      strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="11" width="18" height="11" rx="2" />
-      <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-    </svg>
   );
 }
 

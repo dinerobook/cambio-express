@@ -224,10 +224,52 @@ column allowed to shrink (`min-width: 0`) and wrap.
 A period stepper never moves while you step. Its place must not depend
 on anything that changes as the day changes (a Saved or Locked pill,
 Lock ↔ Unlock). In a toolbar with things on both sides it sits in the
-middle of a `minmax(0, 1fr) auto minmax(0, 1fr)` grid (the MSB daily
-book toolbar from 78rem up); in a flush-right header the button after
-it keeps one width for every label (the store daily book's lock
-button).
+middle of a `minmax(0, 1fr) auto minmax(0, 1fr)` grid (the day book
+toolbar from 78rem up, below); in a flush-right header the button
+after it keeps one width for every label.
+
+### Day books — one frame
+
+The MSB daily book and the store daily book are the same kind of page
+and wear the same frame, `components/DayBookChrome.tsx` (it replaced
+the store daily book's own header, totals strip and "Back to the
+month" button, and the copies inside `EditDailyBook.tsx`). Owner,
+2026-11-22.
+
+- `<DayToolbar>`: sticky; the trail on the left, the kit
+  `PeriodStepper` (`variant="chevrons"`, `arrowKeys`, `onCalendar` back
+  to the month) with a `<DayStepLabel>` dead centre, and on the right
+  `<OverShortReadout>`, one pill (Locked · when, else Saved · when) and
+  `<LockButton>`. It stays on screen while a day loads.
+- `<ColumnHeader>`: one per column, sticky under the toolbar (not on a
+  phone), a 3px stripe on top and the column's total in mono. Stripe
+  tones: `accent` money in, `negative` money out (the only tone that
+  also colours the total), `info` and `neutral` for columns that are
+  neither.
+- A day book with many plain lines (the store daily book) is a ledger:
+  ONE card per column, the line's name on the left and its box on the
+  right so a column's money boxes share one edge, groups set apart by
+  a hairline. A group's heading is left out when it would only repeat
+  the name of its one line. In a column narrower than 20rem (a
+  container query, not the window) the name goes above the box.
+- A box that saves when you leave it saves only if it was typed in,
+  shows "Saved · time" in the toolbar, and an answer from the server
+  never replaces a box that is being typed in.
+
+### A figure from the register under a line
+
+Where a machine reported a figure for a line a person can also type
+(the store daily book's register day close), the machine's figure
+sits under the box, right-aligned with it, in mono 0.75rem:
+"Register $1,031.07". While the box still holds it: the accent colour
+and a tick. Once the box differs: the negative colour, a "not equal"
+mark and a "Use" button that takes the figure back. The mark is an
+`<svg role="img">` with a name ("Matches the register." / "Different
+from the register.") and the caption is the box's `aria-describedby`,
+so the meaning never rests on colour. $0.00 on both sides shows no
+caption. Empty boxes are filled when the day opens; a number a person
+typed is never replaced, on the page or on the server
+(`api/Modules/StoreBook/CLAUDE.md`).
 
 ### Bank vs daily book — reconciled status
 

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import { DailyBookTile, OpenStatusPill } from "./DailyBookTile";
 import styles from "./EditDailyBook.module.css";
+import chrome from "../components/DayBookChrome.module.css";
 
 function renderTile() {
   const onOpen = vi.fn();
@@ -59,9 +60,9 @@ describe("Daily book column header", () => {
   // label instead of leaving the header on a narrow column.
   it("lets the total wrap under the label, never past the edge", () => {
     render(
-      <div className={styles.colHeaderRow} data-testid="row">
+      <div className={chrome.colHeaderRow} data-testid="row">
         <span>Out</span>
-        <span className={styles.colHeaderValue}>$101,259.24</span>
+        <span className={chrome.colHeaderValue}>$101,259.24</span>
       </div>,
     );
     expect(getComputedStyle(screen.getByTestId("row")).flexWrap).toBe("wrap");

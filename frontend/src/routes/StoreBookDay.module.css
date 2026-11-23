@@ -1,74 +1,103 @@
-/* Store Daily Book — one day (D-2). Kit primitives carry the
-   inputs, buttons and cards; what's here is the three-column
-   layout and the running-total strip. */
+/* Store daily book — one day. The sticky toolbar and the column
+   total headers are the shared day-book frame (DayBookChrome); kit
+   primitives carry the inputs, buttons and cards. What's here is the
+   register strip, the three columns and the ledger rows. */
 
-.dayNav {
+/* ── The register's day close ──────────────────────────────── */
+
+.register {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   flex-wrap: wrap;
-}
-
-/* The header's actions sit flush right, so the day stepper's place
-   is set by the lock button after it. "Lock day" and "Unlock" are
-   different widths: without a fixed width, locking slid the arrows
-   sideways under the cursor. Wide enough for both labels. */
-.lockBtn {
-  min-width: 6.5rem;
-  justify-content: center;
-}
-
-/* ── Running totals ────────────────────────────────────────── */
-
-.totalsRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.totalCard {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.9rem 1rem;
-  border-radius: 0.75rem;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 0.9rem;
   border: 1px solid var(--db-border);
+  border-radius: 0.875rem;
   background: var(--db-surface-2);
-  min-width: 0;
 }
 
-.totalLabel {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+/* No day close yet: one muted line, nothing to act on. */
+.registerQuiet {
+  background: transparent;
+  border-style: dashed;
+}
+
+.registerIcon {
+  flex: 0 0 auto;
   color: var(--db-text-muted);
 }
 
-.totalValue {
-  font-family: var(--db-font-mono);
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: var(--db-text);
-  /* A six-figure day must not push the card wider than its grid
-     track — same lesson as the daily-book calendar cells. */
+.registerText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 14rem;
 }
 
-/* Column accents. Tone carries meaning here: the over/short card
-   is the one an operator looks at first. */
-.sales   { border-color: color-mix(in srgb, var(--db-accent) 45%, transparent); }
-.tenders { border-color: color-mix(in srgb, var(--db-negative) 45%, transparent); }
-.deposit { border-color: color-mix(in srgb, var(--db-info) 45%, transparent); }
+.registerTitle {
+  font-family: var(--db-font-display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--db-text);
+}
 
-.balanced { border-color: var(--db-accent); }
-.balanced .totalValue { color: var(--db-accent); }
-.over     { border-color: var(--db-info); }
-.short    { border-color: var(--db-negative); }
-.short .totalValue { color: var(--db-negative); }
+.registerMeta {
+  font-size: 0.8rem;
+  color: var(--db-text-muted);
+}
+
+.registerTrail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* Anything the day could not take, or took and could not place:
+   a full-width line under the strip's first row. */
+.registerNote {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  margin: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--db-border);
+  font-size: 0.82rem;
+  color: var(--db-text-muted);
+}
+
+.registerWarn {
+  color: var(--db-warning);
+}
+
+.registerItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.registerItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--db-border);
+  border-radius: 999px;
+  background: var(--db-surface);
+  color: var(--db-text);
+  font-size: 0.78rem;
+}
+
+.registerAmount {
+  font-family: var(--db-font-mono);
+  color: var(--db-text-muted);
+}
 
 /* ── Three columns ─────────────────────────────────────────── */
 
@@ -81,83 +110,173 @@
 
 /* Stack on anything narrower than a laptop — three columns of
    money inputs is unusable on a tablet in portrait. */
-@media (max-width: 60rem) {
+@media (max-width: 59.99rem) {
   .columns {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
+/* A container, so a line can tell how wide ITS column is: the
+   window's width says nothing once the sidebar and the other two
+   columns have taken their share. */
 .column {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  container-type: inline-size;
   min-width: 0;
 }
 
-.columnHead {
-  padding: 0.6rem 0.9rem;
-  border-radius: 0.6rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--db-text);
-  background: var(--db-surface-2);
-  border: 1px solid var(--db-border);
+/* One card per column, its groups set apart by a hairline: a
+   ledger, not a wall of boxes. (The card's padding is the kit's
+   `padding` prop.) */
+.sheet {
+  min-width: 0;
 }
 
-.section {
-  padding: 0.75rem 0.9rem;
+.group {
+  padding: 0.35rem 0;
 }
 
-.sectionTitle {
+.group + .group {
+  border-top: 1px solid var(--db-border);
+}
+
+.groupTitle {
+  padding-top: 0.3rem;
   font-size: 0.72rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--db-text-muted);
-  margin-bottom: 0.5rem;
 }
 
-/* ── One field ─────────────────────────────────────────────── */
+/* ── One line ──────────────────────────────────────────────────
+   A ledger row: the name on the left, the boxes on the right, the
+   money boxes of a column in one straight edge. The register's
+   figure sits under the boxes, right-aligned with them. */
 
 .row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.4rem 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.2rem;
+  padding: 0.3rem 0;
 }
 
 .rowLabel {
-  font-size: 0.85rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.3;
   color: var(--db-text);
+  overflow-wrap: anywhere;
 }
 
 .rowInputs {
   display: flex;
-  gap: 0.4rem;
+  justify-content: flex-end;
   align-items: center;
+  gap: 0.4rem;
   min-width: 0;
 }
 
-.rowInputs > :nth-last-child(1) {
+.moneyBox {
+  flex: 0 0 auto;
+  width: 8.75rem;
   min-width: 0;
 }
 
 /* The "#" / gallons companion beside the money box. */
-.countInput {
-  max-width: 5.5rem;
+.countBox,
+.gallonsBox {
   flex: 0 0 auto;
+  min-width: 0;
 }
 
-/* "Orig. Val" — what the register reported before any edit.
-   Green while the operator's value still matches, red once they
-   have overridden it. */
-.orig {
-  font-size: 0.72rem;
+.countBox {
+  width: 4.5rem;
+}
+
+.gallonsBox {
+  width: 6.25rem;
+}
+
+.countBox input,
+.gallonsBox input {
+  text-align: right;
   font-family: var(--db-font-mono);
 }
 
-.origMatch   { color: var(--db-accent); }
-.origChanged { color: var(--db-negative); }
+/* A narrow column (a small laptop with three columns): the name goes
+   on top and the boxes take the full width, instead of squeezing the
+   name into a sliver beside them. */
+@container (max-width: 20rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rowInputs {
+    justify-content: stretch;
+  }
+  .moneyBox {
+    flex: 1 1 auto;
+    width: auto;
+  }
+}
 
-.footerRow {
-  margin-top: 1rem;
+/* The register's figure for the line. Green + a tick while the box
+   still holds it, red + a "not equal" mark once somebody changed the
+   box: the mark carries the meaning, the colour only repeats it. */
+.reg {
+  grid-column: 1 / -1;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--db-font-mono);
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.regMatch {
+  color: var(--db-accent);
+}
+
+.regDiffers {
+  color: var(--db-negative);
+}
+
+/* "Use": take the register's figure back into the box. */
+.regUse {
+  margin-left: 0.25rem;
+  min-height: 1.5rem;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--db-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--db-text);
+  font-family: var(--db-font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.regUse:hover {
+  border-color: var(--db-accent);
+  color: var(--db-accent);
+}
+
+.regUse:active {
+  transform: scale(0.96);
+}
+
+.regUse:focus-visible {
+  outline: 2px solid var(--db-accent);
+  outline-offset: 2px;
+}
+
+/* A finger needs a bigger target than a mouse pointer. */
+@media (pointer: coarse) {
+  .regUse {
+    min-height: 2.75rem;
+    padding-inline: 0.9rem;
+  }
 }

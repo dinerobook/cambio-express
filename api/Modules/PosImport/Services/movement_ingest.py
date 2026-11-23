@@ -128,7 +128,10 @@ def _family_of(filename: str) -> str:
     return prefix if prefix in FAMILIES.values() else ""
 
 
-def _day_rows(db: Session, model: Any, store_id: int, day: date) -> list[Any]:
+def day_report_rows(db: Session, model: Any, store_id: int, day: date) -> list[Any]:
+    """One family's rows from the business-day reports of ``day``, in
+    report then file order. Shift and other periods are left out, so
+    nothing is read twice."""
     return list(
         db.query(model)
         .filter_by(
@@ -222,10 +225,10 @@ def movement_day(db: Session, store_id: int, day: date) -> MovementDay:
         for f in files
     ]
 
-    out.fuel = summarise_fuel(_day_rows(db, PosFuelGradeMovement, store_id, day))
+    out.fuel = summarise_fuel(day_report_rows(db, PosFuelGradeMovement, store_id, day))
 
     depts: dict[str, dict[str, Any]] = {}
-    for r in _day_rows(db, PosMerchandiseCodeMovement, store_id, day):
+    for r in day_report_rows(db, PosMerchandiseCodeMovement, store_id, day):
         d = depts.setdefault(r.merchandise_code, {
             "merchandise_code": r.merchandise_code,
             "description": r.description,
@@ -244,7 +247,7 @@ def movement_day(db: Session, store_id: int, day: date) -> MovementDay:
     )
 
     levels: dict[str, dict[str, Any]] = {}
-    for r in _day_rows(db, PosTaxLevelMovement, store_id, day):
+    for r in day_report_rows(db, PosTaxLevelMovement, store_id, day):
         lv = levels.setdefault(r.tax_level_id, {
             "tax_level_id": r.tax_level_id,
             "taxable_sales_amount_cents": 0,
@@ -259,7 +262,7 @@ def movement_day(db: Session, store_id: int, day: date) -> MovementDay:
             lv[k] += int(getattr(r, k) or 0)
     out.tax_levels = sorted(levels.values(), key=lambda lv: lv["tax_level_id"])
 
-    misc = _day_rows(db, PosMiscSummaryMovement, store_id, day)
+    misc = day_report_rows(db, PosMiscSummaryMovement, store_id, day)
     out.misc = [
         {
             "summary_code": r.summary_code,
@@ -274,7 +277,7 @@ def movement_day(db: Session, store_id: int, day: date) -> MovementDay:
         for r, role in zip(misc, msm_roles(misc))
     ]
 
-    items = _day_rows(db, PosItemSalesMovement, store_id, day)
+    items = day_report_rows(db, PosItemSalesMovement, store_id, day)
     out.item_rows = len(items)
     out.item_quantity = round(sum(float(r.sales_quantity or 0) for r in items), 3)
     out.item_amount_cents = sum(int(r.sales_amount_cents or 0) for r in items)
@@ -283,6 +286,6 @@ def movement_day(db: Session, store_id: int, day: date) -> MovementDay:
 
 __all__ = [
     "DAY_REPORT_PERIOD", "FAMILY_MODELS", "FuelGradeDay", "MovementDay",
-    "MovementFile", "ingest_movement_report", "movement_day", "msm_roles",
-    "summarise_fuel",
+    "MovementFile", "day_report_rows", "ingest_movement_report",
+    "movement_day", "msm_roles", "summarise_fuel",
 ]

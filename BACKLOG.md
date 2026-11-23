@@ -580,10 +580,23 @@ fixtures of the same shape (`tests/Modules/PosImport/movement_fixtures.py`).
   stores before deciding which of them to show or drop.
 
 **Still to do (not built — each needs the owner's go-ahead):**
-- [ ] Wire a movement figure into a day total, P&L or daily-entry
-      line (payouts, fuel gallons, tax). Read the MSM subtotal row,
-      never subtotal + parts. Only after a second site confirms the
-      shapes above.
+- [x] Movement figures on the store daily book's lines (owner's
+      go-ahead, 2026-11-22): taxable, non tax, sales tax, fuel and
+      gallons, lottery and lotto sales and paid out, money orders and
+      transfers with their fees, check fees, cards, pay-at-pump cards
+      and payouts. Opt-in per store (`register_day_book`), shown under
+      each line as the register's figure, never over a typed number
+      (`api/Modules/StoreBook/CLAUDE.md`). Nothing reaches a P&L line.
+- [ ] Before switching `register_day_book` on beyond the first store:
+      check a second site against its current back office. Open
+      points: payment types come as numbers (3 and 4 are taken as the
+      inside cards; an unknown number is listed, not placed) so a
+      per-store payment type setup may be needed; the register's
+      expected cash is not put on Closing cash; a store that closes
+      just before midnight gets the NEXT day's sales under the
+      business date the register writes (the period is shown on the
+      page) and the owner has not chosen which date they belong to;
+      Gross sales is still added into the Sales total like any line.
 - [ ] Only business-day reports (`PrimaryReportPeriod` 2,
       `DAY_REPORT_PERIOD`) are summarised; confirm what other
       periods a site sends before using them.

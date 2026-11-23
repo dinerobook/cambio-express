@@ -6,6 +6,8 @@ The field list itself is not enumerated in the schema: it lives in
 adding a line to the sheet doesn't mean editing a Pydantic model
 too (and can't half-land in one place but not the other).
 """
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -49,12 +51,49 @@ class StoreBookTotals(BaseModel):
     over_short_cents: int
 
 
+class StoreBookRegisterItem(BaseModel):
+    """Something the register reported that sits on no line: a
+    department number the store has not set up, a department whose
+    type has no line, or a payment type the book does not know."""
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["department", "payment_type"]
+    code: str
+    name: str
+    amount_cents: int
+
+
+class StoreBookRegisterDay(BaseModel):
+    """The register's day close for this day, for a store that has
+    the register feed switched on.
+
+    `pending` means the register holds figures this sheet has not
+    taken yet; the page takes them (POST …/register) when the person
+    may edit and the day is open. Times are naive UTC like every API
+    timestamp; `period_*` are the register's own clock read in the
+    store's zone.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    has_data: bool
+    ready: bool
+    pending: bool
+    # "" | "waiting" | "departments" | "tax_split"
+    problem: str
+    period_start: str | None
+    period_end: str | None
+    received_at: str | None
+    unmapped: list[StoreBookRegisterItem]
+    unplaced: list[StoreBookRegisterItem]
+
+
 class StoreBookDayResponse(BaseModel):
     """One day's sheet.
 
     `values` and `counts` are keyed by field key; `originals` holds
     only the fields an import supplied, so the SPA renders the
-    "Orig. Val" caption exactly where there is one.
+    register's figure exactly where there is one. `register_day` is null
+    for a store without the register feed.
     """
     model_config = ConfigDict(extra="forbid")
 
@@ -71,6 +110,7 @@ class StoreBookDayResponse(BaseModel):
     # The layout, served with the data so the page can't hold a
     # stale copy of the field list.
     layout: list[StoreBookColumnSpec]
+    register_day: StoreBookRegisterDay | None
 
 
 class StoreBookUpdateRequest(BaseModel):
@@ -127,6 +167,7 @@ class StoreBookMonthResponse(BaseModel):
 __all__ = [
     "StoreBookColumnSpec", "StoreBookDayResponse", "StoreBookFieldSpec",
     "StoreBookLockRequest", "StoreBookMonthResponse", "StoreBookMonthRow",
+    "StoreBookRegisterDay", "StoreBookRegisterItem",
     "StoreBookRestoreRequest", "StoreBookSectionSpec", "StoreBookTotals",
     "StoreBookUpdateRequest",
 ]

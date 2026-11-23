@@ -12,6 +12,7 @@
 > | [`api/Modules/Customers/`](api/Modules/Customers/CLAUDE.md) | the Transfers invariants (customer upsert) |
 > | [`api/Modules/ReturnChecks/`](api/Modules/ReturnChecks/CLAUDE.md) | returned checks: batches, the company / customer grouping rule, the planned check cashing link |
 > | [`api/Modules/Notifications/`](api/Modules/Notifications/CLAUDE.md) | the top-bar bell: how items are built, how to add one |
+> | [`api/Modules/StoreBook/`](api/Modules/StoreBook/CLAUDE.md) | the store daily book: its lines, and the register's day close on them (opt-in, never over a typed number) |
 > | [`frontend/`](frontend/CLAUDE.md) | design system, UI standards, OpenAPI types, the SPA checks CI runs |
 > | [`alembic/`](alembic/CLAUDE.md) | migrations and table naming |
 > | [`desktop/windows/`](desktop/windows/README.md) | the Check Desk Windows app (check cashing window + Excella scanner) |
