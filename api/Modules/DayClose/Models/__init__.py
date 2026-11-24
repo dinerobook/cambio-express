@@ -16,7 +16,11 @@ operator keys its totals + the department breakdown.
                        drawer cash. One row per (store, date,
                        register, shift) — re-submitting replaces.
 * ``DepartmentSale`` — one department's sales line on one
-                       RegisterClose. ``store_id`` is denormalized
+                       RegisterClose: its NET for that register and
+                       day, so a paid-out department (lottery cashed)
+                       is a minus line. On an imported close the lines
+                       add up to ``gross_sales``; never filter them to
+                       the positive ones. ``store_id`` is denormalized
                        so the retention purge can sweep by store
                        like every other per-store table.
 

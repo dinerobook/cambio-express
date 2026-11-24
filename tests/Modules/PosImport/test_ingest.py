@@ -135,21 +135,26 @@ def test_commit_blocks_until_mapped_then_books_day(client, test_store_id):
     assert by_label["Register 1"]["gross_sales"] == -12.01
     assert by_label["Register 1"]["cash_total"] == -16.76
     assert by_label["Register 1"]["card_total"] == 5.41
-    # Departments: refund pushed Misc negative → dropped; Grocery
-    # and Fuel carry their sales.
+    # Departments: the refund pushed Misc below zero (2.99 − 20.00),
+    # and its line is KEPT as a minus amount. Dropping it left the
+    # departments adding up to more than the close.
     totals = {
         t["department_name"]: t["amount"]
         for t in day["department_totals"]
     }
-    assert totals == {"Grocery": 5.0, "Fuel": 30.0}
+    assert totals == {"Grocery": 5.0, "Fuel": 30.0, "Misc": -17.01}
+    for close in day["closes"]:
+        lines = round(sum(l["amount"] for l in close["department_sales"]), 2)
+        assert lines == close["gross_sales"], close["register_label"]
 
     # Re-committing replaces (upsert) instead of stacking.
     resp = client.post("/api/v2/posimport/naxml/commit", headers=h, json=body)
     assert resp.status_code == 200
-    day = client.get(
+    again = client.get(
         "/api/v2/dayclose/day/2024-10-14", headers=h,
     ).json()
-    assert len(day["closes"]) == 2
+    assert len(again["closes"]) == 2
+    assert again["department_totals"] == day["department_totals"]
 
 
 def test_commit_wrong_day_and_bad_payloads(client, test_store_id):
