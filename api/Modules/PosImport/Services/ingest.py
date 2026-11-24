@@ -592,14 +592,20 @@ def commit_business_day(
 
     registers: list[str] = []
     for agg in days:
-        dept_sales: dict[int, float] = {}
+        dept_cents: dict[int, int] = {}
         for code, cents in agg.departments.items():
+            # Two codes may map to one department — sum them.
             dept_id = mapped[code]
-            # Two codes may map to one department — sum them. Skip
-            # non-positive nets: DayClose lines are sales amounts.
-            dept_sales[dept_id] = dept_sales.get(dept_id, 0.0) + cents / 100.0
+            dept_cents[dept_id] = dept_cents.get(dept_id, 0) + cents
+        # A department that nets BELOW zero keeps its line. A paid-out
+        # department (lottery / lotto cashed) is minus every day, and
+        # the close's gross sales already has it taken off: dropping
+        # the line left the departments adding up to more than the
+        # close, by exactly what was paid out (on two real stores,
+        # 251 of 433 register-days). Only an exact zero is no line.
         dept_sales = {
-            k: round(v, 2) for k, v in dept_sales.items() if v > 0
+            dept_id: cents / 100.0
+            for dept_id, cents in dept_cents.items() if cents
         }
         label = register_label_for(agg.register_id)
         note = (

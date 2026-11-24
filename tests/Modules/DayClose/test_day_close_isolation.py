@@ -163,7 +163,9 @@ def test_bad_day_is_422(client, test_store_id, day):
     {"cash_counted": -5},
     {"notes": "x" * 501},
     {"department_sales": [{"department_id": 0, "amount": 1}]},
-    {"department_sales": [{"department_id": 1, "amount": -1}]},
+    # A department line below zero is NOT here any more: a paid-out
+    # department is a minus line (test_day_close.py,
+    # test_a_department_line_may_be_below_zero).
 ])
 def test_close_body_validation_is_422(client, test_store_id, override):
     h = _h(login_admin(client, test_store_id))

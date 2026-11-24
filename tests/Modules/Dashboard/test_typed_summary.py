@@ -54,16 +54,23 @@ def test_admin_summary_with_a_day_close_by_department(client, test_store_id):
     h = {"Authorization": f"Bearer {login_admin(client, test_store_id)}"}
     dept = client.post("/api/v2/dayclose/departments", headers=h,
                        json={"name": "Grocery", "sort_order": 0}).json()["department"]
+    # A paid-out department is a minus line; the card shows it as it is.
+    paid = client.post("/api/v2/dayclose/departments", headers=h,
+                       json={"name": "Lottery (Cashed)", "sort_order": 1}).json()["department"]
     resp = client.post("/api/v2/dayclose/day/2026-08-20/closes", headers=h, json={
         "register_label": "Register 1", "gross_sales": 1000.0,
         "sales_tax": 80.0, "cash_total": 400.0, "card_total": 600.0,
         "other_total": 0.0,
-        "department_sales": [{"department_id": dept["id"], "amount": 1000.0}],
+        "department_sales": [
+            {"department_id": dept["id"], "amount": 1050.0},
+            {"department_id": paid["id"], "amount": -50.0},
+        ],
     })
     assert resp.status_code == 200, resp.text
     data = client.get("/api/v2/dashboard/summary", headers=h).json()
     assert data["day_close"]["top_departments"] == [
-        {"name": "Grocery", "amount": 1000.0},
+        {"name": "Grocery", "amount": 1050.0},
+        {"name": "Lottery (Cashed)", "amount": -50.0},
     ]
 
 

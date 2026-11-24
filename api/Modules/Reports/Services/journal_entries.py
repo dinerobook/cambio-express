@@ -25,7 +25,9 @@ until the QuickBooks phase introduces a per-store chart-of-
 accounts mapping.
 
 Negative sums (refund-heavy days) flip sides rather than emitting
-negative amounts — ledgers reject negative debits.
+negative amounts — ledgers reject negative debits. A paid-out
+department (lottery cashed) is a minus department line, so it comes
+out as a DEBIT on its own "Sales — <department>" account.
 
 MSB daily-book journals are deliberately NOT in phase A — the
 daily book's cash ledger needs its own mapping conversation and

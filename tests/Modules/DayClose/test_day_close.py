@@ -210,6 +210,58 @@ def test_close_validation_guards(client, test_store_id):
     assert resp.status_code == 422
 
 
+def test_a_department_line_may_be_below_zero(client, test_store_id):
+    """A paid-out department (lottery cashed) is a minus line on a
+    register's close. The register import writes such lines, and the
+    close form sends every line back when the drawer is counted, so
+    this route takes them and the day's rollup nets them."""
+    h = _admin(client, test_store_id)
+    groc = _mk_department(client, h, "Grocery", sort_order=0)
+    paid = _mk_department(client, h, "Lottery (Cashed)", sort_order=1)
+    body = _close_payload(
+        gross_sales=650.0, sales_tax=0.0,
+        cash_total=650.0, card_total=0.0, other_total=0.0,
+        department_sales=[
+            {"department_id": groc["id"], "amount": 700.0},
+            {"department_id": paid["id"], "amount": -50.0},
+        ],
+    )
+    resp = client.post(
+        "/api/v2/dayclose/day/2026-08-20/closes", headers=h, json=body,
+    )
+    assert resp.status_code == 200, resp.text
+    day = resp.json()
+    assert day["closes"][0]["department_sales"] == [
+        {"department_id": groc["id"], "department_name": "Grocery",
+         "amount": 700.0},
+        {"department_id": paid["id"], "department_name": "Lottery (Cashed)",
+         "amount": -50.0},
+    ]
+    assert {
+        t["department_name"]: t["amount"] for t in day["department_totals"]
+    } == {"Grocery": 700.0, "Lottery (Cashed)": -50.0}
+
+    # Saving it again with the drawer counted keeps the minus line.
+    resp = client.post(
+        "/api/v2/dayclose/day/2026-08-20/closes", headers=h,
+        json={**body, "cash_counted": 650.0},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["department_totals"] == day["department_totals"]
+
+    # Still a number: not-a-number is refused like on every money field.
+    resp = client.post(
+        "/api/v2/dayclose/day/2026-08-20/closes",
+        headers={**h, "Content-Type": "application/json"},
+        content=(
+            '{"register_label": "Register 1", "gross_sales": 1.0, '
+            '"department_sales": [{"department_id": %d, "amount": NaN}]}'
+            % paid["id"]
+        ),
+    )
+    assert resp.status_code == 422
+
+
 def test_delete_close(client, test_store_id):
     h = _admin(client, test_store_id)
     day = client.post(

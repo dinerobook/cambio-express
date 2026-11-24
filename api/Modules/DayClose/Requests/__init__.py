@@ -203,7 +203,11 @@ class DepartmentSaleLine(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     department_id: int = Field(..., ge=1)
-    amount:        float = Field(..., ge=0)
+    # May be below zero: a paid-out department (lottery cashed) is a
+    # minus line on a register's close. The register import writes
+    # such lines, and saving that close again by hand (to count its
+    # drawer) sends them back, so this route must take them.
+    amount:        float
 
 
 class RegisterCloseWriteRequest(BaseModel):

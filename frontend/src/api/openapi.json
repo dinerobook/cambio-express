@@ -8865,7 +8865,6 @@
         "additionalProperties": false,
         "properties": {
           "amount": {
-            "minimum": 0.0,
             "title": "Amount",
             "type": "number"
           },
