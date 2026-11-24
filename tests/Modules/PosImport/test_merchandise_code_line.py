@@ -251,3 +251,74 @@ def test_department_lines_are_stored_on_the_transaction():
                 for ln in lines] == [("7", "", 1000), ("4", "049000000443", 250)]
         assert lines[0].description == "Lotto (Sell)"
         assert lines[0].is_fuel is False
+
+
+# ── Booking the day ─────────────────────────────────────────
+
+# The $8.00 the cashier kept on Non-Taxable, handed back later.
+NON_TAXABLE_REFUND = _event("RefundEvent", (
+    _dept_line("5", "Non-Taxable", "-8.00", qty="-1")
+    + _cash("-8.00", change=True)
+), gross="-8.00", txn="5005")
+
+
+def test_a_paid_out_department_is_booked_as_a_minus_line():
+    """Lottery cashed is minus every day. The booked close's gross
+    sales already has it taken off, so the department lines must
+    carry it too: dropping it left them adding up to more than the
+    close by exactly what was paid out. A department that nets to
+    exactly zero is still no line."""
+    from api.Modules.DayClose.Models import Department, RegisterClose
+    from api.Modules.DayClose.Services import day_summary
+    from api.Modules.PosImport.Models import PosMerchandiseMap
+    from api.Modules.PosImport.Services.ingest import commit_business_day
+
+    def events():
+        out = []
+        for n, doc in enumerate((
+            LOTTO_SALE, LOTTERY_CASH, CANCELLED_DEPT, NON_TAXABLE_REFUND,
+        )):
+            ev = parse_pjr(doc)
+            ev.source_file = f"PJR340250602091500100000{n}.xml"
+            out.append(ev)
+        return out
+
+    with db_session():
+        sid = _store("merch-line-paid-out")
+        for code, name in (
+            ("7", "Lotto (Sell)"), ("4", "Soda"),
+            ("11", "Lottery (Cashed)"), ("5", "Non-Taxable"),
+        ):
+            dept = Department(store_id=sid, name=name)
+            db.session.add(dept)
+            db.session.flush()
+            db.session.add(PosMerchandiseMap(
+                store_id=sid, merchandise_code=code, department_id=dept.id,
+            ))
+        db.session.commit()
+
+        def booked():
+            close = db.session.query(RegisterClose).filter_by(store_id=sid).one()
+            lines = {
+                line.department.name: int(line.amount_cents)
+                for line in close.department_sales
+            }
+            return int(close.gross_sales_cents), lines
+
+        commit_business_day(db.session, sid, DAY, events=events(), created_by=None)
+        db.session.commit()
+        gross, lines = booked()
+        assert lines == {
+            "Lotto (Sell)": 1000, "Soda": 250, "Lottery (Cashed)": -5000,
+        }, "Non-Taxable sold 8.00 and gave 8.00 back: no line"
+        assert sum(lines.values()) == gross == -3750
+
+        summary = day_summary(db.session, sid, DAY)
+        assert {
+            t.department.name: t.amount_cents for t in summary.department_totals
+        } == lines
+
+        # Booking the day again gives the same rows, not a second set.
+        commit_business_day(db.session, sid, DAY, events=events(), created_by=None)
+        db.session.commit()
+        assert booked() == (gross, lines)

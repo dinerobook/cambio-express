@@ -319,12 +319,15 @@ function CloseForm({
     e.preventDefault();
     setBusy(true);
     setError(null);
+    // Every line that is not zero, a minus one included: an imported
+    // close carries a paid-out department (lottery cashed) as a minus
+    // line, and saving the close to count its drawer must not drop it.
     const lines = departments
       .map((d) => ({
         department_id: d.id,
         amount: deptAmounts[d.id] ?? 0,
       }))
-      .filter((l) => l.amount > 0);
+      .filter((l) => l.amount !== 0);
     try {
       await upsertRegisterClose(day, {
         register_label: registerLabel.trim(),

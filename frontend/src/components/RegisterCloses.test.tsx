@@ -150,6 +150,34 @@ describe("RegisterCloses form", () => {
     expect(upsertRegisterClose.mock.calls[0][1].cash_counted).toBe(0);
   });
 
+  // The register import books a paid-out department (lottery cashed)
+  // as a minus line. Saving the close to count its drawer sends every
+  // line back, so the minus one must go back too: the server replaces
+  // all of a close's lines with what the form sends.
+  it("sends a minus department line back when an imported close is saved", async () => {
+    departments = [{ id: 7, name: "Tobacco" }, { id: 9, name: "Lottery (Cashed)" }];
+    const close = summary.closes[0] as { department_sales: unknown[] };
+    close.department_sales = [
+      { department_id: 7, department_name: "Tobacco", amount: 300 },
+      { department_id: 9, department_name: "Lottery (Cashed)", amount: -50 },
+    ];
+    try {
+      renderSection(true);
+      await userEvent.click(screen.getByText("Edit"));
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByLabelText("Lottery (Cashed) sales")).toHaveValue("-50");
+      await userEvent.type(within(dialog).getByLabelText("Counted drawer cash"), "0");
+      await userEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+      await waitFor(() => expect(upsertRegisterClose).toHaveBeenCalledTimes(1));
+      expect(upsertRegisterClose.mock.calls[0][1].department_sales).toEqual([
+        { department_id: 7, amount: 300 },
+        { department_id: 9, amount: -50 },
+      ]);
+    } finally {
+      close.department_sales = [];
+    }
+  });
+
   it("prefills an existing close and saves it unchanged", async () => {
     renderSection(true);
     await userEvent.click(screen.getByText("Edit"));
