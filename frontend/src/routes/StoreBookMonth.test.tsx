@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import StoreBookMonth from "./StoreBookMonth";
 import type { StoreBookMonth as StoreBookMonthData } from "../api/storebook";
 import { setLanguage } from "../i18n";
+import { setCurrentIdentity } from "../lib/auth";
 import { englishLeftovers } from "../test/i18n";
+import { TEST_ADMIN } from "../test/setup";
 
 // The store daily-book month calendar. Pinned: cents render as
 // dollars (KPIs + day cells), month navigation wraps the year and
@@ -92,6 +94,24 @@ describe("StoreBookMonth", () => {
     expect(useStoreBookMonth).toHaveBeenLastCalledWith(2026, 3);
   });
 
+  // The register import page has one link, and it is here (it sat
+  // in the day's Registers section until the owner had that removed).
+  it("links to the register import page", () => {
+    renderPage();
+    expect(screen.getByRole("link", { name: "Import from register" }))
+      .toHaveAttribute("href", "/pos-import");
+  });
+
+  it("hides that link from someone who cannot import", () => {
+    setCurrentIdentity({
+      ...TEST_ADMIN, role: "employee", permissions: ["day_close.read"],
+    });
+    renderPage();
+    expect(screen.queryByRole("link", { name: "Import from register" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous month" })).toBeInTheDocument();
+  });
+
   it("shows ErrorState with a working Retry", async () => {
     state = { isLoading: false, isError: true };
     renderPage();
@@ -103,7 +123,7 @@ describe("StoreBookMonth", () => {
   it("reads in Spanish", () => {
     setLanguage("es");
     renderPage();
-    expect(screen.getByRole("heading", { name: /Libro diario de la tienda|diciembre/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Libro diario" })).toBeInTheDocument();
     expect(screen.getByText("diciembre de 2026")).toBeInTheDocument();
     expect(screen.getByText("Ventas totales")).toBeInTheDocument();
     expect(screen.getByLabelText("Mes")).toHaveDisplayValue("diciembre");

@@ -5,8 +5,8 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import EditDailyBook from "./EditDailyBook";
-import styles from "./EditDailyBook.module.css";
-import toolbarCss from "./EditDailyBook.module.css?raw";
+import styles from "../components/DayBookChrome.module.css";
+import toolbarCss from "../components/DayBookChrome.module.css?raw";
 import { setCurrentIdentity } from "../lib/auth";
 import { setDisplayTimezone } from "../lib/datetime";
 import { TEST_ADMIN } from "../test/setup";

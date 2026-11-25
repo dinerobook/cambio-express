@@ -118,6 +118,18 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
      "The Check cashing sidebar group: check customers with their IDs, "
      "companies, fees and settings. Being built; does not touch the "
      "daily book or any other page.", False),
+    # Off until a store is switched on (owner, 2026-11-22): the
+    # store daily book takes the register's day close (taxable,
+    # lottery, fuel, cards, payouts) and shows the register's figure
+    # under each line. One store first, to check it against the
+    # store's current back office. Resolved with
+    # ``opt_in_flag_enabled`` — never fails open.
+    # api/Modules/StoreBook/Services/register_day.py.
+    ("register_day_book", "Daily book: register day close",
+     "Fill the Retail daily book from the register's day close and "
+     "show the register's figure under each line. Needs the store's "
+     "departments set up with their types (Account → Departments).",
+     False),
     # Module flags. The business-type bundle decides these per
     # store (``_BUSINESS_TYPE_MODULE_DEFAULTS``); the rows exist so
     # the superadmin Feature-flags page can set a PER-STORE override
@@ -132,8 +144,9 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
      "add a per-store override to turn it on for one store.", True),
     ("module_lottery", "Module: Lottery",
      "Games, packs and day-close counts.", True),
-    ("module_day_close", "Module: Store daily book",
-     "Register / shift close totals and department sales.", True),
+    ("module_day_close", "Module: Daily book",
+     "The Retail daily book: register / shift close totals and "
+     "department sales.", True),
     ("module_check_cashing", "Module: Check cashing",
      "Returned-checks pages and the check-cashing entries in the "
      "daily book.", True),

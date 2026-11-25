@@ -38,7 +38,7 @@ export function MoneyInput({
   value, onChange, label, hint, error,
   disabled, readOnly, required, prefix = "$", placeholder,
   align = "right", style, fullWidth = false, dense = false,
-  "aria-label": ariaLabel,
+  "aria-label": ariaLabel, "aria-describedby": describedBy,
 }: {
   /** Current numeric value.  `0` renders as empty input. */
   value: number;
@@ -70,6 +70,10 @@ export function MoneyInput({
    *  money-transfer grid), so a narrow column still shows ~7 digits. */
   dense?: boolean;
   "aria-label"?: string;
+  /** Id of text outside the box that explains it (the register's
+   *  figure under a daily book line). Read out with the box, after
+   *  its own hint or error. */
+  "aria-describedby"?: string;
 }) {
   const id = useId();
   // Inside a <Field>, the Field owns the label, hint and error: this
@@ -81,7 +85,8 @@ export function MoneyInput({
   const ownHintId = hint && !error ? `${id}-hint` : undefined;
   const ownErrorId = error ? `${id}-error` : undefined;
   const aria = fieldAria(field, {
-    "aria-describedby": [ownHintId, ownErrorId].filter(Boolean).join(" ") || undefined,
+    "aria-describedby":
+      [ownHintId, ownErrorId, describedBy].filter(Boolean).join(" ") || undefined,
     "aria-invalid": isErr || undefined,
     "aria-required": required || undefined,
   });

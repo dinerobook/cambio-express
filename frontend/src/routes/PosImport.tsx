@@ -330,7 +330,7 @@ export default function PosImport() {
         >
           {committed && (
             <Alert tone="success">
-              {committed} <AppLink fallback="text" to="/store-book">{t("posImp.openBook")}</AppLink>
+              {committed} <AppLink fallback="text" to="/transactions">{t("posImp.openTransactions")}</AppLink>
             </Alert>
           )}
           {unmapped.length > 0 && (

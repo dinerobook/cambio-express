@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from api.Core.Clock import utc_now
 from api.Modules.StoreBook.Models import (
-    COUNT_FIELDS, FIELD_COLUMN, MONEY_FIELDS,
+    COUNT_FIELDS, FIELD_COLUMN, FIELD_COMPANION, MONEY_FIELDS,
     StoreDailyEntry, StoreDailyEntryOriginal,
 )
 
@@ -163,7 +163,7 @@ def originals_for(entry: StoreDailyEntry) -> dict[str, int]:
 
 def apply_import(
     db: Session, entry: StoreDailyEntry, values: dict[str, int], *,
-    source: str,
+    source: str, counts: dict[str, float] | None = None,
 ) -> StoreDailyEntry:
     """Write POS-derived values onto the sheet, recording each as
     the field's original.
@@ -180,7 +180,14 @@ def apply_import(
     value; only the recorded original is refreshed. Deciding to
     take the register's number back is an explicit act (the refresh
     control on the field), never something an import does behind
-    them.
+    them. A number typed BEFORE the register's first figure arrived
+    is the operator's too: the first import fills an empty box and
+    leaves a filled one alone.
+
+    ``counts`` are the count / gallons boxes beside a money box
+    (``FIELD_COMPANION``). One is written only together with its
+    money box, so a count never changes under a number the operator
+    kept.
     """
     known = set(MONEY_FIELDS)
     existing = {row.field_key: row for row in entry.originals}
@@ -189,10 +196,11 @@ def apply_import(
             raise StoreBookError(f"Unknown field {key!r}.")
         cents = int(cents or 0)
         prior = existing.get(key)
+        # What the box held the last time the register filled it: its
+        # recorded original, or empty when it never has.
+        baseline = int(prior.amount_cents or 0) if prior is not None else 0
         operator_edited = (
-            prior is not None
-            and int(getattr(entry, f"{key}_cents", 0) or 0)
-            != int(prior.amount_cents or 0)
+            int(getattr(entry, f"{key}_cents", 0) or 0) != baseline
         )
         if prior is None:
             # Append through the relationship rather than db.add():
@@ -210,6 +218,13 @@ def apply_import(
             prior.imported_at = utc_now()
         if not operator_edited:
             setattr(entry, f"{key}_cents", cents)
+            companion = FIELD_COMPANION.get(key)
+            if companion and counts and companion in counts:
+                raw = counts[companion] or 0
+                setattr(
+                    entry, companion,
+                    float(raw) if companion.endswith("gallons") else int(raw),
+                )
     entry.updated_at = utc_now()
     db.flush()
     return entry

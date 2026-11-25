@@ -226,7 +226,7 @@ export default function Landing() {
                 : ""}
             </div>
             <ul className={styles.planFeats}>
-              <li><span className={styles.ck}>✓</span>Store daily book with register import</li>
+              <li><span className={styles.ck}>✓</span>Daily book with register import</li>
               <li><span className={styles.ck}>✓</span>Transactions, lottery, price book, purchases</li>
               <li><span className={styles.ck}>✓</span>Money transfers, ACH and returned checks</li>
               <li><span className={styles.ck}>✓</span>Monthly P&amp;L and reports, CSV export</li>

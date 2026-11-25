@@ -8,128 +8,6 @@
  * the header chrome; everything below moves here.
  */
 
-/* ── Top toolbar (breadcrumb · day stepper · lock) ───────────
- * Sticky so day-nav + the lock control stay reachable while the
- * form scrolls. Opaque page background masks the content that
- * scrolls underneath. The column summary headers pin just below
- * it (`.colHeader top` ≈ this element's height). */
-.toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
-  flex-wrap: wrap;
-  min-height: 3rem;
-  background: var(--db-bg);
-  padding: 0.25rem 0 0.5rem;
-}
-
-.toolbarLead {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.toolbarTrail {
-  display: inline-flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-/* Desktop: three tracks, the outer two always equal, so the day
- * stepper sits dead centre whatever the sides hold. With a plain
- * space-between row the stepper slid left whenever the right side
- * grew (a "Saved 3:41 PM" or "Locked · …" pill, Lock → Unlock),
- * and the arrows moved under the cursor while stepping through days.
- * From 78rem the widest right side (Over/Short + "Locked · Dec 31,
- * 12:45 PM" + Unlock, ~24rem) fits half the row beside the stepper,
- * so nothing wraps; if it ever did, a side wraps inside its own track
- * and the stepper still doesn't move sideways. Narrower windows keep
- * the wrapping row below, which never overflows. */
-@media (min-width: 78rem) {
-  .toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  }
-  .toolbarLead {
-    justify-self: start;
-  }
-  .toolbarTrail {
-    justify-self: end;
-  }
-}
-
-/* The day label between the toolbar stepper's chevrons. The
-   stepper itself (buttons, calendar shortcut, ← / → keys) is the
-   kit's PeriodStepper. */
-.stepDate {
-  min-width: 9.5rem;
-  text-align: center;
-  font-family: var(--db-font-display);
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--db-text);
-}
-
-.lockBtnInner {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-/* ── Sticky per-column summary header ────────────────────────
- * One header per column (In / Out / Over Short). Pins just under
- * the toolbar so its column body scrolls behind it. Subtle,
- * design-system-safe: dark surface + a single accent stripe. */
-.colHeader {
-  position: sticky;
-  top: 3.75rem;
-  z-index: 10;
-  background: var(--db-surface-2);
-  border: 1px solid var(--db-border);
-  border-top: 3px solid var(--db-accent);
-  border-radius: 0.875rem;
-  padding: 0.7rem 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.colHeaderRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 0.75rem;
-}
-
-/* Wraps under the label rather than leaving the header. */
-.colHeaderValue {
-  margin-left: auto;
-  white-space: nowrap;
-  font-family: var(--db-font-mono);
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.totalsLabel {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--db-text-muted);
-  font-weight: 600;
-}
-
-.totalHint {
-  margin-top: 0.25rem;
-  font-size: 0.72rem;
-  color: var(--db-text-muted);
-}
-
 /* Mobile tab strip — picks which column is visible below 60rem.
  * Hidden at ≥60rem where the desktop grid shows all three columns.
  * Not sticky: the toolbar above it is the sticky element, and
@@ -197,13 +75,6 @@
   .dailyLayout[data-active-tab="disbursements"] > [data-tab="disbursements"] {
     display: block;
   }
-  /* On a phone only one column shows and the toolbar height varies
-   * with wrapping, so don't pin the header to a fixed offset — let
-   * it scroll with the column. The total is still right on top. */
-  .colHeader {
-    position: static;
-    top: auto;
-  }
 }
 
 @media (min-width: 60rem) {
@@ -215,34 +86,6 @@
   }
   .dailyLayout > [data-tab="receipts"]      { grid-column: 1; }
   .dailyLayout > [data-tab="disbursements"] { grid-column: 2; }
-}
-
-/* ── Over/Short readout (toolbar) ────────────────────────────
- * Read-only derived reconciliation. Label + colored mono value
- * (green = over/zero, red = short — colored inline by the value's
- * sign). Sits in the toolbar's trailing cluster. */
-.osReadout {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.1;
-  padding: 0.1rem 0.5rem 0.1rem 0.75rem;
-  border-left: 1px solid var(--db-border);
-}
-
-.osReadoutLabel {
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--db-text-muted);
-  font-weight: 600;
-}
-
-.osReadoutValue {
-  font-family: var(--db-font-mono);
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
 }
 
 .panelDivider {

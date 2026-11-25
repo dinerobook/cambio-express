@@ -161,7 +161,6 @@ export const COVERED_FILES = [
   "routes/StoreBookMonth.tsx",
   "routes/StoreBookDay.tsx",
   "api/storebook.ts",
-  "components/RegisterCloses.tsx",
   "routes/Transactions.tsx",
   "routes/TransactionDetail.tsx",
   "components/Receipt.tsx",

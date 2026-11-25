@@ -37,7 +37,7 @@ describe("sidebar words", () => {
 
   it("shows Spanish in the sidebar while hub links keep English slugs", () => {
     const retail = NAV.find((g) => g.title === "Retail")!;
-    const items = retail.items.filter((i) => i.label === "Store daily book");
+    const items = retail.items.filter((i) => i.label === "Daily book");
     setLanguage("es");
     render(
       <MemoryRouter>
@@ -50,7 +50,7 @@ describe("sidebar words", () => {
     );
     const nav = screen.getByRole("complementary", { name: "Navegación principal" });
     expect(within(nav).getAllByText("Tienda").length).toBeGreaterThan(0);
-    expect(within(nav).getByText("Libro diario de la tienda")).toBeInTheDocument();
+    expect(within(nav).getByText("Libro diario")).toBeInTheDocument();
     expect(within(nav).getAllByText("Soporte").length).toBeGreaterThan(0);
     // The drawer's group title links to the English-slug hub URL.
     const hubLink = within(nav).getAllByText("Tienda")

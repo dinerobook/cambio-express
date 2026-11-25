@@ -151,7 +151,10 @@ export const NAV: NavGroup[] = [
     icon: iconRegister(),
     items: [
       {
-        to: "/store-book", label: "Store daily book",
+        // On screen simply "Daily book" (owner, 2026-11-23); the MSB
+        // group's book stays "MSB daily book", so the two never share
+        // a name.
+        to: "/store-book", label: "Daily book",
         roles: ["admin", "employee"],
         flag: "module_day_close",
         icon: iconRegister(),

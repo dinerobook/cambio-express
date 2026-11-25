@@ -64,6 +64,7 @@ FIELD_GROUPS: list[dict] = [
             {"key": "money_order", "label": "Money order", "fields": [
                 {"key": "money_order", "label": "Money order",
                  "count_field": "money_order_count"},
+                {"key": "money_order_fee", "label": "Money order fee"},
             ]},
             {"key": "phone_card", "label": "Phone card", "fields": [
                 {"key": "phone_card", "label": "Phone card"},
@@ -78,6 +79,7 @@ FIELD_GROUPS: list[dict] = [
             {"key": "money_transfer", "label": "Money transfer", "fields": [
                 {"key": "money_transfer", "label": "Money transfer",
                  "count_field": "money_transfer_count"},
+                {"key": "money_transfer_fee", "label": "Money transfer fee"},
             ]},
             {"key": "account_receivable", "label": "Account receivable",
              "fields": [
@@ -203,6 +205,16 @@ FIELD_COLUMN: dict[str, str] = {
     for field in section["fields"]
 }
 
+# The count / gallons box that sits beside a money box, by money key.
+# A register import that fills the money fills its companion too.
+FIELD_COMPANION: dict[str, str] = {
+    field["key"]: field.get("count_field") or field["gallons_field"]
+    for column in FIELD_GROUPS
+    for section in column["sections"]
+    for field in section["fields"]
+    if field.get("count_field") or field.get("gallons_field")
+}
+
 
 def _money(name: str) -> Column:
     return Column(BigInteger, nullable=False, default=0)
@@ -240,10 +252,14 @@ class StoreDailyEntry(Base):
     equity_cents              = _money("equity")
     loan_cents                = _money("loan")
     money_order_cents         = _money("money_order")
+    # The fee is the store's income; the money order itself is not.
+    # Added 2026-11-22 (0 on every earlier row).
+    money_order_fee_cents     = _money("money_order_fee")
     phone_card_cents          = _money("phone_card")
     fuel_amount_cents         = _money("fuel_amount")
     check_fees_cents          = _money("check_fees")
     money_transfer_cents      = _money("money_transfer")
+    money_transfer_fee_cents  = _money("money_transfer_fee")
     ac_received_cents         = _money("ac_received")
     bill_pay_cents            = _money("bill_pay")
 
@@ -356,6 +372,6 @@ class StoreDailyEntryOriginal(Base):
 
 
 __all__ = [
-    "COUNT_FIELDS", "FIELD_COLUMN", "FIELD_GROUPS", "MONEY_FIELDS",
-    "StoreDailyEntry", "StoreDailyEntryOriginal",
+    "COUNT_FIELDS", "FIELD_COLUMN", "FIELD_COMPANION", "FIELD_GROUPS",
+    "MONEY_FIELDS", "StoreDailyEntry", "StoreDailyEntryOriginal",
 ]

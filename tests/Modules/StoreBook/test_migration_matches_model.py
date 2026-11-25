@@ -11,15 +11,17 @@ from pathlib import Path
 
 from api.Modules.StoreBook.Models import COUNT_FIELDS, MONEY_FIELDS
 
-_MIGRATION = (
-    Path(__file__).resolve().parents[3]
-    / "alembic" / "versions" / "f2b8d4e6a1c7_add_store_daily_entry.py"
+_VERSIONS = Path(__file__).resolve().parents[3] / "alembic" / "versions"
+_MIGRATION = _VERSIONS / "f2b8d4e6a1c7_add_store_daily_entry.py"
+# Lines added to the sheet later, each by its own revision.
+_LATER = (
+    _VERSIONS / "a4c9e2f7b3d1_add_store_daily_fee_lines.py",
 )
 
 
-def _load():
+def _load(path: Path = _MIGRATION):
     spec = importlib.util.spec_from_file_location(
-        "sde_migration", _MIGRATION,
+        f"sde_migration_{path.stem}", path,
     )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -28,7 +30,14 @@ def _load():
 
 
 def test_migration_creates_exactly_the_model_money_columns():
-    assert tuple(_load()._MONEY_FIELDS) == tuple(MONEY_FIELDS)
+    """The first revision's lines plus every later revision's, each
+    created once, are the model's lines. Page order is the model's
+    business; the columns are what must agree."""
+    created = list(_load()._MONEY_FIELDS)
+    for path in _LATER:
+        created += list(_load(path)._MONEY_FIELDS)
+    assert len(created) == len(set(created))
+    assert sorted(created) == sorted(MONEY_FIELDS)
 
 
 def test_migration_creates_exactly_the_model_count_columns():
@@ -40,10 +49,10 @@ def test_migration_does_not_import_application_code():
     and init_db() runs that during app boot — a top-level app import
     here drags the model layer into the boot path from inside the
     migration loader."""
-    source = _MIGRATION.read_text()
-    for line in source.splitlines():
-        stripped = line.strip()
-        if stripped.startswith(("import ", "from ")):
-            assert not stripped.startswith(
-                ("import api", "from api"),
-            ), f"migration imports application code: {stripped}"
+    for path in (_MIGRATION, *_LATER):
+        for line in path.read_text().splitlines():
+            stripped = line.strip()
+            if stripped.startswith(("import ", "from ")):
+                assert not stripped.startswith(
+                    ("import api", "from api"),
+                ), f"{path.name} imports application code: {stripped}"

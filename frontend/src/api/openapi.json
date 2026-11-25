@@ -22160,7 +22160,7 @@
       },
       "StoreBookDayResponse": {
         "additionalProperties": false,
-        "description": "One day's sheet.\n\n`values` and `counts` are keyed by field key; `originals` holds\nonly the fields an import supplied, so the SPA renders the\n\"Orig. Val\" caption exactly where there is one.",
+        "description": "One day's sheet.\n\n`values` and `counts` are keyed by field key; `originals` holds\nonly the fields an import supplied, so the SPA renders the\nregister's figure exactly where there is one. `register_day` is null\nfor a store without the register feed.",
         "properties": {
           "counts": {
             "additionalProperties": {
@@ -22206,6 +22206,16 @@
             "title": "Originals",
             "type": "object"
           },
+          "register_day": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoreBookRegisterDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "store_id": {
             "title": "Store Id",
             "type": "integer"
@@ -22243,7 +22253,8 @@
           "is_locked",
           "locked_at",
           "updated_at",
-          "layout"
+          "layout",
+          "register_day"
         ],
         "title": "StoreBookDayResponse",
         "type": "object"
@@ -22384,6 +22395,122 @@
           "is_locked"
         ],
         "title": "StoreBookMonthRow",
+        "type": "object"
+      },
+      "StoreBookRegisterDay": {
+        "additionalProperties": false,
+        "description": "The register's day close for this day, for a store that has\nthe register feed switched on.\n\n`pending` means the register holds figures this sheet has not\ntaken yet; the page takes them (POST \u2026/register) when the person\nmay edit and the day is open. Times are naive UTC like every API\ntimestamp; `period_*` are the register's own clock read in the\nstore's zone.",
+        "properties": {
+          "has_data": {
+            "title": "Has Data",
+            "type": "boolean"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          },
+          "unmapped": {
+            "items": {
+              "$ref": "#/components/schemas/StoreBookRegisterItem"
+            },
+            "title": "Unmapped",
+            "type": "array"
+          },
+          "unplaced": {
+            "items": {
+              "$ref": "#/components/schemas/StoreBookRegisterItem"
+            },
+            "title": "Unplaced",
+            "type": "array"
+          }
+        },
+        "required": [
+          "has_data",
+          "ready",
+          "pending",
+          "problem",
+          "period_start",
+          "period_end",
+          "received_at",
+          "unmapped",
+          "unplaced"
+        ],
+        "title": "StoreBookRegisterDay",
+        "type": "object"
+      },
+      "StoreBookRegisterItem": {
+        "additionalProperties": false,
+        "description": "Something the register reported that sits on no line: a\ndepartment number the store has not set up, a department whose\ntype has no line, or a payment type the book does not know.",
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "department",
+              "payment_type"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "code",
+          "name",
+          "amount_cents"
+        ],
+        "title": "StoreBookRegisterItem",
         "type": "object"
       },
       "StoreBookRestoreRequest": {
@@ -55347,6 +55474,81 @@
           }
         },
         "summary": "Storebook Lock Route",
+        "tags": [
+          "storebook"
+        ]
+      }
+    },
+    "/storebook/{day}/register": {
+      "post": {
+        "description": "Take the register's day close onto the sheet: empty boxes are\nfilled, a box somebody typed in keeps its number and shows the\nregister's beside it. The page calls this when it opens a day\nwhose register figures it has not taken (``register_day.pending``),\nand from its Refresh button. A person asked, so a locked day is\nrefused like any other edit.",
+        "operationId": "storebook_register_route_storebook__day__register_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "title": "Day",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreBookDayResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Storebook Register Route",
         "tags": [
           "storebook"
         ]

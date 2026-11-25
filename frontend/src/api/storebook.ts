@@ -18,6 +18,10 @@ export type StoreBookField = components["schemas"]["StoreBookFieldSpec"];
 export type StoreBookTotals = components["schemas"]["StoreBookTotals"];
 export type StoreBookUpdateBody =
   components["schemas"]["StoreBookUpdateRequest"];
+export type StoreBookRegisterDay =
+  components["schemas"]["StoreBookRegisterDay"];
+export type StoreBookRegisterItem =
+  components["schemas"]["StoreBookRegisterItem"];
 
 /** One day's sheet. The layout ships with it, so the page never
  *  holds its own copy of the field list. */
@@ -77,5 +81,17 @@ export async function restoreStoreBookField(
 ): Promise<StoreBookDay> {
   return api<StoreBookDay>(`/api/v2/storebook/${day}/restore`, {
     method: "POST", json: { field_key: fieldKey },
+  });
+}
+
+/** Take the register's day close onto the sheet: empty boxes are
+ *  filled, a box somebody typed in keeps its number. The page calls
+ *  it when a day opens with `register_day.pending`, and from its
+ *  Refresh button. */
+export async function pullStoreBookRegister(
+  day: string,
+): Promise<StoreBookDay> {
+  return api<StoreBookDay>(`/api/v2/storebook/${day}/register`, {
+    method: "POST",
   });
 }

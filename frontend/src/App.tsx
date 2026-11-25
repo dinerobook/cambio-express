@@ -336,9 +336,8 @@ export default function App() {
           <Route path="lottery"                element={<Gate><Lottery /></Gate>} />
           <Route path="store-book"             element={<Gate><StoreBookMonth /></Gate>} />
           <Route path="store-book/day"         element={<Gate><StoreBookDay /></Gate>} />
-          {/* Day close folded into the store daily book — the day
-              sheet carries the register detail as a section. Kept as
-              a redirect for bookmarks and old links. */}
+          {/* The old Day close page: its job is the daily book's now.
+              Kept as a redirect for bookmarks and old links. */}
           <Route path="day-close"              element={<Navigate to="/store-book" replace />} />
           <Route path="pos-import"             element={<Gate><PosImport /></Gate>} />
           {/* Reading a ticket is a reporting act — day_close.read,

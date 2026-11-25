@@ -2,7 +2,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { useStoreBookMonth } from "../api/storebook";
 import {
-  Card, ErrorState, KpiCard, KpiGrid, Loading,
+  ButtonLink, Card, ErrorState, KpiCard, KpiGrid, Loading,
   MonthCalendar, PageHeader, PageShell, PeriodStepper, Select,
 } from "../components/ui";
 import { fmtMoney2 } from "../lib/formatters";
@@ -46,9 +46,17 @@ export default function StoreBookMonth() {
     <PageShell>
       <PageCrumbs />
       <PageHeader
-        title={navWord("Store daily book")}
+        title={navWord("Daily book")}
         subtitle={formatMonthYear(year, month)}
         actions={
+          <>
+          {/* The one link to the register import page (it sat in the
+              day's Registers section until that was removed, owner,
+              2026-11-23). Before the stepper, so the stepper stays
+              flush right; hidden from someone who cannot open it. */}
+          <ButtonLink to="/pos-import" size="sm" tone="secondary">
+            {t("sbMonth.importRegister")}
+          </ButtonLink>
           <PeriodStepper
             unit="month"
             onPrev={() => shift(-1)}
@@ -65,6 +73,7 @@ export default function StoreBookMonth() {
               ))}
             </Select>
           </PeriodStepper>
+          </>
         }
       />
 
