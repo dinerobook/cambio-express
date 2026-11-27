@@ -105,7 +105,7 @@ def test_accountant_reads_reports_pl_and_tax_pack(client, test_store_id):
         f"/api/v2/reports/sales-by-company?store_ids={sid}", headers=h,
     ).status_code == 200
     assert client.get(
-        f"/api/v2/reports/period-pl?store_ids={sid}", headers=h,
+        "/api/v2/monthly/range?from=2026-11-03&to=2026-11-20", headers=h,
     ).status_code == 200
     assert client.get(
         f"/api/v2/reports/transfers.csv?store_ids={sid}", headers=h,

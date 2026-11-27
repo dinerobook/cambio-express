@@ -35,7 +35,6 @@ from .period_comparison import (
 )
 from .journal_entries import journal_entries
 from .transfers_dump import transfers_dump
-from .period_pl import period_pl
 from .returned_checks import returned_check_status
 from .sales import (
     by_destination_country,
@@ -65,7 +64,6 @@ __all__ = [
     "period_comparison",
     "journal_entries",
     "transfers_dump",
-    "period_pl",
     "returned_check_status",
     "sales_by_company",
     "sales_by_employee",

@@ -247,6 +247,26 @@ export async function updateMonthlyLabels(
   );
 }
 
+// ── Any date range ─────────────────────────────────────────
+//
+// The Period P&L, merged into this page (Monthly INVARIANTS "Any date
+// range"): read-only, a month inside the range whole, a cut month by
+// its days with its typed lines in `left_out`.
+
+export type MonthlyRangeResponse = components["schemas"]["MonthlyRangeResponse"];
+export type MonthlyLeftOut = components["schemas"]["MonthlyLeftOut"];
+
+export function useMonthlyRange(range: { from: string; to: string } | null) {
+  const identity = getCurrentIdentity();
+  return useQuery<MonthlyRangeResponse>({
+    enabled: identity?.store_id != null && range != null,
+    queryKey: ["monthly", "range", identity?.store_id, range?.from, range?.to],
+    queryFn: () => api<MonthlyRangeResponse>(
+      `/api/v2/monthly/range?from=${range!.from}&to=${range!.to}`,
+    ),
+  });
+}
+
 export function useLoggedMonths() {
   const identity = getCurrentIdentity();
   return useQuery<{ months: MonthLogged[] }>({

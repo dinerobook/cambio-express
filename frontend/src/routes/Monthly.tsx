@@ -4,8 +4,8 @@ import { useSearchParams } from "react-router-dom";
 import {
   MONTHLY_LINES, MONTHLY_SECTION_LABELS, MONTHLY_SOURCE_LABELS,
   monthlyLineName, monthlyLineSource,
-  useLoggedMonths, useMonthly, type MonthlyCustomLine, type MonthlyLine,
-  type MonthlyRow,
+  useLoggedMonths, useMonthly, useMonthlyRange, type MonthlyCustomLine,
+  type MonthlyLeftOut, type MonthlyLine, type MonthlyRow,
 } from "../api/monthly";
 import { Delta } from "../components/Delta";
 import { PLTransactions } from "../components/PLTransactions";
@@ -14,19 +14,27 @@ import { getCurrentIdentity } from "../lib/auth";
 import { hasPermission } from "../lib/permissions";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
-  AppLink, ButtonLink, Card, Empty, EmptyState, ErrorState, Loading, PageHeader,
-  KpiCard, KpiGrid, PageShell, PeriodStepper, Pill, Section, Select, Table,
+  Alert, AppLink, ButtonLink, Card, DateRangePicker, Empty, EmptyState,
+  ErrorState, Loading, PageHeader, KpiCard, KpiGrid, PageShell, PeriodStepper,
+  Pill, Section, Table,
   TabsBar, TabsButton,
   tdStyle, tdStyleRight, thStyle, thStyleRight,
   type PillTone,
 } from "../components/ui";
 import styles from "./Monthly.module.css";
 import { monthName, shiftMonth, storeNow } from "../lib/datetime";
+import {
+  monthRange, rangeLabel, wholeMonth, type IsoRange,
+} from "../lib/dateRanges";
 import { PageCrumbs } from "../components/PageCrumbs";
 import { t, tn, useT, type MessageKey } from "../i18n";
 import { navWord } from "../i18n/navWords";
 
-// Monthly P&L at /app/monthly?year=Y&month=M.
+// Monthly P&L at /app/monthly?year=Y&month=M, or any days at
+// /app/monthly?from=YYYY-MM-DD&to=YYYY-MM-DD (the Period P&L, merged
+// in on 2026-11-27 — Monthly INVARIANTS "Any date range"). One month
+// is the full page (Edit, Transactions); any other range is the same
+// statement, read-only, from GET /monthly/range.
 //
 // Every figure is live: the server works the month out from both
 // daily books, the bank feed and the return-check workflow on every
@@ -37,23 +45,6 @@ import { navWord } from "../i18n/navWords";
 // happened, not a form to fill in.
 
 interface YearMonth { year: number; month: number; }
-
-// The month picker must always be usable. Offer the current month +
-// the previous 11, merged with every month the server knows of (a
-// saved P&L or a day in either daily book), newest first.
-function buildMonthOptions(logged: YearMonth[]): YearMonth[] {
-  const seen = new Map<string, YearMonth>();
-  const now = storeNow();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const ym: YearMonth = { year: d.getFullYear(), month: d.getMonth() + 1 };
-    seen.set(`${ym.year}-${ym.month}`, ym);
-  }
-  for (const lm of logged) seen.set(`${lm.year}-${lm.month}`, lm);
-  return [...seen.values()].sort(
-    (a, b) => b.year - a.year || b.month - a.month,
-  );
-}
 
 // Borrowed money and profit distributed count in total expenses
 // (legacy P&L convention), so the Expenses statement lists them last.
@@ -83,14 +74,29 @@ export default function Monthly() {
 
   const yearParam  = sp.get("year");
   const monthParam = sp.get("month");
-  const monthOptions = useMemo(
-    () => buildMonthOptions(months.data?.months ?? []),
-    [months.data],
-  );
+  const fromParam = sp.get("from");
+  const toParam = sp.get("to");
+  // Any days other than one whole month: the read-only range view.
+  const range = useMemo<IsoRange | null>(() => {
+    const isoDay = /^\d{4}-\d{2}-\d{2}$/;
+    return fromParam && toParam && isoDay.test(fromParam) && isoDay.test(toParam)
+      && fromParam <= toParam && !wholeMonth({ from: fromParam, to: toParam })
+      ? { from: fromParam, to: toParam } : null;
+  }, [fromParam, toParam]);
 
   // Default on first paint: the most recent month with anything in
-  // it, else the current month — never a blank page.
+  // it, else the current month — never a blank page. A range that is
+  // one whole month opens as that month (Edit, Transactions).
   useEffect(() => {
+    if (range) return;
+    const asMonth = fromParam && toParam
+      ? wholeMonth({ from: fromParam, to: toParam }) : null;
+    if (asMonth) {
+      setSP(new URLSearchParams({
+        year: String(asMonth.year), month: String(asMonth.month),
+      }), { replace: true });
+      return;
+    }
     if (yearParam && monthParam) return;
     const now = storeNow();
     const target = months.data?.months[0]
@@ -99,16 +105,26 @@ export default function Monthly() {
     params.set("year",  String(target.year));
     params.set("month", String(target.month));
     setSP(params, { replace: true });
-  }, [yearParam, monthParam, months.data, sp, setSP]);
+  }, [range, fromParam, toParam, yearParam, monthParam, months.data, sp, setSP]);
 
-  const year  = yearParam ? Number(yearParam) : undefined;
-  const month = monthParam ? Number(monthParam) : undefined;
+  const year  = !range && yearParam ? Number(yearParam) : undefined;
+  const month = !range && monthParam ? Number(monthParam) : undefined;
   const detail = useMonthly(year, month);
   const prev = year && month ? shiftMonth(year, month, -1) : undefined;
   const previous = useMonthly(prev?.year, prev?.month);
+  const ranged = useMonthlyRange(range);
+
+  function pickRange(next: IsoRange) {
+    const asMonth = wholeMonth(next);
+    setSP(new URLSearchParams(asMonth
+      ? { year: String(asMonth.year), month: String(asMonth.month) }
+      : { from: next.from, to: next.to }));
+  }
 
   function goTo(ym: YearMonth) {
     const params = new URLSearchParams(sp);
+    params.delete("from");
+    params.delete("to");
     params.set("year", String(ym.year));
     params.set("month", String(ym.month));
     params.delete("page");
@@ -143,7 +159,9 @@ export default function Monthly() {
     );
   }
 
-  const monthLabel = year && month ? shortMonthYear(year, month) : "—";
+  const monthLabel = range ? rangeLabel(range)
+    : year && month ? shortMonthYear(year, month) : "—";
+  const shown: IsoRange | null = range ?? (year && month ? monthRange(year, month) : null);
 
   return (
     <PageShell gap="1rem">
@@ -155,31 +173,17 @@ export default function Monthly() {
         subtitle={<span className={styles.mono}>{monthLabel}</span>}
         actions={(
           <div className={styles.actions}>
-            {year && month && (
+            {year && month && shown && (
               <PeriodStepper
                 unit="month"
                 onPrev={() => goTo(shiftMonth(year, month, -1))}
                 onNext={() => goTo(shiftMonth(year, month, 1))}
               >
-                <Select
-                  aria-label={t("pl.month")}
-                  value={`${year}-${month}`}
-                  onChange={(e) => {
-                    const [y, m] = e.target.value.split("-").map(Number);
-                    if (y && m) goTo({ year: y, month: m });
-                  }}
-                  style={{ width: "auto" }}
-                >
-                  {monthOptions.map((m) => (
-                    <option
-                      key={`${m.year}-${m.month}`}
-                      value={`${m.year}-${m.month}`}
-                    >
-                      {shortMonthYear(m.year, m.month)}
-                    </option>
-                  ))}
-                </Select>
+                <DateRangePicker value={shown} onChange={pickRange} aria-label={t("pl.period")} />
               </PeriodStepper>
+            )}
+            {range && (
+              <DateRangePicker value={range} onChange={pickRange} aria-label={t("pl.period")} />
             )}
             <ButtonLink to="/monthly/categories" tone="secondary" size="sm">
               {t("pl.categoriesButton")}
@@ -197,6 +201,12 @@ export default function Monthly() {
         )}
       />
 
+      {range && (
+        <RangeView
+          range={range}
+          query={ranged}
+        />
+      )}
       {detail.isLoading && <Loading />}
       {detail.isError && (
         <ErrorState
@@ -244,8 +254,57 @@ export default function Monthly() {
   );
 }
 
+/** Any days other than one month: the statement, read-only, with a
+ *  note naming the typed figures a cut month leaves out. */
+function RangeView({
+  range, query,
+}: {
+  range: IsoRange;
+  query: ReturnType<typeof useMonthlyRange>;
+}) {
+  useT();
+  if (query.isLoading) return <Loading />;
+  if (query.isError) {
+    return (
+      <ErrorState
+        message={apiErrorMessage(query.error, t("pl.loadFailed"))}
+        onRetry={() => { void query.refetch(); }}
+      />
+    );
+  }
+  const data = query.data;
+  if (!data) return null;
+  return (
+    <>
+      <Alert tone="info">
+        {t("pl.rangeReadOnly", { range: rangeLabel(range) })}
+      </Alert>
+      {data.left_out.length > 0 && (
+        <Alert tone="warning">
+          <span className={styles.leftOutTitle}>{t("pl.rangeLeftOut")}</span>
+          <ul className={styles.leftOut}>
+            {data.left_out.map((x: MonthlyLeftOut) => (
+              <li key={`${x.year}-${x.month}-${x.line}`}>
+                {t("pl.rangeLeftOutLine", {
+                  line: monthlyLineName(x.line, data.labels[x.line]),
+                  amount: fmtMoney2(x.amount),
+                  month: shortMonthYear(x.year, x.month),
+                })}
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      )}
+      <ReportContent
+        r={data.report} labels={data.labels} previous={null} previousLabel=""
+        readOnly
+      />
+    </>
+  );
+}
+
 function ReportContent({
-  r, labels, previous, previousLabel, lineHref,
+  r, labels, previous, previousLabel, lineHref, readOnly = false,
 }: {
   r: MonthlyRow;
   /** The store's own name per P&L column, from the server. */
@@ -254,6 +313,8 @@ function ReportContent({
   previousLabel: string;
   /** With the Transactions tab: where a line's rows are listed. */
   lineHref?: (key: string) => string;
+  /** A date range: nothing here is edited, so no "add under Edit". */
+  readOnly?: boolean;
 }) {
   const margin = r.total_income > 0
     ? Math.round((r.net_profit / r.total_income) * 1000) / 10
@@ -271,7 +332,7 @@ function ReportContent({
           {r.days_entered > 0
             ? tn("pl.builtFrom", r.days_entered, fmtNumber)
             : t("pl.noDays")}
-          {!r.saved && r.days_entered > 0 && t("pl.addUnderEdit")}
+          {!readOnly && !r.saved && r.days_entered > 0 && t("pl.addUnderEdit")}
         </span>
       </p>
 

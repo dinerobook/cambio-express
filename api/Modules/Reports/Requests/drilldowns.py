@@ -263,19 +263,3 @@ class PeriodComparisonResponse(_Strict):
     totals: PeriodComparisonTotals
 
 
-class PeriodPlRow(_Strict):
-    label: str
-    section: str
-    amount: float
-
-
-class PeriodPlTotals(_Strict):
-    income: float
-    expenses: float
-    net: float
-    days: int
-
-
-class PeriodPlResponse(_Strict):
-    rows: list[PeriodPlRow]
-    totals: PeriodPlTotals

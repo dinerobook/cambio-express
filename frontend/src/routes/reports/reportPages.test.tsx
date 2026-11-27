@@ -54,8 +54,8 @@ function reports(handler: MockHandler) {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("report drill-down pages", () => {
-  it("finds all 22 pages", () => {
-    expect(PAGES).toHaveLength(22);
+  it("finds all 21 pages", () => {
+    expect(PAGES).toHaveLength(21);
   });
 
   describe.each(PAGES)("$name", ({ Page }) => {

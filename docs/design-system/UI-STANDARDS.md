@@ -25,6 +25,7 @@ the kit first, then use it — never hand-roll one in a route.
 | Free text | `<Field>` + `<Input>` / `<Textarea>` | raw inputs |
 | Money | `<MoneyInput>` | raw number inputs |
 | Date | `<DateInput>` | raw `type="date"` |
+| A **period** a page reads (from – to) | `<DateRangePicker>` (presets this / last month, quarter, year, last 30 days + two calendars; periods from `lib/dateRanges.ts`, the store's day) | two loose `<DateInput>`s; a page's own preset list |
 | Phone | `<PhoneField>` | — |
 | One of the store's own lists from Settings (money transfer companies, transfer countries) | `<StoreListField>` over `useTransferChoices()` | hard-coded options in the SPA |
 
@@ -338,7 +339,7 @@ keyboard navigation ourselves (that's where a11y bugs breed):
 | Dropdown / popover menu | `@radix-ui/react-dropdown-menu` | `UserMenu` (pattern) |
 | Tooltip | `@radix-ui/react-tooltip` | `<Tooltip>` / `<InfoTip>` |
 | Command palette | `cmdk` | `CommandPalette` |
-| Date picker | `react-day-picker` | `<DateInput>` |
+| Date picker | `react-day-picker` | `<DateInput>` / `<DateRangePicker>` (one calendar look: `ui/dayPicker.css`) |
 | Type-ahead list under a field | `@radix-ui/react-popover` (portal) | `SenderAutocomplete` (pattern) |
 | Form boolean controls | **native `<input>`** (deliberate — best form-library + a11y compat; do NOT swap for Radix Switch/Checkbox) | `<Checkbox>` / `<Switch>` |
 

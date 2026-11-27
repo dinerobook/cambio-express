@@ -215,7 +215,7 @@ const FeesVsTax = lazy(() => import("./routes/reports/FeesVsTax"));
 const HighValueTransfers = lazy(() => import("./routes/reports/HighValueTransfers"));
 const NewVsReturning = lazy(() => import("./routes/reports/NewVsReturning"));
 const PeriodComparison = lazy(() => import("./routes/reports/PeriodComparison"));
-const PeriodPL = lazy(() => import("./routes/reports/PeriodPL"));
+const PeriodPL = lazy(() => import("./routes/PeriodPLRedirect"));
 const ReturnedCheckStatus = lazy(() => import("./routes/reports/ReturnedCheckStatus"));
 const SalesByCompany = lazy(() => import("./routes/reports/SalesByCompany"));
 const SalesByEmployee = lazy(() => import("./routes/reports/SalesByEmployee"));

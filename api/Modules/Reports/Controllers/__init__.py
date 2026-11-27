@@ -56,7 +56,6 @@ from api.Modules.Reports.Requests.drilldowns import (
     HighValueTransfersResponse,
     NewVsReturningResponse,
     PeriodComparisonResponse,
-    PeriodPlResponse,
     ReturnedCheckStatusResponse,
 )
 from api.Modules.Reports.Services import (
@@ -467,21 +466,6 @@ def employee_activity_route(
     from api.Modules.Reports.Services import employee_activity
     d_from, d_to = period
     rows, totals = employee_activity(db, store_ids, d_from, d_to)
-    return {"rows": rows, "totals": totals}
-
-
-@router.get(
-    "/period-pl", response_model=None,
-    responses={200: {"model": PeriodPlResponse}},
-)
-def period_pl_route(
-    period: tuple[date, date] = Depends(parse_period),
-    store_ids: list[int] = Depends(parse_store_ids),
-    db: Session = Depends(get_db),
-):
-    from api.Modules.Reports.Services import period_pl
-    d_from, d_to = period
-    rows, totals = period_pl(db, store_ids, d_from, d_to)
     return {"rows": rows, "totals": totals}
 
 

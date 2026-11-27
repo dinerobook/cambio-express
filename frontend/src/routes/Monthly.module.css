@@ -73,3 +73,14 @@
   white-space: pre-wrap;
   line-height: 1.6;
 }
+
+/* A date range's "left out" note: the title, then one line each. */
+.leftOutTitle {
+  display: block;
+  font-weight: 600;
+}
+
+.leftOut {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+}

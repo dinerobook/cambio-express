@@ -234,7 +234,6 @@ export const COVERED_FILES = [
   "routes/reports/HighValueTransfers.tsx",
   "routes/reports/NewVsReturning.tsx",
   "routes/reports/PeriodComparison.tsx",
-  "routes/reports/PeriodPL.tsx",
   "routes/reports/ReturnedCheckStatus.tsx",
   "routes/reports/SalesByCompany.tsx",
   "routes/reports/SalesByEmployee.tsx",

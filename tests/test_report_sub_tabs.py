@@ -42,10 +42,10 @@ def _make_transfer(client, store_id, *, send_date, amount, fee=2.0,
 
 
 def test_view_tabs_hidden_when_only_summary(client, test_store_id):
-    """A report that didn't opt into Graph/Detail (e.g. Period P&L)
+    """A report that didn't opt into Graph/Detail (e.g. Employee activity)
     should NOT render the tab bar."""
     _admin_login(client, test_store_id)
-    resp = client.get("/reports/period-pl")
+    resp = client.get("/reports/employee-activity")
     body = resp.get_data(as_text=True)
     assert 'class="report-page__view-tabs"' not in body
 

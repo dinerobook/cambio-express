@@ -39,6 +39,8 @@ function placeholders(s: string): string[] {
 // Words that are the same in both languages on purpose.
 const SAME_IN_BOTH: MessageKey[] = [
   "login.copyright",
+  // Placeholders and punctuation only.
+  "range.label", "pl.rangeLeftOutLine",
   // A brand name, and words Spanish spells the same.
   "daily.boostMobile", "pl.line.boost_mobile", "rep.total", "rep.totalAch", "ownerBill.colPlan", "intermex.colTotal",
     "sbDay.gal", "posTx.colTicket", "posTx.colTotal", "posTx.tickets", "posTx.ticketTitle", "posTx.cashierNamed", "posTx.galAt", "posTx.at", "posTx.subtotal", "posItems.gallons", "move.no", "inv.colTotal", "invForm.auto", "daily.total", "daily.totalCaps", "daily.totalLabel",

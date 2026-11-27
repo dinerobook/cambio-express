@@ -31,7 +31,9 @@ from api.Modules.Monthly.Requests import (
     MonthlyCustomLine,
     MonthlyLabelsResponse,
     MonthlyLabelsUpdateRequest,
+    MonthlyLeftOut,
     MonthlyLineLabelRow,
+    MonthlyRangeResponse,
     MonthlyResponse,
     MonthlyRow,
     MonthlyUpdateRequest,
@@ -116,6 +118,59 @@ def _month_labels(db: Session, store_id: int) -> dict[str, str]:
     if enabled(db, store_id):
         labels.update({c.slug: str(c.name) for c in store_categories(db, store_id)})
     return labels
+
+
+@router.get("/range", response_model=MonthlyRangeResponse)
+def range_route(
+    date_from: str = Query(..., alias="from", max_length=10),
+    date_to: str = Query(..., alias="to", max_length=10),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> MonthlyRangeResponse:
+    """The P&L for any days (the Period P&L, merged into this page —
+    Monthly INVARIANTS "Any date range"). Read-only. A month inside
+    the range counts whole, typed lines included; a month the range
+    cuts counts what has a day, and its typed lines come back in
+    `left_out`. `monthly.read`; at most `range.MAX_DAYS` days."""
+    from api.Core.Clock import parse_iso_day
+    from api.Modules.Monthly.Services.range import MAX_DAYS, range_summary
+
+    require_permission(claims, "monthly", "read")
+    sid = resolve_store_scope(claims)
+    d_from = parse_iso_day(date_from, field="from")
+    d_to = parse_iso_day(date_to, field="to")
+    if d_to < d_from:
+        raise HTTPException(status_code=422, detail="The range ends before it starts.")
+    if (d_to - d_from).days >= MAX_DAYS:
+        raise HTTPException(status_code=422, detail="Pick three years or less.")
+    s = range_summary(db, sid, d_from, d_to)
+    kw: dict[str, Any] = {
+        "id": None, "store_id": sid, "year": d_to.year, "month": d_to.month,
+        "notes": "", "saved": False,
+        "total_income": s.total_income, "total_expenses": s.total_expenses,
+        "net_profit": s.net_profit,
+        "bank_locked": sorted(s.bank_locked),
+        "daily_fed": sorted(s.daily_fed - s.bank_locked),
+        "days_entered": s.days_entered,
+        "money_order_count": s.money_order_count,
+        "money_order_charges": s.money_order_charges,
+        "cash_carry_forward": 0.0,
+        "custom_lines": [MonthlyCustomLine(**c) for c in s.custom.values()],
+    }
+    for f in MonthlyRow.model_fields:
+        if f not in kw:
+            default = MonthlyRow.model_fields[f].default
+            kw[f] = s.lines.get(f, 0.0) if isinstance(default, float) else default
+    return MonthlyRangeResponse(
+        report=MonthlyRow(**kw),
+        labels=_month_labels(db, sid),
+        date_from=d_from, date_to=d_to,
+        whole_months=s.whole_months,
+        left_out=[
+            MonthlyLeftOut(line=x.line, amount=x.amount, year=x.year, month=x.month)
+            for x in s.left_out
+        ],
+    )
 
 
 @router.get("/months", response_model=MonthsLoggedResponse)

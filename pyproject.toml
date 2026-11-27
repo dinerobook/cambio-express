@@ -174,6 +174,8 @@ files = [
     "api/Modules/Monthly/Repositories/monthly.py",
     "api/Modules/Monthly/Requests/monthly.py",
     "api/Modules/Monthly/Requests/transactions.py",
+    "api/Modules/Monthly/Services/range.py",
+    "api/Modules/Monthly/Services/entry_categories.py",
     "api/Modules/Monthly/Services/monthly.py",
     "api/Modules/Monthly/Services/write.py",
     # ── api/Modules/Notifications ────────────────────────────
@@ -231,7 +233,6 @@ files = [
     "api/Modules/Reports/Services/fees_vs_tax.py",
     "api/Modules/Reports/Services/high_value_transfers.py",
     "api/Modules/Reports/Services/period_comparison.py",
-    "api/Modules/Reports/Services/period_pl.py",
     "api/Modules/Reports/Services/returned_checks.py",
     "api/Modules/Reports/Services/sales.py",
     # ── api/Modules/ReturnChecks ─────────────────────────────

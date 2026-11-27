@@ -53,10 +53,6 @@ REPORT_CATEGORIES: list[dict[str, Any]] = [
         "label": "Financial",
         "icon":  '<svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
         "reports": [
-            {"key": "period_pl",
-             "label": "Period P&L",
-             "description": "Income, expenses, and net income aggregated for any date range.",
-             "endpoint": "report_period_pl"},
             {"key": "ach_volume",
              "label": "ACH volume",
              "description": "Daily ACH batches and totals per remittance company.",

@@ -171,7 +171,7 @@ def history_suggestions(
         DailyLineItem.pl_category.isnot(None),
         DailyLineItem.pl_category != "",
     ).order_by(DailyLineItem.report_date.desc(), DailyLineItem.id.desc()).limit(2000):
-        words = description_words(i.note or "")
+        words = description_words(str(i.note or ""))
         if words:
             past.setdefault((str(i.kind), words), str(i.pl_category))
     out: dict[int, str] = {}

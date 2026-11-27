@@ -58,6 +58,8 @@ ACCOUNTANT_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/monthly/months"),
     ("GET", "/monthly/labels"),
     ("GET", "/monthly/{year}/{month}"),
+    # Any date range (the Period P&L, merged into the Monthly P&L).
+    ("GET", "/monthly/range"),
     # Tax pack (the ZIP and its year picker).
     ("GET", "/admin/tax-export/years"),
     ("GET", "/admin/tax-export.zip"),
