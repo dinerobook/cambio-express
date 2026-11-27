@@ -307,6 +307,12 @@ class DailyLineItem(Base):
     expects_settlement = Column(Boolean, nullable=True)
     settle_by   = Column(Date, nullable=True)
     settles_item_id = Column(Integer, nullable=True)
+    # The P&L line this entry counts on instead of the one its kind
+    # feeds (Monthly INVARIANTS "Daily entries on another line";
+    # `pl_transactions` only): a `pl_*` expense category or a store
+    # category (`plc_<id>`). NULL = its kind's line, as always. Moves
+    # no money in the daily book, so it may change on a locked day.
+    pl_category = Column(String(40), nullable=True)
     created_by  = Column(Integer, ForeignKey("tenancy_user.id"), nullable=True)
     created_at  = Column(DateTime, default=utc_now)
 

@@ -4259,6 +4259,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/monthly/entries/{entry_id}/category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Entry Category Route
+         * @description Put a cash / check expense or purchase entry on another expense
+         *     line of the P&L, or back on its own (`slug` ""). Monthly
+         *     INVARIANTS "Daily entries on another line". Moves no money in the
+         *     daily book, so a locked day is fine. Needs `monthly.update` and
+         *     the switch; another store's entry is a 404, a kind that cannot
+         *     move or a line the store cannot pick is a 422. Audited.
+         */
+        put: operations["entry_category_route_monthly_entries__entry_id__category_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/monthly/labels": {
         parameters: {
             query?: never;
@@ -15323,6 +15348,8 @@ export interface components {
          *     all").
          */
         PLAcceptRequest: {
+            /** Entry Ids */
+            entry_ids?: number[];
             /** Txn Ids */
             txn_ids?: number[];
         };
@@ -15388,6 +15415,32 @@ export interface components {
             /** Slug */
             slug: string;
         };
+        /**
+         * PLEntryCategoryRequest
+         * @description `PUT /monthly/entries/{id}/category`: the expense line a daily
+         *     entry counts on. "" puts it back on its kind's own line.
+         */
+        PLEntryCategoryRequest: {
+            /**
+             * Slug
+             * @default
+             */
+            slug: string;
+        };
+        /** PLEntryCategoryResponse */
+        PLEntryCategoryResponse: {
+            /** Entry Category */
+            entry_category: string;
+            /** Entry Id */
+            entry_id: number;
+        };
+        /** PLEntryTarget */
+        PLEntryTarget: {
+            /** Label */
+            label: string;
+            /** Slug */
+            slug: string;
+        };
         /** PLTransactionCounts */
         PLTransactionCounts: {
             /** All */
@@ -15433,6 +15486,13 @@ export interface components {
             day: string | null;
             /** Description */
             description: string;
+            /**
+             * Entry Category
+             * @default
+             */
+            entry_category: string;
+            /** Entry Id */
+            entry_id?: number | null;
             /** Item Kind */
             item_kind: string;
             /** Key */
@@ -15475,6 +15535,11 @@ export interface components {
             days_entered: number;
             /** Days In Month */
             days_in_month: number;
+            /**
+             * Entry Targets
+             * @default []
+             */
+            entry_targets: components["schemas"]["PLEntryTarget"][];
             /** Net Profit */
             net_profit: number;
             /** Page */
@@ -28987,6 +29052,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PLCategoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    entry_category_route_monthly_entries__entry_id__category_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                entry_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PLEntryCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PLEntryCategoryResponse"];
                 };
             };
             /** @description Validation Error */

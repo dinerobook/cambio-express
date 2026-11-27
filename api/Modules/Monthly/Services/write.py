@@ -115,6 +115,14 @@ def update_monthly(
     #    daily books have a figure for — the same sums the read side
     #    shows (`daily_feed.py`).
     feed = daily_feed_for_month(db, store_id, year, month)
+    fed = bank_fed_fields(db, store_id, year, month)
+    # Entries put on another line (`pl_transactions`): the same move
+    # the read side makes (`summarize_monthly`), so what is stored is
+    # what the page shows.
+    from api.Modules.Monthly.Services.entry_categories import (
+        apply_moves, entry_moves,
+    )
+    apply_moves(entry_moves(db, store_id, year, month), feed.derived, feed.fed, fed)
     for field, value in {**feed.derived, **feed.fed}.items():
         setattr(row, field, float(value))
 
@@ -128,7 +136,6 @@ def update_monthly(
     #    the operator's value (applied in step 1, or the legacy
     #    `bank_charges_total` manual entry below) — stores without
     #    bank sync keep typing.
-    fed = bank_fed_fields(db, store_id, year, month)
     for field, value in fed.items():
         setattr(row, field, float(value))
     if (

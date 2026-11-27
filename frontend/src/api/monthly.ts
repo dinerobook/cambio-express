@@ -306,13 +306,28 @@ export type PLAcceptResponse = components["schemas"]["PLAcceptResponse"];
 
 /** Tag rows to review with their suggestion: `txnIds` for one row,
  *  none for every suggestion of the month ("Accept all"). */
+/** "Accept": bank rows (`txnIds`) and daily entries (`entryIds`);
+ *  both empty takes every suggestion of the month. */
 export function acceptPLSuggestions(
-  year: number, month: number, txnIds: number[] = [],
+  year: number, month: number, txnIds: number[] = [], entryIds: number[] = [],
 ): Promise<PLAcceptResponse> {
   return api<PLAcceptResponse>(
     `/api/v2/monthly/${year}/${month}/transactions/accept`,
-    { method: "POST", json: { txn_ids: txnIds } },
+    { method: "POST", json: { txn_ids: txnIds, entry_ids: entryIds } },
   );
+}
+
+export type PLEntryTarget = components["schemas"]["PLEntryTarget"];
+
+/** Put a daily expense / purchase entry on another expense line of
+ *  the P&L ("" = back on its own). Monthly INVARIANTS "Daily entries
+ *  on another line". */
+export function setEntryCategory(
+  entryId: number, slug: string,
+): Promise<components["schemas"]["PLEntryCategoryResponse"]> {
+  return api(`/api/v2/monthly/entries/${entryId}/category`, {
+    method: "PUT", json: { slug },
+  });
 }
 
 // ── The store's own P&L categories ─────────────────────────

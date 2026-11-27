@@ -49,6 +49,11 @@ class PLTransactionRow(BaseModel):
     # rule template. "" when nothing fits.
     suggested_slug: str
     suggested_source: Literal["history", "template", ""]
+    # A cash / check expense or purchase entry (Services/
+    # entry_categories.py): its id, and the expense line it was put
+    # on ("" = its kind's own line). Null for every other row.
+    entry_id: int | None = None
+    entry_category: str = ""
 
 
 class PLTransactionCounts(BaseModel):
@@ -69,6 +74,9 @@ class PLAcceptRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     txn_ids: list[int] = Field(default_factory=list, max_length=500)
+    # Daily entries to put on their suggested line (needs
+    # `monthly.update`). Both lists empty = every suggestion.
+    entry_ids: list[int] = Field(default_factory=list, max_length=500)
 
 
 class PLAcceptResponse(BaseModel):
@@ -81,6 +89,13 @@ class PLAcceptResponse(BaseModel):
     accepted: int
     locked: int
     maybe_in_daily_book: int
+
+
+class PLEntryTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str
+    label: str
 
 
 class PLTransactionsResponse(BaseModel):
@@ -100,9 +115,28 @@ class PLTransactionsResponse(BaseModel):
     net_profit: float
     days_entered: int
     days_in_month: int
-    # Rows to review this month with a suggestion (the "Accept all"
-    # button's count).
+    # Rows to review this month with a suggestion, plus daily entries
+    # with one (the "Accept all" button's count).
     suggested: int
+    # Where a daily entry can go (the entry row's picker): the
+    # store's expense lines and expense categories, its own names.
+    entry_targets: list[PLEntryTarget] = []
+
+
+class PLEntryCategoryRequest(BaseModel):
+    """`PUT /monthly/entries/{id}/category`: the expense line a daily
+    entry counts on. "" puts it back on its kind's own line."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str = Field("", max_length=40)
+
+
+class PLEntryCategoryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entry_id: int
+    entry_category: str
 
 
 # ── A store's own P&L categories ────────────────────────────

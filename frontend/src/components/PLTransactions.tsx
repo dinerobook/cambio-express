@@ -6,7 +6,7 @@ import {
 } from "../api/bankSync";
 import {
   acceptPLSuggestions, fetchPLTransactions, MONTHLY_LINES, monthlyLineName,
-  usePLTransactions, type PLAcceptResponse,
+  setEntryCategory, usePLTransactions, type PLAcceptResponse, type PLEntryTarget,
   type PLTransactionFilters, type PLTransactionRow, type PLTransactionView,
 } from "../api/monthly";
 import { BankCategoryCell } from "./BankCategoryCell";
@@ -58,6 +58,15 @@ const STATUS: Record<PLTransactionRow["status"], { label: MessageKey; tone: Pill
  *  but not already standing for a daily book entry. */
 const RECATEGORIZABLE = new Set(["to_review", "rule", "person", "not_in_pl"]);
 
+/** The line a daily entry of a kind counts on when nobody moved it
+ *  (the server's `entry_categories.movable_kinds`). */
+const ENTRY_KIND_LINES: Record<string, string> = {
+  cash_purchase: "cash_purchases",
+  check_purchase: "check_purchases",
+  cash_expense: "cash_expenses",
+  check_expense: "check_expenses",
+};
+
 /** Where a row comes from, in words. */
 function plSourceText(r: PLTransactionRow): string {
   switch (r.source) {
@@ -106,6 +115,8 @@ export function PLTransactions({
   };
   const list = usePLTransactions(year, month, filters, true);
   const canTag = hasPermission("bank_sync", "update");
+  // Putting a daily entry on another line edits the P&L, not the bank.
+  const canMove = hasPermission("monthly", "update");
   const categories = useBankCategories(canTag);
   const groups = categories.data?.groups;
   const catLabels = useMemo(() => categoryLabels(groups), [groups]);
@@ -114,12 +125,16 @@ export function PLTransactions({
   const [accepting, setAccepting] = useState(false);
   const toast = useToast();
   const data = list.data;
+  const targets = useMemo(() => data?.entry_targets ?? [], [data]);
+  const targetLabels = useMemo(
+    () => new Map(targets.map((x) => [x.slug, x.label])), [targets],
+  );
 
   /** "Accept" one row's suggestion, or every one ("Accept all"). */
-  const accept = useCallback(async (txnIds: number[] = []) => {
+  const accept = useCallback(async (txnIds: number[] = [], entryIds: number[] = []) => {
     setAccepting(true);
     try {
-      const res: PLAcceptResponse = await acceptPLSuggestions(year, month, txnIds);
+      const res: PLAcceptResponse = await acceptPLSuggestions(year, month, txnIds, entryIds);
       const left = res.locked + res.maybe_in_daily_book;
       toast({
         message: tn("plTx.accepted", res.accepted, fmtNumber)
@@ -208,6 +223,43 @@ export function PLTransactions({
               </>
             );
           }
+          if (r.entry_id != null && canMove && ENTRY_KIND_LINES[r.item_kind]) {
+            const entryId = r.entry_id;
+            const own = ENTRY_KIND_LINES[r.item_kind];
+            const suggested = !r.entry_category && r.suggested_slug && r.txn_id == null
+              ? targetLabels.get(r.suggested_slug) : undefined;
+            return (
+              <>
+              {suggested && (
+                <span className={styles.suggestion}>
+                  <span title={tr("plTx.suggestedEntry")}>
+                    {tr("plTx.suggested", { category: suggested })}
+                  </span>
+                  <Button
+                    size="sm" tone="secondary" disabled={accepting}
+                    onClick={() => { void accept([], [entryId]); }}
+                  >
+                    {tr("plTx.accept")}
+                  </Button>
+                </span>
+              )}
+              <EntryLineSelect
+                value={r.entry_category}
+                ownLine={monthlyLineName(own, labels[own])}
+                targets={targets}
+                label={tr("plTx.entryLineFor", { entry: plSourceText(r) })}
+                onPick={async (slug) => {
+                  try {
+                    await setEntryCategory(entryId, slug);
+                    refresh();
+                  } catch (e) {
+                    toast({ message: apiErrorMessage(e, t("plTx.entryFailed")), tone: "error" });
+                  }
+                }}
+              />
+              </>
+            );
+          }
           return r.line
             ? monthlyLineName(r.line, labels[r.line])
             : <span className={styles.sub}>{tr("plTx.noLine")}</span>;
@@ -231,7 +283,10 @@ export function PLTransactions({
         csv: (r) => csvMoney(r.amount),
       },
     ];
-  }, [tr, qc, canTag, groups, catLabels, bookable, labels, accept, accepting]);
+  }, [
+    tr, qc, canTag, canMove, groups, catLabels, bookable, labels, accept,
+    accepting, targets, targetLabels, toast,
+  ]);
 
   const toReview = data?.counts.review ?? 0;
 
@@ -249,7 +304,7 @@ export function PLTransactions({
           ) : (
             <Pill tone="accent" dot>{tr("plTx.allReviewed")}</Pill>
           )}
-          {canTag && data.suggested > 0 && (
+          {(canTag || canMove) && data.suggested > 0 && (
             <Button
               size="sm" busy={accepting} disabled={accepting}
               onClick={() => { void accept(); }}
@@ -339,5 +394,36 @@ export function PLTransactions({
 
       <BankRuleFromRow row={ruleFor} onClose={() => setRuleFor(null)} />
     </div>
+  );
+}
+
+/** The expense line a daily entry counts on: its own (first), or one
+ *  of the store's expense lines and categories. Saves on pick. */
+function EntryLineSelect({
+  value, ownLine, targets, label, onPick,
+}: {
+  value: string;
+  ownLine: string;
+  targets: PLEntryTarget[];
+  label: string;
+  onPick: (slug: string) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const known = value === "" || targets.some((x) => x.slug === value);
+  return (
+    <Select
+      value={value} aria-label={label} disabled={busy}
+      className={styles.entrySelect}
+      onChange={(e) => {
+        setBusy(true);
+        void onPick(e.target.value).finally(() => setBusy(false));
+      }}
+    >
+      <option value="">{t("plTx.ownLine", { line: ownLine })}</option>
+      {!known && <option value={value}>{value}</option>}
+      {targets.map((x) => (
+        <option key={x.slug} value={x.slug}>{x.label}</option>
+      ))}
+    </Select>
   );
 }

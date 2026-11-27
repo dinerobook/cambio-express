@@ -17647,6 +17647,14 @@
         "additionalProperties": false,
         "description": "`POST /monthly/{year}/{month}/transactions/accept`: tag rows to\nreview with their suggestion. `txn_ids` limits it to those rows\n(one row's \u2713); empty takes every suggestion of the month (\"Accept\nall\").",
         "properties": {
+          "entry_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "title": "Entry Ids",
+            "type": "array"
+          },
           "txn_ids": {
             "items": {
               "type": "integer"
@@ -17802,6 +17810,58 @@
         "title": "PLCategoryRow",
         "type": "object"
       },
+      "PLEntryCategoryRequest": {
+        "additionalProperties": false,
+        "description": "`PUT /monthly/entries/{id}/category`: the expense line a daily\nentry counts on. \"\" puts it back on its kind's own line.",
+        "properties": {
+          "slug": {
+            "default": "",
+            "maxLength": 40,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "title": "PLEntryCategoryRequest",
+        "type": "object"
+      },
+      "PLEntryCategoryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_category": {
+            "title": "Entry Category",
+            "type": "string"
+          },
+          "entry_id": {
+            "title": "Entry Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entry_id",
+          "entry_category"
+        ],
+        "title": "PLEntryCategoryResponse",
+        "type": "object"
+      },
+      "PLEntryTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "label"
+        ],
+        "title": "PLEntryTarget",
+        "type": "object"
+      },
       "PLTransactionCounts": {
         "additionalProperties": false,
         "properties": {
@@ -17925,6 +17985,22 @@
           "description": {
             "title": "Description",
             "type": "string"
+          },
+          "entry_category": {
+            "default": "",
+            "title": "Entry Category",
+            "type": "string"
+          },
+          "entry_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Id"
           },
           "item_kind": {
             "title": "Item Kind",
@@ -18063,6 +18139,14 @@
           "days_in_month": {
             "title": "Days In Month",
             "type": "integer"
+          },
+          "entry_targets": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PLEntryTarget"
+            },
+            "title": "Entry Targets",
+            "type": "array"
           },
           "net_profit": {
             "title": "Net Profit",
@@ -47897,6 +47981,92 @@
           }
         },
         "summary": "Restore Custom Category Route",
+        "tags": [
+          "monthly"
+        ]
+      }
+    },
+    "/monthly/entries/{entry_id}/category": {
+      "put": {
+        "description": "Put a cash / check expense or purchase entry on another expense\nline of the P&L, or back on its own (`slug` \"\"). Monthly\nINVARIANTS \"Daily entries on another line\". Moves no money in the\ndaily book, so a locked day is fine. Needs `monthly.update` and\nthe switch; another store's entry is a 404, a kind that cannot\nmove or a line the store cannot pick is a 422. Audited.",
+        "operationId": "entry_category_route_monthly_entries__entry_id__category_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Entry Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PLEntryCategoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLEntryCategoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Entry Category Route",
         "tags": [
           "monthly"
         ]

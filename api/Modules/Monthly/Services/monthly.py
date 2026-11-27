@@ -81,6 +81,9 @@ class MonthlySummary:
     # (`custom_categories.CustomLine`; only with `pl_transactions`).
     # Counted in their half of the P&L on top of the fixed lines.
     custom: list[Any] = field(default_factory=list)
+    # Daily entries counted on another line this month (entry id →
+    # that line; `entry_categories.py`). Already moved in the figures.
+    entry_targets: dict[int, str] = field(default_factory=dict)
 
     @property
     def net_profit(self) -> float:
@@ -131,6 +134,9 @@ def summarize_monthly(
     from api.Modules.Monthly.Services.custom_categories import (
         custom_lines_for_month,
     )
+    from api.Modules.Monthly.Services.entry_categories import (
+        apply_moves, entry_moves,
+    )
     from api.Modules.Monthly.Services.write import (
         _auto_return_check_gl, bank_fed_fields,
     )
@@ -142,6 +148,11 @@ def summarize_monthly(
     custom = custom_lines_for_month(db, store_id, year, month)
     if row is None and daily.days == 0 and not bank and rc_gl == 0 and not custom:
         return None
+    moves = entry_moves(db, store_id, year, month)
+    if moves:
+        custom = _with_entries(
+            db, store_id, custom, apply_moves(moves, daily.derived, daily.fed, bank),
+        )
     summary = MonthlySummary(
         row=row if row is not None else MonthlyFinancial(
             store_id=store_id, year=year, month=month,
@@ -154,6 +165,7 @@ def summarize_monthly(
         return_check_gl=rc_gl,
         saved=row is not None,
         custom=custom,
+        entry_targets=moves.targets,
     )
     summary.total_income = round(
         _sum_fields(summary, INCOME_FIELDS)
@@ -164,3 +176,31 @@ def summarize_monthly(
         + sum(c.amount for c in custom if c.section == "expense"), 2,
     )
     return summary
+
+
+def _with_entries(
+    db: Session, store_id: int, custom: list[Any], extra: dict[str, float],
+) -> list[Any]:
+    """The month's store-category lines with the daily entries moved
+    onto them added (a category with only entries gets its line)."""
+    from api.Modules.Monthly.Services.custom_categories import (
+        CustomLine, store_categories,
+    )
+
+    if not extra:
+        return custom
+    by_slug = {c.slug: c for c in custom}
+    for cat in store_categories(db, store_id):
+        amount = extra.get(cat.slug)
+        if not amount:
+            continue
+        line = by_slug.get(cat.slug)
+        if line is None:
+            by_slug[cat.slug] = CustomLine(
+                id=int(cat.id), slug=cat.slug, name=str(cat.name),
+                section=str(cat.section), amount=round(amount, 2),
+            )
+        else:
+            line.amount = round(line.amount + amount, 2)
+    order = {c.slug: n for n, c in enumerate(store_categories(db, store_id))}
+    return sorted(by_slug.values(), key=lambda c: order.get(c.slug, 0))
