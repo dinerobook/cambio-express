@@ -103,12 +103,22 @@ def _monthly_pl_csv(db: Session, store_id: int, year: int) -> str:
     from api.Modules.Monthly.Services.labels import (
         line_label, resolved_line_labels,
     )
+    from api.Modules.Monthly.Services.custom_categories import (
+        enabled, store_categories,
+    )
     labels = resolved_line_labels(db, store_id)
+    # The store's own categories (Monthly INVARIANTS "Store
+    # categories"), each in its half, after the fixed lines.
+    cats = store_categories(db, store_id) if enabled(db, store_id) else []
+    inc = [c for c in cats if c.section == "income"]
+    exp = [c for c in cats if c.section != "income"]
     headers = (
         ["Month"]
         + [line_label(labels, f) for f in INCOME_FIELDS]
+        + [str(c.name) for c in inc]
         + ["Total Income"]
         + [line_label(labels, f) for f in EXPENSE_FIELDS]
+        + [str(c.name) for c in exp]
         + ["Total Expenses", "Net Profit",
            line_label(labels, "cash_carry_forward")]
     )
@@ -118,10 +128,13 @@ def _monthly_pl_csv(db: Session, store_id: int, year: int) -> str:
         if s is None:
             values = [0.0] * (len(headers) - 1)
         else:
+            custom = {c.id: c.amount for c in s.custom}
             values = (
                 [s.value(f) for f in INCOME_FIELDS]
+                + [custom.get(int(c.id), 0.0) for c in inc]
                 + [s.total_income]
                 + [s.value(f) for f in EXPENSE_FIELDS]
+                + [custom.get(int(c.id), 0.0) for c in exp]
                 + [s.total_expenses, s.net_profit,
                    s.value("cash_carry_forward")]
             )

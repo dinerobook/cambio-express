@@ -385,3 +385,10 @@ money, until `force: true`. The bell and the dashboard tile share
 `to_reconcile_count`; the tab's "To review" view is the same
 `review` status for the month.
 
+### Store categories (`plc_<id>`)
+
+With `pl_transactions` on, the picker's P&L group also lists the
+store's own categories (`custom_categories.category_options`), and
+`is_valid_bank_category` accepts a `plc_<id>` slug only for an active
+category of THIS store. They count on the Monthly P&L (Monthly
+INVARIANTS "Store categories"), never in `bank_pl_sums_for_month`.

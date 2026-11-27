@@ -1,0 +1,36 @@
+/* Layout for StoreCategories.tsx ("Your own categories" on
+ * P&L categories). Card, table, pill and buttons are the kit's. */
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.title {
+  margin: 0 0 0.25rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  font-family: var(--db-font-display);
+}
+
+.intro {
+  margin: 0;
+  color: var(--db-text-muted);
+  font-size: 0.92rem;
+  max-width: 60ch;
+  line-height: 1.5;
+}
+
+/* A long name scrolls inside the card, never past it. */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.name {
+  margin-right: 0.5rem;
+  overflow-wrap: anywhere;
+}

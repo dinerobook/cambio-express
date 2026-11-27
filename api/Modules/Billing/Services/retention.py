@@ -52,7 +52,7 @@ STORE_OWNED_MODELS: list[str] = [
     # Returned checks FK their batch — checks first.
     "ReturnCheck", "ReturnCheckBatch",
     "CheckPicture", "BadCheckPayment", "BadCheck", "CtrReport", "CashedCheck", "CheckDevice", "CheckCustomerId", "CheckCustomer", "CheckCompany", "CheckCashingSettings",
-    "MonthlyFinancial", "MonthlyLineLabel", "BankRule", "BankTransaction",
+    "MonthlyFinancial", "MonthlyLineLabel", "MonthlyPLCategory", "BankRule", "BankTransaction",
     "StripeBankAccount", "StoreOwnerLink",
     # Lottery: counts FK packs FK games — purge in that order.
     "LotteryDayCount", "LotteryPack", "LotteryGame",
@@ -132,7 +132,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
         MoneyServiceSummary, MoneyTransferSummary,
     )
     from api.Modules.Monthly.Models import (
-        MonthlyFinancial, MonthlyLineLabel,
+        MonthlyFinancial, MonthlyLineLabel, MonthlyPLCategory,
     )
     from api.Modules.ReturnChecks.Models import ReturnCheck, ReturnCheckBatch
     from api.Modules.CheckCashing.Models import (
@@ -245,6 +245,7 @@ def _store_owned_models() -> list[tuple[type, str]]:
         # — both FK to it.
         (MonthlyFinancial, "store_id"),
         (MonthlyLineLabel, "store_id"),
+        (MonthlyPLCategory, "store_id"),
         (BankRule, "store_id"),
         (BankTransaction, "store_id"),
         (StripeBankAccount, "store_id"),

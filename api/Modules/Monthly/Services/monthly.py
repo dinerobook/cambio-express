@@ -6,6 +6,7 @@ duplicate the math (and the same totals power the legacy
 template).
 """
 from dataclasses import dataclass, field
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -76,6 +77,10 @@ class MonthlySummary:
     daily: DailyFeed = field(default_factory=DailyFeed)
     return_check_gl: float | None = None
     saved: bool = True
+    # The store's own categories with a figure this month
+    # (`custom_categories.CustomLine`; only with `pl_transactions`).
+    # Counted in their half of the P&L on top of the fixed lines.
+    custom: list[Any] = field(default_factory=list)
 
     @property
     def net_profit(self) -> float:
@@ -123,6 +128,9 @@ def summarize_monthly(
     return-check activity. Only a month with none of that and no
     saved row returns None. Pure read: the placeholder row for an
     unsaved month is never added to the session."""
+    from api.Modules.Monthly.Services.custom_categories import (
+        custom_lines_for_month,
+    )
     from api.Modules.Monthly.Services.write import (
         _auto_return_check_gl, bank_fed_fields,
     )
@@ -131,7 +139,8 @@ def summarize_monthly(
     daily = daily_feed_for_month(db, store_id, year, month)
     bank = bank_fed_fields(db, store_id, year, month)
     rc_gl = _auto_return_check_gl(db, store_id, year, month)
-    if row is None and daily.days == 0 and not bank and rc_gl == 0:
+    custom = custom_lines_for_month(db, store_id, year, month)
+    if row is None and daily.days == 0 and not bank and rc_gl == 0 and not custom:
         return None
     summary = MonthlySummary(
         row=row if row is not None else MonthlyFinancial(
@@ -144,7 +153,14 @@ def summarize_monthly(
         # hold a wrong value, and the column is not operator-typed.
         return_check_gl=rc_gl,
         saved=row is not None,
+        custom=custom,
     )
-    summary.total_income = _sum_fields(summary, INCOME_FIELDS)
-    summary.total_expenses = _sum_fields(summary, EXPENSE_FIELDS)
+    summary.total_income = round(
+        _sum_fields(summary, INCOME_FIELDS)
+        + sum(c.amount for c in custom if c.section == "income"), 2,
+    )
+    summary.total_expenses = round(
+        _sum_fields(summary, EXPENSE_FIELDS)
+        + sum(c.amount for c in custom if c.section == "expense"), 2,
+    )
     return summary

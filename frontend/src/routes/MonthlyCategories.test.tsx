@@ -29,6 +29,8 @@ vi.mock("../api/monthly", async (importOriginal) => {
     ...real,
     updateMonthlyLabels: (...a: unknown[]) => updateMonthlyLabels(...a),
     useMonthlyLabels: (...a: unknown[]) => useMonthlyLabels(...a),
+    // Store categories have their own test (StoreCategories.test.tsx).
+    usePLCategories: () => ({ data: { enabled: false, rows: [] } }),
   };
 });
 

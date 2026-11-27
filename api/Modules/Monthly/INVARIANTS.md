@@ -37,12 +37,13 @@ row itself stays editable forever.
 
 ## Data model
 
-Two tables:
+Three tables:
 
 | Table | What it holds |
 |---|---|
 | `msb_monthly_financial` | The per-month P&L row. ~30 numeric columns + `notes`. UNIQUE on `(store_id, year, month)`. |
 | `msb_monthly_line_label` | What ONE store calls one P&L line. `(store_id, field)` → `label`, UNIQUE. A display layer and nothing else. |
+| `msb_monthly_pl_category` | A store's own P&L category (`pl_transactions` only, see "Store categories"). Name, income / expense, archived. |
 
 That's it. Every other table the P&L cares about (both daily books,
 `bank_transaction`, the return-check workflow) is read live on every
@@ -51,7 +52,8 @@ GET and its sums are written into the matching columns on save.
 
 ## Renaming a line — a label, never a column
 
-A store cannot add a P&L line: the columns are what the totals, the
+A store cannot add a P&L column (with `pl_transactions` on it can
+add a category of its own instead — see "Store categories"): the columns are what the totals, the
 tax export, the daily roll-up and the bank feed are built on, and a
 column has to mean the same thing in January and in December. What
 it CAN do is name them, through `Services/labels.py` and
@@ -352,6 +354,33 @@ through `categorize_transaction`, skips a locked day and a possible
 double (the guard above; decided one row at a time) and answers the
 three counts. One audit row per batch (`accept_bank_suggestions`).
 Needs `bank_sync.update` and the switch.
+
+## Store categories (`pl_transactions`)
+
+With the switch on, a store can add as many P&L categories of its
+own as it likes (owner, 2026-11-27) — `Services/custom_categories.py`,
+`/monthly/categories/custom`. They are not columns: each is a bank
+category with the slug `plc_<id>`, and a month's figure is Σ |amount|
+of the bank rows tagged into it, by booking day.
+
+- **Its half is fixed at creation.** `section` is income or expense
+  and is never changed (moving it would rewrite closed months).
+  `MonthlySummary.custom` carries the month's lines; `total_income` /
+  `total_expenses` add them by section, and `MonthlyRow.custom_lines`
+  shows them. A category with nothing this month is not listed.
+- **Names are unique per store** among active ones (case and spaces
+  ignored), 1–60 characters. An archived name is free; restoring
+  into a clash is a 422.
+- **Archived leaves the picker, never the books.** Its rows keep
+  counting; the picker lists it as "(archived)" only for a row
+  already on it.
+- **Switch off: none.** Not offered, not taggable (422), not counted,
+  and the list answers `enabled: false`.
+- The ledger counts `plc_` rows like a `pl_*` tag (with `section`);
+  the tax pack adds one column per category after the shipped lines.
+- Reading needs `monthly.read`; add / rename / archive / restore
+  need `monthly.update` and each writes an audit row
+  (`monthly_category_*`). Another store's id is a 404.
 
 ## The 422 trap — explicit DO-NOT-WRITE list
 
