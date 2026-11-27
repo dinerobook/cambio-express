@@ -67,9 +67,17 @@ def bank_fed_fields(
     for every column the bank has tagged rows for. Absent columns
     are the operator's to type. Shared by the write path (which
     applies them) and the read path (which reports them as
-    `bank_locked`)."""
+    `bank_locked`).
+
+    With `pl_transactions` on, a row counts in the month of its
+    booking day, not the bank's posting date (INVARIANTS.md
+    "Month-end")."""
     from api.Modules.BankSync.Services import bank_pl_sums_for_month
-    return bank_pl_sums_for_month(db, store_id, year, month)
+    from api.Modules.Monthly.Services.ledger import pl_transactions_enabled
+    return bank_pl_sums_for_month(
+        db, store_id, year, month,
+        by_booking_day=pl_transactions_enabled(db, store_id),
+    )
 
 
 def update_monthly(

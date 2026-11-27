@@ -4189,8 +4189,13 @@
       },
       "CategorizeRequest": {
         "additionalProperties": false,
-        "description": "POST body for /bank/transactions/{txn_id}/categorize.\n\n`target_kind` is any slug `GET /bank/categories` lists for the\nstore (a daily-book kind such as \"check_deposit\", a `pl_*`\nmonthly line, or a non-posting tag such as \"bank_charge_230\").\nUnknown slugs are a 422.\n\n`post_to_daily=False` keeps the assignment metadata-only and\nskips creating the matching DailyLineItem (used when the\noperator wants the tag without a daily-book mirror).\n\n`report_date` (ISO date) is the day the line lands on, instead\nof the bank's posting date \u2014 a remote deposit the bank posts\nthe next morning, or a Saturday deposit the bank posts on\nMonday, both belong on the earlier day's close-out. It is\ntri-state on the wire, read off `model_fields_set`:\n\n  * omitted \u2014 keep whatever day the row already carries;\n  * a date  \u2014 book on that day and remember it;\n  * `null`  \u2014 clear the choice, back to the bank's date.\n\nBooking onto a locked day is a 409.",
+        "description": "POST body for /bank/transactions/{txn_id}/categorize.\n\n`target_kind` is any slug `GET /bank/categories` lists for the\nstore (a daily-book kind such as \"check_deposit\", a `pl_*`\nmonthly line, or a non-posting tag such as \"bank_charge_230\").\nUnknown slugs are a 422.\n\n`post_to_daily=False` keeps the assignment metadata-only and\nskips creating the matching DailyLineItem (used when the\noperator wants the tag without a daily-book mirror).\n\n`report_date` (ISO date) is the day the line lands on, instead\nof the bank's posting date \u2014 a remote deposit the bank posts\nthe next morning, or a Saturday deposit the bank posts on\nMonday, both belong on the earlier day's close-out. It is\ntri-state on the wire, read off `model_fields_set`:\n\n  * omitted \u2014 keep whatever day the row already carries;\n  * a date  \u2014 book on that day and remember it;\n  * `null`  \u2014 clear the choice, back to the bank's date.\n\nBooking onto a locked day is a 409.\n\n`force` answers the double-count guard: with the Monthly P&L's\n`pl_transactions` on, putting a row on a P&L line while a daily\nbook entry of the same amount may be the same money is a 409\n`maybe_in_daily_book` naming the entries; send again with\n`force: true` when it is different money.",
         "properties": {
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
           "post_to_daily": {
             "default": true,
             "title": "Post To Daily",
@@ -14071,6 +14076,11 @@
           },
           "report": {
             "$ref": "#/components/schemas/MonthlyRow"
+          },
+          "transactions_enabled": {
+            "default": false,
+            "title": "Transactions Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -17588,6 +17598,361 @@
           "store_name"
         ],
         "title": "OwnerUserRow",
+        "type": "object"
+      },
+      "PLAcceptRequest": {
+        "additionalProperties": false,
+        "description": "`POST /monthly/{year}/{month}/transactions/accept`: tag rows to\nreview with their suggestion. `txn_ids` limits it to those rows\n(one row's \u2713); empty takes every suggestion of the month (\"Accept\nall\").",
+        "properties": {
+          "txn_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "title": "Txn Ids",
+            "type": "array"
+          }
+        },
+        "title": "PLAcceptRequest",
+        "type": "object"
+      },
+      "PLAcceptResponse": {
+        "additionalProperties": false,
+        "description": "What \"Accept\" did. A row left alone stays to review: its day is\nlocked (`locked`), or a daily book check may be the same money\n(`maybe_in_daily_book`, decided one row at a time).",
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "integer"
+          },
+          "maybe_in_daily_book": {
+            "title": "Maybe In Daily Book",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accepted",
+          "locked",
+          "maybe_in_daily_book"
+        ],
+        "title": "PLAcceptResponse",
+        "type": "object"
+      },
+      "PLTransactionCounts": {
+        "additionalProperties": false,
+        "properties": {
+          "all": {
+            "title": "All",
+            "type": "integer"
+          },
+          "in_pl": {
+            "title": "In Pl",
+            "type": "integer"
+          },
+          "not_pl": {
+            "title": "Not Pl",
+            "type": "integer"
+          },
+          "review": {
+            "title": "Review",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "review",
+          "in_pl",
+          "not_pl",
+          "all"
+        ],
+        "title": "PLTransactionCounts",
+        "type": "object"
+      },
+      "PLTransactionRow": {
+        "additionalProperties": false,
+        "description": "One dollar of the month, listed once. `amount` is what the row\nadds to `line` (signed: a short or a refund is negative); a row\nthat does not count (`counted` false) shows its size. Bank rows\ncarry `txn_id` (categorize through the Bank endpoints) and the\nbank's signed `bank_amount`.",
+        "properties": {
+          "account_label": {
+            "title": "Account Label",
+            "type": "string"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "bank_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Amount"
+          },
+          "bank_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Date"
+          },
+          "book": {
+            "enum": [
+              "msb",
+              "store",
+              ""
+            ],
+            "title": "Book",
+            "type": "string"
+          },
+          "booked_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booked On"
+          },
+          "bucket": {
+            "anyOf": [
+              {
+                "enum": [
+                  "income",
+                  "expense"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bucket"
+          },
+          "category_slug": {
+            "title": "Category Slug",
+            "type": "string"
+          },
+          "counted": {
+            "title": "Counted",
+            "type": "boolean"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "item_kind": {
+            "title": "Item Kind",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "report_date_override": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Date Override"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Id"
+          },
+          "source": {
+            "enum": [
+              "bank",
+              "entry",
+              "day",
+              "service",
+              "money_order_charges",
+              "returned_checks",
+              "typed"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "rule",
+              "person",
+              "added",
+              "matched",
+              "to_review",
+              "not_in_pl",
+              "daily",
+              "returned_checks",
+              "typed",
+              "bank_wins",
+              "typed_wins"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "suggested_slug": {
+            "title": "Suggested Slug",
+            "type": "string"
+          },
+          "suggested_source": {
+            "enum": [
+              "history",
+              "template",
+              ""
+            ],
+            "title": "Suggested Source",
+            "type": "string"
+          },
+          "txn_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Txn Id"
+          }
+        },
+        "required": [
+          "key",
+          "source",
+          "day",
+          "description",
+          "amount",
+          "line",
+          "bucket",
+          "status",
+          "counted",
+          "bank_amount",
+          "txn_id",
+          "category_slug",
+          "rule_id",
+          "item_kind",
+          "book",
+          "account_label",
+          "report_date_override",
+          "bank_date",
+          "booked_on",
+          "suggested_slug",
+          "suggested_source"
+        ],
+        "title": "PLTransactionRow",
+        "type": "object"
+      },
+      "PLTransactionsResponse": {
+        "additionalProperties": false,
+        "description": "The tab's page: the `api.Core.Pagination` envelope plus the\nmonth's counts per view (unfiltered), its totals (the statement's\nown) and how complete it is.",
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/PLTransactionCounts"
+          },
+          "days_entered": {
+            "title": "Days Entered",
+            "type": "integer"
+          },
+          "days_in_month": {
+            "title": "Days In Month",
+            "type": "integer"
+          },
+          "net_profit": {
+            "title": "Net Profit",
+            "type": "number"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PLTransactionRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "suggested": {
+            "title": "Suggested",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_expenses": {
+            "title": "Total Expenses",
+            "type": "number"
+          },
+          "total_income": {
+            "title": "Total Income",
+            "type": "number"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "total_pages",
+          "counts",
+          "total_income",
+          "total_expenses",
+          "net_profit",
+          "days_entered",
+          "days_in_month",
+          "suggested"
+        ],
+        "title": "PLTransactionsResponse",
         "type": "object"
       },
       "PackActivateRequest": {
@@ -47381,6 +47746,263 @@
           }
         },
         "summary": "Update Monthly Route",
+        "tags": [
+          "monthly"
+        ]
+      }
+    },
+    "/monthly/{year}/{month}/transactions": {
+      "get": {
+        "description": "The Transactions tab: every dollar of the month, one row each,\nwith the line it counts on (Services/ledger.py). Counted rows add\nup to the statement line by line.\n\nNeeds the P&L (`monthly.read`) and the bank rows\n(`bank_sync.read`), and the store's `pl_transactions` switch\n(which needs `bank_matching`): off \u2192 403. `line` narrows to one\nP&L line (the statement's drill-down), `source` to bank rows,\nthe daily books or the rest, `q` searches the description (two\ncharacters or more). `counts` is the whole month, unfiltered.",
+        "operationId": "monthly_transactions_route_monthly__year___month__transactions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "pattern": "^(review|in_pl|not_pl|all)$",
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "line",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 60,
+              "title": "Line",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "pattern": "^(|bank|daily|other)$",
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "1-based page number",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "1-based page number",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page (1 to 200)",
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Rows per page (1 to 200)",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLTransactionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Monthly Transactions Route",
+        "tags": [
+          "monthly"
+        ]
+      }
+    },
+    "/monthly/{year}/{month}/transactions/accept": {
+      "post": {
+        "description": "Tag the month's rows to review with their suggestion \u2014 one row\n(`txn_ids`) or all of them (\"Accept all\", owner 2026-11-27: one\nclick). The same write path as picking the category by hand\n(`categorize_transaction`), so a daily book category books its\nline and matching links what is already there. A row whose day is\nlocked, or that the double-count guard stops, is left to review\nand counted in the answer. One audit row for the batch.",
+        "operationId": "accept_suggestions_route_monthly__year___month__transactions_accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "maximum": 2100,
+              "minimum": 2000,
+              "title": "Year",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Month",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PLAcceptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLAcceptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Suggestions Route",
         "tags": [
           "monthly"
         ]

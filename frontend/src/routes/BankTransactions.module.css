@@ -33,21 +33,7 @@
   flex-wrap: wrap;
 }
 
-.modalLead {
-  margin: 0 0 1rem;
-  color: var(--db-text-muted);
-  line-height: 1.5;
-  /* A bank description is often one long token ("ACHDEPOSIT…"): let
-   * it break rather than push the popup sideways on a phone. */
-  overflow-wrap: anywhere;
-}
 
-.categoryCell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
 
 .bookedLink {
   font-size: 0.8rem;
@@ -55,35 +41,9 @@
   white-space: nowrap;
 }
 
-.notBooked {
-  font-size: 0.78rem;
-  color: var(--db-warning);
-  white-space: nowrap;
-}
 
-.lockedRow {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.65rem;
-  border-radius: 0.5rem;
-  background: var(--db-tone-warning-bg);
-  color: var(--db-text);
-  font-size: 0.85rem;
-}
 
-.categorySelect {
-  width: auto;
-  min-width: 10rem;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.85rem;
-}
 
-.categorySelectMono {
-  font-family: var(--db-font-mono);
-}
 
 .errorMark {
   color: var(--db-negative);

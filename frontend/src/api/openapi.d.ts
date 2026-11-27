@@ -4250,6 +4250,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/monthly/{year}/{month}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly Transactions Route
+         * @description The Transactions tab: every dollar of the month, one row each,
+         *     with the line it counts on (Services/ledger.py). Counted rows add
+         *     up to the statement line by line.
+         *
+         *     Needs the P&L (`monthly.read`) and the bank rows
+         *     (`bank_sync.read`), and the store's `pl_transactions` switch
+         *     (which needs `bank_matching`): off → 403. `line` narrows to one
+         *     P&L line (the statement's drill-down), `source` to bank rows,
+         *     the daily books or the rest, `q` searches the description (two
+         *     characters or more). `counts` is the whole month, unfiltered.
+         */
+        get: operations["monthly_transactions_route_monthly__year___month__transactions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monthly/{year}/{month}/transactions/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Suggestions Route
+         * @description Tag the month's rows to review with their suggestion — one row
+         *     (`txn_ids`) or all of them ("Accept all", owner 2026-11-27: one
+         *     click). The same write path as picking the category by hand
+         *     (`categorize_transaction`), so a daily book category books its
+         *     line and matching links what is already there. A row whose day is
+         *     locked, or that the double-count guard stops, is left to review
+         *     and counted in the answer. One audit row for the batch.
+         */
+        post: operations["accept_suggestions_route_monthly__year___month__transactions_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notifications/bell": {
         parameters: {
             query?: never;
@@ -9795,8 +9850,19 @@ export interface components {
          *       * `null`  — clear the choice, back to the bank's date.
          *
          *     Booking onto a locked day is a 409.
+         *
+         *     `force` answers the double-count guard: with the Monthly P&L's
+         *     `pl_transactions` on, putting a row on a P&L line while a daily
+         *     book entry of the same amount may be the same money is a 409
+         *     `maybe_in_daily_book` naming the entries; send again with
+         *     `force: true` when it is different money.
          */
         CategorizeRequest: {
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
             /**
              * Post To Daily
              * @default true
@@ -13653,6 +13719,11 @@ export interface components {
                 [key: string]: string;
             };
             report: components["schemas"]["MonthlyRow"];
+            /**
+             * Transactions Enabled
+             * @default false
+             */
+            transactions_enabled: boolean;
         };
         /**
          * MonthlyRow
@@ -15133,6 +15204,135 @@ export interface components {
             store_name: string;
             /** Username */
             username: string;
+        };
+        /**
+         * PLAcceptRequest
+         * @description `POST /monthly/{year}/{month}/transactions/accept`: tag rows to
+         *     review with their suggestion. `txn_ids` limits it to those rows
+         *     (one row's ✓); empty takes every suggestion of the month ("Accept
+         *     all").
+         */
+        PLAcceptRequest: {
+            /** Txn Ids */
+            txn_ids?: number[];
+        };
+        /**
+         * PLAcceptResponse
+         * @description What "Accept" did. A row left alone stays to review: its day is
+         *     locked (`locked`), or a daily book check may be the same money
+         *     (`maybe_in_daily_book`, decided one row at a time).
+         */
+        PLAcceptResponse: {
+            /** Accepted */
+            accepted: number;
+            /** Locked */
+            locked: number;
+            /** Maybe In Daily Book */
+            maybe_in_daily_book: number;
+        };
+        /** PLTransactionCounts */
+        PLTransactionCounts: {
+            /** All */
+            all: number;
+            /** In Pl */
+            in_pl: number;
+            /** Not Pl */
+            not_pl: number;
+            /** Review */
+            review: number;
+        };
+        /**
+         * PLTransactionRow
+         * @description One dollar of the month, listed once. `amount` is what the row
+         *     adds to `line` (signed: a short or a refund is negative); a row
+         *     that does not count (`counted` false) shows its size. Bank rows
+         *     carry `txn_id` (categorize through the Bank endpoints) and the
+         *     bank's signed `bank_amount`.
+         */
+        PLTransactionRow: {
+            /** Account Label */
+            account_label: string;
+            /** Amount */
+            amount: number;
+            /** Bank Amount */
+            bank_amount: number | null;
+            /** Bank Date */
+            bank_date: string | null;
+            /**
+             * Book
+             * @enum {string}
+             */
+            book: "msb" | "store" | "";
+            /** Booked On */
+            booked_on: string | null;
+            /** Bucket */
+            bucket: ("income" | "expense") | null;
+            /** Category Slug */
+            category_slug: string;
+            /** Counted */
+            counted: boolean;
+            /** Day */
+            day: string | null;
+            /** Description */
+            description: string;
+            /** Item Kind */
+            item_kind: string;
+            /** Key */
+            key: string;
+            /** Line */
+            line: string | null;
+            /** Report Date Override */
+            report_date_override: string | null;
+            /** Rule Id */
+            rule_id: number | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "bank" | "entry" | "day" | "service" | "money_order_charges" | "returned_checks" | "typed";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "rule" | "person" | "added" | "matched" | "to_review" | "not_in_pl" | "daily" | "returned_checks" | "typed" | "bank_wins" | "typed_wins";
+            /** Suggested Slug */
+            suggested_slug: string;
+            /**
+             * Suggested Source
+             * @enum {string}
+             */
+            suggested_source: "history" | "template" | "";
+            /** Txn Id */
+            txn_id: number | null;
+        };
+        /**
+         * PLTransactionsResponse
+         * @description The tab's page: the `api.Core.Pagination` envelope plus the
+         *     month's counts per view (unfiltered), its totals (the statement's
+         *     own) and how complete it is.
+         */
+        PLTransactionsResponse: {
+            counts: components["schemas"]["PLTransactionCounts"];
+            /** Days Entered */
+            days_entered: number;
+            /** Days In Month */
+            days_in_month: number;
+            /** Net Profit */
+            net_profit: number;
+            /** Page */
+            page: number;
+            /** Rows */
+            rows: components["schemas"]["PLTransactionRow"][];
+            /** Suggested */
+            suggested: number;
+            /** Total */
+            total: number;
+            /** Total Expenses */
+            total_expenses: number;
+            /** Total Income */
+            total_income: number;
+            /** Total Pages */
+            total_pages: number;
         };
         /** PackActivateRequest */
         PackActivateRequest: {
@@ -28629,6 +28829,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonthlyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    monthly_transactions_route_monthly__year___month__transactions_get: {
+        parameters: {
+            query?: {
+                view?: string;
+                line?: string;
+                source?: string;
+                q?: string;
+                /** @description 1-based page number */
+                page?: number;
+                /** @description Rows per page (1 to 200) */
+                per_page?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                year: number;
+                month: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PLTransactionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_suggestions_route_monthly__year___month__transactions_accept_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                year: number;
+                month: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PLAcceptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PLAcceptResponse"];
                 };
             };
             /** @description Validation Error */

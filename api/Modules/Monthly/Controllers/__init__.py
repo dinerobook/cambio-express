@@ -9,15 +9,19 @@ Mounts at `/api/v2/monthly/*`. Read-side endpoints:
   GET /monthly/{year}/{month} → single-month P&L, live from the daily
                                 books + bank feed; 404 only when
                                 nothing at all feeds the month
+  GET /monthly/{year}/{month}/transactions
+                              → every dollar of the month, one row
+                                each (flag `pl_transactions`)
 
 JWT-required, scoped to the principal's store. Superadmin (no
 store scope) → 403.
 """
-from fastapi import APIRouter, Body, Depends, HTTPException, Path
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from api.Core.Audit import audit_operator
 from api.Core.Database import get_db
+from api.Core.Pagination import PaginationParams, pagination_dep, paginate_list
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services import resolve_store_scope
 from api.Modules.Auth.Services.principal import require_permission
@@ -31,6 +35,11 @@ from api.Modules.Monthly.Requests import (
     MonthlyRow,
     MonthlyUpdateRequest,
     MonthsLoggedResponse,
+    PLAcceptRequest,
+    PLAcceptResponse,
+    PLTransactionCounts,
+    PLTransactionRow,
+    PLTransactionsResponse,
 )
 from api.Modules.Monthly.Services import (
     MONTHLY_LINE_DEFAULTS,
@@ -116,9 +125,173 @@ def monthly_route(
             status_code=404,
             detail="Nothing recorded for this month yet",
         )
+    from api.Modules.Monthly.Services.ledger import pl_transactions_enabled
     return MonthlyResponse(
         report=_to_row(summary),
         labels=resolved_line_labels(db, store_id),
+        transactions_enabled=pl_transactions_enabled(db, store_id),
+    )
+
+
+@router.get(
+    "/{year}/{month}/transactions",
+    response_model=PLTransactionsResponse,
+)
+def monthly_transactions_route(
+    year: int = Path(..., ge=2000, le=2100),
+    month: int = Path(..., ge=1, le=12),
+    view: str = Query("all", pattern="^(review|in_pl|not_pl|all)$"),
+    line: str = Query("", max_length=60),
+    source: str = Query("", pattern="^(|bank|daily|other)$"),
+    q: str = Query("", max_length=100),
+    pagination: PaginationParams = Depends(pagination_dep),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PLTransactionsResponse:
+    """The Transactions tab: every dollar of the month, one row each,
+    with the line it counts on (Services/ledger.py). Counted rows add
+    up to the statement line by line.
+
+    Needs the P&L (`monthly.read`) and the bank rows
+    (`bank_sync.read`), and the store's `pl_transactions` switch
+    (which needs `bank_matching`): off → 403. `line` narrows to one
+    P&L line (the statement's drill-down), `source` to bank rows,
+    the daily books or the rest, `q` searches the description (two
+    characters or more). `counts` is the whole month, unfiltered."""
+    from calendar import monthrange
+    from dataclasses import asdict
+
+    from api.Modules.Monthly.Services.ledger import (
+        build_ledger, pl_transactions_enabled, view_counts,
+    )
+
+    require_permission(claims, "monthly", "read")
+    require_permission(claims, "bank_sync", "read")
+    sid = resolve_store_scope(claims)
+    if not pl_transactions_enabled(db, sid):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "pl_transactions_off",
+                "message": "The Transactions tab is not switched on for this store.",
+            },
+        )
+    y, m = int(year), int(month)
+    summary = summarize_monthly(db, sid, y, m)
+    rows = build_ledger(db, sid, y, m, summary)
+    counts = view_counts(rows)
+    sources = {
+        "bank": {"bank"},
+        "daily": {"entry", "day", "service", "money_order_charges"},
+        "other": {"returned_checks", "typed"},
+    }
+    needle = q.strip().lower() if len(q.strip()) >= 2 else ""
+    picked = [
+        r for r in rows
+        if (view == "all" or r.view == view)
+        and (not line or r.line == line)
+        and (not source or r.source in sources[source])
+        and (not needle or needle in r.description.lower())
+    ]
+    page = paginate_list(picked, pagination)
+    return PLTransactionsResponse(
+        rows=[
+            PLTransactionRow.model_validate({
+                **asdict(r), "amount": round(r.amount, 2), "bucket": r.bucket,
+            })
+            for r in page["rows"]
+        ],
+        total=page["total"], page=page["page"],
+        total_pages=page["total_pages"],
+        counts=PLTransactionCounts(**counts),
+        total_income=summary.total_income if summary else 0.0,
+        total_expenses=summary.total_expenses if summary else 0.0,
+        net_profit=summary.net_profit if summary else 0.0,
+        days_entered=summary.daily.days if summary else 0,
+        days_in_month=monthrange(y, m)[1],
+        suggested=sum(
+            1 for r in rows if r.status == "to_review" and r.suggested_slug
+        ),
+    )
+
+
+@router.post(
+    "/{year}/{month}/transactions/accept",
+    response_model=PLAcceptResponse,
+)
+def accept_suggestions_route(
+    year: int = Path(..., ge=2000, le=2100),
+    month: int = Path(..., ge=1, le=12),
+    body: PLAcceptRequest = Body(...),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PLAcceptResponse:
+    """Tag the month's rows to review with their suggestion — one row
+    (`txn_ids`) or all of them ("Accept all", owner 2026-11-27: one
+    click). The same write path as picking the category by hand
+    (`categorize_transaction`), so a daily book category books its
+    line and matching links what is already there. A row whose day is
+    locked, or that the double-count guard stops, is left to review
+    and counted in the answer. One audit row for the batch."""
+    from api.Modules.BankSync.Models import BankTransaction
+    from api.Modules.BankSync.Services.categorize import (
+        DailyBookLockedError, categorize_transaction,
+    )
+    from api.Modules.Monthly.Services.ledger import (
+        build_ledger, daily_twins, pl_transactions_enabled,
+    )
+
+    require_permission(claims, "monthly", "read")
+    require_permission(claims, "bank_sync", "update")
+    sid = resolve_store_scope(claims)
+    if not pl_transactions_enabled(db, sid):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "pl_transactions_off",
+                "message": "The Transactions tab is not switched on for this store.",
+            },
+        )
+    y, m = int(year), int(month)
+    wanted = set(body.txn_ids)
+    picks = [
+        (int(r.txn_id), r.suggested_slug)
+        for r in build_ledger(db, sid, y, m, summarize_monthly(db, sid, y, m))
+        if r.txn_id is not None and r.status == "to_review" and r.suggested_slug
+        and (not wanted or int(r.txn_id) in wanted)
+    ]
+    accepted: list[int] = []
+    locked = twins = 0
+    for txn_id, slug in picks:
+        txn = db.get(BankTransaction, txn_id)
+        if txn is None or int(txn.store_id) != sid:
+            continue
+        if daily_twins(db, txn, slug):
+            twins += 1
+            continue
+        nested = db.begin_nested()
+        try:
+            categorize_transaction(db, txn, slug)
+            nested.commit()
+            accepted.append(txn_id)
+        except DailyBookLockedError:
+            nested.rollback()
+            locked += 1
+    if accepted:
+        audit_operator(
+            db, claims,
+            action="accept_bank_suggestions",
+            target_type="bank_transaction",
+            target_id=f"{y}-{m:02d}",
+            target_label=f"{y}-{m:02d}",
+            summary=(
+                f"accepted={len(accepted)} ids="
+                + ",".join(str(i) for i in accepted)
+            )[:500],
+        )
+    db.commit()
+    return PLAcceptResponse(
+        accepted=len(accepted), locked=locked, maybe_in_daily_book=twins,
     )
 
 

@@ -56,6 +56,10 @@ BANK_CATEGORIES_NON_POSTING: dict[str, str] = {
     # daily book's Check Deposits box (DailyBook INVARIANTS "Held
     # checks").
     "held_checks_deposited": "Held checks deposited",
+    # Sales tax the store collected and pays to the state: never the
+    # store's income or expense, so it stays off the P&L (owner,
+    # 2026-11-27, Monthly INVARIANTS "Transactions").
+    "sales_tax_paid":     "Sales tax paid",
     "ignore":             "Ignore (don't reconcile)",
 }
 

@@ -132,6 +132,8 @@ export function monthlyLineName(field: string, serverLabel?: string): string {
 export interface MonthlyDetail {
   report: MonthlyRow | null;
   labels: Record<string, string>;
+  /** The store has the Transactions tab (`pl_transactions`). */
+  transactions_enabled?: boolean;
 }
 
 export function useMonthly(year: number | undefined, month: number | undefined) {
@@ -252,4 +254,62 @@ export function useLoggedMonths() {
     queryFn: () => api<{ months: MonthLogged[] }>(`/api/v2/monthly/months`),
     staleTime: 60_000,
   });
+}
+
+// ── Transactions tab ───────────────────────────────────────
+//
+// Every dollar of the month, one row each (Monthly INVARIANTS
+// "Transactions"). Counted rows add up to the statement.
+
+export type PLTransactionRow = components["schemas"]["PLTransactionRow"];
+export type PLTransactionsResponse = components["schemas"]["PLTransactionsResponse"];
+export type PLTransactionView = "review" | "in_pl" | "not_pl" | "all";
+
+export interface PLTransactionFilters {
+  view: PLTransactionView;
+  line: string;
+  source: "" | "bank" | "daily" | "other";
+  q: string;
+  page: number;
+  per_page: number;
+}
+
+export function fetchPLTransactions(
+  year: number, month: number, f: PLTransactionFilters,
+): Promise<PLTransactionsResponse> {
+  const p = new URLSearchParams();
+  p.set("view", f.view);
+  if (f.line) p.set("line", f.line);
+  if (f.source) p.set("source", f.source);
+  if (f.q.length >= 2) p.set("q", f.q);
+  p.set("page", String(f.page));
+  p.set("per_page", String(f.per_page));
+  return api<PLTransactionsResponse>(
+    `/api/v2/monthly/${year}/${month}/transactions?${p.toString()}`,
+  );
+}
+
+export function usePLTransactions(
+  year: number | undefined, month: number | undefined,
+  f: PLTransactionFilters, enabled: boolean,
+) {
+  const identity = getCurrentIdentity();
+  return useQuery<PLTransactionsResponse>({
+    enabled: enabled && identity?.store_id != null && !!year && !!month,
+    queryKey: ["monthly", "transactions", identity?.store_id, year, month, f],
+    queryFn: () => fetchPLTransactions(year!, month!, f),
+  });
+}
+
+export type PLAcceptResponse = components["schemas"]["PLAcceptResponse"];
+
+/** Tag rows to review with their suggestion: `txnIds` for one row,
+ *  none for every suggestion of the month ("Accept all"). */
+export function acceptPLSuggestions(
+  year: number, month: number, txnIds: number[] = [],
+): Promise<PLAcceptResponse> {
+  return api<PLAcceptResponse>(
+    `/api/v2/monthly/${year}/${month}/transactions/accept`,
+    { method: "POST", json: { txn_ids: txnIds } },
+  );
 }

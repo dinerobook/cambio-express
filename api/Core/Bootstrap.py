@@ -108,6 +108,18 @@ DEFAULT_FEATURE_FLAGS: list[tuple[str, str, str, bool]] = [
      "Show the bell in the top bar with the store's to-do items "
      "(days not locked, cash due back, bank rows to check, old "
      "returned checks).", False),
+    # Off until a store is switched on (owner, 2026-11-27): the
+    # Monthly P&L's Transactions tab, every dollar of the month in
+    # one list, categorized in place, counted on the day the daily
+    # book has it. Needs ``bank_matching`` on too. Resolved with
+    # ``opt_in_flag_enabled`` — never fails open.
+    # api/Modules/Monthly/INVARIANTS.md "Transactions".
+    ("pl_transactions", "Monthly P&L: transactions",
+     "The Transactions tab on the Monthly P&L: every bank row and "
+     "daily book entry of the month in one list, categorized in "
+     "place, with a rule from any row. Bank rows count in the month "
+     "the daily book has them. Needs Bank matched to daily book.",
+     False),
     # Off until a store is switched on (owner, 2026-11-09): the new
     # standalone check cashing module (customers, companies, fees),
     # owner's store first while it is built. Resolved with

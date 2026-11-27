@@ -7,12 +7,15 @@ import {
   useLoggedMonths, useMonthly, type MonthlyLine, type MonthlyRow,
 } from "../api/monthly";
 import { Delta } from "../components/Delta";
+import { PLTransactions } from "../components/PLTransactions";
 import { apiErrorMessage } from "../lib/api";
 import { getCurrentIdentity } from "../lib/auth";
+import { hasPermission } from "../lib/permissions";
 import { fmtMoney2, fmtNumber } from "../lib/formatters";
 import {
-  ButtonLink, Card, Empty, EmptyState, ErrorState, Loading, PageHeader,
+  AppLink, ButtonLink, Card, Empty, EmptyState, ErrorState, Loading, PageHeader,
   KpiCard, KpiGrid, PageShell, PeriodStepper, Pill, Section, Select, Table,
+  TabsBar, TabsButton,
   tdStyle, tdStyleRight, thStyle, thStyleRight,
   type PillTone,
 } from "../components/ui";
@@ -107,8 +110,28 @@ export default function Monthly() {
     const params = new URLSearchParams(sp);
     params.set("year", String(ym.year));
     params.set("month", String(ym.month));
+    params.delete("page");
     setSP(params, { replace: true });
   }
+
+  // The Transactions tab (Monthly INVARIANTS "Transactions"), for a
+  // store with `pl_transactions` on. "" is the statement.
+  // It lists bank rows, so it needs `bank_sync.read` too (the server
+  // refuses it without; an accountant never has it).
+  const withTransactions = Boolean(detail.data?.transactions_enabled)
+    && hasPermission("bank_sync", "read");
+  const tab = withTransactions && sp.get("tab") === "transactions" ? "transactions" : "";
+  function openTab(next: "" | "transactions", line?: string) {
+    const params = new URLSearchParams();
+    params.set("year", String(year));
+    params.set("month", String(month));
+    if (next) params.set("tab", next);
+    if (line) { params.set("line", line); params.set("view", "all"); }
+    setSP(params);
+  }
+  const lineHref = withTransactions && year && month
+    ? (key: string) => `/monthly?year=${year}&month=${month}&tab=transactions&view=all&line=${key}`
+    : undefined;
 
   if (identity?.store_id == null) {
     return (
@@ -194,26 +217,42 @@ export default function Monthly() {
           />
         </Card>
       )}
-      {detail.data?.report && (
+      {detail.data?.report && withTransactions && (
+        <TabsBar>
+          <TabsButton active={tab === ""} onClick={() => openTab("")}>
+            {t("plTx.tabStatement")}
+          </TabsButton>
+          <TabsButton active={tab === "transactions"} onClick={() => openTab("transactions")}>
+            {t("plTx.tabTransactions")}
+          </TabsButton>
+        </TabsBar>
+      )}
+      {detail.data?.report && tab === "" && (
         <ReportContent
           r={detail.data.report}
           labels={detail.data.labels}
           previous={previous.data?.report ?? null}
           previousLabel={prev ? monthName(prev.month, "short") : ""}
+          lineHref={lineHref}
         />
+      )}
+      {detail.data?.report && tab === "transactions" && year && month && (
+        <PLTransactions year={year} month={month} labels={detail.data.labels} />
       )}
     </PageShell>
   );
 }
 
 function ReportContent({
-  r, labels, previous, previousLabel,
+  r, labels, previous, previousLabel, lineHref,
 }: {
   r: MonthlyRow;
   /** The store's own name per P&L column, from the server. */
   labels: Record<string, string>;
   previous: MonthlyRow | null;
   previousLabel: string;
+  /** With the Transactions tab: where a line's rows are listed. */
+  lineHref?: (key: string) => string;
 }) {
   const margin = r.total_income > 0
     ? Math.round((r.net_profit / r.total_income) * 1000) / 10
@@ -270,13 +309,13 @@ function ReportContent({
       <div className={styles.statements}>
         <Section title={t(MONTHLY_SECTION_LABELS.Income)}>
           <Statement
-            r={r} labels={labels} lines={INCOME_LINES}
+            r={r} labels={labels} lines={INCOME_LINES} lineHref={lineHref}
             total={r.total_income} totalLabel="pl.totalIncome"
           />
         </Section>
         <Section title={t(MONTHLY_SECTION_LABELS.Expenses)}>
           <Statement
-            r={r} labels={labels} lines={EXPENSE_LINES}
+            r={r} labels={labels} lines={EXPENSE_LINES} lineHref={lineHref}
             total={r.total_expenses} totalLabel="pl.totalExpenses"
           />
         </Section>
@@ -298,13 +337,14 @@ function ReportContent({
  *  $0 are left out (a line that does not apply disappears rather
  *  than show $0); a footnote says how many. */
 function Statement({
-  r, labels, lines, total, totalLabel,
+  r, labels, lines, total, totalLabel, lineHref,
 }: {
   r: MonthlyRow;
   labels: Record<string, string>;
   lines: MonthlyLine[];
   total: number;
   totalLabel: MessageKey;
+  lineHref?: (key: string) => string;
 }) {
   const t = useT();
   const shown = lines.filter((l) => Number(r[l.key]) !== 0);
@@ -329,7 +369,14 @@ function Statement({
                 <tr key={l.key}>
                   <td style={tdStyle}>
                     <span className={styles.lineName}>
-                      {monthlyLineName(l.key, labels[l.key])}
+                      {lineHref ? (
+                        <AppLink
+                          to={lineHref(l.key)}
+                          title={t("plTx.openLine", { line: monthlyLineName(l.key, labels[l.key]) })}
+                        >
+                          {monthlyLineName(l.key, labels[l.key])}
+                        </AppLink>
+                      ) : monthlyLineName(l.key, labels[l.key])}
                     </span>
                     {l.key === "money_order_fees" && r.money_order_charges > 0 && (
                       <span className={styles.lineNote}>

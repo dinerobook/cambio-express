@@ -113,13 +113,20 @@ class CategorizeRequest(BaseModel):
       * a date  — book on that day and remember it;
       * `null`  — clear the choice, back to the bank's date.
 
-    Booking onto a locked day is a 409."""
+    Booking onto a locked day is a 409.
+
+    `force` answers the double-count guard: with the Monthly P&L's
+    `pl_transactions` on, putting a row on a P&L line while a daily
+    book entry of the same amount may be the same money is a 409
+    `maybe_in_daily_book` naming the entries; send again with
+    `force: true` when it is different money."""
 
     model_config = ConfigDict(extra="forbid")
 
     target_kind: str = Field(..., min_length=1, max_length=60)
     post_to_daily: bool = True
     report_date: date | None = None
+    force: bool = False
 
 
 class CategorizeResponse(BaseModel):

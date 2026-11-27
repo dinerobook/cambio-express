@@ -123,6 +123,9 @@ export const COVERED_FILES = [
   // Bank
   "routes/Bank.tsx",
   "routes/BankTransactions.tsx",
+  "components/BankCategoryCell.tsx",
+  "components/BankRuleFromRow.tsx",
+  "components/PLTransactions.tsx",
   "routes/BankMatching.tsx",
   "routes/BankRules.tsx",
   "components/BankRuleForm.tsx",
