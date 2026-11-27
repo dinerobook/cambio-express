@@ -97,6 +97,11 @@ class LedgerRow:
     suggested_slug: str = ""        # Services/suggestions.py, rows to review
     suggested_source: str = ""      # history | template | ""
     section: str = ""               # a store category's half: income | expense
+    # A daily entry that can go on another expense line
+    # (`entry_categories.py`): its id, and the line it was put on
+    # ("" = its kind's own line).
+    entry_id: int | None = None
+    entry_category: str = ""
 
     @property
     def bucket(self) -> str | None:
@@ -193,6 +198,7 @@ def _bank_rows(
     from api.Modules.BankSync.Services.charges import booking_day_expr
     from api.Modules.DailyBook.Models import DailyLineItem
     from api.Modules.Monthly.Services import custom_categories
+    from api.Modules.Monthly.Services.entry_categories import movable_kinds
 
     month_items = {
         int(i.id): i for i in db.query(DailyLineItem).filter(
@@ -241,8 +247,10 @@ def _bank_rows(
     } if elsewhere else set()
     review_slugs = set(reconcile._review_slugs())
     kind_lines = _kind_lines()
+    on = custom_categories.enabled(db, store_id)
+    movable = movable_kinds() if on else {}
     custom = {c.slug: str(c.section) for c in custom_categories.store_categories(db, store_id)} \
-        if custom_categories.enabled(db, store_id) else {}
+        if on else {}
     consumed: set[int] = set()
     for t in txns:
         slug = t.category_slug or ""
@@ -276,7 +284,16 @@ def _bank_rows(
                 row.booked_on = row.day
             row.item_kind = str(items[0].kind)
             line = kind_lines.get(row.item_kind)
-            if line is not None:
+            if row.item_kind in movable:
+                row.entry_id = int(items[0].id)
+                row.entry_category = str(items[0].pl_category or "")
+            moved = summary.entry_targets.get(int(items[0].id))
+            if moved is not None:
+                row.line, row.counted = moved, True
+                row.amount = sum(int(i.amount_cents or 0) for i in items) / 100.0
+                if moved in custom:
+                    row.section = custom[moved]
+            elif line is not None:
                 row.line = line
                 row.amount = sum(int(i.amount_cents or 0) for i in items) / 100.0
                 elsewhere_status, counted = _daily_status(summary, line)
@@ -330,10 +347,20 @@ def _daily_rows(
     )
     from api.Modules.StoreBook.Models import StoreDailyEntry
 
+    from api.Modules.Monthly.Services.custom_categories import (
+        PREFIX as PLC_PREFIX, enabled,
+    )
+    from api.Modules.Monthly.Services.entry_categories import (
+        history_suggestions, movable_kinds,
+    )
+
     if summary.daily.days == 0:
         return
     kind_lines = _kind_lines()
     line_kind = {line: kind for kind, line in kind_lines.items()}
+    on = enabled(db, store_id)
+    movable = movable_kinds() if on else {}
+    unmoved: list[Any] = []
 
     def add(*, line: str, amount: float, description: str = "", **kw: Any) -> None:
         if amount == 0:
@@ -359,9 +386,34 @@ def _daily_rows(
         )
         if int(i.id) in consumed:
             continue
+        kind = str(i.kind)
+        extra: dict[str, Any] = {}
+        if kind in movable:
+            extra = {"entry_id": int(i.id), "entry_category": str(i.pl_category or "")}
+            if not i.pl_category:
+                unmoved.append(i)
+        moved = summary.entry_targets.get(int(i.id))
+        if moved is not None:
+            if cents:
+                out.append(LedgerRow(
+                    key=f"entry:{i.id}", source="entry", day=i.report_date,
+                    description=i.note or "", amount=cents / 100.0, line=moved,
+                    status="daily", counted=True, item_kind=kind, book="msb",
+                    section="expense" if moved.startswith(PLC_PREFIX) else "",
+                    **extra,
+                ))
+            continue
         add(key=f"entry:{i.id}", source="entry", day=i.report_date,
             description=i.note or "", amount=cents / 100.0,
-            line=kind_lines[str(i.kind)], item_kind=str(i.kind), book="msb")
+            line=kind_lines[kind], item_kind=kind, book="msb", **extra)
+
+    # A suggestion for an entry still on its own line: where the
+    # store put the last one with the same note.
+    found = history_suggestions(db, store_id, unmoved)
+    if found:
+        for r in out:
+            if r.entry_id is not None and r.txn_id is None and r.entry_id in found:
+                r.suggested_slug, r.suggested_source = found[r.entry_id], "history"
 
     # Day figures: what each book has for a line that day, less the
     # entries listed above (an older day typed as one total).

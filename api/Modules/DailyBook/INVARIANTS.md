@@ -509,6 +509,13 @@ money moves, so locking the original day never strands it.
 `GET /settlements/open` carries `day_locked` on each entry so the SPA
 hides Change date / Close for an entry whose own day is locked.
 
+The one field outside the book: `DailyLineItem.pl_category`, the
+Monthly P&L line an expense / purchase entry counts on (Monthly
+INVARIANTS "Daily entries on another line"). It moves no money in
+the daily book (amount, day, drawer and totals stay as locked), so
+the Monthly P&L may set it on a locked day (owner, 2026-11-27). It is
+never written by a daily book route.
+
 Writers outside this module that touch a day's book honour the same
 lock: a return-check payment can't be added to or removed from a
 locked `paid_on` day (409, `ReturnChecks.Services`), and the bank feed

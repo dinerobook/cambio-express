@@ -28,6 +28,7 @@ const usePLTransactions = vi.fn();
 const categorizeTransaction = vi.fn();
 const acceptPLSuggestions = vi.fn();
 const matchTransaction = vi.fn();
+const setEntryCategory = vi.fn();
 
 vi.mock("../api/monthly", async (importOriginal) => {
   const real = await importOriginal<typeof import("../api/monthly")>();
@@ -37,6 +38,7 @@ vi.mock("../api/monthly", async (importOriginal) => {
     useLoggedMonths: (...a: unknown[]) => useLoggedMonths(...a),
     usePLTransactions: (...a: unknown[]) => usePLTransactions(...a),
     acceptPLSuggestions: (...a: unknown[]) => acceptPLSuggestions(...a),
+    setEntryCategory: (...a: unknown[]) => setEntryCategory(...a),
   };
 });
 
@@ -108,6 +110,10 @@ function listOf(
       rows, total: rows.length, page: 1, total_pages: 1, counts,
       total_income: 900, total_expenses: 45, net_profit: 855,
       days_entered: 12, days_in_month: 30, suggested,
+      entry_targets: [
+        { slug: "pl_accounting_charges", label: "Accounting charges" },
+        { slug: "plc_3", label: "Ice" },
+      ],
     },
     isLoading: false, isError: false, refetch: vi.fn(),
   };
@@ -148,7 +154,7 @@ const where = () => screen.getByTestId("where").textContent ?? "";
 beforeEach(() => {
   for (const fn of [
     useMonthly, useLoggedMonths, usePLTransactions, categorizeTransaction,
-    matchTransaction, acceptPLSuggestions,
+    matchTransaction, acceptPLSuggestions, setEntryCategory,
   ]) fn.mockReset();
   setCurrentIdentity(TEST_ADMIN);
   useMonthly.mockReturnValue(ok({ report, labels: {}, transactions_enabled: true }));
@@ -318,7 +324,7 @@ describe("Monthly P&L transactions tab", () => {
     const zelle = screen.getByText("ZELLE PAYMENT").closest("tr")!;
     expect(zelle).toHaveTextContent("Suggested: Accounting charges");
     await userEvent.click(within(zelle).getByRole("button", { name: "Accept" }));
-    expect(acceptPLSuggestions).toHaveBeenCalledWith(2026, 11, [7]);
+    expect(acceptPLSuggestions).toHaveBeenCalledWith(2026, 11, [7], []);
     expect(await screen.findByText("1 transaction categorized.")).toBeInTheDocument();
   });
 
@@ -327,17 +333,74 @@ describe("Monthly P&L transactions tab", () => {
     acceptPLSuggestions.mockResolvedValue({ accepted: 2, locked: 1, maybe_in_daily_book: 0 });
     renderPage();
     await userEvent.click(screen.getByRole("button", { name: "Accept all 3 suggestions" }));
-    expect(acceptPLSuggestions).toHaveBeenCalledWith(2026, 11, []);
+    expect(acceptPLSuggestions).toHaveBeenCalledWith(2026, 11, [], []);
     expect(await screen.findByText(/2 transactions categorized\. 1 left to review/)).toBeInTheDocument();
   });
 
   it("offers no Accept to someone who cannot categorize", () => {
-    withPermissions(["bank_sync.update"]);
+    withPermissions(["bank_sync.update", "monthly.update"]);
     usePLTransactions.mockReturnValue(listOf([
       { ...ROWS[0], suggested_slug: "pl_accounting_charges", suggested_source: "template" },
     ], undefined, 1));
     renderPage();
     expect(screen.queryByRole("button", { name: /Accept/ })).not.toBeInTheDocument();
+  });
+
+  it("puts a daily expense entry on another line", async () => {
+    const entry = row({
+      key: "entry:41", source: "entry", description: "CPA Lopez", amount: 150,
+      line: "cash_expenses", bucket: "expense", status: "daily", counted: true,
+      item_kind: "cash_expense", book: "msb", entry_id: 41, entry_category: "",
+    });
+    usePLTransactions.mockReturnValue(listOf([entry]));
+    setEntryCategory.mockResolvedValue({ entry_id: 41, entry_category: "plc_3" });
+    renderPage();
+    const select = screen.getByRole("combobox", { name: "P&L line for Daily book entry · CPA Lopez" });
+    expect(select).toHaveValue("");
+    expect(within(select).getByRole("option", { name: "Cash expenses (its own line)" }))
+      .toBeInTheDocument();
+    await userEvent.selectOptions(select, "plc_3");
+    await waitFor(() => expect(setEntryCategory).toHaveBeenCalledWith(41, "plc_3"));
+  });
+
+  it("says why an entry could not move", async () => {
+    usePLTransactions.mockReturnValue(listOf([row({
+      key: "entry:41", source: "entry", description: "CPA", amount: 150,
+      line: "cash_expenses", status: "daily", counted: true,
+      item_kind: "cash_expense", entry_id: 41, entry_category: "",
+    })]));
+    setEntryCategory.mockRejectedValue(new ApiError(422, "Pick one of the store's expense lines.", null));
+    renderPage();
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: /P&L line for/ }), "pl_accounting_charges");
+    expect(await screen.findByText("Pick one of the store's expense lines.")).toBeInTheDocument();
+  });
+
+  it("suggests where an entry goes and accepts it", async () => {
+    usePLTransactions.mockReturnValue(listOf([row({
+      key: "entry:41", source: "entry", description: "CPA", amount: 150,
+      line: "cash_expenses", status: "daily", counted: true,
+      item_kind: "cash_expense", entry_id: 41, entry_category: "",
+      suggested_slug: "pl_accounting_charges", suggested_source: "history",
+    })], undefined, 1));
+    acceptPLSuggestions.mockResolvedValue({ accepted: 1, locked: 0, maybe_in_daily_book: 0 });
+    renderPage();
+    const tr = screen.getByRole("combobox", { name: /P&L line for/ }).closest("tr")!;
+    expect(tr).toHaveTextContent("Suggested: Accounting charges");
+    await userEvent.click(within(tr).getByRole("button", { name: "Accept" }));
+    expect(acceptPLSuggestions).toHaveBeenCalledWith(2026, 11, [], [41]);
+  });
+
+  it("shows an entry's line as text to someone who cannot edit the P&L", () => {
+    withPermissions(["monthly.update"]);
+    usePLTransactions.mockReturnValue(listOf([row({
+      key: "entry:41", source: "entry", description: "CPA", amount: 150,
+      line: "accounting_charges", status: "daily", counted: true,
+      item_kind: "cash_expense", entry_id: 41, entry_category: "pl_accounting_charges",
+    })]));
+    renderPage();
+    expect(screen.queryByRole("combobox", { name: /P&L line for/ })).not.toBeInTheDocument();
+    const tr = screen.getByText(/CPA/).closest("tr")!;
+    expect(tr).toHaveTextContent("Accounting charges");
   });
 
   it("shows a retry when the list fails", async () => {
@@ -353,8 +416,15 @@ describe("Monthly P&L transactions tab", () => {
 
   it("reads in Spanish", () => {
     setLanguage("es");
+    usePLTransactions.mockReturnValue(listOf([...ROWS, row({
+      key: "entry:41", source: "entry", description: "CPA", amount: 150,
+      line: "cash_expenses", status: "daily", counted: true,
+      item_kind: "cash_expense", entry_id: 41, entry_category: "",
+      suggested_slug: "pl_accounting_charges", suggested_source: "history",
+    })]));
     try {
       renderPage();
+      expect(screen.getByRole("combobox", { name: /^Línea del P&L para/ })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Transacciones" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Por revisar (1)" })).toBeInTheDocument();
       expect(screen.getByTestId("pl-completeness")).toHaveTextContent(

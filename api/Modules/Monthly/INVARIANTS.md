@@ -382,6 +382,39 @@ of the bank rows tagged into it, by booking day.
   need `monthly.update` and each writes an audit row
   (`monthly_category_*`). Another store's id is a 404.
 
+## Daily entries on another line (`pl_transactions`)
+
+A cash / check expense or purchase entry
+(`entry_categories.MOVABLE_LINES`; payroll stays on payroll) can be
+put on another EXPENSE line: a `pl_*` expense column or an expense
+store category (`DailyLineItem.pl_category`, `PUT
+/monthly/entries/{id}/category`). The daily book does not change —
+same money, same day, same drawer — so it may be done on a locked
+day.
+
+- **One move, on read and on save.** `entry_moves` +
+  `apply_moves` take the entry off its kind's line (`daily.derived`)
+  and put it on the target, inside `summarize_monthly` AND
+  `update_monthly`, so what is stored is what the page shows.
+- **On a `pl_*` column** it adds to the bank's sum when the bank
+  feeds that column (`bank_locked`), else the moved entries speak for
+  the line alone (`daily_fed`; a typed value stops counting, the way
+  the daily book wins over typing). **On a store category** it adds
+  to the category's bank sum (`custom_lines`; `in_use` counts it).
+- **The ledger follows it.** The entry row — or the bank row booked
+  from it — counts on the target line, `entry_id` / `entry_category`
+  on the row; the add-up rule holds (`test_pl_entry_categories.py`).
+- **Suggestions**: an entry still on its own line gets the line the
+  store gave its newest entry of the same kind with the same note
+  words (`history_suggestions`). "Accept" takes `entry_ids`; "Accept
+  all" moves entries only for someone with `monthly.update`.
+- A stored category that no longer means anything (an income line,
+  a deleted category) is ignored: the entry stays on its own line.
+- Needs `monthly.update` and the switch; switch off, nothing moves
+  whatever is stored. Another store's entry is a 404, a payroll or
+  other kind or a line the store cannot pick a 422. Audited
+  (`monthly_entry_category`, before → after).
+
 ## The 422 trap — explicit DO-NOT-WRITE list
 
 Any code that constructs the monthly-P&L PUT body MUST NOT include

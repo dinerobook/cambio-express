@@ -24,7 +24,7 @@ from api.Core.Database import get_db
 from api.Core.Pagination import PaginationParams, pagination_dep, paginate_list
 from api.Modules.Auth.Controllers import get_principal
 from api.Modules.Auth.Services import resolve_store_scope
-from api.Modules.Auth.Services.principal import require_permission
+from api.Modules.Auth.Services.principal import has_permission, require_permission
 from api.Modules.Monthly.Repositories import list_logged_months
 from api.Modules.Monthly.Requests import (
     MonthLogged,
@@ -43,6 +43,9 @@ from api.Modules.Monthly.Requests import (
     PLCategoryRenameRequest,
     PLCategoryResponse,
     PLCategoryRow,
+    PLEntryCategoryRequest,
+    PLEntryCategoryResponse,
+    PLEntryTarget,
     PLTransactionCounts,
     PLTransactionRow,
     PLTransactionsResponse,
@@ -350,6 +353,7 @@ def monthly_transactions_route(
     from calendar import monthrange
     from dataclasses import asdict
 
+    from api.Modules.Monthly.Services.entry_categories import target_options
     from api.Modules.Monthly.Services.ledger import (
         build_ledger, pl_transactions_enabled, view_counts,
     )
@@ -399,10 +403,22 @@ def monthly_transactions_route(
         net_profit=summary.net_profit if summary else 0.0,
         days_entered=summary.daily.days if summary else 0,
         days_in_month=monthrange(y, m)[1],
-        suggested=sum(
-            1 for r in rows if r.status == "to_review" and r.suggested_slug
-        ),
+        suggested=sum(1 for r in rows if _acceptable(r)),
+        entry_targets=[
+            PLEntryTarget(slug=slug, label=label)
+            for slug, label in target_options(db, sid)
+        ],
     )
+
+
+def _acceptable(r: Any) -> bool:
+    """A ledger row "Accept" acts on: a bank row to review with a
+    suggestion, or a daily entry still on its own line with one."""
+    if not r.suggested_slug:
+        return False
+    if r.txn_id is not None:
+        return bool(r.status == "to_review")
+    return r.entry_id is not None and not r.entry_category
 
 
 @router.post(
@@ -432,7 +448,13 @@ def accept_suggestions_route(
     )
 
     require_permission(claims, "monthly", "read")
-    require_permission(claims, "bank_sync", "update")
+    everything = not body.txn_ids and not body.entry_ids
+    can_bank = has_permission(claims, "bank_sync", "update")
+    can_entries = has_permission(claims, "monthly", "update")
+    if body.txn_ids or (everything and not can_entries):
+        require_permission(claims, "bank_sync", "update")
+    if body.entry_ids:
+        require_permission(claims, "monthly", "update")
     sid = resolve_store_scope(claims)
     if not pl_transactions_enabled(db, sid):
         raise HTTPException(
@@ -443,13 +465,21 @@ def accept_suggestions_route(
             },
         )
     y, m = int(year), int(month)
-    wanted = set(body.txn_ids)
-    picks = [
-        (int(r.txn_id), r.suggested_slug)
-        for r in build_ledger(db, sid, y, m, summarize_monthly(db, sid, y, m))
-        if r.txn_id is not None and r.status == "to_review" and r.suggested_slug
-        and (not wanted or int(r.txn_id) in wanted)
+    wanted, wanted_entries = set(body.txn_ids), set(body.entry_ids)
+    ledger = [
+        r for r in build_ledger(db, sid, y, m, summarize_monthly(db, sid, y, m))
+        if _acceptable(r)
     ]
+    picks = [
+        (int(r.txn_id), r.suggested_slug) for r in ledger
+        if r.txn_id is not None and can_bank
+        and (everything or int(r.txn_id) in wanted)
+    ]
+    moved = _put_entries(db, sid, [
+        (int(r.entry_id), r.suggested_slug) for r in ledger
+        if r.txn_id is None and r.entry_id is not None and can_entries
+        and (everything or int(r.entry_id) in wanted_entries)
+    ])
     accepted: list[int] = []
     locked = twins = 0
     for txn_id, slug in picks:
@@ -467,7 +497,7 @@ def accept_suggestions_route(
         except DailyBookLockedError:
             nested.rollback()
             locked += 1
-    if accepted:
+    if accepted or moved:
         audit_operator(
             db, claims,
             action="accept_bank_suggestions",
@@ -475,14 +505,99 @@ def accept_suggestions_route(
             target_id=f"{y}-{m:02d}",
             target_label=f"{y}-{m:02d}",
             summary=(
-                f"accepted={len(accepted)} ids="
+                f"accepted={len(accepted) + len(moved)} ids="
                 + ",".join(str(i) for i in accepted)
+                + (" entries=" + ",".join(str(i) for i in moved) if moved else "")
             )[:500],
         )
     db.commit()
     return PLAcceptResponse(
-        accepted=len(accepted), locked=locked, maybe_in_daily_book=twins,
+        accepted=len(accepted) + len(moved), locked=locked,
+        maybe_in_daily_book=twins,
     )
+
+
+def _put_entries(db: Session, sid: int, picks: list[tuple[int, str]]) -> list[int]:
+    """Put each daily entry on its suggested line; answer the ids
+    moved. A locked day does not stop it: the daily book's money is
+    untouched."""
+    from api.Modules.DailyBook.Models import DailyLineItem
+    from api.Modules.Monthly.Services.entry_categories import (
+        is_valid_target, movable_kinds,
+    )
+
+    kinds = movable_kinds()
+    moved: list[int] = []
+    for entry_id, slug in picks:
+        item = db.get(DailyLineItem, entry_id)
+        if (
+            item is None or int(item.store_id) != sid
+            or str(item.kind) not in kinds or item.pl_category
+            or not is_valid_target(db, sid, slug)
+        ):
+            continue
+        setattr(item, "pl_category", slug)
+        moved.append(entry_id)
+    return moved
+
+
+@router.put(
+    "/entries/{entry_id}/category",
+    response_model=PLEntryCategoryResponse,
+)
+def entry_category_route(
+    entry_id: int = Path(..., ge=1),
+    body: PLEntryCategoryRequest = Body(...),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PLEntryCategoryResponse:
+    """Put a cash / check expense or purchase entry on another expense
+    line of the P&L, or back on its own (`slug` ""). Monthly
+    INVARIANTS "Daily entries on another line". Moves no money in the
+    daily book, so a locked day is fine. Needs `monthly.update` and
+    the switch; another store's entry is a 404, a kind that cannot
+    move or a line the store cannot pick is a 422. Audited."""
+    from api.Modules.DailyBook.Models import DailyLineItem
+    from api.Modules.Monthly.Services.entry_categories import (
+        is_valid_target, movable_kinds,
+    )
+    from api.Modules.Monthly.Services.ledger import pl_transactions_enabled
+
+    require_permission(claims, "monthly", "update")
+    sid = resolve_store_scope(claims)
+    if not pl_transactions_enabled(db, sid):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "pl_transactions_off",
+                "message": "The Transactions tab is not switched on for this store.",
+            },
+        )
+    item = db.get(DailyLineItem, entry_id)
+    if item is None or int(item.store_id) != sid:
+        raise HTTPException(status_code=404, detail="Entry not found.")
+    if str(item.kind) not in movable_kinds():
+        raise HTTPException(
+            status_code=422,
+            detail="Only cash and check expenses and purchases can go on another line.",
+        )
+    slug = body.slug.strip()
+    if slug and not is_valid_target(db, sid, slug):
+        raise HTTPException(
+            status_code=422, detail="Pick one of the store's expense lines.",
+        )
+    before = str(item.pl_category or "") or "-"
+    setattr(item, "pl_category", slug or None)
+    audit_operator(
+        db, claims,
+        action="monthly_entry_category",
+        target_type="daily_line_item",
+        target_id=str(entry_id),
+        target_label=f"{item.report_date.isoformat()} {item.kind}",
+        summary=f"{before} -> {slug or '-'}",
+    )
+    db.commit()
+    return PLEntryCategoryResponse(entry_id=entry_id, entry_category=slug)
 
 
 @router.put(

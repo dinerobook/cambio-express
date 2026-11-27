@@ -73,3 +73,9 @@
   color: var(--db-accent);
   font-size: 0.85rem;
 }
+
+/* A daily entry's line picker: as wide as the cell, never wider. */
+.entrySelect {
+  max-width: 100%;
+  min-width: 10rem;
+}

@@ -94,7 +94,7 @@ def rename_category(db: Session, row: Any, name: str) -> Any:
 
 
 def in_use(db: Session, store_id: int) -> dict[int, int]:
-    """``{category id: bank rows on it}``, every row ever."""
+    """``{category id: bank rows and daily entries on it}``, ever."""
     from api.Modules.BankSync.Models import BankTransaction
 
     out: dict[int, int] = {}
@@ -107,6 +107,17 @@ def in_use(db: Session, store_id: int) -> dict[int, int]:
         cid = category_id(str(slug))
         if cid is not None:
             out[cid] = int(n)
+    # Daily entries put on one (`entry_categories.py`) count too.
+    from api.Modules.DailyBook.Models import DailyLineItem
+    for slug, n in db.query(
+        DailyLineItem.pl_category, func.count(DailyLineItem.id),
+    ).filter(
+        DailyLineItem.store_id == store_id,
+        DailyLineItem.pl_category.like(f"{PREFIX}%"),
+    ).group_by(DailyLineItem.pl_category):
+        cid = category_id(str(slug))
+        if cid is not None:
+            out[cid] = out.get(cid, 0) + int(n)
     return out
 
 
