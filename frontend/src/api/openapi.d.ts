@@ -8010,6 +8010,7 @@ export interface components {
             lottery: components["schemas"]["LotterySnapshot"] | null;
             /** Modules */
             modules: string[];
+            pl_month: components["schemas"]["DashboardPLMonth"] | null;
             purchases: components["schemas"]["PurchasesBlock"] | null;
             /** Recent Batches */
             recent_batches: components["schemas"]["DashboardBatchRow"][];
@@ -11436,6 +11437,26 @@ export interface components {
             status: string | null;
             /** Variance */
             variance: number;
+        };
+        /**
+         * DashboardPLMonth
+         * @description The Monthly P&L tile (store Admins only).
+         */
+        DashboardPLMonth: {
+            /** Days Entered */
+            days_entered: number;
+            /** Month */
+            month: number;
+            /** Net Profit */
+            net_profit: number;
+            /** To Reconcile */
+            to_reconcile: number | null;
+            /** Total Expenses */
+            total_expenses: number;
+            /** Total Income */
+            total_income: number;
+            /** Year */
+            year: number;
         };
         /** DashboardTransferRow */
         DashboardTransferRow: {

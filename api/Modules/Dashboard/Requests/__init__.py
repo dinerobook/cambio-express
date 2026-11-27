@@ -120,6 +120,19 @@ class AdminDashboardKpis(_Strict):
     net_income_month: float | None
 
 
+class DashboardPLMonth(_Strict):
+    """The Monthly P&L tile (store Admins only)."""
+    year: int
+    month: int
+    total_income: float
+    total_expenses: float
+    net_profit: float
+    days_entered: int
+    # Bank rows still to reconcile; null when the person cannot tag
+    # bank rows or the store has no bank sync.
+    to_reconcile: int | None
+
+
 class CompanyStat(_Strict):
     company: str
     count: int
@@ -168,6 +181,7 @@ class AdminDashboard(_Strict):
     register_: RegisterActivityBlock | None = Field(alias="register")
     recent_receipts: list[ReceiptRow]
     transfers_rollup: TransfersRollup | None
+    pl_month: DashboardPLMonth | None
     kpis: AdminDashboardKpis
     company_stats: list[CompanyStat]
     recent_transfers: list[DashboardTransferRow]

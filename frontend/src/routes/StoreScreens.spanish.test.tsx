@@ -136,6 +136,10 @@ const ADMIN_DASH = {
   lottery: { date: "2026-11-04", active_packs: 4, tickets_sold: 12, uncounted_active_packs: 0, value: 60 },
   clocked_in: [{ name: "Rosa", clock_in_at: "2026-11-05T14:00:00" }],
   stripe_accounts: [],
+  pl_month: {
+    year: 2026, month: 11, total_income: 5000, total_expenses: 3800,
+    net_profit: 1200, days_entered: 5, to_reconcile: 3,
+  },
   kpis: {
     net_income_month: 1200, pending_ach: 1, today_report_entered: false,
     today_transfers: 2, total_transfers: 40,
@@ -219,6 +223,11 @@ describe("step 4a screens in Spanish", () => {
     expect(screen.getByText("Acreditado")).toBeInTheDocument();
     expect(screen.getByText("3 envíos")).toBeInTheDocument();
     expect(screen.getByText("Bebidas")).toBeInTheDocument();
+    // The Monthly P&L tile (Admins only).
+    expect(screen.getByText("P&L mensual · noviembre de 2026")).toBeInTheDocument();
+    expect(screen.getByText("Calculado con 5 días ingresados")).toBeInTheDocument();
+    expect(screen.getByText("3 transacciones bancarias por conciliar →")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Abrir P&L →" })).toBeInTheDocument();
     expect(englishLeftovers(document.body, AREAS)).toEqual([]);
   });
 

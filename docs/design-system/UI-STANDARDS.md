@@ -824,6 +824,14 @@ This is enforced by the kit, not by per-page checks:
   them home with `homePathFor` (Reports for an accountant, the
   dashboard for everyone else). A page that shows several downloads
   hides each one the viewer's sign-in would be refused (Data export).
+- **Money figures a role must not see never leave the server.**
+  Hiding a tile in the SPA is not the gate: the dashboard builds a
+  block only for the people allowed to see it and sends null (or no
+  key) to everyone else, and the SPA renders the block only when it
+  arrives. The Monthly P&L tile (`PLMonthTile`, first on the admin
+  dashboard, owner 2026-11-27) is for store Admins who can read the
+  P&L: never employees, custom roles, owners or accountants, even
+  with report rights (`_pl_month_block` in the Dashboard controller).
 - **One store switch.** Whoever may move between stores (an owner, or
   an accountant whose sign-in is linked to several stores) does it
   through the top-bar store chip and the shared Switch Store popup
