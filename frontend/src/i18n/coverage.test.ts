@@ -272,6 +272,7 @@ export const COVERED_FILES = [
   "components/ImpersonationBanner.tsx",
   "components/InstallAppButton.tsx",
   "components/PeriodRollup.tsx",
+  "components/PLMonthTile.tsx",
   "components/RegisterActivity.tsx",
   "components/RequireAuth.tsx",
   "components/Gate.tsx",

@@ -1,0 +1,49 @@
+/* The dashboard's Monthly P&L tile. Two columns wide once the KPI
+   row has room for at least three tiles; one column (the whole row)
+   on a phone, so it never forces a second column that overflows. */
+.tile {
+  min-width: 0;
+}
+
+@media (min-width: 60rem) {
+  .tile {
+    grid-column: span 2;
+  }
+}
+
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.money {
+  font-family: var(--db-font-mono);
+  color: var(--db-text);
+  white-space: nowrap;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.todo {
+  text-decoration: none;
+}
+
+.open {
+  color: var(--db-neon);
+  font-weight: 600;
+  margin-left: auto;
+}

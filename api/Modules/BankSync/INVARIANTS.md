@@ -291,7 +291,8 @@ behaviour exactly.
   switch off = no category yet. Void and dismissed rows are never to
   do. `reconciled` is defined as NOT that rule, so the two tabs split
   the list with no row in both or neither. The bell's bank item
-  counts with the same function — never a second copy. Nothing is
+  and the dashboard's Monthly P&L tile count with the same function
+  (`to_reconcile_count`) — never a second copy. Nothing is
   stored: untagging, unmatching or restoring a row moves it back.
 - **Dismiss** (`POST /transactions/dismiss`, `ids` XOR `before`) is
   the clean-up for old rows already handled by hand: a dismissed row

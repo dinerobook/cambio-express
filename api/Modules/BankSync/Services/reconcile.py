@@ -693,6 +693,19 @@ def to_reconcile_clauses(db: Session, store_id: int) -> list[Any]:
     ]
 
 
+def to_reconcile_count(db: Session, store_id: int) -> int:
+    """How many of the store's bank rows still need a person, by
+    `to_reconcile_clauses`. The bell's bank item and the dashboard's
+    P&L tile both count with this, so neither can disagree with the
+    Bank page's To reconcile tab."""
+    return int(
+        db.query(BankTransaction.id)
+          .filter(BankTransaction.store_id == store_id,
+                  *to_reconcile_clauses(db, store_id))
+          .count()
+    )
+
+
 RECONCILE_TABS = ("to_reconcile", "reconciled")
 
 

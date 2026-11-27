@@ -673,6 +673,16 @@
             "title": "Modules",
             "type": "array"
           },
+          "pl_month": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DashboardPLMonth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "purchases": {
             "anyOf": [
               {
@@ -763,6 +773,7 @@
           "register",
           "recent_receipts",
           "transfers_rollup",
+          "pl_month",
           "kpis",
           "company_stats",
           "recent_transfers",
@@ -7931,6 +7942,58 @@
           "status"
         ],
         "title": "DashboardBatchRow",
+        "type": "object"
+      },
+      "DashboardPLMonth": {
+        "additionalProperties": false,
+        "description": "The Monthly P&L tile (store Admins only).",
+        "properties": {
+          "days_entered": {
+            "title": "Days Entered",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "integer"
+          },
+          "net_profit": {
+            "title": "Net Profit",
+            "type": "number"
+          },
+          "to_reconcile": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Reconcile"
+          },
+          "total_expenses": {
+            "title": "Total Expenses",
+            "type": "number"
+          },
+          "total_income": {
+            "title": "Total Income",
+            "type": "number"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "month",
+          "total_income",
+          "total_expenses",
+          "net_profit",
+          "days_entered",
+          "to_reconcile"
+        ],
+        "title": "DashboardPLMonth",
         "type": "object"
       },
       "DashboardTransferRow": {

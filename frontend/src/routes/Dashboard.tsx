@@ -6,6 +6,7 @@ import {
 import { Line } from "react-chartjs-2";
 
 import { PeriodRollup } from "../components/PeriodRollup";
+import { PLMonthTile } from "../components/PLMonthTile";
 import {
   RecentReceipts, RegisterActivityTiles,
 } from "../components/RegisterActivity";
@@ -53,7 +54,7 @@ import {
   formatDateTime, formatShortDate, formatTime, getOpenStatus, monthName,
   weekdayNameLong,
 } from "../lib/datetime";
-import { fmtMoney, fmtMoney2, fmtNumber } from "../lib/formatters";
+import { fmtMoney2, fmtNumber } from "../lib/formatters";
 
 // Role-shaped dashboard. /api/v2/dashboard/summary returns one
 // payload tagged by role; we render the matching panel.
@@ -171,6 +172,10 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
   return (
     <>
       <KpiGrid>
+        {/* Store Admins only: the server sends `pl_month` to nobody
+            else (owner, 2026-11-27). First, so the P&L is one click
+            from sign-in. */}
+        {d.pl_month && <PLMonthTile pl={d.pl_month} />}
         {d.sales && (
           <>
             <KpiCard
@@ -260,18 +265,6 @@ function AdminPanel({ d }: { d: AdminDashboard }) {
           }
           tone={d.stripe_accounts.length > 0 ? "positive" : "neutral"}
         />
-        {d.kpis.net_income_month != null && (
-          <KpiCard
-            label={t("dash.netIncome", { month })}
-            value={fmtMoney(d.kpis.net_income_month)}
-            sub={
-              <AppLink to="/monthly" className="ds-link" style={{ color: tokens.accent }}>
-                {t("dash.viewPL")}
-              </AppLink>
-            }
-            tone={d.kpis.net_income_month >= 0 ? "positive" : "negative"}
-          />
-        )}
       </KpiGrid>
 
       {(d.sales || d.purchases) && (

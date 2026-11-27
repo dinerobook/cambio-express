@@ -482,6 +482,50 @@ def _clocked_in_block(db: Session, store_id: int) -> list[dict[str, Any]]:
     ]
 
 
+def _pl_month_block(
+    db: Session, store: Any, store_id: int, claims: dict[str, Any],
+    today: date, summary: Any,
+) -> dict[str, Any] | None:
+    """The dashboard's Monthly P&L tile: this month's live income,
+    expenses and net (``summarize_monthly``, so it matches /monthly
+    line for line), the days entered, and how many bank rows still
+    need a person.
+
+    Store Admins only (owner, 2026-11-27): the caller is already an
+    admin here, and an Admin whose access overlay takes away the
+    Monthly P&L gets nothing. Employees never reach this builder,
+    custom roles are overlays on an employee, and owners and
+    accountants have no store dashboard, so the figures never leave
+    the server for anyone else. ``to_reconcile`` is None unless the
+    person can tag bank rows and the store has bank sync on (the
+    bell's bank item asks the same two things)."""
+    from api.Modules.Auth.Services.principal import has_permission
+    from api.Modules.Billing.Services.feature_flags import (
+        store_feature_enabled,
+    )
+    from api.Modules.BankSync.Services.reconcile import to_reconcile_count
+
+    if claims.get("role") != "admin":
+        return None
+    if not has_permission(claims, "monthly", "read"):
+        return None
+    to_reconcile = (
+        to_reconcile_count(db, store_id)
+        if has_permission(claims, "bank_sync", "update")
+        and store_feature_enabled(db, store, "bank_sync")
+        else None
+    )
+    return {
+        "year": today.year,
+        "month": today.month,
+        "total_income": summary.total_income if summary else 0.0,
+        "total_expenses": summary.total_expenses if summary else 0.0,
+        "net_profit": summary.net_profit if summary else 0.0,
+        "days_entered": summary.daily.days if summary else 0,
+        "to_reconcile": to_reconcile,
+    }
+
+
 def _admin_summary(
     db: Session, store_id: int, claims: dict[str, Any],
 ) -> dict[str, Any]:
@@ -624,6 +668,9 @@ def _admin_summary(
         summarize_monthly(db, store_id, today.year, today.month)
         if _can("monthly") else None
     )
+    pl_month = _pl_month_block(
+        db, store, store_id, claims, today, month_summary,
+    )
     stripe_accounts = (
         db.query(StripeBankAccount)
         .filter_by(store_id=store_id, enabled=True)
@@ -642,6 +689,7 @@ def _admin_summary(
         "register": register,
         "recent_receipts": recent_receipts,
         "transfers_rollup": transfers_rollup,
+        "pl_month": pl_month,
         "kpis": {
             "total_transfers": total_transfers,
             "today_transfers": today_transfers,

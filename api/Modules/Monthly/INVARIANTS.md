@@ -286,8 +286,9 @@ stored value.
   either book, no tagged bank row, no return-check activity.
 - `GET /monthly/months` lists saved months AND months with a day in
   either book.
-- The owner P&L roll-up and the dashboard's month KPI call
-  `summarize_monthly`, so they read the same live month.
+- The owner P&L roll-up and the admin dashboard's Monthly P&L tile
+  (`pl_month`: income, expenses, net, days entered; store Admins
+  only) call `summarize_monthly`, so they read the same live month.
 - `MonthlyRow.days_entered` counts distinct days in either book.
 
 ## The 422 trap — explicit DO-NOT-WRITE list

@@ -18,6 +18,7 @@ export type CompanyStat = Schemas["CompanyStat"];
 export type DashboardTransferRow = Schemas["DashboardTransferRow"];
 export type DashboardBatchRow = Schemas["DashboardBatchRow"];
 export type DashboardBankAccount = Schemas["DashboardBankAccount"];
+export type DashboardPLMonth = Schemas["DashboardPLMonth"];
 export type DayCloseSnapshot = Schemas["DayCloseSnapshot"];
 export type LotterySnapshot = Schemas["LotterySnapshot"];
 export type HourlyBlock = Schemas["HourlyBlock"];
