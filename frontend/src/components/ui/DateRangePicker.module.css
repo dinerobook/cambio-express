@@ -1,0 +1,150 @@
+/* DateRangePicker — the trigger, and the popover's presets beside the
+ * calendars. The calendar days themselves: dayPicker.css. */
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--db-border);
+  border-radius: 0.6rem;
+  background: var(--db-surface);
+  color: var(--db-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 100%;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.trigger:hover { border-color: var(--db-text-muted); }
+
+.trigger:focus-visible {
+  outline: none;
+  border-color: var(--db-accent);
+  box-shadow: 0 0 0 3px var(--db-neon-glow-15);
+}
+
+.trigger svg {
+  flex: none;
+  fill: none;
+  stroke: var(--db-text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trigger span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Portalled and positioned by Radix; above the kit Modal; never
+ * taller or wider than the room it has, so it always scrolls. */
+.popover {
+  z-index: 200;
+  max-height: var(--radix-popover-content-available-height);
+  max-width: calc(100vw - 16px);
+  overflow: auto;
+  background: var(--db-surface-2);
+  border: 1px solid var(--db-border);
+  border-radius: 0.75rem;
+  box-shadow: var(--db-shadow-pop);
+  padding: 0.75rem;
+  animation: db-rangepicker-in 140ms ease-out;
+}
+
+@keyframes db-rangepicker-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.body {
+  display: flex;
+  gap: 1rem;
+}
+
+.presets {
+  list-style: none;
+  margin: 0;
+  padding: 0 1rem 0 0;
+  border-right: 1px solid var(--db-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 9.5rem;
+}
+
+.preset,
+.presetActive {
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--db-text);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+
+.preset:hover { background: var(--db-fill-neutral); }
+
+.presetActive {
+  background: var(--db-neon-glow-15);
+  color: var(--db-accent);
+  font-weight: 600;
+}
+
+.customLabel {
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.6rem 0;
+  border-top: 1px solid var(--db-border);
+  color: var(--db-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.calendars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--db-border);
+}
+
+.picked {
+  font-family: var(--db-font-mono);
+  font-size: 0.85rem;
+  color: var(--db-text-muted);
+}
+
+/* Phone: presets above one calendar, in a wrapping row. */
+@media (max-width: 40rem) {
+  .body { flex-direction: column; }
+  .presets {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0 0 0.75rem;
+    border-right: none;
+    border-bottom: 1px solid var(--db-border);
+    min-width: 0;
+  }
+  .preset, .presetActive { width: auto; }
+  .customLabel { display: none; }
+}

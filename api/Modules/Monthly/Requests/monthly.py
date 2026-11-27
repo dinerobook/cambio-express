@@ -1,4 +1,6 @@
 """Pydantic schemas for the monthly P&L read-side."""
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -116,6 +118,34 @@ class MonthlyResponse(BaseModel):
     # `bank_matching`, Services/ledger.py): the page shows the tab and
     # each statement line opens its rows.
     transactions_enabled: bool = False
+
+
+class MonthlyLeftOut(BaseModel):
+    """A typed figure of a month the range cuts: it has no day, so the
+    range leaves it out (Monthly INVARIANTS "Any date range")."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    line: str
+    amount: float
+    year: int
+    month: int
+
+
+class MonthlyRangeResponse(BaseModel):
+    """`GET /monthly/range`: the P&L for any days. `report` has the
+    month page's shape (read-only: `id` null, `saved` false, `year` /
+    `month` the range's last day); `whole_months` counts the months
+    taken whole."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    report: MonthlyRow
+    labels: dict[str, str] = {}
+    date_from: date
+    date_to: date
+    whole_months: int
+    left_out: list[MonthlyLeftOut] = []
 
 
 class MonthlyLineLabelRow(BaseModel):

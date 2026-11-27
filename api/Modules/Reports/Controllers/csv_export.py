@@ -43,7 +43,7 @@ from api.Modules.Reports.Services import (
     cashier_productivity, check_deposits, daily_drops,
     employee_activity, fees_vs_tax, high_value_transfers,
     journal_entries, transfers_dump,
-    new_vs_returning, period_comparison, period_pl,
+    new_vs_returning, period_comparison,
     returned_check_status, sales_by_company, sales_by_employee,
     sales_by_service, top_customers, top_recipients,
 )
@@ -249,12 +249,6 @@ _STORE_REGISTRY: dict[str, dict] = {
         columns=['Date', 'Account', 'Debit', 'Credit', 'Memo'],
         row_fn=lambda r: [r['date'].isoformat(), r['account'], f"{r['debit']:.2f}" if r['debit'] else '', f"{r['credit']:.2f}" if r['credit'] else '', r['memo']],
         totals_fn=lambda t: ['TOTAL', '', f"{t['debits']:.2f}", f"{t['credits']:.2f}", f"{t['days']} day(s)"],
-    ),
-    "period-pl": _spec(
-        service=period_pl,
-        columns=['Section', 'Line', 'Amount'],
-        row_fn=lambda r: [r['section'], r['label'], f"{r['amount']:.2f}"],
-        totals_fn=lambda t: [['', 'Total Income', f"{t['income']:.2f}"], ['', 'Total Expenses', f"{t['expenses']:.2f}"], ['', 'Net', f"{t['net']:.2f}"]],
     ),
     "ach-volume": _spec(
         service=ach_volume,

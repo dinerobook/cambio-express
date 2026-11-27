@@ -8,6 +8,7 @@ import { ApiError } from "../lib/api";
 import { setCurrentIdentity } from "../lib/auth";
 import { TEST_ADMIN } from "../test/setup";
 import { setLanguage } from "../i18n";
+import { storeNow } from "../lib/datetime";
 import { englishLeftovers } from "../test/i18n";
 
 // Monthly P&L at /monthly?year=Y&month=M.
@@ -31,6 +32,8 @@ vi.mock("../api/monthly", async (importOriginal) => {
     ...real,
     useMonthly: (...a: unknown[]) => useMonthly(...a),
     useLoggedMonths: (...a: unknown[]) => useLoggedMonths(...a),
+    // Date ranges have their own test (Monthly.range.test.tsx).
+    useMonthlyRange: () => ({ data: undefined, isLoading: false, isError: false }),
   };
 });
 
@@ -205,15 +208,14 @@ describe("Monthly P&L", () => {
     expect(screen.getByTestId("where")).toHaveTextContent("month=11");
   });
 
-  it("moves to another month from the picker, even an old one", async () => {
-    useLoggedMonths.mockReturnValue(ok({
-      months: [{ year: 2020, month: 3 }, { year: 2018, month: 2 }],
-    }));
+  it("opens this month from the period picker", async () => {
     renderPage();
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Month" }), "2018-2");
-    expect(screen.getByTestId("where")).toHaveTextContent("year=2018");
-    expect(screen.getByTestId("where")).toHaveTextContent("month=2");
-    expect(useMonthly).toHaveBeenCalledWith(2018, 2);
+    await userEvent.click(screen.getByRole("button", { name: /^Period: Mar 1, 2020/ }));
+    await userEvent.click(screen.getByRole("button", { name: "This month" }));
+    const now = storeNow();
+    expect(screen.getByTestId("where")).toHaveTextContent(
+      `year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
+    );
   });
 
   it("steps a month back and forward with the arrows", async () => {
@@ -305,6 +307,6 @@ describe("Monthly P&L in Spanish", () => {
       .toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir el libro diario" }))
       .toHaveAttribute("href", "/daily");
-    expect(screen.getByRole("combobox", { name: "Mes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Período:/ })).toBeInTheDocument();
   });
 });

@@ -4333,6 +4333,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/monthly/range": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Range Route
+         * @description The P&L for any days (the Period P&L, merged into this page —
+         *     Monthly INVARIANTS "Any date range"). Read-only. A month inside
+         *     the range counts whole, typed lines included; a month the range
+         *     cuts counts what has a day, and its typed lines come back in
+         *     `left_out`. `monthly.read`; at most `range.MAX_DAYS` days.
+         */
+        get: operations["range_route_monthly_range_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/monthly/{year}/{month}": {
         parameters: {
             query?: never;
@@ -5590,23 +5614,6 @@ export interface paths {
         };
         /** Period Comparison Route */
         get: operations["period_comparison_route_reports_period_comparison_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/reports/period-pl": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Period Pl Route */
-        get: operations["period_pl_route_reports_period_pl_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -13814,6 +13821,21 @@ export interface components {
             };
         };
         /**
+         * MonthlyLeftOut
+         * @description A typed figure of a month the range cuts: it has no day, so the
+         *     range leaves it out (Monthly INVARIANTS "Any date range").
+         */
+        MonthlyLeftOut: {
+            /** Amount */
+            amount: number;
+            /** Line */
+            line: string;
+            /** Month */
+            month: number;
+            /** Year */
+            year: number;
+        };
+        /**
          * MonthlyLineLabelRow
          * @description One renameable P&L line, as the categories settings page
          *     reads it.
@@ -13833,6 +13855,40 @@ export interface components {
             label: string;
             /** Section */
             section: string;
+        };
+        /**
+         * MonthlyRangeResponse
+         * @description `GET /monthly/range`: the P&L for any days. `report` has the
+         *     month page's shape (read-only: `id` null, `saved` false, `year` /
+         *     `month` the range's last day); `whole_months` counts the months
+         *     taken whole.
+         */
+        MonthlyRangeResponse: {
+            /**
+             * Date From
+             * Format: date
+             */
+            date_from: string;
+            /**
+             * Date To
+             * Format: date
+             */
+            date_to: string;
+            /**
+             * Labels
+             * @default {}
+             */
+            labels: {
+                [key: string]: string;
+            };
+            /**
+             * Left Out
+             * @default []
+             */
+            left_out: components["schemas"]["MonthlyLeftOut"][];
+            report: components["schemas"]["MonthlyRow"];
+            /** Whole Months */
+            whole_months: number;
         };
         /**
          * MonthlyResponse
@@ -15757,32 +15813,6 @@ export interface components {
             current_label: string;
             /** Prior Label */
             prior_label: string;
-        };
-        /** PeriodPlResponse */
-        PeriodPlResponse: {
-            /** Rows */
-            rows: components["schemas"]["PeriodPlRow"][];
-            totals: components["schemas"]["PeriodPlTotals"];
-        };
-        /** PeriodPlRow */
-        PeriodPlRow: {
-            /** Amount */
-            amount: number;
-            /** Label */
-            label: string;
-            /** Section */
-            section: string;
-        };
-        /** PeriodPlTotals */
-        PeriodPlTotals: {
-            /** Days */
-            days: number;
-            /** Expenses */
-            expenses: number;
-            /** Income */
-            income: number;
-            /** Net */
-            net: number;
         };
         /**
          * PeriodSummaryResponse
@@ -29207,6 +29237,42 @@ export interface operations {
             };
         };
     };
+    range_route_monthly_range_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyRangeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     monthly_route_monthly__year___month__get: {
         parameters: {
             query?: never;
@@ -31580,46 +31646,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeriodComparisonResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    period_pl_route_reports_period_pl_get: {
-        parameters: {
-            query: {
-                /** @description Start date in YYYY-MM-DD. Defaults to the first of the current month. */
-                from?: string | null;
-                /** @description End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone). */
-                to?: string | null;
-                /** @description Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella. */
-                store_ids: string;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                db_access_token?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PeriodPlResponse"];
                 };
             };
             /** @description Validation Error */

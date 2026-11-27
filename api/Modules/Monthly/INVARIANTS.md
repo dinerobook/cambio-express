@@ -415,6 +415,27 @@ day.
   other kind or a line the store cannot pick a 422. Audited
   (`monthly_entry_category`, before → after).
 
+## Any date range — the Period P&L lives here
+
+The Monthly P&L page reads any days (owner, 2026-11-27: the Period
+P&L merged into it; `GET /monthly/range?from=&to=`,
+`Services/range.py`). The old `/reports/period-pl` API, CSV and card
+are gone; the SPA's old links open `/monthly?from=&to=`.
+
+- **One whole month is the month's own page** (Edit, Transactions).
+  Any other range is read-only.
+- **A month inside the range counts whole**, exactly as its page reads
+  it (`summarize_monthly`, typed lines included).
+- **A month the range cuts counts what has a day**: the Transactions
+  ledger's counted rows dated inside the range (daily books, bank rows
+  by booking day, moved entries, store categories), the returned-check
+  activity of those days (`period_aggregates`, same rule as the
+  month) and the money order charges of those days. A typed line has
+  no day, so it is left out and listed in `left_out`; the page says so.
+- Money transfer fees are never income here either (the old Period
+  P&L counted them — the reason it went).
+- `monthly.read` (accountants too); at most `range.MAX_DAYS` days.
+
 ## The 422 trap — explicit DO-NOT-WRITE list
 
 Any code that constructs the monthly-P&L PUT body MUST NOT include

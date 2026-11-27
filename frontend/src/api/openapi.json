@@ -14052,6 +14052,36 @@
         "title": "MonthlyLabelsUpdateRequest",
         "type": "object"
       },
+      "MonthlyLeftOut": {
+        "additionalProperties": false,
+        "description": "A typed figure of a month the range cuts: it has no day, so the\nrange leaves it out (Monthly INVARIANTS \"Any date range\").",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "month": {
+            "title": "Month",
+            "type": "integer"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line",
+          "amount",
+          "year",
+          "month"
+        ],
+        "title": "MonthlyLeftOut",
+        "type": "object"
+      },
       "MonthlyLineLabelRow": {
         "additionalProperties": false,
         "description": "One renameable P&L line, as the categories settings page\nreads it.",
@@ -14095,6 +14125,53 @@
           "bank_taggable"
         ],
         "title": "MonthlyLineLabelRow",
+        "type": "object"
+      },
+      "MonthlyRangeResponse": {
+        "additionalProperties": false,
+        "description": "`GET /monthly/range`: the P&L for any days. `report` has the\nmonth page's shape (read-only: `id` null, `saved` false, `year` /\n`month` the range's last day); `whole_months` counts the months\ntaken whole.",
+        "properties": {
+          "date_from": {
+            "format": "date",
+            "title": "Date From",
+            "type": "string"
+          },
+          "date_to": {
+            "format": "date",
+            "title": "Date To",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Labels",
+            "type": "object"
+          },
+          "left_out": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MonthlyLeftOut"
+            },
+            "title": "Left Out",
+            "type": "array"
+          },
+          "report": {
+            "$ref": "#/components/schemas/MonthlyRow"
+          },
+          "whole_months": {
+            "title": "Whole Months",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "report",
+          "date_from",
+          "date_to",
+          "whole_months"
+        ],
+        "title": "MonthlyRangeResponse",
         "type": "object"
       },
       "MonthlyResponse": {
@@ -18709,80 +18786,6 @@
           "prior_label"
         ],
         "title": "PeriodComparisonTotals",
-        "type": "object"
-      },
-      "PeriodPlResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/PeriodPlRow"
-            },
-            "title": "Rows",
-            "type": "array"
-          },
-          "totals": {
-            "$ref": "#/components/schemas/PeriodPlTotals"
-          }
-        },
-        "required": [
-          "rows",
-          "totals"
-        ],
-        "title": "PeriodPlResponse",
-        "type": "object"
-      },
-      "PeriodPlRow": {
-        "additionalProperties": false,
-        "properties": {
-          "amount": {
-            "title": "Amount",
-            "type": "number"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "section": {
-            "title": "Section",
-            "type": "string"
-          }
-        },
-        "required": [
-          "label",
-          "section",
-          "amount"
-        ],
-        "title": "PeriodPlRow",
-        "type": "object"
-      },
-      "PeriodPlTotals": {
-        "additionalProperties": false,
-        "properties": {
-          "days": {
-            "title": "Days",
-            "type": "integer"
-          },
-          "expenses": {
-            "title": "Expenses",
-            "type": "number"
-          },
-          "income": {
-            "title": "Income",
-            "type": "number"
-          },
-          "net": {
-            "title": "Net",
-            "type": "number"
-          }
-        },
-        "required": [
-          "income",
-          "expenses",
-          "net",
-          "days"
-        ],
-        "title": "PeriodPlTotals",
         "type": "object"
       },
       "PeriodSummaryResponse": {
@@ -48277,6 +48280,92 @@
         ]
       }
     },
+    "/monthly/range": {
+      "get": {
+        "description": "The P&L for any days (the Period P&L, merged into this page \u2014\nMonthly INVARIANTS \"Any date range\"). Read-only. A month inside\nthe range counts whole, typed lines included; a month the range\ncuts counts what has a day, and its typed lines come back in\n`left_out`. `monthly.read`; at most `range.MAX_DAYS` days.",
+        "operationId": "range_route_monthly_range_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "maxLength": 10,
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "maxLength": 10,
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyRangeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Range Route",
+        "tags": [
+          "monthly"
+        ]
+      }
+    },
     "/monthly/{year}/{month}": {
       "get": {
         "operationId": "monthly_route_monthly__year___month__get",
@@ -54005,118 +54094,6 @@
           }
         },
         "summary": "Period Comparison Route",
-        "tags": [
-          "reports"
-        ]
-      }
-    },
-    "/reports/period-pl": {
-      "get": {
-        "operationId": "period_pl_route_reports_period_pl_get",
-        "parameters": [
-          {
-            "description": "Start date in YYYY-MM-DD. Defaults to the first of the current month.",
-            "in": "query",
-            "name": "from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Start date in YYYY-MM-DD. Defaults to the first of the current month.",
-              "title": "From"
-            }
-          },
-          {
-            "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
-            "in": "query",
-            "name": "to",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "End date in YYYY-MM-DD. Defaults to today (the store's day, in its saved timezone).",
-              "title": "To"
-            }
-          },
-          {
-            "description": "Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella.",
-            "in": "query",
-            "name": "store_ids",
-            "required": true,
-            "schema": {
-              "description": "Comma-separated store IDs, e.g. `1,2`. Single-tenant deployments will pass just one. Multi-store owners pass every store under their umbrella.",
-              "title": "Store Ids",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "db_access_token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Db Access Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PeriodPlResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Period Pl Route",
         "tags": [
           "reports"
         ]

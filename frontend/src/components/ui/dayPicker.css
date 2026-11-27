@@ -1,0 +1,105 @@
+/* react-day-picker styled for the design system — ONE copy for every
+ * calendar (DateInput, DateRangePicker). Global, scoped under
+ * `.db-calendar` on the popover that holds the DayPicker. */
+
+.db-calendar .rdp {
+  --rdp-accent-color: var(--db-accent);
+  --rdp-accent-background-color: var(--db-neon-glow-15);
+  --rdp-background-color: var(--db-surface-2);
+  margin: 0;
+}
+
+.db-calendar .rdp-month_caption {
+  color: var(--db-text);
+  font-family: var(--db-font-display);
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.db-calendar .rdp-weekday {
+  color: var(--db-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.db-calendar .rdp-day {
+  color: var(--db-text);
+  border-radius: 0.4rem;
+  font-size: 0.85rem;
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.db-calendar .rdp-day:hover {
+  background: var(--db-fill-neutral);
+}
+
+.db-calendar .rdp-day_button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.4rem;
+}
+
+.db-calendar .rdp-selected .rdp-day_button {
+  background: var(--db-accent);
+  color: var(--db-on-accent);
+  font-weight: 600;
+}
+
+.db-calendar .rdp-today:not(.rdp-selected .rdp-day_button) {
+  border: 1px solid var(--db-accent);
+}
+
+.db-calendar .rdp-outside {
+  opacity: 0.3;
+}
+
+.db-calendar .rdp-nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.db-calendar .rdp-button_previous,
+.db-calendar .rdp-button_next {
+  color: var(--db-text-muted);
+  background: transparent;
+  border: 1px solid var(--db-border);
+  border-radius: 0.4rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+
+.db-calendar .rdp-button_previous:hover,
+.db-calendar .rdp-button_next:hover {
+  background: var(--db-fill-neutral);
+}
+
+/* A range (DateRangePicker): both ends solid, the days between tinted. */
+.db-calendar .rdp-range_start .rdp-day_button,
+.db-calendar .rdp-range_end .rdp-day_button {
+  background: var(--db-accent);
+  color: var(--db-on-accent);
+  font-weight: 600;
+}
+
+.db-calendar .rdp-range_middle {
+  background: var(--db-neon-glow-15);
+  border-radius: 0;
+}
+
+.db-calendar .rdp-range_middle .rdp-day_button {
+  background: transparent;
+  color: var(--db-text);
+  font-weight: 400;
+}

@@ -60,6 +60,7 @@ export { Field } from "./Field";
 export { Input } from "./Input";
 export { CopyButton, CopyField } from "./CopyField";
 export { DateInput } from "./DateInput";
+export { DateRangePicker } from "./DateRangePicker";
 export { MoneyInput } from "./MoneyInput";
 export { PhoneField, type PhoneFieldProps } from "./PhoneField";
 export { Select } from "./Select";

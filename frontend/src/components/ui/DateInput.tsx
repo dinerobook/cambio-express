@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/src/style.css";
+import "./dayPicker.css";
 
 import { toIsoDate } from "../../lib/datetime";
 import { Input } from "./Input";
@@ -90,7 +91,7 @@ export function DateInput({
       </Popover.Anchor>
       <Popover.Portal>
         <Popover.Content
-          className={styles.popover}
+          className={`${styles.popover} db-calendar`}
           side="bottom"
           align="start"
           sideOffset={4}

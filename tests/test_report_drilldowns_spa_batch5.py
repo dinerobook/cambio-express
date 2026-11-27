@@ -15,7 +15,8 @@ the generic _report_page.html chrome too.
 from tests._app import db, db_session
 
 
-_ADMIN_BATCH = ["employee-activity", "period-pl"]
+# period-pl merged into the Monthly P&L (/monthly/range, 2026-11-27).
+_ADMIN_BATCH = ["employee-activity"]
 _SA_BATCH = [
     "active-stores-by-plan", "signup-funnel", "login-activity",
     "mrr-arr", "churn-cohort", "conversion-rate", "time-to-convert",
