@@ -24,6 +24,46 @@ from sqlalchemy.orm import Session
 from api.Modules.BankSync.Models import BankTransaction, StripeBankAccount
 
 
+def booking_day_expr() -> Any:
+    """SQL for the day a bank row books on: the stored override (a
+    person's pick, or a rule's offset) else the bank's posting date.
+    The same order as `categorize.booking_date_for` for a row that is
+    not linked to a daily book entry."""
+    return func.coalesce(
+        BankTransaction.report_date_override,
+        func.date(BankTransaction.posted_at),
+    )
+
+
+def month_clauses(
+    year: int, month: int, *, by_booking_day: bool = False,
+) -> list[Any]:
+    """Which of a store's bank rows belong to one month.
+
+    Off (every store today): the bank's posting date, as always.
+    On (`pl_transactions`, Monthly INVARIANTS "Month-end"): the
+    booking day, so a deposit the daily book has on Nov 30 that the
+    bank posts Dec 1 counts in November; dismissed and void rows
+    count nowhere."""
+    if by_booking_day:
+        from api.Modules.Monthly.Services.daily_feed import month_bounds
+        start, end = month_bounds(year, month)
+        day = booking_day_expr()
+        return [
+            day >= start, day <= end,
+            BankTransaction.dismissed_at.is_(None),
+            or_(BankTransaction.status.is_(None),
+                BankTransaction.status != "void"),
+        ]
+    month_start = datetime(year, month, 1)
+    month_end_d = monthrange(year, month)[1]
+    month_end = datetime(year, month, month_end_d, 23, 59, 59)
+    return [
+        BankTransaction.posted_at >= month_start,
+        BankTransaction.posted_at <= month_end,
+    ]
+
+
 def bank_charges_for_month(
     db: Session,
     store_id: int,
@@ -32,6 +72,7 @@ def bank_charges_for_month(
     category_slug: str | None = None,
     *,
     prefix: str | None = None,
+    by_booking_day: bool = False,
 ) -> float:
     """Sum the absolute amount of `BankTransaction` rows tagged for
     the given month.
@@ -47,15 +88,11 @@ def bank_charges_for_month(
     the P&L field when this is > 0, leaving the manual value in
     place for stores without bank sync.
     """
-    month_start = datetime(year, month, 1)
-    month_end_d = monthrange(year, month)[1]
-    month_end = datetime(year, month, month_end_d, 23, 59, 59)
     q = db.query(
         func.coalesce(func.sum(BankTransaction.amount_cents), 0)
     ).filter(
         BankTransaction.store_id == store_id,
-        BankTransaction.posted_at >= month_start,
-        BankTransaction.posted_at <= month_end,
+        *month_clauses(year, month, by_booking_day=by_booking_day),
     )
     if prefix is not None:
         # SQL prefix match. Trailing % does the heavy lifting; we
@@ -73,6 +110,7 @@ def bank_charges_for_month(
 
 def bank_charges_breakdown_for_month(
     db: Session, store_id: int, year: int, month: int,
+    *, by_booking_day: bool = False,
 ) -> list[dict[str, Any]]:
     """Two-level breakdown feeding the expandable Bank Charges
     block on the monthly P&L.
@@ -100,9 +138,6 @@ def bank_charges_breakdown_for_month(
     `bank_charge_<last4>`) rolls into the breakdown without
     explicit registry maintenance.
     """
-    month_start = datetime(year, month, 1)
-    month_end_d = monthrange(year, month)[1]
-    month_end = datetime(year, month, month_end_d, 23, 59, 59)
     rows = (
         db.query(BankTransaction)
           .filter(
@@ -111,8 +146,7 @@ def bank_charges_breakdown_for_month(
                   BankTransaction.category_slug == "bank_charge",
                   BankTransaction.category_slug.like("bank_charge_%"),
               ),
-              BankTransaction.posted_at >= month_start,
-              BankTransaction.posted_at <= month_end,
+              *month_clauses(year, month, by_booking_day=by_booking_day),
           )
           .order_by(BankTransaction.posted_at.desc())
           .all()
@@ -162,6 +196,7 @@ def bank_charges_breakdown_for_month(
 
 def bank_pl_sums_for_month(
     db: Session, store_id: int, year: int, month: int,
+    *, by_booking_day: bool = False,
 ) -> dict[str, float]:
     """Every MonthlyFinancial column the bank feed can fill, with
     the month's summed absolute amount — `bank_charges_total` from
@@ -181,13 +216,11 @@ def bank_pl_sums_for_month(
     out: dict[str, float] = {}
     charges = bank_charges_for_month(
         db, store_id, year, month, prefix="bank_charge",
+        by_booking_day=by_booking_day,
     )
     if charges > 0:
         out[BANK_CHARGES_PL_FIELD] = charges
 
-    month_start = datetime(year, month, 1)
-    month_end_d = monthrange(year, month)[1]
-    month_end = datetime(year, month, month_end_d, 23, 59, 59)
     rows = (
         db.query(
             BankTransaction.category_slug,
@@ -195,8 +228,7 @@ def bank_pl_sums_for_month(
         )
         .filter(
             BankTransaction.store_id == store_id,
-            BankTransaction.posted_at >= month_start,
-            BankTransaction.posted_at <= month_end,
+            *month_clauses(year, month, by_booking_day=by_booking_day),
             BankTransaction.category_slug.in_(list(BANK_PL_CATEGORIES)),
         )
         .group_by(BankTransaction.category_slug)

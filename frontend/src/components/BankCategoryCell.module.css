@@ -1,0 +1,51 @@
+/* The shared bank category cell (BankCategoryCell.tsx): the Bank
+ * transactions page and the Monthly P&L's Transactions tab. */
+.categoryCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.bookedLink {
+  font-size: 0.8rem;
+  color: var(--db-accent);
+  white-space: nowrap;
+}
+
+.notBooked {
+  font-size: 0.78rem;
+  color: var(--db-warning);
+  white-space: nowrap;
+}
+
+.categorySelect {
+  width: auto;
+  min-width: 10rem;
+  max-width: 100%;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.categorySelectMono {
+  font-family: var(--db-font-mono);
+}
+
+.errorMark {
+  color: var(--db-negative);
+  font-size: 0.8rem;
+}
+
+.lockedRow {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.5rem;
+  background: var(--db-tone-warning-bg);
+  color: var(--db-text);
+  font-size: 0.85rem;
+}

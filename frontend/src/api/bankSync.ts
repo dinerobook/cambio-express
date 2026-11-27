@@ -200,6 +200,8 @@ export interface CategorizeBody {
    *  book on that day and remember it, `null` to clear the choice
    *  and go back to the bank's posting date. */
   report_date?: string | null;
+  /** "It is different money": skip the double-count guard. */
+  force?: boolean;
 }
 
 /** The 409 categorize / uncategorize return for a locked day — the
@@ -216,6 +218,27 @@ export function lockedDayFromError(err: unknown): DailyBookLockedDetail | null {
   const d = body?.detail as Partial<DailyBookLockedDetail> | undefined;
   if (d && d.code === "daily_book_locked" && typeof d.report_date === "string") {
     return d as DailyBookLockedDetail;
+  }
+  return null;
+}
+
+/** One daily book entry the double-count guard thinks may be the
+ *  same money (409 `maybe_in_daily_book`). */
+export interface DailyTwin {
+  id: number;
+  report_date: string;
+  kind: string;
+  kind_label: string;
+  amount: number;
+  note: string;
+}
+
+export function dailyTwinsFromError(err: unknown): DailyTwin[] | null {
+  if (!(err instanceof ApiError) || err.status !== 409) return null;
+  const body = err.body as { detail?: unknown } | null;
+  const d = body?.detail as { code?: string; candidates?: DailyTwin[] } | undefined;
+  if (d && d.code === "maybe_in_daily_book" && Array.isArray(d.candidates)) {
+    return d.candidates;
   }
   return null;
 }

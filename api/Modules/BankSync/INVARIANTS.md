@@ -37,7 +37,7 @@ validator takes is the unstripped `bank_charge_0210` beside the
 |---|---|---|
 | **Daily book** | every `LINE_ITEM_KINDS` key (`check_deposit`, `cash_expense`, `drop`, …) except `BOOK_ONLY_KINDS` (the held-check kinds, which only the daily book's hold / deposit flow writes) | Books a `msb_daily_line_item` on a day's book **through the same service path a cashier's entry takes** (`recompute_line_items_total` → `ensure_daily_report`), so the day's rolled-up column moves at once and the report row is created if the day had none. |
 | **Monthly P&L** | `BANK_PL_CATEGORIES` (`pl_credit_card_fees`, `pl_money_order_rent`, …, `pl_other_income_3`) | Touches nothing on tag. The monthly P&L sums these rows straight into the mapped `MonthlyFinancial` column (`bank_pl_sums_for_month`). |
-| **Other** | `BANK_CATEGORIES_NON_POSTING` + one `bank_charge_<last4>` per connected account | A tag only. `held_checks_deposited` is the bank deposit of checks the store held: the cash left on the day of the hold, so nothing is booked — the cashier closes the hold with Deposit in the daily book. The `bank_charge*` family additionally feeds `MonthlyFinancial.bank_charges_total` via prefix match — it predates `pl_*`. |
+| **Other** | `BANK_CATEGORIES_NON_POSTING` + one `bank_charge_<last4>` per connected account | A tag only. `held_checks_deposited` is the bank deposit of checks the store held: the cash left on the day of the hold, so nothing is booked — the cashier closes the hold with Deposit in the daily book. `sales_tax_paid` is the sales tax the store pays the state: never income or expense, so never on the P&L (owner, 2026-11-27). The `bank_charge*` family additionally feeds `MonthlyFinancial.bank_charges_total` via prefix match — it predates `pl_*`. |
 
 ### The P&L options are the store's, not ours
 
@@ -373,3 +373,15 @@ the resolution order, the override surviving a re-tag, the explicit
 clear, the untouched row after a locked-day refusal, and the rule's
 day shift including the locked case. If one of those fails you have
 changed a contract above — update the test AND this file.
+
+## The Monthly P&L's Transactions tab
+
+With `pl_transactions` on (Monthly INVARIANTS "Transactions"), the
+monthly P&L sums `pl_*` / bank-charge rows by their booking day
+(`charges.month_clauses`), skipping dismissed and void rows, and the
+categorize endpoint refuses (409 `maybe_in_daily_book`) to put a row
+on a P&L line when a same-amount daily book entry may be the same
+money, until `force: true`. The bell and the dashboard tile share
+`to_reconcile_count`; the tab's "To review" view is the same
+`review` status for the month.
+

@@ -291,6 +291,68 @@ stored value.
   only) call `summarize_monthly`, so they read the same live month.
 - `MonthlyRow.days_entered` counts distinct days in either book.
 
+## Transactions — every dollar, one row (`pl_transactions`)
+
+Opt-in per store (`pl_transactions`, off by default, and only with
+`bank_matching` on — `ledger.pl_transactions_enabled`). The Monthly
+P&L's Transactions tab lists what the statement is made of:
+`GET /monthly/{year}/{month}/transactions`, built by
+`Services/ledger.py` from the same `summarize_monthly`.
+
+- **One dollar, one row.** A bank row already on the daily book
+  (booked by the bank feed, or matched to a cashier's entry) is ONE
+  row — the bank row, on the daily book's day and line; the entry is
+  not listed again. A `pl_*` / bank-charge tag counts on its line.
+  Every other daily figure is its own row: an MSB entry, else the
+  day's figure for the line (minus that day's entries, for an older
+  day typed as one total), the Store daily book's day, the Services
+  box fees per day, the money order charges once for the month. The
+  return-check line and each typed line are one row each. A bank row
+  that needs a person is `to_review`; one that is not P&L money
+  (deposits, transfers, `sales_tax_paid`) is `not_in_pl`.
+- **Counted rows ARE the statement.** Σ counted `amount` per line ==
+  `summary.value(line)`, for every line, and the response's totals
+  are the summary's. A daily figure on a line the bank speaks for
+  (`bank_wins`) or that nets to zero for the month (`typed_wins`) is
+  listed, not counted. `test_transactions_ledger.py` holds this for
+  every source — a new source must keep it.
+- **Month-end.** With the switch on, a bank row counts in the month
+  of its BOOKING day (`report_date_override`, else the posting date
+  — `charges.month_clauses(by_booking_day=True)`), and a dismissed
+  or void row counts nowhere. A check deposit the daily book has on
+  Nov 30 that the bank posts Dec 1 is November's. Off, the bank's
+  posting date as before.
+- **Double-count guard.** Putting a bank row on a P&L line
+  (`pl_*`, bank charge) while a daily book entry that can reach the
+  bank on a P&L line (check expense / purchase / payroll) with the
+  same amount, inside that kind's match window and not tied to any
+  bank row, exists → 409 `maybe_in_daily_book` with up to five
+  candidates (`ledger.daily_twins`). The person links it (the match
+  endpoint) or sends `force: true` for different money. Off without
+  the switch.
+- Needs `monthly.read` AND `bank_sync.read`; switch off → 403
+  `pl_transactions_off`. Not on the accountant route list.
+
+## Suggestions and "Accept" (`pl_transactions`)
+
+A bank row to review carries `suggested_slug` / `suggested_source`
+(`Services/suggestions.py`), worked out on read, never stored:
+
+1. `history` — the store's newest tag (last 400 days) for a row with
+   the same words (`description_words`: no dates, no numbers, the
+   SPA's "Make a rule" reading) and money going the same way;
+2. `template` — an enabled platform rule template that fires on the
+   row, shown without the store pressing "Use" (owner, 2026-11-27).
+
+Only a category the store may pick (`is_valid_bank_category`) is
+suggested. Nothing is tagged until a person accepts:
+`POST /monthly/{year}/{month}/transactions/accept` (`txn_ids` for one
+row, empty for "Accept all" — one click, owner 2026-11-27) runs each
+through `categorize_transaction`, skips a locked day and a possible
+double (the guard above; decided one row at a time) and answers the
+three counts. One audit row per batch (`accept_bank_suggestions`).
+Needs `bank_sync.update` and the switch.
+
 ## The 422 trap — explicit DO-NOT-WRITE list
 
 Any code that constructs the monthly-P&L PUT body MUST NOT include

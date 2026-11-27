@@ -1,0 +1,75 @@
+/* The Monthly P&L's Transactions tab (PLTransactions.tsx). */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  color: var(--db-text-muted);
+  font-size: 0.875rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.toolbar > * {
+  width: auto;
+  min-width: 10rem;
+  max-width: 100%;
+  flex: 1 1 12rem;
+}
+
+.day {
+  font-family: var(--db-font-mono);
+  white-space: nowrap;
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  /* A bank description is often one long token: let it break. */
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  color: var(--db-text-muted);
+  font-size: 0.8rem;
+}
+
+.amount {
+  font-family: var(--db-font-mono);
+  white-space: nowrap;
+}
+
+.amountMuted {
+  font-family: var(--db-font-mono);
+  white-space: nowrap;
+  color: var(--db-text-muted);
+}
+
+.notCounted {
+  opacity: 0.85;
+}
+
+.suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  color: var(--db-accent);
+  font-size: 0.85rem;
+}

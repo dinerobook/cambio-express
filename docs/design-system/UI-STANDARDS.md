@@ -396,6 +396,7 @@ Known shared components, and what they own:
 | `DeskNoStore` (`components/DeskPage.tsx`) | a check cashing page's own "sign in to a store" frame |
 | `CheckPartyList` (`components/CheckPartyList.tsx`) | a check cashing customer / company list page with its own status tabs, search and CSV wiring |
 | `describeAppliedRule` (`lib/bankRules`) | your own "N tagged, N booked, N skipped (day locked)" toast text |
+| `BankCategoryCell` + `BankRuleFromRow` (`components/`) | a bank row's own category dropdown, "Change day" / locked-day recovery, double-count question ("Is it the same money as…") or "Make a rule" popup — the Bank transactions page and the Monthly P&L's Transactions tab render the same two |
 | `TransferForm` (`components/TransferForm.tsx`, schema + starting values in `lib/transferForm.ts`) | a new or edit money transfer page with its own fields, company / country lists, employee picker, payout / debit card rules or save flow — New transfer and Edit transfer both render it and keep only their title, trail and save call (they were two copies that drifted: Edit had no "(USD)" on the amounts and no roster error, New had no "(former)" employee) |
 | `MoneyInput` | `<input type="number">` + your own cents parsing |
 | `PartyNameInput` (`components/PartyNameInput.tsx`) | a plain text box for a returned check's company or customer — it suggests the names the store already used (a native `<datalist>`, never clipped) so the same party is typed the same way and the By company / By customer counts add up |

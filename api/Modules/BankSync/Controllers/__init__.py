@@ -378,6 +378,32 @@ def categorize_route(
                 "message": "Unknown category for this store.",
             },
         )
+    if not body.force:
+        from api.Modules.BankSync.Services.reconcile import line_label as twin_label
+        from api.Modules.Monthly.Services.ledger import daily_twins
+        twins = daily_twins(db, txn, body.target_kind)
+        if twins:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "maybe_in_daily_book",
+                    "message": (
+                        "This may already be on the daily book. Link it "
+                        "to the entry, or say it is different money."
+                    ),
+                    "candidates": [
+                        {
+                            "id": int(i.id),
+                            "report_date": i.report_date.isoformat(),
+                            "kind": str(i.kind),
+                            "kind_label": twin_label(str(i.kind)),
+                            "amount": int(i.amount_cents or 0) / 100.0,
+                            "note": i.note or "",
+                        }
+                        for i in twins
+                    ],
+                },
+            )
     try:
         categorize_transaction(
             db, txn, body.target_kind,

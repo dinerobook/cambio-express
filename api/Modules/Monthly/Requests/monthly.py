@@ -96,6 +96,10 @@ class MonthlyResponse(BaseModel):
     # to render "Other expense 1" for a beat before a second
     # request tells it the line is called "Bank Fee".
     labels: dict[str, str] = {}
+    # The store has the Transactions tab (`pl_transactions` with
+    # `bank_matching`, Services/ledger.py): the page shows the tab and
+    # each statement line opens its rows.
+    transactions_enabled: bool = False
 
 
 class MonthlyLineLabelRow(BaseModel):
