@@ -200,6 +200,29 @@ describe("Monthly P&L transactions tab", () => {
     ));
   });
 
+  it("shows the store's own categories in their half and opens their rows", async () => {
+    useMonthly.mockReturnValue(ok({
+      report: {
+        ...report, total_income: 1020, total_expenses: 75, net_profit: 945,
+        custom_lines: [
+          { id: 1, slug: "plc_1", name: "Ice", section: "expense", amount: 30 },
+          { id: 2, slug: "plc_2", name: "Lottery commission", section: "income", amount: 120 },
+        ],
+      },
+      labels: {}, transactions_enabled: true,
+    }));
+    renderPage("/monthly?year=2026&month=11");
+    const ice = screen.getByRole("link", { name: "Ice" }).closest("tr")!;
+    expect(ice).toHaveTextContent("$30.00");
+    // Each sits in its own half's statement.
+    const [income, expenses] = screen.getAllByRole("table");
+    expect(income).toHaveTextContent("Lottery commission");
+    expect(expenses).toHaveTextContent("Ice");
+    expect(expenses).not.toHaveTextContent("Lottery commission");
+    await userEvent.click(screen.getByRole("link", { name: "Ice" }));
+    expect(where()).toContain("line=plc_1");
+  });
+
   it("switching view keeps the month and asks for that view", async () => {
     renderPage();
     await userEvent.click(screen.getByRole("button", { name: /1 bank transaction to review/ }));

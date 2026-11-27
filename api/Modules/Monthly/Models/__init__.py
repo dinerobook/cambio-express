@@ -214,3 +214,33 @@ class MonthlyLineLabel(Base):
 
 
 __all__ = ["MonthlyFinancial", "MonthlyLineLabel"]
+
+
+class MonthlyPLCategory(Base):
+    """A P&L category the store made itself ("Ice", "Lottery
+    commission"), beyond the shipped lines — as many as it likes
+    (owner, 2026-11-27). Only with the Transactions tab on
+    (`pl_transactions`); Monthly INVARIANTS "Store categories".
+
+    A bank row is put on it with the category's own slug,
+    ``plc_<id>`` (``slug``), so the store's name can change freely:
+    the id is the identity, the name is decoration — the same split
+    as ``MonthlyLineLabel``. Archiving hides it from the picker; the
+    rows already on it keep counting.
+    """
+
+    __tablename__ = "msb_monthly_pl_category"
+    id          = Column(Integer, primary_key=True)
+    store_id    = Column(
+        Integer, ForeignKey("tenancy_store.id"), nullable=False, index=True,
+    )
+    name        = Column(String(60), nullable=False)
+    # "income" | "expense" — which half of the P&L it counts in.
+    section     = Column(String(10), nullable=False, default="expense")
+    archived_at = Column(DateTime, nullable=True)
+    created_at  = Column(DateTime, default=utc_now)
+    updated_at  = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    @property
+    def slug(self) -> str:
+        return f"plc_{self.id}"

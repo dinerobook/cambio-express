@@ -122,6 +122,7 @@ Library-owned, not renamed: `alembic_version`, `casbin_rule`.
 | `msb_daily_report` | `DailyReport` | `DailyBook` | store | `tenancy_store.id`, `tenancy_user.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |
 | `msb_monthly_financial` | `MonthlyFinancial` | `Monthly` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/Monthly/INVARIANTS.md) |
 | `msb_monthly_line_label` | `MonthlyLineLabel` | `Monthly` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/Monthly/INVARIANTS.md) |
+| `msb_monthly_pl_category` | `MonthlyPLCategory` | `Monthly` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/Monthly/INVARIANTS.md) |
 | `msb_mt_service` | `MoneyServiceSummary` | `DailyBook` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |
 | `msb_mt_summary` | `MoneyTransferSummary` | `DailyBook` | store | `tenancy_store.id` | [INVARIANTS](../api/Modules/DailyBook/INVARIANTS.md) |
 | `msb_return_check` | `ReturnCheck` | `ReturnChecks` | store | `msb_return_check_batch.id`, `tenancy_store.id`, `tenancy_user.id` | — |

@@ -257,6 +257,14 @@ def _pl_options(
         ):
             continue
         out.append((slug, line_label(named, field)))
+    if store_id is not None:
+        # The store's own categories (`plc_<id>`), with the Monthly
+        # P&L's transactions on — Monthly INVARIANTS "Store
+        # categories".
+        from api.Modules.Monthly.Services.custom_categories import (
+            category_options,
+        )
+        out.extend(category_options(db, store_id))
     return out
 
 

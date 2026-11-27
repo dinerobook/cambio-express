@@ -28,6 +28,7 @@ from api.Modules.Auth.Services.principal import require_permission
 from api.Modules.Monthly.Repositories import list_logged_months
 from api.Modules.Monthly.Requests import (
     MonthLogged,
+    MonthlyCustomLine,
     MonthlyLabelsResponse,
     MonthlyLabelsUpdateRequest,
     MonthlyLineLabelRow,
@@ -37,6 +38,11 @@ from api.Modules.Monthly.Requests import (
     MonthsLoggedResponse,
     PLAcceptRequest,
     PLAcceptResponse,
+    PLCategoryCreateRequest,
+    PLCategoryListResponse,
+    PLCategoryRenameRequest,
+    PLCategoryResponse,
+    PLCategoryRow,
     PLTransactionCounts,
     PLTransactionRow,
     PLTransactionsResponse,
@@ -78,6 +84,13 @@ def _to_row(s: MonthlySummary) -> MonthlyRow:
         "money_order_count":   s.daily.money_order_count,
         "money_order_charges": s.daily.money_order_charges,
         "saved":          s.saved,
+        "custom_lines":   [
+            MonthlyCustomLine(
+                id=c.id, slug=c.slug, name=c.name, section=c.section,
+                amount=c.amount,
+            )
+            for c in s.custom
+        ],
     }
     for f in MonthlyRow.model_fields:
         if f in kw:
@@ -86,6 +99,20 @@ def _to_row(s: MonthlySummary) -> MonthlyRow:
         # return-check workflow), not only what was last saved.
         kw[f] = s.value(f)
     return MonthlyRow(**kw)
+
+
+def _month_labels(db: Session, store_id: int) -> dict[str, str]:
+    """The store's name for each line, plus each of its own
+    categories under its `plc_<id>` slug (Transactions tab rows and
+    the statement name them from this one map)."""
+    from api.Modules.Monthly.Services.custom_categories import (
+        enabled, store_categories,
+    )
+
+    labels = resolved_line_labels(db, store_id)
+    if enabled(db, store_id):
+        labels.update({c.slug: str(c.name) for c in store_categories(db, store_id)})
+    return labels
 
 
 @router.get("/months", response_model=MonthsLoggedResponse)
@@ -105,6 +132,168 @@ def months_route(
             for y, m in sorted(pairs, reverse=True)
         ],
     )
+
+
+# ── A store's own P&L categories ──────────────────────────────
+#
+# Declared before `/{year}/{month}`, which would otherwise catch
+# `/categories/custom`. Monthly INVARIANTS "Store categories".
+
+
+def _custom_on(db: Session, sid: int) -> None:
+    from api.Modules.Monthly.Services.custom_categories import enabled
+    if not enabled(db, sid):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "pl_transactions_off",
+                "message": "Store categories come with the Transactions tab, which is not switched on for this store.",
+            },
+        )
+
+
+def _category_row(c: Any, used: dict[int, int]) -> PLCategoryRow:
+    return PLCategoryRow(
+        id=int(c.id), slug=c.slug, name=str(c.name),
+        section="income" if c.section == "income" else "expense",
+        archived=c.archived_at is not None, in_use=used.get(int(c.id), 0),
+    )
+
+
+def _category_or_404(db: Session, sid: int, cat_id: int) -> Any:
+    from api.Modules.Monthly.Services.custom_categories import find_category
+    row = find_category(db, sid, cat_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return row
+
+
+def _category_answer(db: Session, sid: int, row: Any) -> PLCategoryResponse:
+    from api.Modules.Monthly.Services.custom_categories import in_use
+    return PLCategoryResponse(category=_category_row(row, in_use(db, sid)))
+
+
+def _audit_category(db: Session, claims: dict[str, Any], action: str, row: Any, summary: str) -> None:
+    audit_operator(
+        db, claims, action=action, target_type="monthly_pl_category",
+        target_id=str(row.id), target_label=str(row.name)[:160], summary=summary,
+    )
+
+
+@router.get("/categories/custom", response_model=PLCategoryListResponse)
+def custom_categories_route(
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PLCategoryListResponse:
+    """The store's own P&L categories, archived ones included."""
+    from api.Modules.Monthly.Services.custom_categories import (
+        enabled, in_use, store_categories,
+    )
+    require_permission(claims, "monthly", "read")
+    sid = resolve_store_scope(claims)
+    if not enabled(db, sid):
+        return PLCategoryListResponse(enabled=False, rows=[])
+    used = in_use(db, sid)
+    return PLCategoryListResponse(
+        enabled=True,
+        rows=[_category_row(c, used) for c in store_categories(db, sid)],
+    )
+
+
+@router.post(
+    "/categories/custom", response_model=PLCategoryResponse, status_code=201,
+)
+def create_custom_category_route(
+    body: PLCategoryCreateRequest = Body(...),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PLCategoryResponse:
+    """Add a category. As many as the store likes (owner,
+    2026-11-27); a name the store already uses is a 422."""
+    from api.Modules.Monthly.Services.custom_categories import (
+        CategoryError, create_category,
+    )
+    require_permission(claims, "monthly", "update")
+    sid = resolve_store_scope(claims)
+    _custom_on(db, sid)
+    try:
+        row = create_category(db, sid, body.name, body.section)
+    except CategoryError as exc:
+        raise HTTPException(status_code=422, detail={"field": "name", "message": str(exc)})
+    _audit_category(db, claims, "monthly_category_create", row, f"section={row.section}")
+    db.commit()
+    return _category_answer(db, sid, row)
+
+
+@router.put("/categories/custom/{cat_id}", response_model=PLCategoryResponse)
+def rename_custom_category_route(
+    cat_id: int = Path(..., ge=1),
+    body: PLCategoryRenameRequest = Body(...),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PLCategoryResponse:
+    """Rename a category. The rows on it stay on it: the id is what
+    they point at."""
+    from api.Modules.Monthly.Services.custom_categories import (
+        CategoryError, rename_category,
+    )
+    require_permission(claims, "monthly", "update")
+    sid = resolve_store_scope(claims)
+    _custom_on(db, sid)
+    row = _category_or_404(db, sid, cat_id)
+    before = str(row.name)
+    try:
+        rename_category(db, row, body.name)
+    except CategoryError as exc:
+        raise HTTPException(status_code=422, detail={"field": "name", "message": str(exc)})
+    _audit_category(db, claims, "monthly_category_rename", row, f"from={before}"[:500])
+    db.commit()
+    return _category_answer(db, sid, row)
+
+
+@router.post("/categories/custom/{cat_id}/archive", response_model=PLCategoryResponse)
+def archive_custom_category_route(
+    cat_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PLCategoryResponse:
+    """Take a category off the picker. The rows already on it keep
+    counting on it; Restore puts it back."""
+    from api.Core.Clock import utc_now
+    require_permission(claims, "monthly", "update")
+    sid = resolve_store_scope(claims)
+    _custom_on(db, sid)
+    row = _category_or_404(db, sid, cat_id)
+    if row.archived_at is None:
+        row.archived_at = utc_now()
+        _audit_category(db, claims, "monthly_category_archive", row, "archived")
+        db.commit()
+    return _category_answer(db, sid, row)
+
+
+@router.post("/categories/custom/{cat_id}/restore", response_model=PLCategoryResponse)
+def restore_custom_category_route(
+    cat_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    claims: dict[str, Any] = Depends(get_principal),
+) -> PLCategoryResponse:
+    """Put an archived category back on the picker (422 if an active
+    one has taken its name since)."""
+    from api.Modules.Monthly.Services.custom_categories import _taken
+    require_permission(claims, "monthly", "update")
+    sid = resolve_store_scope(claims)
+    _custom_on(db, sid)
+    row = _category_or_404(db, sid, cat_id)
+    if row.archived_at is not None:
+        if _taken(db, sid, str(row.name), but=int(row.id)):
+            raise HTTPException(status_code=422, detail={
+                "field": "name",
+                "message": "The store already has a category with that name.",
+            })
+        row.archived_at = None
+        _audit_category(db, claims, "monthly_category_restore", row, "restored")
+        db.commit()
+    return _category_answer(db, sid, row)
 
 
 @router.get(
@@ -128,7 +317,7 @@ def monthly_route(
     from api.Modules.Monthly.Services.ledger import pl_transactions_enabled
     return MonthlyResponse(
         report=_to_row(summary),
-        labels=resolved_line_labels(db, store_id),
+        labels=_month_labels(db, store_id),
         transactions_enabled=pl_transactions_enabled(db, store_id),
     )
 
@@ -197,7 +386,8 @@ def monthly_transactions_route(
     return PLTransactionsResponse(
         rows=[
             PLTransactionRow.model_validate({
-                **asdict(r), "amount": round(r.amount, 2), "bucket": r.bucket,
+                **{k: v for k, v in asdict(r).items() if k != "section"},
+                "amount": round(r.amount, 2), "bucket": r.bucket,
             })
             for r in page["rows"]
         ],
@@ -347,7 +537,7 @@ def update_monthly_route(
         )
     return MonthlyResponse(
         report=_to_row(summary),
-        labels=resolved_line_labels(db, sid),
+        labels=_month_labels(db, sid),
     )
 
 

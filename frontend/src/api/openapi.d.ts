@@ -4171,6 +4171,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/monthly/categories/custom": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Custom Categories Route
+         * @description The store's own P&L categories, archived ones included.
+         */
+        get: operations["custom_categories_route_monthly_categories_custom_get"];
+        put?: never;
+        /**
+         * Create Custom Category Route
+         * @description Add a category. As many as the store likes (owner,
+         *     2026-11-27); a name the store already uses is a 422.
+         */
+        post: operations["create_custom_category_route_monthly_categories_custom_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monthly/categories/custom/{cat_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Rename Custom Category Route
+         * @description Rename a category. The rows on it stay on it: the id is what
+         *     they point at.
+         */
+        put: operations["rename_custom_category_route_monthly_categories_custom__cat_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monthly/categories/custom/{cat_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive Custom Category Route
+         * @description Take a category off the picker. The rows already on it keep
+         *     counting on it; Restore puts it back.
+         */
+        post: operations["archive_custom_category_route_monthly_categories_custom__cat_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monthly/categories/custom/{cat_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Custom Category Route
+         * @description Put an archived category back on the picker (422 if an active
+         *     one has taken its name since).
+         */
+        post: operations["restore_custom_category_route_monthly_categories_custom__cat_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/monthly/labels": {
         parameters: {
             query?: never;
@@ -13659,6 +13747,23 @@ export interface components {
             year: number;
         };
         /**
+         * MonthlyCustomLine
+         * @description A store's own P&L category with a figure this month (Monthly
+         *     INVARIANTS "Store categories"), counted in its half of the P&L.
+         */
+        MonthlyCustomLine: {
+            /** Amount */
+            amount: number;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Section */
+            section: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
          * MonthlyLabelsResponse
          * @description Every renameable P&L line, in the order the form shows
          *     them.
@@ -13807,6 +13912,11 @@ export interface components {
              * @default 0
              */
             credit_card_fees: number;
+            /**
+             * Custom Lines
+             * @default []
+             */
+            custom_lines: components["schemas"]["MonthlyCustomLine"][];
             /**
              * Daily Fed
              * @default []
@@ -15229,6 +15339,54 @@ export interface components {
             locked: number;
             /** Maybe In Daily Book */
             maybe_in_daily_book: number;
+        };
+        /** PLCategoryCreateRequest */
+        PLCategoryCreateRequest: {
+            /** Name */
+            name: string;
+            /**
+             * Section
+             * @enum {string}
+             */
+            section: "income" | "expense";
+        };
+        /**
+         * PLCategoryListResponse
+         * @description `enabled` false (no `pl_transactions`): the store has no
+         *     categories of its own and `rows` is empty.
+         */
+        PLCategoryListResponse: {
+            /** Enabled */
+            enabled: boolean;
+            /** Rows */
+            rows: components["schemas"]["PLCategoryRow"][];
+        };
+        /** PLCategoryRenameRequest */
+        PLCategoryRenameRequest: {
+            /** Name */
+            name: string;
+        };
+        /** PLCategoryResponse */
+        PLCategoryResponse: {
+            category: components["schemas"]["PLCategoryRow"];
+        };
+        /** PLCategoryRow */
+        PLCategoryRow: {
+            /** Archived */
+            archived: boolean;
+            /** Id */
+            id: number;
+            /** In Use */
+            in_use: number;
+            /** Name */
+            name: string;
+            /**
+             * Section
+             * @enum {string}
+             */
+            section: "income" | "expense";
+            /** Slug */
+            slug: string;
         };
         /** PLTransactionCounts */
         PLTransactionCounts: {
@@ -28659,6 +28817,185 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MaintenanceState"];
+                };
+            };
+        };
+    };
+    custom_categories_route_monthly_categories_custom_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PLCategoryListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_custom_category_route_monthly_categories_custom_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PLCategoryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PLCategoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_custom_category_route_monthly_categories_custom__cat_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                cat_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PLCategoryRenameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PLCategoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_custom_category_route_monthly_categories_custom__cat_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                cat_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PLCategoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_custom_category_route_monthly_categories_custom__cat_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                cat_id: number;
+            };
+            cookie?: {
+                db_access_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PLCategoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

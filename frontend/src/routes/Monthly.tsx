@@ -4,7 +4,8 @@ import { useSearchParams } from "react-router-dom";
 import {
   MONTHLY_LINES, MONTHLY_SECTION_LABELS, MONTHLY_SOURCE_LABELS,
   monthlyLineName, monthlyLineSource,
-  useLoggedMonths, useMonthly, type MonthlyLine, type MonthlyRow,
+  useLoggedMonths, useMonthly, type MonthlyCustomLine, type MonthlyLine,
+  type MonthlyRow,
 } from "../api/monthly";
 import { Delta } from "../components/Delta";
 import { PLTransactions } from "../components/PLTransactions";
@@ -310,12 +311,14 @@ function ReportContent({
         <Section title={t(MONTHLY_SECTION_LABELS.Income)}>
           <Statement
             r={r} labels={labels} lines={INCOME_LINES} lineHref={lineHref}
+            custom={(r.custom_lines ?? []).filter((c) => c.section === "income")}
             total={r.total_income} totalLabel="pl.totalIncome"
           />
         </Section>
         <Section title={t(MONTHLY_SECTION_LABELS.Expenses)}>
           <Statement
             r={r} labels={labels} lines={EXPENSE_LINES} lineHref={lineHref}
+            custom={(r.custom_lines ?? []).filter((c) => c.section === "expense")}
             total={r.total_expenses} totalLabel="pl.totalExpenses"
           />
         </Section>
@@ -337,11 +340,14 @@ function ReportContent({
  *  $0 are left out (a line that does not apply disappears rather
  *  than show $0); a footnote says how many. */
 function Statement({
-  r, labels, lines, total, totalLabel, lineHref,
+  r, labels, lines, custom = [], total, totalLabel, lineHref,
 }: {
   r: MonthlyRow;
   labels: Record<string, string>;
   lines: MonthlyLine[];
+  /** The store's own categories with a figure in this half
+   *  (`pl_transactions`), fed from the bank. */
+  custom?: MonthlyCustomLine[];
   total: number;
   totalLabel: MessageKey;
   lineHref?: (key: string) => string;
@@ -351,7 +357,7 @@ function Statement({
   const hidden = lines.length - shown.length;
   return (
     <Card>
-      {shown.length === 0 ? (
+      {shown.length === 0 && custom.length === 0 ? (
         <Empty>{t("pl.nothingThisMonth")}</Empty>
       ) : (
         <Table>
@@ -397,6 +403,30 @@ function Statement({
                 </tr>
               );
             })}
+            {custom.map((c) => (
+              <tr key={c.slug}>
+                <td style={tdStyle}>
+                  <span className={styles.lineName}>
+                    {lineHref ? (
+                      <AppLink
+                        to={lineHref(c.slug)}
+                        title={t("plTx.openLine", { line: c.name })}
+                      >
+                        {c.name}
+                      </AppLink>
+                    ) : c.name}
+                  </span>
+                </td>
+                <td style={tdStyle}>
+                  <Pill tone={SOURCE_TONES.bank}>
+                    {t(MONTHLY_SOURCE_LABELS.bank)}
+                  </Pill>
+                </td>
+                <td style={tdStyleRight} className={styles.amount}>
+                  {fmtMoney2(c.amount)}
+                </td>
+              </tr>
+            ))}
           </tbody>
           <tfoot>
             <tr>

@@ -9,6 +9,7 @@ import { en } from "../i18n/en";
 import type { components } from "./openapi";
 
 export type MonthlyRow = components["schemas"]["MonthlyRow"];
+export type MonthlyCustomLine = components["schemas"]["MonthlyCustomLine"];
 
 // ── The P&L's lines, in order ───────────────────────────────
 //
@@ -311,5 +312,45 @@ export function acceptPLSuggestions(
   return api<PLAcceptResponse>(
     `/api/v2/monthly/${year}/${month}/transactions/accept`,
     { method: "POST", json: { txn_ids: txnIds } },
+  );
+}
+
+// ── The store's own P&L categories ─────────────────────────
+//
+// Unlimited, per store, `pl_transactions` only (Monthly INVARIANTS
+// "Store categories"). Each is a bank category (`plc_<id>`) counted
+// in its half of the P&L. Archived ones leave the picker; their rows
+// keep counting.
+
+export type PLCategoryRow = components["schemas"]["PLCategoryRow"];
+export type PLCategoryList = components["schemas"]["PLCategoryListResponse"];
+type PLCategoryResponse = components["schemas"]["PLCategoryResponse"];
+
+const CATS_URL = "/api/v2/monthly/categories/custom";
+
+export function usePLCategories() {
+  const identity = getCurrentIdentity();
+  return useQuery<PLCategoryList>({
+    enabled: identity?.store_id != null,
+    queryKey: ["monthly", "categories", identity?.store_id],
+    queryFn: () => api<PLCategoryList>(CATS_URL),
+  });
+}
+
+export function createPLCategory(
+  name: string, section: PLCategoryRow["section"],
+): Promise<PLCategoryResponse> {
+  return api<PLCategoryResponse>(CATS_URL, { method: "POST", json: { name, section } });
+}
+
+export function renamePLCategory(id: number, name: string): Promise<PLCategoryResponse> {
+  return api<PLCategoryResponse>(`${CATS_URL}/${id}`, { method: "PUT", json: { name } });
+}
+
+export function setPLCategoryArchived(
+  id: number, archived: boolean,
+): Promise<PLCategoryResponse> {
+  return api<PLCategoryResponse>(
+    `${CATS_URL}/${id}/${archived ? "archive" : "restore"}`, { method: "POST" },
   );
 }

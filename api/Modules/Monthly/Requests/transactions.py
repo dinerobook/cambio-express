@@ -103,3 +103,47 @@ class PLTransactionsResponse(BaseModel):
     # Rows to review this month with a suggestion (the "Accept all"
     # button's count).
     suggested: int
+
+
+# ── A store's own P&L categories ────────────────────────────
+
+
+class PLCategoryRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    slug: str
+    name: str
+    section: Literal["income", "expense"]
+    archived: bool
+    # Bank rows on it, every month.
+    in_use: int
+
+
+class PLCategoryListResponse(BaseModel):
+    """`enabled` false (no `pl_transactions`): the store has no
+    categories of its own and `rows` is empty."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+    rows: list[PLCategoryRow]
+
+
+class PLCategoryCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., max_length=200)
+    section: Literal["income", "expense"]
+
+
+class PLCategoryRenameRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., max_length=200)
+
+
+class PLCategoryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: PLCategoryRow

@@ -2,6 +2,19 @@
 from pydantic import BaseModel, ConfigDict
 
 
+class MonthlyCustomLine(BaseModel):
+    """A store's own P&L category with a figure this month (Monthly
+    INVARIANTS "Store categories"), counted in its half of the P&L."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    slug: str
+    name: str
+    section: str
+    amount: float
+
+
 class MonthlyRow(BaseModel):
     """One MonthlyFinancial row — the per-store, per-month P&L
     breakdown. Keep field names matching the model + legacy
@@ -81,6 +94,9 @@ class MonthlyRow(BaseModel):
     # False until someone saves the month: nothing is stored yet,
     # every figure above is live.
     saved:                  bool = True
+    # The store's own categories with a figure this month, already
+    # inside the totals (`pl_transactions` only).
+    custom_lines:           list[MonthlyCustomLine] = []
 
 
 class MonthlyResponse(BaseModel):

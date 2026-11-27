@@ -16,6 +16,7 @@ import {
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import styles from "./MonthlyCategories.module.css";
 import { PageCrumbs } from "../components/PageCrumbs";
+import { StoreCategories } from "../components/StoreCategories";
 import { t, tNodes, useT } from "../i18n";
 import { navWord } from "../i18n/navWords";
 
@@ -186,6 +187,8 @@ export default function MonthlyCategories() {
           </FormActions>
         </form>
       )}
+
+      <StoreCategories />
     </PageShell>
   );
 }

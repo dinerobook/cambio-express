@@ -13981,6 +13981,41 @@
         "title": "MonthLogged",
         "type": "object"
       },
+      "MonthlyCustomLine": {
+        "additionalProperties": false,
+        "description": "A store's own P&L category with a figure this month (Monthly\nINVARIANTS \"Store categories\"), counted in its half of the P&L.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "section",
+          "amount"
+        ],
+        "title": "MonthlyCustomLine",
+        "type": "object"
+      },
       "MonthlyLabelsResponse": {
         "additionalProperties": false,
         "description": "Every renameable P&L line, in the order the form shows\nthem.",
@@ -14170,6 +14205,14 @@
             "default": 0.0,
             "title": "Credit Card Fees",
             "type": "number"
+          },
+          "custom_lines": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MonthlyCustomLine"
+            },
+            "title": "Custom Lines",
+            "type": "array"
           },
           "daily_fed": {
             "default": [],
@@ -17639,6 +17682,124 @@
           "maybe_in_daily_book"
         ],
         "title": "PLAcceptResponse",
+        "type": "object"
+      },
+      "PLCategoryCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          },
+          "section": {
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "title": "Section",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "section"
+        ],
+        "title": "PLCategoryCreateRequest",
+        "type": "object"
+      },
+      "PLCategoryListResponse": {
+        "additionalProperties": false,
+        "description": "`enabled` false (no `pl_transactions`): the store has no\ncategories of its own and `rows` is empty.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PLCategoryRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "rows"
+        ],
+        "title": "PLCategoryListResponse",
+        "type": "object"
+      },
+      "PLCategoryRenameRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PLCategoryRenameRequest",
+        "type": "object"
+      },
+      "PLCategoryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/PLCategoryRow"
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "title": "PLCategoryResponse",
+        "type": "object"
+      },
+      "PLCategoryRow": {
+        "additionalProperties": false,
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "in_use": {
+            "title": "In Use",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "section": {
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "title": "Section",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "section",
+          "archived",
+          "in_use"
+        ],
+        "title": "PLCategoryRow",
         "type": "object"
       },
       "PLTransactionCounts": {
@@ -47360,6 +47521,384 @@
         "summary": "Maintenance Status",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/monthly/categories/custom": {
+      "get": {
+        "description": "The store's own P&L categories, archived ones included.",
+        "operationId": "custom_categories_route_monthly_categories_custom_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLCategoryListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Custom Categories Route",
+        "tags": [
+          "monthly"
+        ]
+      },
+      "post": {
+        "description": "Add a category. As many as the store likes (owner,\n2026-11-27); a name the store already uses is a 422.",
+        "operationId": "create_custom_category_route_monthly_categories_custom_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PLCategoryCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLCategoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Custom Category Route",
+        "tags": [
+          "monthly"
+        ]
+      }
+    },
+    "/monthly/categories/custom/{cat_id}": {
+      "put": {
+        "description": "Rename a category. The rows on it stay on it: the id is what\nthey point at.",
+        "operationId": "rename_custom_category_route_monthly_categories_custom__cat_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cat_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Cat Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PLCategoryRenameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLCategoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Custom Category Route",
+        "tags": [
+          "monthly"
+        ]
+      }
+    },
+    "/monthly/categories/custom/{cat_id}/archive": {
+      "post": {
+        "description": "Take a category off the picker. The rows already on it keep\ncounting on it; Restore puts it back.",
+        "operationId": "archive_custom_category_route_monthly_categories_custom__cat_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cat_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Cat Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLCategoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Custom Category Route",
+        "tags": [
+          "monthly"
+        ]
+      }
+    },
+    "/monthly/categories/custom/{cat_id}/restore": {
+      "post": {
+        "description": "Put an archived category back on the picker (422 if an active\none has taken its name since).",
+        "operationId": "restore_custom_category_route_monthly_categories_custom__cat_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cat_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Cat Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "db_access_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Db Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PLCategoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Custom Category Route",
+        "tags": [
+          "monthly"
         ]
       }
     },

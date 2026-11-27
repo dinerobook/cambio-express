@@ -1,5 +1,6 @@
 """Monthly — Pydantic schemas."""
 from api.Modules.Monthly.Requests.monthly import (
+    MonthlyCustomLine,
     MonthLogged,
     MonthlyLabelsResponse,
     MonthlyLabelsUpdateRequest,
@@ -10,6 +11,11 @@ from api.Modules.Monthly.Requests.monthly import (
     MonthsLoggedResponse,
 )
 from api.Modules.Monthly.Requests.transactions import (
+    PLCategoryCreateRequest,
+    PLCategoryListResponse,
+    PLCategoryRenameRequest,
+    PLCategoryResponse,
+    PLCategoryRow,
     PLAcceptRequest,
     PLAcceptResponse,
     PLTransactionCounts,
@@ -18,6 +24,12 @@ from api.Modules.Monthly.Requests.transactions import (
 )
 
 __all__ = [
+    "PLCategoryCreateRequest",
+    "PLCategoryListResponse",
+    "PLCategoryRenameRequest",
+    "PLCategoryResponse",
+    "PLCategoryRow",
+    "MonthlyCustomLine",
     "PLAcceptRequest",
     "PLAcceptResponse",
     "PLTransactionCounts",

@@ -96,9 +96,12 @@ class LedgerRow:
     booked_on: date | None = None   # the day the bank feed booked it
     suggested_slug: str = ""        # Services/suggestions.py, rows to review
     suggested_source: str = ""      # history | template | ""
+    section: str = ""               # a store category's half: income | expense
 
     @property
     def bucket(self) -> str | None:
+        if self.section:
+            return self.section
         if self.line in INCOME_FIELDS:
             return "income"
         if self.line in EXPENSE_FIELDS:
@@ -189,6 +192,7 @@ def _bank_rows(
     )
     from api.Modules.BankSync.Services.charges import booking_day_expr
     from api.Modules.DailyBook.Models import DailyLineItem
+    from api.Modules.Monthly.Services import custom_categories
 
     month_items = {
         int(i.id): i for i in db.query(DailyLineItem).filter(
@@ -237,6 +241,8 @@ def _bank_rows(
     } if elsewhere else set()
     review_slugs = set(reconcile._review_slugs())
     kind_lines = _kind_lines()
+    custom = {c.slug: str(c.section) for c in custom_categories.store_categories(db, store_id)} \
+        if custom_categories.enabled(db, store_id) else {}
     consumed: set[int] = set()
     for t in txns:
         slug = t.category_slug or ""
@@ -287,6 +293,9 @@ def _bank_rows(
         elif is_bank_charge_family(slug):
             row.line, row.status, row.counted = BANK_CHARGES_PL_FIELD, source, True
             row.amount = -cents / 100.0
+        elif slug in custom:
+            row.line, row.status, row.counted = slug, source, True
+            row.section = custom[slug]
         elif not slug or slug in review_slugs:
             row.status = "to_review"
             review.append(t)
@@ -467,7 +476,12 @@ def daily_twins(db: Session, txn: Any, slug: str) -> list[Any]:
     from api.Modules.BankSync.Services.categorize import bank_date_for
     from api.Modules.DailyBook.Models import DailyLineItem
 
-    if not (slug in BANK_PL_CATEGORIES or is_bank_charge_family(slug)):
+    from api.Modules.Monthly.Services.custom_categories import category_id
+
+    if not (
+        slug in BANK_PL_CATEGORIES or is_bank_charge_family(slug)
+        or category_id(slug) is not None
+    ):
         return []
     store_id = int(txn.store_id)
     if not pl_transactions_enabled(db, store_id):
